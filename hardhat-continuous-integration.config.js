@@ -1,6 +1,8 @@
 require("dotenv").config()
 
 require("hardhat-deploy")
+require("solidity-coverage")
+require("hardhat-contract-sizer")
 require("@nomicfoundation/hardhat-ethers")
 require("hardhat-deploy-ethers")
 require("@nomicfoundation/hardhat-chai-matchers")
@@ -32,13 +34,20 @@ module.exports = {
     defaultNetwork: "hardhat",
     networks: {
         hardhat: {
+            chainId: 31337,
+            blockConfirmations: 1,
+            initialBaseFeePerGas: 0,
             forking: {
                 //chainId: 42161,
                 accounts: [TESTNET_DEPLOYER_PK],
                 url: ARBITRUM_MAINNET_RPC_URL,
-                blockNumber: 175144195,
+                blockNumber: 157570648,
                 enabled: true,
             },
+        },
+        localhost: {
+            chainId: 31337,
+            timeout: 60000,
         },
     },
     namedAccounts: {
@@ -49,7 +58,5 @@ module.exports = {
     },
     mocha: {
         timeout: 300000,
-        grep: "@skip-on-ci", // Find everything with this tag
-        invert: true, // Run the grep's inverse set.
     },
 }
