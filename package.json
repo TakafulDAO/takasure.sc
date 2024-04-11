@@ -1,0 +1,41 @@
+{
+  "name": "takasure",
+  "version": "1.0.0",
+  "description": "Blockchain insurance",
+  "author": "Takadao",
+  "license": "GNU",
+  "engines": {
+    "node": ">=17",
+    "npm": "please-use-yarn",
+    "yarn": ">=1.22"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.6",
+    "@nomicfoundation/hardhat-ethers": "^3.0.5",
+    "@nomicfoundation/hardhat-foundry": "^1.1.1",
+    "@nomicfoundation/hardhat-verify": "^2.0.5",
+    "@openzeppelin/contracts": "^5.0.2",
+    "@openzeppelin/contracts-upgradeable": "^5.0.2",
+    "chai": "^4.4.1",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.11.1",
+    "hardhat": "^2.22.2",
+    "hardhat-contract-sizer": "^2.10.0",
+    "hardhat-deploy": "^0.12.2",
+    "hardhat-deploy-ethers": "^0.4.1",
+    "hardhat-gas-reporter": "^2.1.1",
+    "prettier": "^3.2.5",
+    "prettier-plugin-solidity": "^1.3.1",
+    "solidity-coverage": "^0.8.12"
+  },
+  "scripts": {
+    "compile": "yarn hardhat compile",
+    "test": "yarn hardhat test",
+    "coverage": "yarn hardhat coverage",
+    "deploy": "yarn hardhat deploy",
+    "local": "yarn hardhat --network localhost",
+    "n": "yarn hardhat node",
+    "slither": "slither . --solc-remaps '@openzeppelin=node_modules/@openzeppelin' --exclude naming-convention,low-level-calls --builder-ignore-compile",
+    "format": "yarn prettier --write ."
+  }
+}
