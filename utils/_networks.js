@@ -18,9 +18,6 @@ const networkConfig = {
     42161: {
         name: "mainnet_arbitrum",
     },
-    421613: {
-        name: "testnet_arbitrum_goerli",
-    },
     421614: {
         name: "testnet_arbitrum_sepolia",
     },
