@@ -28,7 +28,7 @@ contract HelperConfig is Script {
         sepoliaNetworkConfig = NetworkConfig({deployerKey: vm.envUint("PRIVATE_KEY")});
     }
 
-    function getOrCreateAnvilConfig() public returns (NetworkConfig memory) {
+    function getOrCreateAnvilConfig() public view returns (NetworkConfig memory) {
         // Write here a condition to check if the network config is already set
         // if (condition {
         //     return activeNetworkConfig;
