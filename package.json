@@ -35,7 +35,7 @@
     "deploy": "yarn hardhat deploy",
     "local": "yarn hardhat --network localhost",
     "n": "yarn hardhat node",
-    "slither": "slither . --solc-remaps '@openzeppelin=node_modules/@openzeppelin' --exclude naming-convention,low-level-calls --builder-ignore-compile",
+    "slither": "slither . --solc-remaps '@openzeppelin=node_modules/@openzeppelin' --exclude naming-convention,low-level-calls --buidler-ignore-compile",
     "format": "yarn prettier --write ."
   }
 }
