@@ -22,11 +22,9 @@ contract TakaToken is ERC20Burnable, AccessControl {
     error TakaToken__BurnAmountExceedsBalance();
     error TakaToken__NotZeroAddress();
 
-    constructor(address defaultAdmin, address minter, address burner) ERC20("TAKA", "TKS") {
-        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin); // TODO: Discuss. Who? The Dao?
-        // Todo: Discuss. Someone else beside the contract that allow to join the fund?
-        _grantRole(MINTER_ROLE, minter);
-        _grantRole(BURNER_ROLE, burner);
+    constructor() ERC20("TAKA", "TKS") {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // TODO: Discuss. Who? The Dao?
+        // Todo: Discuss. Allow someone here as Minter and Burner?
     }
 
     /// @dev Burn tokens from the owner's balance
