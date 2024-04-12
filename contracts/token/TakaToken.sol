@@ -14,12 +14,12 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  */
 contract TakaToken is ERC20Burnable, AccessControl {
     // TODO: Name? Symbol? Decimals? Total supply?
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+
     error TakaToken__MustBeMoreThanZero();
     error TakaToken__BurnAmountExceedsBalance();
     error TakaToken__NotZeroAddress();
-
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
     constructor(address defaultAdmin, address minter, address burner) ERC20("TAKA", "TKS") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin); // TODO: Discuss. Who? The Dao?
