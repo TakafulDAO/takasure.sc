@@ -11,7 +11,7 @@ pragma solidity 0.8.24;
 import {TakaToken} from "./TakaToken.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract TakaSurePool is ReentrancyGuard {
+contract TakasurePool is ReentrancyGuard {
     error TakaSurePool__NotZeroAddress();
     error TakaSurePool__MintFailed();
     error TakaSurePool__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
@@ -24,8 +24,8 @@ contract TakaSurePool is ReentrancyGuard {
     event TakaTokenMinted(address indexed to, uint256 indexed amount);
     event TakaTokenBurned(address indexed from, uint256 indexed amount);
 
-    constructor(address takaTokenAddress) {
-        takaToken = TakaToken(takaTokenAddress);
+    constructor(address _takaToken) {
+        takaToken = TakaToken(_takaToken);
     }
 
     /// @notice Mint Taka tokens
