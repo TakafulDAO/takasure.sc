@@ -4,7 +4,7 @@
  * @title TakaToken
  * @author Maikel Ordaz
  * @notice Minting: Algorithmic
- * @dev minting and burning of the TAKA token based on new members' admission into the pool, and members
+ * @dev Minting and burning of the TAKA token based on new members' admission into the pool, and members
  *      leaving due to inactivity or claims.
  */
 
