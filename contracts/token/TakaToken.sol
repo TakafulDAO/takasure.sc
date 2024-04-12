@@ -31,10 +31,11 @@ contract TakaToken is ERC20Burnable, AccessControl {
     /// @dev Burn tokens from the owner's balance
     /// @param amount The amount of tokens to burn
     function burn(uint256 amount) public override onlyRole(MINTER_ROLE) {
-        uint256 balance = balanceOf(msg.sender);
         if (amount <= 0) {
             revert TakaToken__MustBeMoreThanZero();
         }
+
+        uint256 balance = balanceOf(msg.sender);
         if (balance < amount) {
             revert TakaToken__BurnAmountExceedsBalance();
         }
