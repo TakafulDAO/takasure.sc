@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.24;
-
-import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-
 /**
  * @title TakaToken
  * @author Maikel Ordaz
@@ -12,6 +7,12 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  * @dev minting and burning of the TAKA token based on new members' admission into the pool, and members
  *      leaving due to inactivity or claims.
  */
+
+pragma solidity 0.8.24;
+
+import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+
 contract TakaToken is ERC20Burnable, AccessControl {
     // TODO: Name? Symbol? Decimals? Total supply?
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
