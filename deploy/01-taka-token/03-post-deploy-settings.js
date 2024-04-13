@@ -1,9 +1,3 @@
-const { network } = require("hardhat")
-const { developmentChains } = require("../../utils/_networks")
-const { verify } = require("../../scripts/verify")
-const { deploySimpleContract } = require("../../utils/deployHelpers")
-const { keccak256 } = require("ethers")
-
 module.exports = async ({ deployments }) => {
     const { log } = deployments
 
