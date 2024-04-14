@@ -5,7 +5,7 @@ module.exports = async ({ deployments }) => {
     const { log } = deployments
     if (isDevnet && !isFork) {
         log("00.01.01. Deploying USDC mock...")
-        const contractName = "FiatTokenV2_1"
+        const contractName = "USDC"
         const args = []
 
         const usdc = await deploySimpleContract(contractName)
