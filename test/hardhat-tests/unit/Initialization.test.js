@@ -1,10 +1,12 @@
 const { assert } = require("chai")
 const { network, deployments, ethers } = require("hardhat")
-const { developmentChains } = require("../../../utils/_networks")
+const { developmentChains, networkConfig } = require("../../../utils/_networks")
 
 !developmentChains.includes(network.name)
     ? describe.skip
     : describe("Initialization unit tests", function () {
+          const chainId = network.config.chainId
+
           let takaToken
 
           beforeEach(async () => {
@@ -22,8 +24,8 @@ const { developmentChains } = require("../../../utils/_networks")
               const currentName = await takaToken.name()
               const currentSymbol = await takaToken.symbol()
 
-              const expectedName = "TAKA"
-              const expectedSymbol = "TKS"
+              const expectedName = "TAKASURE"
+              const expectedSymbol = "TAKA"
 
               assert.equal(currentName, expectedName)
               assert.equal(currentSymbol, expectedSymbol)
@@ -55,5 +57,55 @@ const { developmentChains } = require("../../../utils/_networks")
               const expectedOwner = deployer.address
 
               assert.equal(currentOwner, expectedOwner)
+          })
+
+          it("the tokens should be setted correctly", async () => {
+              const tokens = await membersModule.getTokensAddresses()
+              const contributionToken = tokens[0]
+              const takaTokenAddress = tokens[1]
+
+              const expectedContributionToken = networkConfig[chainId]["usdc"]
+              const expectedTakaToken = takaToken.target
+
+              assert.equal(contributionToken, expectedContributionToken)
+              assert.equal(takaTokenAddress, expectedTakaToken)
+          })
+
+          it("The counters initialized correctly", async () => {
+              const fundIdCounter = await membersModule.fundIdCounter()
+              const memberIdCounter = await membersModule.memberIdCounter()
+
+              const expectedFundIdCounter = 0
+              const expectedMemberIdCounter = 0
+
+              assert.equal(fundIdCounter, expectedFundIdCounter)
+              assert.equal(memberIdCounter, expectedMemberIdCounter)
+          })
+
+          it("The counters initialized correctly", async () => {
+              const fundIdCounter = await membersModule.fundIdCounter()
+              const memberIdCounter = await membersModule.memberIdCounter()
+
+              const expectedFundIdCounter = 0
+              const expectedMemberIdCounter = 0
+
+              assert.equal(fundIdCounter, expectedFundIdCounter)
+              assert.equal(memberIdCounter, expectedMemberIdCounter)
+          })
+
+          it("The minimum threshold initialized correctly", async () => {
+              const minimumThreshold = await membersModule.getMinimumThreshold()
+
+              const expectedThreshold = 25e6
+
+              assert.equal(minimumThreshold, expectedThreshold)
+          })
+
+          it("The wakala fee initialized correctly", async () => {
+              const wakalaFee = await membersModule.getWakalaFee()
+
+              const expectedWakalaFee = 20
+
+              assert.equal(wakalaFee, expectedWakalaFee)
           })
       })
