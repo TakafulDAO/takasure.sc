@@ -1,15 +1,29 @@
 const { network } = require("hardhat")
-const { developmentChains } = require("../../utils/_networks")
+const { developmentChains, isDevnet, isFork, networkConfig } = require("../../utils/_networks")
 const { verify } = require("../../scripts/verify")
 const { deployUpgradeProxy } = require("../../utils/deployHelpers")
 
 module.exports = async ({ deployments }) => {
     const { log } = deployments
+    const chainId = network.config.chainId
+
+    let usdc, usdcAddress
+    let takaToken, takaTokenAddress
 
     log("02.01. Deploying MembersModule Contract...")
 
+    if (isDevnet && !isFork) {
+        usdc = await deployments.get("FiatTokenV2_1")
+        usdcAddress = usdc.address
+    } else {
+        usdcAddress = networkConfig[chainId]["usdc"]
+    }
+
+    takaToken = await deployments.get("TakaToken")
+    takaTokenAddress = takaToken.address
+
     const contractName = "MembersModule"
-    const initArgs = []
+    const initArgs = [usdcAddress, takaTokenAddress]
     const proxyPattern = "UUPS"
     const deterministicDeployment = false
     const contract = "MembersModule"
