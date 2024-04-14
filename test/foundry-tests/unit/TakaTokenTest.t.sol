@@ -23,28 +23,42 @@ contract TakaTokenTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
+    function testTakaToken_takasurePoolIsMinterAndBurner() public view {
+        bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
+        bytes32 BURNER_ROLE = keccak256("BURNER_ROLE");
+
+        bool isMinter = takaToken.hasRole(MINTER_ROLE, address(takasurePool));
+        bool isBurner = takaToken.hasRole(BURNER_ROLE, address(takasurePool));
+
+        assert(isMinter);
+        assert(isBurner);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_mustRevertIfTryToMintToAddressZero() public {
+    function testTakaToken_mustRevertIfTryToMintToAddressZero() public {
         vm.prank(address(takasurePool));
         vm.expectRevert(TakaToken.TakaToken__NotZeroAddress.selector);
         takaToken.mint(address(0), MINT_AMOUNT);
     }
 
-    function test_mustRevertIfTryToMintZero() public {
+    function testTakaToken_mustRevertIfTryToMintZero() public {
         vm.prank(address(takasurePool));
         vm.expectRevert(TakaToken.TakaToken__MustBeMoreThanZero.selector);
         takaToken.mint(user, 0);
     }
 
-    function test_mustRevertIfTryToBurnZero() public {
+    function testTakaToken_mustRevertIfTryToBurnZero() public {
         vm.prank(address(takasurePool));
         vm.expectRevert(TakaToken.TakaToken__MustBeMoreThanZero.selector);
         takaToken.burn(0);
     }
 
-    function test_mustRevertIfTtryToBurnMoreThanBalance() public {
+    function testTakaToken_mustRevertIfTtryToBurnMoreThanBalance() public {
         vm.prank(address(takasurePool));
         vm.expectRevert(TakaToken.TakaToken__BurnAmountExceedsBalance.selector);
         takaToken.burn(MINT_AMOUNT);
@@ -54,7 +68,7 @@ contract TakaTokenTest is Test {
                              MINT FUNCTION
     //////////////////////////////////////////////////////////////*/
 
-    function test_mint() public {
+    function testTakaToken_mint() public {
         vm.prank(address(takasurePool));
         takaToken.mint(user, MINT_AMOUNT);
         assertEq(takaToken.balanceOf(user), MINT_AMOUNT);
@@ -64,7 +78,7 @@ contract TakaTokenTest is Test {
                              BURN FUNCTION
     //////////////////////////////////////////////////////////////*/
 
-    function test_burn() public {
+    function testTakaToken_burn() public {
         uint256 amountToBurn = MINT_AMOUNT / 2;
 
         vm.startPrank(address(takasurePool));
