@@ -90,11 +90,6 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         uint256 wakalaAmount = (contributionAmount * wakalaFee) / 100;
 
-        bool successfullMint = takaToken.mint(msg.sender, contributionAmount); // ? or contributionAmount?
-        if (!successfullMint) {
-            revert MembersModule__MintFailed();
-        }
-
         // Todo: re-calculate the Dynamic Reserve Ratio, BMA, and DAO Surplus
 
         memberIdCounter++;
@@ -120,6 +115,11 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             contributionAmount,
             idToMember[memberIdCounter].memberState
         );
+
+        bool successfullMint = takaToken.mint(msg.sender, contributionAmount); // ? or contributionAmount?
+        if (!successfullMint) {
+            revert MembersModule__MintFailed();
+        }
     }
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
