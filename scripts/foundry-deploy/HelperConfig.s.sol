@@ -3,9 +3,13 @@
 pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
+import {TakaToken} from "../../contracts/token/TakaToken.sol";
+import {USDC} from "../../contracts/mocks/USDCmock.sol";
 
 contract HelperConfig is Script {
     struct NetworkConfig {
+        address contributionToken;
+        address takaToken;
         uint256 deployerKey;
     }
 
@@ -18,17 +22,21 @@ contract HelperConfig is Script {
         activeNetworkConfig = getOrCreateAnvilConfig();
     }
 
-    function getOrCreateAnvilConfig() public view returns (NetworkConfig memory) {
-        // Write here a condition to check if the network config is already set
-        // if (condition {
-        //     return activeNetworkConfig;
-        // }
+    function getOrCreateAnvilConfig() public returns (NetworkConfig memory) {
+        if (activeNetworkConfig.takaToken != address(0)) {
+            return activeNetworkConfig;
+        }
 
-        // If some mocks needs to be deployed locally for testing, they can be deployed here
-        // vm.startBroadcast();
-        // Deploy Mocks
-        // vm.stopBroadcast();
+        vm.startBroadcast();
+        USDC usdc = new USDC();
+        TakaToken takaToken = new TakaToken();
+        vm.stopBroadcast();
 
-        return NetworkConfig({deployerKey: DEFAULT_ANVIL_PRIVATE_KEY});
+        return
+            NetworkConfig({
+                contributionToken: address(usdc),
+                takaToken: address(takaToken),
+                deployerKey: DEFAULT_ANVIL_PRIVATE_KEY
+            });
     }
 }
