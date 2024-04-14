@@ -22,6 +22,23 @@ contract TakaTokenFuzzTest is Test {
         (takaToken, takasurePool, ) = deployer.run();
     }
 
+    function test_fuzz_onlyTakasurePoolIsBurnerAndMinter(
+        address notMinter,
+        address notBurner
+    ) public view {
+        bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
+        bytes32 BURNER_ROLE = keccak256("BURNER_ROLE");
+
+        vm.assume(notMinter != address(takasurePool));
+        vm.assume(notBurner != address(takasurePool));
+
+        bool isMinter = takaToken.hasRole(MINTER_ROLE, notMinter);
+        bool isBurner = takaToken.hasRole(BURNER_ROLE, notBurner);
+
+        assert(!isMinter);
+        assert(!isBurner);
+    }
+
     function test_fuzz_onlyMinterCanMint(address minter) public {
         vm.assume(minter != address(takasurePool));
         vm.prank(minter);
