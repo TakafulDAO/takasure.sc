@@ -27,17 +27,24 @@ const deploySimpleContract = async (contractName, args, deterministicDeployment,
     return result
 }
 
-const deployUpgradeProxy = async (contractName, initArgs, contract) => {
+const deployUpgradeProxy = async (
+    contractName,
+    initArgs,
+    proxyPattern,
+    deterministicDeployment,
+    contract,
+) => {
     const { deploy, log } = deployments
     const { deployer } = await getNamedAccounts()
     if (!initArgs) initArgs = null
     if (!contract) contract = contractName
+    if (!proxyPattern) proxyPattern = "UUPS"
     const result = await deploy(contractName, {
         contract: contract,
         from: deployer,
         log: true,
         proxy: {
-            proxyContract: "UUPS",
+            proxyContract: proxyPattern,
             execute: {
                 init: {
                     methodName: "initialize",
@@ -46,6 +53,7 @@ const deployUpgradeProxy = async (contractName, initArgs, contract) => {
             },
         },
         waitConfimations: NUM_CONFIRMATIONS,
+        deterministicDeployment: deterministicDeployment,
     })
 
     return result
@@ -53,4 +61,5 @@ const deployUpgradeProxy = async (contractName, initArgs, contract) => {
 
 module.exports = {
     deploySimpleContract,
+    deployUpgradeProxy,
 }
