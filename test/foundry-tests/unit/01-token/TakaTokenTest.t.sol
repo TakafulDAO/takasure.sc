@@ -2,16 +2,14 @@
 pragma solidity 0.8.24;
 
 import {Test, console} from "forge-std/Test.sol";
-import {DeployTakaTokenAndTakasurePool} from "../../../scripts/foundry-deploy/01-taka-token-takasure-pool/DeployTakaTokenAndTakasurePool.s.sol";
-import {HelperConfig} from "../../../scripts/foundry-deploy/HelperConfig.s.sol";
-import {TakaToken} from "../../../contracts/token/TakaToken.sol";
-import {TakasurePool} from "../../../contracts/token/TakasurePool.sol";
+import {DeployTakaTokenAndTakasurePool} from "../../../../scripts/foundry-deploy/01-taka-token-takasure-pool/DeployTakaTokenAndTakasurePool.s.sol";
+import {TakaToken} from "../../../../contracts/token/TakaToken.sol";
+import {TakasurePool} from "../../../../contracts/token/TakasurePool.sol";
 
 contract TakaTokenTest is Test {
     DeployTakaTokenAndTakasurePool deployer;
     TakaToken takaToken;
     TakasurePool takasurePool;
-    HelperConfig config;
 
     address public user = makeAddr("user");
 
