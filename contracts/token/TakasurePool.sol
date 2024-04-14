@@ -9,20 +9,21 @@
 pragma solidity 0.8.24;
 
 import {TakaToken} from "./TakaToken.sol";
+
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract TakasurePool is ReentrancyGuard {
+    TakaToken private immutable takaToken;
+
+    mapping(address user => uint256 balance) private userBalance;
+
+    event TakaTokenMinted(address indexed to, uint256 indexed amount);
+    event TakaTokenBurned(address indexed from, uint256 indexed amount);
+
     error TakaSurePool__NotZeroAddress();
     error TakaSurePool__MintFailed();
     error TakaSurePool__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
     error TakaSurePool__TransferFailed();
-
-    mapping(address user => uint256 balance) private userBalance;
-
-    TakaToken private immutable takaToken;
-
-    event TakaTokenMinted(address indexed to, uint256 indexed amount);
-    event TakaTokenBurned(address indexed from, uint256 indexed amount);
 
     constructor(address _takaToken) {
         takaToken = TakaToken(_takaToken);
