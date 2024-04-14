@@ -22,7 +22,7 @@ contract TakaToken is ERC20Burnable, AccessControl {
     error TakaToken__BurnAmountExceedsBalance();
     error TakaToken__NotZeroAddress();
 
-    constructor() ERC20("TAKA", "TKS") {
+    constructor() ERC20("TAKASURE", "TAKA") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // TODO: Discuss. Who? The Dao?
         // Todo: Discuss. Allow someone here as Minter and Burner?
     }
