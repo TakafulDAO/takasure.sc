@@ -33,6 +33,7 @@ contract TakasurePool is ReentrancyGuard {
     /// @dev Reverts if the mint function fails
     /// @param to The address to mint tokens to
     /// @param amountToMint The amount of tokens to mint
+    // Todo: Need access control?
     function mintTakaToken(address to, uint256 amountToMint) external nonReentrant {
         if (to == address(0)) {
             revert TakaSurePool__NotZeroAddress();
@@ -52,6 +53,7 @@ contract TakasurePool is ReentrancyGuard {
     /// @dev It calls the burn function from the TakaToken contract
     /// @param amountToBurn The amount of tokens to burn
     /// @param from The address to burn tokens from
+    // Todo: Need access control?
     function burnTakaToken(uint256 amountToBurn, address from) external nonReentrant {
         if (from == address(0)) {
             revert TakaSurePool__NotZeroAddress();

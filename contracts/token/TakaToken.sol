@@ -30,11 +30,13 @@ contract TakaToken is ERC20Burnable, AccessControl {
     /// @dev Burn tokens from the owner's balance
     /// @param amount The amount of tokens to burn
     function burn(uint256 amount) public override onlyRole(BURNER_ROLE) {
+        // Todo: Discuss. If only TakasurePool will be burner this is redundant
         if (amount <= 0) {
             revert TakaToken__MustBeMoreThanZero();
         }
 
         uint256 balance = balanceOf(msg.sender);
+        // Todo: Discuss. If only TakasurePool will be burner this is redundant
         if (balance < amount) {
             revert TakaToken__BurnAmountExceedsBalance();
         }
@@ -46,6 +48,7 @@ contract TakaToken is ERC20Burnable, AccessControl {
     /// @param to The address to mint tokens to
     /// @param amount The amount of tokens to mint
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) returns (bool) {
+        // Todo: Discuss. If only TakasurePool will be minter this is redundant
         if (to == address(0)) {
             revert TakaToken__NotZeroAddress();
         }
