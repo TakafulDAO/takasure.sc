@@ -44,3 +44,6 @@ endif
 
 deploy-takasure-pool:
 	@forge script scripts/foundry-deploy/01-taka-token-takasure-pool/DeployTakaTokenAndTakasurePool.s.sol:DeployTakaTokenAndTakasurePool $(NETWORK_ARGS)
+
+deploy-members-module:
+	@forge script scripts/foundry-deploy/02-modules/DeployMembersModule.s.sol:DeployMembersModule $(NETWORK_ARGS)
