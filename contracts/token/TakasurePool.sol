@@ -35,14 +35,17 @@ contract TakasurePool is ReentrancyGuard {
     /// @param to The address to mint tokens to
     /// @param amountToMint The amount of tokens to mint
     // Todo: Need access control?
-    function mintTakaToken(address to, uint256 amountToMint) external nonReentrant {
+    function mintTakaToken(
+        address to,
+        uint256 amountToMint
+    ) external nonReentrant returns (bool minted) {
         if (to == address(0)) {
             revert TakaSurePool__NotZeroAddress();
         }
 
         userBalance[to] += amountToMint;
 
-        bool minted = takaToken.mint(to, amountToMint);
+        minted = takaToken.mint(to, amountToMint);
         if (!minted) {
             revert TakaSurePool__MintFailed();
         }
