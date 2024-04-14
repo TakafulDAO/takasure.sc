@@ -36,13 +36,13 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error MembersModule__TransferFailed();
     error MembersModule__MintFailed();
 
+    event PoolCreated(uint256 indexed fundId);
     event MemberJoined(
         uint256 indexed joinedFundId,
         address indexed member,
         uint256 indexed contributionAmount,
         MemberState memberState
     );
-    event PoolCreated(uint256 indexed fundId);
 
     function initialize(address _contributionToken, address _takasurePool) public initializer {
         if (_contributionToken == address(0) || _takasurePool == address(0)) {
