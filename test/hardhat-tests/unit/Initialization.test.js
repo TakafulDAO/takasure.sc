@@ -15,6 +15,7 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
               deployer = accounts[0]
               // Deploy contracts
               await deployments.fixture(["all"])
+              usdc = await ethers.getContract("USDC")
               takaToken = await ethers.getContract("TakaToken")
               takasurePool = await ethers.getContract("TakasurePool")
               membersModule = await ethers.getContract("MembersModule")
@@ -59,27 +60,20 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
               assert.equal(currentOwner, expectedOwner)
           })
 
-          it("the tokens should be setted correctly", async () => {
-              const tokens = await membersModule.getTokensAddresses()
-              const contributionToken = tokens[0]
-              const takaTokenAddress = tokens[1]
+          it("the contribution token should be setted correctly", async () => {
+              const contributionToken = await membersModule.getContributionTokenAddress()
 
-              const expectedContributionToken = networkConfig[chainId]["usdc"]
-              const expectedTakaToken = takaToken.target
+              const expectedContributionTokenAddress = usdc.target
 
-              assert.equal(contributionToken, expectedContributionToken)
-              assert.equal(takaTokenAddress, expectedTakaToken)
+              assert.equal(contributionToken, expectedContributionTokenAddress)
           })
 
-          it("The counters initialized correctly", async () => {
-              const fundIdCounter = await membersModule.fundIdCounter()
-              const memberIdCounter = await membersModule.memberIdCounter()
+          it("the takasure pool should be setted correctly", async () => {
+              const takasurePoolAddress = await membersModule.getTakasurePoolAddress()
 
-              const expectedFundIdCounter = 0
-              const expectedMemberIdCounter = 0
+              const expectedContributionToken = takasurePool.target
 
-              assert.equal(fundIdCounter, expectedFundIdCounter)
-              assert.equal(memberIdCounter, expectedMemberIdCounter)
+              assert.equal(takasurePoolAddress, expectedContributionToken)
           })
 
           it("The counters initialized correctly", async () => {
