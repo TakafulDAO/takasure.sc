@@ -47,3 +47,6 @@ deploy-takasure-pool:
 
 deploy-members-module:
 	@forge script scripts/foundry-deploy/02-modules/DeployMembersModule.s.sol:DeployMembersModule $(NETWORK_ARGS)
+
+upgrade-members-module:
+	@forge script scripts/foundry-deploy/02-modules/UpgradeMembersModule.s.sol:UpgradeMembersModule $(NETWORK_ARGS)
