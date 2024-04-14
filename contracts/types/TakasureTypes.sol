@@ -22,7 +22,7 @@ struct Fund {
 }
 
 struct Member {
-    uint256 memberId;
+    uint256 memberId; // ? uint256? bytes32?
     uint256 membershipDuration; // ? in seconds?
     uint256 membershipStartTime;
     uint256 netContribution; // ? in wei? or token?
