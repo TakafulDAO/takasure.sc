@@ -16,7 +16,7 @@ contract DeployTakaTokenAndTakasurePool is Script {
     function run() external returns (TakaToken, TakasurePool, HelperConfig) {
         HelperConfig config = new HelperConfig();
 
-        uint256 deployerKey = config.activeNetworkConfig();
+        (, , uint256 deployerKey) = config.activeNetworkConfig();
 
         vm.startBroadcast(deployerKey);
 
