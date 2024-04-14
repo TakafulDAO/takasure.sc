@@ -10,10 +10,10 @@
  */
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ITakasurePool} from "../interfaces/ITakasurePool.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {TakaToken} from "../token/TakaToken.sol";
 
 import {Fund, Member, MemberState} from "../types/TakasureTypes.sol";
 
@@ -21,7 +21,7 @@ pragma solidity 0.8.24;
 
 contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
-    TakaToken private takaToken;
+    ITakasurePool private takasurePool;
 
     uint256 private wakalaFee; // ? wakala? wakalah? different names in the documentation
     uint256 private constant MINIMUM_THRESHOLD = 25e6; // 25 USDC
@@ -43,12 +43,12 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     );
     event PoolCreated(uint256 indexed fundId);
 
-    function initialize(address _contributionToken, address _takaToken) public initializer {
+    function initialize(address _contributionToken, address _takasurePool) public initializer {
         __UUPSUpgradeable_init();
         __Ownable_init(msg.sender);
 
         contributionToken = IERC20(_contributionToken);
-        takaToken = TakaToken(_takaToken);
+        takasurePool = ITakasurePool(_takasurePool);
 
         wakalaFee = 20; // 20%
     }
@@ -116,7 +116,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             idToMember[memberIdCounter].memberState
         );
 
-        bool successfullMint = takaToken.mint(msg.sender, contributionAmount); // ? or contributionAmount?
+        bool successfullMint = takasurePool.mintTakaToken(msg.sender, contributionAmount); // ? or contributionAmount?
         if (!successfullMint) {
             revert MembersModule__MintFailed();
         }
@@ -160,13 +160,12 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         return idToMember[memberId];
     }
 
-    function getTokensAddresses()
-        external
-        view
-        returns (address contributionToken_, address takaToken_)
-    {
+    function getTakasurePoolAddress() external view returns (address) {
+        return address(takasurePool);
+    }
+
+    function getContributionTokenAddress() external view returns (address contributionToken_) {
         contributionToken_ = address(contributionToken);
-        takaToken_ = address(takaToken);
     }
 
     ///@dev required by the OZ UUPS module
