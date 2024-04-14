@@ -8,22 +8,22 @@ module.exports = async ({ deployments }) => {
     const chainId = network.config.chainId
 
     let usdc, usdcAddress
-    let takaToken, takaTokenAddress
+    let takasurePool, takasurePoolAddress
 
     log("02.01. Deploying MembersModule Contract...")
 
-    if (isDevnet && !isFork) {
-        usdc = await deployments.get("FiatTokenV2_1")
+    if (isDevnet) {
+        usdc = await deployments.get("USDC")
         usdcAddress = usdc.address
     } else {
         usdcAddress = networkConfig[chainId]["usdc"]
     }
 
-    takaToken = await deployments.get("TakaToken")
-    takaTokenAddress = takaToken.address
+    takasurePool = await deployments.get("TakasurePool")
+    takasurePoolAddress = takasurePool.address
 
     const contractName = "MembersModule"
-    const initArgs = [usdcAddress, takaTokenAddress]
+    const initArgs = [usdcAddress, takasurePoolAddress]
     const proxyPattern = "UUPS"
     const deterministicDeployment = false
     const contract = "MembersModule"

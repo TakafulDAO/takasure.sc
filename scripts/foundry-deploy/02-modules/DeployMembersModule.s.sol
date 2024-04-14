@@ -13,14 +13,14 @@ contract DeployMembersModule is Script {
     function run() external returns (address) {
         HelperConfig config = new HelperConfig();
 
-        (address usdc, address takaToken, uint256 deployerKey) = config.activeNetworkConfig();
+        (address usdc, , address takasurePool, uint256 deployerKey) = config.activeNetworkConfig();
 
         vm.startBroadcast(deployerKey);
 
         MembersModule membersModule = new MembersModule();
         ERC1967Proxy proxy = new ERC1967Proxy(address(membersModule), "");
 
-        MembersModule(address(proxy)).initialize(usdc, takaToken);
+        MembersModule(address(proxy)).initialize(usdc, takasurePool);
 
         vm.stopBroadcast();
 

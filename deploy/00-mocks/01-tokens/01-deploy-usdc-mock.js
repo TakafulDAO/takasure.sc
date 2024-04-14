@@ -3,7 +3,7 @@ const { deploySimpleContract } = require("../../../utils/deployHelpers")
 
 module.exports = async ({ deployments }) => {
     const { log } = deployments
-    if (isDevnet && !isFork) {
+    if (isDevnet) {
         log("00.01.01. Deploying USDC mock...")
         const contractName = "USDC"
         const args = []
