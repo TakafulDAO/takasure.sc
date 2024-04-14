@@ -160,6 +160,15 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         return idToMember[memberId];
     }
 
+    function getTokensAddresses()
+        external
+        view
+        returns (address contributionToken_, address takaToken_)
+    {
+        contributionToken_ = address(contributionToken);
+        takaToken_ = address(takaToken);
+    }
+
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
