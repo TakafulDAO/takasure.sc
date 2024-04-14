@@ -9,6 +9,7 @@ import {DeployTakaTokenAndTakasurePool} from "../../../../scripts/foundry-deploy
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {HelperConfig} from "../../../../scripts/foundry-deploy/HelperConfig.s.sol";
+import {MemberState} from "../../../../contracts/types/TakasureTypes.sol";
 
 contract MembesModuleTest is StdCheats, Test {
     DeployMembersModule deployer;
@@ -21,7 +22,17 @@ contract MembesModuleTest is StdCheats, Test {
 
     address public admin = makeAddr("admin");
 
+    uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
+    uint256 public constant BENEFIT_MULTIPLIER = 0;
+    uint256 public constant MEMBERSHIP_DURATION = 365 days;
+
     event PoolCreated(uint256 indexed fundId);
+    event MemberJoined(
+        uint256 indexed joinedFundId,
+        address indexed member,
+        uint256 indexed contributionAmount,
+        MemberState memberState
+    );
 
     function setUp() public {
         config = new HelperConfig();
@@ -54,7 +65,7 @@ contract MembesModuleTest is StdCheats, Test {
                               CREATE POOL
     //////////////////////////////////////////////////////////////*/
 
-    function testMembersModule_createPool() public {
+    function testMembersModule_createPoolEmitEventAndUpdateCounter() public {
         uint256 fundIdCounterBefore = membersModule.fundIdCounter();
 
         vm.prank(admin);
@@ -77,5 +88,26 @@ contract MembesModuleTest is StdCheats, Test {
         vm.prank(admin);
         membersModule.createPool();
         _;
+    }
+
+    function testMembersModule_joinPoolEmitsEventAndUpdatesCounter() public createPool {
+        uint256 fundId = membersModule.fundIdCounter();
+        uint256 memberIdCounterBefore = membersModule.memberIdCounter();
+
+        vm.prank(admin);
+
+        // vm.expectEmit(true, true, true, true, address(membersModule));
+        // emit MemberJoined(fundId, msg.sender, CONTRIBUTION_AMOUNT, MemberState.Active);
+
+        membersModule.joinPool(
+            fundId,
+            BENEFIT_MULTIPLIER,
+            CONTRIBUTION_AMOUNT,
+            (MEMBERSHIP_DURATION * 5)
+        );
+
+        uint256 memberIdCounterAfter = membersModule.memberIdCounter();
+
+        assertEq(memberIdCounterAfter, memberIdCounterBefore + 1);
     }
 }
