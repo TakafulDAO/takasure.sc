@@ -31,6 +31,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(uint256 fundIdCounter => Fund) private idToFund;
     mapping(uint256 memberIdCounter => Member) private idToMember;
 
+    error MembersModule__ZeroAddress();
     error MembersModule__ContributionBelowMinimumThreshold();
     error MembersModule__TransferFailed();
     error MembersModule__MintFailed();
@@ -44,6 +45,10 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     event PoolCreated(uint256 indexed fundId);
 
     function initialize(address _contributionToken, address _takasurePool) public initializer {
+        if (_contributionToken == address(0) || _takasurePool == address(0)) {
+            revert MembersModule__ZeroAddress();
+        }
+
         __UUPSUpgradeable_init();
         __Ownable_init(msg.sender);
 
