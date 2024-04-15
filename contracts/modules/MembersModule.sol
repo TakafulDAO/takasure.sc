@@ -58,6 +58,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         wakalaFee = 20; // 20%
     }
 
+    /// Note: For now withoout inputs, until we define the parameters
     function createPool() external {
         fundIdCounter++;
 
