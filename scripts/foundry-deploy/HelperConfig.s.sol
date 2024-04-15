@@ -3,15 +3,11 @@
 pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
-import {TakaToken} from "../../contracts/token/TakaToken.sol";
-import {TakasurePool} from "../../contracts/token/TakasurePool.sol";
 import {USDC} from "../../contracts/mocks/USDCmock.sol";
 
 contract HelperConfig is Script {
     struct NetworkConfig {
         address contributionToken;
-        address takaToken;
-        address takasurePool;
         uint256 deployerKey;
     }
 
@@ -25,21 +21,17 @@ contract HelperConfig is Script {
     }
 
     function getOrCreateAnvilConfig() public returns (NetworkConfig memory) {
-        if (activeNetworkConfig.takaToken != address(0)) {
+        if (activeNetworkConfig.contributionToken != address(0)) {
             return activeNetworkConfig;
         }
 
         vm.startBroadcast();
         USDC usdc = new USDC();
-        TakaToken takaToken = new TakaToken();
-        TakasurePool takasurePool = new TakasurePool(address(takaToken));
         vm.stopBroadcast();
 
         return
             NetworkConfig({
                 contributionToken: address(usdc),
-                takaToken: address(takaToken),
-                takasurePool: address(takasurePool),
                 deployerKey: DEFAULT_ANVIL_PRIVATE_KEY
             });
     }
