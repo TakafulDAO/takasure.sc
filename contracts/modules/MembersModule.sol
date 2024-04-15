@@ -24,7 +24,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     ITakasurePool private takasurePool;
 
     uint256 private wakalaFee; // ? wakala? wakalah? different names in the documentation
-    uint256 private constant MINIMUM_THRESHOLD = 25e6; // 25 USDC
+    uint256 private constant MINIMUM_THRESHOLD = 25e6; // 25 USDC // 6 decimals
     uint256 public fundIdCounter;
     uint256 public memberIdCounter;
 
@@ -76,7 +76,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function joinPool(
         uint256 fundIdToJoin,
         uint256 benefitMultiplier,
-        uint256 contributionAmount,
+        uint256 contributionAmount, // 6 decimals
         uint256 membershipDuration
     ) external {
         // Todo: Check the user benefit multiplier against the oracle
@@ -114,21 +114,34 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         idToFund[fundIdToJoin].totalContributions += contributionAmount;
         idToFund[fundIdToJoin].wakalaFee += wakalaAmount;
 
+        // Todo: Discuss
+        // ? The decimals will be hardcoded? only receive USDC?
+        // ? Our token will be 18 decimals? or 6 decimals?
+        uint256 amountToMint = contributionAmount * 10 ** 12; // 6 decimals to 18 decimals
+
+        bool minted = takasurePool.mint(msg.sender, amountToMint);
+        if (!minted) {
+            revert MembersModule__MintFailed();
+        }
+
         emit MemberJoined(
             fundIdToJoin,
             msg.sender,
             contributionAmount,
             idToMember[memberIdCounter].memberState
         );
-
-        bool successfullMint = takasurePool.mintTakaToken(msg.sender, contributionAmount); // ? or contributionAmount?
-        if (!successfullMint) {
-            revert MembersModule__MintFailed();
-        }
     }
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
         wakalaFee = newWakalaFee;
+    }
+
+    function setNewContributionToken(address newContributionToken) external onlyOwner {
+        contributionToken = IERC20(newContributionToken);
+    }
+
+    function setNewTakasurePool(address newTakasurePool) external onlyOwner {
+        takasurePool = ITakasurePool(newTakasurePool);
     }
 
     function getWakalaFee() external view returns (uint256) {
