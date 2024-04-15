@@ -16,14 +16,13 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
               // Deploy contracts
               await deployments.fixture(["all"])
               usdc = await ethers.getContract("USDC")
-              takaToken = await ethers.getContract("TakaToken")
               takasurePool = await ethers.getContract("TakasurePool")
               membersModule = await ethers.getContract("MembersModule")
           })
 
           it("the name and symbol should be returned correctly", async () => {
-              const currentName = await takaToken.name()
-              const currentSymbol = await takaToken.symbol()
+              const currentName = await takasurePool.name()
+              const currentSymbol = await takasurePool.symbol()
 
               const expectedName = "TAKASURE"
               const expectedSymbol = "TAKA"
@@ -33,24 +32,17 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
           })
 
           it("the roles should be assigned correctly", async () => {
-              const DEFAULT_ADMIN_ROLE = await takaToken.DEFAULT_ADMIN_ROLE()
-              const MINTER_ROLE = await takaToken.MINTER_ROLE()
-              const BURNER_ROLE = await takaToken.BURNER_ROLE()
+              const DEFAULT_ADMIN_ROLE = await takasurePool.DEFAULT_ADMIN_ROLE()
+              const MINTER_ROLE = await takasurePool.MINTER_ROLE()
+              const BURNER_ROLE = await takasurePool.BURNER_ROLE()
 
-              const isAdmin = await takaToken.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)
-              const isMinter = await takaToken.hasRole(MINTER_ROLE, takasurePool.target)
-              const isBurner = await takaToken.hasRole(BURNER_ROLE, takasurePool.target)
+              const isAdmin = await takasurePool.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)
+              const isMinter = await takasurePool.hasRole(MINTER_ROLE, membersModule.target)
+              const isBurner = await takasurePool.hasRole(BURNER_ROLE, membersModule.target)
 
               assert.isTrue(isAdmin)
               assert.isTrue(isMinter)
               assert.isTrue(isBurner)
-          })
-
-          it("the taka token should be assigned correctly in the takasure pool", async () => {
-              const takaTokenAddress = await takasurePool.getTakaTokenAddress()
-              const expectedAddress = takaToken.target
-
-              assert.equal(takaTokenAddress, expectedAddress)
           })
 
           it("should check for the members module's owner", async () => {
