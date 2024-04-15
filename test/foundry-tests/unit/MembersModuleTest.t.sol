@@ -52,21 +52,6 @@ contract MembesModuleTest is StdCheats, Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                GETTERS
-    //////////////////////////////////////////////////////////////*/
-    function testMembersModule_getWakalaFee() public view {
-        uint256 wakalaFee = membersModule.getWakalaFee();
-        uint256 expectedWakalaFee = 20;
-        assertEq(wakalaFee, expectedWakalaFee);
-    }
-
-    function testMembersModule_getMinimumThreshold() public view {
-        uint256 minimumThreshold = membersModule.getMinimumThreshold();
-        uint256 expectedMinimumThreshold = 25e6;
-        assertEq(minimumThreshold, expectedMinimumThreshold);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               CREATE POOL
     //////////////////////////////////////////////////////////////*/
     function testMembersModule_createPoolEmitEventAndUpdateCounter() public {
@@ -97,5 +82,20 @@ contract MembesModuleTest is StdCheats, Test {
         membersModule.joinPool(fundId, BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
         uint256 memberIdCounterAfter = membersModule.memberIdCounter();
         assertEq(memberIdCounterAfter, memberIdCounterBefore + 1);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
+    function testMembersModule_getWakalaFee() public view {
+        uint256 wakalaFee = membersModule.getWakalaFee();
+        uint256 expectedWakalaFee = 20;
+        assertEq(wakalaFee, expectedWakalaFee);
+    }
+
+    function testMembersModule_getMinimumThreshold() public view {
+        uint256 minimumThreshold = membersModule.getMinimumThreshold();
+        uint256 expectedMinimumThreshold = 25e6;
+        assertEq(minimumThreshold, expectedMinimumThreshold);
     }
 }
