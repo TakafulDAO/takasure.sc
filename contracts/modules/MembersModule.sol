@@ -62,7 +62,6 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         fundIdCounter++;
 
         // Todo: Calculate some of this at the begining?
-
         idToFund[fundIdCounter].dynamicReserveRatio = 0;
         idToFund[fundIdCounter].BMA = 0;
         idToFund[fundIdCounter].totalContributions = 0;
@@ -93,43 +92,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert MembersModule__TransferFailed();
         }
 
-        uint256 wakalaAmount = (contributionAmount * wakalaFee) / 100;
-
-        // Todo: re-calculate the Dynamic Reserve Ratio, BMA, and DAO Surplus
-
-        memberIdCounter++;
-
-        // Create new member
-        Member memory newMember = Member({
-            memberId: memberIdCounter, // Todo: Discuss: where to get this id from?
-            membershipDuration: membershipDuration,
-            membershipStartTime: block.timestamp,
-            netContribution: contributionAmount,
-            wallet: msg.sender,
-            memberState: MemberState.Active,
-            surplus: 0 // Todo
-        });
-
-        idToFund[fundIdToJoin].members[msg.sender] = newMember;
-        idToFund[fundIdToJoin].totalContributions += contributionAmount;
-        idToFund[fundIdToJoin].wakalaFee += wakalaAmount;
-
-        // Todo: Discuss
-        // ? The decimals will be hardcoded? only receive USDC?
-        // ? Our token will be 18 decimals? or 6 decimals?
-        uint256 amountToMint = contributionAmount * 10 ** 12; // 6 decimals to 18 decimals
-
-        bool minted = takasurePool.mint(msg.sender, amountToMint);
-        if (!minted) {
-            revert MembersModule__MintFailed();
-        }
-
-        emit MemberJoined(
-            fundIdToJoin,
-            msg.sender,
-            contributionAmount,
-            idToMember[memberIdCounter].memberState
-        );
+        _joinPool(fundIdToJoin, benefitMultiplier, contributionAmount, membershipDuration);
     }
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
@@ -190,6 +153,51 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function getContributionTokenAddress() external view returns (address contributionToken_) {
         contributionToken_ = address(contributionToken);
+    }
+
+    function _joinPool(
+        uint256 _fundIdToJoin,
+        uint256 _benefitMultiplier,
+        uint256 _contributionAmount, // 6 decimals
+        uint256 _membershipDuration
+    ) internal {
+        uint256 wakalaAmount = (_contributionAmount * wakalaFee) / 100;
+
+        // Todo: re-calculate the Dynamic Reserve Ratio, BMA, and DAO Surplus
+
+        memberIdCounter++;
+
+        // Create new member
+        Member memory newMember = Member({
+            memberId: memberIdCounter, // Todo: Discuss: where to get this id from?
+            membershipDuration: _membershipDuration,
+            membershipStartTime: block.timestamp,
+            netContribution: _contributionAmount,
+            wallet: msg.sender,
+            memberState: MemberState.Active,
+            surplus: 0 // Todo
+        });
+
+        idToFund[_fundIdToJoin].members[msg.sender] = newMember;
+        idToFund[_fundIdToJoin].totalContributions += _contributionAmount;
+        idToFund[_fundIdToJoin].wakalaFee += wakalaAmount;
+
+        // Todo: Discuss
+        // ? The decimals will be hardcoded? only receive USDC?
+        // ? Our token will be 18 decimals? or 6 decimals?
+        uint256 amountToMint = _contributionAmount * 10 ** 12; // 6 decimals to 18 decimals
+
+        bool minted = takasurePool.mint(msg.sender, amountToMint);
+        if (!minted) {
+            revert MembersModule__MintFailed();
+        }
+
+        emit MemberJoined(
+            _fundIdToJoin,
+            msg.sender,
+            _contributionAmount,
+            idToMember[memberIdCounter].memberState
+        );
     }
 
     ///@dev required by the OZ UUPS module
