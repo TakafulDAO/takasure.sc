@@ -52,8 +52,8 @@ contract MembesModuleTest is StdCheats, Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                    GETTERS
-        //////////////////////////////////////////////////////////////*/
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
     function testMembersModule_getWakalaFee() public view {
         uint256 wakalaFee = membersModule.getWakalaFee();
         uint256 expectedWakalaFee = 20;
@@ -67,8 +67,8 @@ contract MembesModuleTest is StdCheats, Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                  CREATE POOL
-        //////////////////////////////////////////////////////////////*/
+                              CREATE POOL
+    //////////////////////////////////////////////////////////////*/
     function testMembersModule_createPoolEmitEventAndUpdateCounter() public {
         uint256 fundIdCounterBefore = membersModule.fundIdCounter();
         vm.prank(backend);
@@ -80,8 +80,8 @@ contract MembesModuleTest is StdCheats, Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                   JOIN POOL
-        //////////////////////////////////////////////////////////////*/
+                               JOIN POOL
+    //////////////////////////////////////////////////////////////*/
     modifier createPool() {
         vm.prank(backend);
         membersModule.createPool();
