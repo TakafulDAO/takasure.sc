@@ -17,15 +17,15 @@ contract MembesModuleTest is StdCheats, Test {
     MembersModule membersModule;
     ERC1967Proxy proxy;
     address contributionTokenAddress;
-    // HelperConfig config;
     IUSDC usdc;
-    //     address takasurePool;
     address public backend = makeAddr("backend");
     address public user = makeAddr("user");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
+
+    address public membersModuleOwner = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266; // Default from anvil
 
     event PoolCreated(uint256 indexed fundId);
     event MemberJoined(
@@ -40,8 +40,6 @@ contract MembesModuleTest is StdCheats, Test {
         (takasurePool, proxy, , contributionTokenAddress, ) = deployer.run();
 
         membersModule = MembersModule(address(proxy));
-        // config = new HelperConfig();
-        // ( takasurePool, ) = config.activeNetworkConfig();
         usdc = IUSDC(contributionTokenAddress);
 
         // For easier testing there is a minimal USDC mock contract without restrictions
@@ -50,10 +48,6 @@ contract MembesModuleTest is StdCheats, Test {
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                SETTERS
-    //////////////////////////////////////////////////////////////*/
 
     /*//////////////////////////////////////////////////////////////
                               CREATE POOL
@@ -89,6 +83,32 @@ contract MembesModuleTest is StdCheats, Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+    function testMembersModule_setNewWakalaFee() public {
+        uint256 newWakalaFee = 50;
+
+        vm.prank(membersModuleOwner);
+        membersModule.setNewWakalaFee(newWakalaFee);
+
+        assertEq(newWakalaFee, membersModule.getWakalaFee());
+    }
+
+    function testMembersModule_setNewContributionToken() public {
+        vm.prank(membersModuleOwner);
+        membersModule.setNewContributionToken(user);
+
+        assertEq(user, membersModule.getContributionTokenAddress());
+    }
+
+    function testMembersModule_setNewTakasurePool() public {
+        vm.prank(membersModuleOwner);
+        membersModule.setNewTakasurePool(user);
+
+        assertEq(user, membersModule.getTakasurePoolAddress());
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
     function testMembersModule_getWakalaFee() public view {
@@ -101,5 +121,20 @@ contract MembesModuleTest is StdCheats, Test {
         uint256 minimumThreshold = membersModule.getMinimumThreshold();
         uint256 expectedMinimumThreshold = 25e6;
         assertEq(minimumThreshold, expectedMinimumThreshold);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                REVERTS
+    //////////////////////////////////////////////////////////////*/
+    function testMembersModule_setNewContributionTokenMustRevertIfAddressZero() public {
+        vm.prank(membersModuleOwner);
+        vm.expectRevert(MembersModule.MembersModule__ZeroAddress.selector);
+        membersModule.setNewContributionToken(address(0));
+    }
+
+    function testMembersModule_setNewTakasurePoolMustRevertIfAddressZero() public {
+        vm.prank(membersModuleOwner);
+        vm.expectRevert(MembersModule.MembersModule__ZeroAddress.selector);
+        membersModule.setNewTakasurePool(address(0));
     }
 }
