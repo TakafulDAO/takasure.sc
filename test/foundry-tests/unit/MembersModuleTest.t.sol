@@ -137,4 +137,12 @@ contract MembesModuleTest is StdCheats, Test {
         vm.expectRevert(MembersModule.MembersModule__ZeroAddress.selector);
         membersModule.setNewTakasurePool(address(0));
     }
+
+    function testMembersModule_joinPoolMustRevertIfDepositLessThanMinimum() public createPool {
+        uint256 fundId = membersModule.fundIdCounter();
+        uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
+        vm.prank(user);
+        vm.expectRevert(MembersModule.MembersModule__ContributionBelowMinimumThreshold.selector);
+        membersModule.joinPool(fundId, BENEFIT_MULTIPLIER, wrongContribution, (5 * YEAR));
+    }
 }
