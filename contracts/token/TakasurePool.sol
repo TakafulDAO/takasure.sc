@@ -1,32 +1,36 @@
-//SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title TakaSurePool
+ * @title TakasurePool
  * @author Maikel Ordaz
- * @dev This contract will have minter and burner roles to mint and burn Taka tokens
+ * @notice Minting: Algorithmic
+ * @dev Minting and burning of the TAKA token based on new members' admission into the pool, and members
+ *      leaving due to inactivity or claims.
  */
 
 pragma solidity 0.8.24;
 
-import {TakaToken} from "./TakaToken.sol";
-
+import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract TakasurePool is ReentrancyGuard {
-    TakaToken private immutable takaToken;
+contract TakasurePool is ERC20Burnable, AccessControl, ReentrancyGuard {
+    // TODO: Decimals? Total supply?
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
     mapping(address user => uint256 balance) private userBalance;
 
     event TakaTokenMinted(address indexed to, uint256 indexed amount);
     event TakaTokenBurned(address indexed from, uint256 indexed amount);
 
-    error TakaSurePool__NotZeroAddress();
-    error TakaSurePool__MintFailed();
+    error TakasurePool__NotZeroAddress();
+    error TakasurePool__MustBeMoreThanZero();
     error TakaSurePool__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
-    error TakaSurePool__TransferFailed();
 
-    constructor(address _takaToken) {
-        takaToken = TakaToken(_takaToken);
+    constructor() ERC20("TAKASURE", "TAKA") {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // TODO: Discuss. Who? The Dao?
+        // Todo: Discuss. Allow someone here as Minter and Burner?
     }
 
     /// @notice Mint Taka tokens
@@ -34,33 +38,36 @@ contract TakasurePool is ReentrancyGuard {
     /// @dev Reverts if the mint function fails
     /// @param to The address to mint tokens to
     /// @param amountToMint The amount of tokens to mint
-    // Todo: Need access control?
-    function mintTakaToken(
+    function mint(
         address to,
         uint256 amountToMint
-    ) external nonReentrant returns (bool minted) {
+    ) external onlyRole(MINTER_ROLE) nonReentrant returns (bool) {
         if (to == address(0)) {
-            revert TakaSurePool__NotZeroAddress();
+            revert TakasurePool__NotZeroAddress();
+        }
+        if (amountToMint <= 0) {
+            revert TakasurePool__MustBeMoreThanZero();
         }
 
         userBalance[to] += amountToMint;
 
-        minted = takaToken.mint(to, amountToMint);
-        if (!minted) {
-            revert TakaSurePool__MintFailed();
-        }
+        _mint(to, amountToMint);
 
         emit TakaTokenMinted(to, amountToMint);
+
+        return true;
     }
 
     /// @notice Burn Taka tokens
     /// @dev It calls the burn function from the TakaToken contract
-    /// @param amountToBurn The amount of tokens to burn
     /// @param from The address to burn tokens from
-    // Todo: Need access control?
-    function burnTakaToken(uint256 amountToBurn, address from) external nonReentrant {
+    /// @param amountToBurn The amount of tokens to burn
+    function burnTokens(
+        address from,
+        uint256 amountToBurn
+    ) external onlyRole(BURNER_ROLE) nonReentrant {
         if (from == address(0)) {
-            revert TakaSurePool__NotZeroAddress();
+            revert TakasurePool__NotZeroAddress();
         }
         if (amountToBurn > userBalance[from]) {
             revert TakaSurePool__BurnAmountExceedsBalance(userBalance[from], amountToBurn);
@@ -68,18 +75,14 @@ contract TakasurePool is ReentrancyGuard {
 
         userBalance[from] -= amountToBurn;
 
-        bool success = takaToken.transferFrom(from, address(this), amountToBurn);
-        takaToken.burn(amountToBurn);
-        if (!success) {
-            revert TakaSurePool__TransferFailed();
-        }
+        transferFrom(from, address(this), amountToBurn);
+        _burn(address(this), amountToBurn);
+
+        // Todo: Discuss: whats better? Transfer to this or burn from the user?
+        // super.burn(amountToBurn);
+        // burn(amountToBurn);
 
         emit TakaTokenBurned(from, amountToBurn);
-    }
-
-    /// @notice Get the address of the Taka token
-    function getTakaTokenAddress() external view returns (address) {
-        return address(takaToken);
     }
 
     /// @notice Get the amount of minted tokens by a user
