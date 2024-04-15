@@ -137,10 +137,16 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function setNewContributionToken(address newContributionToken) external onlyOwner {
+        if (newContributionToken == address(0)) {
+            revert MembersModule__ZeroAddress();
+        }
         contributionToken = IERC20(newContributionToken);
     }
 
     function setNewTakasurePool(address newTakasurePool) external onlyOwner {
+        if (newTakasurePool == address(0)) {
+            revert MembersModule__ZeroAddress();
+        }
         takasurePool = ITakasurePool(newTakasurePool);
     }
 
