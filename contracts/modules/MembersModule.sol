@@ -84,6 +84,8 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert MembersModule__ContributionBelowMinimumThreshold();
         }
 
+        _joinPool(fundIdToJoin, benefitMultiplier, contributionAmount, membershipDuration);
+
         bool successfullDeposit = contributionToken.transferFrom(
             msg.sender,
             address(this),
@@ -92,8 +94,6 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (!successfullDeposit) {
             revert MembersModule__TransferFailed();
         }
-
-        _joinPool(fundIdToJoin, benefitMultiplier, contributionAmount, membershipDuration);
     }
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
