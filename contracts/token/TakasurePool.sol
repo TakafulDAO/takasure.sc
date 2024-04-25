@@ -19,8 +19,6 @@ contract TakasurePool is ERC20Burnable, AccessControl, ReentrancyGuard {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
-    mapping(address user => uint256 balance) private userBalance;
-
     event TakaTokenMinted(address indexed to, uint256 indexed amount);
     event TakaTokenBurned(address indexed from, uint256 indexed amount);
 
@@ -49,8 +47,6 @@ contract TakasurePool is ERC20Burnable, AccessControl, ReentrancyGuard {
             revert TakasurePool__MustBeMoreThanZero();
         }
 
-        userBalance[to] += amountToMint;
-
         _mint(to, amountToMint);
 
         emit TakaTokenMinted(to, amountToMint);
@@ -71,16 +67,8 @@ contract TakasurePool is ERC20Burnable, AccessControl, ReentrancyGuard {
             revert TakaSurePool__BurnAmountExceedsBalance(balance, amountToBurn);
         }
 
-        userBalance[msg.sender] -= amountToBurn;
-
         emit TakaTokenBurned(msg.sender, amountToBurn);
 
         super.burn(amountToBurn);
-    }
-
-    /// @notice Get the amount of minted tokens by a user
-    /// @param user The address of the user
-    function getMintedTokensByUser(address user) external view returns (uint256) {
-        return userBalance[user];
     }
 }
