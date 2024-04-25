@@ -19,7 +19,7 @@
     "chai": "^4.4.1",
     "dotenv": "^16.4.5",
     "ethers": "^6.11.1",
-    "hardhat": "^2.22.2",
+    "hardhat": "^2.22.3",
     "hardhat-contract-sizer": "^2.10.0",
     "hardhat-deploy": "^0.12.2",
     "hardhat-deploy-ethers": "^0.4.1",
