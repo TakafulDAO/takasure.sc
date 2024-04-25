@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: unlicense
-pragma solidity 0.8.24;
+pragma solidity 0.8.25;
 
 interface IUSDC {
     error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed);

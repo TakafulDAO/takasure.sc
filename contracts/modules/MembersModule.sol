@@ -17,7 +17,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 
 import {Fund, Member, MemberState} from "../types/TakasureTypes.sol";
 
-pragma solidity 0.8.24;
+pragma solidity 0.8.25;
 
 contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;

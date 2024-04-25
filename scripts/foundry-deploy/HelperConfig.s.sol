@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.24;
+pragma solidity 0.8.25;
 
 import {Script} from "forge-std/Script.sol";
 import {USDC} from "../../contracts/mocks/USDCmock.sol";
