@@ -23,12 +23,14 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
     ITakasurePool private takasurePool;
 
+    // ? Question: pool? fund? which one should we use?
+    // ! Note: decide naming convention. Or did I missed it in the documentation?, think is better "pool"
+    Fund private pool;
+
     uint256 private wakalaFee; // ? wakala? wakalah? different names in the documentation
     uint256 private constant MINIMUM_THRESHOLD = 25e6; // 25 USDC // 6 decimals
-    uint256 public fundIdCounter;
     uint256 public memberIdCounter;
 
-    mapping(uint256 fundIdCounter => Fund) private idToFund;
     mapping(uint256 memberIdCounter => Member) private idToMember;
 
     error MembersModule__ZeroAddress();
@@ -36,9 +38,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error MembersModule__TransferFailed();
     error MembersModule__MintFailed();
 
-    event PoolCreated(uint256 indexed fundId);
     event MemberJoined(
-        uint256 indexed joinedFundId,
         address indexed member,
         uint256 indexed contributionAmount,
         MemberState memberState
@@ -56,25 +56,17 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         takasurePool = ITakasurePool(_takasurePool);
 
         wakalaFee = 20; // 20%
-    }
 
-    /// Note: For now withoout inputs, until we define the parameters
-    function createPool() external {
-        fundIdCounter++;
-
-        // Todo: Calculate some of this at the begining?
-        idToFund[fundIdCounter].dynamicReserveRatio = 0;
-        idToFund[fundIdCounter].BMA = 0;
-        idToFund[fundIdCounter].totalContributions = 0;
-        idToFund[fundIdCounter].totalClaimReserve = 0;
-        idToFund[fundIdCounter].totalFundReserve = 0;
-        idToFund[fundIdCounter].wakalaFee = 0;
-
-        emit PoolCreated(fundIdCounter);
+        // Todo: For now we will initialize the pool with 0 values. For the future, we will define the parameters
+        pool.dynamicReserveRatio = 0;
+        pool.BMA = 0;
+        pool.totalContributions = 0;
+        pool.totalClaimReserve = 0;
+        pool.totalFundReserve = 0;
+        pool.wakalaFee = 0;
     }
 
     function joinPool(
-        uint256 fundIdToJoin,
         uint256 benefitMultiplier,
         uint256 contributionAmount, // 6 decimals
         uint256 membershipDuration
@@ -84,7 +76,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert MembersModule__ContributionBelowMinimumThreshold();
         }
 
-        _joinPool(fundIdToJoin, benefitMultiplier, contributionAmount, membershipDuration);
+        _joinPool(benefitMultiplier, contributionAmount, membershipDuration);
 
         bool successfullDeposit = contributionToken.transferFrom(
             msg.sender,
@@ -122,26 +114,24 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         return MINIMUM_THRESHOLD;
     }
 
-    function getFundFromId(
-        uint256 fundId
-    )
+    function getPoolValues()
         external
         view
         returns (
-            uint256 dynamicReserveRatio,
-            uint256 BMA,
-            uint256 totalContributions,
-            uint256 totalClaimReserve,
-            uint256 totalFundReserve,
+            uint256 dynamicReserveRatio_,
+            uint256 BMA_,
+            uint256 totalContributions_,
+            uint256 totalClaimReserve_,
+            uint256 totalFundReserve_,
             uint256 wakalaFee_
         )
     {
-        dynamicReserveRatio = idToFund[fundId].dynamicReserveRatio;
-        BMA = idToFund[fundId].BMA;
-        totalContributions = idToFund[fundId].totalContributions;
-        totalClaimReserve = idToFund[fundId].totalClaimReserve;
-        totalFundReserve = idToFund[fundId].totalFundReserve;
-        wakalaFee_ = idToFund[fundId].wakalaFee;
+        dynamicReserveRatio_ = pool.dynamicReserveRatio;
+        BMA_ = pool.BMA;
+        totalContributions_ = pool.totalContributions;
+        totalClaimReserve_ = pool.totalClaimReserve;
+        totalFundReserve_ = pool.totalFundReserve;
+        wakalaFee_ = pool.wakalaFee;
     }
 
     function getMemberFromId(uint256 memberId) external view returns (Member memory) {
@@ -157,7 +147,6 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _joinPool(
-        uint256 _fundIdToJoin,
         uint256 _benefitMultiplier,
         uint256 _contributionAmount, // 6 decimals
         uint256 _membershipDuration
@@ -179,9 +168,9 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             surplus: 0 // Todo
         });
 
-        idToFund[_fundIdToJoin].members[msg.sender] = newMember;
-        idToFund[_fundIdToJoin].totalContributions += _contributionAmount;
-        idToFund[_fundIdToJoin].wakalaFee += wakalaAmount;
+        pool.members[msg.sender] = newMember;
+        pool.totalContributions += _contributionAmount;
+        pool.wakalaFee += wakalaAmount;
 
         // Todo: Discuss
         // ? The decimals will be hardcoded? only receive USDC?
@@ -193,12 +182,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert MembersModule__MintFailed();
         }
 
-        emit MemberJoined(
-            _fundIdToJoin,
-            msg.sender,
-            _contributionAmount,
-            idToMember[memberIdCounter].memberState
-        );
+        emit MemberJoined(msg.sender, _contributionAmount, idToMember[memberIdCounter].memberState);
     }
 
     ///@dev required by the OZ UUPS module

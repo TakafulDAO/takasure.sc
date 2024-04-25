@@ -29,7 +29,6 @@ contract MembesModuleTest is StdCheats, Test {
 
     event PoolCreated(uint256 indexed fundId);
     event MemberJoined(
-        uint256 indexed joinedFundId,
         address indexed member,
         uint256 indexed contributionAmount,
         MemberState memberState
@@ -50,34 +49,15 @@ contract MembesModuleTest is StdCheats, Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              CREATE POOL
-    //////////////////////////////////////////////////////////////*/
-    function testMembersModule_createPoolEmitEventAndUpdateCounter() public {
-        uint256 fundIdCounterBefore = membersModule.fundIdCounter();
-        vm.prank(backend);
-        vm.expectEmit(true, false, false, false, address(membersModule));
-        emit PoolCreated(fundIdCounterBefore + 1);
-        membersModule.createPool();
-        uint256 fundIdCounterAfter = membersModule.fundIdCounter();
-        assertEq(fundIdCounterAfter, fundIdCounterBefore + 1);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                                JOIN POOL
     //////////////////////////////////////////////////////////////*/
-    modifier createPool() {
-        vm.prank(backend);
-        membersModule.createPool();
-        _;
-    }
 
-    function testMembersModule_joinPoolEmitsEventAndUpdatesCounter() public createPool {
-        uint256 fundId = membersModule.fundIdCounter();
+    function testMembersModule_joinPoolEmitsEventAndUpdatesCounter() public {
         uint256 memberIdCounterBefore = membersModule.memberIdCounter();
         vm.prank(user);
-        // vm.expectEmit(true, true, true, true, address(membersModule));
-        // emit MemberJoined(fundId, msg.sender, CONTRIBUTION_AMOUNT, MemberState.Active);
-        membersModule.joinPool(fundId, BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        // vm.expectEmit(true, true, false, true, address(membersModule));
+        // emit MemberJoined(msg.sender, CONTRIBUTION_AMOUNT, MemberState.Active);
+        membersModule.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
         uint256 memberIdCounterAfter = membersModule.memberIdCounter();
         assertEq(memberIdCounterAfter, memberIdCounterBefore + 1);
     }
@@ -138,11 +118,10 @@ contract MembesModuleTest is StdCheats, Test {
         membersModule.setNewTakasurePool(address(0));
     }
 
-    function testMembersModule_joinPoolMustRevertIfDepositLessThanMinimum() public createPool {
-        uint256 fundId = membersModule.fundIdCounter();
+    function testMembersModule_joinPoolMustRevertIfDepositLessThanMinimum() public {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(user);
         vm.expectRevert(MembersModule.MembersModule__ContributionBelowMinimumThreshold.selector);
-        membersModule.joinPool(fundId, BENEFIT_MULTIPLIER, wrongContribution, (5 * YEAR));
+        membersModule.joinPool(BENEFIT_MULTIPLIER, wrongContribution, (5 * YEAR));
     }
 }
