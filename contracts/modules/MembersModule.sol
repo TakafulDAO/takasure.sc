@@ -172,9 +172,6 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         pool.totalContributions += _contributionAmount;
         pool.wakalaFee += wakalaAmount;
 
-        // Todo: Discuss
-        // ? The decimals will be hardcoded? only receive USDC?
-        // ? Our token will be 18 decimals? or 6 decimals?
         uint256 amountToMint = _contributionAmount * 10 ** 12; // 6 decimals to 18 decimals
 
         bool minted = takasurePool.mint(msg.sender, amountToMint);
