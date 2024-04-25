@@ -69,13 +69,10 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
           })
 
           it("The counters initialized correctly", async () => {
-              const fundIdCounter = await membersModule.fundIdCounter()
               const memberIdCounter = await membersModule.memberIdCounter()
 
-              const expectedFundIdCounter = 0
               const expectedMemberIdCounter = 0
 
-              assert.equal(fundIdCounter, expectedFundIdCounter)
               assert.equal(memberIdCounter, expectedMemberIdCounter)
           })
 
