@@ -172,6 +172,8 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         pool.totalContributions += _contributionAmount;
         pool.wakalaFee += wakalaAmount;
 
+        idToMember[memberIdCounter] = newMember;
+
         uint256 amountToMint = _contributionAmount * 10 ** 12; // 6 decimals to 18 decimals
 
         bool minted = takasurePool.mint(msg.sender, amountToMint);
