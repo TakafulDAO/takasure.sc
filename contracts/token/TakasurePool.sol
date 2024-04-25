@@ -60,29 +60,22 @@ contract TakasurePool is ERC20Burnable, AccessControl, ReentrancyGuard {
 
     /// @notice Burn Taka tokens
     /// @dev It calls the burn function from the TakaToken contract
-    /// @param from The address to burn tokens from
     /// @param amountToBurn The amount of tokens to burn
-    function burnTokens(
-        address from,
-        uint256 amountToBurn
-    ) external onlyRole(BURNER_ROLE) nonReentrant {
-        if (from == address(0)) {
-            revert TakasurePool__NotZeroAddress();
-        }
-        if (amountToBurn > userBalance[from]) {
-            revert TakaSurePool__BurnAmountExceedsBalance(userBalance[from], amountToBurn);
+    function burn(uint256 amountToBurn) public override onlyRole(BURNER_ROLE) nonReentrant {
+        if (amountToBurn <= 0) {
+            revert TakasurePool__MustBeMoreThanZero();
         }
 
-        userBalance[from] -= amountToBurn;
+        uint256 balance = balanceOf(msg.sender);
+        if (amountToBurn > balance) {
+            revert TakaSurePool__BurnAmountExceedsBalance(balance, amountToBurn);
+        }
 
-        transferFrom(from, address(this), amountToBurn);
-        _burn(address(this), amountToBurn);
+        userBalance[msg.sender] -= amountToBurn;
 
-        // Todo: Discuss: whats better? Transfer to this or burn from the user?
-        // super.burn(amountToBurn);
-        // burn(amountToBurn);
+        emit TakaTokenBurned(msg.sender, amountToBurn);
 
-        emit TakaTokenBurned(from, amountToBurn);
+        super.burn(amountToBurn);
     }
 
     /// @notice Get the amount of minted tokens by a user
