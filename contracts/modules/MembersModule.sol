@@ -27,15 +27,16 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     // ! Note: decide naming convention. Or did I missed it in the documentation?, think is better "pool"
     Fund private pool;
 
-    uint256 private wakalaFee; // ? wakala? wakalah? different names in the documentation
     uint256 private constant MINIMUM_THRESHOLD = 25e6; // 25 USDC // 6 decimals
     uint256 public memberIdCounter;
+    address private wakalaClaimAddress; // The DAO operators address
 
     mapping(uint256 memberIdCounter => Member) private idToMember;
 
     error MembersModule__ZeroAddress();
     error MembersModule__ContributionBelowMinimumThreshold();
-    error MembersModule__TransferFailed();
+    error MembersModule__ContributionTransferFailed();
+    error MembersModule__FeeTransferFailed();
     error MembersModule__MintFailed();
 
     event MemberJoined(
@@ -55,15 +56,13 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         contributionToken = IERC20(_contributionToken);
         takasurePool = ITakasurePool(_takasurePool);
 
-        wakalaFee = 20; // 20%
-
         // Todo: For now we will initialize the pool with 0 values. For the future, we will define the parameters
         pool.dynamicReserveRatio = 0;
         pool.BMA = 0;
         pool.totalContributions = 0;
         pool.totalClaimReserve = 0;
         pool.totalFundReserve = 0;
-        pool.wakalaFee = 0;
+        pool.wakalaFee = 20; // 20% of the contribution
     }
 
     function joinPool(
@@ -78,18 +77,32 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         _joinPool(benefitMultiplier, contributionAmount, membershipDuration);
 
+        uint256 wakalaAmount = (contributionAmount * pool.wakalaFee) / 100;
+
+        // Transfer the contribution to the pool
         bool successfullDeposit = contributionToken.transferFrom(
             msg.sender,
             address(this),
-            contributionAmount
+            contributionAmount - wakalaAmount
         );
         if (!successfullDeposit) {
-            revert MembersModule__TransferFailed();
+            revert MembersModule__ContributionTransferFailed();
+        }
+
+        // Transfer the wakala fee to the DAO
+        bool succesfullFeeDeposit = contributionToken.transferFrom(
+            msg.sender,
+            wakalaClaimAddress,
+            wakalaAmount
+        );
+
+        if (!succesfullFeeDeposit) {
+            revert MembersModule__FeeTransferFailed();
         }
     }
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
-        wakalaFee = newWakalaFee;
+        pool.wakalaFee = newWakalaFee;
     }
 
     function setNewContributionToken(address newContributionToken) external onlyOwner {
@@ -107,7 +120,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function getWakalaFee() external view returns (uint256) {
-        return wakalaFee;
+        return pool.wakalaFee;
     }
 
     function getMinimumThreshold() external pure returns (uint256) {
@@ -151,8 +164,6 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 _contributionAmount, // 6 decimals
         uint256 _membershipDuration
     ) internal {
-        uint256 wakalaAmount = (_contributionAmount * wakalaFee) / 100;
-
         // Todo: re-calculate the Dynamic Reserve Ratio, BMA, and DAO Surplus
 
         memberIdCounter++;
@@ -170,7 +181,6 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         pool.members[msg.sender] = newMember;
         pool.totalContributions += _contributionAmount;
-        pool.wakalaFee += wakalaAmount;
 
         idToMember[memberIdCounter] = newMember;
 
