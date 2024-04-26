@@ -188,8 +188,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             surplus: 0 // Todo
         });
 
+        uint256 toFundReserve = (_contributionAmount * pool.dynamicReserveRatio) / 100;
+        uint256 toClaimReserve = _contributionAmount - toFundReserve;
+
         pool.members[msg.sender] = newMember;
         pool.totalContributions += _contributionAmount;
+        pool.totalClaimReserve += toClaimReserve;
+        pool.totalFundReserve += toFundReserve;
 
         idToMember[memberIdCounter] = newMember;
 
