@@ -29,7 +29,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     uint256 private constant MINIMUM_THRESHOLD = 25e6; // 25 USDC // 6 decimals
     uint256 public memberIdCounter;
-    address private wakalaClaimAddress; // The DAO operators address
+    address private wakalaClaimAddress; // The DAO operators address // todo: discuss, this should be the owner? immutable?
 
     mapping(uint256 memberIdCounter => Member) private idToMember;
 
@@ -45,7 +45,11 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         MemberState memberState
     );
 
-    function initialize(address _contributionToken, address _takasurePool) public initializer {
+    function initialize(
+        address _contributionToken,
+        address _takasurePool,
+        address _wakalaClaimAddress
+    ) public initializer {
         if (_contributionToken == address(0) || _takasurePool == address(0)) {
             revert MembersModule__ZeroAddress();
         }
@@ -55,6 +59,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         contributionToken = IERC20(_contributionToken);
         takasurePool = ITakasurePool(_takasurePool);
+        wakalaClaimAddress = _wakalaClaimAddress;
 
         // Todo: For now we will initialize the pool with 0 values. For the future, we will define the parameters
         pool.dynamicReserveRatio = 0;
@@ -112,6 +117,13 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         contributionToken = IERC20(newContributionToken);
     }
 
+    function setNewWakalaClaimAddress(address newWakalaClaimAddress) external onlyOwner {
+        if (newWakalaClaimAddress == address(0)) {
+            revert MembersModule__ZeroAddress();
+        }
+        wakalaClaimAddress = newWakalaClaimAddress;
+    }
+
     function setNewTakasurePool(address newTakasurePool) external onlyOwner {
         if (newTakasurePool == address(0)) {
             revert MembersModule__ZeroAddress();
@@ -157,6 +169,10 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function getContributionTokenAddress() external view returns (address contributionToken_) {
         contributionToken_ = address(contributionToken);
+    }
+
+    function getWakalaClaimAddress() external view returns (address wakalaClaimAddress_) {
+        wakalaClaimAddress_ = wakalaClaimAddress;
     }
 
     function _joinPool(
