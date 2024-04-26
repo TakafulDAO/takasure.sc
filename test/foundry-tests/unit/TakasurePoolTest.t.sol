@@ -3,16 +3,16 @@
 pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
-import {DeployPoolAndModules} from "../../../scripts/foundry-deploy/DeployPoolAndModules.s.sol";
+import {DeployTokenAndPool} from "../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
 import {TakaToken} from "../../../contracts/token/TakaToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {TakasurePool} from "../../../contracts/modules/TakasurePool.sol";
+import {TakasurePool} from "../../../contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {MemberState} from "../../../contracts/types/TakasureTypes.sol";
 import {IUSDC} from "../../../contracts/mocks/IUSDCmock.sol";
 
 contract MembesModuleTest is StdCheats, Test {
-    DeployPoolAndModules deployer;
+    DeployTokenAndPool deployer;
     TakaToken takaToken;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
@@ -35,7 +35,7 @@ contract MembesModuleTest is StdCheats, Test {
     );
 
     function setUp() public {
-        deployer = new DeployPoolAndModules();
+        deployer = new DeployTokenAndPool();
         (takaToken, proxy, , contributionTokenAddress, ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));

@@ -43,5 +43,5 @@ ifeq ($(findstring --network arbitrum sepolia,$(ARGS)),--network sepolia)
 endif
 
 deploy-pool-and-modules:
-	@forge script scripts/foundry-deploy/DeployPoolAndModules.s.sol:DeployPoolAndModules $(NETWORK_ARGS)
+	@forge script scripts/foundry-deploy/DeployTokenAndPool.s.sol:DeployTokenAndPool $(NETWORK_ARGS)
 
