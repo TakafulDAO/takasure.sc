@@ -61,13 +61,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         takaToken = ITakaToken(_takaToken);
         wakalaClaimAddress = _wakalaClaimAddress;
 
-        // Todo: For now we will initialize the pool with 0 values. For the future, we will define the parameters
-        pool.dynamicReserveRatio = 0;
-        pool.BMA = 0;
+        pool.dynamicReserveRatio = 40; // 40% Default
+        pool.BMA = 1; // Default
         pool.totalContributions = 0;
         pool.totalClaimReserve = 0;
         pool.totalFundReserve = 0;
-        pool.wakalaFee = 20; // 20% of the contribution
+        pool.wakalaFee = 20; // 20% of the contribution amount. Default
     }
 
     function joinPool(
@@ -179,7 +178,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         // Create new member
         Member memory newMember = Member({
-            memberId: memberIdCounter, // Todo: Discuss: where to get this id from?
+            memberId: memberIdCounter,
+            benefitMultiplier: _benefitMultiplier,
             membershipDuration: _membershipDuration,
             membershipStartTime: block.timestamp,
             netContribution: _contributionAmount,

@@ -42,6 +42,6 @@ ifeq ($(findstring --network arbitrum sepolia,$(ARGS)),--network sepolia)
 	NETWORK_ARGS := --rpc-url $(ARBITRUM_TESTNET_SEPOLIA_RPC_URL) --private-key $(TESTNET_DEPLOYER_PK) --broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY) -vvvv
 endif
 
-deploy-pool-and-modules:
+deploy-token-and-pool:
 	@forge script scripts/foundry-deploy/DeployTokenAndPool.s.sol:DeployTokenAndPool $(NETWORK_ARGS)
 
