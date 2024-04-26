@@ -3,8 +3,8 @@
 pragma solidity 0.8.25;
 
 import {Script} from "forge-std/Script.sol";
-import {TakasurePool} from "../../contracts/token/TakasurePool.sol";
-import {MembersModule} from "../../contracts/modules/MembersModule.sol";
+import {TakaToken} from "../../contracts/token/TakaToken.sol";
+import {TakasurePool} from "../../contracts/modules/TakasurePool.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
@@ -17,32 +17,37 @@ contract DeployPoolAndModules is Script {
     function run()
         external
         returns (
-            TakasurePool,
+            TakaToken,
             ERC1967Proxy,
-            MembersModule,
+            TakasurePool,
             address contributionTokenAddress,
             HelperConfig
         )
     {
         HelperConfig config = new HelperConfig();
 
-        (address contributionToken, uint256 deployerKey) = config.activeNetworkConfig();
+        (address contributionToken, uint256 deployerKey, address wakalaClaimAddress) = config
+            .activeNetworkConfig();
 
         vm.startBroadcast(deployerKey);
 
+        TakaToken takaToken = new TakaToken();
         TakasurePool takasurePool = new TakasurePool();
-        MembersModule membersModule = new MembersModule();
-        ERC1967Proxy proxy = new ERC1967Proxy(address(membersModule), "");
+        ERC1967Proxy proxy = new ERC1967Proxy(address(takasurePool), "");
 
-        MembersModule(address(proxy)).initialize(contributionToken, address(takasurePool));
+        TakasurePool(address(proxy)).initialize(
+            contributionToken,
+            address(takaToken),
+            wakalaClaimAddress
+        );
 
-        takasurePool.grantRole(MINTER_ROLE, address(proxy));
-        takasurePool.grantRole(BURNER_ROLE, address(proxy));
+        takaToken.grantRole(MINTER_ROLE, address(proxy));
+        takaToken.grantRole(BURNER_ROLE, address(proxy));
 
         vm.stopBroadcast();
 
-        contributionTokenAddress = MembersModule(address(proxy)).getContributionTokenAddress();
+        contributionTokenAddress = TakasurePool(address(proxy)).getContributionTokenAddress();
 
-        return (takasurePool, proxy, membersModule, contributionTokenAddress, config);
+        return (takaToken, proxy, takasurePool, contributionTokenAddress, config);
     }
 }

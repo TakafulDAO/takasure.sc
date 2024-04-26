@@ -1,137 +1,114 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {DeployPoolAndModules} from "../../../scripts/foundry-deploy/DeployPoolAndModules.s.sol";
-import {TakasurePool} from "../../../contracts/token/TakasurePool.sol";
+import {TakaToken} from "../../../contracts/token/TakaToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {MembersModule} from "../../../contracts/modules/MembersModule.sol";
+import {TakasurePool} from "../../../contracts/modules/TakasurePool.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
+import {MemberState} from "../../../contracts/types/TakasureTypes.sol";
+import {IUSDC} from "../../../contracts/mocks/IUSDCmock.sol";
 
-contract TakasurePoolTest is Test {
+contract MembesModuleTest is StdCheats, Test {
     DeployPoolAndModules deployer;
+    TakaToken takaToken;
     TakasurePool takasurePool;
-    MembersModule membersModule;
     ERC1967Proxy proxy;
-
-    address public admin = makeAddr("admin");
+    address contributionTokenAddress;
+    IUSDC usdc;
+    address public backend = makeAddr("backend");
     address public user = makeAddr("user");
+    uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
+    uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
+    uint256 public constant BENEFIT_MULTIPLIER = 0;
+    uint256 public constant YEAR = 365 days;
 
-    uint256 public constant MINT_AMOUNT = 1 ether;
+    address public takasurePoolOwner = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266; // Default from anvil
 
-    event TakaTokenMinted(address indexed to, uint256 indexed amount);
-    event TakaTokenBurned(address indexed from, uint256 indexed amount);
+    event PoolCreated(uint256 indexed fundId);
+    event MemberJoined(
+        address indexed member,
+        uint256 indexed contributionAmount,
+        MemberState memberState
+    );
 
     function setUp() public {
         deployer = new DeployPoolAndModules();
-        (takasurePool, proxy, , , ) = deployer.run();
+        (takaToken, proxy, , contributionTokenAddress, ) = deployer.run();
 
-        membersModule = MembersModule(address(proxy));
+        takasurePool = TakasurePool(address(proxy));
+        usdc = IUSDC(contributionTokenAddress);
+
+        // For easier testing there is a minimal USDC mock contract without restrictions
+        vm.startPrank(user);
+        usdc.mintUSDC(user, USDC_INITIAL_AMOUNT);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
-                             MINT FUNCTION
+                               JOIN POOL
     //////////////////////////////////////////////////////////////*/
 
-    function testTakasurePool_mintUpdateBalanceAndEmitEvent() public {
-        // Get users balance from the mapping and the balanceOf function to check if they match up
-        uint256 userBalanceBefore = takasurePool.balanceOf(user);
-        uint256 userBalanceFromMappingBefore = takasurePool.getMintedTokensByUser(user);
-
-        vm.prank(address(membersModule));
-
-        // Event should be emitted
-        vm.expectEmit(true, true, false, false, address(takasurePool));
-        emit TakaTokenMinted(user, MINT_AMOUNT);
-        takasurePool.mint(user, MINT_AMOUNT);
-
-        // And the balance should be updated
-        uint256 userBalanceAfter = takasurePool.balanceOf(user);
-        uint256 userBalanceFromMappingAfter = takasurePool.getMintedTokensByUser(user);
-
-        assert(userBalanceAfter > userBalanceBefore);
-
-        assertEq(userBalanceAfter, MINT_AMOUNT);
-
-        // Check if he mappings show the correct balance
-        assertEq(userBalanceBefore, userBalanceFromMappingBefore);
-        assertEq(userBalanceAfter, userBalanceFromMappingAfter);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                             BURN FUNCTION
-    //////////////////////////////////////////////////////////////*/
-
-    function testTakasurePool_burnUpdateBalanceAndEmitEvent() public {
-        uint256 burnAmount = MINT_AMOUNT / 2;
-
-        // Mint some tokens to the user
-        vm.prank(address(membersModule));
-        takasurePool.mint(user, MINT_AMOUNT);
-
-        uint256 userBalanceFromMappingBefore = takasurePool.getMintedTokensByUser(user);
-        // Allow takasurePool to spend the user's tokens
+    function testTakasurePool_joinPoolEmitsEventAndUpdatesCounter() public {
+        uint256 memberIdCounterBefore = takasurePool.memberIdCounter();
         vm.prank(user);
-        takasurePool.approve(address(membersModule), burnAmount);
+        // vm.expectEmit(true, true, false, true, address(takasurePool));
+        // emit MemberJoined(msg.sender, CONTRIBUTION_AMOUNT, MemberState.Active);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        uint256 memberIdCounterAfter = takasurePool.memberIdCounter();
+        assertEq(memberIdCounterAfter, memberIdCounterBefore + 1);
+    }
 
-        vm.prank(address(membersModule));
-        // Expect to emit the event
-        vm.expectEmit(true, true, false, false, address(takasurePool));
-        emit TakaTokenBurned(user, burnAmount);
-        takasurePool.burnTokens(user, burnAmount);
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+    function testTakasurePool_setNewWakalaFee() public {
+        uint256 newWakalaFee = 50;
 
-        uint256 userBalanceFromMappingAfter = takasurePool.getMintedTokensByUser(user);
+        vm.prank(takasurePoolOwner);
+        takasurePool.setNewWakalaFee(newWakalaFee);
 
-        assert(userBalanceFromMappingBefore > userBalanceFromMappingAfter);
+        assertEq(newWakalaFee, takasurePool.getWakalaFee());
+    }
+
+    function testTakasurePool_setNewContributionToken() public {
+        vm.prank(takasurePoolOwner);
+        takasurePool.setNewContributionToken(user);
+
+        assertEq(user, takasurePool.getContributionTokenAddress());
     }
 
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
-    function testTakasurePool_membersModuleIsMinterAndBurner() public view {
-        bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
-        bytes32 BURNER_ROLE = keccak256("BURNER_ROLE");
+    function testTakasurePool_getWakalaFee() public view {
+        uint256 wakalaFee = takasurePool.getWakalaFee();
+        uint256 expectedWakalaFee = 20;
+        assertEq(wakalaFee, expectedWakalaFee);
+    }
 
-        bool isMinter = takasurePool.hasRole(MINTER_ROLE, address(membersModule));
-        bool isBurner = takasurePool.hasRole(BURNER_ROLE, address(membersModule));
-        // bool isMinter = takasurePool.hasRole(MINTER_ROLE, address(proxy));
-        // bool isBurner = takasurePool.hasRole(BURNER_ROLE, address(proxy));
-
-        assert(isMinter);
-        assert(isBurner);
+    function testTakasurePool_getMinimumThreshold() public view {
+        uint256 minimumThreshold = takasurePool.getMinimumThreshold();
+        uint256 expectedMinimumThreshold = 25e6;
+        assertEq(minimumThreshold, expectedMinimumThreshold);
     }
 
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
-
-    function testTakasurePool_mustRevertIfTryToMintToAddressZero() public {
-        vm.prank(address(membersModule));
-        vm.expectRevert(TakasurePool.TakasurePool__NotZeroAddress.selector);
-        takasurePool.mint(address(0), MINT_AMOUNT);
+    function testTakasurePool_setNewContributionTokenMustRevertIfAddressZero() public {
+        vm.prank(takasurePoolOwner);
+        vm.expectRevert(TakasurePool.TakasurePool__ZeroAddress.selector);
+        takasurePool.setNewContributionToken(address(0));
     }
 
-    function testTakasurePool_mustRevertIfTryToMintZero() public {
-        vm.prank(address(membersModule));
-        vm.expectRevert(TakasurePool.TakasurePool__MustBeMoreThanZero.selector);
-        takasurePool.mint(user, 0);
-    }
-
-    function testTakasurePool_mustRevertIfTryToBurnFromAddressZero() public {
-        vm.prank(address(membersModule));
-        vm.expectRevert(TakasurePool.TakasurePool__NotZeroAddress.selector);
-        takasurePool.burnTokens(address(0), MINT_AMOUNT);
-    }
-
-    function testTakasurePool_mustRevertIfTryToBurnMoreThanBalance() public {
-        uint256 userBalance = takasurePool.getMintedTokensByUser(user);
-        vm.prank(address(membersModule));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                TakasurePool.TakaSurePool__BurnAmountExceedsBalance.selector,
-                userBalance,
-                MINT_AMOUNT
-            )
-        );
-        takasurePool.burnTokens(user, MINT_AMOUNT);
+    function testTakasurePool_joinPoolMustRevertIfDepositLessThanMinimum() public {
+        uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
+        vm.prank(user);
+        vm.expectRevert(TakasurePool.TakasurePool__ContributionBelowMinimumThreshold.selector);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, wrongContribution, (5 * YEAR));
     }
 }

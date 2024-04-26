@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title MembersModule
+ * @title TakasurePool
  * @author Maikel Ordaz
  * @dev Users communicate with this module to become members of the DAO. It contains member management
  *      functionality such as modifying or canceling the policy, updates BM and BMA, remove non active
@@ -19,7 +19,7 @@ import {Fund, Member, MemberState} from "../types/TakasureTypes.sol";
 
 pragma solidity 0.8.25;
 
-contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
     ITakaToken private takaToken;
 
@@ -33,11 +33,11 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     mapping(uint256 memberIdCounter => Member) private idToMember;
 
-    error MembersModule__ZeroAddress();
-    error MembersModule__ContributionBelowMinimumThreshold();
-    error MembersModule__ContributionTransferFailed();
-    error MembersModule__FeeTransferFailed();
-    error MembersModule__MintFailed();
+    error TakasurePool__ZeroAddress();
+    error TakasurePool__ContributionBelowMinimumThreshold();
+    error TakasurePool__ContributionTransferFailed();
+    error TakasurePool__FeeTransferFailed();
+    error TakasurePool__MintFailed();
 
     event MemberJoined(
         address indexed member,
@@ -51,7 +51,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address _wakalaClaimAddress
     ) public initializer {
         if (_contributionToken == address(0) || _takaToken == address(0)) {
-            revert MembersModule__ZeroAddress();
+            revert TakasurePool__ZeroAddress();
         }
 
         __UUPSUpgradeable_init();
@@ -77,7 +77,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     ) external {
         // Todo: Check the user benefit multiplier against the oracle
         if (contributionAmount < MINIMUM_THRESHOLD) {
-            revert MembersModule__ContributionBelowMinimumThreshold();
+            revert TakasurePool__ContributionBelowMinimumThreshold();
         }
 
         _joinPool(benefitMultiplier, contributionAmount, membershipDuration);
@@ -91,7 +91,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             contributionAmount - wakalaAmount
         );
         if (!successfullDeposit) {
-            revert MembersModule__ContributionTransferFailed();
+            revert TakasurePool__ContributionTransferFailed();
         }
 
         // Transfer the wakala fee to the DAO
@@ -102,7 +102,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
 
         if (!succesfullFeeDeposit) {
-            revert MembersModule__FeeTransferFailed();
+            revert TakasurePool__FeeTransferFailed();
         }
     }
 
@@ -112,14 +112,14 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function setNewContributionToken(address newContributionToken) external onlyOwner {
         if (newContributionToken == address(0)) {
-            revert MembersModule__ZeroAddress();
+            revert TakasurePool__ZeroAddress();
         }
         contributionToken = IERC20(newContributionToken);
     }
 
     function setNewWakalaClaimAddress(address newWakalaClaimAddress) external onlyOwner {
         if (newWakalaClaimAddress == address(0)) {
-            revert MembersModule__ZeroAddress();
+            revert TakasurePool__ZeroAddress();
         }
         wakalaClaimAddress = newWakalaClaimAddress;
     }
@@ -197,7 +197,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         bool minted = takaToken.mint(msg.sender, amountToMint);
         if (!minted) {
-            revert MembersModule__MintFailed();
+            revert TakasurePool__MintFailed();
         }
 
         emit MemberJoined(msg.sender, _contributionAmount, idToMember[memberIdCounter].memberState);

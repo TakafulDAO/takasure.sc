@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title TakasurePool
+ * @title TakaToken
  * @author Maikel Ordaz
  * @notice Minting: Algorithmic
  * @dev Minting and burning of the TAKA token based on new members' admission into the pool, and members
@@ -22,9 +22,9 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     event TakaTokenMinted(address indexed to, uint256 indexed amount);
     event TakaTokenBurned(address indexed from, uint256 indexed amount);
 
-    error TakasurePool__NotZeroAddress();
-    error TakasurePool__MustBeMoreThanZero();
-    error TakaSurePool__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
+    error TakaToken__NotZeroAddress();
+    error TakaToken__MustBeMoreThanZero();
+    error TakaToken__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
 
     constructor() ERC20("TAKASURE", "TAKA") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // TODO: Discuss. Who? The Dao?
@@ -41,10 +41,10 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         uint256 amountToMint
     ) external onlyRole(MINTER_ROLE) nonReentrant returns (bool) {
         if (to == address(0)) {
-            revert TakasurePool__NotZeroAddress();
+            revert TakaToken__NotZeroAddress();
         }
         if (amountToMint <= 0) {
-            revert TakasurePool__MustBeMoreThanZero();
+            revert TakaToken__MustBeMoreThanZero();
         }
 
         _mint(to, amountToMint);
@@ -59,12 +59,12 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     /// @param amountToBurn The amount of tokens to burn
     function burn(uint256 amountToBurn) public override onlyRole(BURNER_ROLE) nonReentrant {
         if (amountToBurn <= 0) {
-            revert TakasurePool__MustBeMoreThanZero();
+            revert TakaToken__MustBeMoreThanZero();
         }
 
         uint256 balance = balanceOf(msg.sender);
         if (amountToBurn > balance) {
-            revert TakaSurePool__BurnAmountExceedsBalance(balance, amountToBurn);
+            revert TakaToken__BurnAmountExceedsBalance(balance, amountToBurn);
         }
 
         emit TakaTokenBurned(msg.sender, amountToBurn);

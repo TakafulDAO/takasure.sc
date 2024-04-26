@@ -8,9 +8,9 @@ module.exports = async ({ deployments }) => {
     const chainId = network.config.chainId
 
     let usdc, usdcAddress
-    let takasurePool, takasurePoolAddress
+    let takaToken, takaTokenAddress, wakalaClaimAddress
 
-    log("02.01. Deploying MembersModule Contract...")
+    log("02.01. Deploying TakasurePool Contract...")
 
     if (isDevnet) {
         usdc = await deployments.get("USDC")
@@ -19,16 +19,17 @@ module.exports = async ({ deployments }) => {
         usdcAddress = networkConfig[chainId]["usdc"]
     }
 
-    takasurePool = await deployments.get("TakasurePool")
-    takasurePoolAddress = takasurePool.address
+    takaToken = await deployments.get("TakaToken")
+    takaTokenAddress = takaToken.address
+    wakalaClaimAddress = networkConfig[chainId]["wakalaClaimAddress"]
 
-    const contractName = "MembersModule"
-    const initArgs = [usdcAddress, takasurePoolAddress]
+    const contractName = "TakasurePool"
+    const initArgs = [usdcAddress, takaTokenAddress, wakalaClaimAddress]
     const proxyPattern = "UUPS"
     const deterministicDeployment = false
-    const contract = "MembersModule"
+    const contract = "TakasurePool"
 
-    const membersModule = await deployUpgradeProxy(
+    const takasurePool = await deployUpgradeProxy(
         contractName,
         initArgs,
         proxyPattern,
@@ -36,22 +37,22 @@ module.exports = async ({ deployments }) => {
         contract,
     )
 
-    membersModuleImplementation = await deployments.get("MembersModule_Implementation")
+    takasurePoolImplementation = await deployments.get("TakasurePool_Implementation")
 
-    log("02.01. MembersModule Contract Deployed!")
+    log("02.01. TakasurePool Contract Deployed!")
     log("=====================================================================================")
 
     if (!developmentChains.includes(network.name) && process.env.ARBISCAN_API_KEY) {
-        log("02. Verifying MembersModule!...")
-        await verify(membersModule.address, [])
-        log("02. MembersModule verified!")
+        log("02. Verifying TakasurePool!...")
+        await verify(takasurePool.address, [])
+        log("02. TakasurePool verified!")
         log("=====================================================================================")
-        log("02. Verifying MembersModule implementation!...")
-        await verify(membersModuleImplementation.address, [])
-        log("02. MembersModule implementation verified!")
+        log("02. Verifying TakasurePool implementation!...")
+        await verify(takasurePoolImplementation.address, [])
+        log("02. TakasurePool implementation verified!")
 
         log("=====================================================================================")
     }
 }
 
-module.exports.tags = ["all", "members", "modules"]
+module.exports.tags = ["all", "pool", "takasure"]

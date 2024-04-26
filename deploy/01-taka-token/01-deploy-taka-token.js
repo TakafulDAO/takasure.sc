@@ -6,29 +6,29 @@ const { deploySimpleContract } = require("../../utils/deployHelpers")
 module.exports = async ({ deployments }) => {
     const { log } = deployments
 
-    log("01.01. Deploying TakasurePool Contract...")
+    log("01.01. Deploying TakaToken Contract...")
 
-    const contractName = "TakasurePool"
+    const contractName = "TakaToken"
     const args = []
     const deterministicDeployment = false
-    const contract = "TakasurePool"
+    const contract = "TakaToken"
 
-    const takasurePool = await deploySimpleContract(
+    const takaToken = await deploySimpleContract(
         contractName,
         args,
         deterministicDeployment,
         contract,
     )
-    log("01.01. TakaSurePool Contract Deployed! ")
+    log("01.01. TakaToken Contract Deployed! ")
 
     log("=======================================================")
 
     if (!developmentChains.includes(network.name) && process.env.ARBISCAN_API_KEY) {
-        log("01.01. Verifying TakaSurePool Contract!... ")
-        await verify(takasurePool.address, args)
-        log("01.02. TakaSurePool Contract Verified! ")
+        log("01.01. Verifying TakaToken Contract!... ")
+        await verify(takaToken.address, args)
+        log("01.02. TakaToken Contract Verified! ")
     }
     log("=======================================================")
 }
 
-module.exports.tags = ["all", "takasurePool", "token"]
+module.exports.tags = ["all", "TakaToken", "token"]
