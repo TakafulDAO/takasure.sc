@@ -10,7 +10,7 @@
  */
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ITakasurePool} from "../interfaces/ITakasurePool.sol";
+import {ITakaToken} from "../interfaces/ITakaToken.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -21,7 +21,7 @@ pragma solidity 0.8.25;
 
 contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
-    ITakasurePool private takasurePool;
+    ITakaToken private takaToken;
 
     // ? Question: pool? fund? which one should we use?
     // ! Note: decide naming convention. Or did I missed it in the documentation?, think is better "pool"
@@ -47,10 +47,10 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function initialize(
         address _contributionToken,
-        address _takasurePool,
+        address _takaToken,
         address _wakalaClaimAddress
     ) public initializer {
-        if (_contributionToken == address(0) || _takasurePool == address(0)) {
+        if (_contributionToken == address(0) || _takaToken == address(0)) {
             revert MembersModule__ZeroAddress();
         }
 
@@ -58,7 +58,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         __Ownable_init(msg.sender);
 
         contributionToken = IERC20(_contributionToken);
-        takasurePool = ITakasurePool(_takasurePool);
+        takaToken = ITakaToken(_takaToken);
         wakalaClaimAddress = _wakalaClaimAddress;
 
         // Todo: For now we will initialize the pool with 0 values. For the future, we will define the parameters
@@ -124,13 +124,6 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         wakalaClaimAddress = newWakalaClaimAddress;
     }
 
-    function setNewTakasurePool(address newTakasurePool) external onlyOwner {
-        if (newTakasurePool == address(0)) {
-            revert MembersModule__ZeroAddress();
-        }
-        takasurePool = ITakasurePool(newTakasurePool);
-    }
-
     function getWakalaFee() external view returns (uint256) {
         return pool.wakalaFee;
     }
@@ -163,8 +156,8 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         return idToMember[memberId];
     }
 
-    function getTakasurePoolAddress() external view returns (address) {
-        return address(takasurePool);
+    function getTakaTokenAddress() external view returns (address) {
+        return address(takaToken);
     }
 
     function getContributionTokenAddress() external view returns (address contributionToken_) {
@@ -202,7 +195,7 @@ contract MembersModule is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         uint256 amountToMint = _contributionAmount * 10 ** 12; // 6 decimals to 18 decimals
 
-        bool minted = takasurePool.mint(msg.sender, amountToMint);
+        bool minted = takaToken.mint(msg.sender, amountToMint);
         if (!minted) {
             revert MembersModule__MintFailed();
         }

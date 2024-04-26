@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.25;
 
-interface ITakasurePool {
+interface ITakaToken {
     /// @notice Mint Taka tokens
     /// @dev It calls the mint function from the TakaToken contract
     /// @dev Reverts if the mint function fails

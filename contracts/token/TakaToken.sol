@@ -14,8 +14,8 @@ import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensio
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract TakasurePool is ERC20Burnable, AccessControl, ReentrancyGuard {
-    // TODO: Decimals? Total supply?
+contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
+    // TODO: Total supply?
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
