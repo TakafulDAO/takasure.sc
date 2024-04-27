@@ -33,17 +33,17 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     mapping(uint256 memberIdCounter => Member) private idToMember;
 
-    error TakasurePool__ZeroAddress();
-    error TakasurePool__ContributionBelowMinimumThreshold();
-    error TakasurePool__ContributionTransferFailed();
-    error TakasurePool__FeeTransferFailed();
-    error TakasurePool__MintFailed();
-
     event MemberJoined(
         address indexed member,
         uint256 indexed contributionAmount,
         MemberState memberState
     );
+
+    error TakasurePool__ZeroAddress();
+    error TakasurePool__ContributionBelowMinimumThreshold();
+    error TakasurePool__ContributionTransferFailed();
+    error TakasurePool__FeeTransferFailed();
+    error TakasurePool__MintFailed();
 
     function initialize(
         address _contributionToken,
