@@ -8,7 +8,6 @@
  *      members, calculate surplus
  * @dev Upgradeable contract with UUPS pattern
  */
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakaToken} from "../interfaces/ITakaToken.sol";
 
@@ -45,15 +44,18 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error TakasurePool__FeeTransferFailed();
     error TakasurePool__MintFailed();
 
+    modifier notZeroAddress(address _address) {
+        if (_address == address(0)) {
+            revert TakasurePool__ZeroAddress();
+        }
+        _;
+    }
+
     function initialize(
         address _contributionToken,
         address _takaToken,
         address _wakalaClaimAddress
-    ) public initializer {
-        if (_contributionToken == address(0) || _takaToken == address(0)) {
-            revert TakasurePool__ZeroAddress();
-        }
-
+    ) public initializer notZeroAddress(_contributionToken) notZeroAddress(_takaToken) {
         __UUPSUpgradeable_init();
         __Ownable_init(msg.sender);
 
@@ -109,17 +111,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         pool.wakalaFee = newWakalaFee;
     }
 
-    function setNewContributionToken(address newContributionToken) external onlyOwner {
-        if (newContributionToken == address(0)) {
-            revert TakasurePool__ZeroAddress();
-        }
+    function setNewContributionToken(
+        address newContributionToken
+    ) external onlyOwner notZeroAddress(newContributionToken) {
         contributionToken = IERC20(newContributionToken);
     }
 
-    function setNewWakalaClaimAddress(address newWakalaClaimAddress) external onlyOwner {
-        if (newWakalaClaimAddress == address(0)) {
-            revert TakasurePool__ZeroAddress();
-        }
+    function setNewWakalaClaimAddress(
+        address newWakalaClaimAddress
+    ) external onlyOwner notZeroAddress(newWakalaClaimAddress) {
         wakalaClaimAddress = newWakalaClaimAddress;
     }
 

@@ -7,7 +7,6 @@
  * @dev Minting and burning of the TAKA token based on new members' admission into the pool, and members
  *      leaving due to inactivity or claims.
  */
-
 pragma solidity 0.8.25;
 
 import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
@@ -25,6 +24,20 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     error TakaToken__MustBeMoreThanZero();
     error TakaToken__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
 
+    modifier notZeroAddress(address _address) {
+        if (_address == address(0)) {
+            revert TakaToken__NotZeroAddress();
+        }
+        _;
+    }
+
+    modifier mustBeMoreThanZero(uint256 _amount) {
+        if (_amount <= 0) {
+            revert TakaToken__MustBeMoreThanZero();
+        }
+        _;
+    }
+
     constructor() ERC20("TAKASURE", "TAKA") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // TODO: Discuss. Who? The Dao?
         // Todo: Discuss. Allow someone here as Minter and Burner?
@@ -38,16 +51,15 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     function mint(
         address to,
         uint256 amountToMint
-    ) external onlyRole(MINTER_ROLE) nonReentrant returns (bool) {
-        if (to == address(0)) {
-            revert TakaToken__NotZeroAddress();
-        }
-        if (amountToMint <= 0) {
-            revert TakaToken__MustBeMoreThanZero();
-        }
-
+    )
+        external
+        onlyRole(MINTER_ROLE)
+        nonReentrant
+        notZeroAddress(to)
+        mustBeMoreThanZero(amountToMint)
+        returns (bool)
+    {
         _mint(to, amountToMint);
-
         emit TakaTokenMinted(to, amountToMint);
 
         return true;
@@ -56,16 +68,13 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     /// @notice Burn Taka tokens
     /// @dev It calls the burn function from the TakaToken contract
     /// @param amountToBurn The amount of tokens to burn
-    function burn(uint256 amountToBurn) public override onlyRole(BURNER_ROLE) nonReentrant {
-        if (amountToBurn <= 0) {
-            revert TakaToken__MustBeMoreThanZero();
-        }
-
+    function burn(
+        uint256 amountToBurn
+    ) public override onlyRole(BURNER_ROLE) mustBeMoreThanZero(amountToBurn) nonReentrant {
         uint256 balance = balanceOf(msg.sender);
         if (amountToBurn > balance) {
             revert TakaToken__BurnAmountExceedsBalance(balance, amountToBurn);
         }
-
         emit TakaTokenBurned(msg.sender, amountToBurn);
 
         super.burn(amountToBurn);
