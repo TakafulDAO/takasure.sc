@@ -59,7 +59,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     )
         external
         initializer
-        onlyOwner
         notZeroAddress(_contributionToken)
         notZeroAddress(_takaToken)
         notZeroAddress(_wakalaClaimAddress)
