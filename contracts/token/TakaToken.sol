@@ -45,7 +45,7 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         address to,
         uint256 amountToMint
     ) external nonReentrant onlyRole(MINTER_ROLE) mustBeMoreThanZero(amountToMint) returns (bool) {
-        if (_address == address(0)) {
+        if (to == address(0)) {
             revert TakaToken__NotZeroAddress();
         }
         _mint(to, amountToMint);

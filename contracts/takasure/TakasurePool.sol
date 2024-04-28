@@ -84,35 +84,66 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 contributionAmount, // 6 decimals
         uint256 membershipDuration
     ) external {
-        // Todo: Check the user benefit multiplier against the oracle
+        // Todo: Check the user benefit multiplier against the oracle.
         if (contributionAmount < MINIMUM_THRESHOLD) {
             revert TakasurePool__ContributionBelowMinimumThreshold();
         }
 
-        _joinPool(benefitMultiplier, contributionAmount, membershipDuration);
+        // Todo: re-calculate the Dynamic Reserve Ratio, BMA, and DAO Surplus.
 
+        // Create new member
+        memberIdCounter++;
+
+        Member memory newMember = Member({
+            memberId: memberIdCounter,
+            benefitMultiplier: benefitMultiplier,
+            membershipDuration: membershipDuration,
+            membershipStartTime: block.timestamp,
+            netContribution: contributionAmount,
+            wallet: msg.sender,
+            memberState: MemberState.Active,
+            surplus: 0 // Todo
+        });
+
+        // Distribute between the claim and fund reserve
+        uint256 toFundReserve = (contributionAmount * pool.dynamicReserveRatio) / 100;
+        uint256 toClaimReserve = contributionAmount - toFundReserve;
+
+        // Update the pool values
+        pool.members[msg.sender] = newMember;
+        pool.totalContributions += contributionAmount;
+        pool.totalClaimReserve += toClaimReserve;
+        pool.totalFundReserve += toFundReserve;
+
+        // Add the member to the mapping
+        idToMember[memberIdCounter] = newMember;
+
+        uint256 mintAmount = contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
         uint256 wakalaAmount = (contributionAmount * pool.wakalaFee) / 100;
+        uint256 depositAmount = contributionAmount - wakalaAmount;
+
+        // External calls
+        bool success;
+
+        // Mint the Taka token
+        success = takaToken.mint(msg.sender, mintAmount);
+        if (!success) {
+            revert TakasurePool__MintFailed();
+        }
 
         // Transfer the contribution to the pool
-        bool successfullDeposit = contributionToken.transferFrom(
-            msg.sender,
-            address(this),
-            contributionAmount - wakalaAmount
-        );
-        if (!successfullDeposit) {
+        success = contributionToken.transferFrom(msg.sender, address(this), depositAmount);
+        if (!success) {
             revert TakasurePool__ContributionTransferFailed();
         }
 
         // Transfer the wakala fee to the DAO
-        bool succesfullFeeDeposit = contributionToken.transferFrom(
-            msg.sender,
-            wakalaClaimAddress,
-            wakalaAmount
-        );
-
-        if (!succesfullFeeDeposit) {
+        success = contributionToken.transferFrom(msg.sender, wakalaClaimAddress, wakalaAmount);
+        if (!success) {
             revert TakasurePool__FeeTransferFailed();
         }
+
+        emit MemberJoined(msg.sender, contributionAmount, idToMember[memberIdCounter].memberState);
     }
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
@@ -173,47 +204,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function getWakalaClaimAddress() external view returns (address wakalaClaimAddress_) {
         wakalaClaimAddress_ = wakalaClaimAddress;
-    }
-
-    function _joinPool(
-        uint256 _benefitMultiplier,
-        uint256 _contributionAmount, // 6 decimals
-        uint256 _membershipDuration
-    ) internal {
-        // Todo: re-calculate the Dynamic Reserve Ratio, BMA, and DAO Surplus
-
-        memberIdCounter++;
-
-        // Create new member
-        Member memory newMember = Member({
-            memberId: memberIdCounter,
-            benefitMultiplier: _benefitMultiplier,
-            membershipDuration: _membershipDuration,
-            membershipStartTime: block.timestamp,
-            netContribution: _contributionAmount,
-            wallet: msg.sender,
-            memberState: MemberState.Active,
-            surplus: 0 // Todo
-        });
-
-        uint256 toFundReserve = (_contributionAmount * pool.dynamicReserveRatio) / 100;
-        uint256 toClaimReserve = _contributionAmount - toFundReserve;
-
-        pool.members[msg.sender] = newMember;
-        pool.totalContributions += _contributionAmount;
-        pool.totalClaimReserve += toClaimReserve;
-        pool.totalFundReserve += toFundReserve;
-
-        idToMember[memberIdCounter] = newMember;
-
-        uint256 amountToMint = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-
-        bool minted = takaToken.mint(msg.sender, amountToMint);
-        if (!minted) {
-            revert TakasurePool__MintFailed();
-        }
-
-        emit MemberJoined(msg.sender, _contributionAmount, idToMember[memberIdCounter].memberState);
     }
 
     ///@dev required by the OZ UUPS module
