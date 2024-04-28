@@ -24,13 +24,6 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     error TakaToken__MustBeMoreThanZero();
     error TakaToken__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
 
-    modifier notZeroAddress(address _address) {
-        if (_address == address(0)) {
-            revert TakaToken__NotZeroAddress();
-        }
-        _;
-    }
-
     modifier mustBeMoreThanZero(uint256 _amount) {
         if (_amount <= 0) {
             revert TakaToken__MustBeMoreThanZero();
@@ -51,14 +44,10 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     function mint(
         address to,
         uint256 amountToMint
-    )
-        external
-        onlyRole(MINTER_ROLE)
-        nonReentrant
-        notZeroAddress(to)
-        mustBeMoreThanZero(amountToMint)
-        returns (bool)
-    {
+    ) external nonReentrant onlyRole(MINTER_ROLE) mustBeMoreThanZero(amountToMint) returns (bool) {
+        if (_address == address(0)) {
+            revert TakaToken__NotZeroAddress();
+        }
         _mint(to, amountToMint);
         emit TakaTokenMinted(to, amountToMint);
 
@@ -70,7 +59,7 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     /// @param amountToBurn The amount of tokens to burn
     function burn(
         uint256 amountToBurn
-    ) public override onlyRole(BURNER_ROLE) mustBeMoreThanZero(amountToBurn) nonReentrant {
+    ) public override nonReentrant onlyRole(BURNER_ROLE) mustBeMoreThanZero(amountToBurn) {
         uint256 balance = balanceOf(msg.sender);
         if (amountToBurn > balance) {
             revert TakaToken__BurnAmountExceedsBalance(balance, amountToBurn);

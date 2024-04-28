@@ -27,6 +27,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     Fund private pool;
 
     uint256 private constant MINIMUM_THRESHOLD = 25e6; // 25 USDC // 6 decimals
+    uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 public memberIdCounter;
     address private wakalaClaimAddress; // The DAO operators address // todo: discuss, this should be the owner? immutable?
 
@@ -55,7 +56,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address _contributionToken,
         address _takaToken,
         address _wakalaClaimAddress
-    ) public initializer notZeroAddress(_contributionToken) notZeroAddress(_takaToken) {
+    )
+        external
+        initializer
+        onlyOwner
+        notZeroAddress(_contributionToken)
+        notZeroAddress(_takaToken)
+        notZeroAddress(_wakalaClaimAddress)
+    {
         __UUPSUpgradeable_init();
         __Ownable_init(msg.sender);
 
@@ -198,7 +206,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         idToMember[memberIdCounter] = newMember;
 
-        uint256 amountToMint = _contributionAmount * 10 ** 12; // 6 decimals to 18 decimals
+        uint256 amountToMint = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
         bool minted = takaToken.mint(msg.sender, amountToMint);
         if (!minted) {
