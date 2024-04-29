@@ -35,11 +35,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     mapping(uint256 memberIdCounter => Member) private idToMember;
 
-    event MemberJoined(
-        address indexed member,
-        uint256 indexed contributionAmount,
-        MemberState memberState
-    );
+    event MemberJoined(address indexed member, uint256 indexed contributionAmount);
 
     error TakasurePool__ZeroAddress();
     error TakasurePool__ContributionBelowMinimumThreshold();
@@ -156,7 +152,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__FeeTransferFailed();
         }
 
-        emit MemberJoined(msg.sender, contributionAmount, idToMember[memberIdCounter].memberState);
+        emit MemberJoined(msg.sender, contributionAmount);
     }
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
