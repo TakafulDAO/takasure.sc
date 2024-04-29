@@ -24,7 +24,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     Fund private pool;
 
-    uint256 private constant MINIMUM_THRESHOLD = 25e6; // 25 USDC // 6 decimals
+    uint256 public minimumThreshold;
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 public memberIdCounter;
     address private wakalaClaimAddress; // The DAO operators address // todo: discuss, this should be the owner? immutable?
@@ -68,6 +68,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         takaToken = ITakaToken(_takaToken);
         wakalaClaimAddress = _wakalaClaimAddress;
 
+        minimumThreshold = 25e6; // 25 USDC // 6 decimals
+
         pool.dynamicReserveRatio = 40; // 40% Default
         pool.benefitMultiplierAdjuster = 1; // Default
         pool.totalContributions = 0;
@@ -82,7 +84,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 membershipDuration
     ) external {
         // Todo: Check the user benefit multiplier against the oracle.
-        if (contributionAmount < MINIMUM_THRESHOLD) {
+        if (contributionAmount < minimumThreshold) {
             revert TakasurePool__ContributionBelowMinimumThreshold();
         }
 
@@ -147,6 +149,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         pool.wakalaFee = newWakalaFee;
     }
 
+    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
+        minimumThreshold = newMinimumThreshold;
+    }
+
     function setNewContributionToken(
         address newContributionToken
     ) external onlyOwner notZeroAddress(newContributionToken) {
@@ -161,10 +167,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function getWakalaFee() external view returns (uint256) {
         return pool.wakalaFee;
-    }
-
-    function getMinimumThreshold() external pure returns (uint256) {
-        return MINIMUM_THRESHOLD;
     }
 
     function getPoolValues()

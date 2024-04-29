@@ -77,7 +77,7 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
           })
 
           it("The minimum threshold initialized correctly", async () => {
-              const minimumThreshold = await takasurePool.getMinimumThreshold()
+              const minimumThreshold = await takasurePool.minimumThreshold()
 
               const expectedThreshold = 25e6
 

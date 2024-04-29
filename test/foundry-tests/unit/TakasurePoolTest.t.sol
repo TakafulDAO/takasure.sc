@@ -91,7 +91,7 @@ contract MembesModuleTest is StdCheats, Test {
     }
 
     function testTakasurePool_getMinimumThreshold() public view {
-        uint256 minimumThreshold = takasurePool.getMinimumThreshold();
+        uint256 minimumThreshold = takasurePool.minimumThreshold();
         uint256 expectedMinimumThreshold = 25e6;
         assertEq(minimumThreshold, expectedMinimumThreshold);
     }
