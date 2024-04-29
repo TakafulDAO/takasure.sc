@@ -22,8 +22,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
     ITakaToken private takaToken;
 
-    // ? Question: pool? fund? which one should we use?
-    // ! Note: decide naming convention. Or did I missed it in the documentation?, think is better "pool"
     Fund private pool;
 
     uint256 private constant MINIMUM_THRESHOLD = 25e6; // 25 USDC // 6 decimals
