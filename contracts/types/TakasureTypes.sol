@@ -9,6 +9,12 @@ enum MemberState {
     Inactive
 }
 
+enum KYC {
+    None,
+    Pending,
+    Approved
+}
+
 struct Member {
     uint256 memberId;
     uint256 benefitMultiplier;

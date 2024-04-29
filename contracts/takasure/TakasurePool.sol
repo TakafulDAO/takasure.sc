@@ -14,7 +14,7 @@ import {ITakaToken} from "../interfaces/ITakaToken.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import {Fund, Member, MemberState} from "../types/TakasureTypes.sol";
+import {Fund, Member, MemberState, KYC} from "../types/TakasureTypes.sol";
 
 pragma solidity 0.8.25;
 
@@ -34,8 +34,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     address private wakalaClaimAddress; // The DAO operators address // todo: discuss, this should be the owner? immutable?
 
     mapping(uint256 memberIdCounter => Member) private idToMember;
+    mapping(address memberAddress => KYC) private memberKYC; // Todo: Implement KYC correctly in the future
 
-    event MemberJoined(address indexed member, uint256 indexed contributionAmount);
+    event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
 
     error TakasurePool__ZeroAddress();
     error TakasurePool__ContributionBelowMinimumThreshold();
@@ -152,7 +153,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__FeeTransferFailed();
         }
 
-        emit MemberJoined(msg.sender, contributionAmount);
+        emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
     }
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
