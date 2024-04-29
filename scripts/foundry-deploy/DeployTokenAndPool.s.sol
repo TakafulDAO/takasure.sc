@@ -2,15 +2,13 @@
 
 pragma solidity 0.8.25;
 
-import {Script} from "forge-std/Script.sol";
+import {Script, console2} from "forge-std/Script.sol";
 import {TakaToken} from "../../contracts/token/TakaToken.sol";
 import {TakasurePool} from "../../contracts/takasure/TakasurePool.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract DeployTokenAndPool is Script {
-    address defaultAdmin = makeAddr("defaultAdmin");
-
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
@@ -33,6 +31,8 @@ contract DeployTokenAndPool is Script {
             address daoOperator
         ) = config.activeNetworkConfig();
 
+        address deployerAddress = vm.addr(deployerKey);
+
         vm.startBroadcast(deployerKey);
 
         TakaToken takaToken = new TakaToken();
@@ -48,6 +48,11 @@ contract DeployTokenAndPool is Script {
 
         takaToken.grantRole(MINTER_ROLE, address(proxy));
         takaToken.grantRole(BURNER_ROLE, address(proxy));
+
+        bytes32 adminRole = takaToken.DEFAULT_ADMIN_ROLE();
+        takaToken.grantRole(adminRole, daoOperator);
+
+        takaToken.revokeRole(adminRole, deployerAddress);
 
         vm.stopBroadcast();
 

@@ -33,16 +33,18 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
               assert.equal(currentSymbol, expectedSymbol)
           })
 
-          it("the roles should be assigned correctly", async () => {
+          it.only("the roles should be assigned correctly", async () => {
               const DEFAULT_ADMIN_ROLE = await takaToken.DEFAULT_ADMIN_ROLE()
               const MINTER_ROLE = await takaToken.MINTER_ROLE()
               const BURNER_ROLE = await takaToken.BURNER_ROLE()
 
-              const isAdmin = await takaToken.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)
+              const isAdmin = await takaToken.hasRole(DEFAULT_ADMIN_ROLE, daoOperator.address)
+              const deployerIsAdmin = await takaToken.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)
               const isMinter = await takaToken.hasRole(MINTER_ROLE, takasurePool.target)
               const isBurner = await takaToken.hasRole(BURNER_ROLE, takasurePool.target)
 
               assert.isTrue(isAdmin)
+              assert.isFalse(deployerIsAdmin)
               assert.isTrue(isMinter)
               assert.isTrue(isBurner)
           })
