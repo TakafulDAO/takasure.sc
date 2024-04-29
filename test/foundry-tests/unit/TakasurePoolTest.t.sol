@@ -25,8 +25,6 @@ contract MembesModuleTest is StdCheats, Test {
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
 
-    address public takasurePoolOwner = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266; // Default from anvil
-
     event PoolCreated(uint256 indexed fundId);
     event MemberJoined(
         address indexed member,
@@ -68,7 +66,7 @@ contract MembesModuleTest is StdCheats, Test {
     function testTakasurePool_setNewWakalaFee() public {
         uint256 newWakalaFee = 50;
 
-        vm.prank(takasurePoolOwner);
+        vm.prank(takasurePool.owner());
         takasurePool.setNewWakalaFee(newWakalaFee);
 
         (, , , , , uint256 wakalaFee) = takasurePool.getPoolValues();
@@ -77,7 +75,7 @@ contract MembesModuleTest is StdCheats, Test {
     }
 
     function testTakasurePool_setNewContributionToken() public {
-        vm.prank(takasurePoolOwner);
+        vm.prank(takasurePool.owner());
         takasurePool.setNewContributionToken(user);
 
         assertEq(user, takasurePool.getContributionTokenAddress());
@@ -102,7 +100,7 @@ contract MembesModuleTest is StdCheats, Test {
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
     function testTakasurePool_setNewContributionTokenMustRevertIfAddressZero() public {
-        vm.prank(takasurePoolOwner);
+        vm.prank(takasurePool.owner());
         vm.expectRevert(TakasurePool.TakasurePool__ZeroAddress.selector);
         takasurePool.setNewContributionToken(address(0));
     }

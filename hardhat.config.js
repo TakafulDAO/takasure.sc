@@ -111,6 +111,14 @@ module.exports = {
             default: 0,
             localhost: 0,
         },
+        wakalaClaimAddress: {
+            default: 1,
+            localhost: 1,
+        },
+        daoOperator: {
+            default: 2,
+            localhost: 2,
+        },
     },
     mocha: {
         timeout: 300000,

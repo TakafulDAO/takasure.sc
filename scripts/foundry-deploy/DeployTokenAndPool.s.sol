@@ -26,8 +26,12 @@ contract DeployTokenAndPool is Script {
     {
         HelperConfig config = new HelperConfig();
 
-        (address contributionToken, uint256 deployerKey, address wakalaClaimAddress) = config
-            .activeNetworkConfig();
+        (
+            address contributionToken,
+            uint256 deployerKey,
+            address wakalaClaimAddress,
+            address daoOperator
+        ) = config.activeNetworkConfig();
 
         vm.startBroadcast(deployerKey);
 
@@ -38,7 +42,8 @@ contract DeployTokenAndPool is Script {
         TakasurePool(address(proxy)).initialize(
             contributionToken,
             address(takaToken),
-            wakalaClaimAddress
+            wakalaClaimAddress,
+            daoOperator
         );
 
         takaToken.grantRole(MINTER_ROLE, address(proxy));

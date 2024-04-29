@@ -54,16 +54,18 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function initialize(
         address _contributionToken,
         address _takaToken,
-        address _wakalaClaimAddress
+        address _wakalaClaimAddress,
+        address _daoOperator
     )
         external
         initializer
         notZeroAddress(_contributionToken)
         notZeroAddress(_takaToken)
         notZeroAddress(_wakalaClaimAddress)
+        notZeroAddress(_daoOperator)
     {
         __UUPSUpgradeable_init();
-        __Ownable_init(msg.sender);
+        __Ownable_init(_daoOperator);
 
         contributionToken = IERC20(_contributionToken);
         takaToken = ITakaToken(_takaToken);

@@ -7,12 +7,14 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
     : describe("Initialization unit tests", function () {
           const chainId = network.config.chainId
 
-          let takaToken
+          let takaToken, usdc, takasurePool
+          let accounts, deployer, daoOperator
 
           beforeEach(async () => {
               // Get the accounts
               accounts = await ethers.getSigners()
               deployer = accounts[0]
+              daoOperator = accounts[2]
               // Deploy contracts
               await deployments.fixture(["all"])
               usdc = await ethers.getContract("USDC")
@@ -47,7 +49,7 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
 
           it("should check for the members module's owner", async () => {
               const currentOwner = await takasurePool.owner()
-              const expectedOwner = deployer.address
+              const expectedOwner = daoOperator.address
 
               assert.equal(currentOwner, expectedOwner)
           })

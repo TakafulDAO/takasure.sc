@@ -22,9 +22,10 @@ module.exports = async ({ deployments }) => {
     takaToken = await deployments.get("TakaToken")
     takaTokenAddress = takaToken.address
     wakalaClaimAddress = networkConfig[chainId]["wakalaClaimAddress"]
+    daoOperator = networkConfig[chainId]["daoOperator"]
 
     const contractName = "TakasurePool"
-    const initArgs = [usdcAddress, takaTokenAddress, wakalaClaimAddress]
+    const initArgs = [usdcAddress, takaTokenAddress, wakalaClaimAddress, daoOperator]
     const proxyPattern = "UUPS"
     const deterministicDeployment = false
     const contract = "TakasurePool"
