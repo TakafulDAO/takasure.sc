@@ -71,7 +71,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         wakalaClaimAddress = _wakalaClaimAddress;
 
         pool.dynamicReserveRatio = 40; // 40% Default
-        pool.BMA = 1; // Default
+        pool.benefitMultiplierAdjuster = 1; // Default
         pool.totalContributions = 0;
         pool.totalClaimReserve = 0;
         pool.totalFundReserve = 0;
@@ -174,7 +174,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         view
         returns (
             uint256 dynamicReserveRatio_,
-            uint256 BMA_,
+            uint256 benefitMultiplierAdjuster_,
             uint256 totalContributions_,
             uint256 totalClaimReserve_,
             uint256 totalFundReserve_,
@@ -182,7 +182,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         )
     {
         dynamicReserveRatio_ = pool.dynamicReserveRatio;
-        BMA_ = pool.BMA;
+        benefitMultiplierAdjuster_ = pool.benefitMultiplierAdjuster;
         totalContributions_ = pool.totalContributions;
         totalClaimReserve_ = pool.totalClaimReserve;
         totalFundReserve_ = pool.totalFundReserve;

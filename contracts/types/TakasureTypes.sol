@@ -23,7 +23,7 @@ struct Member {
 struct Fund {
     mapping(address member => Member) members;
     uint256 dynamicReserveRatio; // Default 40%
-    uint256 BMA; // Default 1
+    uint256 benefitMultiplierAdjuster; // Default 1
     uint256 totalContributions;
     uint256 totalClaimReserve;
     uint256 totalFundReserve;
