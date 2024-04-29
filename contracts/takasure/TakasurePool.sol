@@ -165,10 +165,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         wakalaClaimAddress = newWakalaClaimAddress;
     }
 
-    function getWakalaFee() external view returns (uint256) {
-        return pool.wakalaFee;
-    }
-
     function getPoolValues()
         external
         view
