@@ -24,8 +24,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     Fund private pool;
 
-    uint256 public minimumThreshold;
     uint256 private constant DECIMALS_PRECISION = 1e12;
+    uint256 private constant MINIMUM_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
+
+    bool private allowCustomDuration; // while false, the membership duration is fixed to 5 years
+
+    uint256 public minimumThreshold;
     uint256 public memberIdCounter;
     address private wakalaClaimAddress; // The DAO operators address // todo: discuss, this should be the owner? immutable?
 
@@ -69,6 +73,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         wakalaClaimAddress = _wakalaClaimAddress;
 
         minimumThreshold = 25e6; // 25 USDC // 6 decimals
+        allowCustomDuration = false;
 
         pool.dynamicReserveRatio = 40; // 40% Default
         pool.benefitMultiplierAdjuster = 1; // Default
@@ -93,10 +98,18 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Create new member
         memberIdCounter++;
 
+        uint256 userMembershipDuration;
+
+        if (allowCustomDuration) {
+            userMembershipDuration = membershipDuration;
+        } else {
+            userMembershipDuration = MINIMUM_MEMBERSHIP_DURATION;
+        }
+
         Member memory newMember = Member({
             memberId: memberIdCounter,
             benefitMultiplier: benefitMultiplier,
-            membershipDuration: membershipDuration,
+            membershipDuration: userMembershipDuration,
             membershipStartTime: block.timestamp,
             netContribution: contributionAmount,
             wallet: msg.sender,
