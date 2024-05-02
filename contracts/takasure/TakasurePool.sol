@@ -118,9 +118,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             surplus: 0 // Todo
         });
 
+        uint256 mintAmount = contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+        uint256 wakalaAmount = (contributionAmount * pool.wakalaFee) / 100;
+        uint256 depositAmount = contributionAmount - wakalaAmount;
+
         // Distribute between the claim and fund reserve
-        uint256 toFundReserve = (contributionAmount * pool.dynamicReserveRatio) / 100;
-        uint256 toClaimReserve = contributionAmount - toFundReserve;
+        uint256 toFundReserve = (depositAmount * pool.dynamicReserveRatio) / 100;
+        uint256 toClaimReserve = depositAmount - toFundReserve;
 
         // Update the pool values
         pool.members[msg.sender] = newMember;
@@ -130,10 +134,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         // Add the member to the mapping
         idToMember[memberIdCounter] = newMember;
-
-        uint256 mintAmount = contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-        uint256 wakalaAmount = (contributionAmount * pool.wakalaFee) / 100;
-        uint256 depositAmount = contributionAmount - wakalaAmount;
 
         // External calls
         bool success;
