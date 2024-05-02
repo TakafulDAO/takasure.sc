@@ -43,6 +43,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error TakasurePool__ContributionTransferFailed();
     error TakasurePool__FeeTransferFailed();
     error TakasurePool__MintFailed();
+    error TakasurePool__WrongWakalaFee();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -159,6 +160,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
+        if (newWakalaFee > 100) {
+            revert TakasurePool__WrongWakalaFee();
+        }
         pool.wakalaFee = newWakalaFee;
     }
 
