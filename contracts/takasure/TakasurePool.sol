@@ -31,7 +31,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     uint256 public minimumThreshold;
     uint256 public memberIdCounter;
-    address private wakalaClaimAddress; // The DAO operators address // todo: discuss, this should be the owner? immutable?
+    address public wakalaClaimAddress;
 
     mapping(uint256 memberIdCounter => Member) private idToMember;
     mapping(address memberAddress => KYC) private memberKYC; // Todo: Implement KYC correctly in the future
@@ -208,10 +208,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function getContributionTokenAddress() external view returns (address contributionToken_) {
         contributionToken_ = address(contributionToken);
-    }
-
-    function getWakalaClaimAddress() external view returns (address wakalaClaimAddress_) {
-        wakalaClaimAddress_ = wakalaClaimAddress;
     }
 
     ///@dev required by the OZ UUPS module

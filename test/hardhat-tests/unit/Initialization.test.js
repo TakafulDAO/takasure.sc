@@ -33,7 +33,7 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
               assert.equal(currentSymbol, expectedSymbol)
           })
 
-          it.only("the roles should be assigned correctly", async () => {
+          it("the roles should be assigned correctly", async () => {
               const DEFAULT_ADMIN_ROLE = await takaToken.DEFAULT_ADMIN_ROLE()
               const MINTER_ROLE = await takaToken.MINTER_ROLE()
               const BURNER_ROLE = await takaToken.BURNER_ROLE()
