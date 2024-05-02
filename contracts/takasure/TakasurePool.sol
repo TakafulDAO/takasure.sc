@@ -25,7 +25,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     Fund private pool;
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
-    uint256 private constant MINIMUM_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
+    uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
 
     bool private allowCustomDuration; // while false, the membership duration is fixed to 5 years
 
@@ -103,7 +103,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (allowCustomDuration) {
             userMembershipDuration = membershipDuration;
         } else {
-            userMembershipDuration = MINIMUM_MEMBERSHIP_DURATION;
+            userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
         Member memory newMember = Member({
