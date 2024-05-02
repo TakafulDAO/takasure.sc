@@ -3,10 +3,10 @@
 pragma solidity 0.8.25;
 
 enum MemberState {
-    Defaulted,
-    Deceased,
+    Inactive,
     Active,
-    Inactive
+    Defaulted,
+    Deceased
 }
 
 enum KYC {
