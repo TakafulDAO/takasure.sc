@@ -15,6 +15,7 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import {Fund, Member, MemberState, KYC} from "../types/TakasureTypes.sol";
+import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
 
 pragma solidity 0.8.25;
 
@@ -144,9 +145,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Distribute between the claim and fund reserve
         uint256 toFundReserve = (depositAmount * pool.dynamicReserveRatio) / 100;
         uint256 toClaimReserve = depositAmount - toFundReserve;
+        uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
+            pool.proFormaFundReserve,
+            newMember.netContribution,
+            pool.dynamicReserveRatio
+        );
 
         // Update the pool values
         pool.members[msg.sender] = newMember;
+        pool.proFormaFundReserve = updatedProFormaFundReserve;
         pool.totalContributions += contributionAmount;
         pool.totalClaimReserve += toClaimReserve;
         pool.totalFundReserve += toFundReserve;
