@@ -38,7 +38,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(address memberAddress => KYC) private memberKYC; // Todo: Implement KYC correctly in the future
 
     event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
-    event NewWakalaFee(uint256 indexed newWakalaFee);
 
     error TakasurePool__ZeroAddress();
     error TakasurePool__ContributionBelowMinimumThreshold();
@@ -200,8 +199,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__WrongWakalaFee();
         }
         pool.wakalaFee = newWakalaFee;
-
-        emit NewWakalaFee(newWakalaFee);
     }
 
     function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
