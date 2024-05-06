@@ -22,7 +22,7 @@ library ReserveMathLib {
         uint256 _currentProFormaFundReserve,
         uint256 _memberNetContribution,
         uint256 _currentDynamicReserveRatio
-    ) internal view returns (uint256 _updatedProFormaFundReserve) {
+    ) internal pure returns (uint256 _updatedProFormaFundReserve) {
         _updatedProFormaFundReserve =
             _currentProFormaFundReserve +
             (_memberNetContribution * _currentDynamicReserveRatio);
