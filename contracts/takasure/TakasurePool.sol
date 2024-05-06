@@ -52,6 +52,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         address _contributionToken,
         address _takaToken,
