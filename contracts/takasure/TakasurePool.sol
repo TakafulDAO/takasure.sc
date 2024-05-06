@@ -150,10 +150,19 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             newMember.netContribution,
             pool.dynamicReserveRatio
         );
+        uint256 cashFlowLastPeriod = 0; // ! Warning: This value is not calculated yet, is here to allow compilation
+        uint256 updatedDynamicReserveRatio = ReserveMathLib
+            ._calculateDynamicReserveRatioReserveShortfallMethod(
+                pool.dynamicReserveRatio,
+                updatedProFormaFundReserve,
+                pool.totalFundReserve, // ? Question: Should be now or after the deposit?
+                cashFlowLastPeriod
+            );
 
         // Update the pool values
         pool.members[msg.sender] = newMember;
         pool.proFormaFundReserve = updatedProFormaFundReserve;
+        pool.dynamicReserveRatio = updatedDynamicReserveRatio;
         pool.totalContributions += contributionAmount;
         pool.totalClaimReserve += toClaimReserve;
         pool.totalFundReserve += toFundReserve;

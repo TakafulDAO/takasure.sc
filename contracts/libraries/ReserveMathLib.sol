@@ -27,4 +27,19 @@ library ReserveMathLib {
             _currentProFormaFundReserve +
             (_memberNetContribution * _currentDynamicReserveRatio);
     }
+
+    /**
+     * @notice Calculate the dynamic reserve ratio on every cash-in operation
+     * @param _currentDynamicReserveRatio Current value
+     * @param _proFormaFundReserve Pro forma fund reserve
+     * @param _fundReserve Fund reserve
+     * @param _cashFlowLastPeriod Cash flow of the last period of 12 months // ? Question: How?
+     * @dev The dynamic reserve ratio is calculated based on the current pro forma fund reserve
+     */
+    function _calculateDynamicReserveRatioReserveShortfallMethod(
+        uint256 _currentDynamicReserveRatio,
+        uint256 _proFormaFundReserve,
+        uint256 _fundReserve,
+        uint256 _cashFlowLastPeriod
+    ) internal view returns (uint256 _updatedDynamicReserveRatio) {}
 }
