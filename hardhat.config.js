@@ -41,8 +41,9 @@ module.exports = {
     solidity: {
         compilers: [
             {
-                version: "0.8.24",
+                version: "0.8.25",
                 settings: {
+                    evmVersion: "cancun",
                     optimizer: {
                         enabled: true,
                         runs: 200,
@@ -109,6 +110,14 @@ module.exports = {
 
             default: 0,
             localhost: 0,
+        },
+        wakalaClaimAddress: {
+            default: 1,
+            localhost: 1,
+        },
+        daoOperator: {
+            default: 2,
+            localhost: 2,
         },
     },
     mocha: {
