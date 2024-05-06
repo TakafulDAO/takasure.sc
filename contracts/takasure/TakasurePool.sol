@@ -186,6 +186,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         external
         view
         returns (
+            uint256 proFormaFundReserve_,
             uint256 dynamicReserveRatio_,
             uint256 benefitMultiplierAdjuster_,
             uint256 totalContributions_,
@@ -194,6 +195,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             uint256 wakalaFee_
         )
     {
+        proFormaFundReserve_ = pool.proFormaFundReserve;
         dynamicReserveRatio_ = pool.dynamicReserveRatio;
         benefitMultiplierAdjuster_ = pool.benefitMultiplierAdjuster;
         totalContributions_ = pool.totalContributions;

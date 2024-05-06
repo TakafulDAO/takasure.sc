@@ -69,7 +69,7 @@ contract MembesModuleTest is StdCheats, Test {
         vm.prank(takasurePool.owner());
         takasurePool.setNewWakalaFee(newWakalaFee);
 
-        (, , , , , uint256 wakalaFee) = takasurePool.getPoolValues();
+        (, , , , , , uint256 wakalaFee) = takasurePool.getPoolValues();
 
         assertEq(newWakalaFee, wakalaFee);
     }
@@ -85,7 +85,7 @@ contract MembesModuleTest is StdCheats, Test {
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
     function testTakasurePool_getWakalaFee() public view {
-        (, , , , , uint256 wakalaFee) = takasurePool.getPoolValues();
+        (, , , , , , uint256 wakalaFee) = takasurePool.getPoolValues();
         uint256 expectedWakalaFee = 20;
         assertEq(wakalaFee, expectedWakalaFee);
     }
