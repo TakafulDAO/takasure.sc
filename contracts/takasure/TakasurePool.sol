@@ -57,6 +57,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _disableInitializers();
     }
 
+    /**
+     * @param _contributionToken default USDC
+     * @param _takaToken utility token for the DAO
+     * @param _wakalaClaimAddress address allowed to claim the wakala fee
+     * @param _daoOperator address allowed to manage the DAO
+     * @dev it reverts if any of the addresses is zero
+     */
     function initialize(
         address _contributionToken,
         address _takaToken,
@@ -88,6 +95,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         pool.wakalaFee = 20; // 20% of the contribution amount. Default
     }
 
+    /**
+     * @notice Allow new members to join the pool
+     * @param benefitMultiplier fetched from off-chain oracle
+     * @param contributionAmount in six decimals
+     * @param membershipDuration default 5 years
+     * @dev it reverts if the contribution is less than the minimum threshold defaultes to `minimumThreshold`
+     */
     function joinPool(
         uint256 benefitMultiplier,
         uint256 contributionAmount, // 6 decimals
