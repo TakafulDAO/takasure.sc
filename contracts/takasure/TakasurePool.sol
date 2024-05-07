@@ -91,7 +91,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         cashLast12Months = 0; // Todo: delete? by default is 0, just here for clarity
         minimumThreshold = 25e6; // 25 USDC // 6 decimals
-        allowCustomDuration = false;
+        allowCustomDuration = false; // Todo: delete? by default is false, just here for clarity
 
         pool.dynamicReserveRatio = 40; // 40% Default
         pool.benefitMultiplierAdjuster = 1; // Default
