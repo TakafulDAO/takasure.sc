@@ -27,15 +27,19 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
+    uint256 private constant MONTH = 30 days; // Todo: Fix later, check a way to look for the current month maybe?
 
     bool private allowCustomDuration; // while false, the membership duration is fixed to 5 years
 
+    uint256 private cashLast12Months;
+    uint256 private depositTimestamp;
     uint256 public minimumThreshold;
     uint256 public memberIdCounter;
     address public wakalaClaimAddress;
 
     mapping(uint256 memberIdCounter => Member) private idToMember;
     mapping(address memberAddress => KYC) private memberKYC; // Todo: Implement KYC correctly in the future
+    mapping(uint256 month => uint256 cashFlow) private monthToCashFlow;
 
     event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
 
@@ -85,14 +89,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         takaToken = ITakaToken(_takaToken);
         wakalaClaimAddress = _wakalaClaimAddress;
 
+        cashLast12Months = 0; // Todo: delete? by default is 0, just here for clarity
         minimumThreshold = 25e6; // 25 USDC // 6 decimals
         allowCustomDuration = false;
 
         pool.dynamicReserveRatio = 40; // 40% Default
         pool.benefitMultiplierAdjuster = 1; // Default
-        pool.totalContributions = 0;
-        pool.totalClaimReserve = 0;
-        pool.totalFundReserve = 0;
+        pool.totalContributions = 0; // Todo: delete? by default is 0, just here for clarity
+        pool.totalClaimReserve = 0; // Todo: delete? by default is 0, just here for clarity
+        pool.totalFundReserve = 0; // Todo: delete? by default is 0, just here for clarity
         pool.wakalaFee = 20; // 20% of the contribution amount. Default
     }
 
@@ -145,18 +150,19 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Distribute between the claim and fund reserve
         uint256 toFundReserve = (depositAmount * pool.dynamicReserveRatio) / 100;
         uint256 toClaimReserve = depositAmount - toFundReserve;
+
         uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
             pool.proFormaFundReserve,
             newMember.netContribution,
             pool.dynamicReserveRatio
         );
-        uint256 cashFlowLastPeriod = 0; // ! Warning: This value is not calculated yet, is here to allow compilation
+
         uint256 updatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
                 pool.dynamicReserveRatio,
                 updatedProFormaFundReserve,
                 pool.totalFundReserve, // ? Question: Should be now or after the deposit?
-                cashFlowLastPeriod
+                cashLast12Months
             );
 
         // Update the pool values
