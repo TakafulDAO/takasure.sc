@@ -33,6 +33,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     uint256 private cashLast12Months;
     uint256 private depositTimestamp;
+    uint256 private month;
     uint256 public minimumThreshold;
     uint256 public memberIdCounter;
     address public wakalaClaimAddress;
@@ -90,6 +91,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         wakalaClaimAddress = _wakalaClaimAddress;
 
         cashLast12Months = 0; // Todo: delete? by default is 0, just here for clarity
+        month = 1;
         minimumThreshold = 25e6; // 25 USDC // 6 decimals
         allowCustomDuration = false; // Todo: delete? by default is false, just here for clarity
 
