@@ -159,6 +159,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             pool.dynamicReserveRatio
         );
 
+        cashLast12Months = _updateCashLast12Months();
+
         uint256 updatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
                 pool.dynamicReserveRatio,
@@ -201,6 +203,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
     }
+
+    // Todo: Maybe move it to the library. When finished check the variables to see if it is easier to implement there
+    function _updateCashLast12Months() internal returns (uint256 cashLast12Months_) {}
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
         if (newWakalaFee > 100) {
