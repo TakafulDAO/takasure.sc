@@ -287,7 +287,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // Iterate from the last complete month, until:
             if (currentMonth < 12) {
                 // More than one month has passed but less than a year
-                // Iterate through every month completed
+                // Iterate through every month passed
                 for (uint8 i; i < lastCompleteMonth; ) {
                     monthBackCounter = lastCompleteMonth - i;
                     cash += monthToCashFlow[monthBackCounter];
