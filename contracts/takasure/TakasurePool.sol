@@ -28,12 +28,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
     uint256 private constant MONTH = 30 days; // Todo: Fix later, check a way to look for the current month maybe?
+    uint256 private constant DAY = 1 days;
 
     bool private allowCustomDuration; // while false, the membership duration is fixed to 5 years
 
     uint256 private cashLast12Months;
-    uint256 private depositTimestamp;
-    uint256 private monthReference;
+    uint256 private depositTimestamp; // 0 at begining, then never is zero again
+    uint256 private monthReference; // Will count the month. For gas issues will grow undefinitely
     uint256 private dayReference; // Will count the day of the month from 1 -> 30, then resets to 1
 
     uint256 public minimumThreshold;
@@ -43,8 +44,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(uint256 memberIdCounter => Member) private idToMember;
     mapping(address memberAddress => KYC) private memberKYC; // Todo: Implement KYC correctly in the future
 
-    mapping(uint256 month => uint256 cashFlow) private monthToCashFlow;
-    mapping(uint256 day => uint256 dailyDeposits) private dayToDailyDeposits; // ? Maybe better block.timestamp => dailyDeposits for this one?
+    mapping(uint256 month => uint256 montCashFlow) private monthToCashFlow;
+    mapping(uint256 day => uint256 dayCashFlow) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
     event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
 
@@ -162,7 +163,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             pool.dynamicReserveRatio
         );
 
-        cashLast12Months = _updateCashLast12Months();
+        _updateCashMappings(depositAmount);
+        cashLast12Months = _calculateCashLast12Months(depositAmount);
 
         uint256 updatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
@@ -207,8 +209,44 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
     }
 
+    function _updateCashMappings(uint256 _depositAmount) internal {
+        uint256 currentTimestamp = block.timestamp;
+
+        if (depositTimestamp == 0) {
+            // If the depositTimestamp is 0 it means it is the first deposit
+            // Set the initial values for future calculations and reference
+            depositTimestamp = currentTimestamp;
+            monthToCashFlow[monthReference] = _depositAmount;
+            dayToCashFlow[dayReference] = _depositAmount;
+        } else {
+            // If there is a timestamp, it means there already have been a deposit
+            // Check first if the deposit is in the same month
+            if (currentTimestamp - depositTimestamp < MONTH) {
+                // Update the cash flow for the current month
+                monthToCashFlow[monthReference] += _depositAmount;
+                // Check if the deposit is in the same day of the month
+                if (currentTimestamp - depositTimestamp < DAY) {
+                    // Update the daily deposits for the current day
+                    dayToCashFlow[dayReference] += _depositAmount;
+                } else {
+                    // If the deposit is in a new day, update the day reference and update the daily deposits
+                    dayReference++;
+                    dayToCashFlow[dayReference] = _depositAmount;
+                }
+            } else {
+                // If the deposit is in a new month
+                monthReference++;
+                dayReference = 1;
+                monthToCashFlow[monthReference] = _depositAmount;
+                dayToCashFlow[dayReference] = _depositAmount;
+            }
+        }
+    }
+
     // Todo: Maybe move it to the library. When finished check the variables to see if it is fine to implement there
-    function _updateCashLast12Months() internal returns (uint256 cashLast12Months_) {}
+    function _calculateCashLast12Months(
+        uint256 _depositAmount
+    ) internal returns (uint256 cashLast12Months_) {}
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
         if (newWakalaFee > 100) {
