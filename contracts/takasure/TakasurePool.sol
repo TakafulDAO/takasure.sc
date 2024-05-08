@@ -165,11 +165,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _updateCashMappings(depositAmount);
         uint256 cashLast12Months = calculateCashLast12Months();
 
+        // ? Question: Should be now or after the deposit?
         uint256 updatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
                 pool.dynamicReserveRatio,
                 updatedProFormaFundReserve,
-                pool.totalFundReserve, // ? Question: Should be now or after the deposit?
+                pool.totalFundReserve,
                 cashLast12Months
             );
 
@@ -327,9 +328,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                     ++i;
                 }
             }
-
-            cashLast12Months_ = cash;
         }
+        cashLast12Months_ = cash;
     }
 
     function _updateCashMappings(uint256 _depositAmount) internal {
