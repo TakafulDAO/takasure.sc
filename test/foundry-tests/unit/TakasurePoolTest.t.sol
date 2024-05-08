@@ -64,12 +64,12 @@ contract MembesModuleTest is StdCheats, Test {
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
     function testTakasurePool_setNewWakalaFee() public {
-        uint256 newWakalaFee = 50;
+        uint8 newWakalaFee = 50;
 
         vm.prank(takasurePool.owner());
         takasurePool.setNewWakalaFee(newWakalaFee);
 
-        (, , , , , , uint256 wakalaFee) = takasurePool.getPoolValues();
+        (, , , , , , uint8 wakalaFee) = takasurePool.getPoolValues();
 
         assertEq(newWakalaFee, wakalaFee);
     }

@@ -34,5 +34,5 @@ struct Fund {
     uint256 totalContributions;
     uint256 totalClaimReserve;
     uint256 totalFundReserve;
-    uint256 wakalaFee; // Default 20%
+    uint8 wakalaFee; // Default 20%, max 100%
 }

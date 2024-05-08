@@ -34,8 +34,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     uint256 private cashLast12Months;
     uint256 private depositTimestamp; // 0 at begining, then never is zero again
-    uint256 private monthReference; // Will count the month. For gas issues will grow undefinitely
-    uint256 private dayReference; // Will count the day of the month from 1 -> 30, then resets to 1
+    uint16 private monthReference; // Will count the month. For gas issues will grow undefinitely
+    uint8 private dayReference; // Will count the day of the month from 1 -> 30, then resets to 1
 
     uint256 public minimumThreshold;
     uint256 public memberIdCounter;
@@ -44,8 +44,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(uint256 memberIdCounter => Member) private idToMember;
     mapping(address memberAddress => KYC) private memberKYC; // Todo: Implement KYC correctly in the future
 
-    mapping(uint256 month => uint256 montCashFlow) private monthToCashFlow;
-    mapping(uint256 day => uint256 dayCashFlow) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
+    mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
+    mapping(uint8 day => uint256 dayCashFlow) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
     event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
 
@@ -248,7 +248,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 _depositAmount
     ) internal returns (uint256 cashLast12Months_) {}
 
-    function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
+    function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
         if (newWakalaFee > 100) {
             revert TakasurePool__WrongWakalaFee();
         }
@@ -285,7 +285,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             uint256 totalContributions_,
             uint256 totalClaimReserve_,
             uint256 totalFundReserve_,
-            uint256 wakalaFee_
+            uint8 wakalaFee_
         )
     {
         proFormaFundReserve_ = pool.proFormaFundReserve;
