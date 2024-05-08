@@ -32,7 +32,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     bool private allowCustomDuration; // while false, the membership duration is fixed to 5 years
 
-    uint256 private cashLast12Months; // Todo: Maybe not needed. Check when finish drr implementation
     uint256 private depositTimestamp; // 0 at begining, then never is zero again
     uint16 private monthReference; // Will count the month. For gas issues will grow undefinitely
     uint8 private dayReference; // Will count the day of the month from 1 -> 30, then resets to 1
@@ -164,7 +163,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
 
         _updateCashMappings(depositAmount);
-        cashLast12Months = _calculateCashLast12Months();
+        uint256 cashLast12Months = _calculateCashLast12Months();
 
         uint256 updatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
