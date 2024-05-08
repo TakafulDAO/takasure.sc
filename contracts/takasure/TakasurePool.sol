@@ -233,6 +233,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         wakalaClaimAddress = newWakalaClaimAddress;
     }
 
+    function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
+        allowCustomDuration = _allowCustomDuration;
+    }
+
     function getPoolValues()
         external
         view
