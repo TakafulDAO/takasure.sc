@@ -276,6 +276,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         if (currentMonth == 1) {
             // If the month reference is 1, it means there is only one month of deposits
+            // So we just have to return the cash flow of the current month
             cash = monthToCashFlow[currentMonth];
         } else {
             // If there is more than one month
@@ -286,8 +287,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
             // Iterate from the last complete month, until:
             if (currentMonth < 12) {
-                // More than one month has passed but less than a year
-                // Iterate through every month passed
+                // More than one month has passed but less than a year, iterate through every month passed
+                // Example 1: a- we are in the second day of the third month, then we iterate only for months 1 & 2
                 for (uint8 i; i < lastCompleteMonth; ) {
                     monthBackCounter = lastCompleteMonth - i;
                     cash += monthToCashFlow[monthBackCounter];
@@ -297,8 +298,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                     }
                 }
             } else {
-                // More than a year has passed
-                // Iterate the las 11 months complete
+                // More than a year has passed, iterate the las 11 months complete
+                // Example 2: we are in the fifth day of the fouteenth month,
+                // a- we iterate for months: 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3
                 for (uint8 i; i < 11; ) {
                     monthBackCounter = lastCompleteMonth - i;
                     cash += monthToCashFlow[monthBackCounter];
@@ -309,6 +311,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 }
 
                 // Iterate an extra month to complete the days that are left for the current month
+                // b- now, as in the current month we only have five days, we take the values from
+                // the last 25 days of month 2
                 uint16 extraMonthToCheck = currentMonth - 11;
                 uint8 extraDaysToCheck = 30 - daysCounter;
                 for (uint8 i; i < extraDaysToCheck; ) {
@@ -321,6 +325,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             }
 
             // Iterate through the current month
+            // For example 1: b- we take the values from the two days that have passed in the third month
+            //                   this completes the two months and 5 days that have passed
+            // For example 2: c- we take the values from the five days that have passed in the fourteenth month
+            //                   this completes the 12 months, as follows, 25 days from month 2, from month 3
+            //                   to month 13 are taken complete, and 5 days from month 14
             for (uint8 i; i < daysCounter; ) {
                 cash += dayToCashFlow[currentMonth][i];
 
