@@ -32,7 +32,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     bool private allowCustomDuration; // while false, the membership duration is fixed to 5 years
 
-    uint256 private cashLast12Months;
+    uint256 private cashLast12Months; // Todo: Maybe not needed. Check when finish drr implementation
     uint256 private depositTimestamp; // 0 at begining, then never is zero again
     uint16 private monthReference; // Will count the month. For gas issues will grow undefinitely
     uint8 private dayReference; // Will count the day of the month from 1 -> 30, then resets to 1
@@ -45,7 +45,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(address memberAddress => KYC) private memberKYC; // Todo: Implement KYC correctly in the future
 
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
-    mapping(uint8 day => uint256 dayCashFlow) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
+    mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
     event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
 
@@ -164,7 +164,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
 
         _updateCashMappings(depositAmount);
-        cashLast12Months = _calculateCashLast12Months(depositAmount);
+        cashLast12Months = _calculateCashLast12Months();
 
         uint256 updatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
@@ -217,7 +217,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // Set the initial values for future calculations and reference
             depositTimestamp = currentTimestamp;
             monthToCashFlow[monthReference] = _depositAmount;
-            dayToCashFlow[dayReference] = _depositAmount;
+            dayToCashFlow[monthReference][dayReference] = _depositAmount;
         } else {
             // If there is a timestamp, it means there already have been a deposit
             // Check first if the deposit is in the same month
@@ -227,26 +227,86 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 // Check if the deposit is in the same day of the month
                 if (currentTimestamp - depositTimestamp < DAY) {
                     // Update the daily deposits for the current day
-                    dayToCashFlow[dayReference] += _depositAmount;
+                    dayToCashFlow[monthReference][dayReference] += _depositAmount;
                 } else {
                     // If the deposit is in a new day, update the day reference and update the daily deposits
                     dayReference++;
-                    dayToCashFlow[dayReference] = _depositAmount;
+                    dayToCashFlow[monthReference][dayReference] = _depositAmount;
                 }
             } else {
                 // If the deposit is in a new month
                 monthReference++;
                 dayReference = 1;
                 monthToCashFlow[monthReference] = _depositAmount;
-                dayToCashFlow[dayReference] = _depositAmount;
+                dayToCashFlow[monthReference][dayReference] = _depositAmount;
             }
         }
     }
 
     // Todo: Maybe move it to the library. When finished check the variables to see if it is fine to implement there
-    function _calculateCashLast12Months(
-        uint256 _depositAmount
-    ) internal returns (uint256 cashLast12Months_) {}
+    function _calculateCashLast12Months() internal returns (uint256 cashLast12Months_) {
+        uint256 cash = 0;
+        uint16 currentMonth = monthReference;
+
+        if (currentMonth == 1) {
+            // If the month reference is 1, it means there is only one month of deposits
+            cash = monthToCashFlow[currentMonth];
+        } else {
+            // If there is more than one month
+            uint16 lastCompleteMonth = currentMonth - 1;
+            uint16 monthBackCounter;
+
+            uint8 daysCounter = dayReference;
+
+            // Iterate from the last complete month, until:
+            if (currentMonth < 12) {
+                // More than one month has passed but less than a year
+                // Iterate through every month completed
+                for (uint8 i; i < lastCompleteMonth; ) {
+                    monthBackCounter = lastCompleteMonth - i;
+                    cash += monthToCashFlow[monthBackCounter];
+
+                    unchecked {
+                        ++i;
+                    }
+                }
+            } else {
+                // More than a year has passed
+                // Iterate the las 11 months complete
+                for (uint8 i; i < 11; ) {
+                    monthBackCounter = lastCompleteMonth - i;
+                    cash += monthToCashFlow[monthBackCounter];
+
+                    unchecked {
+                        ++i;
+                    }
+                }
+
+                // Iterate an extra month to complete the days that are left for the current month
+                uint16 extraMonthToCheck = currentMonth - 11;
+                uint8 extraDaysToCheck = 30 - daysCounter;
+                for (uint8 i; i < extraDaysToCheck; ) {
+                    cash += dayToCashFlow[extraMonthToCheck][i];
+
+                    unchecked {
+                        ++i;
+                    }
+                }
+            }
+
+            // Iterate through the current month
+            for (uint8 i; i < daysCounter; ) {
+                cash += dayToCashFlow[currentMonth][i];
+
+                unchecked {
+                    ++i;
+                }
+            }
+
+            cashLast12Months = cash; // Todo: Really needed in storage? dont think so
+            cashLast12Months_ = cash;
+        }
+    }
 
     function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
         if (newWakalaFee > 100) {
