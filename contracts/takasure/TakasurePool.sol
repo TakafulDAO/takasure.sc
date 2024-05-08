@@ -244,7 +244,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     // Todo: Maybe move it to the library. When finished check the variables to see if it is fine to implement there
-    function _calculateCashLast12Months() internal returns (uint256 cashLast12Months_) {
+    function _calculateCashLast12Months() internal view returns (uint256 cashLast12Months_) {
         uint256 cash = 0;
         uint16 currentMonth = monthReference;
 
