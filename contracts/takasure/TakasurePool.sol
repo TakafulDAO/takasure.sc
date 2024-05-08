@@ -209,6 +209,67 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
     }
 
+    function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
+        if (newWakalaFee > 100) {
+            revert TakasurePool__WrongWakalaFee();
+        }
+        pool.wakalaFee = newWakalaFee;
+    }
+
+    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
+        minimumThreshold = newMinimumThreshold;
+    }
+
+    function setNewContributionToken(
+        address newContributionToken
+    ) external onlyOwner notZeroAddress(newContributionToken) {
+        contributionToken = IERC20(newContributionToken);
+    }
+
+    function setNewWakalaClaimAddress(
+        address newWakalaClaimAddress
+    ) external onlyOwner notZeroAddress(newWakalaClaimAddress) {
+        wakalaClaimAddress = newWakalaClaimAddress;
+    }
+
+    function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
+        allowCustomDuration = _allowCustomDuration;
+    }
+
+    function getPoolValues()
+        external
+        view
+        returns (
+            uint256 proFormaFundReserve_,
+            uint256 dynamicReserveRatio_,
+            uint256 benefitMultiplierAdjuster_,
+            uint256 totalContributions_,
+            uint256 totalClaimReserve_,
+            uint256 totalFundReserve_,
+            uint8 wakalaFee_
+        )
+    {
+        proFormaFundReserve_ = pool.proFormaFundReserve;
+        dynamicReserveRatio_ = pool.dynamicReserveRatio;
+        benefitMultiplierAdjuster_ = pool.benefitMultiplierAdjuster;
+        totalContributions_ = pool.totalContributions;
+        totalClaimReserve_ = pool.totalClaimReserve;
+        totalFundReserve_ = pool.totalFundReserve;
+        wakalaFee_ = pool.wakalaFee;
+    }
+
+    function getMemberFromId(uint256 memberId) external view returns (Member memory) {
+        return idToMember[memberId];
+    }
+
+    function getTakaTokenAddress() external view returns (address) {
+        return address(takaToken);
+    }
+
+    function getContributionTokenAddress() external view returns (address contributionToken_) {
+        contributionToken_ = address(contributionToken);
+    }
+
     function _updateCashMappings(uint256 _depositAmount) internal {
         uint256 currentTimestamp = block.timestamp;
 
@@ -305,67 +366,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
             cashLast12Months_ = cash;
         }
-    }
-
-    function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
-        if (newWakalaFee > 100) {
-            revert TakasurePool__WrongWakalaFee();
-        }
-        pool.wakalaFee = newWakalaFee;
-    }
-
-    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
-        minimumThreshold = newMinimumThreshold;
-    }
-
-    function setNewContributionToken(
-        address newContributionToken
-    ) external onlyOwner notZeroAddress(newContributionToken) {
-        contributionToken = IERC20(newContributionToken);
-    }
-
-    function setNewWakalaClaimAddress(
-        address newWakalaClaimAddress
-    ) external onlyOwner notZeroAddress(newWakalaClaimAddress) {
-        wakalaClaimAddress = newWakalaClaimAddress;
-    }
-
-    function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
-        allowCustomDuration = _allowCustomDuration;
-    }
-
-    function getPoolValues()
-        external
-        view
-        returns (
-            uint256 proFormaFundReserve_,
-            uint256 dynamicReserveRatio_,
-            uint256 benefitMultiplierAdjuster_,
-            uint256 totalContributions_,
-            uint256 totalClaimReserve_,
-            uint256 totalFundReserve_,
-            uint8 wakalaFee_
-        )
-    {
-        proFormaFundReserve_ = pool.proFormaFundReserve;
-        dynamicReserveRatio_ = pool.dynamicReserveRatio;
-        benefitMultiplierAdjuster_ = pool.benefitMultiplierAdjuster;
-        totalContributions_ = pool.totalContributions;
-        totalClaimReserve_ = pool.totalClaimReserve;
-        totalFundReserve_ = pool.totalFundReserve;
-        wakalaFee_ = pool.wakalaFee;
-    }
-
-    function getMemberFromId(uint256 memberId) external view returns (Member memory) {
-        return idToMember[memberId];
-    }
-
-    function getTakaTokenAddress() external view returns (address) {
-        return address(takaToken);
-    }
-
-    function getContributionTokenAddress() external view returns (address contributionToken_) {
-        contributionToken_ = address(contributionToken);
     }
 
     ///@dev required by the OZ UUPS module
