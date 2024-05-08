@@ -16,14 +16,14 @@ library ReserveMathLib {
      * @param _currentProFormaFundReserve Current value
      * @param _memberNetContribution Net contribution of the member
      * @param _currentDynamicReserveRatio Current dynamic reserve ratio
-     * @return _updatedProFormaFundReserve Updated value
+     * @return updatedProFormaFundReserve_ Updated value
      */
     function _updateProFormaFundReserve(
         uint256 _currentProFormaFundReserve,
         uint256 _memberNetContribution,
         uint256 _currentDynamicReserveRatio
-    ) internal pure returns (uint256 _updatedProFormaFundReserve) {
-        _updatedProFormaFundReserve =
+    ) internal pure returns (uint256 updatedProFormaFundReserve_) {
+        updatedProFormaFundReserve_ =
             _currentProFormaFundReserve +
             (_memberNetContribution * _currentDynamicReserveRatio);
     }
@@ -41,5 +41,21 @@ library ReserveMathLib {
         uint256 _proFormaFundReserve,
         uint256 _fundReserve,
         uint256 _cashFlowLastPeriod
-    ) internal view returns (uint256 _updatedDynamicReserveRatio) {}
+    ) internal pure returns (uint256 updatedDynamicReserveRatio_) {
+        int256 fundReserveShortfall = int256(_proFormaFundReserve) - int256(_fundReserve);
+
+        if (fundReserveShortfall <= 0) {
+            updatedDynamicReserveRatio_ = _currentDynamicReserveRatio;
+        } else {
+            // possibleDRR = _currentDynamicReserveRatio + (uint256(_fundReserveShortfall * 100) / _cashFlowLastPeriod);
+            uint256 possibleDRR = _currentDynamicReserveRatio +
+                (uint256(fundReserveShortfall) / _cashFlowLastPeriod);
+
+            if (possibleDRR < 1) {
+                updatedDynamicReserveRatio_ = possibleDRR;
+            } else {
+                updatedDynamicReserveRatio_ = 1;
+            }
+        }
+    }
 }
