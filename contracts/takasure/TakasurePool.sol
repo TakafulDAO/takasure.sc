@@ -269,41 +269,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         contributionToken_ = address(contributionToken);
     }
 
-    function _updateCashMappings(uint256 _depositAmount) internal {
-        uint256 currentTimestamp = block.timestamp;
-
-        if (depositTimestamp == 0) {
-            // If the depositTimestamp is 0 it means it is the first deposit
-            // Set the initial values for future calculations and reference
-            depositTimestamp = currentTimestamp;
-            monthToCashFlow[monthReference] = _depositAmount;
-            dayToCashFlow[monthReference][dayReference] = _depositAmount;
-        } else {
-            // If there is a timestamp, it means there already have been a deposit
-            // Check first if the deposit is in the same month
-            if (currentTimestamp - depositTimestamp < MONTH) {
-                // Update the cash flow for the current month
-                monthToCashFlow[monthReference] += _depositAmount;
-                // Check if the deposit is in the same day of the month
-                if (currentTimestamp - depositTimestamp < DAY) {
-                    // Update the daily deposits for the current day
-                    dayToCashFlow[monthReference][dayReference] += _depositAmount;
-                } else {
-                    // If the deposit is in a new day, update the day reference and update the daily deposits
-                    dayReference++;
-                    dayToCashFlow[monthReference][dayReference] = _depositAmount;
-                }
-            } else {
-                // If the deposit is in a new month
-                monthReference++;
-                dayReference = 1;
-                monthToCashFlow[monthReference] = _depositAmount;
-                dayToCashFlow[monthReference][dayReference] = _depositAmount;
-            }
-        }
-    }
-
-    // Todo: Maybe move it to the library. When finished check the variables to see if it is fine to implement there
     function calculateCashLast12Months() public view returns (uint256 cashLast12Months_) {
         uint256 cash = 0;
         uint16 currentMonth = monthReference;
@@ -364,6 +329,40 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             }
 
             cashLast12Months_ = cash;
+        }
+    }
+
+    function _updateCashMappings(uint256 _depositAmount) internal {
+        uint256 currentTimestamp = block.timestamp;
+
+        if (depositTimestamp == 0) {
+            // If the depositTimestamp is 0 it means it is the first deposit
+            // Set the initial values for future calculations and reference
+            depositTimestamp = currentTimestamp;
+            monthToCashFlow[monthReference] = _depositAmount;
+            dayToCashFlow[monthReference][dayReference] = _depositAmount;
+        } else {
+            // If there is a timestamp, it means there already have been a deposit
+            // Check first if the deposit is in the same month
+            if (currentTimestamp - depositTimestamp < MONTH) {
+                // Update the cash flow for the current month
+                monthToCashFlow[monthReference] += _depositAmount;
+                // Check if the deposit is in the same day of the month
+                if (currentTimestamp - depositTimestamp < DAY) {
+                    // Update the daily deposits for the current day
+                    dayToCashFlow[monthReference][dayReference] += _depositAmount;
+                } else {
+                    // If the deposit is in a new day, update the day reference and update the daily deposits
+                    dayReference++;
+                    dayToCashFlow[monthReference][dayReference] = _depositAmount;
+                }
+            } else {
+                // If the deposit is in a new month
+                monthReference++;
+                dayReference = 1;
+                monthToCashFlow[monthReference] = _depositAmount;
+                dayToCashFlow[monthReference][dayReference] = _depositAmount;
+            }
         }
     }
 
