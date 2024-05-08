@@ -303,7 +303,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 }
             }
 
-            cashLast12Months = cash; // Todo: Really needed in storage? dont think so
             cashLast12Months_ = cash;
         }
     }
