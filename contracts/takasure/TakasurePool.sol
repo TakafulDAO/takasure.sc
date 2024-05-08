@@ -33,14 +33,18 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     uint256 private cashLast12Months;
     uint256 private depositTimestamp;
-    uint256 private month;
+    uint256 private monthReference;
+    uint256 private dayReference; // Will count the day of the month from 1 -> 30, then resets to 1
+
     uint256 public minimumThreshold;
     uint256 public memberIdCounter;
     address public wakalaClaimAddress;
 
     mapping(uint256 memberIdCounter => Member) private idToMember;
     mapping(address memberAddress => KYC) private memberKYC; // Todo: Implement KYC correctly in the future
+
     mapping(uint256 month => uint256 cashFlow) private monthToCashFlow;
+    mapping(uint256 day => uint256 dailyDeposits) private dayToDailyDeposits; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
     event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
 
@@ -91,7 +95,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         wakalaClaimAddress = _wakalaClaimAddress;
 
         cashLast12Months = 0; // Todo: delete? by default is 0, just here for clarity
-        month = 1;
+        monthReference = 1;
+        dayReference = 1;
         minimumThreshold = 25e6; // 25 USDC // 6 decimals
         allowCustomDuration = false; // Todo: delete? by default is false, just here for clarity
 
@@ -204,7 +209,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
     }
 
-    // Todo: Maybe move it to the library. When finished check the variables to see if it is easier to implement there
+    // Todo: Maybe move it to the library. When finished check the variables to see if it is fine to implement there
     function _updateCashLast12Months() internal returns (uint256 cashLast12Months_) {}
 
     function setNewWakalaFee(uint256 newWakalaFee) external onlyOwner {
