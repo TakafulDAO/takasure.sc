@@ -99,12 +99,66 @@ contract MembesModuleTest is StdCheats, Test {
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
+    /// @dev `setNewWakalaFee` must revert if the caller is not the owner
+    function testTakasurePool_setNewWakalaFeeMustRevertIfTheCallerIsNotTheOwner() public {
+        uint8 newWakalaFee = 50;
+        vm.prank(user);
+        vm.expectRevert();
+        takasurePool.setNewWakalaFee(newWakalaFee);
+    }
+
+    /// @dev `setNewWakalaFee` must revert if it is higher than 100
+    function testTakasurePool_setNewWakalaFeeMustRevertIfHigherThan100() public {
+        uint8 newWakalaFee = 101;
+        vm.prank(takasurePool.owner());
+        vm.expectRevert(TakasurePool.TakasurePool__WrongWakalaFee.selector);
+        takasurePool.setNewWakalaFee(newWakalaFee);
+    }
+
+    /// @dev `setNewMinimumThreshold` must revert if the caller is not the owner
+    function testTakasurePool_setNewMinimumThresholdMustRevertIfTheCallerIsNotTheOwner() public {
+        uint8 newThreshold = 50;
+        vm.prank(user);
+        vm.expectRevert();
+        takasurePool.setNewMinimumThreshold(newThreshold);
+    }
+
+    /// @dev `setNewContributionToken` must revert if the caller is not the owner
+    function testTakasurePool_setNewContributionTokenMustRevertIfTheCallerIsNotTheOwner() public {
+        vm.prank(user);
+        vm.expectRevert();
+        takasurePool.setNewContributionToken(user);
+    }
+
+    /// @dev `setNewContributionToken` must revert if the address is zero
     function testTakasurePool_setNewContributionTokenMustRevertIfAddressZero() public {
         vm.prank(takasurePool.owner());
         vm.expectRevert(TakasurePool.TakasurePool__ZeroAddress.selector);
         takasurePool.setNewContributionToken(address(0));
     }
 
+    /// @dev `setNewWakalaClaimAddress` must revert if the caller is not the owner
+    function testTakasurePool_setNewWakalaClaimAddressMustRevertIfTheCallerIsNotTheOwner() public {
+        vm.prank(user);
+        vm.expectRevert();
+        takasurePool.setNewWakalaClaimAddress(user);
+    }
+
+    /// @dev `setNewWakalaClaimAddress` must revert if the address is zero
+    function testTakasurePool_setNewWakalaClaimAddressMustRevertIfAddressZero() public {
+        vm.prank(takasurePool.owner());
+        vm.expectRevert(TakasurePool.TakasurePool__ZeroAddress.selector);
+        takasurePool.setNewWakalaClaimAddress(address(0));
+    }
+
+    /// @dev `setAllowCustomDuration` must revert if the caller is not the owner
+    function testTakasurePool_setAllowCustomDurationMustRevertIfTheCallerIsNotTheOwner() public {
+        vm.prank(user);
+        vm.expectRevert();
+        takasurePool.setAllowCustomDuration(true);
+    }
+
+    /// @dev `joinPool` must revert if the contribution is less than the minimum threshold
     function testTakasurePool_joinPoolMustRevertIfDepositLessThanMinimum() public {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(user);
