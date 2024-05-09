@@ -30,7 +30,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     uint256 private constant MONTH = 30 days; // Todo: Fix later, check a way to look for the current month maybe?
     uint256 private constant DAY = 1 days;
 
-    bool private allowCustomDuration; // while false, the membership duration is fixed to 5 years
+    bool public allowCustomDuration; // while false, the membership duration is fixed to 5 years
 
     uint256 private depositTimestamp; // 0 at begining, then never is zero again
     uint16 private monthReference; // Will count the month. For gas issues will grow undefinitely

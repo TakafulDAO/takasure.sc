@@ -32,6 +32,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         vm.stopPrank();
     }
 
+    /// @dev Test the owner can set a new wakala fee
     function testTakasurePool_setNewWakalaFee() public {
         uint8 newWakalaFee = 50;
 
@@ -43,10 +44,37 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         assertEq(newWakalaFee, wakalaFee);
     }
 
+    /// @dev Test the owner can set a new minimum threshold
+    function testTakasurePool_setNewMinimumThreshold() public {
+        uint256 newThreshold = 50e6;
+
+        vm.prank(takasurePool.owner());
+        takasurePool.setNewMinimumThreshold(newThreshold);
+
+        assertEq(newThreshold, takasurePool.minimumThreshold());
+    }
+
+    /// @dev Test the owner can set a new contribution token
     function testTakasurePool_setNewContributionToken() public {
         vm.prank(takasurePool.owner());
         takasurePool.setNewContributionToken(user);
 
         assertEq(user, takasurePool.getContributionTokenAddress());
+    }
+
+    /// @dev Test the owner can set a new wakala claim address
+    function testTakasurePool_canSetNewWakalaClaimAddress() public {
+        vm.prank(takasurePool.owner());
+        takasurePool.setNewWakalaClaimAddress(user);
+
+        assertEq(user, takasurePool.wakalaClaimAddress());
+    }
+
+    /// @dev Test the owner can set custom duration
+    function testTakasurePool_setAllowCustomDuration() public {
+        vm.prank(takasurePool.owner());
+        takasurePool.setAllowCustomDuration(true);
+
+        assertEq(true, takasurePool.allowCustomDuration());
     }
 }
