@@ -100,9 +100,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         pool.dynamicReserveRatio = 40; // 40% Default
         pool.benefitMultiplierAdjuster = 1; // Default
-        pool.totalContributions = 0; // Todo: delete? by default is 0, just here for clarity
-        pool.totalClaimReserve = 0; // Todo: delete? by default is 0, just here for clarity
-        pool.totalFundReserve = 0; // Todo: delete? by default is 0, just here for clarity
+        pool.totalContributions = 0;
+        pool.totalClaimReserve = 0;
+        pool.totalFundReserve = 0;
         pool.wakalaFee = 20; // 20% of the contribution amount. Default
     }
 
@@ -258,8 +258,16 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         wakalaFee_ = pool.wakalaFee;
     }
 
+    function getMemberKYC(address member) external view returns (KYC) {
+        return memberKYC[member];
+    }
+
     function getMemberFromId(uint256 memberId) external view returns (Member memory) {
         return idToMember[memberId];
+    }
+
+    function getMemberFromAddress(address member) external view returns (Member memory) {
+        return pool.members[member];
     }
 
     function getTakaTokenAddress() external view returns (address) {
