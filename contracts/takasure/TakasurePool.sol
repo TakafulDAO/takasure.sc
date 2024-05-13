@@ -321,15 +321,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                     --dayBackCounter;
                 }
             }
-
-            // Iterate through the current month
-            // for (uint8 i = 1; i <= currentDay; ) {
-            //     cash += dayToCashFlow[currentMonth][i];
-
-            //     unchecked {
-            //         ++i;
-            //     }
-            // }
         }
 
         cashLast12Months_ = cash;
