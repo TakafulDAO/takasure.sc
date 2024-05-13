@@ -283,62 +283,56 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint16 currentMonth = monthReference;
         uint8 currentDay = dayReference;
 
-        if (currentMonth == 1) {
-            // If the month reference is 1, it means there is only one month of deposits
-            // So we just have to return the cash flow of the current month
-            cash = monthToCashFlow[currentMonth];
+        if (currentMonth < 13) {
+            // Less than a complete year, iterate through every month passed
+            // Return everything stored in the mappings until now
+            for (uint8 i = 1; i <= currentMonth; ) {
+                cash += monthToCashFlow[i];
+
+                unchecked {
+                    ++i;
+                }
+            }
         } else {
-            // If there is more than one month
-            if (currentMonth < 13) {
-                // More than one month has passed but less than a complete year, iterate through every month passed
-                // Return everything stored in the mappings until now
-                for (uint8 i = 1; i <= currentMonth; ) {
-                    cash += monthToCashFlow[i];
+            // More than a complete year has passed, iterate the last 11 completed months
+            // This happens since month 13
+            uint16 lastCompleteMonth = currentMonth - 1;
+            uint16 monthBackCounter;
+            uint16 monthsInYear = 12;
 
-                    unchecked {
-                        ++i;
-                    }
+            for (uint8 i; i < monthsInYear - 1; ) {
+                monthBackCounter = lastCompleteMonth - i;
+                cash += monthToCashFlow[monthBackCounter];
+
+                unchecked {
+                    ++i;
                 }
-            } else {
-                // More than a complete year has passed, iterate the last 11 completed months
-                // This happens since month 13
-                uint16 lastCompleteMonth = currentMonth - 1;
-                uint16 monthBackCounter;
-                uint16 monthsInYear = 12;
+            }
 
-                for (uint8 i; i < monthsInYear - 1; ) {
-                    monthBackCounter = lastCompleteMonth - i;
-                    cash += monthToCashFlow[monthBackCounter];
+            // Iterate an extra month to complete the days that are left from the current month
+            uint16 extraMonthToCheck = currentMonth - monthsInYear;
+            uint8 dayBackCounter = 30;
+            uint8 extraDaysToCheck = dayBackCounter - currentDay;
 
-                    unchecked {
-                        ++i;
-                    }
+            for (uint8 i; i < extraDaysToCheck; ) {
+                cash += dayToCashFlow[extraMonthToCheck][dayBackCounter];
+
+                unchecked {
+                    ++i;
+                    --dayBackCounter;
                 }
+            }
 
-                // Iterate an extra month to complete the days that are left from the current month
-                uint16 extraMonthToCheck = currentMonth - monthsInYear;
-                uint8 dayBackCounter = 30;
-                uint8 extraDaysToCheck = dayBackCounter - currentDay;
+            // Iterate through the current month
+            for (uint8 i = 1; i <= currentDay; ) {
+                cash += dayToCashFlow[currentMonth][i];
 
-                for (uint8 i; i < extraDaysToCheck; ) {
-                    cash += dayToCashFlow[extraMonthToCheck][dayBackCounter];
-
-                    unchecked {
-                        ++i;
-                        --dayBackCounter;
-                    }
-                }
-
-                // Iterate through the current month
-                for (uint8 i = 1; i <= currentDay; ) {
-                    cash += dayToCashFlow[currentMonth][i];
-
-                    unchecked {
-                        ++i;
-                    }
+                unchecked {
+                    ++i;
                 }
             }
         }
+
         cashLast12Months_ = cash;
     }
 
