@@ -296,12 +296,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         } else {
             // More than a complete year has passed, iterate the last 11 completed months
             // This happens since month 13
-            uint16 lastCompleteMonth = currentMonth - 1;
             uint16 monthBackCounter;
             uint16 monthsInYear = 12;
 
-            for (uint8 i; i < monthsInYear - 1; ) {
-                monthBackCounter = lastCompleteMonth - i;
+            for (uint8 i; i < monthsInYear; ) {
+                monthBackCounter = currentMonth - i;
                 cash += monthToCashFlow[monthBackCounter];
 
                 unchecked {
@@ -324,13 +323,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             }
 
             // Iterate through the current month
-            for (uint8 i = 1; i <= currentDay; ) {
-                cash += dayToCashFlow[currentMonth][i];
+            // for (uint8 i = 1; i <= currentDay; ) {
+            //     cash += dayToCashFlow[currentMonth][i];
 
-                unchecked {
-                    ++i;
-                }
-            }
+            //     unchecked {
+            //         ++i;
+            //     }
+            // }
         }
 
         cashLast12Months_ = cash;
