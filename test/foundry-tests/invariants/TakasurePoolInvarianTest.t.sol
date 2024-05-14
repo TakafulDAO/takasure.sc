@@ -43,9 +43,6 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
         (, , , , uint256 claimReserve, uint256 fundReserve, ) = takasurePool.getPoolValues();
         uint256 reserves = claimReserve + fundReserve;
 
-        console2.log("contributionTokenBalance", contributionTokenBalance);
-        console2.log("reserves", reserves);
-
         assertEq(contributionTokenBalance, reserves);
     }
 }
