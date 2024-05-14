@@ -49,7 +49,7 @@ contract TakasurePoolTest is StdCheats, Test {
                                   JOIN
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Test that the joinPool function updates the memberIdCounter
+    /// @notice Test that the joinPool function updates the memberIdCounter
     function testTakasurePool_joinPoolUpdatesCounter() public {
         uint256 memberIdCounterBefore = takasurePool.memberIdCounter();
 
@@ -73,7 +73,7 @@ contract TakasurePoolTest is StdCheats, Test {
         _;
     }
 
-    /// @dev Test the member is created
+    /// @notice Test the member is created
     function testTakasurePool_joinPoolCreateNewMember() public aliceJoin {
         uint256 memberId = takasurePool.memberIdCounter();
 
@@ -86,7 +86,7 @@ contract TakasurePoolTest is StdCheats, Test {
         assertEq(uint8(testMember.memberState), 1);
     }
 
-    /// @dev More than one can join
+    /// @notice More than one can join
     function testTakasurePool_moreThanOneJoin() public aliceJoin bobJoin {
         Member memory aliceMember = takasurePool.getMemberFromAddress(alice);
         Member memory bobMember = takasurePool.getMemberFromAddress(bob);
@@ -104,7 +104,7 @@ contract TakasurePoolTest is StdCheats, Test {
                           MEMBERSHIP DURATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Test the membership duration is 5 years if allowCustomDuration is false
+    /// @notice Test the membership duration is 5 years if allowCustomDuration is false
     function testTakasurePool_defaultMembershipDuration() public {
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, YEAR);
@@ -114,7 +114,7 @@ contract TakasurePoolTest is StdCheats, Test {
         assertEq(member.membershipDuration, 5 * YEAR);
     }
 
-    /// @dev Test the membership custom duration
+    /// @notice Test the membership custom duration
     function testTakasurePool_customMembershipDuration() public {
         vm.prank(takasurePool.owner());
         takasurePool.setAllowCustomDuration(true);
@@ -131,7 +131,7 @@ contract TakasurePoolTest is StdCheats, Test {
                            CASH & RESERVES
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Test fund and claim reserves are calculated correctly
+    /// @notice Test fund and claim reserves are calculated correctly
     function testTakasurePool_fundAndClaimReserves() public {
         (
             ,
@@ -163,7 +163,7 @@ contract TakasurePoolTest is StdCheats, Test {
         assertEq(finalFundReserve, 8e6);
     }
 
-    /// @dev Cash last 12 months less than a month
+    /// @notice Cash last 12 months less than a month
     function testTakasurePool_cashLessThanMonth() public {
         address[50] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {
@@ -229,7 +229,7 @@ contract TakasurePoolTest is StdCheats, Test {
         assertEq(cash, totalDeposited);
     }
 
-    /// @dev Cash last 12 months more than a month less than a year
+    /// @notice Cash last 12 months more than a month less than a year
     function testTakasurePool_cashMoreThanMonthLessThanYear() public {
         address[100] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {
@@ -288,7 +288,7 @@ contract TakasurePoolTest is StdCheats, Test {
         assertEq(cash, totalDeposited);
     }
 
-    /// @dev Cash last 12 months more than a  year
+    /// @notice Cash last 12 months more than a  year
     function testTakasurePool_cashMoreThanYear() public {
         address[200] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {
