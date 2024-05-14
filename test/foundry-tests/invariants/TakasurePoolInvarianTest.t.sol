@@ -45,4 +45,18 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
 
         assertEq(contributionTokenBalance, reserves);
     }
+
+    /// @notice Invariant to check dynamic reserve ratio
+    function invariant_dynamicReserveRatioShouldBeGreaterOrEqualToOne() public view {
+        (, uint256 drr, , , , , ) = takasurePool.getPoolValues();
+
+        assert(drr >= 1);
+    }
+
+    function invariant_gettersShouldNotRevert() public view {
+        takasurePool.getCalculateCashLast12Months();
+        takasurePool.getContributionTokenAddress();
+        takasurePool.getPoolValues();
+        takasurePool.getTakaTokenAddress();
+    }
 }
