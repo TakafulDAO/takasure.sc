@@ -24,10 +24,6 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
         (, proxy, , contributionTokenAddress, ) = deployer.run();
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
-        // vm.startPrank(user);
-        // usdc.mintUSDC(user, USDC_INITIAL_AMOUNT);
-        // usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
-        // vm.stopPrank();
 
         handler = new TakasurePoolHandler(takasurePool);
 
@@ -38,7 +34,18 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
         targetContract(address(handler));
     }
 
-    function invariant_someInvariant() public pure returns (bool) {
-        return true;
+    /// @notice Invariant to check pool contribution token balance and reserves
+    /// pool_contribution_token_balance = claim_reserves + fund_reserves
+    // ? Question: is this true? Right now it is, but it may not be in the future with the claims? R&D
+    function invariant_reservesShouldBeEqualToBalance() public view {
+        uint256 contributionTokenBalance = usdc.balanceOf(address(takasurePool));
+
+        (, , , , uint256 claimReserve, uint256 fundReserve, ) = takasurePool.getPoolValues();
+        uint256 reserves = claimReserve + fundReserve;
+
+        console2.log("contributionTokenBalance", contributionTokenBalance);
+        console2.log("reserves", reserves);
+
+        assertEq(contributionTokenBalance, reserves);
     }
 }
