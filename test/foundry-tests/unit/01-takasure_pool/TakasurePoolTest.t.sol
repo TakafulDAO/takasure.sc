@@ -216,7 +216,7 @@ contract TakasurePoolTest is StdCheats, Test {
             takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
-        uint256 cash = takasurePool.calculateCashLast12Months();
+        uint256 cash = takasurePool.getCalculateCashLast12Months();
 
         // Each day 25USDC - fee = 20USDC will be deposited
         // 200USDC * 5 days = 1000USDC
@@ -278,7 +278,7 @@ contract TakasurePoolTest is StdCheats, Test {
             takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
-        uint256 cash = takasurePool.calculateCashLast12Months();
+        uint256 cash = takasurePool.getCalculateCashLast12Months();
 
         uint256 totalMembers = takasurePool.memberIdCounter();
         (, , , , , , uint8 wakalaFee) = takasurePool.getPoolValues();
@@ -450,7 +450,7 @@ contract TakasurePoolTest is StdCheats, Test {
         // Month 15 -> first day = 20USDC -> Total = 2780USDC
         // Month 15 -> second day = 20USDC -> Total = 2800USDC
 
-        uint256 cash = takasurePool.calculateCashLast12Months();
+        uint256 cash = takasurePool.getCalculateCashLast12Months();
 
         assertEq(cash, 2800e6);
     }

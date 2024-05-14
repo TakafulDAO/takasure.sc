@@ -163,7 +163,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
 
         _updateCashMappings(depositAmount);
-        uint256 cashLast12Months = calculateCashLast12Months();
+        uint256 cashLast12Months = getCalculateCashLast12Months();
 
         // ? Question: Should be now or after the deposit?
         uint256 updatedDynamicReserveRatio = ReserveMathLib
@@ -278,7 +278,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         contributionToken_ = address(contributionToken);
     }
 
-    function calculateCashLast12Months() public view returns (uint256 cashLast12Months_) {
+    function getCalculateCashLast12Months() public view returns (uint256 cashLast12Months_) {
         uint256 cash = 0;
         uint16 currentMonth = monthReference;
         uint8 currentDay = dayReference;
