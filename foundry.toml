@@ -15,8 +15,9 @@ remappings = ['@openzeppelin=node_modules/@openzeppelin']
 
 [fuzz]
 runs = 256
+seed = "0x2"
 
 [invariant]
-runs = 64
-depth = 64
-fail_on_revert = false
+runs = 256
+depth = 32
+fail_on_revert = true
