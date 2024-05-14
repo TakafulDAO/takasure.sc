@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity 0.8.25;
+
+import {Test, console2} from "forge-std/Test.sol";
+import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
+import {USDC} from "../../../../contracts/mocks/USDCMock.sol";
+
+contract TakasurePoolHandler is Test {
+    TakasurePool takasurePool;
+    USDC usdc;
+
+    uint256 constant BENEFIT_MULTIPLIER = 1; // TODO: How much should be? it will be from oracle but should have valid values for tests
+    uint256 constant MIN_DEPOSIT = 25e6; // 25 USDC
+    uint256 constant MAX_DEPOSIT = type(uint32).max; // 4294.967295 USDC
+    uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 years
+
+    constructor(TakasurePool _takasurePool) {
+        takasurePool = _takasurePool;
+        usdc = USDC(address(takasurePool.getContributionTokenAddress()));
+    }
+
+    function joinPool(uint256 contributionAmount) public {
+        contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
+
+        deal(address(usdc), msg.sender, contributionAmount);
+
+        vm.startPrank(msg.sender);
+        usdc.approve(address(takasurePool), contributionAmount);
+
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
+        vm.stopPrank();
+    }
+}
