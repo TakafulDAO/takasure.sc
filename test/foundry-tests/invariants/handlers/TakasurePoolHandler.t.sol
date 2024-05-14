@@ -21,6 +21,9 @@ contract TakasurePoolHandler is Test {
     }
 
     function joinPool(uint256 contributionAmount) public {
+        vm.assume(msg.sender != address(0));
+        vm.assume(msg.sender != address(takasurePool));
+
         contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
 
         deal(address(usdc), msg.sender, contributionAmount);
