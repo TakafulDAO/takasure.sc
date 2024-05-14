@@ -89,6 +89,9 @@ Use `yarn compile` or `forge build`
 - Use `make test` to run both
 - Use `forge coverage` to get the coverage report
 
+> [!TIP]
+> To run a specific test use `forge test --mt <TEST_NAME>`
+
 > [!NOTE]
 > The deployments are managed by hardhat. So the hardhat test check all the initializations and the foundry tests check the contract's logic
 
