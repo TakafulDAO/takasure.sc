@@ -5,9 +5,12 @@
   - [Deployed Contracts](#deployed-contracts)
   - [Version Control](#version-control)
   - [Requirements](#requirements)
-  - [Walkthrough](#walkthrough)
+  - [Quickstart](#quickstart)
     - [env](#env)
-  - [Deploy, Test and Coverage](#deploy-test-and-coverage)
+  - [Usage](#usage)
+    - [Compile](#compile)
+    - [Testing](#testing)
+    - [Deploy](#deploy)
   - [Contribute](#contribute)
      
 ## Resources 
@@ -26,14 +29,25 @@ To view the testnet and mainnet deployments, check out the tags under this repo.
 - [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
   - You'll know you did it right if you can run `git --version` and you see a response like `git version x.x.x`
 - [foundry](https://getfoundry.sh/)
+  - Run
+  ```
+  curl -L https://foundry.paradigm.xyz | bash
+  ```
   - You'll know you did it right if you can run `forge --version` and you see a response like `forge 0.2.0 (816e00b 2023-03-16T00:05:26.396218Z)`
 
-## Walkthrough
-1. Clone this repo.
-3. Install the dependencies with  `yarn install`.
-    + Be sure to not remove the yarn.lock file for a clean installation
-4. Create a .env file with the variables explained on the next section. You can also check the `.env.example` file
-5. As package manager it was used yarn
+## Quickstart
+
+1. Clone the repo and install the dependencies
+
+```
+git clone https://github.com/TakafulDAO/takasure.sc
+cd takasure.sc
+yarn install
+forge install
+forge build
+```
+
+2. Create a .env file with the variables explained on the next section. You can also check the `.env.example` file
 
 ### env
 1. Private keys. For development purposes, this three private keys can be the same
@@ -58,8 +72,27 @@ To view the testnet and mainnet deployments, check out the tags under this repo.
 
 > [!CAUTION]
 > Never expose private keys with real funds
-    
-## Deploy, Test and Coverage
+
+## Usage
+
+### Compile
+
+Use `yarn compile` or `forge build`
+
+> [!TIP]
+> `forge build` will compile the contracts inside the contracts and test folder. Use it if you change the tests
+
+### Testing
+
+- Use `yarn test` to run hardhat tests
+- Use `forge test` to run foundry tests
+- Use `make test` to run both
+- Use `forge coverage` to get the coverage report
+
+> [!NOTE]
+> The deployments are managed by hardhat. So the hardhat test check all the initializations and the foundry tests check the contract's logic
+
+### Deploy
 TODO
 
 ## Contribute 
