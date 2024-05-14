@@ -4,11 +4,11 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
-import {USDC} from "../../../../contracts/mocks/USDCMock.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract TakasurePoolHandler is Test {
     TakasurePool takasurePool;
-    USDC usdc;
+    ERC20 usdc;
 
     uint256 constant BENEFIT_MULTIPLIER = 1; // TODO: How much should be? it will be from oracle but should have valid values for tests
     uint256 constant MIN_DEPOSIT = 25e6; // 25 USDC
@@ -17,7 +17,7 @@ contract TakasurePoolHandler is Test {
 
     constructor(TakasurePool _takasurePool) {
         takasurePool = _takasurePool;
-        usdc = USDC(address(takasurePool.getContributionTokenAddress()));
+        usdc = ERC20(address(takasurePool.getContributionTokenAddress()));
     }
 
     function joinPool(uint256 contributionAmount) public {
