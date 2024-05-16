@@ -339,6 +339,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // If there is a timestamp, it means there already have been a deposit
             // Check first if the deposit is in the same month
             uint256 timePassed = currentTimestamp - depositTimestamp;
+            uint256 daysPassed;
             if (timePassed < MONTH) {
                 // Update the cash flow for the current month
                 monthToCashFlow[monthReference] += _depositAmount;
@@ -347,16 +348,28 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                     // Update the daily deposits for the current day
                     dayToCashFlow[monthReference][dayReference] += _depositAmount;
                 } else {
-                    // If the deposit is in a new day, update the day reference and update the daily deposits
-                    uint256 daysPassed = timePassed / DAY;
+                    // If the deposit is in a new day, update the day reference to
+                    // the corresponding day of the month
+                    daysPassed = timePassed / DAY;
                     dayReference += uint8(daysPassed);
+
+                    // Update the mapping for the new day
                     dayToCashFlow[monthReference][dayReference] = _depositAmount;
                 }
             } else {
                 // If the deposit is in a new month
-                depositTimestamp = currentTimestamp;
-                monthReference++;
-                dayReference = 1;
+                uint256 monthsPassed = timePassed / MONTH;
+                // Calculate the timestamp on which the new month should have started
+                depositTimestamp += monthsPassed * MONTH;
+                // Update the month reference to the corresponding month
+                monthReference += uint16(monthsPassed);
+                // Calculate the day reference for the new month, we need to update
+                // the timePassed with the new depositTimestamp
+                timePassed = currentTimestamp - depositTimestamp;
+                daysPassed = timePassed / DAY;
+                dayReference = uint8(daysPassed); // TODO: Or + 1? Check this
+
+                // Update the mappings for the new month and day
                 monthToCashFlow[monthReference] = _depositAmount;
                 dayToCashFlow[monthReference][dayReference] = _depositAmount;
             }
