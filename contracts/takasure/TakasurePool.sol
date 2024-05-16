@@ -348,7 +348,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                     dayToCashFlow[monthReference][dayReference] += _depositAmount;
                 } else {
                     // If the deposit is in a new day, update the day reference and update the daily deposits
-                    dayReference++;
+                    uint256 daysPassed = timePassed / DAY;
+                    dayReference += uint8(daysPassed);
                     dayToCashFlow[monthReference][dayReference] = _depositAmount;
                 }
             } else {
