@@ -54,7 +54,7 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
     }
 
     function invariant_gettersShouldNotRevert() public view {
-        takasurePool.getCalculateCashLast12Months();
+        takasurePool.getCashLast12Months();
         takasurePool.getContributionTokenAddress();
         takasurePool.getPoolValues();
         takasurePool.getTakaTokenAddress();
