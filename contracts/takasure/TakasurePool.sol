@@ -338,11 +338,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         } else {
             // If there is a timestamp, it means there already have been a deposit
             // Check first if the deposit is in the same month
-            if (currentTimestamp - depositTimestamp < MONTH) {
+            uint256 timePassed = currentTimestamp - depositTimestamp;
+            if (timePassed < MONTH) {
                 // Update the cash flow for the current month
                 monthToCashFlow[monthReference] += _depositAmount;
                 // Check if the deposit is in the same day of the month
-                if (currentTimestamp - depositTimestamp < DAY) {
+                if (timePassed < DAY) {
                     // Update the daily deposits for the current day
                     dayToCashFlow[monthReference][dayReference] += _depositAmount;
                 } else {
