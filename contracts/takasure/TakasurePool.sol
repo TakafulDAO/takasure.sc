@@ -287,91 +287,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
     }
 
-    function _monthAndDayFromCall()
-        internal
-        view
-        returns (uint16 currentMonth_, uint8 currentDay_)
-    {
-        uint256 currentTimestamp = block.timestamp;
-        uint256 lastDepositTimestamp = depositTimestamp;
-        uint256 timePassed = currentTimestamp - lastDepositTimestamp;
-        uint256 monthsPassed;
-        uint256 daysPassed;
-
-        // Check if you are in the same month
-        if (timePassed < MONTH) {
-            // If you are in the same month, current month is the reference
-            currentMonth_ = monthReference;
-            // Check if you are in the same day
-            if (timePassed < DAY) {
-                // If you are in the same day, current day is the reference
-                currentDay_ = dayReference;
-            } else {
-                // If you are in a new day, calculate the days passed
-                daysPassed = timePassed / DAY;
-                currentDay_ = uint8(daysPassed) + dayReference;
-            }
-        } else {
-            // If you are in a new month, calculate the months passed
-            monthsPassed = timePassed / MONTH;
-            currentMonth_ = uint16(monthsPassed) + monthReference;
-            uint256 timestampThisMonthStarted = lastDepositTimestamp + (monthsPassed * MONTH);
-            // And calculate the days passed in this new month
-            daysPassed = timestampThisMonthStarted / DAY;
-            currentDay_ = uint8(daysPassed) + dayReference;
-        }
-    }
-
-    function _cashLast12Months(
-        uint16 _currentMonth,
-        uint8 _currentDay
-    ) public view returns (uint256 cashLast12Months_) {
-        uint256 cash = 0;
-
-        // Then make the iterations, according the month and day this function is called
-        if (_currentMonth < 13) {
-            // Less than a complete year, iterate through every month passed
-            // Return everything stored in the mappings until now
-            for (uint8 i = 1; i <= _currentMonth; ) {
-                cash += monthToCashFlow[i];
-
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            // More than a complete year has passed, iterate the last 11 completed months
-            // This happens since month 13
-            uint16 monthBackCounter;
-            uint16 monthsInYear = 12;
-
-            for (uint8 i; i < monthsInYear; ) {
-                monthBackCounter = _currentMonth - i;
-                cash += monthToCashFlow[monthBackCounter];
-
-                unchecked {
-                    ++i;
-                }
-            }
-
-            // Iterate an extra month to complete the days that are left from the current month
-            uint16 extraMonthToCheck = _currentMonth - monthsInYear;
-            uint8 dayBackCounter = 30;
-            uint8 extraDaysToCheck = dayBackCounter - _currentDay;
-
-            for (uint8 i; i < extraDaysToCheck; ) {
-                cash += dayToCashFlow[extraMonthToCheck][dayBackCounter];
-
-                unchecked {
-                    ++i;
-                    --dayBackCounter;
-                }
-            }
-        }
-
-        cashLast12Months_ = cash;
-    }
-
     function _updateCashMappings(uint256 _depositAmount) internal {
         uint256 currentTimestamp = block.timestamp;
 
@@ -420,6 +335,91 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 dayToCashFlow[monthReference][dayReference] = _depositAmount;
             }
         }
+    }
+
+    function _monthAndDayFromCall()
+        internal
+        view
+        returns (uint16 currentMonth_, uint8 currentDay_)
+    {
+        uint256 currentTimestamp = block.timestamp;
+        uint256 lastDepositTimestamp = depositTimestamp;
+        uint256 timePassed = currentTimestamp - lastDepositTimestamp;
+        uint256 monthsPassed;
+        uint256 daysPassed;
+
+        // Check if you are in the same month
+        if (timePassed < MONTH) {
+            // If you are in the same month, current month is the reference
+            currentMonth_ = monthReference;
+            // Check if you are in the same day
+            if (timePassed < DAY) {
+                // If you are in the same day, current day is the reference
+                currentDay_ = dayReference;
+            } else {
+                // If you are in a new day, calculate the days passed
+                daysPassed = timePassed / DAY;
+                currentDay_ = uint8(daysPassed) + dayReference;
+            }
+        } else {
+            // If you are in a new month, calculate the months passed
+            monthsPassed = timePassed / MONTH;
+            currentMonth_ = uint16(monthsPassed) + monthReference;
+            uint256 timestampThisMonthStarted = lastDepositTimestamp + (monthsPassed * MONTH);
+            // And calculate the days passed in this new month
+            daysPassed = timestampThisMonthStarted / DAY;
+            currentDay_ = uint8(daysPassed) + dayReference;
+        }
+    }
+
+    function _cashLast12Months(
+        uint16 _currentMonth,
+        uint8 _currentDay
+    ) internal view returns (uint256 cashLast12Months_) {
+        uint256 cash = 0;
+
+        // Then make the iterations, according the month and day this function is called
+        if (_currentMonth < 13) {
+            // Less than a complete year, iterate through every month passed
+            // Return everything stored in the mappings until now
+            for (uint8 i = 1; i <= _currentMonth; ) {
+                cash += monthToCashFlow[i];
+
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            // More than a complete year has passed, iterate the last 11 completed months
+            // This happens since month 13
+            uint16 monthBackCounter;
+            uint16 monthsInYear = 12;
+
+            for (uint8 i; i < monthsInYear; ) {
+                monthBackCounter = _currentMonth - i;
+                cash += monthToCashFlow[monthBackCounter];
+
+                unchecked {
+                    ++i;
+                }
+            }
+
+            // Iterate an extra month to complete the days that are left from the current month
+            uint16 extraMonthToCheck = _currentMonth - monthsInYear;
+            uint8 dayBackCounter = 30;
+            uint8 extraDaysToCheck = dayBackCounter - _currentDay;
+
+            for (uint8 i; i < extraDaysToCheck; ) {
+                cash += dayToCashFlow[extraMonthToCheck][dayBackCounter];
+
+                unchecked {
+                    ++i;
+                    --dayBackCounter;
+                }
+            }
+        }
+
+        cashLast12Months_ = cash;
     }
 
     ///@dev required by the OZ UUPS module
