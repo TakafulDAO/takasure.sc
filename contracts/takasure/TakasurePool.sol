@@ -163,7 +163,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
 
         _updateCashMappings(depositAmount);
-        uint256 cashLast12Months = getCashLast12Months();
+        // uint256 cashLast12Months = getCashLast12Months();
+        uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
 
         // ? Question: Should be now or after the deposit?
         uint256 updatedDynamicReserveRatio = ReserveMathLib
@@ -278,36 +279,61 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         contributionToken_ = address(contributionToken);
     }
 
-    function getCashLast12Months() public view returns (uint256 cashLast12Months_) {
-        uint256 cash = 0;
+    /**
+     * @notice Get the cash flow for the last 12 months. From the time is called
+     * @return cash_ the cash flow for the last 12 months
+     */
+    function getCashLast12Months() external view returns (uint256 cash_) {
+        (uint16 monthFromCall, uint8 dayFromCall) = _monthAndDayFromCall();
+        cash_ = _cashLast12Months(monthFromCall, dayFromCall);
+    }
+
+    function _monthAndDayFromCall()
+        internal
+        view
+        returns (uint16 currentMonth_, uint8 currentDay_)
+    {
         uint256 currentTimestamp = block.timestamp;
         uint256 lastDepositTimestamp = depositTimestamp;
         uint256 timePassed = currentTimestamp - lastDepositTimestamp;
         uint256 monthsPassed;
         uint256 daysPassed;
-        uint16 currentMonth;
-        uint8 currentDay;
 
+        // Check if you are in the same month
         if (timePassed < MONTH) {
-            currentMonth = monthReference;
+            // If you are in the same month, current month is the reference
+            currentMonth_ = monthReference;
+            // Check if you are in the same day
             if (timePassed < DAY) {
-                currentDay = dayReference;
+                // If you are in the same day, current day is the reference
+                currentDay_ = dayReference;
             } else {
+                // If you are in a new day, calculate the days passed
                 daysPassed = timePassed / DAY;
-                currentDay = uint8(daysPassed) + dayReference;
+                currentDay_ = uint8(daysPassed) + dayReference;
             }
         } else {
+            // If you are in a new month, calculate the months passed
             monthsPassed = timePassed / MONTH;
-            currentMonth = uint16(monthsPassed) + monthReference;
+            currentMonth_ = uint16(monthsPassed) + monthReference;
             uint256 timestampThisMonthStarted = lastDepositTimestamp + (monthsPassed * MONTH);
+            // And calculate the days passed in this new month
             daysPassed = timestampThisMonthStarted / DAY;
-            currentDay = uint8(daysPassed) + dayReference;
+            currentDay_ = uint8(daysPassed) + dayReference;
         }
+    }
 
-        if (currentMonth < 13) {
+    function _cashLast12Months(
+        uint16 _currentMonth,
+        uint8 _currentDay
+    ) public view returns (uint256 cashLast12Months_) {
+        uint256 cash = 0;
+
+        // Then make the iterations, according the month and day this function is called
+        if (_currentMonth < 13) {
             // Less than a complete year, iterate through every month passed
             // Return everything stored in the mappings until now
-            for (uint8 i = 1; i <= currentMonth; ) {
+            for (uint8 i = 1; i <= _currentMonth; ) {
                 cash += monthToCashFlow[i];
 
                 unchecked {
@@ -321,7 +347,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             uint16 monthsInYear = 12;
 
             for (uint8 i; i < monthsInYear; ) {
-                monthBackCounter = currentMonth - i;
+                monthBackCounter = _currentMonth - i;
                 cash += monthToCashFlow[monthBackCounter];
 
                 unchecked {
@@ -330,9 +356,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             }
 
             // Iterate an extra month to complete the days that are left from the current month
-            uint16 extraMonthToCheck = currentMonth - monthsInYear;
+            uint16 extraMonthToCheck = _currentMonth - monthsInYear;
             uint8 dayBackCounter = 30;
-            uint8 extraDaysToCheck = dayBackCounter - currentDay;
+            uint8 extraDaysToCheck = dayBackCounter - _currentDay;
 
             for (uint8 i; i < extraDaysToCheck; ) {
                 cash += dayToCashFlow[extraMonthToCheck][dayBackCounter];
