@@ -163,7 +163,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
 
         _updateCashMappings(depositAmount);
-        // uint256 cashLast12Months = getCashLast12Months();
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
 
         // ? Question: Should be now or after the deposit?
