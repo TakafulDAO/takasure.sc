@@ -27,7 +27,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
-    uint256 private constant MONTH = 30 days; // Todo: Fix later, check a way to look for the current month maybe?
+    uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
     uint256 private constant DAY = 1 days;
 
     bool public allowCustomDuration; // while false, the membership duration is fixed to 5 years
@@ -123,7 +123,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__ContributionBelowMinimumThreshold();
         }
 
-        // Todo: re-calculate the Dynamic Reserve Ratio, BMA, and DAO Surplus.
+        // Todo: re-calculate BMA, and DAO Surplus.
 
         // Create new member
         memberIdCounter++;
