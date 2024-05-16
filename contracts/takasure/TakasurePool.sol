@@ -280,8 +280,29 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function getCashLast12Months() public view returns (uint256 cashLast12Months_) {
         uint256 cash = 0;
-        uint16 currentMonth = monthReference;
-        uint8 currentDay = dayReference;
+        uint256 currentTimestamp = block.timestamp;
+        uint256 lastDepositTimestamp = depositTimestamp;
+        uint256 timePassed = currentTimestamp - lastDepositTimestamp;
+        uint256 monthsPassed;
+        uint256 daysPassed;
+        uint16 currentMonth;
+        uint8 currentDay;
+
+        if (timePassed < MONTH) {
+            currentMonth = monthReference;
+            if (timePassed < DAY) {
+                currentDay = dayReference;
+            } else {
+                daysPassed = timePassed / DAY;
+                currentDay = uint8(daysPassed) + dayReference;
+            }
+        } else {
+            monthsPassed = timePassed / MONTH;
+            currentMonth = uint16(monthsPassed) + monthReference;
+            uint256 timestampThisMonthStarted = lastDepositTimestamp + (monthsPassed * MONTH);
+            daysPassed = timestampThisMonthStarted / DAY;
+            currentDay = uint8(daysPassed) + dayReference;
+        }
 
         if (currentMonth < 13) {
             // Less than a complete year, iterate through every month passed
