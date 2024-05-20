@@ -301,7 +301,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // Check first if the deposit is in the same month
             uint256 timePassed = currentTimestamp - depositTimestamp;
             uint256 daysPassed;
-            if (timePassed < MONTH) {
+
+            if (dayReference < 31) {
                 // Update the cash flow for the current month
                 monthToCashFlow[monthReference] += _depositAmount;
                 // Check if the deposit is in the same day of the month
@@ -312,6 +313,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                     // If the deposit is in a new day, update the day reference to
                     // the corresponding day of the month
                     daysPassed = timePassed / DAY;
+                    depositTimestamp += daysPassed * DAY;
                     dayReference += uint8(daysPassed);
 
                     // Update the mapping for the new day
