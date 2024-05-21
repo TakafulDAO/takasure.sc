@@ -15,7 +15,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     ERC1967Proxy proxy;
     address contributionTokenAddress;
     IUSDC usdc;
-    address public user = makeAddr("user");
+    address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
@@ -29,10 +29,10 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         usdc = IUSDC(contributionTokenAddress);
 
         // For easier testing there is a minimal USDC mock contract without restrictions
-        vm.startPrank(user);
-        usdc.mintUSDC(user, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
+
+        vm.prank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
-        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -41,7 +41,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev `setNewWakalaFee` must revert if the caller is not the owner
     function testTakasurePool_setNewWakalaFeeMustRevertIfTheCallerIsNotTheOwner() public {
         uint8 newWakalaFee = 50;
-        vm.prank(user);
+        vm.prank(alice);
         vm.expectRevert();
         takasurePool.setNewWakalaFee(newWakalaFee);
     }
@@ -57,16 +57,16 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev `setNewMinimumThreshold` must revert if the caller is not the owner
     function testTakasurePool_setNewMinimumThresholdMustRevertIfTheCallerIsNotTheOwner() public {
         uint8 newThreshold = 50;
-        vm.prank(user);
+        vm.prank(alice);
         vm.expectRevert();
         takasurePool.setNewMinimumThreshold(newThreshold);
     }
 
     /// @dev `setNewContributionToken` must revert if the caller is not the owner
     function testTakasurePool_setNewContributionTokenMustRevertIfTheCallerIsNotTheOwner() public {
-        vm.prank(user);
+        vm.prank(alice);
         vm.expectRevert();
-        takasurePool.setNewContributionToken(user);
+        takasurePool.setNewContributionToken(alice);
     }
 
     /// @dev `setNewContributionToken` must revert if the address is zero
@@ -78,9 +78,9 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `setNewWakalaClaimAddress` must revert if the caller is not the owner
     function testTakasurePool_setNewWakalaClaimAddressMustRevertIfTheCallerIsNotTheOwner() public {
-        vm.prank(user);
+        vm.prank(alice);
         vm.expectRevert();
-        takasurePool.setNewWakalaClaimAddress(user);
+        takasurePool.setNewWakalaClaimAddress(alice);
     }
 
     /// @dev `setNewWakalaClaimAddress` must revert if the address is zero
@@ -92,7 +92,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `setAllowCustomDuration` must revert if the caller is not the owner
     function testTakasurePool_setAllowCustomDurationMustRevertIfTheCallerIsNotTheOwner() public {
-        vm.prank(user);
+        vm.prank(alice);
         vm.expectRevert();
         takasurePool.setAllowCustomDuration(true);
     }
@@ -100,8 +100,20 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev `joinPool` must revert if the contribution is less than the minimum threshold
     function testTakasurePool_joinPoolMustRevertIfDepositLessThanMinimum() public {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
-        vm.prank(user);
+        vm.prank(alice);
         vm.expectRevert(TakasurePool.TakasurePool__ContributionBelowMinimumThreshold.selector);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, wrongContribution, (5 * YEAR));
+    }
+
+    /// @dev If it is an active member, can not join again
+    function testTakasurePool_activeShouldNotMemberJoinAgain() public {
+        vm.startPrank(alice);
+        // Alice joins the pool
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        // And tries to join again but fails
+        vm.expectRevert(TakasurePool.TakasurePool__MemberAlreadyExists.selector);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.stopPrank();
     }
 }
