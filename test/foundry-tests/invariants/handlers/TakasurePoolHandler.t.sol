@@ -5,6 +5,7 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {MemberState} from "../../../../contracts/types/TakasureTypes.sol";
 
 contract TakasurePoolHandler is Test {
     TakasurePool takasurePool;
@@ -23,6 +24,9 @@ contract TakasurePoolHandler is Test {
     function joinPool(uint256 contributionAmount) public {
         vm.assume(msg.sender != address(0));
         vm.assume(msg.sender != address(takasurePool));
+
+        MemberState currentMemberState = takasurePool.getMemberFromAddress(msg.sender).memberState;
+        vm.assume(currentMemberState != MemberState.Active);
 
         contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
 
