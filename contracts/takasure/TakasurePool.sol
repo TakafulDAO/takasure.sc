@@ -134,7 +134,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         memberIdCounter++;
 
         uint256 userMembershipDuration;
-        uint256 userCurrentNetContribution = idToMember[memberIdCounter].netContribution;
 
         if (allowCustomDuration) {
             userMembershipDuration = membershipDuration;
@@ -147,7 +146,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             benefitMultiplier: benefitMultiplier,
             membershipDuration: userMembershipDuration,
             membershipStartTime: block.timestamp,
-            netContribution: userCurrentNetContribution + contributionAmount,
+            netContribution: contributionAmount,
             wallet: msg.sender,
             memberState: MemberState.Active,
             surplus: 0 // Todo
