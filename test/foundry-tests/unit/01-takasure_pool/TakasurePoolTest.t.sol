@@ -299,7 +299,7 @@ contract TakasurePoolTest is StdCheats, Test {
             usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
         }
 
-        // First, second and third month 1 people joins daily
+        // Months 1, 2 and 3, one new member joins daily
         for (uint256 i; i < 90; i++) {
             vm.prank(lotOfUsers[i]);
             takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -307,86 +307,27 @@ contract TakasurePoolTest is StdCheats, Test {
             vm.roll(block.number + 1);
         }
 
-        // Fourth month 10 people joins
-        for (uint256 i = 90; i < 100; i++) {
+        // Months 4 to 12, 10 new members join monthly
+        for (uint256 i = 90; i < 180; i++) {
             vm.prank(lotOfUsers[i]);
             takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+            // End of the month
+            if (
+                i == 99 ||
+                i == 109 ||
+                i == 119 ||
+                i == 129 ||
+                i == 139 ||
+                i == 149 ||
+                i == 159 ||
+                i == 169 ||
+                i == 179
+            ) {
+                vm.warp(block.timestamp + 30 days);
+                vm.roll(block.number + 1);
+            }
         }
-
-        vm.warp(block.timestamp + 30 days);
-        vm.roll(block.number + 1);
-
-        // Fifth month 10 people joins
-        for (uint256 i = 100; i < 110; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
-        }
-
-        vm.warp(block.timestamp + 30 days);
-        vm.roll(block.number + 1);
-
-        // Sixth month 10 people joins
-        for (uint256 i = 110; i < 120; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
-        }
-
-        vm.warp(block.timestamp + 30 days);
-        vm.roll(block.number + 1);
-
-        // Seventh month 10 people joins
-        for (uint256 i = 120; i < 130; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
-        }
-
-        vm.warp(block.timestamp + 30 days);
-        vm.roll(block.number + 1);
-
-        // Eigth month 10 people joins
-        for (uint256 i = 130; i < 140; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
-        }
-
-        vm.warp(block.timestamp + 30 days);
-        vm.roll(block.number + 1);
-
-        // Ninth month 10 people joins
-        for (uint256 i = 140; i < 150; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
-        }
-
-        vm.warp(block.timestamp + 30 days);
-        vm.roll(block.number + 1);
-
-        // Tenth month 10 people joins
-        for (uint256 i = 150; i < 160; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
-        }
-
-        vm.warp(block.timestamp + 30 days);
-        vm.roll(block.number + 1);
-
-        // Eleventh month 10 people joins
-        for (uint256 i = 160; i < 170; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
-        }
-
-        vm.warp(block.timestamp + 30 days);
-        vm.roll(block.number + 1);
-
-        // Twelve month 10 people joins
-        for (uint256 i = 170; i < 180; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
-        }
-
-        vm.warp(block.timestamp + 30 days);
-        vm.roll(block.number + 1);
 
         // Months 1 to 12 take all => Total 3600USDC
         // Month 13 0USDC => Total 3600USDC
