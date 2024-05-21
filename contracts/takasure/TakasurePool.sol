@@ -49,6 +49,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
 
+    error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
     error TakasurePool__ContributionBelowMinimumThreshold();
     error TakasurePool__ContributionTransferFailed();
@@ -120,6 +121,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 membershipDuration
     ) external {
         // Todo: Check the user benefit multiplier against the oracle.
+        if (pool.members[msg.sender].memberState == MemberState.Active) {
+            revert TakasurePool__MemberAlreadyExists();
+        }
         if (contributionAmount < minimumThreshold) {
             revert TakasurePool__ContributionBelowMinimumThreshold();
         }
