@@ -39,8 +39,9 @@ contract TakasurePoolHandler is Test {
         vm.stopPrank();
     }
 
-    function moveOneDay() public {
-        vm.warp(block.timestamp + 1 days);
-        vm.roll(block.number + 1);
+    function moveTime(uint256 time) public {
+        time = bound(time, 0, 365 days);
+        vm.warp(block.timestamp + time);
+        vm.roll(block.number + time);
     }
 }

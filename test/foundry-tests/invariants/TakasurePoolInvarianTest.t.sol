@@ -29,7 +29,7 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
 
         bytes4[] memory selectors = new bytes4[](2);
         selectors[0] = TakasurePoolHandler.joinPool.selector;
-        selectors[1] = TakasurePoolHandler.moveOneDay.selector;
+        selectors[1] = TakasurePoolHandler.moveTime.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
@@ -50,6 +50,8 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
     /// @dev Invariant to check dynamic reserve ratio. Can not be greater than 100
     function invariant_dynamicReserveRatioCanNotBeGreaterThan100() public view {
         (, uint256 drr, , , , , ) = takasurePool.getPoolValues();
+
+        console2.log("Dynamic Reserve Ratio: ", drr);
 
         assert(drr <= 100);
     }
