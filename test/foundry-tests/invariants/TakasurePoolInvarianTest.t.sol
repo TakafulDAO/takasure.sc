@@ -35,7 +35,7 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
         targetContract(address(handler));
     }
 
-    /// @notice Invariant to check pool contribution token balance and reserves
+    /// @dev Invariant to check pool contribution token balance and reserves
     /// pool_contribution_token_balance = claim_reserves + fund_reserves
     // ? Question: is this true? Right now it is, but it may not be in the future with the claims? R&D
     function invariant_reservesShouldBeEqualToBalance() public view {
@@ -47,11 +47,11 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
         assertEq(contributionTokenBalance, reserves);
     }
 
-    /// @notice Invariant to check dynamic reserve ratio
-    function invariant_dynamicReserveRatioShouldBeGreaterOrEqualToOne() public view {
+    /// @dev Invariant to check dynamic reserve ratio. Can not be greater than 100
+    function invariant_dynamicReserveRatioCanNotBeGreaterThan100() public view {
         (, uint256 drr, , , , , ) = takasurePool.getPoolValues();
 
-        assert(drr >= 1);
+        assert(drr <= 100);
     }
 
     function invariant_gettersShouldNotRevert() public view {
