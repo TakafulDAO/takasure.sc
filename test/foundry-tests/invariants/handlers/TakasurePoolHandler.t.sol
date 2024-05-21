@@ -34,4 +34,9 @@ contract TakasurePoolHandler is Test {
         takasurePool.joinPool(BENEFIT_MULTIPLIER, contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
         vm.stopPrank();
     }
+
+    function moveOneDay() public {
+        vm.warp(block.timestamp + 1 days);
+        vm.roll(block.number + 1);
+    }
 }

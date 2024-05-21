@@ -27,8 +27,9 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
 
         handler = new TakasurePoolHandler(takasurePool);
 
-        bytes4[] memory selectors = new bytes4[](1);
+        bytes4[] memory selectors = new bytes4[](2);
         selectors[0] = TakasurePoolHandler.joinPool.selector;
+        selectors[1] = TakasurePoolHandler.moveOneDay.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
