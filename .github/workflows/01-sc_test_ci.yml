@@ -55,4 +55,4 @@ jobs:
 
       - name: Forge Test
         run: |
-          forge test --no-match-test invariant"
+          forge test --no-match-test "invariant"
