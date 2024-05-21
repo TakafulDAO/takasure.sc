@@ -33,7 +33,7 @@ library ReserveMathLib {
      * @param _currentDynamicReserveRatio Current value
      * @param _proFormaFundReserve Pro forma fund reserve
      * @param _fundReserve Fund reserve
-     * @param _cashFlowLastPeriod Cash flow of the last period of 12 months // ? Question: How?
+     * @param _cashFlowLastPeriod Cash flow of the last period of 12 months
      * @dev The dynamic reserve ratio is calculated based on the current pro forma fund reserve
      */
     function _calculateDynamicReserveRatioReserveShortfallMethod(
@@ -51,10 +51,10 @@ library ReserveMathLib {
             uint256 possibleDRR = _currentDynamicReserveRatio +
                 (uint256(fundReserveShortfall) / _cashFlowLastPeriod);
 
-            if (possibleDRR < 1) {
+            if (possibleDRR < 100) {
                 updatedDynamicReserveRatio_ = possibleDRR;
             } else {
-                updatedDynamicReserveRatio_ = 1;
+                updatedDynamicReserveRatio_ = 100;
             }
         }
     }
