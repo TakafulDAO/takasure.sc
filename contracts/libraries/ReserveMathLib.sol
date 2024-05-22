@@ -9,6 +9,8 @@
 pragma solidity 0.8.25;
 
 library ReserveMathLib {
+    error WrongTimestamps();
+
     /**
      * @notice The Fund Reserve based on each member’s fund reserve add, But taking out / removing
      *         any members that had claims or for any other reason aren't active anymore
@@ -70,7 +72,7 @@ library ReserveMathLib {
         uint256 _initialDayTimestamp
     ) internal pure returns (uint256 daysPassed_) {
         if (_finalDayTimestamp < _initialDayTimestamp) {
-            daysPassed_ = 0;
+            revert WrongTimestamps();
         } else {
             uint256 dayTimePassed = _finalDayTimestamp - _initialDayTimestamp;
             if (dayTimePassed < 1 days) {
@@ -92,7 +94,7 @@ library ReserveMathLib {
         uint256 _initialMonthTimestamp
     ) internal pure returns (uint256 monthsPassed_) {
         if (_finalMonthTimestamp < _initialMonthTimestamp) {
-            monthsPassed_ = 0;
+            revert WrongTimestamps();
         } else {
             uint256 monthTimePassed = _finalMonthTimestamp - _initialMonthTimestamp;
             uint256 month = 30 days;
