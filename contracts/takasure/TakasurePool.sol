@@ -166,10 +166,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             pool.dynamicReserveRatio
         );
 
+        // Update the fund reserve to use it in the dynamic reserve ratio calculation
+        pool.totalFundReserve += toFundReserve;
+
         _updateCashMappings(depositAmount);
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
 
-        // ? Question: Should be now or after the deposit?
         uint256 updatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
                 pool.dynamicReserveRatio,
@@ -178,13 +180,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 cashLast12Months
             );
 
-        // Update the pool values
+        // Update all the other values in the pool
         pool.members[msg.sender] = newMember;
         pool.proFormaFundReserve = updatedProFormaFundReserve;
         pool.dynamicReserveRatio = updatedDynamicReserveRatio;
         pool.totalContributions += contributionAmount;
         pool.totalClaimReserve += toClaimReserve;
-        pool.totalFundReserve += toFundReserve;
 
         // Add the member to the mapping
         idToMember[memberIdCounter] = newMember;
