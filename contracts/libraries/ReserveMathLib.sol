@@ -25,7 +25,7 @@ library ReserveMathLib {
     ) internal pure returns (uint256 updatedProFormaFundReserve_) {
         updatedProFormaFundReserve_ =
             _currentProFormaFundReserve +
-            (_memberNetContribution * _currentDynamicReserveRatio);
+            ((_memberNetContribution * _currentDynamicReserveRatio) / 100);
     }
 
     /**
