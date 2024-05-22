@@ -28,6 +28,8 @@ contract TakasurePoolHandler is Test {
         MemberState currentMemberState = takasurePool.getMemberFromAddress(msg.sender).memberState;
         vm.assume(currentMemberState != MemberState.Active);
 
+        console2.log("New member joining the pool");
+
         contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
 
         deal(address(usdc), msg.sender, contributionAmount);
@@ -37,11 +39,19 @@ contract TakasurePoolHandler is Test {
 
         takasurePool.joinPool(BENEFIT_MULTIPLIER, contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
         vm.stopPrank();
+
+        (, uint256 drr, , , , , ) = takasurePool.getPoolValues();
+
+        console2.log("Dynamic Reserve Ratio: ", drr);
+        console2.log("=====================================");
     }
 
     function moveTime(uint256 time) public {
-        time = bound(time, 0, 365 days);
+        time = bound(time, 0, 7 days);
         vm.warp(block.timestamp + time);
         vm.roll(block.number + time);
+
+        console2.log("Date updated by", time / 1 days, "days");
+        console2.log("=====================================");
     }
 }

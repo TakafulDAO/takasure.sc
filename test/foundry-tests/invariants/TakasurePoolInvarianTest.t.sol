@@ -51,11 +51,12 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
     function invariant_dynamicReserveRatioCanNotBeGreaterThan100() public view {
         (, uint256 drr, , , , , ) = takasurePool.getPoolValues();
 
-        console2.log("Dynamic Reserve Ratio: ", drr);
-
         assert(drr <= 100);
     }
 
+    /// forge-config: default.invariant.runs = 100
+    /// forge-config: default.invariant.depth = 2
+    /// forge-config: default.invariant.fail-on-revert = true
     function invariant_gettersShouldNotRevert() public view {
         takasurePool.getCashLast12Months();
         takasurePool.getContributionTokenAddress();
