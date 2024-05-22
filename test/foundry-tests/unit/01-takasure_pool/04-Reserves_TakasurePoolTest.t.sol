@@ -238,11 +238,12 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             }
         }
 
-        // Months 1 to 12 take all => Total 3600USDC
-        // Month 13 0USDC => Total 3600USDC
+        // Month 1 take 29 days => Total 580USDC
+        // Months 1 to 12 take all => Total 3580USDC
+        // Month 13 0USDC => Total 3580USDC
 
         cash = takasurePool.getCashLast12Months();
-        assertEq(cash, 3600e6);
+        assertEq(cash, 3580e6);
 
         // Thirteenth month 10 people joins
         for (uint256 i = 180; i < 190; i++) {
@@ -260,11 +261,12 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         vm.roll(block.number + 1);
 
         // Month 1 Should not count
-        // Month 2 to 13 take all => Total 3200USDC
-        // Month 14 0USDC => Total 3200USDC
+        // Month 2 take 29 days => Total 580USDC
+        // Month 3 to 13 take all => Total 3180USDC
+        // Month 14 0USDC => Total 3180USDC
 
         cash = takasurePool.getCashLast12Months();
-        assertEq(cash, 3200e6);
+        assertEq(cash, 3180e6);
 
         // Fourteenth month 10 people joins
         for (uint256 i = 190; i < 200; i++) {
@@ -283,11 +285,12 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         vm.roll(block.number + 1);
 
         // Month 1 and 2 should not count
-        // Month 3 to 14 take all => Total 2800USDC
-        // Month 15 0USDC => Total 2800USDC
+        // Month 3 take 29 days => Total 580USDC
+        // Month 4 to 14 take all => Total 2780USDC
+        // Month 15 0USDC => Total 2780USDC
 
         cash = takasurePool.getCashLast12Months();
-        assertEq(cash, 2800e6);
+        assertEq(cash, 2780e6);
 
         // Last 2 days 2 people joins
         for (uint256 i = 200; i < 202; i++) {
@@ -310,12 +313,6 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // As the months are counted with 30 days, the 12 months should be 360 days
         // 1 day after the year should be only 20USDC
         vm.warp(block.timestamp + 359 days);
-        vm.roll(block.number + 1);
-
-        cash = takasurePool.getCashLast12Months();
-        assertEq(cash, 20e6);
-
-        vm.warp(block.timestamp + 1 days);
         vm.roll(block.number + 1);
 
         cash = takasurePool.getCashLast12Months();

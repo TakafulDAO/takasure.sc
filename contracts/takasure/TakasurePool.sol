@@ -388,7 +388,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 currentTimestamp,
                 timestampThisMonthStarted
             );
-            currentDay_ = uint8(daysPassed);
+            // The current day is the days passed in this new month
+            currentDay_ = uint8(daysPassed) + 1;
         }
     }
 
