@@ -304,21 +304,25 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         } else {
             // If there is a timestamp, it means there already have been a deposit
             // Check first if the deposit is in the same month
-            uint256 dayTimePassed = currentTimestamp - dayDepositTimestamp;
-            uint256 monthTimePassed = currentTimestamp - monthDepositTimestamp;
-            uint256 daysPassed;
+            uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
+                currentTimestamp,
+                dayDepositTimestamp
+            );
+            uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
+                currentTimestamp,
+                monthDepositTimestamp
+            );
 
-            if (monthTimePassed < MONTH) {
+            if (monthsPassed == 0) {
                 // Update the cash flow for the current month
                 monthToCashFlow[monthReference] += _depositAmount;
                 // Check if the deposit is in the same day of the month
-                if (dayTimePassed < DAY) {
+                if (daysPassed == 0) {
                     // Update the daily deposits for the current day
                     dayToCashFlow[monthReference][dayReference] += _depositAmount;
                 } else {
                     // If the deposit is in a new day, update the day reference to
                     // the corresponding day of the month
-                    daysPassed = dayTimePassed / DAY;
                     dayDepositTimestamp += daysPassed * DAY;
                     dayReference += uint8(daysPassed);
 
@@ -327,7 +331,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 }
             } else {
                 // If the deposit is in a new month
-                uint256 monthsPassed = monthTimePassed / MONTH;
                 // Calculate the timestamp on which the new month should have started
                 monthDepositTimestamp += monthsPassed * MONTH;
                 dayDepositTimestamp = monthDepositTimestamp;
@@ -335,8 +338,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 monthReference += uint16(monthsPassed);
                 // Calculate the day reference for the new month, we need to update
                 // the timePassed with the new depositTimestamp
-                dayTimePassed = currentTimestamp - dayDepositTimestamp;
-                daysPassed = dayTimePassed / DAY;
+                daysPassed = ReserveMathLib._calculateDaysPassed(
+                    currentTimestamp,
+                    dayDepositTimestamp
+                );
                 dayReference = uint8(daysPassed) + 1;
 
                 // Update the mappings for the new month and day
@@ -354,32 +359,37 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 currentTimestamp = block.timestamp;
         uint256 lastDayDepositTimestamp = dayDepositTimestamp;
         uint256 lastMonthDepositTimestamp = monthDepositTimestamp;
-        uint256 dayTimePassed = currentTimestamp - lastDayDepositTimestamp;
-        uint256 monthTimePassed = currentTimestamp - lastMonthDepositTimestamp;
-        uint256 monthsPassed;
-        uint256 daysPassed;
+
+        uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
+            currentTimestamp,
+            lastDayDepositTimestamp
+        );
+        uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
+            currentTimestamp,
+            lastMonthDepositTimestamp
+        );
 
         // Check if you are in the same month
-        if (monthTimePassed < MONTH) {
+        if (monthsPassed == 0) {
             // If you are in the same month, current month is the reference
             currentMonth_ = monthReference;
             // Check if you are in the same day
-            if (dayTimePassed < DAY) {
+            if (daysPassed == 0) {
                 // If you are in the same day, current day is the reference
                 currentDay_ = dayReference;
             } else {
                 // If you are in a new day, calculate the days passed
-                daysPassed = dayTimePassed / DAY;
                 currentDay_ = uint8(daysPassed) + dayReference;
             }
         } else {
             // If you are in a new month, calculate the months passed
-            monthsPassed = monthTimePassed / MONTH;
             currentMonth_ = uint16(monthsPassed) + monthReference;
             uint256 timestampThisMonthStarted = lastMonthDepositTimestamp + (monthsPassed * MONTH);
             // And calculate the days passed in this new month
-            dayTimePassed = currentTimestamp - timestampThisMonthStarted;
-            daysPassed = dayTimePassed / DAY;
+            daysPassed = ReserveMathLib._calculateDaysPassed(
+                currentTimestamp,
+                timestampThisMonthStarted
+            );
             currentDay_ = uint8(daysPassed);
         }
     }
