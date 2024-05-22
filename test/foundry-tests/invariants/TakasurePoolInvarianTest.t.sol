@@ -7,7 +7,7 @@ import {DeployTokenAndPool} from "../../../scripts/foundry-deploy/DeployTokenAnd
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "../../../contracts/takasure/TakasurePool.sol";
 import {IUSDC} from "../../../contracts/mocks/IUSDCmock.sol";
-import {TakasurePoolHandler} from "./handlers/TakasurePoolHandler.t.sol";
+import {TakasurePoolHandler} from "../helpers/handlers/TakasurePoolHandler.t.sol";
 
 contract TakasurePoolInvariantTest is StdInvariant, Test {
     DeployTokenAndPool deployer;
