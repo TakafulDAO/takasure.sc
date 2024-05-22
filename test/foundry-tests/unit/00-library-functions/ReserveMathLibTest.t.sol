@@ -64,16 +64,17 @@ contract ReserveMathLibTest is Test {
         view
     {
         uint256 currentDynamicReserveRatio = 40;
-        uint256 proFormaFundReserve = 100;
-        uint256 fundReserve = 50;
+        uint256 proFormaFundReserve = 1000;
+        uint256 fundReserve = 500;
         uint256 cashFlowLastPeriod = 100;
 
-        int256 fundReserveShortfall = int256(proFormaFundReserve) - int256(fundReserve);
+        // fundReserveShortfall = proFormaFundReserve - fundReserve;
+        // fundReserveShortfall = 1000 - 500 = 500
 
-        uint256 expectedDRR = currentDynamicReserveRatio +
-            (uint256(fundReserveShortfall) / cashFlowLastPeriod);
+        // expectedDRR = currentDynamicReserveRatio + (fundReserveShortfall / cashFlowLastPeriod);
+        // expectedDRR = 40 + (500 / 100) = 45 < 100 => Update DRR = 45
 
-        // drr = 40 + (50 / 100) = 40.5 < 100
+        uint256 expectedDRR = 45;
 
         uint256 updatedDynamicReserveRatio = reserveMathLibHarness
             .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
@@ -96,7 +97,11 @@ contract ReserveMathLibTest is Test {
         uint256 fundReserve = 50;
         uint256 cashFlowLastPeriod = 10;
 
-        // drr = 96 + (50 / 10) = 101 > 100
+        // fundReserveShortfall = proFormaFundReserve - fundReserve;
+        // fundReserveShortfall = 100 - 50 = 50
+
+        // expectedDRR = currentDynamicReserveRatio + (fundReserveShortfall / cashFlowLastPeriod);
+        // expectedDRR = 96 + (50 / 10) = 101 > 100 => Updated DRR = 100
 
         uint256 expectedDRR = 100;
 
