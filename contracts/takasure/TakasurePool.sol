@@ -339,8 +339,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                     currentTimestamp,
                     dayDepositTimestamp
                 );
-                // The new day reference is the days passed + 1 (1 because the day reference starts at 1)
-                dayReference = uint8(daysPassed) + 1;
+                // The new day reference is the days passed + initial day. Initial day refers
+                // to the first day of the month
+                uint8 initialDay = 1;
+                dayReference = uint8(daysPassed) + initialDay;
 
                 // Update the mappings for the new month and day
                 monthToCashFlow[monthReference] = _depositAmount;
@@ -389,7 +391,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 timestampThisMonthStarted
             );
             // The current day is the days passed in this new month
-            currentDay_ = uint8(daysPassed) + 1;
+            uint8 initialDay = 1;
+            currentDay_ = uint8(daysPassed) + initialDay;
         }
     }
 
