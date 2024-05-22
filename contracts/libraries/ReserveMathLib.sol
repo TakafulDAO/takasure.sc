@@ -58,4 +58,49 @@ library ReserveMathLib {
             }
         }
     }
+
+    /**
+     * @notice Calculate date difference in days
+     * @param _finalDayTimestamp Final timestamp
+     * @param _initialDayTimestamp Initial timestamp
+     * @return daysPassed_ Days passed
+     */
+    function _calculateDaysPassed(
+        uint256 _finalDayTimestamp,
+        uint256 _initialDayTimestamp
+    ) internal pure returns (uint256 daysPassed_) {
+        if (_finalDayTimestamp < _initialDayTimestamp) {
+            daysPassed_ = 0;
+        } else {
+            uint256 dayTimePassed = _finalDayTimestamp - _initialDayTimestamp;
+            if (dayTimePassed < 1 days) {
+                daysPassed_ = 0;
+            } else {
+                daysPassed_ = dayTimePassed / 1 days;
+            }
+        }
+    }
+
+    /**
+     * @notice Calculate date difference in months
+     * @param _finalMonthTimestamp Final timestamp
+     * @param _initialMonthTimestamp Initial timestamp
+     * @return monthsPassed_ Months passed
+     */
+    function _calculateMonthsPassed(
+        uint256 _finalMonthTimestamp,
+        uint256 _initialMonthTimestamp
+    ) internal pure returns (uint256 monthsPassed_) {
+        if (_finalMonthTimestamp < _initialMonthTimestamp) {
+            monthsPassed_ = 0;
+        } else {
+            uint256 monthTimePassed = _finalMonthTimestamp - _initialMonthTimestamp;
+            uint256 month = 30 days;
+            if (monthTimePassed < month) {
+                monthsPassed_ = 0;
+            } else {
+                monthsPassed_ = monthTimePassed / month;
+            }
+        }
+    }
 }
