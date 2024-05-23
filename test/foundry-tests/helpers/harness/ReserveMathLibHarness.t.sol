@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-// @dev This contract is used to be able to test some internal functions
+/// @dev This contract is used to be able to test some internal functions
 
 pragma solidity 0.8.25;
 
