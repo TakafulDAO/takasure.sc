@@ -3,7 +3,7 @@
 /**
  * @title ReserveMathLib
  * @author Maikel Ordaz
- * @notice It includes the math functions to calculate reserve ratios and benefir multipliers
+ * @notice It includes the math functions to calculate reserve ratios and benefit multipliers
  */
 
 pragma solidity 0.8.25;
