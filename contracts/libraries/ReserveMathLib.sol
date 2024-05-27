@@ -46,9 +46,7 @@ library ReserveMathLib {
     ) internal pure returns (uint256 updatedDynamicReserveRatio_) {
         int256 fundReserveShortfall = int256(_proFormaFundReserve) - int256(_fundReserve);
 
-        if (fundReserveShortfall <= 0) {
-            updatedDynamicReserveRatio_ = _currentDynamicReserveRatio;
-        } else {
+        if (fundReserveShortfall > 0) {
             // possibleDRR = _currentDynamicReserveRatio + (uint256(_fundReserveShortfall * 100) / _cashFlowLastPeriod);
             uint256 possibleDRR = _currentDynamicReserveRatio +
                 (uint256(fundReserveShortfall) / _cashFlowLastPeriod);
@@ -58,6 +56,8 @@ library ReserveMathLib {
             } else {
                 updatedDynamicReserveRatio_ = 100;
             }
+        } else {
+            updatedDynamicReserveRatio_ = _currentDynamicReserveRatio;
         }
     }
 
