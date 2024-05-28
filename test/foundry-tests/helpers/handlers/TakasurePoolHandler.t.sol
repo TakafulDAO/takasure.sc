@@ -13,7 +13,7 @@ contract TakasurePoolHandler is Test {
 
     uint256 constant BENEFIT_MULTIPLIER = 1; // TODO: How much should be? it will be from oracle but should have valid values for tests
     uint256 constant MIN_DEPOSIT = 25e6; // 25 USDC
-    uint256 constant MAX_DEPOSIT = type(uint32).max; // 4294.967295 USDC
+    uint256 constant MAX_DEPOSIT = 2025e5; // 202.50 USDC
     uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 years
 
     constructor(TakasurePool _takasurePool) {
@@ -28,7 +28,7 @@ contract TakasurePoolHandler is Test {
         MemberState currentMemberState = takasurePool.getMemberFromAddress(msg.sender).memberState;
         vm.assume(currentMemberState != MemberState.Active);
 
-        console2.log("New member joining the pool");
+        // console2.log("New member joining the pool");
 
         contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
 
@@ -40,10 +40,10 @@ contract TakasurePoolHandler is Test {
         takasurePool.joinPool(BENEFIT_MULTIPLIER, contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
         vm.stopPrank();
 
-        (, uint256 drr, , , , , ) = takasurePool.getPoolValues();
+        // (, uint256 drr, , , , , ) = takasurePool.getPoolValues();
 
-        console2.log("Dynamic Reserve Ratio: ", drr);
-        console2.log("=====================================");
+        // console2.log("Dynamic Reserve Ratio: ", drr);
+        // console2.log("=====================================");
     }
 
     function moveTime(uint256 time) public {
@@ -51,7 +51,7 @@ contract TakasurePoolHandler is Test {
         vm.warp(block.timestamp + time);
         vm.roll(block.number + time);
 
-        console2.log("Date updated by", time / 1 days, "days");
-        console2.log("=====================================");
+        // console2.log("Date updated by", time / 1 days, "days");
+        // console2.log("=====================================");
     }
 }

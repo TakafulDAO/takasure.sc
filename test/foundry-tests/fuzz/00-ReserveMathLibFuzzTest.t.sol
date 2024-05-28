@@ -25,6 +25,8 @@ contract ReserveMathLibFuzzTest is Test {
     ) public view {
         uint256 expectedDRR;
         currentDynamicReserveRatio = bound(currentDynamicReserveRatio, 1, 100);
+        // The next three bounds are arbitrary, but they should be in the same range as the other
+        // values and should not be 0. Only to avoid weird random values in the fuzzing
         proFormaFundReserve = bound(proFormaFundReserve, 1, 1000);
         fundReserve = bound(fundReserve, 1, 1000);
         cashFlowLastPeriod = bound(cashFlowLastPeriod, 1, 1000);
@@ -53,6 +55,6 @@ contract ReserveMathLibFuzzTest is Test {
                 cashFlowLastPeriod
             );
 
-        assertEq(updatedDynamicReserveRatio, expectedDRR);
+        assertEq(updatedDynamicReserveRatio, expectedDRR, "DRR should be updated correctly");
     }
 }

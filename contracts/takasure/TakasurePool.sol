@@ -115,10 +115,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @param contributionAmount in six decimals
      * @param membershipDuration default 5 years
      * @dev it reverts if the contribution is less than the minimum threshold defaultes to `minimumThreshold`
+     * @dev it reverts if the member is already active
+     * @dev the contribution amount will be round down so the last four decimals will be zero. This means
+     *      that the minimum contribution amount is 0.01 USDC
      */
     function joinPool(
         uint256 benefitMultiplier,
-        uint256 contributionAmount, // 6 decimals
+        uint256 contributionAmount,
         uint256 membershipDuration
     ) external {
         // Todo: Check the user benefit multiplier against the oracle.
