@@ -61,6 +61,28 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         assertEq(memberIdCounterAfter, memberIdCounterBefore + 1);
     }
 
+    /// @dev Test the contribution amount's last four digits are zero
+    function testTakasurePool_contributionAmountDecimals() public {
+        uint256 contributionAmount = 227123456; // 227.123456 USDC
+
+        deal(address(usdc), alice, contributionAmount);
+
+        vm.startPrank(alice);
+
+        usdc.approve(address(takasurePool), contributionAmount);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, contributionAmount, (5 * YEAR));
+
+        vm.stopPrank();
+
+        (, , , uint256 totalContributions, , , ) = takasurePool.getPoolValues();
+
+        uint256 memberId = takasurePool.memberIdCounter();
+        Member memory member = takasurePool.getMemberFromId(memberId);
+
+        assertEq(totalContributions, 227120000); // 227.120000 USDC
+        assertEq(member.netContribution, 227120000); // 227.120000 USDC
+    }
+
     modifier aliceJoin() {
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
