@@ -26,6 +26,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     Fund private pool;
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
+    uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
     uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
     uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
     uint256 private constant DAY = 1 days;
@@ -135,7 +136,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         // The minimum we can receive is 0,01 USDC, here we round it
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        contributionAmount = (contributionAmount / 1e4) * 1e4;
+        contributionAmount =
+            (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            DECIMAL_REQUIREMENT_PRECISION_USDC;
 
         uint256 userMembershipDuration;
 
