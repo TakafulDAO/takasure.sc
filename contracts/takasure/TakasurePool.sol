@@ -137,7 +137,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Create new member
         memberIdCounter++;
 
-        // The minimum we can receive is 0,01 USDC, here we round it
+        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
         contributionAmount =
             (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
