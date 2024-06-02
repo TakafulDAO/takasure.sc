@@ -50,7 +50,7 @@ library ReserveMathLib {
 
         if (fundReserveShortfall > 0 && _cashFlowLastPeriod > 0) {
             uint256 possibleDRR = _currentDynamicReserveRatio +
-                (uint256(fundReserveShortfall) / _cashFlowLastPeriod);
+                ((uint256(fundReserveShortfall) * 100) / _cashFlowLastPeriod);
 
             if (possibleDRR < 100) {
                 updatedDynamicReserveRatio_ = possibleDRR;
