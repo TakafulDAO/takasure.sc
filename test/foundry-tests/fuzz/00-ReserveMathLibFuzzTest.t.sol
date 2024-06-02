@@ -38,7 +38,7 @@ contract ReserveMathLibFuzzTest is Test {
         } else {
             // possibleDRR = _currentDynamicReserveRatio + (uint256(_fundReserveShortfall * 100) / _cashFlowLastPeriod);
             uint256 possibleDRR = currentDynamicReserveRatio +
-                (uint256(fundReserveShortfall) / cashFlowLastPeriod);
+                ((uint256(fundReserveShortfall) * 100) / cashFlowLastPeriod);
 
             if (possibleDRR < 100) {
                 expectedDRR = possibleDRR;
