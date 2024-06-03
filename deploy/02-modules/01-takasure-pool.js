@@ -8,7 +8,7 @@ module.exports = async ({ deployments }) => {
     const chainId = network.config.chainId
 
     let usdc, usdcAddress
-    let takaToken, takaTokenAddress, wakalaClaimAddress
+    let tldToken, tldTokenAddress, wakalaClaimAddress
 
     log("02.01. Deploying TakasurePool Contract...")
 
@@ -19,13 +19,13 @@ module.exports = async ({ deployments }) => {
         usdcAddress = networkConfig[chainId]["usdc"]
     }
 
-    takaToken = await deployments.get("TakaToken")
-    takaTokenAddress = takaToken.address
+    tldToken = await deployments.get("TheLifeDAOToken")
+    tldTokenAddress = tldToken.address
     wakalaClaimAddress = networkConfig[chainId]["wakalaClaimAddress"]
     daoOperator = networkConfig[chainId]["daoOperator"]
 
     const contractName = "TakasurePool"
-    const initArgs = [usdcAddress, takaTokenAddress, wakalaClaimAddress, daoOperator]
+    const initArgs = [usdcAddress, tldTokenAddress, wakalaClaimAddress, daoOperator]
     const proxyPattern = "UUPS"
     const deterministicDeployment = false
     const contract = "TakasurePool"
