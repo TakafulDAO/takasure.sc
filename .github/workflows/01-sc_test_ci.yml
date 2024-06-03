@@ -47,7 +47,7 @@ jobs:
       - name: Forge Build
         run: |
           forge --version
-          forge build --sizes
+          forge build --sizes --skip .t.sol .s.sol
         id: forge-build  
 
       - name: Hardhat test
