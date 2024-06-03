@@ -32,6 +32,22 @@ library ReserveMathLib {
     }
 
     /**
+     */
+    function _updateProFormaClaimReserve(
+        uint256 _currentProFormaClaimReserve,
+        uint256 _memberNetContribution,
+        uint8 _wakalaFee,
+        uint256 _initialReserveRatio
+    ) internal pure returns (uint256 updatedProFormaClaimReserve_) {
+        // updatedProFormaClaimReserve = currentProFormaClaimReserve + (memberNetContribution * (1 - wakalaFee) * (1 - initialReserveRatio))
+        // To avoid rounding issues as (1 - wakalaFee) * (1 - initialReserveRatio) is always 1, in solidity. We use the percentage values and divide by 10^4
+        updatedProFormaClaimReserve_ =
+            _currentProFormaClaimReserve +
+            ((_memberNetContribution * (100 - uint256(_wakalaFee)) * (100 - _initialReserveRatio)) /
+                10 ** 4);
+    }
+
+    /**
      * @notice Calculate the dynamic reserve ratio on every cash-in operation
      * @param _currentDynamicReserveRatio Current value. Note: Percentage value, i.e. 40% => input should be 40
      * @param _proFormaFundReserve Pro forma fund reserve. Note: Six decimals
