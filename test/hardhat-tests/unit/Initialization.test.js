@@ -26,7 +26,7 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
               const currentName = await takaToken.name()
               const currentSymbol = await takaToken.symbol()
 
-              const expectedName = "The Life DAO"
+              const expectedName = "The Life DAO Token"
               const expectedSymbol = "TLD"
 
               assert.equal(currentName, expectedName)

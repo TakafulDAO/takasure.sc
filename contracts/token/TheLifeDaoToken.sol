@@ -14,25 +14,25 @@ import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensio
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
+contract TheLifeDAOToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
-    event TakaTokenMinted(address indexed to, uint256 indexed amount);
-    event TakaTokenBurned(address indexed from, uint256 indexed amount);
+    event TheLifeDAOTokenMinted(address indexed to, uint256 indexed amount);
+    event TheLifeDAOTokenBurned(address indexed from, uint256 indexed amount);
 
-    error TakaToken__NotZeroAddress();
-    error TakaToken__MustBeMoreThanZero();
-    error TakaToken__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
+    error TheLifeDAOToken__NotZeroAddress();
+    error TheLifeDAOToken__MustBeMoreThanZero();
+    error TheLifeDAOToken__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
 
     modifier mustBeMoreThanZero(uint256 _amount) {
         if (_amount <= 0) {
-            revert TakaToken__MustBeMoreThanZero();
+            revert TheLifeDAOToken__MustBeMoreThanZero();
         }
         _;
     }
 
-    constructor() ERC20("The Life DAO", "TLD") {
+    constructor() ERC20("The Life DAO Token", "TLD") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // TODO: Discuss. Who? The Dao?
         // Todo: Discuss. Allow someone here as Minter and Burner?
     }
@@ -47,10 +47,10 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         uint256 amountToMint
     ) external nonReentrant onlyRole(MINTER_ROLE) mustBeMoreThanZero(amountToMint) returns (bool) {
         if (to == address(0)) {
-            revert TakaToken__NotZeroAddress();
+            revert TheLifeDAOToken__NotZeroAddress();
         }
         _mint(to, amountToMint);
-        emit TakaTokenMinted(to, amountToMint);
+        emit TheLifeDAOTokenMinted(to, amountToMint);
 
         return true;
     }
@@ -65,9 +65,9 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     ) public override nonReentrant onlyRole(BURNER_ROLE) mustBeMoreThanZero(amountToBurn) {
         uint256 balance = balanceOf(msg.sender);
         if (amountToBurn > balance) {
-            revert TakaToken__BurnAmountExceedsBalance(balance, amountToBurn);
+            revert TheLifeDAOToken__BurnAmountExceedsBalance(balance, amountToBurn);
         }
-        emit TakaTokenBurned(msg.sender, amountToBurn);
+        emit TheLifeDAOTokenBurned(msg.sender, amountToBurn);
 
         super.burn(amountToBurn);
     }
