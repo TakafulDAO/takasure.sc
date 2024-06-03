@@ -9,7 +9,7 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ITLDToken} from "../interfaces/ITLDToken.sol";
+import {ITldToken} from "../interfaces/ITldToken.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -21,7 +21,7 @@ pragma solidity 0.8.25;
 
 contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
-    ITLDToken private tldToken;
+    ITldToken private tldToken;
 
     Fund private pool;
 
@@ -94,7 +94,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         __Ownable_init(_daoOperator);
 
         contributionToken = IERC20(_contributionToken);
-        tldToken = ITLDToken(_tldToken);
+        tldToken = ITldToken(_tldToken);
         wakalaClaimAddress = _wakalaClaimAddress;
 
         monthReference = 1;

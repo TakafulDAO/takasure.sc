@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.25;
 
-interface ITLDToken {
+interface ITldToken {
     /// @notice Mint The Life DAO Token
     /// @dev It calls the mint function from the The Life DAO Token contract
     /// @dev Reverts if the mint function fails
