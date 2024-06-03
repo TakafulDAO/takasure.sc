@@ -41,7 +41,7 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
     function invariant_reservesShouldBeEqualToBalance() public view {
         uint256 contributionTokenBalance = usdc.balanceOf(address(takasurePool));
 
-        (, , , , uint256 claimReserve, uint256 fundReserve, ) = takasurePool.getPoolValues();
+        (, , , , uint256 claimReserve, uint256 fundReserve, ) = takasurePool.getReserveValues();
         uint256 reserves = claimReserve + fundReserve;
 
         assertEq(contributionTokenBalance, reserves, "Reserves should be equal to balance");
@@ -57,7 +57,7 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
             uint256 totalClaimReserve,
             uint256 totalFundReserve,
 
-        ) = takasurePool.getPoolValues();
+        ) = takasurePool.getReserveValues();
 
         console2.log("Dynamic Reserve Ratio: ", drr);
         // console2.log("Month", takasurePool.monthReference());
@@ -76,7 +76,7 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
     function invariant_gettersShouldNotRevert() public view {
         takasurePool.getCashLast12Months();
         takasurePool.getContributionTokenAddress();
-        takasurePool.getPoolValues();
+        takasurePool.getReserveValues();
         takasurePool.getTakaTokenAddress();
     }
 }

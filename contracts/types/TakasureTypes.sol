@@ -26,7 +26,7 @@ struct Member {
     uint256 surplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
 }
 
-struct Fund {
+struct Reserve {
     mapping(address member => Member) members;
     uint256 proFormaFundReserve; // Used to update the dynamic reserve ratio
     uint256 dynamicReserveRatio; // Default 40%
