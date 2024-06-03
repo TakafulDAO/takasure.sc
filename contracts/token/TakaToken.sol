@@ -31,7 +31,7 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         _;
     }
 
-    constructor() ERC20("The Life DAO", "TAKA") {
+    constructor() ERC20("The Life DAO", "TLD") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // TODO: Discuss. Who? The Dao?
         // Todo: Discuss. Allow someone here as Minter and Burner?
     }
