@@ -38,4 +38,5 @@ struct Reserve {
     uint256 proFormaClaimReserve;
     uint256 lossRatio; // Default 0
     uint8 wakalaFee; // Default 20%, max 100%
+    bool isOptimizerEnabled; // Default false
 }
