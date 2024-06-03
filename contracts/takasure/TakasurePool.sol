@@ -101,7 +101,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         dayReference = 1;
         minimumThreshold = 25e6; // 25 USDC // 6 decimals
 
-        reserve.dynamicReserveRatio = 40; // 40% Default
+        reserve.initialReserveRatio = 40; // 40% Default
+        reserve.dynamicReserveRatio = reserve.initialReserveRatio; // Default
         reserve.benefitMultiplierAdjuster = 1; // Default
         reserve.totalContributions = 0;
         reserve.totalClaimReserve = 0;
