@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0
+
 pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
-import {TakaToken} from "../../../contracts/token/TakaToken.sol";
+import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {TakaToken} from "../../../../contracts/token/TakaToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {TakasurePool} from "../../../contracts/takasure/TakasurePool.sol";
+import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
 
 contract TakaTokenTest is Test {
     DeployTokenAndPool deployer;
@@ -55,25 +56,22 @@ contract TakaTokenTest is Test {
                              BURN FUNCTION
     //////////////////////////////////////////////////////////////*/
 
-    // function testTakaToken_burnUpdateBalanceAndEmitEvent() public {
-    //     uint256 burnAmount = MINT_AMOUNT / 2;
+    function testTakaToken_burnUpdateBalanceAndEmitEvent() public {
+        uint256 burnAmount = MINT_AMOUNT / 2;
 
-    //     // Mint some tokens to the user
-    //     vm.startPrank(address(takasurePool));
-    //     takaToken.mint(address(takasurePool), MINT_AMOUNT);
+        // Mint some tokens to the user
+        vm.startPrank(address(takasurePool));
+        takaToken.mint(address(takasurePool), MINT_AMOUNT);
+        uint256 balanceBefore = takaToken.balanceOf(address(takasurePool));
 
-    //     uint256 userBalanceFromMappingBefore = takaToken.getMintedTokensByUser(user);
-
-    //     // Expect to emit the event
-    //     vm.expectEmit(true, true, false, false, address(takaToken));
-    //     emit TakaTokenBurned(user, burnAmount);
-    //     takaToken.burn(burnAmount);
-    //     vm.stopPrank();
-
-    //     uint256 userBalanceFromMappingAfter = takaToken.getMintedTokensByUser(user);
-
-    //     assert(userBalanceFromMappingBefore > userBalanceFromMappingAfter);
-    // }
+        // Expect to emit the event
+        vm.expectEmit(true, true, false, false, address(takaToken));
+        emit TakaTokenBurned(address(takasurePool), burnAmount);
+        takaToken.burn(burnAmount);
+        uint256 balanceAfter = takaToken.balanceOf(address(takasurePool));
+        vm.stopPrank();
+        assert(balanceBefore > balanceAfter);
+    }
 
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
@@ -105,6 +103,12 @@ contract TakaTokenTest is Test {
         vm.prank(address(takasurePool));
         vm.expectRevert(TakaToken.TakaToken__MustBeMoreThanZero.selector);
         takaToken.mint(user, 0);
+    }
+
+    function testTakaToken_mustRevertIfTryToBurnZero() public {
+        vm.prank(address(takasurePool));
+        vm.expectRevert(TakaToken.TakaToken__MustBeMoreThanZero.selector);
+        takaToken.burn(0);
     }
 
     function testTakaToken_mustRevertIfTryToBurnMoreThanBalance() public {

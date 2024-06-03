@@ -13,7 +13,7 @@ help:
 all: clean remove install update build
 
 # Clean the repo
-clean  :; forge clean
+clean  :; yarn hardhat clean && forge clean
 
 # Remove modules
 remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules && git add . && git commit -m "modules"
@@ -25,7 +25,7 @@ update:; forge update
 
 build:; forge build
 
-test :; forge test 
+test :; yarn test && forge test 
 
 coverage :; forge coverage --report debug > coverage-report.txt
 

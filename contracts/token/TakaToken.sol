@@ -36,11 +36,12 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         // Todo: Discuss. Allow someone here as Minter and Burner?
     }
 
-    /// @notice Mint Taka tokens
-    /// @dev It calls the mint function from the TakaToken contract
-    /// @dev Reverts if the mint function fails
-    /// @param to The address to mint tokens to
-    /// @param amountToMint The amount of tokens to mint
+    /** @notice Mint Taka tokens
+     * @dev It calls the mint function from the TakaToken contract
+     * @dev Reverts if the mint function fails
+     * @param to The address to mint tokens to
+     * @param amountToMint The amount of tokens to mint
+     */
     function mint(
         address to,
         uint256 amountToMint
@@ -54,9 +55,11 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         return true;
     }
 
-    /// @notice Burn Taka tokens
-    /// @dev It calls the burn function from the TakaToken contract
-    /// @param amountToBurn The amount of tokens to burn
+    /**
+     * @notice Burn Taka tokens
+     * @dev It calls the burn function from the TakaToken contract
+     * @param amountToBurn The amount of tokens to burn
+     */
     function burn(
         uint256 amountToBurn
     ) public override nonReentrant onlyRole(BURNER_ROLE) mustBeMoreThanZero(amountToBurn) {

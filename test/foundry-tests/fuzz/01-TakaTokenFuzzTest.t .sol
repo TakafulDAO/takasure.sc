@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0
+
 pragma solidity 0.8.25;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
 import {TakaToken} from "../../../contracts/token/TakaToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
