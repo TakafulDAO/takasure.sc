@@ -28,15 +28,6 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      # - name: Clear cache hardhat
-      #   env:
-      #     ARBITRUM_MAINNET_RPC_URL: ${{ secrets.ARBITRUM_MAINNET_RPC_URL}}
-      #     TESTNET_DEPLOYER_PK: ${{secrets.TESTNET_DEPLOYER_PK}}
-      #   run: yarn hardhat clean --config hardhat-continuous-integration.config.js
-
-      - name: Clear cache foundry
-        run: forge clean
-
       - name: Compile contracts
         env:
           ARBITRUM_MAINNET_RPC_URL: ${{ secrets.ARBITRUM_MAINNET_RPC_URL}}
@@ -49,6 +40,7 @@ jobs:
       - name: Forge Build
         run: |
           forge --version
+          forge clean
           forge build --sizes --skip .t.sol .s.sol
         id: forge-build  
 
