@@ -36,5 +36,6 @@ struct Reserve {
     uint256 totalFundReserve;
     uint256 proFormaFundReserve; // Used to update the dynamic reserve ratio
     uint256 proFormaClaimReserve;
+    uint256 lossRatio; // Default 0
     uint8 wakalaFee; // Default 20%, max 100%
 }
