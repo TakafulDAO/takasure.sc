@@ -4,13 +4,13 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
-import {TakaToken} from "../../../contracts/token/TakaToken.sol";
+import {TheLifeDAOToken} from "../../../contracts/token/TheLifeDAOToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "../../../contracts/takasure/TakasurePool.sol";
 
-contract TakaTokenFuzzTest is Test {
+contract TokenFuzzTest is Test {
     DeployTokenAndPool deployer;
-    TakaToken takaToken;
+    TheLifeDAOToken tldToken;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
 
@@ -19,7 +19,7 @@ contract TakaTokenFuzzTest is Test {
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
-        (takaToken, proxy, , , ) = deployer.run();
+        (tldToken, proxy, , , ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
     }
@@ -36,8 +36,8 @@ contract TakaTokenFuzzTest is Test {
         bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
         bytes32 BURNER_ROLE = keccak256("BURNER_ROLE");
 
-        bool isMinter = takaToken.hasRole(MINTER_ROLE, notMinter);
-        bool isBurner = takaToken.hasRole(BURNER_ROLE, notBurner);
+        bool isMinter = tldToken.hasRole(MINTER_ROLE, notMinter);
+        bool isBurner = tldToken.hasRole(BURNER_ROLE, notBurner);
 
         assert(!isMinter);
         assert(!isBurner);
@@ -49,7 +49,7 @@ contract TakaTokenFuzzTest is Test {
 
         vm.prank(minter);
         vm.expectRevert();
-        takaToken.mint(user, MINT_AMOUNT);
+        tldToken.mint(user, MINT_AMOUNT);
     }
 
     function test_fuzz_onlyBurnerCanBurn(address burner) public {
@@ -58,10 +58,10 @@ contract TakaTokenFuzzTest is Test {
 
         // Mint some tokens to the user
         vm.prank(address(takasurePool));
-        takaToken.mint(user, MINT_AMOUNT);
+        tldToken.mint(user, MINT_AMOUNT);
 
         vm.prank(burner);
         vm.expectRevert();
-        takaToken.burn(MINT_AMOUNT);
+        tldToken.burn(MINT_AMOUNT);
     }
 }

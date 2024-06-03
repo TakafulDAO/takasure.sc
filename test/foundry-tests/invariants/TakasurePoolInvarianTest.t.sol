@@ -77,6 +77,6 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
         takasurePool.getCashLast12Months();
         takasurePool.getContributionTokenAddress();
         takasurePool.getPoolValues();
-        takasurePool.getTakaTokenAddress();
+        takasurePool.getTldTokenAddress();
     }
 }

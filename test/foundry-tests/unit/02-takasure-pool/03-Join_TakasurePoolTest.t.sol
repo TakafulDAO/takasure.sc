@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
-import {TakaToken} from "../../../../contracts/token/TakaToken.sol";
+import {TheLifeDAOToken} from "../../../../contracts/token/TheLifeDAOToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -13,7 +13,7 @@ import {IUSDC} from "../../../../contracts/mocks/IUSDCmock.sol";
 
 contract Join_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
-    TakaToken takaToken;
+    TheLifeDAOToken tldToken;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
     address contributionTokenAddress;
@@ -29,7 +29,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
-        (takaToken, proxy, , contributionTokenAddress, ) = deployer.run();
+        (tldToken, proxy, , contributionTokenAddress, ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
