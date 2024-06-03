@@ -34,8 +34,8 @@ jobs:
           TESTNET_DEPLOYER_PK: ${{secrets.TESTNET_DEPLOYER_PK}}
         run: yarn hardhat clean --config hardhat-continuous-integration.config.js
 
-      # - name: Clear cache foundry
-      #   run: forge clean
+      - name: Clear cache foundry
+        run: forge clean
 
       - name: Compile contracts
         env:
@@ -44,12 +44,11 @@ jobs:
         run: yarn hardhat compile --config hardhat-continuous-integration.config.js
         id: hardhat-compile
 
-      # - name: Forge Build
-      #   run: |
-      #     forge --version
-      #     forge clean
-      #     forge build --sizes
-      #   id: forge-build  
+      - name: Forge Build
+        run: |
+          forge --version
+          forge build --sizes
+        id: forge-build  
 
       - name: Hardhat test
         env:
