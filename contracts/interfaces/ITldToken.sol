@@ -2,16 +2,16 @@
 
 pragma solidity 0.8.25;
 
-interface ITakaToken {
-    /// @notice Mint Taka tokens
-    /// @dev It calls the mint function from the TakaToken contract
+interface ITldToken {
+    /// @notice Mint The Life DAO Token
+    /// @dev It calls the mint function from the The Life DAO Token contract
     /// @dev Reverts if the mint function fails
     /// @param to The address to mint tokens to
     /// @param amountToMint The amount of tokens to mint
     function mint(address to, uint256 amountToMint) external returns (bool);
 
     /// @notice Burn Taka tokens
-    /// @dev It calls the burn function from the TakaToken contract
+    /// @dev It calls the burn function from the The Life DAO Token contract
     /// @param from The address to burn tokens from
     /// @param amountToBurn The amount of tokens to burn
     function burnTokens(address from, uint256 amountToBurn) external;
