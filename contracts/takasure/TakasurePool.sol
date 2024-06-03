@@ -203,7 +203,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // External calls
         bool success;
 
-        // Mint the Taka token
+        // Mint The Life DAO Token
         success = takaToken.mint(msg.sender, mintAmount);
         if (!success) {
             revert TakasurePool__MintFailed();

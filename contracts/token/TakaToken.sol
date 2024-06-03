@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title TakaToken
+ * @title The Life DAO Token
  * @author Maikel Ordaz
+ * @notice This is a utility token used exclusively within the Life DAO ecosystem.
  * @notice Minting: Algorithmic
- * @dev Minting and burning of the TAKA token based on new members' admission into the pool, and members
+ * @dev Minting and burning of the The Life DAO Token based on new members' admission into the pool, and members
  *      leaving due to inactivity or claims.
  */
 pragma solidity 0.8.25;
@@ -36,9 +37,8 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         // Todo: Discuss. Allow someone here as Minter and Burner?
     }
 
-    /** @notice Mint Taka tokens
-     * @dev It calls the mint function from the TakaToken contract
-     * @dev Reverts if the mint function fails
+    /** @notice Mint The Life DAO Token
+     * @dev Reverts if the address is the zero addresss
      * @param to The address to mint tokens to
      * @param amountToMint The amount of tokens to mint
      */
@@ -56,9 +56,9 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Burn Taka tokens
-     * @dev It calls the burn function from the TakaToken contract
+     * @notice Burn The Life DAO Token
      * @param amountToBurn The amount of tokens to burn
+     * @dev Reverts if the amount to burn is more than the sender's balance
      */
     function burn(
         uint256 amountToBurn
