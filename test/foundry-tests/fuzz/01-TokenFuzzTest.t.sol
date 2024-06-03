@@ -4,13 +4,13 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
-import {TheLifeDAOToken} from "../../../contracts/token/TheLifeDAOToken.sol";
+import {TLDToken} from "../../../contracts/token/TLDToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "../../../contracts/takasure/TakasurePool.sol";
 
 contract TokenFuzzTest is Test {
     DeployTokenAndPool deployer;
-    TheLifeDAOToken tldToken;
+    TLDToken tldToken;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
 

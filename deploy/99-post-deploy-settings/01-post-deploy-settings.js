@@ -7,7 +7,7 @@ module.exports = async ({ deployments, getNamedAccounts }) => {
 
     log("99.01. Post deploy settings...")
 
-    const tldToken = await ethers.getContract("TheLifeDAOToken")
+    const tldToken = await ethers.getContract("TLDToken")
     const takasurePool = await ethers.getContract("TakasurePool")
 
     log("99.01. Setting TakasurePool Contract as minter for The Life DAO Token...")

@@ -19,7 +19,7 @@ module.exports = async ({ deployments }) => {
         usdcAddress = networkConfig[chainId]["usdc"]
     }
 
-    tldToken = await deployments.get("TheLifeDAOToken")
+    tldToken = await deployments.get("TLDToken")
     tldTokenAddress = tldToken.address
     wakalaClaimAddress = networkConfig[chainId]["wakalaClaimAddress"]
     daoOperator = networkConfig[chainId]["daoOperator"]

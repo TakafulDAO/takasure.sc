@@ -3,7 +3,7 @@
 pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {TheLifeDAOToken} from "../../contracts/token/TheLifeDAOToken.sol";
+import {TLDToken} from "../../contracts/token/TLDToken.sol";
 import {TakasurePool} from "../../contracts/takasure/TakasurePool.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -15,7 +15,7 @@ contract DeployTokenAndPool is Script {
     function run()
         external
         returns (
-            TheLifeDAOToken,
+            TLDToken,
             ERC1967Proxy,
             TakasurePool,
             address contributionTokenAddress,
@@ -35,7 +35,7 @@ contract DeployTokenAndPool is Script {
 
         vm.startBroadcast(deployerKey);
 
-        TheLifeDAOToken tldToken = new TheLifeDAOToken();
+        TLDToken tldToken = new TLDToken();
         TakasurePool takasurePool = new TakasurePool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(takasurePool), "");
 

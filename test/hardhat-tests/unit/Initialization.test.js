@@ -18,7 +18,7 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
               // Deploy contracts
               await deployments.fixture(["all"])
               usdc = await ethers.getContract("USDC")
-              tldToken = await ethers.getContract("TheLifeDAOToken")
+              tldToken = await ethers.getContract("TLDToken")
               takasurePool = await ethers.getContract("TakasurePool")
           })
 

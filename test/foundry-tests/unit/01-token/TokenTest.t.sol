@@ -4,13 +4,13 @@ pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
-import {TheLifeDAOToken} from "../../../../contracts/token/TheLifeDAOToken.sol";
+import {TLDToken} from "../../../../contracts/token/TLDToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
 
 contract TokenTest is Test {
     DeployTokenAndPool deployer;
-    TheLifeDAOToken tldToken;
+    TLDToken tldToken;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
 
@@ -19,8 +19,8 @@ contract TokenTest is Test {
 
     uint256 public constant MINT_AMOUNT = 1 ether;
 
-    event TheLifeDAOTokenMinted(address indexed to, uint256 indexed amount);
-    event TheLifeDAOTokenBurned(address indexed from, uint256 indexed amount);
+    event TLDTokenMinted(address indexed to, uint256 indexed amount);
+    event TLDTokenBurned(address indexed from, uint256 indexed amount);
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
@@ -41,7 +41,7 @@ contract TokenTest is Test {
 
         // Event should be emitted
         vm.expectEmit(true, true, false, false, address(tldToken));
-        emit TheLifeDAOTokenMinted(user, MINT_AMOUNT);
+        emit TLDTokenMinted(user, MINT_AMOUNT);
         tldToken.mint(user, MINT_AMOUNT);
 
         // And the balance should be updated
@@ -66,7 +66,7 @@ contract TokenTest is Test {
 
         // Expect to emit the event
         vm.expectEmit(true, true, false, false, address(tldToken));
-        emit TheLifeDAOTokenBurned(address(takasurePool), burnAmount);
+        emit TLDTokenBurned(address(takasurePool), burnAmount);
         tldToken.burn(burnAmount);
         uint256 balanceAfter = tldToken.balanceOf(address(takasurePool));
         vm.stopPrank();
@@ -95,19 +95,19 @@ contract TokenTest is Test {
 
     function testToken_mustRevertIfTryToMintToAddressZero() public {
         vm.prank(address(takasurePool));
-        vm.expectRevert(TheLifeDAOToken.TheLifeDAOToken__NotZeroAddress.selector);
+        vm.expectRevert(TLDToken.TLDToken__NotZeroAddress.selector);
         tldToken.mint(address(0), MINT_AMOUNT);
     }
 
     function testToken_mustRevertIfTryToMintZero() public {
         vm.prank(address(takasurePool));
-        vm.expectRevert(TheLifeDAOToken.TheLifeDAOToken__MustBeMoreThanZero.selector);
+        vm.expectRevert(TLDToken.TLDToken__MustBeMoreThanZero.selector);
         tldToken.mint(user, 0);
     }
 
     function testToken_mustRevertIfTryToBurnZero() public {
         vm.prank(address(takasurePool));
-        vm.expectRevert(TheLifeDAOToken.TheLifeDAOToken__MustBeMoreThanZero.selector);
+        vm.expectRevert(TLDToken.TLDToken__MustBeMoreThanZero.selector);
         tldToken.burn(0);
     }
 
@@ -116,7 +116,7 @@ contract TokenTest is Test {
         vm.prank(address(takasurePool));
         vm.expectRevert(
             abi.encodeWithSelector(
-                TheLifeDAOToken.TheLifeDAOToken__BurnAmountExceedsBalance.selector,
+                TLDToken.TLDToken__BurnAmountExceedsBalance.selector,
                 userBalance,
                 MINT_AMOUNT
             )

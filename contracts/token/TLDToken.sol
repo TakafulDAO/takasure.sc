@@ -14,20 +14,20 @@ import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensio
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract TheLifeDAOToken is ERC20Burnable, AccessControl, ReentrancyGuard {
+contract TLDToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
-    event TheLifeDAOTokenMinted(address indexed to, uint256 indexed amount);
-    event TheLifeDAOTokenBurned(address indexed from, uint256 indexed amount);
+    event TLDTokenMinted(address indexed to, uint256 indexed amount);
+    event TLDTokenBurned(address indexed from, uint256 indexed amount);
 
-    error TheLifeDAOToken__NotZeroAddress();
-    error TheLifeDAOToken__MustBeMoreThanZero();
-    error TheLifeDAOToken__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
+    error TLDToken__NotZeroAddress();
+    error TLDToken__MustBeMoreThanZero();
+    error TLDToken__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
 
     modifier mustBeMoreThanZero(uint256 _amount) {
         if (_amount <= 0) {
-            revert TheLifeDAOToken__MustBeMoreThanZero();
+            revert TLDToken__MustBeMoreThanZero();
         }
         _;
     }
@@ -47,10 +47,10 @@ contract TheLifeDAOToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         uint256 amountToMint
     ) external nonReentrant onlyRole(MINTER_ROLE) mustBeMoreThanZero(amountToMint) returns (bool) {
         if (to == address(0)) {
-            revert TheLifeDAOToken__NotZeroAddress();
+            revert TLDToken__NotZeroAddress();
         }
         _mint(to, amountToMint);
-        emit TheLifeDAOTokenMinted(to, amountToMint);
+        emit TLDTokenMinted(to, amountToMint);
 
         return true;
     }
@@ -65,9 +65,9 @@ contract TheLifeDAOToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     ) public override nonReentrant onlyRole(BURNER_ROLE) mustBeMoreThanZero(amountToBurn) {
         uint256 balance = balanceOf(msg.sender);
         if (amountToBurn > balance) {
-            revert TheLifeDAOToken__BurnAmountExceedsBalance(balance, amountToBurn);
+            revert TLDToken__BurnAmountExceedsBalance(balance, amountToBurn);
         }
-        emit TheLifeDAOTokenBurned(msg.sender, amountToBurn);
+        emit TLDTokenBurned(msg.sender, amountToBurn);
 
         super.burn(amountToBurn);
     }

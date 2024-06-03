@@ -8,10 +8,10 @@ module.exports = async ({ deployments }) => {
 
     log("01.01. Deploying The Life DAO Token Contract...")
 
-    const contractName = "TheLifeDAOToken"
+    const contractName = "TLDToken"
     const args = []
     const deterministicDeployment = false
-    const contract = "TheLifeDAOToken"
+    const contract = "TLDToken"
 
     const tldToken = await deploySimpleContract(
         contractName,
