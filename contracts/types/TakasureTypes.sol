@@ -21,7 +21,6 @@ struct Member {
     uint256 membershipDuration; // in years
     uint256 membershipStartTime; // in seconds
     uint256 netContribution; // in stablecoin currency in Wei
-    uint256 totalWakalaFee; // in stablecoin currency in Wei
     address wallet;
     MemberState memberState;
     uint256 surplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
