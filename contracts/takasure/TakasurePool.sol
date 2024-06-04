@@ -151,21 +151,19 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
-        uint256 wakalaAmount = (contributionAmount * pool.wakalaFee) / 100;
-
         Member memory newMember = Member({
             memberId: memberIdCounter,
             benefitMultiplier: benefitMultiplier,
             membershipDuration: userMembershipDuration,
             membershipStartTime: block.timestamp,
             netContribution: contributionAmount,
-            totalWakalaFee: wakalaAmount,
             wallet: msg.sender,
             memberState: MemberState.Active,
             surplus: 0 // Todo
         });
 
         uint256 mintAmount = contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+        uint256 wakalaAmount = (contributionAmount * pool.wakalaFee) / 100;
         uint256 depositAmount = contributionAmount - wakalaAmount;
 
         // Distribute between the claim and fund reserve
