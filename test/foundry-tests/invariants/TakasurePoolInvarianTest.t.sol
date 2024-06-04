@@ -49,7 +49,15 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
 
     /// @dev Invariant to check dynamic reserve ratio. Can not be greater than 100
     function invariant_dynamicReserveRatioCanNotBeGreaterThan100() public view {
-        (, uint256 drr, , , , , ) = takasurePool.getPoolValues();
+        (
+            uint256 proformaFundReserve,
+            uint256 drr,
+            ,
+            uint256 totalContributions,
+            uint256 totalClaimReserve,
+            uint256 totalFundReserve,
+
+        ) = takasurePool.getPoolValues();
 
         console2.log("Dynamic Reserve Ratio: ", drr);
         // console2.log("Month", takasurePool.monthReference());
