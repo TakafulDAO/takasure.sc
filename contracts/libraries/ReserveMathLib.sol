@@ -62,6 +62,14 @@ library ReserveMathLib {
         }
     }
 
+    function _calculateBmaCashFlowMethod(
+        uint256 _totalClaimReserves,
+        uint256 _totalFundReserves,
+        uint256 _bmaFundReserveShares,
+        uint256 _proFormaClaimReserve,
+        uint256 _bmaInflowAssumption
+    ) internal pure returns (uint256 bma_) {}
+
     /**
      * @notice Calculate date difference in days
      * @param _finalDayTimestamp Final timestamp
