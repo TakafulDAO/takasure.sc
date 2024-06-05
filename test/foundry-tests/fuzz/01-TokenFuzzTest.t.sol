@@ -4,13 +4,13 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
-import {TLDToken} from "../../../contracts/token/TLDToken.sol";
+import {TSToken} from "../../../contracts/token/TSToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "../../../contracts/takasure/TakasurePool.sol";
 
 contract TokenFuzzTest is Test {
     DeployTokenAndPool deployer;
-    TLDToken tldToken;
+    TSToken daoToken;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
 
@@ -19,7 +19,7 @@ contract TokenFuzzTest is Test {
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
-        (tldToken, proxy, , , ) = deployer.run();
+        (daoToken, proxy, , , ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
     }
@@ -36,8 +36,8 @@ contract TokenFuzzTest is Test {
         bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
         bytes32 BURNER_ROLE = keccak256("BURNER_ROLE");
 
-        bool isMinter = tldToken.hasRole(MINTER_ROLE, notMinter);
-        bool isBurner = tldToken.hasRole(BURNER_ROLE, notBurner);
+        bool isMinter = daoToken.hasRole(MINTER_ROLE, notMinter);
+        bool isBurner = daoToken.hasRole(BURNER_ROLE, notBurner);
 
         assert(!isMinter);
         assert(!isBurner);
@@ -49,7 +49,7 @@ contract TokenFuzzTest is Test {
 
         vm.prank(minter);
         vm.expectRevert();
-        tldToken.mint(user, MINT_AMOUNT);
+        daoToken.mint(user, MINT_AMOUNT);
     }
 
     function test_fuzz_onlyBurnerCanBurn(address burner) public {
@@ -58,10 +58,10 @@ contract TokenFuzzTest is Test {
 
         // Mint some tokens to the user
         vm.prank(address(takasurePool));
-        tldToken.mint(user, MINT_AMOUNT);
+        daoToken.mint(user, MINT_AMOUNT);
 
         vm.prank(burner);
         vm.expectRevert();
-        tldToken.burn(MINT_AMOUNT);
+        daoToken.burn(MINT_AMOUNT);
     }
 }

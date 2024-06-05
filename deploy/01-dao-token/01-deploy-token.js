@@ -6,29 +6,29 @@ const { deploySimpleContract } = require("../../utils/deployHelpers")
 module.exports = async ({ deployments }) => {
     const { log } = deployments
 
-    log("01.01. Deploying The Life DAO Token Contract...")
+    log("01.01. Deploying DAO Token Contract...")
 
-    const contractName = "TLDToken"
+    const contractName = "TSToken"
     const args = []
     const deterministicDeployment = false
-    const contract = "TLDToken"
+    const contract = "TSToken"
 
-    const tldToken = await deploySimpleContract(
+    const daoToken = await deploySimpleContract(
         contractName,
         args,
         deterministicDeployment,
         contract,
     )
-    log("01.01. The Life DAO Token Contract Deployed! ")
+    log("01.01. DAO Token Contract Deployed! ")
 
     log("=======================================================")
 
     if (!developmentChains.includes(network.name) && process.env.ARBISCAN_API_KEY) {
-        log("01.01. Verifying The Life DAO Token Contract!... ")
-        await verify(tldToken.address, args)
-        log("01.02. The Life DAO Token Contract Verified! ")
+        log("01.01. Verifying DAO Token Contract!... ")
+        await verify(daoToken.address, args)
+        log("01.02. DAO Token Contract Verified! ")
     }
     log("=======================================================")
 }
 
-module.exports.tags = ["all", "TLD", "token"]
+module.exports.tags = ["all", "token"]

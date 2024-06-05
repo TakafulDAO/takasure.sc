@@ -9,7 +9,7 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ITldToken} from "../interfaces/ITldToken.sol";
+import {ITSToken} from "../interfaces/ITSToken.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -21,7 +21,7 @@ pragma solidity 0.8.25;
 
 contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
-    ITldToken private tldToken;
+    ITSToken private daoToken;
 
     Fund private pool;
 
@@ -72,21 +72,21 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     /**
      * @param _contributionToken default USDC
-     * @param _tldToken utility token for the DAO
+     * @param _daoToken utility token for the DAO
      * @param _wakalaClaimAddress address allowed to claim the wakala fee
      * @param _daoOperator address allowed to manage the DAO
      * @dev it reverts if any of the addresses is zero
      */
     function initialize(
         address _contributionToken,
-        address _tldToken,
+        address _daoToken,
         address _wakalaClaimAddress,
         address _daoOperator
     )
         external
         initializer
         notZeroAddress(_contributionToken)
-        notZeroAddress(_tldToken)
+        notZeroAddress(_daoToken)
         notZeroAddress(_wakalaClaimAddress)
         notZeroAddress(_daoOperator)
     {
@@ -94,7 +94,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         __Ownable_init(_daoOperator);
 
         contributionToken = IERC20(_contributionToken);
-        tldToken = ITldToken(_tldToken);
+        daoToken = ITSToken(_daoToken);
         wakalaClaimAddress = _wakalaClaimAddress;
 
         monthReference = 1;
@@ -203,8 +203,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // External calls
         bool success;
 
-        // Mint The Life DAO Token
-        success = tldToken.mint(msg.sender, mintAmount);
+        // Mint needed DAO Tokens
+        success = daoToken.mint(msg.sender, mintAmount);
         if (!success) {
             revert TakasurePool__MintFailed();
         }
@@ -285,8 +285,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         return pool.members[member];
     }
 
-    function getTldTokenAddress() external view returns (address) {
-        return address(tldToken);
+    function getTokenAddress() external view returns (address) {
+        return address(daoToken);
     }
 
     function getContributionTokenAddress() external view returns (address contributionToken_) {

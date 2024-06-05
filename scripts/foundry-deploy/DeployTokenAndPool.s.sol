@@ -3,7 +3,7 @@
 pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {TLDToken} from "../../contracts/token/TLDToken.sol";
+import {TSToken} from "../../contracts/token/TSToken.sol";
 import {TakasurePool} from "../../contracts/takasure/TakasurePool.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -15,7 +15,7 @@ contract DeployTokenAndPool is Script {
     function run()
         external
         returns (
-            TLDToken,
+            TSToken,
             ERC1967Proxy,
             TakasurePool,
             address contributionTokenAddress,
@@ -35,29 +35,29 @@ contract DeployTokenAndPool is Script {
 
         vm.startBroadcast(deployerKey);
 
-        TLDToken tldToken = new TLDToken();
+        TSToken daoToken = new TSToken();
         TakasurePool takasurePool = new TakasurePool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(takasurePool), "");
 
         TakasurePool(address(proxy)).initialize(
             contributionToken,
-            address(tldToken),
+            address(daoToken),
             wakalaClaimAddress,
             daoOperator
         );
 
-        tldToken.grantRole(MINTER_ROLE, address(proxy));
-        tldToken.grantRole(BURNER_ROLE, address(proxy));
+        daoToken.grantRole(MINTER_ROLE, address(proxy));
+        daoToken.grantRole(BURNER_ROLE, address(proxy));
 
-        bytes32 adminRole = tldToken.DEFAULT_ADMIN_ROLE();
-        tldToken.grantRole(adminRole, daoOperator);
+        bytes32 adminRole = daoToken.DEFAULT_ADMIN_ROLE();
+        daoToken.grantRole(adminRole, daoOperator);
 
-        tldToken.revokeRole(adminRole, deployerAddress);
+        daoToken.revokeRole(adminRole, deployerAddress);
 
         vm.stopBroadcast();
 
         contributionTokenAddress = TakasurePool(address(proxy)).getContributionTokenAddress();
 
-        return (tldToken, proxy, takasurePool, contributionTokenAddress, config);
+        return (daoToken, proxy, takasurePool, contributionTokenAddress, config);
     }
 }
