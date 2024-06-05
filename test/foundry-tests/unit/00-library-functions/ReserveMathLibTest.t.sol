@@ -186,6 +186,56 @@ contract ReserveMathLibTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                          BMA CASHFLOW METHOD
+    //////////////////////////////////////////////////////////////*/
+
+    struct BmaCashflowMethodTest {
+        uint256 totalClaimReserves;
+        uint256 totalFundReserves;
+        uint256 bmaFundReserveShares;
+        uint256 proFormaClaimReserve;
+        uint256 bmaInflowAssumption;
+        uint256 expectedBma;
+    }
+
+    /// @dev Test the calculation of BMA using the cash flow method
+    function testReserveMathLib__calculateBmaCashflowMethod() public view {
+        BmaCashflowMethodTest[] memory testInputs = new BmaCashflowMethodTest[](2);
+
+        testInputs[0] = BmaCashflowMethodTest({
+            totalClaimReserves: 10e6, // 10000000
+            totalFundReserves: 15e6, // 15000000
+            bmaFundReserveShares: 70, // 70%
+            proFormaClaimReserve: 12e6, // 12000000
+            bmaInflowAssumption: 12e6, // 12000000
+            expectedBma: 94 // 94%
+        });
+
+        testInputs[1] = BmaCashflowMethodTest({
+            totalClaimReserves: 150e6, // 150000000
+            totalFundReserves: 250e6, // 25000000
+            bmaFundReserveShares: 70, // 70%
+            proFormaClaimReserve: 584e5, // 58400000
+            bmaInflowAssumption: 384e5, // 38400000
+            expectedBma: 100 // 100%
+        });
+
+        for (uint256 i = 0; i < testInputs.length; i++) {
+            BmaCashflowMethodTest memory testInput = testInputs[i];
+
+            uint256 bma = reserveMathLibHarness.exposed_calculateBmaCashFlowMethod(
+                testInput.totalClaimReserves,
+                testInput.totalFundReserves,
+                testInput.bmaFundReserveShares,
+                testInput.proFormaClaimReserve,
+                testInput.bmaInflowAssumption
+            );
+
+            assertEq(bma, testInput.expectedBma);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                DAY & MONTH
     //////////////////////////////////////////////////////////////*/
 

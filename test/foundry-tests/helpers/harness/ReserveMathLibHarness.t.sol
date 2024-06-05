@@ -33,6 +33,22 @@ contract ReserveMathLibHarness {
             );
     }
 
+    function exposed_calculateBmaCashFlowMethod(
+        uint256 totalClaimReserves,
+        uint256 totalFundReserves,
+        uint256 bmaFundReserveShares,
+        uint256 proFormaClaimReserve,
+        uint256 bmaInflowAssumption
+    ) external pure returns (uint256 bma) {
+        bma = ReserveMathLib._calculateBmaCashFlowMethod(
+            totalClaimReserves,
+            totalFundReserves,
+            bmaFundReserveShares,
+            proFormaClaimReserve,
+            bmaInflowAssumption
+        );
+    }
+
     function exposed__calculateDaysPassed(
         uint256 finalDayTimestamp,
         uint256 initialDayTimestamp
