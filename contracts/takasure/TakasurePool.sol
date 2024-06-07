@@ -104,9 +104,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.initialReserveRatio = 40; // 40% Default
         reserve.dynamicReserveRatio = reserve.initialReserveRatio; // Default
         reserve.benefitMultiplierAdjuster = 1; // Default
-        reserve.totalContributions = 0;
-        reserve.totalClaimReserve = 0;
-        reserve.totalFundReserve = 0;
         reserve.wakalaFee = 20; // 20% of the contribution amount. Default
     }
 
