@@ -32,9 +32,9 @@ struct Reserve {
     uint256 initialReserveRatio; // Default 40%
     uint256 dynamicReserveRatio; // Default 40%
     uint256 benefitMultiplierAdjuster; // Default 1
-    uint256 totalContributions;
-    uint256 totalClaimReserve;
-    uint256 totalFundReserve;
+    uint256 totalContributions; // Default 0
+    uint256 totalClaimReserve; // Default 0
+    uint256 totalFundReserve; // Default 0
     uint256 proFormaFundReserve; // Used to update the dynamic reserve ratio
     uint256 proFormaClaimReserve;
     uint256 lossRatio; // Default 0
