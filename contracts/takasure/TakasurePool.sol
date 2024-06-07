@@ -156,7 +156,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             benefitMultiplier: benefitMultiplier,
             membershipDuration: userMembershipDuration,
             membershipStartTime: block.timestamp,
-            netContribution: contributionAmount,
+            contribution: contributionAmount,
             totalWakalaFee: wakalaAmount,
             wallet: msg.sender,
             memberState: MemberState.Active,
@@ -172,7 +172,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
             reserve.proFormaFundReserve,
-            newMember.netContribution,
+            newMember.contribution,
             reserve.dynamicReserveRatio
         );
 
