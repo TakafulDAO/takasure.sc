@@ -14,7 +14,7 @@ import {ITakaToken} from "../interfaces/ITakaToken.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import {Fund, Member, MemberState, KYC} from "../types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, KYC} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
 
 pragma solidity 0.8.25;
@@ -23,7 +23,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
     ITakaToken private takaToken;
 
-    Fund private pool;
+    Reserve private reserve;
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
@@ -101,12 +101,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         dayReference = 1;
         minimumThreshold = 25e6; // 25 USDC // 6 decimals
 
-        pool.dynamicReserveRatio = 40; // 40% Default
-        pool.benefitMultiplierAdjuster = 1; // Default
-        pool.totalContributions = 0;
-        pool.totalClaimReserve = 0;
-        pool.totalFundReserve = 0;
-        pool.wakalaFee = 20; // 20% of the contribution amount. Default
+        reserve.initialReserveRatio = 40; // 40% Default
+        reserve.dynamicReserveRatio = reserve.initialReserveRatio; // Default
+        reserve.benefitMultiplierAdjuster = 100; // Default
+        reserve.wakalaFee = 20; // 20% of the contribution amount. Default
     }
 
     /**
@@ -125,7 +123,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 membershipDuration
     ) external {
         // Todo: Check the user benefit multiplier against the oracle.
-        if (pool.members[msg.sender].memberState == MemberState.Active) {
+        if (reserve.members[msg.sender].memberState == MemberState.Active) {
             revert TakasurePool__MemberAlreadyExists();
         }
         if (contributionAmount < minimumThreshold) {
@@ -151,51 +149,61 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
+        uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
+
         Member memory newMember = Member({
             memberId: memberIdCounter,
             benefitMultiplier: benefitMultiplier,
             membershipDuration: userMembershipDuration,
             membershipStartTime: block.timestamp,
-            netContribution: contributionAmount,
+            contribution: contributionAmount,
+            totalWakalaFee: wakalaAmount,
             wallet: msg.sender,
             memberState: MemberState.Active,
             surplus: 0 // Todo
         });
 
         uint256 mintAmount = contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-        uint256 wakalaAmount = (contributionAmount * pool.wakalaFee) / 100;
         uint256 depositAmount = contributionAmount - wakalaAmount;
 
         // Distribute between the claim and fund reserve
-        uint256 toFundReserve = (depositAmount * pool.dynamicReserveRatio) / 100;
+        uint256 toFundReserve = (depositAmount * reserve.dynamicReserveRatio) / 100;
         uint256 toClaimReserve = depositAmount - toFundReserve;
 
+        // Update the pro forma fund and claim reserve
         uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
-            pool.proFormaFundReserve,
-            newMember.netContribution,
-            pool.dynamicReserveRatio
+            reserve.proFormaFundReserve,
+            newMember.contribution,
+            reserve.dynamicReserveRatio
+        );
+
+        uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
+            reserve.proFormaClaimReserve,
+            newMember.contribution,
+            reserve.wakalaFee,
+            reserve.initialReserveRatio
         );
 
         // Update the fund reserve to use it in the dynamic reserve ratio calculation
-        pool.totalFundReserve += toFundReserve;
+        reserve.totalFundReserve += toFundReserve;
 
         _updateCashMappings(depositAmount);
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
 
         uint256 updatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
-                pool.dynamicReserveRatio,
+                reserve.dynamicReserveRatio,
                 updatedProFormaFundReserve,
-                pool.totalFundReserve,
+                reserve.totalFundReserve,
                 cashLast12Months
             );
 
         // Update all the other values in the pool
-        pool.members[msg.sender] = newMember;
-        pool.proFormaFundReserve = updatedProFormaFundReserve;
-        pool.dynamicReserveRatio = updatedDynamicReserveRatio;
-        pool.totalContributions += contributionAmount;
-        pool.totalClaimReserve += toClaimReserve;
+        reserve.members[msg.sender] = newMember;
+        reserve.proFormaFundReserve = updatedProFormaFundReserve;
+        reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
+        reserve.totalContributions += contributionAmount;
+        reserve.totalClaimReserve += toClaimReserve;
 
         // Add the member to the mapping
         idToMember[memberIdCounter] = newMember;
@@ -228,7 +236,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (newWakalaFee > 100) {
             revert TakasurePool__WrongWakalaFee();
         }
-        pool.wakalaFee = newWakalaFee;
+        reserve.wakalaFee = newWakalaFee;
     }
 
     function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
@@ -251,7 +259,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         allowCustomDuration = _allowCustomDuration;
     }
 
-    function getPoolValues()
+    function getReserveValues()
         external
         view
         returns (
@@ -264,13 +272,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             uint8 wakalaFee_
         )
     {
-        proFormaFundReserve_ = pool.proFormaFundReserve;
-        dynamicReserveRatio_ = pool.dynamicReserveRatio;
-        benefitMultiplierAdjuster_ = pool.benefitMultiplierAdjuster;
-        totalContributions_ = pool.totalContributions;
-        totalClaimReserve_ = pool.totalClaimReserve;
-        totalFundReserve_ = pool.totalFundReserve;
-        wakalaFee_ = pool.wakalaFee;
+        proFormaFundReserve_ = reserve.proFormaFundReserve;
+        dynamicReserveRatio_ = reserve.dynamicReserveRatio;
+        benefitMultiplierAdjuster_ = reserve.benefitMultiplierAdjuster;
+        totalContributions_ = reserve.totalContributions;
+        totalClaimReserve_ = reserve.totalClaimReserve;
+        totalFundReserve_ = reserve.totalFundReserve;
+        wakalaFee_ = reserve.wakalaFee;
     }
 
     function getMemberKYC(address member) external view returns (KYC) {
@@ -282,7 +290,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function getMemberFromAddress(address member) external view returns (Member memory) {
-        return pool.members[member];
+        return reserve.members[member];
     }
 
     function getTakaTokenAddress() external view returns (address) {

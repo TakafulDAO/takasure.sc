@@ -74,13 +74,13 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         vm.stopPrank();
 
-        (, , , uint256 totalContributions, , , ) = takasurePool.getPoolValues();
+        (, , , uint256 totalContributions, , , ) = takasurePool.getReserveValues();
 
         uint256 memberId = takasurePool.memberIdCounter();
         Member memory member = takasurePool.getMemberFromId(memberId);
 
         assertEq(totalContributions, 227120000); // 227.120000 USDC
-        assertEq(member.netContribution, 227120000); // 227.120000 USDC
+        assertEq(member.contribution, 227120000); // 227.120000 USDC
     }
 
     modifier aliceJoin() {
@@ -103,7 +103,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         assertEq(testMember.memberId, memberId);
         assertEq(testMember.benefitMultiplier, BENEFIT_MULTIPLIER);
-        assertEq(testMember.netContribution, CONTRIBUTION_AMOUNT);
+        assertEq(testMember.contribution, CONTRIBUTION_AMOUNT);
         assertEq(testMember.wallet, alice);
         assertEq(uint8(testMember.memberState), 1);
     }
@@ -113,7 +113,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         Member memory aliceMember = takasurePool.getMemberFromAddress(alice);
         Member memory bobMember = takasurePool.getMemberFromAddress(bob);
 
-        (, , , uint256 totalContributions, , , ) = takasurePool.getPoolValues();
+        (, , , uint256 totalContributions, , , ) = takasurePool.getReserveValues();
 
         assertEq(aliceMember.wallet, alice);
         assertEq(bobMember.wallet, bob);

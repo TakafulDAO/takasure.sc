@@ -39,7 +39,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         vm.prank(takasurePool.owner());
         takasurePool.setNewWakalaFee(newWakalaFee);
 
-        (, , , , , , uint8 wakalaFee) = takasurePool.getPoolValues();
+        (, , , , , , uint8 wakalaFee) = takasurePool.getReserveValues();
 
         assertEq(newWakalaFee, wakalaFee);
     }

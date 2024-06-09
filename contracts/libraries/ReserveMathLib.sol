@@ -16,19 +16,41 @@ library ReserveMathLib {
      *         any members that had claims or for any other reason aren't active anymore
      * @dev This value will lately be used to update the dynamic reserve ratio
      * @param _currentProFormaFundReserve Current value. Note: Six decimals
-     * @param _memberNetContribution Net contribution of the member. Note: Six decimals
+     * @param _memberContribution Net contribution of the member. Note: Six decimals
      * @param _currentDynamicReserveRatio Current dynamic reserve ratio. Note: Percentage value,
      *                                    i.e. 40% => input should be 40
      * @return updatedProFormaFundReserve_ Updated value. Note: Six decimals
      */
     function _updateProFormaFundReserve(
         uint256 _currentProFormaFundReserve,
-        uint256 _memberNetContribution,
+        uint256 _memberContribution,
         uint256 _currentDynamicReserveRatio
     ) internal pure returns (uint256 updatedProFormaFundReserve_) {
         updatedProFormaFundReserve_ =
             _currentProFormaFundReserve +
-            ((_memberNetContribution * _currentDynamicReserveRatio) / 100);
+            ((_memberContribution * _currentDynamicReserveRatio) / 100);
+    }
+
+    /**
+     * @notice Calculate the pro forma claim reserve, which should be updated on every cash-in operation
+     * @param _currentProFormaClaimReserve Current value. Note: Six decimals
+     * @param _memberContribution Net contribution of the member. Note: Six decimals
+     * @param _wakalaFee Wakala fee. Note: Percentage value, i.e. 20% => input should be 20
+     * @param _initialReserveRatio Initial reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
+     * @return updatedProFormaClaimReserve_ Updated value. Note: Six decimals
+     */
+    function _updateProFormaClaimReserve(
+        uint256 _currentProFormaClaimReserve,
+        uint256 _memberContribution,
+        uint8 _wakalaFee,
+        uint256 _initialReserveRatio
+    ) internal pure returns (uint256 updatedProFormaClaimReserve_) {
+        // updatedProFormaClaimReserve = currentProFormaClaimReserve + (memberContribution * (1 - wakalaFee) * (1 - initialReserveRatio))
+        // To avoid rounding issues as (1 - wakalaFee) * (1 - initialReserveRatio) is always 1, in solidity. We use the percentage values and divide by 10^4
+        updatedProFormaClaimReserve_ =
+            _currentProFormaClaimReserve +
+            ((_memberContribution * (100 - uint256(_wakalaFee)) * (100 - _initialReserveRatio)) /
+                10 ** 4);
     }
 
     /**
