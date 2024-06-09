@@ -188,9 +188,16 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Update the fund reserve to use it in the dynamic reserve ratio calculation
         reserve.totalFundReserve += toFundReserve;
 
+        // Needed for DRR and BMA calculations
         _updateCashMappings(depositAmount);
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
+        uint256 bmaInflowAssumption = ReserveMathLib._bmaLastPeriodInflowAssumption(
+            cashLast12Months,
+            reserve.wakalaFee,
+            reserve.initialReserveRatio
+        );
 
+        // DRR and BMA calculations
         uint256 updatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
                 reserve.dynamicReserveRatio,
@@ -205,6 +212,16 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
         reserve.totalContributions += contributionAmount;
         reserve.totalClaimReserve += toClaimReserve;
+
+        uint256 updatedBenefitMultiplierAdjuster = ReserveMathLib._calculateBmaCashFlowMethod(
+            reserve.totalClaimReserve,
+            reserve.totalFundReserve,
+            reserve.bmaFundReserveShare,
+            updatedProFormaClaimReserve,
+            bmaInflowAssumption
+        );
+
+        reserve.benefitMultiplierAdjuster = updatedBenefitMultiplierAdjuster;
 
         // Add the member to the mapping
         idToMember[memberIdCounter] = newMember;
