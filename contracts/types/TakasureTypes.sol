@@ -31,7 +31,7 @@ struct Reserve {
     mapping(address member => Member) members;
     uint256 initialReserveRatio; // Default 40%
     uint256 dynamicReserveRatio; // Default 40%
-    uint256 benefitMultiplierAdjuster; // Default 1
+    uint256 benefitMultiplierAdjuster; // Default 100%
     uint256 totalContributions; // Default 0
     uint256 totalClaimReserve; // Default 0
     uint256 totalFundReserve; // Default 0
