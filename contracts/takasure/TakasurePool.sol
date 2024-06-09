@@ -209,9 +209,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.proFormaFundReserve = updatedProFormaFundReserve;
         reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
         reserve.totalContributions += contributionAmount;
-        reserve.totalClaimReserve +=
-            depositAmount -
-            ((depositAmount * reserve.dynamicReserveRatio) / 100);
+        reserve.totalClaimReserve += depositAmount - reserve.totalFundReserve;
 
         uint256 updatedBenefitMultiplierAdjuster = ReserveMathLib._calculateBmaCashFlowMethod(
             reserve.totalClaimReserve,
