@@ -28,23 +28,20 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Clear cache
-        env:
-          ARBITRUM_MAINNET_RPC_URL: ${{ secrets.ARBITRUM_MAINNET_RPC_URL}}
-          TESTNET_DEPLOYER_PK: ${{secrets.TESTNET_DEPLOYER_PK}}
-        run: yarn hardhat clean --config hardhat-continuous-integration.config.js
-
       - name: Compile contracts
         env:
           ARBITRUM_MAINNET_RPC_URL: ${{ secrets.ARBITRUM_MAINNET_RPC_URL}}
           TESTNET_DEPLOYER_PK: ${{secrets.TESTNET_DEPLOYER_PK}}
-        run: yarn hardhat compile --config hardhat-continuous-integration.config.js
+        run: |    
+          yarn hardhat clean --config hardhat-continuous-integration.config.js
+          yarn hardhat compile --config hardhat-continuous-integration.config.js
         id: hardhat-compile
 
       - name: Forge Build
         run: |
           forge --version
-          forge build --sizes
+          forge clean
+          forge build --sizes --skip .t.sol .s.sol
         id: forge-build  
 
       - name: Hardhat test
