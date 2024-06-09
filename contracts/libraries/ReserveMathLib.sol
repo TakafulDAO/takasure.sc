@@ -101,9 +101,9 @@ library ReserveMathLib {
      * @param _cashFlowLastPeriod Cash flow of the last period of 12 months. Note: Six decimals
      * @param _wakalaFee Wakala fee. Note: Percentage value, i.e. 20% => input should be 20
      * @param _initialDRR Initial dynamic reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
-     * @return bmaInflowAssumtion_ Six decimals
+     * @return bmaInflowAssumption_ Six decimals
      */
-    function _bmaInflowAssumption(
+    function _bmaLastPeriodInflowAssumption(
         uint256 _cashFlowLastPeriod,
         uint256 _wakalaFee,
         uint256 _initialDRR
