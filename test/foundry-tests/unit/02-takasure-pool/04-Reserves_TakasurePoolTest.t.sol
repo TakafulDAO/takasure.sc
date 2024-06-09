@@ -50,13 +50,13 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             uint256 initialClaimReserve,
             uint256 initialFundReserve,
             uint8 wakalaFee
-        ) = takasurePool.getPoolValues();
+        ) = takasurePool.getReserveValues();
 
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         (, , , , uint256 finalClaimReserve, uint256 finalFundReserve, ) = takasurePool
-            .getPoolValues();
+            .getReserveValues();
 
         uint256 fee = (CONTRIBUTION_AMOUNT * wakalaFee) / 100; // 25USDC * 20% = 5USDC
         uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 5USDC = 20USDC
@@ -131,7 +131,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // 200USDC * 5 days = 1000USDC
 
         uint256 totalMembers = takasurePool.memberIdCounter();
-        (, , , , , , uint8 wakalaFee) = takasurePool.getPoolValues();
+        (, , , , , , uint8 wakalaFee) = takasurePool.getReserveValues();
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * wakalaFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 
@@ -190,7 +190,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         uint256 cash = takasurePool.getCashLast12Months();
 
         uint256 totalMembers = takasurePool.memberIdCounter();
-        (, , , , , , uint8 wakalaFee) = takasurePool.getPoolValues();
+        (, , , , , , uint8 wakalaFee) = takasurePool.getReserveValues();
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * wakalaFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 

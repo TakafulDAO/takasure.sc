@@ -18,6 +18,20 @@ contract ReserveMathLibHarness {
         );
     }
 
+    function exposed__updateProFormaClaimReserve(
+        uint256 currentProFormaClaimReserve,
+        uint256 memberNetContribution,
+        uint8 wakalaFee,
+        uint256 initialReserveRatio
+    ) external pure returns (uint256 exposedUpdatedProFormaClaimReserve) {
+        exposedUpdatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
+            currentProFormaClaimReserve,
+            memberNetContribution,
+            wakalaFee,
+            initialReserveRatio
+        );
+    }
+
     function exposed__calculateDynamicReserveRatioReserveShortfallMethod(
         uint256 currentDynamicReserveRatio,
         uint256 proFormaFundReserve,

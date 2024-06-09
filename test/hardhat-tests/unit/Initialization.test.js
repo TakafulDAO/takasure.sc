@@ -89,7 +89,7 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
           })
 
           it("The wakala fee initialized correctly", async () => {
-              const wakalaFee = (await takasurePool.getPoolValues())[6]
+              const wakalaFee = (await takasurePool.getReserveValues())[6]
 
               const expectedWakalaFee = 20
 
