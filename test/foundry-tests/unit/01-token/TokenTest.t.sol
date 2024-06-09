@@ -4,13 +4,13 @@ pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
-import {TakaToken} from "../../../../contracts/token/TakaToken.sol";
+import {TSToken} from "../../../../contracts/token/TSToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
 
-contract TakaTokenTest is Test {
+contract TokenTest is Test {
     DeployTokenAndPool deployer;
-    TakaToken takaToken;
+    TSToken daoToken;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
 
@@ -19,12 +19,12 @@ contract TakaTokenTest is Test {
 
     uint256 public constant MINT_AMOUNT = 1 ether;
 
-    event TakaTokenMinted(address indexed to, uint256 indexed amount);
-    event TakaTokenBurned(address indexed from, uint256 indexed amount);
+    event OnTokenMinted(address indexed to, uint256 indexed amount);
+    event OnTokenBurned(address indexed from, uint256 indexed amount);
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
-        (takaToken, proxy, , , ) = deployer.run();
+        (daoToken, proxy, , , ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
     }
@@ -33,19 +33,19 @@ contract TakaTokenTest is Test {
                              MINT FUNCTION
     //////////////////////////////////////////////////////////////*/
 
-    function testTakaToken_mintUpdateBalanceAndEmitEvent() public {
+    function testToken_mintUpdateBalanceAndEmitEvent() public {
         // Get users balance from the mapping and the balanceOf function to check if they match up
-        uint256 userBalanceBefore = takaToken.balanceOf(user);
+        uint256 userBalanceBefore = daoToken.balanceOf(user);
 
         vm.prank(address(takasurePool));
 
         // Event should be emitted
-        vm.expectEmit(true, true, false, false, address(takaToken));
-        emit TakaTokenMinted(user, MINT_AMOUNT);
-        takaToken.mint(user, MINT_AMOUNT);
+        vm.expectEmit(true, true, false, false, address(daoToken));
+        emit OnTokenMinted(user, MINT_AMOUNT);
+        daoToken.mint(user, MINT_AMOUNT);
 
         // And the balance should be updated
-        uint256 userBalanceAfter = takaToken.balanceOf(user);
+        uint256 userBalanceAfter = daoToken.balanceOf(user);
 
         assert(userBalanceAfter > userBalanceBefore);
 
@@ -56,19 +56,19 @@ contract TakaTokenTest is Test {
                              BURN FUNCTION
     //////////////////////////////////////////////////////////////*/
 
-    function testTakaToken_burnUpdateBalanceAndEmitEvent() public {
+    function testToken_burnUpdateBalanceAndEmitEvent() public {
         uint256 burnAmount = MINT_AMOUNT / 2;
 
         // Mint some tokens to the user
         vm.startPrank(address(takasurePool));
-        takaToken.mint(address(takasurePool), MINT_AMOUNT);
-        uint256 balanceBefore = takaToken.balanceOf(address(takasurePool));
+        daoToken.mint(address(takasurePool), MINT_AMOUNT);
+        uint256 balanceBefore = daoToken.balanceOf(address(takasurePool));
 
         // Expect to emit the event
-        vm.expectEmit(true, true, false, false, address(takaToken));
-        emit TakaTokenBurned(address(takasurePool), burnAmount);
-        takaToken.burn(burnAmount);
-        uint256 balanceAfter = takaToken.balanceOf(address(takasurePool));
+        vm.expectEmit(true, true, false, false, address(daoToken));
+        emit OnTokenBurned(address(takasurePool), burnAmount);
+        daoToken.burn(burnAmount);
+        uint256 balanceAfter = daoToken.balanceOf(address(takasurePool));
         vm.stopPrank();
         assert(balanceBefore > balanceAfter);
     }
@@ -76,14 +76,12 @@ contract TakaTokenTest is Test {
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
-    function testTakaToken_TakasurePoolIsMinterAndBurner() public view {
+    function testToken_TakasurePoolIsMinterAndBurner() public view {
         bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
         bytes32 BURNER_ROLE = keccak256("BURNER_ROLE");
 
-        bool isMinter = takaToken.hasRole(MINTER_ROLE, address(takasurePool));
-        bool isBurner = takaToken.hasRole(BURNER_ROLE, address(takasurePool));
-        // bool isMinter = takaToken.hasRole(MINTER_ROLE, address(proxy));
-        // bool isBurner = takaToken.hasRole(BURNER_ROLE, address(proxy));
+        bool isMinter = daoToken.hasRole(MINTER_ROLE, address(takasurePool));
+        bool isBurner = daoToken.hasRole(BURNER_ROLE, address(takasurePool));
 
         assert(isMinter);
         assert(isBurner);
@@ -93,34 +91,34 @@ contract TakaTokenTest is Test {
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
 
-    function testTakaToken_mustRevertIfTryToMintToAddressZero() public {
+    function testToken_mustRevertIfTryToMintToAddressZero() public {
         vm.prank(address(takasurePool));
-        vm.expectRevert(TakaToken.TakaToken__NotZeroAddress.selector);
-        takaToken.mint(address(0), MINT_AMOUNT);
+        vm.expectRevert(TSToken.Token__NotZeroAddress.selector);
+        daoToken.mint(address(0), MINT_AMOUNT);
     }
 
-    function testTakaToken_mustRevertIfTryToMintZero() public {
+    function testToken_mustRevertIfTryToMintZero() public {
         vm.prank(address(takasurePool));
-        vm.expectRevert(TakaToken.TakaToken__MustBeMoreThanZero.selector);
-        takaToken.mint(user, 0);
+        vm.expectRevert(TSToken.Token__MustBeMoreThanZero.selector);
+        daoToken.mint(user, 0);
     }
 
-    function testTakaToken_mustRevertIfTryToBurnZero() public {
+    function testToken_mustRevertIfTryToBurnZero() public {
         vm.prank(address(takasurePool));
-        vm.expectRevert(TakaToken.TakaToken__MustBeMoreThanZero.selector);
-        takaToken.burn(0);
+        vm.expectRevert(TSToken.Token__MustBeMoreThanZero.selector);
+        daoToken.burn(0);
     }
 
-    function testTakaToken_mustRevertIfTryToBurnMoreThanBalance() public {
-        uint256 userBalance = takaToken.balanceOf(user);
+    function testToken_mustRevertIfTryToBurnMoreThanBalance() public {
+        uint256 userBalance = daoToken.balanceOf(user);
         vm.prank(address(takasurePool));
         vm.expectRevert(
             abi.encodeWithSelector(
-                TakaToken.TakaToken__BurnAmountExceedsBalance.selector,
+                TSToken.Token__BurnAmountExceedsBalance.selector,
                 userBalance,
                 MINT_AMOUNT
             )
         );
-        takaToken.burn(MINT_AMOUNT);
+        daoToken.burn(MINT_AMOUNT);
     }
 }

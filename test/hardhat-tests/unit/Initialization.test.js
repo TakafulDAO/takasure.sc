@@ -7,7 +7,7 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
     : describe("Initialization unit tests", function () {
           const chainId = network.config.chainId
 
-          let takaToken, usdc, takasurePool
+          let daoToken, usdc, takasurePool
           let accounts, deployer, daoOperator
 
           beforeEach(async () => {
@@ -18,30 +18,30 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
               // Deploy contracts
               await deployments.fixture(["all"])
               usdc = await ethers.getContract("USDC")
-              takaToken = await ethers.getContract("TakaToken")
+              daoToken = await ethers.getContract("TSToken")
               takasurePool = await ethers.getContract("TakasurePool")
           })
 
           it("the name and symbol should be returned correctly", async () => {
-              const currentName = await takaToken.name()
-              const currentSymbol = await takaToken.symbol()
+              const currentName = await daoToken.name()
+              const currentSymbol = await daoToken.symbol()
 
-              const expectedName = "TAKASURE"
-              const expectedSymbol = "TAKA"
+              const expectedName = "TSToken"
+              const expectedSymbol = "TST"
 
               assert.equal(currentName, expectedName)
               assert.equal(currentSymbol, expectedSymbol)
           })
 
           it("the roles should be assigned correctly", async () => {
-              const DEFAULT_ADMIN_ROLE = await takaToken.DEFAULT_ADMIN_ROLE()
-              const MINTER_ROLE = await takaToken.MINTER_ROLE()
-              const BURNER_ROLE = await takaToken.BURNER_ROLE()
+              const DEFAULT_ADMIN_ROLE = await daoToken.DEFAULT_ADMIN_ROLE()
+              const MINTER_ROLE = await daoToken.MINTER_ROLE()
+              const BURNER_ROLE = await daoToken.BURNER_ROLE()
 
-              const isAdmin = await takaToken.hasRole(DEFAULT_ADMIN_ROLE, daoOperator.address)
-              const deployerIsAdmin = await takaToken.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)
-              const isMinter = await takaToken.hasRole(MINTER_ROLE, takasurePool.target)
-              const isBurner = await takaToken.hasRole(BURNER_ROLE, takasurePool.target)
+              const isAdmin = await daoToken.hasRole(DEFAULT_ADMIN_ROLE, daoOperator.address)
+              const deployerIsAdmin = await daoToken.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)
+              const isMinter = await daoToken.hasRole(MINTER_ROLE, takasurePool.target)
+              const isBurner = await daoToken.hasRole(BURNER_ROLE, takasurePool.target)
 
               assert.isTrue(isAdmin)
               assert.isFalse(deployerIsAdmin)
@@ -65,11 +65,11 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
           })
 
           it("the takasure pool should be setted correctly", async () => {
-              const takaTokenAddress = await takasurePool.getTakaTokenAddress()
+              const daoTokenAddress = await takasurePool.getTokenAddress()
 
-              const expectedContributionToken = takaToken.target
+              const expectedContributionToken = daoToken.target
 
-              assert.equal(takaTokenAddress, expectedContributionToken)
+              assert.equal(daoTokenAddress, expectedContributionToken)
           })
 
           it("The counters initialized correctly", async () => {

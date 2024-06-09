@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title TakaToken
+ * @title Takasure Token
  * @author Maikel Ordaz
  * @notice Minting: Algorithmic
- * @dev Minting and burning of the TAKA token based on new members' admission into the pool, and members
+ * @notice This contract can be re-used to create any token powered by Takasure to be used in other DAOs.
+ * @dev Minting and burning of the this utility token based on new members' admission into the pool, and members
  *      leaving due to inactivity or claims.
  */
 pragma solidity 0.8.25;
@@ -13,32 +14,31 @@ import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensio
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
+contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
-    event TakaTokenMinted(address indexed to, uint256 indexed amount);
-    event TakaTokenBurned(address indexed from, uint256 indexed amount);
+    event OnTokenMinted(address indexed to, uint256 indexed amount);
+    event OnTokenBurned(address indexed from, uint256 indexed amount);
 
-    error TakaToken__NotZeroAddress();
-    error TakaToken__MustBeMoreThanZero();
-    error TakaToken__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
+    error Token__NotZeroAddress();
+    error Token__MustBeMoreThanZero();
+    error Token__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
 
     modifier mustBeMoreThanZero(uint256 _amount) {
         if (_amount <= 0) {
-            revert TakaToken__MustBeMoreThanZero();
+            revert Token__MustBeMoreThanZero();
         }
         _;
     }
 
-    constructor() ERC20("TAKASURE", "TAKA") {
+    constructor() ERC20("TSToken", "TST") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // TODO: Discuss. Who? The Dao?
         // Todo: Discuss. Allow someone here as Minter and Burner?
     }
 
-    /** @notice Mint Taka tokens
-     * @dev It calls the mint function from the TakaToken contract
-     * @dev Reverts if the mint function fails
+    /** @notice Mint Takasure powered tokens
+     * @dev Reverts if the address is the zero addresss
      * @param to The address to mint tokens to
      * @param amountToMint The amount of tokens to mint
      */
@@ -47,27 +47,27 @@ contract TakaToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         uint256 amountToMint
     ) external nonReentrant onlyRole(MINTER_ROLE) mustBeMoreThanZero(amountToMint) returns (bool) {
         if (to == address(0)) {
-            revert TakaToken__NotZeroAddress();
+            revert Token__NotZeroAddress();
         }
         _mint(to, amountToMint);
-        emit TakaTokenMinted(to, amountToMint);
+        emit OnTokenMinted(to, amountToMint);
 
         return true;
     }
 
     /**
-     * @notice Burn Taka tokens
-     * @dev It calls the burn function from the TakaToken contract
+     * @notice Burn Takasure powered tokens
      * @param amountToBurn The amount of tokens to burn
+     * @dev Reverts if the amount to burn is more than the sender's balance
      */
     function burn(
         uint256 amountToBurn
     ) public override nonReentrant onlyRole(BURNER_ROLE) mustBeMoreThanZero(amountToBurn) {
         uint256 balance = balanceOf(msg.sender);
         if (amountToBurn > balance) {
-            revert TakaToken__BurnAmountExceedsBalance(balance, amountToBurn);
+            revert Token__BurnAmountExceedsBalance(balance, amountToBurn);
         }
-        emit TakaTokenBurned(msg.sender, amountToBurn);
+        emit OnTokenBurned(msg.sender, amountToBurn);
 
         super.burn(amountToBurn);
     }
