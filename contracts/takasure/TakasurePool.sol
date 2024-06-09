@@ -168,25 +168,23 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 depositAmount = contributionAmount - wakalaAmount;
 
         // Distribute between the claim and fund reserve
-        uint256 toFundReserve = (depositAmount * reserve.dynamicReserveRatio) / 100;
-        uint256 toClaimReserve = depositAmount - toFundReserve;
 
         // Update the pro forma fund and claim reserve
         uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
             reserve.proFormaFundReserve,
-            newMember.contribution,
+            contributionAmount,
             reserve.dynamicReserveRatio
         );
 
         uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
             reserve.proFormaClaimReserve,
-            newMember.contribution,
+            contributionAmount,
             reserve.wakalaFee,
             reserve.initialReserveRatio
         );
 
         // Update the fund reserve to use it in the dynamic reserve ratio calculation
-        reserve.totalFundReserve += toFundReserve;
+        reserve.totalFundReserve += (depositAmount * reserve.dynamicReserveRatio) / 100;
 
         // Needed for DRR and BMA calculations
         _updateCashMappings(depositAmount);
@@ -211,7 +209,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.proFormaFundReserve = updatedProFormaFundReserve;
         reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
         reserve.totalContributions += contributionAmount;
-        reserve.totalClaimReserve += toClaimReserve;
+        reserve.totalClaimReserve +=
+            depositAmount -
+            ((depositAmount * reserve.dynamicReserveRatio) / 100);
 
         uint256 updatedBenefitMultiplierAdjuster = ReserveMathLib._calculateBmaCashFlowMethod(
             reserve.totalClaimReserve,
