@@ -202,21 +202,25 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.totalContributions += contributionAmount;
         reserve.totalClaimReserve += toClaimReserve;
 
-        uint256 bmaInflowAssumption = ReserveMathLib._bmaLastPeriodInflowAssumption(
-            cashLast12Months,
-            reserve.wakalaFee,
-            reserve.initialReserveRatio
-        );
-
-        // uint256 updatedBMA = ReserveMathLib._calculateBmaCashFlowMethod(
-        //     reserve.totalClaimReserve,
-        //     reserve.totalFundReserve,
-        //     reserve.bmaFundReserveShare,
-        //     updatedProFormaClaimReserve,
-        //     bmaInflowAssumption
+        // uint256 bmaInflowAssumption = ReserveMathLib._bmaLastPeriodInflowAssumption(
+        //     cashLast12Months,
+        //     reserve.wakalaFee,
+        //     reserve.initialReserveRatio
         // );
 
-        // reserve.benefitMultiplierAdjuster = updatedBMA;
+        uint256 updatedBMA = ReserveMathLib._calculateBmaCashFlowMethod(
+            reserve.totalClaimReserve,
+            reserve.totalFundReserve,
+            reserve.bmaFundReserveShare,
+            updatedProFormaClaimReserve,
+            ReserveMathLib._bmaLastPeriodInflowAssumption(
+                cashLast12Months,
+                reserve.wakalaFee,
+                reserve.initialReserveRatio
+            )
+        );
+
+        reserve.benefitMultiplierAdjuster = updatedBMA;
 
         // Add the member to the mapping
         idToMember[memberIdCounter] = newMember;
