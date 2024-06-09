@@ -134,6 +134,11 @@ library ReserveMathLib {
         uint256 bmaNumerator = (_totalClaimReserves +
             _bmaInflowAssumption +
             (_totalFundReserves * _bmaFundReserveShares)) / 100;
+
+        // Calculate BMA denominator
+        // todo: Check in the test the '/100'
+        uint256 bmaDenominator = (2 * _proFormaClaimReserve) +
+            ((_totalFundReserves * _bmaFundReserveShares) / 100);
     }
 
     /*//////////////////////////////////////////////////////////////
