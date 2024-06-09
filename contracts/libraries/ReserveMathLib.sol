@@ -11,6 +11,10 @@ pragma solidity 0.8.25;
 library ReserveMathLib {
     error WrongTimestamps();
 
+    /*//////////////////////////////////////////////////////////////
+                               PRO FORMA
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice The Fund Reserve based on each member’s fund reserve add, But taking out / removing
      *         any members that had claims or for any other reason aren't active anymore
@@ -53,6 +57,10 @@ library ReserveMathLib {
                 10 ** 4);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                  DRR
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Calculate the dynamic reserve ratio on every cash-in operation
      * @param _currentDynamicReserveRatio Current value. Note: Percentage value, i.e. 40% => input should be 40
@@ -84,6 +92,10 @@ library ReserveMathLib {
         }
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                  BMA
+    //////////////////////////////////////////////////////////////*/
+
     function _calculateBmaCashFlowMethod(
         uint256 _totalClaimReserves,
         uint256 _totalFundReserves,
@@ -91,6 +103,10 @@ library ReserveMathLib {
         uint256 _proFormaClaimReserve,
         uint256 _bmaInflowAssumption
     ) internal pure returns (uint256 bma_) {}
+
+    /*//////////////////////////////////////////////////////////////
+                                 DATES
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Calculate date difference in days
