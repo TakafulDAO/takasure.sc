@@ -171,18 +171,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 toClaimReserve = depositAmount - toFundReserve;
 
         // Update the pro forma fund and claim reserve
-        uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
-            reserve.proFormaFundReserve,
-            newMember.contribution,
-            reserve.dynamicReserveRatio
-        );
-
-        uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
-            reserve.proFormaClaimReserve,
-            newMember.contribution,
-            reserve.wakalaFee,
-            reserve.initialReserveRatio
-        );
+        (uint256 updatedProFormaFundReserve, uint256 updatedProFormaClaimReserve) = ReserveMathLib
+            ._updateProFormas(
+                reserve.proFormaFundReserve,
+                reserve.proFormaClaimReserve,
+                newMember.contribution,
+                reserve.initialReserveRatio,
+                reserve.dynamicReserveRatio,
+                reserve.wakalaFee
+            );
 
         // Update the fund reserve to use it in the dynamic reserve ratio calculation
         reserve.totalFundReserve += toFundReserve;
