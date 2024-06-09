@@ -107,8 +107,8 @@ library ReserveMathLib {
         uint256 _cashFlowLastPeriod,
         uint256 _wakalaFee,
         uint256 _initialDRR
-    ) internal pure returns (uint256 bmaInflowAssumtion_) {
-        bmaInflowAssumtion_ =
+    ) internal pure returns (uint256 bmaInflowAssumption_) {
+        bmaInflowAssumption_ =
             (_cashFlowLastPeriod * (100 - _wakalaFee) * (100 - _initialDRR)) /
             10 ** 4;
     }
