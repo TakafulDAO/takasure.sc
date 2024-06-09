@@ -131,9 +131,9 @@ library ReserveMathLib {
     ) internal pure returns (uint256 bma_) {
         // Calculate BMA numerator
         // todo: Check in the test the '/100'
-        uint256 bmaNumerator = (_totalClaimReserves +
+        uint256 bmaNumerator = _totalClaimReserves +
             _bmaInflowAssumption +
-            (_totalFundReserves * _bmaFundReserveShares)) / 100;
+            ((_totalFundReserves * _bmaFundReserveShares) / 100);
 
         // Calculate BMA denominator
         // todo: Check in the test the '/100'

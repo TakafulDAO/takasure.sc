@@ -288,6 +288,9 @@ contract ReserveMathLibTest is Test {
                 testInput.bmaInflowAssumption
             );
 
+            console2.log("Expected BMA: %d", testInput.expectedBma);
+            console2.log("Actual BMA: %d", bma);
+
             assertEq(bma, testInput.expectedBma);
         }
     }
