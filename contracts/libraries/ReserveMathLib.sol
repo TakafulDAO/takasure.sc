@@ -113,6 +113,15 @@ library ReserveMathLib {
             10 ** 4;
     }
 
+    /**
+     * @notice Calculate the benefit multiplier adjuster through the Cash Flow Method
+     * @param _totalClaimReserves Total claim reserves. Note: Six decimals
+     * @param _totalFundReserves Total fund reserves. Note: Six decimals
+     * @param _bmaFundReserveShares Percentage value, i.e. 70% => input should be 70
+     * @param _proFormaClaimReserve Pro forma claim reserve. Note: Six decimals
+     * @param _bmaInflowAssumption Six decimals
+     * @return bma_ Percentage value, i.e. 100% => return value will be 100
+     */
     function _calculateBmaCashFlowMethod(
         uint256 _totalClaimReserves,
         uint256 _totalFundReserves,
