@@ -32,6 +32,12 @@ library ReserveMathLib {
     }
 
     /**
+     * @notice Calculate the pro forma claim reserve, which should be updated on every cash-in operation
+     * @param _currentProFormaClaimReserve Current value. Note: Six decimals
+     * @param _memberContribution Net contribution of the member. Note: Six decimals
+     * @param _wakalaFee Wakala fee. Note: Percentage value, i.e. 20% => input should be 20
+     * @param _initialReserveRatio Initial reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
+     * @return updatedProFormaClaimReserve_ Updated value. Note: Six decimals
      */
     function _updateProFormaClaimReserve(
         uint256 _currentProFormaClaimReserve,
