@@ -72,7 +72,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         vm.stopPrank();
 
-        (, , , uint256 totalContributions, , , ) = takasurePool.getReserveValues();
+        (, , , uint256 totalContributions, , , , , , , , ) = takasurePool.getReserveValues();
 
         uint256 memberId = takasurePool.memberIdCounter();
         Member memory member = takasurePool.getMemberFromId(memberId);
@@ -111,7 +111,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         Member memory aliceMember = takasurePool.getMemberFromAddress(alice);
         Member memory bobMember = takasurePool.getMemberFromAddress(bob);
 
-        (, , , uint256 totalContributions, , , ) = takasurePool.getReserveValues();
+        (, , , uint256 totalContributions, , , , , , , , ) = takasurePool.getReserveValues();
 
         assertEq(aliceMember.wallet, alice);
         assertEq(bobMember.wallet, bob);

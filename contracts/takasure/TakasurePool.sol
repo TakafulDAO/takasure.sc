@@ -274,22 +274,32 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         external
         view
         returns (
-            uint256 proFormaFundReserve_,
+            uint256 initialReserveRatio_,
             uint256 dynamicReserveRatio_,
             uint256 benefitMultiplierAdjuster_,
             uint256 totalContributions_,
             uint256 totalClaimReserve_,
             uint256 totalFundReserve_,
-            uint8 wakalaFee_
+            uint256 proFormaFundReserve_,
+            uint256 proFormaClaimReserve_,
+            uint256 lossRatio_,
+            uint8 wakalaFee_,
+            uint8 bmaFundReserveShare_,
+            bool isOptimizerEnabled_
         )
     {
-        proFormaFundReserve_ = reserve.proFormaFundReserve;
+        initialReserveRatio_ = reserve.initialReserveRatio;
         dynamicReserveRatio_ = reserve.dynamicReserveRatio;
         benefitMultiplierAdjuster_ = reserve.benefitMultiplierAdjuster;
         totalContributions_ = reserve.totalContributions;
         totalClaimReserve_ = reserve.totalClaimReserve;
         totalFundReserve_ = reserve.totalFundReserve;
+        proFormaFundReserve_ = reserve.proFormaFundReserve;
+        proFormaClaimReserve_ = reserve.proFormaClaimReserve;
+        lossRatio_ = reserve.lossRatio;
         wakalaFee_ = reserve.wakalaFee;
+        bmaFundReserveShare_ = reserve.bmaFundReserveShare;
+        isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
 
     function getMemberKYC(address member) external view returns (KYC) {

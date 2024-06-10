@@ -41,7 +41,8 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
     function invariant_reservesShouldBeEqualToBalance() public view {
         uint256 contributionTokenBalance = usdc.balanceOf(address(takasurePool));
 
-        (, , , , uint256 claimReserve, uint256 fundReserve, ) = takasurePool.getReserveValues();
+        (, , , , uint256 claimReserve, uint256 fundReserve, , , , , , ) = takasurePool
+            .getReserveValues();
         uint256 reserves = claimReserve + fundReserve;
 
         assertEq(contributionTokenBalance, reserves, "Reserves should be equal to balance");
@@ -49,19 +50,23 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
 
     /// @dev Invariant to check dynamic reserve ratio. Can not be greater than 100
     function invariant_dynamicReserveRatioCanNotBeGreaterThan100() public view {
-        (, uint256 drr, , , , , ) = takasurePool.getReserveValues();
+        (, uint256 drr, , , , , , , , , , ) = takasurePool.getReserveValues();
 
         console2.log("Dynamic Reserve Ratio: ", drr);
-        // console2.log("Month", takasurePool.monthReference());
-        // console2.log("Day", takasurePool.dayReference());
-        // console2.log("proforma fund reserve", proformaFundReserve);
-        // console2.log("total contributions", totalContributions);
-        // console2.log("total claim reserve", totalClaimReserve);
-        // console2.log("total fund reserve", totalFundReserve);
 
         assert(drr <= 100);
     }
 
+    /// @dev Invariant to check BMA can not be greater than 100
+    function invariant_bmaCanNotBeGreaterThan100() public view {
+        (, , uint256 bma, , , , , , , , , ) = takasurePool.getReserveValues();
+
+        console2.log("BMA: ", bma);
+
+        assert(bma <= 100);
+    }
+
+    /// @dev Invariant to check if getters do not revert
     /// forge-config: default.invariant.runs = 100
     /// forge-config: default.invariant.depth = 2
     /// forge-config: default.invariant.fail-on-revert = true

@@ -33,7 +33,7 @@ contract Getters_TakasurePoolTest is StdCheats, Test {
     }
 
     function testTakasurePool_getWakalaFee() public view {
-        (, , , , , , uint256 wakalaFee) = takasurePool.getReserveValues();
+        (, , , , , , , , , uint256 wakalaFee, , ) = takasurePool.getReserveValues();
         uint256 expectedWakalaFee = 20;
         assertEq(wakalaFee, expectedWakalaFee);
     }
