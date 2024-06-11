@@ -151,15 +151,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         _updateProFormas(contributionAmount);
 
-        {
-            // Scope to avoid stack too deep error. This scope update contribution and reserves values
-            uint256 toFundReserve = (depositAmount * reserve.dynamicReserveRatio) / 100;
-            uint256 toClaimReserve = depositAmount - toFundReserve;
-
-            reserve.totalFundReserve += toFundReserve;
-            reserve.totalContributions += contributionAmount;
-            reserve.totalClaimReserve += toClaimReserve;
-        }
+        _updateReserves(contributionAmount, depositAmount);
 
         {
             // Scope to avoid stack too deep error. This scope update DRR and BMA
@@ -361,6 +353,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         reserve.proFormaFundReserve = updatedProFormaFundReserve;
         reserve.proFormaClaimReserve = updatedProFormaClaimReserve;
+    }
+
+    function _updateReserves(uint256 _contributionAmount, uint256 _depositAmount) internal {
+        uint256 toFundReserve = (_depositAmount * reserve.dynamicReserveRatio) / 100;
+        uint256 toClaimReserve = _depositAmount - toFundReserve;
+
+        reserve.totalFundReserve += toFundReserve;
+        reserve.totalContributions += _contributionAmount;
+        reserve.totalClaimReserve += toClaimReserve;
     }
 
     function _updateCashMappings(uint256 _depositAmount) internal {
