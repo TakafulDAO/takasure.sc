@@ -18,50 +18,40 @@ contract ReserveMathLibTest is Test {
 
     function testReserveMathLib__updateProFormaFundReserve_newOne() public view {
         uint256 currentProFormaFundReserve = 0;
-        uint256 currentProFormaClaimReserve = 0;
         uint256 memberNetContribution = 25000000;
-        uint256 initialDynamicReserveRatio = 40;
         uint256 currentDynamicReserveRatio = 40;
-        uint8 wakalaFee = 20;
 
         // updatedProFormaFundReserve = currentProFormaFundReserve + ((memberNetContribution * currentDynamicReserveRatio) / 100);
         // updatedProFormaFundReserve = 0 + ((25_000_000 * 40) / 100) = 10_000_000
 
         uint256 expectedProFormaFundReserve = 10000000;
 
-        (uint256 updatedProFormaFundReserve, ) = reserveMathLibHarness.exposed__updateProFormas(
-            currentProFormaFundReserve,
-            currentProFormaClaimReserve,
-            memberNetContribution,
-            initialDynamicReserveRatio,
-            currentDynamicReserveRatio,
-            wakalaFee
-        );
+        uint256 updatedProFormaFundReserve = reserveMathLibHarness
+            .exposed__updateProFormaFundReserve(
+                currentProFormaFundReserve,
+                memberNetContribution,
+                currentDynamicReserveRatio
+            );
 
         assertEq(updatedProFormaFundReserve, expectedProFormaFundReserve);
     }
 
     function testReserveMathLib__updateProFormaFundReserve_alreadySomeValue() public view {
         uint256 currentProFormaFundReserve = 10000000;
-        uint256 currentProFormaClaimReserve = 0;
         uint256 memberNetContribution = 50000000;
-        uint256 initialDynamicReserveRatio = 40;
         uint256 currentDynamicReserveRatio = 43;
-        uint8 wakalaFee = 20;
 
         // updatedProFormaFundReserve = currentProFormaFundReserve + ((memberNetContribution * currentDynamicReserveRatio) / 100);
         // updatedProFormaFundReserve = 10_000_000 + ((50_000_000 * 43) / 100) = 31_500_000
 
         uint256 expectedProFormaFundReserve = 31500000;
 
-        (uint256 updatedProFormaFundReserve, ) = reserveMathLibHarness.exposed__updateProFormas(
-            currentProFormaFundReserve,
-            currentProFormaClaimReserve,
-            memberNetContribution,
-            initialDynamicReserveRatio,
-            currentDynamicReserveRatio,
-            wakalaFee
-        );
+        uint256 updatedProFormaFundReserve = reserveMathLibHarness
+            .exposed__updateProFormaFundReserve(
+                currentProFormaFundReserve,
+                memberNetContribution,
+                currentDynamicReserveRatio
+            );
 
         assertEq(updatedProFormaFundReserve, expectedProFormaFundReserve);
     }
@@ -71,12 +61,10 @@ contract ReserveMathLibTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testReserveMathLib__updateProFormaClaimReserve_newOne() public view {
-        uint256 currentProFormaFundReserve = 0;
         uint256 currentProFormaClaimReserve = 0;
         uint256 memberNetContribution = 25e6;
         uint8 wakalaFee = 20;
         uint256 initialDynamicReserveRatio = 40;
-        uint256 currentDynamicReserveRatio = 40;
 
         // math:
         // Should be = currentProFormaClaimReserve + (memberNetContribution * (1 - wakalaFee) * (1 - initialDynamicReserveRatio))
@@ -87,25 +75,22 @@ contract ReserveMathLibTest is Test {
 
         uint256 expectedProFormaClaimReserve = 12e6; // 12000000
 
-        (, uint256 updatedProFormaClaimReserve) = reserveMathLibHarness.exposed__updateProFormas(
-            currentProFormaFundReserve,
-            currentProFormaClaimReserve,
-            memberNetContribution,
-            initialDynamicReserveRatio,
-            currentDynamicReserveRatio,
-            wakalaFee
-        );
+        uint256 updatedProFormaClaimReserve = reserveMathLibHarness
+            .exposed__updateProFormaClaimReserve(
+                currentProFormaClaimReserve,
+                memberNetContribution,
+                wakalaFee,
+                initialDynamicReserveRatio
+            );
 
         assertEq(updatedProFormaClaimReserve, expectedProFormaClaimReserve);
     }
 
     function testReserveMathLib__updateProFormaClaimReserve_alreadySomeValue() public view {
-        uint256 currentProFormaFundReserve = 0;
         uint256 currentProFormaClaimReserve = 10e6;
         uint256 memberNetContribution = 50e6;
         uint8 wakalaFee = 20;
         uint256 initialDynamicReserveRatio = 40;
-        uint256 currentDynamicReserveRatio = 40;
 
         // math:
         // Should be = currentProFormaClaimReserve + (memberNetContribution * (1 - wakalaFee) * (1 - initialDynamicReserveRatio))
@@ -117,14 +102,13 @@ contract ReserveMathLibTest is Test {
 
         uint256 expectedProFormaClaimReserve = 34e6;
 
-        (, uint256 updatedProFormaClaimReserve) = reserveMathLibHarness.exposed__updateProFormas(
-            currentProFormaFundReserve,
-            currentProFormaClaimReserve,
-            memberNetContribution,
-            initialDynamicReserveRatio,
-            currentDynamicReserveRatio,
-            wakalaFee
-        );
+        uint256 updatedProFormaClaimReserve = reserveMathLibHarness
+            .exposed__updateProFormaClaimReserve(
+                currentProFormaClaimReserve,
+                memberNetContribution,
+                wakalaFee,
+                initialDynamicReserveRatio
+            );
 
         assertEq(updatedProFormaClaimReserve, expectedProFormaClaimReserve);
     }

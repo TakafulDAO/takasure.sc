@@ -6,30 +6,30 @@ pragma solidity 0.8.25;
 import {ReserveMathLib} from "../../../../contracts/libraries/ReserveMathLib.sol";
 
 contract ReserveMathLibHarness {
-    function exposed__updateProFormas(
+    function exposed__updateProFormaFundReserve(
         uint256 currentProFormaFundReserve,
+        uint256 memberNetContribution,
+        uint256 currentDynamicReserveRatio
+    ) external pure returns (uint256 exposedUpdatedProFormaFundReserve) {
+        exposedUpdatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
+            currentProFormaFundReserve,
+            memberNetContribution,
+            currentDynamicReserveRatio
+        );
+    }
+
+    function exposed__updateProFormaClaimReserve(
         uint256 currentProFormaClaimReserve,
         uint256 memberNetContribution,
-        uint256 initialReserveRatio,
-        uint256 currentDynamicReserveRatio,
-        uint8 wakalaFee
-    )
-        external
-        pure
-        returns (
-            uint256 exposedUpdatedProFormaFundReserve,
-            uint256 exposedUpdatedProFormaClaimReserve
-        )
-    {
-        (exposedUpdatedProFormaFundReserve, exposedUpdatedProFormaClaimReserve) = ReserveMathLib
-            ._updateProFormas(
-                currentProFormaFundReserve,
-                currentProFormaClaimReserve,
-                memberNetContribution,
-                initialReserveRatio,
-                currentDynamicReserveRatio,
-                wakalaFee
-            );
+        uint8 wakalaFee,
+        uint256 initialReserveRatio
+    ) external pure returns (uint256 exposedUpdatedProFormaClaimReserve) {
+        exposedUpdatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
+            currentProFormaClaimReserve,
+            memberNetContribution,
+            wakalaFee,
+            initialReserveRatio
+        );
     }
 
     function exposed__calculateDynamicReserveRatioReserveShortfallMethod(
