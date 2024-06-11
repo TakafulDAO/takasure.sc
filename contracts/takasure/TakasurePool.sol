@@ -131,117 +131,134 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__ContributionBelowMinimumThreshold();
         }
 
-        // Todo: re-calculate BMA, and DAO Surplus.
+        // Todo: re-calculate DAO Surplus.
 
-        // Create new member
-        memberIdCounter++;
-
+        // Setting variables used in different scope blocks
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
         contributionAmount =
             (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
-
-        uint256 userMembershipDuration;
-
-        if (allowCustomDuration) {
-            userMembershipDuration = membershipDuration;
-        } else {
-            userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
-        }
-
         uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
-
-        Member memory newMember = Member({
-            memberId: memberIdCounter,
-            benefitMultiplier: benefitMultiplier,
-            membershipDuration: userMembershipDuration,
-            membershipStartTime: block.timestamp,
-            contribution: contributionAmount,
-            totalWakalaFee: wakalaAmount,
-            wallet: msg.sender,
-            memberState: MemberState.Active,
-            surplus: 0 // Todo
-        });
-
-        uint256 mintAmount = contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
         uint256 depositAmount = contributionAmount - wakalaAmount;
 
-        // Distribute between the claim and fund reserve
-        uint256 toFundReserve = (depositAmount * reserve.dynamicReserveRatio) / 100;
-        uint256 toClaimReserve = depositAmount - toFundReserve;
+        Member memory newMember;
 
-        // Update the pro forma fund and claim reserve
-        uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
-            reserve.proFormaFundReserve,
-            newMember.contribution,
-            reserve.dynamicReserveRatio
-        );
+        {
+            // Scope to avoid stack too deep error. This scope creates a new member
+            ++memberIdCounter;
+            uint256 currentTimestamp = block.timestamp;
+            uint256 userMembershipDuration;
 
-        uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
-            reserve.proFormaClaimReserve,
-            newMember.contribution,
-            reserve.wakalaFee,
-            reserve.initialReserveRatio
-        );
+            if (allowCustomDuration) {
+                userMembershipDuration = membershipDuration;
+            } else {
+                userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
+            }
 
-        // Update the fund reserve to use it in the dynamic reserve ratio calculation
-        reserve.totalFundReserve += toFundReserve;
+            newMember = Member({
+                memberId: memberIdCounter,
+                benefitMultiplier: benefitMultiplier,
+                membershipDuration: userMembershipDuration,
+                membershipStartTime: currentTimestamp,
+                contribution: contributionAmount,
+                totalWakalaFee: wakalaAmount,
+                wallet: msg.sender,
+                memberState: MemberState.Active,
+                surplus: 0 // Todo
+            });
 
-        _updateCashMappings(depositAmount);
-        uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
+            // Add the member to the corresponding mappings
+            reserve.members[msg.sender] = newMember;
+            idToMember[memberIdCounter] = newMember;
+        }
 
-        uint256 updatedDynamicReserveRatio = ReserveMathLib
-            ._calculateDynamicReserveRatioReserveShortfallMethod(
-                reserve.dynamicReserveRatio,
-                updatedProFormaFundReserve,
-                reserve.totalFundReserve,
-                cashLast12Months
+        {
+            // Scope to avoid stack too deep error. This scope update both pro formas
+            uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
+                reserve.proFormaFundReserve,
+                newMember.contribution,
+                reserve.dynamicReserveRatio
             );
 
-        // Update all the other values in the pool
-        reserve.members[msg.sender] = newMember;
-        reserve.proFormaFundReserve = updatedProFormaFundReserve;
-        reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
-        reserve.totalContributions += contributionAmount;
-        reserve.totalClaimReserve += toClaimReserve;
+            uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
+                reserve.proFormaClaimReserve,
+                newMember.contribution,
+                reserve.wakalaFee,
+                reserve.initialReserveRatio
+            );
 
-        uint256 updatedBMA = ReserveMathLib._calculateBmaCashFlowMethod(
-            reserve.totalClaimReserve,
-            reserve.totalFundReserve,
-            reserve.bmaFundReserveShare,
-            updatedProFormaClaimReserve,
-            ReserveMathLib._calculateBmaInflowAssumption(
+            reserve.proFormaFundReserve = updatedProFormaFundReserve;
+            reserve.proFormaClaimReserve = updatedProFormaClaimReserve;
+        }
+
+        {
+            // Scope to avoid stack too deep error. This scope update contribution and reserves values
+            uint256 toFundReserve = (depositAmount * reserve.dynamicReserveRatio) / 100;
+            uint256 toClaimReserve = depositAmount - toFundReserve;
+
+            reserve.totalFundReserve += toFundReserve;
+            reserve.totalContributions += contributionAmount;
+            reserve.totalClaimReserve += toClaimReserve;
+        }
+
+        {
+            // Scope to avoid stack too deep error. This scope update DRR and BMA
+            // Initial calculations
+            _updateCashMappings(depositAmount);
+            uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
+
+            uint256 bmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
                 cashLast12Months,
                 reserve.wakalaFee,
                 reserve.initialReserveRatio
-            )
-        );
+            );
 
-        reserve.benefitMultiplierAdjuster = updatedBMA;
+            // new DRR and BMA calculations
+            uint256 updatedDynamicReserveRatio = ReserveMathLib
+                ._calculateDynamicReserveRatioReserveShortfallMethod(
+                    reserve.dynamicReserveRatio,
+                    reserve.proFormaFundReserve,
+                    reserve.totalFundReserve,
+                    cashLast12Months
+                );
 
-        // Add the member to the mapping
-        idToMember[memberIdCounter] = newMember;
+            uint256 updatedBMA = ReserveMathLib._calculateBmaCashFlowMethod(
+                reserve.totalClaimReserve,
+                reserve.totalFundReserve,
+                reserve.bmaFundReserveShare,
+                reserve.proFormaClaimReserve,
+                bmaInflowAssumption
+            );
 
-        // External calls
-        bool success;
-
-        // Mint needed DAO Tokens
-        success = daoToken.mint(msg.sender, mintAmount);
-        if (!success) {
-            revert TakasurePool__MintFailed();
+            reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
+            reserve.benefitMultiplierAdjuster = updatedBMA;
         }
 
-        // Transfer the contribution to the pool
-        success = contributionToken.transferFrom(msg.sender, address(this), depositAmount);
-        if (!success) {
-            revert TakasurePool__ContributionTransferFailed();
-        }
+        {
+            // Scope to avoid stack too deep error. This scope include the external calls.
+            // At the end following CEI pattern
+            bool success;
 
-        // Transfer the wakala fee to the DAO
-        success = contributionToken.transferFrom(msg.sender, wakalaClaimAddress, wakalaAmount);
-        if (!success) {
-            revert TakasurePool__FeeTransferFailed();
+            // Mint needed DAO Tokens
+            uint256 mintAmount = contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+
+            success = daoToken.mint(msg.sender, mintAmount);
+            if (!success) {
+                revert TakasurePool__MintFailed();
+            }
+
+            // Transfer the contribution to the pool
+            success = contributionToken.transferFrom(msg.sender, address(this), depositAmount);
+            if (!success) {
+                revert TakasurePool__ContributionTransferFailed();
+            }
+
+            // Transfer the wakala fee to the DAO
+            success = contributionToken.transferFrom(msg.sender, wakalaClaimAddress, wakalaAmount);
+            if (!success) {
+                revert TakasurePool__FeeTransferFailed();
+            }
         }
 
         emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
