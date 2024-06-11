@@ -154,30 +154,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _updateReserves(contributionAmount, depositAmount);
 
         _updateCashMappings(depositAmount);
+
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
 
         _updateDRR(cashLast12Months);
 
-        {
-            // Scope to avoid stack too deep error. This scope update DRR and BMA
-            // Initial calculations
-
-            uint256 bmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
-                cashLast12Months,
-                reserve.wakalaFee,
-                reserve.initialReserveRatio
-            );
-
-            uint256 updatedBMA = ReserveMathLib._calculateBmaCashFlowMethod(
-                reserve.totalClaimReserve,
-                reserve.totalFundReserve,
-                reserve.bmaFundReserveShare,
-                reserve.proFormaClaimReserve,
-                bmaInflowAssumption
-            );
-
-            reserve.benefitMultiplierAdjuster = updatedBMA;
-        }
+        _updateBMA(cashLast12Months);
 
         {
             // Scope to avoid stack too deep error. This scope include the external calls.
@@ -206,18 +188,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
-    }
-
-    function _updateDRR(uint256 _cash) internal {
-        uint256 updatedDynamicReserveRatio = ReserveMathLib
-            ._calculateDynamicReserveRatioReserveShortfallMethod(
-                reserve.dynamicReserveRatio,
-                reserve.proFormaFundReserve,
-                reserve.totalFundReserve,
-                _cash
-            );
-
-        reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
     }
 
     function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
@@ -429,51 +399,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function _monthAndDayFromCall()
-        internal
-        view
-        returns (uint16 currentMonth_, uint8 currentDay_)
-    {
-        uint256 currentTimestamp = block.timestamp;
-        uint256 lastDayDepositTimestamp = dayDepositTimestamp;
-        uint256 lastMonthDepositTimestamp = monthDepositTimestamp;
-
-        // Calculate how many days and months have passed since the last deposit and the current timestamp
-        uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
-            currentTimestamp,
-            lastDayDepositTimestamp
-        );
-        uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
-            currentTimestamp,
-            lastMonthDepositTimestamp
-        );
-
-        if (monthsPassed == 0) {
-            // If  no months have passed, current month is the reference
-            currentMonth_ = monthReference;
-            if (daysPassed == 0) {
-                // If no days have passed, current day is the reference
-                currentDay_ = dayReference;
-            } else {
-                // If you are in a new day, calculate the days passed
-                currentDay_ = uint8(daysPassed) + dayReference;
-            }
-        } else {
-            // If you are in a new month, calculate the months passed
-            currentMonth_ = uint16(monthsPassed) + monthReference;
-            // Calculate the timestamp when this new month started
-            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp + (monthsPassed * MONTH);
-            // And calculate the days passed in this new month using the new month timestamp
-            daysPassed = ReserveMathLib._calculateDaysPassed(
-                currentTimestamp,
-                timestampThisMonthStarted
-            );
-            // The current day is the days passed in this new month
-            uint8 initialDay = 1;
-            currentDay_ = uint8(daysPassed) + initialDay;
-        }
-    }
-
     function _cashLast12Months(
         uint16 _currentMonth,
         uint8 _currentDay
@@ -522,6 +447,81 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         cashLast12Months_ = cash;
+    }
+
+    function _monthAndDayFromCall()
+        internal
+        view
+        returns (uint16 currentMonth_, uint8 currentDay_)
+    {
+        uint256 currentTimestamp = block.timestamp;
+        uint256 lastDayDepositTimestamp = dayDepositTimestamp;
+        uint256 lastMonthDepositTimestamp = monthDepositTimestamp;
+
+        // Calculate how many days and months have passed since the last deposit and the current timestamp
+        uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
+            currentTimestamp,
+            lastDayDepositTimestamp
+        );
+        uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
+            currentTimestamp,
+            lastMonthDepositTimestamp
+        );
+
+        if (monthsPassed == 0) {
+            // If  no months have passed, current month is the reference
+            currentMonth_ = monthReference;
+            if (daysPassed == 0) {
+                // If no days have passed, current day is the reference
+                currentDay_ = dayReference;
+            } else {
+                // If you are in a new day, calculate the days passed
+                currentDay_ = uint8(daysPassed) + dayReference;
+            }
+        } else {
+            // If you are in a new month, calculate the months passed
+            currentMonth_ = uint16(monthsPassed) + monthReference;
+            // Calculate the timestamp when this new month started
+            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp + (monthsPassed * MONTH);
+            // And calculate the days passed in this new month using the new month timestamp
+            daysPassed = ReserveMathLib._calculateDaysPassed(
+                currentTimestamp,
+                timestampThisMonthStarted
+            );
+            // The current day is the days passed in this new month
+            uint8 initialDay = 1;
+            currentDay_ = uint8(daysPassed) + initialDay;
+        }
+    }
+
+    function _updateDRR(uint256 _cash) internal {
+        uint256 updatedDynamicReserveRatio = ReserveMathLib
+            ._calculateDynamicReserveRatioReserveShortfallMethod(
+                reserve.dynamicReserveRatio,
+                reserve.proFormaFundReserve,
+                reserve.totalFundReserve,
+                _cash
+            );
+
+        reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
+    }
+
+    function _updateBMA(uint256 _cash) internal {
+        uint256 bmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
+            _cash,
+            reserve.wakalaFee,
+            reserve.initialReserveRatio
+        );
+
+        uint256 updatedBMA = ReserveMathLib._calculateBmaCashFlowMethod(
+            reserve.totalClaimReserve,
+            reserve.totalFundReserve,
+            reserve.bmaFundReserveShare,
+            reserve.proFormaClaimReserve,
+            bmaInflowAssumption
+        );
+
+        reserve.benefitMultiplierAdjuster = updatedBMA;
     }
 
     ///@dev required by the OZ UUPS module
