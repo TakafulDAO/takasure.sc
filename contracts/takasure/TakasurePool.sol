@@ -149,24 +149,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             wakalaAmount
         );
 
-        {
-            // Scope to avoid stack too deep error. This scope update both pro formas
-            uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
-                reserve.proFormaFundReserve,
-                newMember.contribution,
-                reserve.dynamicReserveRatio
-            );
-
-            uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
-                reserve.proFormaClaimReserve,
-                newMember.contribution,
-                reserve.wakalaFee,
-                reserve.initialReserveRatio
-            );
-
-            reserve.proFormaFundReserve = updatedProFormaFundReserve;
-            reserve.proFormaClaimReserve = updatedProFormaClaimReserve;
-        }
+        _updateProFormas(contributionAmount);
 
         {
             // Scope to avoid stack too deep error. This scope update contribution and reserves values
@@ -359,6 +342,25 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Add the member to the corresponding mappings
         reserve.members[msg.sender] = newMember_;
         idToMember[memberIdCounter] = newMember_;
+    }
+
+    function _updateProFormas(uint256 _contributionAmount) internal {
+        // Scope to avoid stack too deep error. This scope update both pro formas
+        uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
+            reserve.proFormaFundReserve,
+            _contributionAmount,
+            reserve.dynamicReserveRatio
+        );
+
+        uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
+            reserve.proFormaClaimReserve,
+            _contributionAmount,
+            reserve.wakalaFee,
+            reserve.initialReserveRatio
+        );
+
+        reserve.proFormaFundReserve = updatedProFormaFundReserve;
+        reserve.proFormaClaimReserve = updatedProFormaClaimReserve;
     }
 
     function _updateCashMappings(uint256 _depositAmount) internal {
