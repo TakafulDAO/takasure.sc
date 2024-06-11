@@ -153,26 +153,20 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         _updateReserves(contributionAmount, depositAmount);
 
+        _updateCashMappings(depositAmount);
+        uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
+
+        _updateDRR(cashLast12Months);
+
         {
             // Scope to avoid stack too deep error. This scope update DRR and BMA
             // Initial calculations
-            _updateCashMappings(depositAmount);
-            uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
 
             uint256 bmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
                 cashLast12Months,
                 reserve.wakalaFee,
                 reserve.initialReserveRatio
             );
-
-            // new DRR and BMA calculations
-            uint256 updatedDynamicReserveRatio = ReserveMathLib
-                ._calculateDynamicReserveRatioReserveShortfallMethod(
-                    reserve.dynamicReserveRatio,
-                    reserve.proFormaFundReserve,
-                    reserve.totalFundReserve,
-                    cashLast12Months
-                );
 
             uint256 updatedBMA = ReserveMathLib._calculateBmaCashFlowMethod(
                 reserve.totalClaimReserve,
@@ -182,7 +176,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 bmaInflowAssumption
             );
 
-            reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
             reserve.benefitMultiplierAdjuster = updatedBMA;
         }
 
@@ -213,6 +206,18 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
+    }
+
+    function _updateDRR(uint256 _cash) internal {
+        uint256 updatedDynamicReserveRatio = ReserveMathLib
+            ._calculateDynamicReserveRatioReserveShortfallMethod(
+                reserve.dynamicReserveRatio,
+                reserve.proFormaFundReserve,
+                reserve.totalFundReserve,
+                _cash
+            );
+
+        reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
     }
 
     function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
