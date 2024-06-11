@@ -132,15 +132,16 @@ library ReserveMathLib {
         uint256 bmaDenominator = (2 * _proFormaClaimReserve) +
             ((_totalFundReserves * _bmaFundReserveShares) / 100);
 
-        // ? According the requirements should check if bmaDenominator is 0 but the only way to this happen is withouth any member
-        // todo: Check this in tests and maybe add an assert here in the middle?
-
-        uint256 possibleBMA = (bmaNumerator * 100) / bmaDenominator;
-
-        if (possibleBMA > 100) {
+        if (bmaDenominator == 0) {
             bma_ = 100;
         } else {
-            bma_ = possibleBMA;
+            uint256 possibleBMA = (bmaNumerator * 100) / bmaDenominator;
+
+            if (possibleBMA > 100) {
+                bma_ = 100;
+            } else {
+                bma_ = possibleBMA;
+            }
         }
     }
 
