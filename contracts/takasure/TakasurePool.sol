@@ -142,36 +142,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
         uint256 depositAmount = contributionAmount - wakalaAmount;
 
-        Member memory newMember;
-
-        {
-            // Scope to avoid stack too deep error. This scope creates a new member
-            ++memberIdCounter;
-            uint256 currentTimestamp = block.timestamp;
-            uint256 userMembershipDuration;
-
-            if (allowCustomDuration) {
-                userMembershipDuration = membershipDuration;
-            } else {
-                userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
-            }
-
-            newMember = Member({
-                memberId: memberIdCounter,
-                benefitMultiplier: benefitMultiplier,
-                membershipDuration: userMembershipDuration,
-                membershipStartTime: currentTimestamp,
-                contribution: contributionAmount,
-                totalWakalaFee: wakalaAmount,
-                wallet: msg.sender,
-                memberState: MemberState.Active,
-                surplus: 0 // Todo
-            });
-
-            // Add the member to the corresponding mappings
-            reserve.members[msg.sender] = newMember;
-            idToMember[memberIdCounter] = newMember;
-        }
+        Member memory newMember = _createNewMember(
+            benefitMultiplier,
+            contributionAmount,
+            membershipDuration,
+            wakalaAmount
+        );
 
         {
             // Scope to avoid stack too deep error. This scope update both pro formas
@@ -350,6 +326,39 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function getCashLast12Months() external view returns (uint256 cash_) {
         (uint16 monthFromCall, uint8 dayFromCall) = _monthAndDayFromCall();
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
+    }
+
+    function _createNewMember(
+        uint256 _benefitMultiplier,
+        uint256 _contributionAmount,
+        uint256 _membershipDuration,
+        uint256 _wakalaAmount
+    ) internal returns (Member memory newMember_) {
+        ++memberIdCounter;
+        uint256 currentTimestamp = block.timestamp;
+        uint256 userMembershipDuration;
+
+        if (allowCustomDuration) {
+            userMembershipDuration = _membershipDuration;
+        } else {
+            userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
+        }
+
+        newMember_ = Member({
+            memberId: memberIdCounter,
+            benefitMultiplier: _benefitMultiplier,
+            membershipDuration: userMembershipDuration,
+            membershipStartTime: currentTimestamp,
+            contribution: _contributionAmount,
+            totalWakalaFee: _wakalaAmount,
+            wallet: msg.sender,
+            memberState: MemberState.Active,
+            surplus: 0 // Todo
+        });
+
+        // Add the member to the corresponding mappings
+        reserve.members[msg.sender] = newMember_;
+        idToMember[memberIdCounter] = newMember_;
     }
 
     function _updateCashMappings(uint256 _depositAmount) internal {
