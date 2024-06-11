@@ -142,50 +142,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
         uint256 depositAmount = contributionAmount - wakalaAmount;
 
-        Member memory newMember = _createNewMember(
-            benefitMultiplier,
-            contributionAmount,
-            membershipDuration,
-            wakalaAmount
-        );
-
+        _createNewMember(benefitMultiplier, contributionAmount, membershipDuration, wakalaAmount);
         _updateProFormas(contributionAmount);
-
         _updateReserves(contributionAmount, depositAmount);
-
         _updateCashMappings(depositAmount);
-
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
-
         _updateDRR(cashLast12Months);
-
         _updateBMA(cashLast12Months);
-
-        {
-            // Scope to avoid stack too deep error. This scope include the external calls.
-            // At the end following CEI pattern
-            bool success;
-
-            // Mint needed DAO Tokens
-            uint256 mintAmount = contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-
-            success = daoToken.mint(msg.sender, mintAmount);
-            if (!success) {
-                revert TakasurePool__MintFailed();
-            }
-
-            // Transfer the contribution to the pool
-            success = contributionToken.transferFrom(msg.sender, address(this), depositAmount);
-            if (!success) {
-                revert TakasurePool__ContributionTransferFailed();
-            }
-
-            // Transfer the wakala fee to the DAO
-            success = contributionToken.transferFrom(msg.sender, wakalaClaimAddress, wakalaAmount);
-            if (!success) {
-                revert TakasurePool__FeeTransferFailed();
-            }
-        }
+        _transferAmounts(contributionAmount, depositAmount, wakalaAmount);
 
         emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
     }
@@ -283,7 +247,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 _contributionAmount,
         uint256 _membershipDuration,
         uint256 _wakalaAmount
-    ) internal returns (Member memory newMember_) {
+    ) internal {
         ++memberIdCounter;
         uint256 currentTimestamp = block.timestamp;
         uint256 userMembershipDuration;
@@ -294,7 +258,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
-        newMember_ = Member({
+        Member memory newMember = Member({
             memberId: memberIdCounter,
             benefitMultiplier: _benefitMultiplier,
             membershipDuration: userMembershipDuration,
@@ -307,8 +271,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         });
 
         // Add the member to the corresponding mappings
-        reserve.members[msg.sender] = newMember_;
-        idToMember[memberIdCounter] = newMember_;
+        reserve.members[msg.sender] = newMember;
+        idToMember[memberIdCounter] = newMember;
     }
 
     function _updateProFormas(uint256 _contributionAmount) internal {
@@ -522,6 +486,36 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
 
         reserve.benefitMultiplierAdjuster = updatedBMA;
+    }
+
+    function _transferAmounts(
+        uint256 _contributionAmount,
+        uint256 _depositAmount,
+        uint256 _wakalaAmount
+    ) internal {
+        // Scope to avoid stack too deep error. This scope include the external calls.
+        // At the end following CEI pattern
+        bool success;
+
+        // Mint needed DAO Tokens
+        uint256 mintAmount = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+
+        success = daoToken.mint(msg.sender, mintAmount);
+        if (!success) {
+            revert TakasurePool__MintFailed();
+        }
+
+        // Transfer the contribution to the pool
+        success = contributionToken.transferFrom(msg.sender, address(this), _depositAmount);
+        if (!success) {
+            revert TakasurePool__ContributionTransferFailed();
+        }
+
+        // Transfer the wakala fee to the DAO
+        success = contributionToken.transferFrom(msg.sender, wakalaClaimAddress, _wakalaAmount);
+        if (!success) {
+            revert TakasurePool__FeeTransferFailed();
+        }
     }
 
     ///@dev required by the OZ UUPS module
