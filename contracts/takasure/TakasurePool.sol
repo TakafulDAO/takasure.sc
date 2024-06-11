@@ -207,7 +207,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             reserve.totalFundReserve,
             reserve.bmaFundReserveShare,
             updatedProFormaClaimReserve,
-            ReserveMathLib._bmaLastPeriodInflowAssumption(
+            ReserveMathLib._calculateBmaInflowAssumption(
                 cashLast12Months,
                 reserve.wakalaFee,
                 reserve.initialReserveRatio

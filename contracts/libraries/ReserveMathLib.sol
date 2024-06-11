@@ -97,7 +97,7 @@ library ReserveMathLib {
      * @param _initialDRR Initial dynamic reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
      * @return bmaInflowAssumption_ Six decimals
      */
-    function _bmaLastPeriodInflowAssumption(
+    function _calculateBmaInflowAssumption(
         uint256 _cashFlowLastPeriod,
         uint256 _wakalaFee,
         uint256 _initialDRR
