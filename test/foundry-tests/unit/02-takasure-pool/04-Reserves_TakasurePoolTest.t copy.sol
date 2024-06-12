@@ -38,6 +38,10 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                    JOIN POOL::UPDATE RESERVES
+    //////////////////////////////////////////////////////////////*/
+
     /// @dev Test fund and claim reserves are calculated correctly
     function testTakasurePool_fundAndClaimReserves() public {
         (
@@ -74,6 +78,10 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         assertEq(finalFundReserve, expectedFinalFundReserve);
         assertEq(finalFundReserve, 8e6);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    JOIN POOL::CASH LAST 12 MONTHS
+    //////////////////////////////////////////////////////////////*/
 
     /// @dev Cash last 12 months less than a month
     function testTakasurePool_cashLessThanMonth() public {
