@@ -22,28 +22,26 @@ contract TakasurePoolHandler is Test {
     }
 
     function joinPool(uint256 contributionAmount) public {
+        // 1. User is not the zero address or the pool address
         vm.assume(msg.sender != address(0));
         vm.assume(msg.sender != address(takasurePool));
 
+        // 2. User is not already a member
         MemberState currentMemberState = takasurePool.getMemberFromAddress(msg.sender).memberState;
         vm.assume(currentMemberState != MemberState.Active);
 
-        // console2.log("New member joining the pool");
-
+        // 3. Contribution amount is within the limits
         contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
 
+        // 4. User has enough balance
         deal(address(usdc), msg.sender, contributionAmount);
 
+        // 5. User approves the pool to spend the contribution amount and joins the pool
         vm.startPrank(msg.sender);
         usdc.approve(address(takasurePool), contributionAmount);
 
         takasurePool.joinPool(BENEFIT_MULTIPLIER, contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
         vm.stopPrank();
-
-        // (, uint256 drr, , , , , ) = takasurePool.getPoolValues();
-
-        // console2.log("Dynamic Reserve Ratio: ", drr);
-        // console2.log("=====================================");
     }
 
     function moveTime(uint256 time) public {

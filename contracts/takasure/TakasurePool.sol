@@ -103,8 +103,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         reserve.initialReserveRatio = 40; // 40% Default
         reserve.dynamicReserveRatio = reserve.initialReserveRatio; // Default
-        reserve.benefitMultiplierAdjuster = 100; // Default
+        reserve.benefitMultiplierAdjuster = 100; // 100% Default
         reserve.wakalaFee = 20; // 20% of the contribution amount. Default
+        reserve.bmaFundReserveShare = 70; // 70% Default
     }
 
     /**
@@ -130,104 +131,25 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__ContributionBelowMinimumThreshold();
         }
 
-        // Todo: re-calculate BMA, and DAO Surplus.
+        // Todo: re-calculate DAO Surplus.
 
-        // Create new member
-        memberIdCounter++;
-
+        // Setting variables used in different scope blocks
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
         contributionAmount =
             (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
-
-        uint256 userMembershipDuration;
-
-        if (allowCustomDuration) {
-            userMembershipDuration = membershipDuration;
-        } else {
-            userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
-        }
-
         uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
-
-        Member memory newMember = Member({
-            memberId: memberIdCounter,
-            benefitMultiplier: benefitMultiplier,
-            membershipDuration: userMembershipDuration,
-            membershipStartTime: block.timestamp,
-            contribution: contributionAmount,
-            totalWakalaFee: wakalaAmount,
-            wallet: msg.sender,
-            memberState: MemberState.Active,
-            surplus: 0 // Todo
-        });
-
-        uint256 mintAmount = contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
         uint256 depositAmount = contributionAmount - wakalaAmount;
 
-        // Distribute between the claim and fund reserve
-        uint256 toFundReserve = (depositAmount * reserve.dynamicReserveRatio) / 100;
-        uint256 toClaimReserve = depositAmount - toFundReserve;
-
-        // Update the pro forma fund and claim reserve
-        uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
-            reserve.proFormaFundReserve,
-            newMember.contribution,
-            reserve.dynamicReserveRatio
-        );
-
-        uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
-            reserve.proFormaClaimReserve,
-            newMember.contribution,
-            reserve.wakalaFee,
-            reserve.initialReserveRatio
-        );
-
-        // Update the fund reserve to use it in the dynamic reserve ratio calculation
-        reserve.totalFundReserve += toFundReserve;
-
+        _createNewMember(benefitMultiplier, contributionAmount, membershipDuration, wakalaAmount);
+        _updateProFormas(contributionAmount);
+        _updateReserves(contributionAmount, depositAmount);
         _updateCashMappings(depositAmount);
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
-
-        uint256 updatedDynamicReserveRatio = ReserveMathLib
-            ._calculateDynamicReserveRatioReserveShortfallMethod(
-                reserve.dynamicReserveRatio,
-                updatedProFormaFundReserve,
-                reserve.totalFundReserve,
-                cashLast12Months
-            );
-
-        // Update all the other values in the pool
-        reserve.members[msg.sender] = newMember;
-        reserve.proFormaFundReserve = updatedProFormaFundReserve;
-        reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
-        reserve.totalContributions += contributionAmount;
-        reserve.totalClaimReserve += toClaimReserve;
-
-        // Add the member to the mapping
-        idToMember[memberIdCounter] = newMember;
-
-        // External calls
-        bool success;
-
-        // Mint needed DAO Tokens
-        success = daoToken.mint(msg.sender, mintAmount);
-        if (!success) {
-            revert TakasurePool__MintFailed();
-        }
-
-        // Transfer the contribution to the pool
-        success = contributionToken.transferFrom(msg.sender, address(this), depositAmount);
-        if (!success) {
-            revert TakasurePool__ContributionTransferFailed();
-        }
-
-        // Transfer the wakala fee to the DAO
-        success = contributionToken.transferFrom(msg.sender, wakalaClaimAddress, wakalaAmount);
-        if (!success) {
-            revert TakasurePool__FeeTransferFailed();
-        }
+        _updateDRR(cashLast12Months);
+        _updateBMA(cashLast12Months);
+        _transferAmounts(contributionAmount, depositAmount, wakalaAmount);
 
         emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
     }
@@ -263,22 +185,32 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         external
         view
         returns (
-            uint256 proFormaFundReserve_,
+            uint256 initialReserveRatio_,
             uint256 dynamicReserveRatio_,
             uint256 benefitMultiplierAdjuster_,
             uint256 totalContributions_,
             uint256 totalClaimReserve_,
             uint256 totalFundReserve_,
-            uint8 wakalaFee_
+            uint256 proFormaFundReserve_,
+            uint256 proFormaClaimReserve_,
+            uint256 lossRatio_,
+            uint8 wakalaFee_,
+            uint8 bmaFundReserveShare_,
+            bool isOptimizerEnabled_
         )
     {
-        proFormaFundReserve_ = reserve.proFormaFundReserve;
+        initialReserveRatio_ = reserve.initialReserveRatio;
         dynamicReserveRatio_ = reserve.dynamicReserveRatio;
         benefitMultiplierAdjuster_ = reserve.benefitMultiplierAdjuster;
         totalContributions_ = reserve.totalContributions;
         totalClaimReserve_ = reserve.totalClaimReserve;
         totalFundReserve_ = reserve.totalFundReserve;
+        proFormaFundReserve_ = reserve.proFormaFundReserve;
+        proFormaClaimReserve_ = reserve.proFormaClaimReserve;
+        lossRatio_ = reserve.lossRatio;
         wakalaFee_ = reserve.wakalaFee;
+        bmaFundReserveShare_ = reserve.bmaFundReserveShare;
+        isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
 
     function getMemberKYC(address member) external view returns (KYC) {
@@ -308,6 +240,67 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function getCashLast12Months() external view returns (uint256 cash_) {
         (uint16 monthFromCall, uint8 dayFromCall) = _monthAndDayFromCall();
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
+    }
+
+    function _createNewMember(
+        uint256 _benefitMultiplier,
+        uint256 _contributionAmount,
+        uint256 _membershipDuration,
+        uint256 _wakalaAmount
+    ) internal {
+        ++memberIdCounter;
+        uint256 currentTimestamp = block.timestamp;
+        uint256 userMembershipDuration;
+
+        if (allowCustomDuration) {
+            userMembershipDuration = _membershipDuration;
+        } else {
+            userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
+        }
+
+        Member memory newMember = Member({
+            memberId: memberIdCounter,
+            benefitMultiplier: _benefitMultiplier,
+            membershipDuration: userMembershipDuration,
+            membershipStartTime: currentTimestamp,
+            contribution: _contributionAmount,
+            totalWakalaFee: _wakalaAmount,
+            wallet: msg.sender,
+            memberState: MemberState.Active,
+            surplus: 0 // Todo
+        });
+
+        // Add the member to the corresponding mappings
+        reserve.members[msg.sender] = newMember;
+        idToMember[memberIdCounter] = newMember;
+    }
+
+    function _updateProFormas(uint256 _contributionAmount) internal {
+        // Scope to avoid stack too deep error. This scope update both pro formas
+        uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
+            reserve.proFormaFundReserve,
+            _contributionAmount,
+            reserve.dynamicReserveRatio
+        );
+
+        uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
+            reserve.proFormaClaimReserve,
+            _contributionAmount,
+            reserve.wakalaFee,
+            reserve.initialReserveRatio
+        );
+
+        reserve.proFormaFundReserve = updatedProFormaFundReserve;
+        reserve.proFormaClaimReserve = updatedProFormaClaimReserve;
+    }
+
+    function _updateReserves(uint256 _contributionAmount, uint256 _depositAmount) internal {
+        uint256 toFundReserve = (_depositAmount * reserve.dynamicReserveRatio) / 100;
+        uint256 toClaimReserve = _depositAmount - toFundReserve;
+
+        reserve.totalFundReserve += toFundReserve;
+        reserve.totalContributions += _contributionAmount;
+        reserve.totalClaimReserve += toClaimReserve;
     }
 
     function _updateCashMappings(uint256 _depositAmount) internal {
@@ -370,51 +363,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function _monthAndDayFromCall()
-        internal
-        view
-        returns (uint16 currentMonth_, uint8 currentDay_)
-    {
-        uint256 currentTimestamp = block.timestamp;
-        uint256 lastDayDepositTimestamp = dayDepositTimestamp;
-        uint256 lastMonthDepositTimestamp = monthDepositTimestamp;
-
-        // Calculate how many days and months have passed since the last deposit and the current timestamp
-        uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
-            currentTimestamp,
-            lastDayDepositTimestamp
-        );
-        uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
-            currentTimestamp,
-            lastMonthDepositTimestamp
-        );
-
-        if (monthsPassed == 0) {
-            // If  no months have passed, current month is the reference
-            currentMonth_ = monthReference;
-            if (daysPassed == 0) {
-                // If no days have passed, current day is the reference
-                currentDay_ = dayReference;
-            } else {
-                // If you are in a new day, calculate the days passed
-                currentDay_ = uint8(daysPassed) + dayReference;
-            }
-        } else {
-            // If you are in a new month, calculate the months passed
-            currentMonth_ = uint16(monthsPassed) + monthReference;
-            // Calculate the timestamp when this new month started
-            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp + (monthsPassed * MONTH);
-            // And calculate the days passed in this new month using the new month timestamp
-            daysPassed = ReserveMathLib._calculateDaysPassed(
-                currentTimestamp,
-                timestampThisMonthStarted
-            );
-            // The current day is the days passed in this new month
-            uint8 initialDay = 1;
-            currentDay_ = uint8(daysPassed) + initialDay;
-        }
-    }
-
     function _cashLast12Months(
         uint16 _currentMonth,
         uint8 _currentDay
@@ -463,6 +411,111 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         cashLast12Months_ = cash;
+    }
+
+    function _monthAndDayFromCall()
+        internal
+        view
+        returns (uint16 currentMonth_, uint8 currentDay_)
+    {
+        uint256 currentTimestamp = block.timestamp;
+        uint256 lastDayDepositTimestamp = dayDepositTimestamp;
+        uint256 lastMonthDepositTimestamp = monthDepositTimestamp;
+
+        // Calculate how many days and months have passed since the last deposit and the current timestamp
+        uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
+            currentTimestamp,
+            lastDayDepositTimestamp
+        );
+        uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
+            currentTimestamp,
+            lastMonthDepositTimestamp
+        );
+
+        if (monthsPassed == 0) {
+            // If  no months have passed, current month is the reference
+            currentMonth_ = monthReference;
+            if (daysPassed == 0) {
+                // If no days have passed, current day is the reference
+                currentDay_ = dayReference;
+            } else {
+                // If you are in a new day, calculate the days passed
+                currentDay_ = uint8(daysPassed) + dayReference;
+            }
+        } else {
+            // If you are in a new month, calculate the months passed
+            currentMonth_ = uint16(monthsPassed) + monthReference;
+            // Calculate the timestamp when this new month started
+            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp + (monthsPassed * MONTH);
+            // And calculate the days passed in this new month using the new month timestamp
+            daysPassed = ReserveMathLib._calculateDaysPassed(
+                currentTimestamp,
+                timestampThisMonthStarted
+            );
+            // The current day is the days passed in this new month
+            uint8 initialDay = 1;
+            currentDay_ = uint8(daysPassed) + initialDay;
+        }
+    }
+
+    function _updateDRR(uint256 _cash) internal {
+        uint256 updatedDynamicReserveRatio = ReserveMathLib
+            ._calculateDynamicReserveRatioReserveShortfallMethod(
+                reserve.dynamicReserveRatio,
+                reserve.proFormaFundReserve,
+                reserve.totalFundReserve,
+                _cash
+            );
+
+        reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
+    }
+
+    function _updateBMA(uint256 _cash) internal {
+        uint256 bmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
+            _cash,
+            reserve.wakalaFee,
+            reserve.initialReserveRatio
+        );
+
+        uint256 updatedBMA = ReserveMathLib._calculateBmaCashFlowMethod(
+            reserve.totalClaimReserve,
+            reserve.totalFundReserve,
+            reserve.bmaFundReserveShare,
+            reserve.proFormaClaimReserve,
+            bmaInflowAssumption
+        );
+
+        reserve.benefitMultiplierAdjuster = updatedBMA;
+    }
+
+    function _transferAmounts(
+        uint256 _contributionAmount,
+        uint256 _depositAmount,
+        uint256 _wakalaAmount
+    ) internal {
+        // Scope to avoid stack too deep error. This scope include the external calls.
+        // At the end following CEI pattern
+        bool success;
+
+        // Mint needed DAO Tokens
+        uint256 mintAmount = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+
+        success = daoToken.mint(msg.sender, mintAmount);
+        if (!success) {
+            revert TakasurePool__MintFailed();
+        }
+
+        // Transfer the contribution to the pool
+        success = contributionToken.transferFrom(msg.sender, address(this), _depositAmount);
+        if (!success) {
+            revert TakasurePool__ContributionTransferFailed();
+        }
+
+        // Transfer the wakala fee to the DAO
+        success = contributionToken.transferFrom(msg.sender, wakalaClaimAddress, _wakalaAmount);
+        if (!success) {
+            revert TakasurePool__FeeTransferFailed();
+        }
     }
 
     ///@dev required by the OZ UUPS module

@@ -11,6 +11,10 @@ pragma solidity 0.8.25;
 library ReserveMathLib {
     error WrongTimestamps();
 
+    /*//////////////////////////////////////////////////////////////
+                               PRO FORMA
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice The Fund Reserve based on each member’s fund reserve add, But taking out / removing
      *         any members that had claims or for any other reason aren't active anymore
@@ -53,6 +57,10 @@ library ReserveMathLib {
                 10 ** 4);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                  DRR
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Calculate the dynamic reserve ratio on every cash-in operation
      * @param _currentDynamicReserveRatio Current value. Note: Percentage value, i.e. 40% => input should be 40
@@ -83,6 +91,70 @@ library ReserveMathLib {
             updatedDynamicReserveRatio_ = _currentDynamicReserveRatio;
         }
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                  BMA
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Helper function to calculate the benefit multiplier adjuster
+     * @param _cashFlowLastPeriod Cash flow of the last period of 12 months. Note: Six decimals
+     * @param _wakalaFee Wakala fee. Note: Percentage value, i.e. 20% => input should be 20
+     * @param _initialDRR Initial dynamic reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
+     * @return bmaInflowAssumption_ Six decimals
+     */
+    // todo: this one can be inlined inside _calculateBmaCashFlowMethod, as it is only used there. It depends if we decide to use another bma method and it is used in other places
+    function _calculateBmaInflowAssumption(
+        uint256 _cashFlowLastPeriod,
+        uint256 _wakalaFee,
+        uint256 _initialDRR
+    ) internal pure returns (uint256 bmaInflowAssumption_) {
+        bmaInflowAssumption_ =
+            (_cashFlowLastPeriod * (100 - _wakalaFee) * (100 - _initialDRR)) /
+            10 ** 4;
+    }
+
+    /**
+     * @notice Calculate the benefit multiplier adjuster through the Cash Flow Method
+     * @param _totalClaimReserves Total claim reserves. Note: Six decimals
+     * @param _totalFundReserves Total fund reserves. Note: Six decimals
+     * @param _bmaFundReserveShares Percentage value, i.e. 70% => input should be 70
+     * @param _proFormaClaimReserve Pro forma claim reserve. Note: Six decimals
+     * @param _bmaInflowAssumption Six decimals
+     * @return bma_ Percentage value, i.e. 100% => return value will be 100
+     */
+    function _calculateBmaCashFlowMethod(
+        uint256 _totalClaimReserves,
+        uint256 _totalFundReserves,
+        uint256 _bmaFundReserveShares,
+        uint256 _proFormaClaimReserve,
+        uint256 _bmaInflowAssumption
+    ) internal pure returns (uint256 bma_) {
+        // Calculate BMA numerator
+        uint256 bmaNumerator = _totalClaimReserves +
+            _bmaInflowAssumption +
+            ((_totalFundReserves * _bmaFundReserveShares) / 100);
+
+        // Calculate BMA denominator
+        uint256 bmaDenominator = (2 * _proFormaClaimReserve) +
+            ((_totalFundReserves * _bmaFundReserveShares) / 100);
+
+        if (bmaDenominator == 0) {
+            bma_ = 100;
+        } else {
+            uint256 possibleBMA = (bmaNumerator * 100) / bmaDenominator;
+
+            if (possibleBMA > 100) {
+                bma_ = 100;
+            } else {
+                bma_ = possibleBMA;
+            }
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 DATES
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Calculate date difference in days
