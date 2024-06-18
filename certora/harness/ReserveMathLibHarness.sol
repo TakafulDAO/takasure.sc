@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
 import {ReserveMathLib} from "../munged/ReserveMathLib.sol";
 
 contract ReserveMathLibHarness {
-    function exposed__updateProFormaFundReserve(
+    function updateProFormaFundReserve(
         uint256 currentProFormaFundReserve,
         uint256 memberNetContribution,
         uint256 currentDynamicReserveRatio
@@ -17,7 +17,7 @@ contract ReserveMathLibHarness {
         );
     }
 
-    function exposed__updateProFormaClaimReserve(
+    function updateProFormaClaimReserve(
         uint256 currentProFormaClaimReserve,
         uint256 memberNetContribution,
         uint8 wakalaFee,
@@ -31,7 +31,7 @@ contract ReserveMathLibHarness {
         );
     }
 
-    function exposed__calculateDynamicReserveRatioReserveShortfallMethod(
+    function calculateDynamicReserveRatioReserveShortfallMethod(
         uint256 currentDynamicReserveRatio,
         uint256 proFormaFundReserve,
         uint256 fundReserve,
@@ -46,7 +46,7 @@ contract ReserveMathLibHarness {
             );
     }
 
-    function exposed__calculateBmaInflowAssumption(
+    function calculateBmaInflowAssumption(
         uint256 cashFlowLastPeriod,
         uint256 wakalaFee,
         uint256 initialDRR
@@ -58,7 +58,7 @@ contract ReserveMathLibHarness {
         );
     }
 
-    function exposed__calculateBmaCashFlowMethodNumerator(
+    function calculateBmaCashFlowMethodNumerator(
         uint256 totalClaimReserves,
         uint256 totalFundReserves,
         uint256 bmaFundReserveShares,
@@ -72,7 +72,7 @@ contract ReserveMathLibHarness {
         );
     }
 
-    function exposed__calculateBmaCashFlowMethodDenominator(
+    function calculateBmaCashFlowMethodDenominator(
         uint256 totalFundReserves,
         uint256 bmaFundReserveShares,
         uint256 proFormaClaimReserve
@@ -84,7 +84,7 @@ contract ReserveMathLibHarness {
         );
     }
 
-    function exposed__calculateBmaCashFlowMethod(
+    function calculateBmaCashFlowMethod(
         uint256 totalClaimReserves,
         uint256 totalFundReserves,
         uint256 bmaFundReserveShares,
@@ -100,7 +100,7 @@ contract ReserveMathLibHarness {
         );
     }
 
-    function exposed__calculateDaysPassed(
+    function calculateDaysPassed(
         uint256 finalDayTimestamp,
         uint256 initialDayTimestamp
     ) external pure returns (uint256 exposedDaysPassed) {
@@ -110,7 +110,7 @@ contract ReserveMathLibHarness {
         );
     }
 
-    function exposed__calculateMonthsPassed(
+    function calculateMonthsPassed(
         uint256 finalMonthTimestamp,
         uint256 initialMonthTimestamp
     ) external pure returns (uint256 exposedMonthsPassed) {
