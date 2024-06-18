@@ -25,6 +25,8 @@ update:; forge update
 
 build:; forge build
 
+build-certora:; forge build --contracts ./certora/
+
 test :; yarn test && forge test 
 
 coverage :; forge coverage --report debug > coverage-report.txt
