@@ -47,3 +47,5 @@ endif
 deploy-token-and-pool:
 	@forge script scripts/foundry-deploy/DeployTokenAndPool.s.sol:DeployTokenAndPool $(NETWORK_ARGS)
 
+# Certora
+fv:; certoraRun ./certora/conf/ReserveMathLib.conf
