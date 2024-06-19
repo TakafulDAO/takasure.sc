@@ -30,3 +30,4 @@ broadcast/
 
 # certora
 /certora/munged/*.sol
+.certora_*
