@@ -11,12 +11,56 @@ Initial step: if certora prover is not installed follow the steps [here](https:/
 Documentation for CVT and the specification language are available
 [here](https://docs.certora.com/en/latest/index.html)
 
+>[!IMPORTANT]
+> We recomend you use solc-select to set the solc version
+
 ## Running the verification
 
-First step is to create the `munged/` directory. This has to be done in the `certora/` directory. Run the following:
+1. First step is to set the solidity compiler version with:
+
+```sh
+solc-select use 0.8.25
+```
+
+>[!TIP]
+> Install the version previously with `solc-select install 0.8.25`
+
+>[!WARNING]
+> If not using solc-select add an item to the `.conf` files `"solc": 0.8.25`
+
+2. Second step is to enter the certora folder
 
 ```sh
 cd certora/
+```
+
+3. Then create the `munged/` directory. If it is the first time runnung certora in this project use
+
+```sh
 make munged
 ```
+
+If not
+
+```sh
+make clean
+make munged
+```
+
+4. Finally run the config file in the root folder
+
+```sh
+cd ..
+certoraRun ./certora/conf/ReserveMathLib.conf
+```
+
+Or
+
+```sh
+cd ..
+make fv
+```
+
+
+
 
