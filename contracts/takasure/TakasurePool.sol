@@ -182,12 +182,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         allowCustomDuration = _allowCustomDuration;
     }
 
-    function setKYCStatus(address member) external onlyOwner {
+    /// @dev Returns true if success
+    /// @dev It reverts if the member is already KYCed
+    function setKYCStatus(address member) external onlyOwner returns (bool) {
         if (reserve.members[member].isKYCVerified) {
             revert TakasurePool__MemberAlreadyKYCed();
         }
 
         reserve.members[member].isKYCVerified = true;
+        return true;
     }
 
     function getReserveValues()
@@ -222,7 +225,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
 
-    function getMemberKYC(address member) external view returns (bool isKYCVerified_) {
+    function getMemberKYCStatus(address member) external view returns (bool isKYCVerified_) {
         isKYCVerified_ = reserve.members[member].isKYCVerified;
     }
 
