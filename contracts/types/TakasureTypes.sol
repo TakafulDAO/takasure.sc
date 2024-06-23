@@ -9,12 +9,6 @@ enum MemberState {
     Deceased
 }
 
-enum KYC {
-    None,
-    Pending,
-    Approved
-}
-
 struct Member {
     uint256 memberId;
     uint256 benefitMultiplier;
@@ -25,6 +19,7 @@ struct Member {
     address wallet;
     MemberState memberState;
     uint256 surplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
+    bool isKYCVerified;
 }
 
 struct Reserve {
