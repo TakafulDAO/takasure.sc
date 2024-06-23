@@ -1,3 +1,182 @@
+diff -ruN ReserveMathLib.sol ReserveMathLib.sol
+--- ReserveMathLib.sol	1969-12-31 20:00:00.000000000 -0400
++++ ReserveMathLib.sol	2024-06-23 12:00:55.958226500 -0400
+@@ -0,0 +1,175 @@
++//SPDX-License-Identifier: GPL-3.0
++
++/**
++ * @title ReserveMathLib
++ * @author Maikel Ordaz
++ * @notice This is a modiified contract from the original one, to be used in Certora Prover
++ */
++
++pragma solidity 0.8.25;
++
++library ReserveMathLib {
++    error WrongTimestamps();
++
++    /*//////////////////////////////////////////////////////////////
++                                 PRO FORMA
++      //////////////////////////////////////////////////////////////*/
++
++    function _updateProFormaFundReserve(
++        uint256 _currentProFormaFundReserve,
++        uint256 _memberContribution,
++        uint256 _currentDynamicReserveRatio
++    ) internal pure returns (uint256 updatedProFormaFundReserve_) {
++        updatedProFormaFundReserve_ =
++            _currentProFormaFundReserve +
++            ((_memberContribution * _currentDynamicReserveRatio) / 100);
++    }
++
++    function _updateProFormaClaimReserve(
++        uint256 _currentProFormaClaimReserve,
++        uint256 _memberContribution,
++        uint8 _wakalaFee,
++        uint256 _initialReserveRatio
++    ) internal pure returns (uint256 updatedProFormaClaimReserve_) {
++        // updatedProFormaClaimReserve = currentProFormaClaimReserve + (memberContribution * (1 - wakalaFee) * (1 - initialReserveRatio))
++        // To avoid rounding issues as (1 - wakalaFee) * (1 - initialReserveRatio) is always 1, in solidity. We use the percentage values and divide by 10^4
++        updatedProFormaClaimReserve_ =
++            _currentProFormaClaimReserve +
++            ((_memberContribution * (100 - uint256(_wakalaFee)) * (100 - _initialReserveRatio)) /
++                10 ** 4);
++    }
++
++    /*//////////////////////////////////////////////////////////////
++                                    DRR
++      //////////////////////////////////////////////////////////////*/
++
++    function _calculateDynamicReserveRatioReserveShortfallMethod(
++        uint256 _currentDynamicReserveRatio,
++        uint256 _proFormaFundReserve,
++        uint256 _fundReserve,
++        uint256 _cashFlowLastPeriod
++    ) internal pure returns (uint256 updatedDynamicReserveRatio_) {
++        int256 fundReserveShortfall = int256(_proFormaFundReserve) - int256(_fundReserve);
++
++        if (fundReserveShortfall > 0 && _cashFlowLastPeriod > 0) {
++            uint256 possibleDRR = _currentDynamicReserveRatio +
++                ((uint256(fundReserveShortfall) * 100) / _cashFlowLastPeriod);
++
++            if (possibleDRR < 100) {
++                updatedDynamicReserveRatio_ = possibleDRR;
++            } else {
++                updatedDynamicReserveRatio_ = 100;
++            }
++        } else {
++            updatedDynamicReserveRatio_ = _currentDynamicReserveRatio;
++        }
++    }
++
++    /*//////////////////////////////////////////////////////////////
++                                    BMA
++      //////////////////////////////////////////////////////////////*/
++
++    function _calculateBmaInflowAssumption(
++        uint256 _cashFlowLastPeriod,
++        uint256 _wakalaFee,
++        uint256 _initialDRR
++    ) internal pure returns (uint256 bmaInflowAssumption_) {
++        bmaInflowAssumption_ =
++            (_cashFlowLastPeriod * (100 - _wakalaFee) * (100 - _initialDRR)) /
++            10 ** 4;
++    }
++
++    function _calculateBmaCashFlowMethodNumerator(
++        uint256 _totalClaimReserves,
++        uint256 _totalFundReserves,
++        uint256 _bmaFundReserveShares,
++        uint256 _bmaInflowAssumption
++    ) internal pure returns (uint256 bmaNumerator_) {
++        bmaNumerator_ =
++            _totalClaimReserves +
++            _bmaInflowAssumption +
++            ((_totalFundReserves * _bmaFundReserveShares) / 100);
++    }
++
++    function _calculateBmaCashFlowMethodDenominator(
++        uint256 _totalFundReserves,
++        uint256 _bmaFundReserveShares,
++        uint256 _proFormaClaimReserve
++    ) internal pure returns (uint256 bmaDenominator_) {
++        bmaDenominator_ =
++            (2 * _proFormaClaimReserve) +
++            ((_totalFundReserves * _bmaFundReserveShares) / 100);
++    }
++
++    function _calculateBmaCashFlowMethod(
++        uint256 _totalClaimReserves,
++        uint256 _totalFundReserves,
++        uint256 _bmaFundReserveShares,
++        uint256 _proFormaClaimReserve,
++        uint256 _bmaInflowAssumption
++    ) internal pure returns (uint256 bma_) {
++        // Calculate BMA numerator
++        uint256 bmaNumerator = _calculateBmaCashFlowMethodNumerator(
++            _totalClaimReserves,
++            _totalFundReserves,
++            _bmaFundReserveShares,
++            _bmaInflowAssumption
++        );
++
++        // Calculate BMA denominator
++        uint256 bmaDenominator = _calculateBmaCashFlowMethodDenominator(
++            _totalFundReserves,
++            _bmaFundReserveShares,
++            _proFormaClaimReserve
++        );
++
++        if (bmaDenominator == 0) {
++            bma_ = 100;
++        } else {
++            uint256 possibleBMA = (bmaNumerator * 100) / bmaDenominator;
++
++            if (possibleBMA > 100) {
++                bma_ = 100;
++            } else {
++                bma_ = possibleBMA;
++            }
++        }
++    }
++
++    /*//////////////////////////////////////////////////////////////
++                                   DATES
++      //////////////////////////////////////////////////////////////*/
++
++    function _calculateDaysPassed(
++        uint256 _finalDayTimestamp,
++        uint256 _initialDayTimestamp
++    ) internal pure returns (uint256 daysPassed_) {
++        if (_finalDayTimestamp < _initialDayTimestamp) {
++            revert WrongTimestamps();
++        } else {
++            uint256 dayTimePassed = _finalDayTimestamp - _initialDayTimestamp;
++            if (dayTimePassed < 1 days) {
++                daysPassed_ = 0;
++            } else {
++                daysPassed_ = dayTimePassed / 1 days;
++            }
++        }
++    }
++
++    function _calculateMonthsPassed(
++        uint256 _finalMonthTimestamp,
++        uint256 _initialMonthTimestamp
++    ) internal pure returns (uint256 monthsPassed_) {
++        if (_finalMonthTimestamp < _initialMonthTimestamp) {
++            revert WrongTimestamps();
++        } else {
++            uint256 monthTimePassed = _finalMonthTimestamp - _initialMonthTimestamp;
++            uint256 month = 30 days;
++            if (monthTimePassed < month) {
++                monthsPassed_ = 0;
++            } else {
++                monthsPassed_ = monthTimePassed / month;
++            }
++        }
++    }
++}
 diff -ruN interfaces/ITSToken.sol interfaces/ITSToken.sol
 --- interfaces/ITSToken.sol	2024-06-09 11:06:19.776515800 -0400
 +++ interfaces/ITSToken.sol	1969-12-31 20:00:00.000000000 -0400
@@ -272,187 +451,8 @@ diff -ruN mocks/USDCmock.sol mocks/USDCmock.sol
 -        return 6;
 -    }
 -}
-diff -ruN ReserveMathLib.sol ReserveMathLib.sol
---- ReserveMathLib.sol	1969-12-31 20:00:00.000000000 -0400
-+++ ReserveMathLib.sol	2024-06-18 17:20:24.612137300 -0400
-@@ -0,0 +1,175 @@
-+//SPDX-License-Identifier: GPL-3.0
-+
-+/**
-+ * @title ReserveMathLib
-+ * @author Maikel Ordaz
-+ * @notice This is a modiified contract from the original one, to be used in Certora Prover
-+ */
-+
-+pragma solidity 0.8.25;
-+
-+library ReserveMathLib {
-+    error WrongTimestamps();
-+
-+    /*//////////////////////////////////////////////////////////////
-+                                 PRO FORMA
-+      //////////////////////////////////////////////////////////////*/
-+
-+    function _updateProFormaFundReserve(
-+        uint256 _currentProFormaFundReserve,
-+        uint256 _memberContribution,
-+        uint256 _currentDynamicReserveRatio
-+    ) internal pure returns (uint256 updatedProFormaFundReserve_) {
-+        updatedProFormaFundReserve_ =
-+            _currentProFormaFundReserve +
-+            ((_memberContribution * _currentDynamicReserveRatio) / 100);
-+    }
-+
-+    function _updateProFormaClaimReserve(
-+        uint256 _currentProFormaClaimReserve,
-+        uint256 _memberContribution,
-+        uint8 _wakalaFee,
-+        uint256 _initialReserveRatio
-+    ) internal pure returns (uint256 updatedProFormaClaimReserve_) {
-+        // updatedProFormaClaimReserve = currentProFormaClaimReserve + (memberContribution * (1 - wakalaFee) * (1 - initialReserveRatio))
-+        // To avoid rounding issues as (1 - wakalaFee) * (1 - initialReserveRatio) is always 1, in solidity. We use the percentage values and divide by 10^4
-+        updatedProFormaClaimReserve_ =
-+            _currentProFormaClaimReserve +
-+            ((_memberContribution * (100 - uint256(_wakalaFee)) * (100 - _initialReserveRatio)) /
-+                10 ** 4);
-+    }
-+
-+    /*//////////////////////////////////////////////////////////////
-+                                    DRR
-+      //////////////////////////////////////////////////////////////*/
-+
-+    function _calculateDynamicReserveRatioReserveShortfallMethod(
-+        uint256 _currentDynamicReserveRatio,
-+        uint256 _proFormaFundReserve,
-+        uint256 _fundReserve,
-+        uint256 _cashFlowLastPeriod
-+    ) internal pure returns (uint256 updatedDynamicReserveRatio_) {
-+        int256 fundReserveShortfall = int256(_proFormaFundReserve) - int256(_fundReserve);
-+
-+        if (fundReserveShortfall > 0 && _cashFlowLastPeriod > 0) {
-+            uint256 possibleDRR = _currentDynamicReserveRatio +
-+                ((uint256(fundReserveShortfall) * 100) / _cashFlowLastPeriod);
-+
-+            if (possibleDRR < 100) {
-+                updatedDynamicReserveRatio_ = possibleDRR;
-+            } else {
-+                updatedDynamicReserveRatio_ = 100;
-+            }
-+        } else {
-+            updatedDynamicReserveRatio_ = _currentDynamicReserveRatio;
-+        }
-+    }
-+
-+    /*//////////////////////////////////////////////////////////////
-+                                    BMA
-+      //////////////////////////////////////////////////////////////*/
-+
-+    function _calculateBmaInflowAssumption(
-+        uint256 _cashFlowLastPeriod,
-+        uint256 _wakalaFee,
-+        uint256 _initialDRR
-+    ) internal pure returns (uint256 bmaInflowAssumption_) {
-+        bmaInflowAssumption_ =
-+            (_cashFlowLastPeriod * (100 - _wakalaFee) * (100 - _initialDRR)) /
-+            10 ** 4;
-+    }
-+
-+    function _calculateBmaCashFlowMethodNumerator(
-+        uint256 _totalClaimReserves,
-+        uint256 _totalFundReserves,
-+        uint256 _bmaFundReserveShares,
-+        uint256 _bmaInflowAssumption
-+    ) internal pure returns (uint256 bmaNumerator_) {
-+        bmaNumerator_ =
-+            _totalClaimReserves +
-+            _bmaInflowAssumption +
-+            ((_totalFundReserves * _bmaFundReserveShares) / 100);
-+    }
-+
-+    function _calculateBmaCashFlowMethodDenominator(
-+        uint256 _totalFundReserves,
-+        uint256 _bmaFundReserveShares,
-+        uint256 _proFormaClaimReserve
-+    ) internal pure returns (uint256 bmaDenominator_) {
-+        bmaDenominator_ =
-+            (2 * _proFormaClaimReserve) +
-+            ((_totalFundReserves * _bmaFundReserveShares) / 100);
-+    }
-+
-+    function _calculateBmaCashFlowMethod(
-+        uint256 _totalClaimReserves,
-+        uint256 _totalFundReserves,
-+        uint256 _bmaFundReserveShares,
-+        uint256 _proFormaClaimReserve,
-+        uint256 _bmaInflowAssumption
-+    ) internal pure returns (uint256 bma_) {
-+        // Calculate BMA numerator
-+        uint256 bmaNumerator = _calculateBmaCashFlowMethodNumerator(
-+            _totalClaimReserves,
-+            _totalFundReserves,
-+            _bmaFundReserveShares,
-+            _bmaInflowAssumption
-+        );
-+
-+        // Calculate BMA denominator
-+        uint256 bmaDenominator = _calculateBmaCashFlowMethodDenominator(
-+            _totalFundReserves,
-+            _bmaFundReserveShares,
-+            _proFormaClaimReserve
-+        );
-+
-+        if (bmaDenominator == 0) {
-+            bma_ = 100;
-+        } else {
-+            uint256 possibleBMA = (bmaNumerator * 100) / bmaDenominator;
-+
-+            if (possibleBMA > 100) {
-+                bma_ = 100;
-+            } else {
-+                bma_ = possibleBMA;
-+            }
-+        }
-+    }
-+
-+    /*//////////////////////////////////////////////////////////////
-+                                   DATES
-+      //////////////////////////////////////////////////////////////*/
-+
-+    function _calculateDaysPassed(
-+        uint256 _finalDayTimestamp,
-+        uint256 _initialDayTimestamp
-+    ) internal pure returns (uint256 daysPassed_) {
-+        if (_finalDayTimestamp < _initialDayTimestamp) {
-+            revert WrongTimestamps();
-+        } else {
-+            uint256 dayTimePassed = _finalDayTimestamp - _initialDayTimestamp;
-+            if (dayTimePassed < 1 days) {
-+                daysPassed_ = 0;
-+            } else {
-+                daysPassed_ = dayTimePassed / 1 days;
-+            }
-+        }
-+    }
-+
-+    function _calculateMonthsPassed(
-+        uint256 _finalMonthTimestamp,
-+        uint256 _initialMonthTimestamp
-+    ) internal pure returns (uint256 monthsPassed_) {
-+        if (_finalMonthTimestamp < _initialMonthTimestamp) {
-+            revert WrongTimestamps();
-+        } else {
-+            uint256 monthTimePassed = _finalMonthTimestamp - _initialMonthTimestamp;
-+            uint256 month = 30 days;
-+            if (monthTimePassed < month) {
-+                monthsPassed_ = 0;
-+            } else {
-+                monthsPassed_ = monthTimePassed / month;
-+            }
-+        }
-+    }
-+}
 diff -ruN takasure/TakasurePool.sol takasure/TakasurePool.sol
---- takasure/TakasurePool.sol	2024-06-14 22:10:13.339699100 -0400
+--- takasure/TakasurePool.sol	2024-06-23 11:39:45.544575300 -0400
 +++ takasure/TakasurePool.sol	1969-12-31 20:00:00.000000000 -0400
 @@ -1,523 +0,0 @@
 -//SPDX-License-Identifier: GPL-3.0
@@ -1057,7 +1057,7 @@ diff -ruN token/TSToken.sol token/TSToken.sol
 -    }
 -}
 diff -ruN types/TakasureTypes.sol types/TakasureTypes.sol
---- types/TakasureTypes.sol	2024-06-14 22:10:13.343892000 -0400
+--- types/TakasureTypes.sol	2024-06-23 11:39:45.545712900 -0400
 +++ types/TakasureTypes.sol	1969-12-31 20:00:00.000000000 -0400
 @@ -1,44 +0,0 @@
 -// SPDX-License-Identifier: GPL-3.0
