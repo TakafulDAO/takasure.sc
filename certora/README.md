@@ -28,21 +28,24 @@ solc-select use 0.8.25
 >[!WARNING]
 > If not using solc-select add an item to the `.conf` files `"solc": 0.8.25`
 
-2. Second step is to enter the certora folder
+2. Second write your certora api ke into environment
+
+```sh
+export CERTORAKEY=<your_certora_api_key>
+echo $CERTORAKEY
+```
+
+3. Now enter the certora folder, and create the `munged/` directory. If it is the first time running certora in this project use
 
 ```sh
 cd certora/
-```
-
-3. Then create the `munged/` directory. If it is the first time runnung certora in this project use
-
-```sh
 make munged
 ```
 
 If not
 
 ```sh
+cd certora/
 make clean
 make munged
 ```
@@ -54,7 +57,7 @@ cd ..
 certoraRun ./certora/conf/ReserveMathLib.conf
 ```
 
-Or
+Or you can use the make command in the makefile with
 
 ```sh
 cd ..
