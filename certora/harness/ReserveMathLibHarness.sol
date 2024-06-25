@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.25;
 
-import {ReserveMathLib} from "../munged/ReserveMathLib.sol";
+import {ReserveMathLib} from "../munged/libraries/ReserveMathLib.sol";
 
 contract ReserveMathLibHarness {
     function updateProFormaFundReserve(

@@ -29,5 +29,5 @@ broadcast/
 /broadcast/**/dry-run/
 
 # certora
-/certora/munged/*.sol
+/certora/munged/
 .certora_*
