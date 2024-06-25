@@ -184,6 +184,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     /// @dev It reverts if the member is already KYCed
     function setKYCStatus(address member) external onlyOwner {
+        if (member == address(0)) {
+            revert TakasurePool__ZeroAddress();
+        }
         if (reserve.members[member].isKYCVerified) {
             revert TakasurePool__MemberAlreadyKYCed();
         }
