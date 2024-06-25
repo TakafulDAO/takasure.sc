@@ -48,7 +48,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
-    event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
+    event OnMemberJoined(
+        address indexed member,
+        uint256 indexed contributionAmount,
+        KYC indexed kyc
+    );
 
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
@@ -151,7 +155,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _updateBMA(cashLast12Months);
         _transferAmounts(contributionAmount, depositAmount, wakalaAmount);
 
-        emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
+        emit OnMemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
     }
 
     function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {

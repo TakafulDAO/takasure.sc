@@ -23,7 +23,11 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
 
-    event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
+    event OnMemberJoined(
+        address indexed member,
+        uint256 indexed contributionAmount,
+        KYC indexed kyc
+    );
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
