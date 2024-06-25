@@ -118,10 +118,19 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     }
 
     /// @dev `setKYCStatus` must revert if the member is address zero
-    function testTakasurePool_setKYCStatusMustRevertIfMemberIsZero() public {
+    function testTakasurePool_setKYCStatusMustRevertIfMemberIsAddressZero() public {
         vm.prank(takasurePool.owner());
-        vm.expectRevert(TakasurePool.TakasurePool__ZeroAddress.selector);
+
+        vm.expectRevert(TakasurePool.TakasurePool__InvalidMember.selector);
         takasurePool.setKYCStatus(address(0));
+    }
+
+    /// @dev `setKYCStatus` must revert if the member is invalid
+    function testTakasurePool_setKYCStatusMustRevertIfMemberIsInvalid() public {
+        vm.prank(takasurePool.owner());
+
+        vm.expectRevert(TakasurePool.TakasurePool__InvalidMember.selector);
+        takasurePool.setKYCStatus(alice);
     }
 
     /// @dev `setKYCStatus` must revert if the member is already KYC verified
@@ -136,6 +145,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         // And tries to join again but fails
         vm.expectRevert(TakasurePool.TakasurePool__MemberAlreadyKYCed.selector);
         takasurePool.setKYCStatus(alice);
+
         vm.stopPrank();
     }
 }
