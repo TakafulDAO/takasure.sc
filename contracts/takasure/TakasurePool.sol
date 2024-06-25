@@ -49,6 +49,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
     event MemberJoined(address indexed member, uint256 indexed contributionAmount);
+    event OnMemberKycVerified(address indexed member);
 
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
@@ -192,6 +193,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         reserve.members[member].isKYCVerified = true;
+
+        emit OnMemberKycVerified(member);
     }
 
     function getReserveValues()
