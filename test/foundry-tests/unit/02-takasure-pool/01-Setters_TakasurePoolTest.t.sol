@@ -21,6 +21,8 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
 
+    event OnMemberKycVerified(address indexed member);
+
     function setUp() public {
         deployer = new DeployTokenAndPool();
         (, proxy, , contributionTokenAddress, ) = deployer.run();
@@ -88,6 +90,8 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         bool getMemberKYCstatusBefore = takasurePool.getMemberKYCStatus(alice);
 
         vm.prank(takasurePool.owner());
+        vm.expectEmit(true, false, false, false, address(takasurePool));
+        emit OnMemberKycVerified(alice);
         takasurePool.setKYCStatus(alice);
 
         bool getMemberKYCstatusAfter = takasurePool.getMemberKYCStatus(alice);
