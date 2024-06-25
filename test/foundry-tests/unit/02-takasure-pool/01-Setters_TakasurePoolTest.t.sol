@@ -88,12 +88,11 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         bool getMemberKYCstatusBefore = takasurePool.getMemberKYCStatus(alice);
 
         vm.prank(takasurePool.owner());
-        bool newStatus = takasurePool.setKYCStatus(alice);
+        takasurePool.setKYCStatus(alice);
 
         bool getMemberKYCstatusAfter = takasurePool.getMemberKYCStatus(alice);
 
         assert(!getMemberKYCstatusBefore);
-        assert(newStatus);
         assert(getMemberKYCstatusAfter);
     }
 }

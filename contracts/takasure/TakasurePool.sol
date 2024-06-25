@@ -182,15 +182,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         allowCustomDuration = _allowCustomDuration;
     }
 
-    /// @dev Returns true if success
     /// @dev It reverts if the member is already KYCed
-    function setKYCStatus(address member) external onlyOwner returns (bool) {
+    function setKYCStatus(address member) external onlyOwner {
         if (reserve.members[member].isKYCVerified) {
             revert TakasurePool__MemberAlreadyKYCed();
         }
 
         reserve.members[member].isKYCVerified = true;
-        return true;
     }
 
     function getReserveValues()
