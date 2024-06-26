@@ -13,13 +13,14 @@ import {ITSToken} from "../interfaces/ITSToken.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {OracleConsumer} from "./OracleConsumer.sol";
 
 import {Reserve, Member, MemberState, KYC} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
 
 pragma solidity 0.8.25;
 
-contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, OracleConsumer {
     IERC20 private contributionToken;
     ITSToken private daoToken;
 
