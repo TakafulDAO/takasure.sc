@@ -7,7 +7,7 @@ import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployToken
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, KYC} from "../../../../contracts/types/TakasureTypes.sol";
+import {Member, MemberState} from "../../../../contracts/types/TakasureTypes.sol";
 import {IUSDC} from "../../../../contracts/mocks/IUSDCmock.sol";
 
 contract Join_TakasurePoolTest is StdCheats, Test {
@@ -23,7 +23,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
 
-    event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
+    event MemberJoined(address indexed member, uint256 indexed contributionAmount);
 
     function setUp() public {
         deployer = new DeployTokenAndPool();

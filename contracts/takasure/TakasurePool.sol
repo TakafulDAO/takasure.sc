@@ -13,14 +13,14 @@ import {ITSToken} from "../interfaces/ITSToken.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {OracleConsumer} from "./OracleConsumer.sol";
 
-import {Reserve, Member, MemberState, KYC} from "../types/TakasureTypes.sol";
+import {Reserve, Member, MemberState} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
 
 pragma solidity 0.8.25;
 
-contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, OracleConsumer {
+// todo: change OwnableUpgradeable to AccessControlUpgradeable
+contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
     ITSToken private daoToken;
 
@@ -44,12 +44,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Ora
     address public wakalaClaimAddress;
 
     mapping(uint256 memberIdCounter => Member) private idToMember;
-    mapping(address memberAddress => KYC) private memberKYC; // Todo: Implement KYC correctly in the future
 
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
-    event MemberJoined(address indexed member, uint256 indexed contributionAmount, KYC indexed kyc);
+    event MemberJoined(address indexed member, uint256 indexed contributionAmount);
+    event OnMemberKycVerified(address indexed member);
 
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
@@ -58,6 +58,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Ora
     error TakasurePool__FeeTransferFailed();
     error TakasurePool__MintFailed();
     error TakasurePool__WrongWakalaFee();
+    error TakasurePool__InvalidMember();
+    error TakasurePool__MemberAlreadyKYCed();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -152,7 +154,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Ora
         _updateBMA(cashLast12Months);
         _transferAmounts(contributionAmount, depositAmount, wakalaAmount);
 
-        emit MemberJoined(msg.sender, contributionAmount, memberKYC[msg.sender]);
+        emit MemberJoined(msg.sender, contributionAmount);
     }
 
     function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
@@ -180,6 +182,20 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Ora
 
     function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
         allowCustomDuration = _allowCustomDuration;
+    }
+
+    /// @dev It reverts if the member is already KYCed
+    function setKYCStatus(address member) external onlyOwner {
+        if (member == address(0) || reserve.members[member].memberState != MemberState.Active) {
+            revert TakasurePool__InvalidMember();
+        }
+        if (reserve.members[member].isKYCVerified) {
+            revert TakasurePool__MemberAlreadyKYCed();
+        }
+
+        reserve.members[member].isKYCVerified = true;
+
+        emit OnMemberKycVerified(member);
     }
 
     function getReserveValues()
@@ -214,8 +230,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Ora
         isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
 
-    function getMemberKYC(address member) external view returns (KYC) {
-        return memberKYC[member];
+    function getMemberKYCStatus(address member) external view returns (bool isKYCVerified_) {
+        isKYCVerified_ = reserve.members[member].isKYCVerified;
     }
 
     function getMemberFromId(uint256 memberId) external view returns (Member memory) {
@@ -268,7 +284,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Ora
             totalWakalaFee: _wakalaAmount,
             wallet: msg.sender,
             memberState: MemberState.Active,
-            surplus: 0 // Todo
+            surplus: 0, // Todo
+            isKYCVerified: false
         });
 
         // Add the member to the corresponding mappings

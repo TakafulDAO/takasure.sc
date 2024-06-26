@@ -15,8 +15,13 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     ERC1967Proxy proxy;
     address contributionTokenAddress;
     IUSDC usdc;
-    address public user = makeAddr("user");
+    address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
+    uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
+    uint256 public constant BENEFIT_MULTIPLIER = 0;
+    uint256 public constant YEAR = 365 days;
+
+    event OnMemberKycVerified(address indexed member);
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
@@ -26,8 +31,8 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         usdc = IUSDC(contributionTokenAddress);
 
         // For easier testing there is a minimal USDC mock contract without restrictions
-        vm.startPrank(user);
-        usdc.mintUSDC(user, USDC_INITIAL_AMOUNT);
+        vm.startPrank(alice);
+        usdc.mintUSDC(alice, USDC_INITIAL_AMOUNT);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
     }
@@ -57,17 +62,17 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     /// @dev Test the owner can set a new contribution token
     function testTakasurePool_setNewContributionToken() public {
         vm.prank(takasurePool.owner());
-        takasurePool.setNewContributionToken(user);
+        takasurePool.setNewContributionToken(alice);
 
-        assertEq(user, takasurePool.getContributionTokenAddress());
+        assertEq(alice, takasurePool.getContributionTokenAddress());
     }
 
     /// @dev Test the owner can set a new wakala claim address
     function testTakasurePool_canSetNewWakalaClaimAddress() public {
         vm.prank(takasurePool.owner());
-        takasurePool.setNewWakalaClaimAddress(user);
+        takasurePool.setNewWakalaClaimAddress(alice);
 
-        assertEq(user, takasurePool.wakalaClaimAddress());
+        assertEq(alice, takasurePool.wakalaClaimAddress());
     }
 
     /// @dev Test the owner can set custom duration
@@ -76,5 +81,22 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         takasurePool.setAllowCustomDuration(true);
 
         assertEq(true, takasurePool.allowCustomDuration());
+    }
+
+    function testTakasurePool_setKYCstatus() public {
+        vm.prank(alice);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        bool getMemberKYCstatusBefore = takasurePool.getMemberKYCStatus(alice);
+
+        vm.prank(takasurePool.owner());
+        vm.expectEmit(true, false, false, false, address(takasurePool));
+        emit OnMemberKycVerified(alice);
+        takasurePool.setKYCStatus(alice);
+
+        bool getMemberKYCstatusAfter = takasurePool.getMemberKYCStatus(alice);
+
+        assert(!getMemberKYCstatusBefore);
+        assert(getMemberKYCstatusAfter);
     }
 }
