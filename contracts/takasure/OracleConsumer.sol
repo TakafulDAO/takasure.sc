@@ -12,4 +12,8 @@ pragma solidity 0.8.25;
 
 contract OracleConsumer is FunctionsClient {
     using FunctionsRequest for FunctionsRequest.Request;
+
+    bytes32 public lastRequestId;
+    bytes public lastResponse;
+    bytes public lastError;
 }
