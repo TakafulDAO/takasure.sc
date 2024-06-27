@@ -16,4 +16,6 @@ contract OracleConsumer is FunctionsClient {
     bytes32 public lastRequestId;
     bytes public lastResponse;
     bytes public lastError;
+
+    error OracleConsumer__UnexpectedRequestID(bytes32 requestId);
 }
