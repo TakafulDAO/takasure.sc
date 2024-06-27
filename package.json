@@ -34,6 +34,8 @@
     "test": "yarn hardhat test",
     "coverage": "yarn hardhat coverage",
     "deploy": "yarn hardhat deploy",
+    "deploy:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags takasure",
+    "deploy:sepolia:post-deploy": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags post-deploy",
     "local": "yarn hardhat --network localhost",
     "n": "yarn hardhat node",
     "slither": "slither . --solc-remaps '@openzeppelin=node_modules/@openzeppelin' --exclude naming-convention,low-level-calls --buidler-ignore-compile",

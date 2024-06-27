@@ -49,7 +49,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Ora
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
-    event MemberJoined(address indexed member, uint256 indexed contributionAmount);
+    event OnMemberJoined(address indexed member, uint256 indexed contributionAmount);
     event OnMemberKycVerified(address indexed member);
 
     error TakasurePool__MemberAlreadyExists();
@@ -155,7 +155,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Ora
         _updateBMA(cashLast12Months);
         _transferAmounts(contributionAmount, depositAmount, wakalaAmount);
 
-        emit MemberJoined(msg.sender, contributionAmount);
+        emit OnMemberJoined(msg.sender, contributionAmount);
     }
 
     function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {

@@ -14,4 +14,4 @@ module.exports = async ({ deployments }) => {
     }
 }
 
-module.exports.tags = ["all", "mocks", "token", "takaturn_deploy", "takaturn_upgrade"]
+module.exports.tags = ["all", "mocks"]
