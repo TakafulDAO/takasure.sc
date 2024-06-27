@@ -10,4 +10,6 @@ import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/l
 
 pragma solidity 0.8.25;
 
-contract OracleConsumer is FunctionsClient {}
+contract OracleConsumer is FunctionsClient {
+    using FunctionsRequest for FunctionsRequest.Request;
+}
