@@ -31,4 +31,4 @@ module.exports = async ({ deployments }) => {
     log("=======================================================")
 }
 
-module.exports.tags = ["all", "token"]
+module.exports.tags = ["all", "token", "takasure"]

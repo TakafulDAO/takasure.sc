@@ -1,4 +1,4 @@
-const { networkConfig } = require("../../utils/_networks")
+const { networkConfig, isTestnet } = require("../../utils/_networks")
 
 module.exports = async ({ deployments, getNamedAccounts }) => {
     const { log } = deployments
@@ -32,28 +32,30 @@ module.exports = async ({ deployments, getNamedAccounts }) => {
         ? log("99.01. TakasurePool is now a DAO Token burner!")
         : log("99.01. Something went wrong while setting TakasurePool as a DAO Token burner!")
 
-    log("99.01. Setting DAO operator as a DAO Token admin...")
+    if(!isTestnet) {
+        log("99.01. Setting DAO operator as a DAO Token admin...")
 
-    const DEFAULT_ADMIN_ROLE = await daoToken.DEFAULT_ADMIN_ROLE()
-    const daoOperator = networkConfig[chainId]["daoOperator"]
-    await daoToken.grantRole(DEFAULT_ADMIN_ROLE, daoOperator)
+        const DEFAULT_ADMIN_ROLE = await daoToken.DEFAULT_ADMIN_ROLE()
+        const daoOperator = networkConfig[chainId]["daoOperator"]
+        await daoToken.grantRole(DEFAULT_ADMIN_ROLE, daoOperator)
 
-    let isAdmin = await daoToken.hasRole(DEFAULT_ADMIN_ROLE, daoOperator)
+        let isAdmin = await daoToken.hasRole(DEFAULT_ADMIN_ROLE, daoOperator)
 
-    isAdmin
-        ? log("99.01. DAO operator is now a DAO Token admin!")
-        : log("99.01. DSomething went wrong while setting DAO operator as a DAO Token admin!")
+        isAdmin
+            ? log("99.01. DAO operator is now a DAO Token admin!")
+            : log("99.01. Something went wrong while setting DAO operator as a DAO Token admin!")
 
-    log("99.01. Previous Admin revoking...")
+        log("99.01. Previous Admin revoking...")
 
-    isAdmin = await daoToken.hasRole(DEFAULT_ADMIN_ROLE, deployer)
-
-    while (isAdmin) {
-        await daoToken.revokeRole(DEFAULT_ADMIN_ROLE, deployer)
         isAdmin = await daoToken.hasRole(DEFAULT_ADMIN_ROLE, deployer)
-    }
 
-    log("99.01. Deployer is no longer a DAO Token admin!")
+        while (isAdmin) {
+            await daoToken.revokeRole(DEFAULT_ADMIN_ROLE, deployer)
+            isAdmin = await daoToken.hasRole(DEFAULT_ADMIN_ROLE, deployer)
+        }
+
+        log("99.01. Deployer is no longer a DAO Token admin!")
+    }
 
     log("99.01. Post deploy settings completed!")
 
@@ -61,4 +63,4 @@ module.exports = async ({ deployments, getNamedAccounts }) => {
     log("=======================================================")
 }
 
-module.exports.tags = ["all", "post-deploys"]
+module.exports.tags = ["all", "post-deploy"]
