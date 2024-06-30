@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@chainlink/contracts": "^1.1.1",
+    "@chainlink/functions-toolkit": "^0.2.8",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.6",
     "@nomicfoundation/hardhat-ethers": "^3.0.5",
     "@nomicfoundation/hardhat-foundry": "^1.1.1",
