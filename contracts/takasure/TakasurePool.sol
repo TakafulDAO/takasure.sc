@@ -136,25 +136,36 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         // Todo: re-calculate DAO Surplus.
 
-        // Setting variables used in different scope blocks
-        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
-        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        contributionAmount =
-            (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
-            DECIMAL_REQUIREMENT_PRECISION_USDC;
-        uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
-        uint256 depositAmount = contributionAmount - wakalaAmount;
+        if (!reserve.members[msg.sender].isKYCVerified) {
+            // TODO: lock the funds
+        } else {
+            // Normal flow
 
-        _createNewMember(benefitMultiplier, contributionAmount, membershipDuration, wakalaAmount);
-        _updateProFormas(contributionAmount);
-        _updateReserves(contributionAmount, depositAmount);
-        _updateCashMappings(depositAmount);
-        uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
-        _updateDRR(cashLast12Months);
-        _updateBMA(cashLast12Months);
-        _transferAmounts(contributionAmount, depositAmount, wakalaAmount);
+            // Setting variables used in different scope blocks
+            // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
+            // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
+            contributionAmount =
+                (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+                DECIMAL_REQUIREMENT_PRECISION_USDC;
+            uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
+            uint256 depositAmount = contributionAmount - wakalaAmount;
 
-        emit OnMemberJoined(msg.sender, contributionAmount);
+            _createNewMember(
+                benefitMultiplier,
+                contributionAmount,
+                membershipDuration,
+                wakalaAmount
+            );
+            _updateProFormas(contributionAmount);
+            _updateReserves(contributionAmount, depositAmount);
+            _updateCashMappings(depositAmount);
+            uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
+            _updateDRR(cashLast12Months);
+            _updateBMA(cashLast12Months);
+            _transferAmounts(contributionAmount, depositAmount, wakalaAmount);
+
+            emit OnMemberJoined(msg.sender, contributionAmount);
+        }
     }
 
     function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
