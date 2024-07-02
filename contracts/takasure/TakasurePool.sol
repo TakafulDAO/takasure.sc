@@ -58,7 +58,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error TakasurePool__FeeTransferFailed();
     error TakasurePool__MintFailed();
     error TakasurePool__WrongWakalaFee();
-    error TakasurePool__InvalidMember();
     error TakasurePool__MemberAlreadyKYCed();
 
     modifier notZeroAddress(address _address) {
@@ -190,8 +189,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     /// @dev It reverts if the member is already KYCed
     function setKYCStatus(address member) external onlyOwner {
-        if (member == address(0) || reserve.members[member].memberState != MemberState.Active) {
-            revert TakasurePool__InvalidMember();
+        if (member == address(0)) {
+            revert TakasurePool__ZeroAddress();
         }
         if (reserve.members[member].isKYCVerified) {
             revert TakasurePool__MemberAlreadyKYCed();
