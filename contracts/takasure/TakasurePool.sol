@@ -136,33 +136,26 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         // Todo: re-calculate DAO Surplus.
 
-        if (!reserve.members[msg.sender].isKYCVerified) {
-            // TODO: lock the funds
-        } else {
-            // Normal flow
+        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
+        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
+        contributionAmount =
+            (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            DECIMAL_REQUIREMENT_PRECISION_USDC;
+        uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
+        uint256 depositAmount = contributionAmount - wakalaAmount;
 
-            // Setting variables used in different scope blocks
-            // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
-            // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-            contributionAmount =
-                (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
-                DECIMAL_REQUIREMENT_PRECISION_USDC;
-            uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
-            uint256 depositAmount = contributionAmount - wakalaAmount;
+        bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
 
-            _createNewMember(
-                benefitMultiplier,
-                contributionAmount,
-                membershipDuration,
-                wakalaAmount
-            );
-            _updateProFormas(contributionAmount);
-            _updateReserves(contributionAmount, depositAmount);
-            _updateCashMappings(depositAmount);
-            uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
-            _updateDRR(cashLast12Months);
-            _updateBMA(cashLast12Months);
-            _transferAmounts(contributionAmount, depositAmount, wakalaAmount);
+        _createNewMember(
+            benefitMultiplier,
+            contributionAmount,
+            membershipDuration,
+            wakalaAmount,
+            isKYCVerified
+        );
+
+        if (isKYCVerified) {
+            _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount);
 
             emit OnMemberJoined(msg.sender, contributionAmount);
         }
@@ -274,11 +267,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 _benefitMultiplier,
         uint256 _contributionAmount,
         uint256 _membershipDuration,
-        uint256 _wakalaAmount
+        uint256 _wakalaAmount,
+        bool _isKYCVerified
     ) internal {
         ++memberIdCounter;
         uint256 currentTimestamp = block.timestamp;
         uint256 userMembershipDuration;
+        uint256 contributionAmount;
+        uint256 wakalaAmount;
+        uint256 lockedAmount;
 
         if (allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
@@ -286,22 +283,44 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
+        if (_isKYCVerified) {
+            contributionAmount = _contributionAmount;
+            wakalaAmount = _wakalaAmount;
+        } else {
+            lockedAmount = _contributionAmount;
+        }
+
         Member memory newMember = Member({
             memberId: memberIdCounter,
             benefitMultiplier: _benefitMultiplier,
             membershipDuration: userMembershipDuration,
             membershipStartTime: currentTimestamp,
-            contribution: _contributionAmount,
-            totalWakalaFee: _wakalaAmount,
+            lockedFunds: lockedAmount,
+            contribution: contributionAmount,
+            totalWakalaFee: wakalaAmount,
             wallet: msg.sender,
             memberState: MemberState.Active,
             surplus: 0, // Todo
-            isKYCVerified: false
+            isKYCVerified: _isKYCVerified
         });
 
         // Add the member to the corresponding mappings
         reserve.members[msg.sender] = newMember;
         idToMember[memberIdCounter] = newMember;
+    }
+
+    function _memberPaymentFlow(
+        uint256 _contributionAmount,
+        uint256 _wakalaAmount,
+        uint256 _depositAmount
+    ) internal {
+        _updateProFormas(_contributionAmount);
+        _updateReserves(_contributionAmount, _depositAmount);
+        _updateCashMappings(_depositAmount);
+        uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
+        _updateDRR(cashLast12Months);
+        _updateBMA(cashLast12Months);
+        _transferAmounts(_contributionAmount, _depositAmount, _wakalaAmount);
     }
 
     function _updateProFormas(uint256 _contributionAmount) internal {
