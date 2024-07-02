@@ -121,7 +121,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_setKYCStatusMustRevertIfMemberIsAddressZero() public {
         vm.prank(takasurePool.owner());
 
-        vm.expectRevert(TakasurePool.TakasurePool__InvalidMember.selector);
+        vm.expectRevert(TakasurePool.TakasurePool__ZeroAddress.selector);
         takasurePool.setKYCStatus(address(0));
     }
 
@@ -129,7 +129,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_setKYCStatusMustRevertIfMemberIsInvalid() public {
         vm.prank(takasurePool.owner());
 
-        vm.expectRevert(TakasurePool.TakasurePool__InvalidMember.selector);
+        vm.expectRevert(TakasurePool.TakasurePool__ZeroAddress.selector);
         takasurePool.setKYCStatus(alice);
     }
 
