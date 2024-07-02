@@ -276,6 +276,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 contributionAmount;
         uint256 wakalaAmount;
         uint256 lockedAmount;
+        MemberState newMemberState;
 
         if (allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
@@ -286,8 +287,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (_isKYCVerified) {
             contributionAmount = _contributionAmount;
             wakalaAmount = _wakalaAmount;
+            newMemberState = MemberState.Active;
         } else {
             lockedAmount = _contributionAmount;
+            newMemberState = MemberState.Inactive;
         }
 
         Member memory newMember = Member({
@@ -299,7 +302,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             contribution: contributionAmount,
             totalWakalaFee: wakalaAmount,
             wallet: msg.sender,
-            memberState: MemberState.Active,
+            memberState: newMemberState,
             surplus: 0, // Todo
             isKYCVerified: _isKYCVerified
         });
