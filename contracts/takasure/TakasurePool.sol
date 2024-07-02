@@ -194,7 +194,19 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__MemberAlreadyKYCed();
         }
 
+        (
+            uint256 contributionAmount,
+            uint256 wakalaAmount,
+            uint256 depositAmount
+        ) = _calculateDepositAndFee(reserve.members[member].lockedFunds);
+
+        reserve.members[member].contribution = contributionAmount;
+        reserve.members[member].totalWakalaFee = wakalaAmount;
+        reserve.members[member].lockedFunds = 0;
         reserve.members[member].isKYCVerified = true;
+        reserve.members[member].memberState = MemberState.Active;
+
+        _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount);
 
         emit OnMemberKycVerified(member);
     }
