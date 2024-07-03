@@ -143,18 +143,30 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             uint256 depositAmount
         ) = _calculateDepositAndFee(contributionAmount);
 
-        _createNewMember(
-            benefitMultiplier,
-            contribution,
-            membershipDuration,
-            wakalaAmount,
-            isKYCVerified
-        );
-
         if (isKYCVerified) {
+            _createNewMember(
+                benefitMultiplier,
+                contribution,
+                membershipDuration,
+                wakalaAmount,
+                isKYCVerified,
+                msg.sender,
+                MemberState.Active
+            );
+
             _memberPaymentFlow(contribution, wakalaAmount, depositAmount);
 
             emit OnMemberJoined(msg.sender, contribution);
+        } else {
+            _createNewMember(
+                benefitMultiplier,
+                contributionAmount,
+                membershipDuration,
+                0,
+                isKYCVerified,
+                msg.sender,
+                MemberState.Inactive
+            );
         }
     }
 
@@ -194,20 +206,23 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__MemberAlreadyKYCed();
         }
 
-        (
-            uint256 contributionAmount,
-            uint256 wakalaAmount,
-            uint256 depositAmount
-        ) = _calculateDepositAndFee(reserve.members[member].lockedFunds);
+        if (reserve.members[member].wallet == address(0)) {
+            _createNewMember(0, 0, 0, 0, true, member, MemberState.Inactive);
+        } else {
+            (
+                uint256 contributionAmount,
+                uint256 wakalaAmount,
+                uint256 depositAmount
+            ) = _calculateDepositAndFee(reserve.members[member].lockedFunds);
 
-        reserve.members[member].contribution = contributionAmount;
-        reserve.members[member].totalWakalaFee = wakalaAmount;
-        reserve.members[member].lockedFunds = 0;
-        reserve.members[member].isKYCVerified = true;
-        reserve.members[member].memberState = MemberState.Active;
+            reserve.members[member].contribution = contributionAmount;
+            reserve.members[member].totalWakalaFee = wakalaAmount;
+            reserve.members[member].lockedFunds = 0;
+            reserve.members[member].isKYCVerified = true;
+            reserve.members[member].memberState = MemberState.Active;
 
-        _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount);
-
+            _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount);
+        }
         emit OnMemberKycVerified(member);
     }
 
@@ -293,7 +308,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 _contributionAmount,
         uint256 _membershipDuration,
         uint256 _wakalaAmount,
-        bool _isKYCVerified
+        bool _isKYCVerified,
+        address _memberWallet,
+        MemberState _memberState
     ) internal {
         ++memberIdCounter;
         uint256 currentTimestamp = block.timestamp;
@@ -301,7 +318,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 contributionAmount;
         uint256 wakalaAmount;
         uint256 lockedAmount;
-        MemberState newMemberState;
 
         if (allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
@@ -312,10 +328,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (_isKYCVerified) {
             contributionAmount = _contributionAmount;
             wakalaAmount = _wakalaAmount;
-            newMemberState = MemberState.Active;
         } else {
             lockedAmount = _contributionAmount;
-            newMemberState = MemberState.Inactive;
         }
 
         Member memory newMember = Member({
@@ -326,14 +340,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             lockedFunds: lockedAmount,
             contribution: contributionAmount,
             totalWakalaFee: wakalaAmount,
-            wallet: msg.sender,
-            memberState: newMemberState,
+            wallet: _memberWallet,
+            memberState: _memberState,
             surplus: 0, // Todo
             isKYCVerified: _isKYCVerified
         });
 
         // Add the member to the corresponding mappings
-        reserve.members[msg.sender] = newMember;
+        reserve.members[_memberWallet] = newMember;
         idToMember[memberIdCounter] = newMember;
     }
 
