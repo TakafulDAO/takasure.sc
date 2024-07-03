@@ -17,6 +17,8 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Reserve, Member, MemberState} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
 
+import {console2} from "forge-std/Test.sol";
+
 pragma solidity 0.8.25;
 
 // todo: change OwnableUpgradeable to AccessControlUpgradeable
@@ -144,7 +146,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         ) = _calculateDepositAndFee(contributionAmount);
 
         if (isKYCVerified) {
-            _createNewMember(
+            _createNewOrUpdateMember(
                 benefitMultiplier,
                 contribution,
                 membershipDuration,
@@ -158,7 +160,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
             emit OnMemberJoined(msg.sender, contribution);
         } else {
-            _createNewMember(
+            console2.log("AQUIIIIIIIIIIIIIIIIIIIIIIIII");
+
+            _createNewOrUpdateMember(
                 benefitMultiplier,
                 contributionAmount,
                 membershipDuration,
@@ -207,7 +211,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         if (reserve.members[member].wallet == address(0)) {
-            _createNewMember(0, 0, 0, 0, true, member, MemberState.Inactive);
+            _createNewOrUpdateMember(0, 0, 0, 0, true, member, MemberState.Inactive);
         } else {
             (
                 uint256 contributionAmount,
@@ -303,7 +307,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         depositAmount_ = contributionAmount_ - wakalaAmount_;
     }
 
-    function _createNewMember(
+    function _createNewOrUpdateMember(
         uint256 _benefitMultiplier,
         uint256 _contributionAmount,
         uint256 _membershipDuration,
@@ -312,7 +316,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address _memberWallet,
         MemberState _memberState
     ) internal {
-        ++memberIdCounter;
+        uint256 id;
         uint256 currentTimestamp = block.timestamp;
         uint256 userMembershipDuration;
         uint256 contributionAmount;
@@ -326,14 +330,20 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         if (_isKYCVerified) {
+            if (_benefitMultiplier == 0 && _contributionAmount == 0 && _wakalaAmount == 0) {
+                id = ++memberIdCounter;
+            } else {
+                id = reserve.members[_memberWallet].memberId;
+            }
             contributionAmount = _contributionAmount;
             wakalaAmount = _wakalaAmount;
         } else {
+            id = ++memberIdCounter;
             lockedAmount = _contributionAmount;
         }
 
         Member memory newMember = Member({
-            memberId: memberIdCounter,
+            memberId: id,
             benefitMultiplier: _benefitMultiplier,
             membershipDuration: userMembershipDuration,
             membershipStartTime: currentTimestamp,
