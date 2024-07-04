@@ -105,8 +105,6 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test contribution amount is transferred to the contract
     function testTakasurePool_KycFlow2() public {
-        uint256 memberIdBeforeJoin = takasurePool.memberIdCounter();
-
         // Join the pool
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
