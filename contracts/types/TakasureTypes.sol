@@ -14,7 +14,6 @@ struct Member {
     uint256 benefitMultiplier;
     uint256 membershipDuration; // in years
     uint256 membershipStartTime; // in seconds
-    uint256 lockedFunds; // in stablecoin currency in Wei
     uint256 contribution; // in stablecoin currency in Wei
     uint256 totalWakalaFee; // in stablecoin currency in Wei
     address wallet;
