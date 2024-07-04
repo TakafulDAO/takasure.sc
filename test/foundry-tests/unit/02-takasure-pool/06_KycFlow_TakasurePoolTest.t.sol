@@ -22,8 +22,6 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
 
-    event MemberJoined(address indexed member, uint256 indexed contributionAmount);
-
     function setUp() public {
         deployer = new DeployTokenAndPool();
         (, proxy, , contributionTokenAddress, ) = deployer.run();
@@ -58,6 +56,15 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         // member values only after KYC verification without joining the pool
         Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);
 
+        console2.log("Member values after KYC verification without joining the pool");
+        console2.log("Member ID", testMemberAfterKyc.memberId);
+        console2.log("Benefit Multiplier", testMemberAfterKyc.benefitMultiplier);
+        console2.log("Contribution", testMemberAfterKyc.contribution);
+        console2.log("Total Wakala Fee", testMemberAfterKyc.totalWakalaFee);
+        console2.log("Wallet", testMemberAfterKyc.wallet);
+        console2.log("Member State", uint8(testMemberAfterKyc.memberState));
+        console2.log("KYC Verification", testMemberAfterKyc.isKYCVerified);
+
         // Check the values
         assertEq(memberIdBeforeKyc + 1, memberIdAfterKyc, "Member ID is not correct");
         assertEq(testMemberAfterKyc.memberId, memberIdAfterKyc, "Member ID is not correct");
@@ -67,6 +74,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         assertEq(testMemberAfterKyc.wallet, alice, "Wallet is not correct");
         assertEq(uint8(testMemberAfterKyc.memberState), 0, "Member State is not correct");
         assertEq(testMemberAfterKyc.isKYCVerified, true, "KYC Verification is not correct");
+        console2.log("=====================================");
 
         // Join the pool
         vm.prank(alice);
@@ -76,6 +84,15 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
         // member values only after joining the pool
         Member memory testMemberAfterJoin = takasurePool.getMemberFromAddress(alice);
+
+        console2.log("Member values after joining the pool and KYC verification");
+        console2.log("Member ID", testMemberAfterJoin.memberId);
+        console2.log("Benefit Multiplier", testMemberAfterJoin.benefitMultiplier);
+        console2.log("Contribution", testMemberAfterJoin.contribution);
+        console2.log("Total Wakala Fee", testMemberAfterJoin.totalWakalaFee);
+        console2.log("Wallet", testMemberAfterJoin.wallet);
+        console2.log("Member State", uint8(testMemberAfterJoin.memberState));
+        console2.log("KYC Verification", testMemberAfterJoin.isKYCVerified);
 
         // Check the values
         assertEq(memberIdAfterKyc, memberIdAfterJoin, "Member ID is not correct");
@@ -105,8 +122,6 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test contribution amount is transferred to the contract
     function testTakasurePool_KycFlow2() public {
-        uint256 memberIdBeforeJoin = takasurePool.memberIdCounter();
-
         // Join the pool
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
@@ -115,6 +130,16 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
         // member values only after joining the pool
         Member memory testMemberAfterJoin = takasurePool.getMemberFromAddress(alice);
+
+        console2.log("Member values after joining the pool and before KYC verification");
+        console2.log("Member ID", testMemberAfterJoin.memberId);
+        console2.log("Benefit Multiplier", testMemberAfterJoin.benefitMultiplier);
+        console2.log("Contribution", testMemberAfterJoin.contribution);
+        console2.log("Total Wakala Fee", testMemberAfterJoin.totalWakalaFee);
+        console2.log("Wallet", testMemberAfterJoin.wallet);
+        console2.log("Member State", uint8(testMemberAfterJoin.memberState));
+        console2.log("KYC Verification", testMemberAfterJoin.isKYCVerified);
+        console2.log("=====================================");
 
         // Check the values
         assertEq(testMemberAfterJoin.memberId, memberIdAfterJoin, "Member ID is not correct");
@@ -140,6 +165,15 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
         // member values only after KYC verification without joining the pool
         Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);
+
+        console2.log("Member values after KYC verification and joining the pool");
+        console2.log("Member ID", testMemberAfterKyc.memberId);
+        console2.log("Benefit Multiplier", testMemberAfterKyc.benefitMultiplier);
+        console2.log("Contribution", testMemberAfterKyc.contribution);
+        console2.log("Total Wakala Fee", testMemberAfterKyc.totalWakalaFee);
+        console2.log("Wallet", testMemberAfterKyc.wallet);
+        console2.log("Member State", uint8(testMemberAfterKyc.memberState));
+        console2.log("KYC Verification", testMemberAfterKyc.isKYCVerified);
 
         // Check the values
         assertEq(testMemberAfterKyc.memberId, memberIdAfterKyc, "Member ID is not correct");
