@@ -111,7 +111,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Allow new members to join the pool
+     * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
+     *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
+     *         member will be active.
      * @param benefitMultiplier fetched from off-chain oracle
      * @param contributionAmount in six decimals
      * @param membershipDuration default 5 years
@@ -201,7 +203,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         allowCustomDuration = _allowCustomDuration;
     }
 
-    /// @dev It reverts if the member is already KYCed
+    /**
+     * @notice Set the KYC status of a member. If the member does not exist, it will be created as inactive
+     *         until the contribution is paid with joinPool. If the member has already joined the pool, then
+     *         the contribution will be paid and the member will be active.
+     * @param memberWallet address of the member
+     * @dev It reverts if the member is the zero address
+     * @dev It reverts if the member is already KYCed
+     */
     function setKYCStatus(address memberWallet) external onlyOwner {
         if (memberWallet == address(0)) {
             revert TakasurePool__ZeroAddress();
