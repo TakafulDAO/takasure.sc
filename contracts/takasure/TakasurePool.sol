@@ -66,6 +66,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error TakasurePool__WrongWakalaFee();
     error TakasurePool__MemberAlreadyKYCed();
     error TakasurePool__InvalidMember();
+    error TakasurePool__InvalidDate();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -188,9 +189,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 currentTimestamp = block.timestamp;
         uint256 yearsCovered = reserve.members[msg.sender].yearsCovered;
         uint256 membershipStartTime = reserve.members[msg.sender].membershipStartTime;
+        uint256 membershipDuration = reserve.members[msg.sender].membershipDuration;
 
-        if (currentTimestamp < membershipStartTime + ((yearsCovered + 1) * 365 days)) {
-            revert TakasurePool__InvalidMember();
+        if (
+            currentTimestamp < membershipStartTime + ((yearsCovered + 1) * 365 days) ||
+            currentTimestamp >= membershipStartTime + membershipDuration
+        ) {
+            revert TakasurePool__InvalidDate();
         }
 
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
@@ -211,7 +216,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         emit OnRecurringPayment(
             msg.sender,
-            yearsCovered,
+            reserve.members[msg.sender].yearsCovered,
             reserve.members[msg.sender].contribution,
             reserve.members[msg.sender].totalWakalaFee
         );
