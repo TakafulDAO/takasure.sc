@@ -193,7 +193,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         if (
             currentTimestamp < membershipStartTime + ((yearsCovered + 1) * 365 days) ||
-            currentTimestamp >= membershipStartTime + membershipDuration
+            currentTimestamp > membershipStartTime + membershipDuration
         ) {
             revert TakasurePool__InvalidDate();
         }
