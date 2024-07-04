@@ -17,8 +17,6 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Reserve, Member, MemberState} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
 
-import {console2} from "forge-std/Test.sol";
-
 pragma solidity 0.8.25;
 
 // todo: change OwnableUpgradeable to AccessControlUpgradeable
@@ -139,34 +137,36 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
 
-        (
-            uint256 contribution,
-            uint256 wakalaAmount,
-            uint256 depositAmount
-        ) = _calculateDepositAndFee(contributionAmount);
+        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
+        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
+        contributionAmount =
+            (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            DECIMAL_REQUIREMENT_PRECISION_USDC;
+        uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
+        uint256 depositAmount = contributionAmount - wakalaAmount;
 
         if (isKYCVerified) {
-            _createNewOrUpdateMember(
+            // It means the user is already in the system, we just need to update the values
+            _updateMember(
                 benefitMultiplier,
-                contribution,
+                contributionAmount,
                 membershipDuration,
                 wakalaAmount,
-                isKYCVerified,
                 msg.sender,
                 MemberState.Active
             );
 
-            _memberPaymentFlow(contribution, wakalaAmount, depositAmount);
+            // And we pay the contribution
+            _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, msg.sender);
 
-            emit OnMemberJoined(msg.sender, contribution);
+            emit OnMemberJoined(msg.sender, contributionAmount);
         } else {
-            console2.log("AQUIIIIIIIIIIIIIIIIIIIIIIIII");
-
-            _createNewOrUpdateMember(
+            // If is not KYC verified, we create a new member, inactive, without kyc
+            _createNewMember(
                 benefitMultiplier,
                 contributionAmount,
                 membershipDuration,
-                0,
+                wakalaAmount,
                 isKYCVerified,
                 msg.sender,
                 MemberState.Inactive
@@ -202,32 +202,36 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     /// @dev It reverts if the member is already KYCed
-    function setKYCStatus(address member) external onlyOwner {
-        if (member == address(0)) {
+    function setKYCStatus(address memberWallet) external onlyOwner {
+        if (memberWallet == address(0)) {
             revert TakasurePool__ZeroAddress();
         }
-        if (reserve.members[member].isKYCVerified) {
+        if (reserve.members[memberWallet].isKYCVerified) {
             revert TakasurePool__MemberAlreadyKYCed();
         }
 
-        if (reserve.members[member].wallet == address(0)) {
-            _createNewOrUpdateMember(0, 0, 0, 0, true, member, MemberState.Inactive);
+        if (reserve.members[memberWallet].wallet == address(0)) {
+            // This means the user does not exist yet
+            // We create a new one with some values set to 0, kyced, inactive until the contribution is paid with joinPool
+            _createNewMember(0, 0, 0, 0, true, memberWallet, MemberState.Inactive);
         } else {
-            (
-                uint256 contributionAmount,
-                uint256 wakalaAmount,
-                uint256 depositAmount
-            ) = _calculateDepositAndFee(reserve.members[member].lockedFunds);
+            // This means the user exists but is not KYCed yet
+            // We update the needed values and set the user as active
+            reserve.members[memberWallet].membershipStartTime = block.timestamp;
+            reserve.members[memberWallet].isKYCVerified = true;
+            reserve.members[memberWallet].memberState = MemberState.Active;
 
-            reserve.members[member].contribution = contributionAmount;
-            reserve.members[member].totalWakalaFee = wakalaAmount;
-            reserve.members[member].lockedFunds = 0;
-            reserve.members[member].isKYCVerified = true;
-            reserve.members[member].memberState = MemberState.Active;
+            // Then we pay the contribution
+            // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
+            // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
+            uint256 contributionAmount = (reserve.members[memberWallet].contribution /
+                DECIMAL_REQUIREMENT_PRECISION_USDC) * DECIMAL_REQUIREMENT_PRECISION_USDC;
+            uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
+            uint256 depositAmount = contributionAmount - wakalaAmount;
 
-            _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount);
+            _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, memberWallet);
         }
-        emit OnMemberKycVerified(member);
+        emit OnMemberKycVerified(memberWallet);
     }
 
     function getReserveValues()
@@ -291,23 +295,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
     }
 
-    function _calculateDepositAndFee(
-        uint256 _contributionAmount
-    )
-        internal
-        view
-        returns (uint256 contributionAmount_, uint256 wakalaAmount_, uint256 depositAmount_)
-    {
-        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
-        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        contributionAmount_ =
-            (_contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
-            DECIMAL_REQUIREMENT_PRECISION_USDC;
-        wakalaAmount_ = (contributionAmount_ * reserve.wakalaFee) / 100;
-        depositAmount_ = contributionAmount_ - wakalaAmount_;
-    }
-
-    function _createNewOrUpdateMember(
+    function _createNewMember(
         uint256 _benefitMultiplier,
         uint256 _contributionAmount,
         uint256 _membershipDuration,
@@ -316,12 +304,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address _memberWallet,
         MemberState _memberState
     ) internal {
-        uint256 id;
+        ++memberIdCounter;
         uint256 currentTimestamp = block.timestamp;
         uint256 userMembershipDuration;
-        uint256 contributionAmount;
-        uint256 wakalaAmount;
-        uint256 lockedAmount;
 
         if (allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
@@ -329,27 +314,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
-        if (_isKYCVerified) {
-            if (_benefitMultiplier == 0 && _contributionAmount == 0 && _wakalaAmount == 0) {
-                id = ++memberIdCounter;
-            } else {
-                id = reserve.members[_memberWallet].memberId;
-            }
-            contributionAmount = _contributionAmount;
-            wakalaAmount = _wakalaAmount;
-        } else {
-            id = ++memberIdCounter;
-            lockedAmount = _contributionAmount;
-        }
-
         Member memory newMember = Member({
-            memberId: id,
+            memberId: memberIdCounter,
             benefitMultiplier: _benefitMultiplier,
             membershipDuration: userMembershipDuration,
             membershipStartTime: currentTimestamp,
-            lockedFunds: lockedAmount,
-            contribution: contributionAmount,
-            totalWakalaFee: wakalaAmount,
+            contribution: _contributionAmount,
+            totalWakalaFee: _wakalaAmount,
             wallet: _memberWallet,
             memberState: _memberState,
             surplus: 0, // Todo
@@ -361,10 +332,44 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         idToMember[memberIdCounter] = newMember;
     }
 
+    function _updateMember(
+        uint256 _benefitMultiplier,
+        uint256 _contributionAmount,
+        uint256 _membershipDuration,
+        uint256 _wakalaAmount,
+        address _memberWallet,
+        MemberState _memberState
+    ) internal {
+        uint256 currentTimestamp = block.timestamp;
+        uint256 userMembershipDuration;
+
+        if (allowCustomDuration) {
+            userMembershipDuration = _membershipDuration;
+        } else {
+            userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
+        }
+
+        reserve.members[_memberWallet].benefitMultiplier = _benefitMultiplier;
+        reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
+        reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
+        reserve.members[_memberWallet].contribution = _contributionAmount;
+        reserve.members[_memberWallet].totalWakalaFee = _wakalaAmount;
+        reserve.members[_memberWallet].memberState = _memberState;
+
+        if (reserve.members[_memberWallet].membershipDuration != userMembershipDuration) {
+            reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
+        }
+
+        if (!reserve.members[_memberWallet].isKYCVerified) {
+            reserve.members[_memberWallet].isKYCVerified = true;
+        }
+    }
+
     function _memberPaymentFlow(
         uint256 _contributionAmount,
         uint256 _wakalaAmount,
-        uint256 _depositAmount
+        uint256 _depositAmount,
+        address _memberWallet
     ) internal {
         _updateProFormas(_contributionAmount);
         _updateReserves(_contributionAmount, _depositAmount);
@@ -372,7 +377,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
-        _transferAmounts(_contributionAmount, _depositAmount, _wakalaAmount);
+        _transferAmounts(_contributionAmount, _depositAmount, _wakalaAmount, _memberWallet);
     }
 
     function _updateProFormas(uint256 _contributionAmount) internal {
@@ -591,7 +596,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _transferAmounts(
         uint256 _contributionAmount,
         uint256 _depositAmount,
-        uint256 _wakalaAmount
+        uint256 _wakalaAmount,
+        address _memberWallet
     ) internal {
         // Scope to avoid stack too deep error. This scope include the external calls.
         // At the end following CEI pattern
@@ -600,19 +606,19 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Mint needed DAO Tokens
         uint256 mintAmount = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
-        success = daoToken.mint(msg.sender, mintAmount);
+        success = daoToken.mint(_memberWallet, mintAmount);
         if (!success) {
             revert TakasurePool__MintFailed();
         }
 
         // Transfer the contribution to the pool
-        success = contributionToken.transferFrom(msg.sender, address(this), _depositAmount);
+        success = contributionToken.transferFrom(_memberWallet, address(this), _depositAmount);
         if (!success) {
             revert TakasurePool__ContributionTransferFailed();
         }
 
         // Transfer the wakala fee to the DAO
-        success = contributionToken.transferFrom(msg.sender, wakalaClaimAddress, _wakalaAmount);
+        success = contributionToken.transferFrom(_memberWallet, wakalaClaimAddress, _wakalaAmount);
         if (!success) {
             revert TakasurePool__FeeTransferFailed();
         }
