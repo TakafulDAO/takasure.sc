@@ -50,6 +50,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     event OnMemberJoined(address indexed member, uint256 indexed contributionAmount);
     event OnMemberKycVerified(address indexed member);
+    event OnRecurringPayment(
+        address indexed member,
+        uint256 indexed updatedYearsCovered,
+        uint256 indexed updatedContribution,
+        uint256 updatedTotalWakalaFee
+    );
 
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
@@ -59,6 +65,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error TakasurePool__MintFailed();
     error TakasurePool__WrongWakalaFee();
     error TakasurePool__MemberAlreadyKYCed();
+    error TakasurePool__InvalidMember();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -172,6 +179,42 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 MemberState.Inactive
             );
         }
+    }
+
+    function recurringPayment(uint256 contributionAmount) external {
+        if (!reserve.members[msg.sender].isKYCVerified) {
+            revert TakasurePool__InvalidMember();
+        }
+        uint256 currentTimestamp = block.timestamp;
+        uint256 yearsCovered = reserve.members[msg.sender].yearsCovered;
+        uint256 membershipStartTime = reserve.members[msg.sender].membershipStartTime;
+
+        if (currentTimestamp < membershipStartTime + ((yearsCovered + 1) * 365 days)) {
+            revert TakasurePool__InvalidMember();
+        }
+
+        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
+        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
+        contributionAmount =
+            (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            DECIMAL_REQUIREMENT_PRECISION_USDC;
+        uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
+        uint256 depositAmount = contributionAmount - wakalaAmount;
+
+        // Update the values
+        ++reserve.members[msg.sender].yearsCovered;
+        reserve.members[msg.sender].contribution += contributionAmount;
+        reserve.members[msg.sender].totalWakalaFee += wakalaAmount;
+
+        // And we pay the contribution
+        _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, msg.sender);
+
+        emit OnRecurringPayment(
+            msg.sender,
+            yearsCovered,
+            reserve.members[msg.sender].contribution,
+            reserve.members[msg.sender].totalWakalaFee
+        );
     }
 
     function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
@@ -318,6 +361,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             memberId: memberIdCounter,
             benefitMultiplier: _benefitMultiplier,
             membershipDuration: userMembershipDuration,
+            yearsCovered: 0,
             membershipStartTime: currentTimestamp,
             contribution: _contributionAmount,
             totalWakalaFee: _wakalaAmount,
