@@ -49,9 +49,6 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test the contribution amount's last four digits are zero
     function testTakasurePool_contributionAmountDecimals() public {
-        vm.prank(takasurePool.owner());
-        takasurePool.setKYCStatus(alice);
-
         uint256 contributionAmount = 227123456; // 227.123456 USDC
 
         deal(address(usdc), alice, contributionAmount);
@@ -62,6 +59,9 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         takasurePool.joinPool(BENEFIT_MULTIPLIER, contributionAmount, (5 * YEAR));
 
         vm.stopPrank();
+
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(alice);
 
         (, , , uint256 totalContributions, , , , , , , , ) = takasurePool.getReserveValues();
 
@@ -118,7 +118,10 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     }
 
     /// @dev Test the member is created
-    function testTakasurePool_newMember() public aliceKYCAndJoin {
+    function testTakasurePool_newMember() public {
+        vm.prank(alice);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+
         uint256 memberId = takasurePool.memberIdCounter();
 
         // Check the member is created and added correctly to mappings
@@ -129,7 +132,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         assertEq(testMember.benefitMultiplier, BENEFIT_MULTIPLIER);
         assertEq(testMember.contribution, CONTRIBUTION_AMOUNT);
         assertEq(testMember.wallet, alice);
-        assertEq(uint8(testMember.memberState), 1);
+        assertEq(uint8(testMember.memberState), 0);
 
         // Both members should be the same
         assertEq(testMember.memberId, testMember2.memberId);
