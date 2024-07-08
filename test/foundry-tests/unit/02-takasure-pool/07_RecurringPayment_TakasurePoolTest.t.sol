@@ -56,11 +56,11 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
             Member memory testMember = takasurePool.getMemberFromAddress(alice);
 
             uint256 yearBeforePayment = testMember.yearsCovered;
-            uint256 contributionBeforePayment = testMember.contribution;
+            uint256 totalContributionBeforePayment = testMember.totalContributions;
             uint256 totalWakalaFeeBeforePayment = testMember.totalWakalaFee;
 
             console2.log("Year", i);
-            console2.log("Contribution: ", contributionBeforePayment);
+            console2.log("Total Contribution: ", totalContributionBeforePayment);
             console2.log("Total Wakala Fee: ", totalWakalaFeeBeforePayment);
             console2.log("====================================");
 
@@ -72,20 +72,23 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
             emit OnRecurringPayment(
                 alice,
                 yearBeforePayment + 1,
-                contributionBeforePayment + CONTRIBUTION_AMOUNT,
+                totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
                 totalWakalaFeeBeforePayment + expectedWakalaIncrease
             );
-            takasurePool.recurringPayment(CONTRIBUTION_AMOUNT);
+            takasurePool.recurringPayment();
             vm.stopPrank;
 
             testMember = takasurePool.getMemberFromAddress(alice);
 
             uint256 yearAfterPayment = testMember.yearsCovered;
-            uint256 contributionAfterPayment = testMember.contribution;
+            uint256 totalContributionAfterPayment = testMember.totalContributions;
             uint256 totalWakalaFeeAfterPayment = testMember.totalWakalaFee;
 
             assert(yearAfterPayment == yearBeforePayment + 1);
-            assert(contributionAfterPayment == contributionBeforePayment + CONTRIBUTION_AMOUNT);
+            assert(
+                totalContributionAfterPayment ==
+                    totalContributionBeforePayment + CONTRIBUTION_AMOUNT
+            );
             assert(
                 totalWakalaFeeAfterPayment == totalWakalaFeeBeforePayment + expectedWakalaIncrease
             );

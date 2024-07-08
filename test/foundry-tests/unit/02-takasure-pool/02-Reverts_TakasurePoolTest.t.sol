@@ -144,7 +144,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_recurringPaymentMustRevertIfMemberIsInvalid() public {
         vm.prank(alice);
         vm.expectRevert(TakasurePool.TakasurePool__InvalidMember.selector);
-        takasurePool.recurringPayment(CONTRIBUTION_AMOUNT);
+        takasurePool.recurringPayment();
     }
 
     /// @dev `recurringPayment` must revert if the date is invalid, haven't met the year
@@ -157,7 +157,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         vm.expectRevert(TakasurePool.TakasurePool__InvalidDate.selector);
-        takasurePool.recurringPayment(CONTRIBUTION_AMOUNT);
+        takasurePool.recurringPayment();
         vm.stopPrank;
     }
 
@@ -176,7 +176,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
             vm.roll(block.number + 1);
 
             vm.startPrank(alice);
-            takasurePool.recurringPayment(CONTRIBUTION_AMOUNT);
+            takasurePool.recurringPayment();
             vm.stopPrank;
         }
 
@@ -185,6 +185,6 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
         vm.startPrank(alice);
         vm.expectRevert(TakasurePool.TakasurePool__InvalidDate.selector);
-        takasurePool.recurringPayment(CONTRIBUTION_AMOUNT);
+        takasurePool.recurringPayment();
     }
 }

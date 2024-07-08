@@ -182,7 +182,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function recurringPayment(uint256 contributionAmount) external {
+    function recurringPayment() external {
         if (!reserve.members[msg.sender].isKYCVerified) {
             revert TakasurePool__InvalidMember();
         }
@@ -198,17 +198,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__InvalidDate();
         }
 
-        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
-        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        contributionAmount =
-            (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
-            DECIMAL_REQUIREMENT_PRECISION_USDC;
+        uint256 contributionAmount = reserve.members[msg.sender].contribution;
         uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
         uint256 depositAmount = contributionAmount - wakalaAmount;
 
         // Update the values
         ++reserve.members[msg.sender].yearsCovered;
-        reserve.members[msg.sender].contribution += contributionAmount;
+        reserve.members[msg.sender].totalContributions += contributionAmount;
         reserve.members[msg.sender].totalWakalaFee += wakalaAmount;
 
         // And we pay the contribution
@@ -217,7 +213,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         emit OnRecurringPayment(
             msg.sender,
             reserve.members[msg.sender].yearsCovered,
-            reserve.members[msg.sender].contribution,
+            reserve.members[msg.sender].totalContributions,
             reserve.members[msg.sender].totalWakalaFee
         );
     }
@@ -369,6 +365,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             yearsCovered: 0,
             membershipStartTime: currentTimestamp,
             contribution: _contributionAmount,
+            totalContributions: _contributionAmount,
             totalWakalaFee: _wakalaAmount,
             wallet: _memberWallet,
             memberState: _memberState,
