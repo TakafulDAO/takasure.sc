@@ -59,7 +59,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
             uint256 totalContributionBeforePayment = testMember.totalContributions;
             uint256 totalWakalaFeeBeforePayment = testMember.totalWakalaFee;
 
-            console2.log("Year", i);
+            console2.log("Years Covered: ", yearBeforePayment);
             console2.log("Total Contribution: ", totalContributionBeforePayment);
             console2.log("Total Wakala Fee: ", totalWakalaFeeBeforePayment);
             console2.log("====================================");
