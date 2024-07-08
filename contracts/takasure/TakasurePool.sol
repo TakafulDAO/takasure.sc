@@ -157,19 +157,17 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
 
-        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
-        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        contributionAmount =
-            (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
-            DECIMAL_REQUIREMENT_PRECISION_USDC;
-        uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
-        uint256 depositAmount = contributionAmount - wakalaAmount;
+        (
+            uint256 correctedContributionAmount,
+            uint256 wakalaAmount,
+            uint256 depositAmount
+        ) = _calculateAmountAndFees(contributionAmount);
 
         if (isKYCVerified) {
             // It means the user is already in the system, we just need to update the values
             _updateMember(
                 benefitMultiplier,
-                contributionAmount,
+                correctedContributionAmount,
                 membershipDuration,
                 wakalaAmount,
                 msg.sender,
@@ -177,14 +175,19 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             );
 
             // And we pay the contribution
-            _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, msg.sender);
+            _memberPaymentFlow(
+                correctedContributionAmount,
+                wakalaAmount,
+                depositAmount,
+                msg.sender
+            );
 
             emit OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
         } else {
             // If is not KYC verified, we create a new member, inactive, without kyc
             _createNewMember(
                 benefitMultiplier,
-                contributionAmount,
+                correctedContributionAmount,
                 membershipDuration,
                 wakalaAmount,
                 isKYCVerified,
@@ -221,13 +224,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             reserve.members[memberWallet].isKYCVerified = true;
             reserve.members[memberWallet].memberState = MemberState.Active;
 
-            // Then we pay the contribution
-            // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
-            // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-            uint256 contributionAmount = (reserve.members[memberWallet].contribution /
-                DECIMAL_REQUIREMENT_PRECISION_USDC) * DECIMAL_REQUIREMENT_PRECISION_USDC;
-            uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
-            uint256 depositAmount = contributionAmount - wakalaAmount;
+            (
+                uint256 contributionAmount,
+                uint256 wakalaAmount,
+                uint256 depositAmount
+            ) = _calculateAmountAndFees(reserve.members[memberWallet].contribution);
 
             _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, memberWallet);
 
@@ -331,6 +332,23 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function getCashLast12Months() external view returns (uint256 cash_) {
         (uint16 monthFromCall, uint8 dayFromCall) = _monthAndDayFromCall();
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
+    }
+
+    function _calculateAmountAndFees(
+        uint256 _contributionAmount
+    )
+        internal
+        view
+        returns (uint256 contributionAmount_, uint256 wakalaAmount_, uint256 depositAmount_)
+    {
+        // Then we pay the contribution
+        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
+        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
+        contributionAmount_ =
+            (_contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            DECIMAL_REQUIREMENT_PRECISION_USDC;
+        wakalaAmount_ = (contributionAmount_ * reserve.wakalaFee) / 100;
+        depositAmount_ = contributionAmount_ - wakalaAmount_;
     }
 
     function _createNewMember(
