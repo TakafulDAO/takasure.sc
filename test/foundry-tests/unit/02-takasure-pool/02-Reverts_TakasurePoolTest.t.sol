@@ -147,15 +147,20 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.recurringPayment();
     }
 
-    /// @dev `recurringPayment` must revert if the date is invalid, haven't met the year
-    function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidStillNotMetTheYear() public {
+    /// @dev `recurringPayment` must revert if the date is invalid, a year has passed and the member has not paid
+    function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidNotPaidInTime() public {
         vm.prank(takasurePool.owner());
         takasurePool.setKYCStatus(alice);
 
         vm.startPrank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank;
 
+        vm.warp(block.timestamp + 366 days);
+        vm.roll(block.number + 1);
+
+        vm.startPrank(alice);
         vm.expectRevert(TakasurePool.TakasurePool__InvalidDate.selector);
         takasurePool.recurringPayment();
         vm.stopPrank;

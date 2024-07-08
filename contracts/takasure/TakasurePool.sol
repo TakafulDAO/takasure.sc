@@ -192,7 +192,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 membershipDuration = reserve.members[msg.sender].membershipDuration;
 
         if (
-            currentTimestamp < membershipStartTime + ((yearsCovered) * 365 days) ||
+            currentTimestamp > membershipStartTime + ((yearsCovered) * 365 days) ||
             currentTimestamp > membershipStartTime + membershipDuration
         ) {
             revert TakasurePool__InvalidDate();
