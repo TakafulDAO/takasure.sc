@@ -194,33 +194,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
-        if (newWakalaFee > 100) {
-            revert TakasurePool__WrongWakalaFee();
-        }
-        reserve.wakalaFee = newWakalaFee;
-    }
-
-    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
-        minimumThreshold = newMinimumThreshold;
-    }
-
-    function setNewContributionToken(
-        address newContributionToken
-    ) external onlyOwner notZeroAddress(newContributionToken) {
-        contributionToken = IERC20(newContributionToken);
-    }
-
-    function setNewWakalaClaimAddress(
-        address newWakalaClaimAddress
-    ) external onlyOwner notZeroAddress(newWakalaClaimAddress) {
-        wakalaClaimAddress = newWakalaClaimAddress;
-    }
-
-    function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
-        allowCustomDuration = _allowCustomDuration;
-    }
-
     /**
      * @notice Set the KYC status of a member. If the member does not exist, it will be created as inactive
      *         until the contribution is paid with joinPool. If the member has already joined the pool, then
@@ -270,6 +243,33 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             emit OnMemberJoined(reserve.members[memberWallet].memberId, memberWallet);
         }
         emit OnMemberKycVerified(memberWallet);
+    }
+
+    function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
+        if (newWakalaFee > 100) {
+            revert TakasurePool__WrongWakalaFee();
+        }
+        reserve.wakalaFee = newWakalaFee;
+    }
+
+    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
+        minimumThreshold = newMinimumThreshold;
+    }
+
+    function setNewContributionToken(
+        address newContributionToken
+    ) external onlyOwner notZeroAddress(newContributionToken) {
+        contributionToken = IERC20(newContributionToken);
+    }
+
+    function setNewWakalaClaimAddress(
+        address newWakalaClaimAddress
+    ) external onlyOwner notZeroAddress(newWakalaClaimAddress) {
+        wakalaClaimAddress = newWakalaClaimAddress;
+    }
+
+    function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
+        allowCustomDuration = _allowCustomDuration;
     }
 
     function getReserveValues()
