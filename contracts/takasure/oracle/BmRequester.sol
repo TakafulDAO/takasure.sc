@@ -5,12 +5,14 @@
  * @author Maikel Ordaz
  */
 
+// todo: natspec
+
 import {FunctionsClientMod} from "./FunctionsClientMod.sol";
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 
 pragma solidity 0.8.25;
 
-contract OracleConsumer is FunctionsClientMod {
+contract BmRequester is FunctionsClientMod {
     using FunctionsRequest for FunctionsRequest.Request;
 
     bytes32 public donId;
@@ -27,27 +29,17 @@ contract OracleConsumer is FunctionsClientMod {
     /**
      * @dev Initializes the contract setting the address provided by the deployer as the router.
      */
-    function __OracleConsumer_init(
+    function __BmRequester_init(
         address router,
         bytes32 _donId,
         string calldata _source
     ) internal onlyInitializing {
-        __OracleConsumer_init_unchained(router, _donId, _source);
-    }
-
-    function __OracleConsumer_init_unchained(
-        address _router,
-        bytes32 _donId,
-        string calldata _source
-    ) internal onlyInitializing {
-        __FunctionsClient_init(_router);
+        __FunctionsClientMod_init(router);
         donId = _donId;
         source = _source;
     }
 
     /**
-     * todo: here I make the call with _sendResquest
-     * Maybe source in initializer?
      */
     function fetchBM(
         // FunctionsRequest.Location secretsLocation,
