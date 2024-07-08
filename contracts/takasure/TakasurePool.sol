@@ -48,7 +48,25 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
-    event OnMemberJoined(address indexed member, uint256 indexed contributionAmount);
+    event OnMemberCreated(
+        uint256 indexed memberId,
+        address indexed member,
+        uint256 indexed benefitMultiplier,
+        uint256 contributionAmount,
+        uint256 wakalaFee,
+        uint256 membershipDuration,
+        uint256 membershipStartTime
+    ); // Emited when a new member is created
+    event OnMemberUpdated(
+        uint256 indexed memberId,
+        address indexed member,
+        uint256 indexed benefitMultiplier,
+        uint256 contributionAmount,
+        uint256 wakalaFee,
+        uint256 membershipDuration,
+        uint256 membershipStartTime
+    ); // Emited when a member is updated. This is used when a member first KYCed and then paid the contribution
+    event OnMemberJoined(uint indexed memberId, address indexed member);
     event OnMemberKycVerified(address indexed member);
 
     error TakasurePool__MemberAlreadyExists();
@@ -161,7 +179,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // And we pay the contribution
             _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, msg.sender);
 
-            emit OnMemberJoined(msg.sender, contributionAmount);
+            emit OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
         } else {
             // If is not KYC verified, we create a new member, inactive, without kyc
             _createNewMember(
@@ -239,6 +257,17 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             uint256 depositAmount = contributionAmount - wakalaAmount;
 
             _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, memberWallet);
+
+            emit OnMemberUpdated(
+                reserve.members[memberWallet].memberId,
+                memberWallet,
+                reserve.members[memberWallet].benefitMultiplier,
+                reserve.members[memberWallet].contribution,
+                reserve.members[memberWallet].totalWakalaFee,
+                reserve.members[memberWallet].membershipDuration,
+                reserve.members[memberWallet].membershipStartTime
+            );
+            emit OnMemberJoined(reserve.members[memberWallet].memberId, memberWallet);
         }
         emit OnMemberKycVerified(memberWallet);
     }
@@ -339,6 +368,16 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Add the member to the corresponding mappings
         reserve.members[_memberWallet] = newMember;
         idToMember[memberIdCounter] = newMember;
+
+        emit OnMemberCreated(
+            memberIdCounter,
+            _memberWallet,
+            _benefitMultiplier,
+            _contributionAmount,
+            _wakalaAmount,
+            userMembershipDuration,
+            currentTimestamp
+        );
     }
 
     function _updateMember(
@@ -372,6 +411,16 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (!reserve.members[_memberWallet].isKYCVerified) {
             reserve.members[_memberWallet].isKYCVerified = true;
         }
+
+        emit OnMemberUpdated(
+            reserve.members[_memberWallet].memberId,
+            _memberWallet,
+            _benefitMultiplier,
+            _contributionAmount,
+            _wakalaAmount,
+            userMembershipDuration,
+            currentTimestamp
+        );
     }
 
     function _memberPaymentFlow(
