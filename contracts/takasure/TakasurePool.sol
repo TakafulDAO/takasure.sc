@@ -13,6 +13,7 @@ import {ITSToken} from "../interfaces/ITSToken.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {BmRequester} from "./oracle/BmRequester.sol";
 
 import {Reserve, Member, MemberState} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
@@ -20,7 +21,7 @@ import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
 pragma solidity 0.8.25;
 
 // todo: change OwnableUpgradeable to AccessControlUpgradeable
-contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable, BmRequester {
     IERC20 private contributionToken;
     ITSToken private daoToken;
 

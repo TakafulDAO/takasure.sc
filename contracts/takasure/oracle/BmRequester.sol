@@ -48,7 +48,7 @@ contract BmRequester is FunctionsClientMod {
         // bytes[] calldata bytesArgs,
         uint64 subscriptionId,
         uint32 callbackGasLimit
-    ) public returns (bytes32) {
+    ) public returns (bytes32, bytes memory) {
         FunctionsRequest.Request memory req;
         req.initializeRequest(
             FunctionsRequest.Location.Inline,
@@ -67,7 +67,7 @@ contract BmRequester is FunctionsClientMod {
         bytes32 reqId = _sendRequest(req.encodeCBOR(), subscriptionId, callbackGasLimit, donId);
         lastRequestId = reqId;
 
-        return reqId;
+        return (reqId, lastResponse);
     }
 
     /**
