@@ -143,7 +143,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev `recurringPayment` must revert if the member is invalid
     function testTakasurePool_recurringPaymentMustRevertIfMemberIsInvalid() public {
         vm.prank(alice);
-        vm.expectRevert(TakasurePool.TakasurePool__InvalidMember.selector);
+        vm.expectRevert(TakasurePool.TakasurePool__WrongMemberState.selector);
         takasurePool.recurringPayment();
     }
 

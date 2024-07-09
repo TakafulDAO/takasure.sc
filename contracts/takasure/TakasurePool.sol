@@ -65,7 +65,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error TakasurePool__MintFailed();
     error TakasurePool__WrongWakalaFee();
     error TakasurePool__MemberAlreadyKYCed();
-    error TakasurePool__InvalidMember();
+    error TakasurePool__WrongMemberState();
     error TakasurePool__InvalidDate();
 
     modifier notZeroAddress(address _address) {
@@ -183,8 +183,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function recurringPayment() external {
-        if (!reserve.members[msg.sender].isKYCVerified) {
-            revert TakasurePool__InvalidMember();
+        if (reserve.members[msg.sender].memberState != MemberState.Active) {
+            revert TakasurePool__WrongMemberState();
         }
         uint256 currentTimestamp = block.timestamp;
         uint256 yearsCovered = reserve.members[msg.sender].yearsCovered;
