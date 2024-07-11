@@ -219,10 +219,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             _createNewMember(0, 0, 0, 0, true, memberWallet, MemberState.Inactive);
         } else {
             // This means the user exists but is not KYCed yet
-            // We update the needed values and set the user as active
-            reserve.members[memberWallet].membershipStartTime = block.timestamp;
-            reserve.members[memberWallet].isKYCVerified = true;
-            reserve.members[memberWallet].memberState = MemberState.Active;
 
             (
                 uint256 contributionAmount,
@@ -230,17 +226,17 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 uint256 depositAmount
             ) = _calculateAmountAndFees(reserve.members[memberWallet].contribution);
 
+            _updateMember(
+                reserve.members[memberWallet].benefitMultiplier,
+                contributionAmount,
+                reserve.members[memberWallet].membershipDuration,
+                wakalaAmount,
+                memberWallet,
+                MemberState.Active
+            );
+
             _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, memberWallet);
 
-            emit OnMemberUpdated(
-                reserve.members[memberWallet].memberId,
-                memberWallet,
-                reserve.members[memberWallet].benefitMultiplier,
-                reserve.members[memberWallet].contribution,
-                reserve.members[memberWallet].totalWakalaFee,
-                reserve.members[memberWallet].membershipDuration,
-                reserve.members[memberWallet].membershipStartTime
-            );
             emit OnMemberJoined(reserve.members[memberWallet].memberId, memberWallet);
         }
         emit OnMemberKycVerified(memberWallet);
@@ -415,20 +411,24 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
-        reserve.members[_memberWallet].benefitMultiplier = _benefitMultiplier;
-        reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
+        if (reserve.members[_memberWallet].benefitMultiplier != _benefitMultiplier)
+            reserve.members[_memberWallet].benefitMultiplier = _benefitMultiplier;
+
+        if (reserve.members[_memberWallet].membershipDuration != userMembershipDuration)
+            reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
+
         reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
-        reserve.members[_memberWallet].contribution = _contributionAmount;
-        reserve.members[_memberWallet].totalWakalaFee = _wakalaAmount;
+
+        if (reserve.members[_memberWallet].contribution != _contributionAmount)
+            reserve.members[_memberWallet].contribution = _contributionAmount;
+
+        if (reserve.members[_memberWallet].totalWakalaFee != _wakalaAmount)
+            reserve.members[_memberWallet].totalWakalaFee = _wakalaAmount;
+
         reserve.members[_memberWallet].memberState = _memberState;
 
-        if (reserve.members[_memberWallet].membershipDuration != userMembershipDuration) {
-            reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
-        }
-
-        if (!reserve.members[_memberWallet].isKYCVerified) {
+        if (!reserve.members[_memberWallet].isKYCVerified)
             reserve.members[_memberWallet].isKYCVerified = true;
-        }
 
         emit OnMemberUpdated(
             reserve.members[_memberWallet].memberId,
