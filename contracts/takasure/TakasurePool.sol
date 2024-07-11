@@ -411,20 +411,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
-        if (reserve.members[_memberWallet].benefitMultiplier != _benefitMultiplier)
-            reserve.members[_memberWallet].benefitMultiplier = _benefitMultiplier;
-
-        if (reserve.members[_memberWallet].membershipDuration != userMembershipDuration)
-            reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
-
+        reserve.members[_memberWallet].benefitMultiplier = _benefitMultiplier;
+        reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
         reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
-
-        if (reserve.members[_memberWallet].contribution != _contributionAmount)
-            reserve.members[_memberWallet].contribution = _contributionAmount;
-
-        if (reserve.members[_memberWallet].totalWakalaFee != _wakalaAmount)
-            reserve.members[_memberWallet].totalWakalaFee = _wakalaAmount;
-
+        reserve.members[_memberWallet].contribution = _contributionAmount;
+        reserve.members[_memberWallet].totalWakalaFee = _wakalaAmount;
         reserve.members[_memberWallet].memberState = _memberState;
 
         if (!reserve.members[_memberWallet].isKYCVerified)
