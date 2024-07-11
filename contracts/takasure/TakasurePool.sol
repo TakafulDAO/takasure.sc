@@ -684,7 +684,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__ContributionTransferFailed();
         }
 
-        // Transfer the wakala fee to the DAO
+        // Transfer the wakala fee to the wakala claim address
         success = contributionToken.transferFrom(_memberWallet, wakalaClaimAddress, _wakalaAmount);
         if (!success) {
             revert TakasurePool__FeeTransferFailed();
