@@ -3,7 +3,7 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {ReserveMathLibHarness} from "../helpers/harness/ReserveMathLibHarness.t.sol";
+import {ReserveMathLibHarness} from "../../helpers/harness/ReserveMathLibHarness.t.sol";
 
 contract ReserveMathLibFuzzTest is Test {
     ReserveMathLibHarness public reserveMathLibHarness;
