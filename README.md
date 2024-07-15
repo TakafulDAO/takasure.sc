@@ -95,6 +95,9 @@ Use `yarn compile` or `forge build`
 > [!NOTE]
 > The deployments are managed by hardhat. So the hardhat test check all the initializations and the foundry tests check the contract's logic
 
+>[!NOTE]
+> Some formal verification is made in this repo. Follow the instructions in the README file in the `certora` folder
+
 ### Deploy
 TODO
 
