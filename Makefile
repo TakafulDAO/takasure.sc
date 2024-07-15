@@ -25,6 +25,8 @@ update:; forge update
 
 build:; forge build
 
+build-certora:; forge build --contracts ./certora/
+
 test :; yarn test && forge test 
 
 coverage :; forge coverage --report debug > coverage-report.txt
@@ -45,3 +47,5 @@ endif
 deploy-token-and-pool:
 	@forge script scripts/foundry-deploy/DeployTokenAndPool.s.sol:DeployTokenAndPool $(NETWORK_ARGS)
 
+# Certora
+fv:; certoraRun ./certora/conf/ReserveMathLib.conf

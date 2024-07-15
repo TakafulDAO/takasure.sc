@@ -3,10 +3,10 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
-import {TSToken} from "../../../contracts/token/TSToken.sol";
+import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {TSToken} from "../../../../contracts/token/TSToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {TakasurePool} from "../../../contracts/takasure/TakasurePool.sol";
+import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
 
 contract TokenFuzzTest is Test {
     DeployTokenAndPool deployer;
@@ -43,24 +43,24 @@ contract TokenFuzzTest is Test {
         assert(!isBurner);
     }
 
-    function test_fuzz_onlyMinterCanMint(address minter) public {
+    function test_fuzz_onlyMinterCanMint(address notMinter) public {
         // The input address must not be the same as the takasurePool address
-        vm.assume(minter != address(takasurePool));
+        vm.assume(notMinter != address(takasurePool));
 
-        vm.prank(minter);
+        vm.prank(notMinter);
         vm.expectRevert();
         daoToken.mint(user, MINT_AMOUNT);
     }
 
-    function test_fuzz_onlyBurnerCanBurn(address burner) public {
+    function test_fuzz_onlyBurnerCanBurn(address notBurner) public {
         // The input address must not be the same as the takasurePool address
-        vm.assume(burner != address(takasurePool));
+        vm.assume(notBurner != address(takasurePool));
 
         // Mint some tokens to the user
         vm.prank(address(takasurePool));
         daoToken.mint(user, MINT_AMOUNT);
 
-        vm.prank(burner);
+        vm.prank(notBurner);
         vm.expectRevert();
         daoToken.burn(MINT_AMOUNT);
     }
