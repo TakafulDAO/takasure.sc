@@ -9,6 +9,7 @@ require("@nomicfoundation/hardhat-ethers")
 require("hardhat-deploy-ethers")
 require("@nomicfoundation/hardhat-chai-matchers")
 require("@nomicfoundation/hardhat-foundry")
+require("@openzeppelin/hardhat-upgrades")
 
 /******************************************** Private Keys *********************************************/
 const DEPLOYER_PK = process.env.DEPLOYER_PK
