@@ -7,8 +7,9 @@ module.exports = async ({ deployments }) => {
 
     let usdc, usdcAddress
     let daoToken, daoTokenAddress, wakalaClaimAddress
+    let takasureProxy, takasureProxyAddress
 
-    log("02.01. Deploying TakasurePool Contract...")
+    log("02.02. Deploying TakasurePool Contract...")
 
     if (isDevnet) {
         usdc = await deployments.get("USDC")
@@ -21,29 +22,28 @@ module.exports = async ({ deployments }) => {
     daoTokenAddress = daoToken.address
     wakalaClaimAddress = networkConfig[chainId]["wakalaClaimAddress"]
     daoOperator = networkConfig[chainId]["daoOperator"]
+    takasureProxy = await deployments.get("TakasurePool")
+    takasureProxyAddress = takasureProxy.address
 
     const initArgs = [usdcAddress, daoTokenAddress, wakalaClaimAddress, daoOperator]
 
-    const TakasurePool = await ethers.getContractFactory("TakasurePool")
-    const takasurePool = await upgrades.deployProxy(TakasurePool, initArgs)
-    await takasurePool.waitForDeployment()
+    const TakasurePoolUpgrade = await ethers.getContractFactory("TakasurePool")
+    const takasurePoolUpgrade = await upgrades.upgradeProxy(
+        takasureProxyAddress,
+        TakasurePoolUpgrade,
+    )
 
-    takasurePoolAddress = await takasurePool.getAddress()
     const artifact = await deployments.getArtifact("TakasurePool")
-
-    log("02.01. Writing TakasurePool Contract Deployment Data...")
 
     deployments.save("TakasurePool", {
         abi: artifact.abi,
-        address: takasurePoolAddress,
+        address: takasureProxyAddress,
         bytecode: artifact.bytecode,
         deployedBytecode: artifact.deployedBytecode,
     })
 
-    log("02.01. TakasurePool Data stored in the deployments folder")
-
-    log("02.01. TakasurePool Contract Deployed!")
+    log("02.02. TakasurePool Contract Upgraded!")
     log("=====================================================================================")
 }
 
-module.exports.tags = ["all", "pool", "takasure"]
+module.exports.tags = ["upgrade"]
