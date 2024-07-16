@@ -1,7 +1,5 @@
-const { network } = require("hardhat")
-const { developmentChains, isDevnet, isFork, networkConfig } = require("../../utils/_networks")
-const { verify } = require("../../scripts/verify")
-const { deployUpgradeProxy } = require("../../utils/deployHelpers")
+const { network, ethers, upgrades } = require("hardhat")
+const { isDevnet, networkConfig } = require("../../utils/_networks")
 
 module.exports = async ({ deployments }) => {
     const { log } = deployments
@@ -24,36 +22,28 @@ module.exports = async ({ deployments }) => {
     wakalaClaimAddress = networkConfig[chainId]["wakalaClaimAddress"]
     daoOperator = networkConfig[chainId]["daoOperator"]
 
-    const contractName = "TakasurePool"
     const initArgs = [usdcAddress, daoTokenAddress, wakalaClaimAddress, daoOperator]
-    const proxyPattern = "UUPS"
-    const deterministicDeployment = false
-    const contract = "TakasurePool"
 
-    const takasurePool = await deployUpgradeProxy(
-        contractName,
-        initArgs,
-        proxyPattern,
-        deterministicDeployment,
-        contract,
-    )
+    const TakasurePool = await ethers.getContractFactory("TakasurePool")
+    const takasurePool = await upgrades.deployProxy(TakasurePool, initArgs)
+    await takasurePool.waitForDeployment()
 
-    takasurePoolImplementation = await deployments.get("TakasurePool_Implementation")
+    takasurePoolAddress = await takasurePool.getAddress()
+    const artifact = await deployments.getArtifact("TakasurePool")
+
+    log("02.01. Writing TakasurePool Contract Deployment Data...")
+
+    deployments.save("TakasurePool", {
+        abi: artifact.abi,
+        address: takasurePoolAddress,
+        bytecode: artifact.bytecode,
+        deployedBytecode: artifact.deployedBytecode,
+    })
+
+    log("02.01. TakasurePool Data stored in the deployments folder")
 
     log("02.01. TakasurePool Contract Deployed!")
     log("=====================================================================================")
-
-    if (!developmentChains.includes(network.name) && process.env.ARBISCAN_API_KEY) {
-        log("02. Verifying TakasurePool!...")
-        await verify(takasurePool.address, [])
-        log("02. TakasurePool verified!")
-        log("=====================================================================================")
-        log("02. Verifying TakasurePool implementation!...")
-        await verify(takasurePoolImplementation.address, [])
-        log("02. TakasurePool implementation verified!")
-
-        log("=====================================================================================")
-    }
 }
 
 module.exports.tags = ["all", "pool", "takasure"]
