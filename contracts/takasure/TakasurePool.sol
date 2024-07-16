@@ -538,8 +538,4 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
-
-    function testUpgrade() external pure returns (string memory) {
-        return "Upgrade successful";
-    }
 }
