@@ -35,16 +35,12 @@ module.exports = async ({ deployments }) => {
 
     const artifact = await deployments.getArtifact("TakasurePool")
 
-    log("02.02. Writing TakasurePool Contract Deployment Data...")
-
     deployments.save("TakasurePool", {
         abi: artifact.abi,
         address: takasureProxyAddress,
         bytecode: artifact.bytecode,
         deployedBytecode: artifact.deployedBytecode,
     })
-
-    console.log("02.02. TakasurePool Data stored in the deployments folder")
 
     log("02.02. TakasurePool Contract Upgraded!")
     log("=====================================================================================")
