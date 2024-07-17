@@ -8,6 +8,8 @@
 
 pragma solidity 0.8.25;
 
+import {Member} from "../types/TakasureTypes.sol";
+
 library ReserveMathLib {
     error WrongTimestamps();
 
@@ -156,9 +158,24 @@ library ReserveMathLib {
                               ECRes & UCRes
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Calculate the earned and unearned contribution reserves for a member
     function _calculateECResAndUCResByMember(
-        address _member
-    ) internal pure returns (uint256 ecRes_, uint256 ucRes_) {}
+        Member memory member
+    ) internal view returns (uint256 ecRes_, uint256 ucRes_) {
+        uint256 currentTimestamp = block.timestamp;
+        uint256 claimReserveAdd = member.claimAddAmount;
+
+        // Current day in the since the membership started
+        uint256 currentDay = _calculateDaysPassed(currentTimestamp, member.membershipStartTime);
+
+        // Earned contribution reserve
+        ecRes_ = ((365 - currentDay) / 365) * claimReserveAdd;
+
+        // Unearned contribution reserve
+        ucRes_ = claimReserveAdd - ecRes_;
+
+        // Todo: maybe emit events here? possible implementation includes doing a for loop off chain so we might need it
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  DATES

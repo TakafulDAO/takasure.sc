@@ -720,6 +720,26 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
+    /// @notice Calculate the total earned and unearned contribution reserves for all active members
+    function _totalECResAndCRes() internal view returns (uint256 totalECRes_, uint256 totalUCRes_) {
+        // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
+
+        for (uint256 i = 1; i <= memberIdCounter; ) {
+            Member memory memberToCheck = idToMember[i];
+            if (memberToCheck.memberState == MemberState.Active) {
+                (uint256 memberECRes, uint256 memberUCRes) = ReserveMathLib
+                    ._calculateECResAndUCResByMember(memberToCheck);
+
+                totalECRes_ += memberECRes;
+                totalUCRes_ += memberUCRes;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
