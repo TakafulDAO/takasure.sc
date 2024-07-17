@@ -175,7 +175,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             );
 
             // And we pay the contribution
-            _memberPaymentFlow(correctedContributionAmount, depositAmount, msg.sender);
+            _memberPaymentFlow(
+                correctedContributionAmount,
+                depositAmount,
+                wakalaAmount,
+                msg.sender,
+                true
+            );
 
             emit OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
         } else {
@@ -202,11 +208,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      *         until the contribution is paid with joinPool. If the member has already joined the pool, then
      *         the contribution will be paid and the member will be active.
      * @param memberWallet address of the member
-     * @param contributionAmount in six decimals
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function setKYCStatus(address memberWallet, uint256 contributionAmount) external onlyOwner {
+    function setKYCStatus(address memberWallet) external onlyOwner {
         if (memberWallet == address(0)) {
             revert TakasurePool__ZeroAddress();
         }
@@ -216,27 +221,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         if (reserve.members[memberWallet].wallet == address(0)) {
             // This means the user does not exist yet
-            (
-                uint256 correctedContributionAmount,
-                uint256 wakalaAmount,
-                uint256 depositAmount
-            ) = _calculateAmountAndFees(contributionAmount);
-
             // We create a new one with some values set to 0, kyced, inactive until the contribution is paid with joinPool
-            _createNewMember(
-                0,
-                correctedContributionAmount,
-                0,
-                wakalaAmount,
-                true,
-                memberWallet,
-                MemberState.Inactive
-            );
-
-            // The member will pay the contribution, but will remain inactive until the KYC is verified
-            // This means the proformas wont be updated, the amounts wont be added to the reserves,
-            // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-            _transferAmounts(depositAmount, wakalaAmount, memberWallet);
+            _createNewMember(0, 0, 0, 0, true, memberWallet, MemberState.Inactive);
         } else {
             // This means the user exists but is not KYCed yet
 
@@ -256,8 +242,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             );
 
             // Then the everyting needed will be updated, proformas, reserves, cash flow,
-            // DRR, BMA, tokens minted
-            _memberPaymentFlow(correctedContributionAmount, depositAmount, memberWallet);
+            // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
+            _memberPaymentFlow(
+                correctedContributionAmount,
+                depositAmount,
+                wakalaAmount,
+                memberWallet,
+                false
+            );
 
             emit OnMemberJoined(reserve.members[memberWallet].memberId, memberWallet);
         }
@@ -459,10 +451,17 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
     }
 
+    /**
+     * @notice This function will update all the variables needed when a member pays the contribution
+     * @param _payContribution true -> the contribution will be paid and the credit tokens will be minted
+     *                         false -> np need to pay the contribution as it is already payed
+     */
     function _memberPaymentFlow(
         uint256 _contributionAmount,
         uint256 _depositAmount,
-        address _memberWallet
+        uint256 _wakalaAmount,
+        address _memberWallet,
+        bool _payContribution
     ) internal {
         _updateProFormas(_contributionAmount);
         _updateReserves(_contributionAmount, _depositAmount);
@@ -471,6 +470,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
         _mintDaoTokens(_contributionAmount, _memberWallet);
+        if (_payContribution) {
+            _transferAmounts(_depositAmount, _wakalaAmount, _memberWallet);
+        }
     }
 
     function _updateProFormas(uint256 _contributionAmount) internal {
