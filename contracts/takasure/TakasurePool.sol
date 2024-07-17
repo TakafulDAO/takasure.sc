@@ -394,6 +394,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             membershipDuration: userMembershipDuration,
             membershipStartTime: currentTimestamp,
             contribution: _contributionAmount,
+            claimAddAmount: (_contributionAmount * (100 - reserve.dynamicReserveRatio)) / 100,
             totalWakalaFee: _wakalaAmount,
             wallet: _memberWallet,
             memberState: _memberState,
@@ -437,6 +438,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
         reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
         reserve.members[_memberWallet].contribution = _contributionAmount;
+        reserve.members[_memberWallet].claimAddAmount =
+            (_contributionAmount * (100 - reserve.dynamicReserveRatio)) /
+            100;
         reserve.members[_memberWallet].totalWakalaFee = _wakalaAmount;
         reserve.members[_memberWallet].memberState = _memberState;
 
