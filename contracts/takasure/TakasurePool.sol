@@ -175,12 +175,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             );
 
             // And we pay the contribution
-            _memberPaymentFlow(
-                correctedContributionAmount,
-                wakalaAmount,
-                depositAmount,
-                msg.sender
-            );
+            _memberPaymentFlow(correctedContributionAmount, depositAmount, msg.sender);
 
             emit OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
         } else {
@@ -194,6 +189,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 msg.sender,
                 MemberState.Inactive
             );
+
+            // The member will pay the contribution, but will remain inactive until the KYC is verified
+            // This means the proformas wont be updated, the amounts wont be added to the reserves,
+            // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
+            _transferAmounts(depositAmount, wakalaAmount, msg.sender);
         }
     }
 
@@ -235,7 +235,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 MemberState.Active
             );
 
-            _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, memberWallet);
+            // Then the everyting needed will be updated, proformas, reserves, cash flow,
+            // DRR, BMA, tokens minted
+            _memberPaymentFlow(contributionAmount, depositAmount, memberWallet);
 
             emit OnMemberJoined(reserve.members[memberWallet].memberId, memberWallet);
         }
@@ -439,7 +441,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function _memberPaymentFlow(
         uint256 _contributionAmount,
-        uint256 _wakalaAmount,
         uint256 _depositAmount,
         address _memberWallet
     ) internal {
@@ -449,7 +450,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
-        _transferAmounts(_depositAmount, _wakalaAmount, _memberWallet);
+        _mintDaoTokens(_contributionAmount, _memberWallet);
     }
 
     function _updateProFormas(uint256 _contributionAmount) internal {
