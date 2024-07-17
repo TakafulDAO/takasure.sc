@@ -418,6 +418,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.members[_memberWallet].totalWakalaFee = _wakalaAmount;
         reserve.members[_memberWallet].memberState = _memberState;
 
+        // The KYC here is set to true to save gas doing this assumptions
+        // 1. If the user first KYC and then join the pool, the KYC is already verified
+        // 2. If the user join the pool and then KYC, then the KYC needs to change to true
+        //    when the member is updated
+        // 3. The user can not change the KYC status
         if (!reserve.members[_memberWallet].isKYCVerified)
             reserve.members[_memberWallet].isKYCVerified = true;
 
