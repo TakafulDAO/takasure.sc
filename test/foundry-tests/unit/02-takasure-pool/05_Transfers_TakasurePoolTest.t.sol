@@ -49,8 +49,6 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         vm.prank(takasurePool.owner());
         takasurePool.setKYCStatus(alice);
 
-        (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
-
         uint256 contractBalanceAfter = usdc.balanceOf(address(takasurePool));
 
         assertEq(contractBalanceAfter, contractBalanceBefore);
