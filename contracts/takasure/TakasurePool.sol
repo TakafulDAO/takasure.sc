@@ -126,6 +126,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
         reserve.wakalaFee = 20; // 20% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
+        reserve.riskMultiplier = 75; // 75% Default // todo: here or in a reinitializer? check later
     }
 
     /**
@@ -738,6 +739,17 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 ++i;
             }
         }
+    }
+
+    function _calculateSurplus() internal view returns (uint256 surplus_) {
+        (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndCRes();
+        uint256 UCRisk;
+
+        if (totalUCRes * reserve.riskMultiplier > 0) {
+            UCRisk = totalUCRes * reserve.riskMultiplier;
+        }
+
+        // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
     }
 
     ///@dev required by the OZ UUPS module
