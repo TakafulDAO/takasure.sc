@@ -72,7 +72,15 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         vm.prank(takasurePool.owner());
 
         vm.expectEmit(true, true, true, true, address(takasurePool));
-        emit OnMemberCreated(memberIdBeforeKyc + 1, alice, 0, 0, 0, 5 * YEAR, 1);
+        emit OnMemberCreated(
+            memberIdBeforeKyc + 1,
+            alice,
+            0,
+            CONTRIBUTION_AMOUNT,
+            ((CONTRIBUTION_AMOUNT * 20) / 100),
+            5 * YEAR,
+            1
+        );
 
         vm.expectEmit(true, false, false, false, address(takasurePool));
         emit OnMemberKycVerified(alice);
@@ -97,8 +105,16 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         assertEq(memberIdBeforeKyc + 1, memberIdAfterKyc, "Member ID is not correct");
         assertEq(testMemberAfterKyc.memberId, memberIdAfterKyc, "Member ID is not correct");
         assertEq(testMemberAfterKyc.benefitMultiplier, 0, "Benefit Multiplier is not correct");
-        assertEq(testMemberAfterKyc.contribution, 0, "Contribution is not correct");
-        assertEq(testMemberAfterKyc.totalWakalaFee, 0, "Total Wakala Fee is not correct");
+        assertEq(
+            testMemberAfterKyc.contribution,
+            CONTRIBUTION_AMOUNT,
+            "Contribution is not correct"
+        );
+        assertEq(
+            testMemberAfterKyc.totalWakalaFee,
+            ((CONTRIBUTION_AMOUNT * 20) / 100),
+            "Total Wakala Fee is not correct"
+        );
         assertEq(testMemberAfterKyc.wallet, alice, "Wallet is not correct");
         assertEq(uint8(testMemberAfterKyc.memberState), 0, "Member State is not correct");
         assertEq(testMemberAfterKyc.isKYCVerified, true, "KYC Verification is not correct");

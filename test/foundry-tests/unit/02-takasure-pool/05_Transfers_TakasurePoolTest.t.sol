@@ -42,11 +42,25 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
                     JOIN POOL::TRANSFER AMOUNTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Test contribution amount is transferred to the contract
-    function testTakasurePool_contributionAmountTransferToContract() public {
+    /// @dev Test contribution amount is transferred to the contract when KYC
+    function testTakasurePool_contributionAmountTransferToContractWhenKyc() public {
+        uint256 contractBalanceBefore = usdc.balanceOf(address(takasurePool));
+
         vm.prank(takasurePool.owner());
         takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
 
+        (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
+
+        uint256 contractBalanceAfter = usdc.balanceOf(address(takasurePool));
+
+        uint256 fee = (CONTRIBUTION_AMOUNT * wakalaFee) / 100;
+        uint256 deposited = CONTRIBUTION_AMOUNT - fee;
+
+        assertEq(contractBalanceAfter, contractBalanceBefore + deposited);
+    }
+
+    /// @dev Test contribution amount is transferred to the contract when joins the pool
+    function testTakasurePool_contributionAmountTransferToContractWhenJoinPool() public {
         uint256 contractBalanceBefore = usdc.balanceOf(address(takasurePool));
 
         (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
@@ -62,11 +76,25 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         assertEq(contractBalanceAfter, contractBalanceBefore + deposited);
     }
 
-    /// @dev Test wakala fee is transferred
-    function testTakasurePool_wakalaFeeAmountTransfered() public {
+    /// @dev Test wakala fee is transferred when the member sets the KYC status
+    function testTakasurePool_wakalaFeeAmountTransferedWhenKyc() public {
+        address wakalaFeeReceiver = takasurePool.wakalaClaimAddress();
+        uint256 wakalaFeeReceiverBalanceBefore = usdc.balanceOf(wakalaFeeReceiver);
+
         vm.prank(takasurePool.owner());
         takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
 
+        (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
+
+        uint256 wakalaFeeReceiverBalanceAfter = usdc.balanceOf(wakalaFeeReceiver);
+
+        uint256 feeColected = (CONTRIBUTION_AMOUNT * wakalaFee) / 100; // 25USDC * 20% = 5USDC
+
+        assertEq(wakalaFeeReceiverBalanceAfter, wakalaFeeReceiverBalanceBefore + feeColected);
+    }
+
+    /// @dev Test wakala fee is transferred when the member joins the pool
+    function testTakasurePool_wakalaFeeAmountTransferedWhenJoinsPool() public {
         (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
         address wakalaFeeReceiver = takasurePool.wakalaClaimAddress();
         uint256 wakalaFeeReceiverBalanceBefore = usdc.balanceOf(wakalaFeeReceiver);
