@@ -449,7 +449,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
-        _transferAmounts(_contributionAmount, _depositAmount, _wakalaAmount, _memberWallet);
+        _transferAmounts(_depositAmount, _wakalaAmount, _memberWallet);
     }
 
     function _updateProFormas(uint256 _contributionAmount) internal {
@@ -666,22 +666,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _transferAmounts(
-        uint256 _contributionAmount,
         uint256 _depositAmount,
         uint256 _wakalaAmount,
         address _memberWallet
     ) internal {
-        // Scope to avoid stack too deep error. This scope include the external calls.
-        // At the end following CEI pattern
         bool success;
-
-        // Mint needed DAO Tokens
-        uint256 mintAmount = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-
-        success = daoToken.mint(_memberWallet, mintAmount);
-        if (!success) {
-            revert TakasurePool__MintFailed();
-        }
 
         // Transfer the contribution to the pool
         success = contributionToken.transferFrom(_memberWallet, address(this), _depositAmount);
@@ -693,6 +682,16 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         success = contributionToken.transferFrom(_memberWallet, wakalaClaimAddress, _wakalaAmount);
         if (!success) {
             revert TakasurePool__FeeTransferFailed();
+        }
+    }
+
+    function _mintDaoTokens(uint256 _contributionAmount, address _memberWallet) internal {
+        // Mint needed DAO Tokens
+        uint256 mintAmount = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+
+        bool success = daoToken.mint(_memberWallet, mintAmount);
+        if (!success) {
+            revert TakasurePool__MintFailed();
         }
     }
 
