@@ -108,7 +108,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev If it is an active member, can not join again
     function testTakasurePool_activeMembersSholdNotJoinAgain() public {
         vm.prank(takasurePool.owner());
-        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
+        takasurePool.setKYCStatus(alice);
 
         vm.startPrank(alice);
         // Alice joins the pool
@@ -125,17 +125,17 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.prank(takasurePool.owner());
 
         vm.expectRevert(TakasurePool.TakasurePool__ZeroAddress.selector);
-        takasurePool.setKYCStatus(address(0), CONTRIBUTION_AMOUNT);
+        takasurePool.setKYCStatus(address(0));
     }
 
     /// @dev `setKYCStatus` must revert if the member is already KYC verified
     function testTakasurePool_setKYCStatusMustRevertIfMemberIsAlreadyKYCVerified() public {
         vm.startPrank(takasurePool.owner());
-        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
+        takasurePool.setKYCStatus(alice);
 
         // And tries to join again but fails
         vm.expectRevert(TakasurePool.TakasurePool__MemberAlreadyKYCed.selector);
-        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
+        takasurePool.setKYCStatus(alice);
 
         vm.stopPrank();
     }
