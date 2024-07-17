@@ -77,7 +77,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         vm.expectEmit(true, false, false, false, address(takasurePool));
         emit OnMemberKycVerified(alice);
 
-        takasurePool.setKYCStatus(alice);
+        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
 
         uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
 
@@ -234,7 +234,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         vm.expectEmit(true, false, false, false, address(takasurePool));
         emit OnMemberKycVerified(alice);
 
-        takasurePool.setKYCStatus(alice);
+        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
 
         uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
 

@@ -45,7 +45,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
     /// @dev Test contribution amount is transferred to the contract
     function testTakasurePool_contributionAmountTransferToContract() public {
         vm.prank(takasurePool.owner());
-        takasurePool.setKYCStatus(alice);
+        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
 
         uint256 contractBalanceBefore = usdc.balanceOf(address(takasurePool));
 
@@ -65,7 +65,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
     /// @dev Test wakala fee is transferred
     function testTakasurePool_wakalaFeeAmountTransfered() public {
         vm.prank(takasurePool.owner());
-        takasurePool.setKYCStatus(alice);
+        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
 
         (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
         address wakalaFeeReceiver = takasurePool.wakalaClaimAddress();

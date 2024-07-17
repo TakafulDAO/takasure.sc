@@ -59,7 +59,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         vm.stopPrank();
 
         vm.prank(takasurePool.owner());
-        takasurePool.setKYCStatus(alice);
+        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
 
         (, , , uint256 totalContributions, , , , , , , , ) = takasurePool.getReserveValues();
 
@@ -88,7 +88,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
     modifier aliceKYCAndJoin() {
         vm.prank(takasurePool.owner());
-        takasurePool.setKYCStatus(alice);
+        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
 
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -139,7 +139,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
     modifier bobKYCAndJoin() {
         vm.prank(takasurePool.owner());
-        takasurePool.setKYCStatus(bob);
+        takasurePool.setKYCStatus(bob, CONTRIBUTION_AMOUNT);
 
         vm.prank(bob);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -166,7 +166,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     /// @dev Pro formas updated when a member joins
     function testTakasurePool_proFormasUpdatedOnMemberJoined() public aliceKYCAndJoin {
         vm.prank(takasurePool.owner());
-        takasurePool.setKYCStatus(bob);
+        takasurePool.setKYCStatus(bob, CONTRIBUTION_AMOUNT);
 
         (
             ,
@@ -215,8 +215,8 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         vm.startPrank(takasurePool.owner());
 
-        takasurePool.setKYCStatus(alice);
-        takasurePool.setKYCStatus(bob);
+        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
+        takasurePool.setKYCStatus(bob, CONTRIBUTION_AMOUNT);
 
         vm.stopPrank();
 
@@ -249,8 +249,8 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         vm.startPrank(takasurePool.owner());
 
-        takasurePool.setKYCStatus(alice);
-        takasurePool.setKYCStatus(bob);
+        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
+        takasurePool.setKYCStatus(bob, CONTRIBUTION_AMOUNT);
 
         vm.stopPrank();
 

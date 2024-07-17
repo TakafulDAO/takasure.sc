@@ -89,7 +89,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         vm.prank(takasurePool.owner());
         vm.expectEmit(true, false, false, false, address(takasurePool));
         emit OnMemberKycVerified(alice);
-        takasurePool.setKYCStatus(alice);
+        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
 
         bool getMemberKYCstatusAfter = takasurePool.getMemberKYCStatus(alice);
 
