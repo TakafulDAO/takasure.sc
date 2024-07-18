@@ -724,9 +724,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     /// @notice Calculate the total earned and unearned contribution reserves for all active members
-    function _totalECResAndCRes() internal view returns (uint256 totalECRes_, uint256 totalUCRes_) {
-        // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
-
+    // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
+    function _totalECResAndCResUnboundedForLoop()
+        internal
+        view
+        returns (uint256 totalECRes_, uint256 totalUCRes_)
+    {
         for (uint256 i = 1; i <= memberIdCounter; ) {
             Member memory memberToCheck = idToMember[i];
             if (memberToCheck.memberState == MemberState.Active) {
@@ -746,7 +749,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _calculateSurplus() internal view returns (uint256 surplus_) {
         int256 possibleSurplus;
 
-        (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndCRes();
+        (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndCResUnboundedForLoop();
         uint256 UCRisk;
 
         if (totalUCRes * reserve.riskMultiplier > 0) {
