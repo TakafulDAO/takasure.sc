@@ -43,6 +43,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     uint256 public memberIdCounter;
     address public wakalaClaimAddress;
 
+    uint256 RPOOL; // todo: define this value
+
     mapping(uint256 memberIdCounter => Member) private idToMember;
 
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
@@ -742,6 +744,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _calculateSurplus() internal view returns (uint256 surplus_) {
+        int256 possibleSurplus;
+
         (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndCRes();
         uint256 UCRisk;
 
@@ -750,6 +754,20 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
+
+        int256 unearned = int256(UCRisk) - int256(totalUCRes) - int256(RPOOL);
+
+        if (unearned < 0) {
+            unearned = 0;
+        }
+
+        possibleSurplus = int256(totalECRes) - unearned;
+
+        if (possibleSurplus < 0) {
+            surplus_ = 0;
+        } else {
+            surplus_ = uint256(possibleSurplus);
+        }
     }
 
     ///@dev required by the OZ UUPS module

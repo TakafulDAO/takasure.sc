@@ -173,7 +173,15 @@ library ReserveMathLib {
 
         // Earned contribution reserve
         // ecRes_ = ((365 - currentDay) / 365) * claimReserveAdd;
-        ecRes_ = ((year - timePassed) / year) * claimReserveAdd;
+
+        int256 ecRes = (int256((year - timePassed) / year)) * int256(claimReserveAdd);
+        // ecRes_ = ((year - timePassed) / year) * claimReserveAdd;
+
+        if (ecRes > 0) {
+            ecRes_ = uint256(ecRes);
+        } else {
+            ecRes_ = 0;
+        }
 
         // Unearned contribution reserve
         ucRes_ = claimReserveAdd - ecRes_;
