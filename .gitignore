@@ -31,3 +31,9 @@ broadcast/
 # certora
 /certora/munged/
 .certora_*
+
+# openzeppelin deployments
+.openzeppelin/
+
+# local deployments
+deployments/localhost/

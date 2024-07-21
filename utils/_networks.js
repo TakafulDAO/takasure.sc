@@ -27,7 +27,7 @@ const networkConfig = {
     },
     421614: {
         name: "testnet_arbitrum_sepolia",
-        usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d", // https://developers.circle.com/stablecoins/docs/usdc-on-test-networks
+        usdc: "0xf9b2DE65196fA500527c576De9312E3c626C7d6a", // Minimal ERC20 for test purposes
         wakalaClaimAddress: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account // Todo: Change later for better tests
         daoOperator: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account, // Todo: Change later for better tests
     },
