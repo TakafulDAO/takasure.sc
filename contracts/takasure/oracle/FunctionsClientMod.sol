@@ -25,7 +25,11 @@ abstract contract FunctionsClientMod is Initializable, IFunctionsClient {
      * @dev Initializes the contract setting the address provided by the deployer as the router.
      */
     function __FunctionsClientMod_init(address router) internal onlyInitializing {
-        functionsRouter = IFunctionsRouter(router);
+        __FunctionsClientMod_init_unchained(router);
+    }
+
+    function __FunctionsClientMod_init_unchained(address _router) internal onlyInitializing {
+        functionsRouter = IFunctionsRouter(_router);
     }
 
     /// @notice Sends a Chainlink Functions request
