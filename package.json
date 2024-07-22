@@ -40,7 +40,6 @@
     "deploy:functions:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags functions-consumer",
     "post-deploy:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags post-deploy",
     "upgrade:takasure:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags upgrade-takasure-pool",
-    "upgrade:functions:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags upgrade-functions-consumer",
     "local": "yarn hardhat --network localhost",
     "n": "yarn hardhat node",
     "slither": "slither . --solc-remaps '@openzeppelin=node_modules/@openzeppelin' --exclude naming-convention,low-level-calls --buidler-ignore-compile",

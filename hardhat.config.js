@@ -59,7 +59,7 @@ module.exports = {
                         runs: 200,
                     },
                 },
-            }
+            },
         ],
     },
     defaultNetwork: "hardhat",
