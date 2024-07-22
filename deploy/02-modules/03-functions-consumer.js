@@ -1,5 +1,7 @@
-const { network, ethers, upgrades } = require("hardhat")
-const { networkConfig } = require("../../utils/_networks")
+const { network } = require("hardhat")
+const { developmentChains, networkConfig } = require("../../utils/_networks")
+const { verify } = require("../../scripts/verify")
+const { deploySimpleContract } = require("../../utils/deployHelpers")
 
 module.exports = async ({ deployments }) => {
     const { log } = deployments
@@ -8,32 +10,28 @@ module.exports = async ({ deployments }) => {
     log("02.03. Deploying FunctionsConsumer Contract...")
 
     functionsRouter = networkConfig[chainId]["functionsRouter"]
-    donId = networkConfig[chainId]["donId"]
-    subscriptionId = networkConfig[chainId]["subscriptionId"]
-    sourceCode = networkConfig[chainId]["sourceCode"]
 
-    const initArgs = [functionsRouter, donId, subscriptionId, sourceCode]
+    const contractName = "FunctionsConsumer"
+    const args = [functionsRouter]
+    const deterministicDeployment = false
+    const contract = "FunctionsConsumer"
 
-    const FunctionsConsumer = await ethers.getContractFactory("FunctionsConsumer")
-    const functionsConsumer = await upgrades.deployProxy(FunctionsConsumer, initArgs)
-    await functionsConsumer.waitForDeployment()
+    const functionsConsumer = await deploySimpleContract(
+        contractName,
+        args,
+        deterministicDeployment,
+        contract,
+    )
+    log("02.03. FunctionsConsumer Contract Deployed! ")
 
-    functionsConsumerAddress = await functionsConsumer.getAddress()
-    const artifact = await deployments.getArtifact("FunctionsConsumer")
+    log("=======================================================")
 
-    log("02.03. Writing FunctionsConsumer Contract Deployment Data...")
-
-    deployments.save("FunctionsConsumer", {
-        abi: artifact.abi,
-        address: functionsConsumerAddress,
-        bytecode: artifact.bytecode,
-        deployedBytecode: artifact.deployedBytecode,
-    })
-
-    log("02.03. FunctionsConsumer Data stored in the deployments folder")
-
-    log("02.03. FunctionsConsumer Contract Deployed!")
-    log("=====================================================================================")
+    if (!developmentChains.includes(network.name) && process.env.ARBISCAN_API_KEY) {
+        log("02.03. Verifying FunctionsConsumer Contract!... ")
+        await verify(functionsConsumer.address, args)
+        log("02.03. FunctionsConsumer Contract Verified! ")
+    }
+    log("=======================================================")
 }
 
-module.exports.tags = ["all", "functions-consumer"]
+module.exports.tags = ["functions-consumer"]
