@@ -1,31 +1,14 @@
-const { network, ethers, upgrades } = require("hardhat")
-const { isDevnet, networkConfig } = require("../../utils/_networks")
+const { ethers, upgrades } = require("hardhat")
 
 module.exports = async ({ deployments }) => {
     const { log } = deployments
-    const chainId = network.config.chainId
 
-    let usdc, usdcAddress
-    let daoToken, daoTokenAddress, wakalaClaimAddress
     let takasureProxy, takasureProxyAddress
 
     log("02.02. Deploying TakasurePool Contract...")
 
-    if (isDevnet) {
-        usdc = await deployments.get("USDC")
-        usdcAddress = usdc.address
-    } else {
-        usdcAddress = networkConfig[chainId]["usdc"]
-    }
-
-    daoToken = await deployments.get("TSToken")
-    daoTokenAddress = daoToken.address
-    wakalaClaimAddress = networkConfig[chainId]["wakalaClaimAddress"]
-    daoOperator = networkConfig[chainId]["daoOperator"]
     takasureProxy = await deployments.get("TakasurePool")
     takasureProxyAddress = takasureProxy.address
-
-    const initArgs = [usdcAddress, daoTokenAddress, wakalaClaimAddress, daoOperator]
 
     const TakasurePoolUpgrade = await ethers.getContractFactory("TakasurePool")
     const takasurePoolUpgrade = await upgrades.upgradeProxy(
@@ -46,4 +29,4 @@ module.exports = async ({ deployments }) => {
     log("=====================================================================================")
 }
 
-module.exports.tags = ["upgrade"]
+module.exports.tags = ["upgrade-takasure-pool"]
