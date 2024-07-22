@@ -30,6 +30,10 @@ const networkConfig = {
         usdc: "0xf9b2DE65196fA500527c576De9312E3c626C7d6a", // Minimal ERC20 for test purposes
         wakalaClaimAddress: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account // Todo: Change later for better tests
         daoOperator: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account, // Todo: Change later for better tests
+        functionsRouter: "0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C",
+        donId: "fun-arbitrum-sepolia-1",
+        subscriptionId: 123,
+        sourceCode: "",
     },
 }
 
