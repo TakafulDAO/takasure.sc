@@ -6,20 +6,14 @@
  */
 
 // todo: natspec
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {FunctionsClientMod, Initializable} from "./FunctionsClientMod.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
 
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 
 pragma solidity 0.8.25;
 
-contract FunctionsConsumer is
-    Initializable,
-    UUPSUpgradeable,
-    OwnableUpgradeable,
-    FunctionsClientMod
-{
+contract FunctionsConsumer is Ownable, FunctionsClient {
     using FunctionsRequest for FunctionsRequest.Request;
 
     bytes32 private donId;
@@ -35,23 +29,7 @@ contract FunctionsConsumer is
     error OracleConsumer__UnexpectedRequestID(bytes32 requestId);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize(
-        address router,
-        bytes32 _donId,
-        uint64 _subscriptionId,
-        string calldata _bmSourceRequestCode
-    ) external {
-        __UUPSUpgradeable_init();
-        __Ownable_init(msg.sender);
-        __FunctionsClientMod_init(router);
-        donId = _donId;
-        subscriptionId = _subscriptionId;
-        bmSourceRequestCode = _bmSourceRequestCode;
-    }
+    constructor(address router) Ownable(msg.sender) FunctionsClient(router) {}
 
     function setDonId(bytes32 _donId) external onlyOwner {
         donId = _donId;
@@ -87,7 +65,7 @@ contract FunctionsConsumer is
     /**
      * @notice Callback that is invoked when the DON response is received
      */
-    function _fulfillRequest(
+    function fulfillRequest(
         bytes32 requestId,
         bytes memory response,
         bytes memory err
@@ -100,7 +78,4 @@ contract FunctionsConsumer is
 
         emit Response(requestId, response, err);
     }
-
-    ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
