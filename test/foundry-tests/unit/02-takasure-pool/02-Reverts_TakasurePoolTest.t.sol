@@ -46,9 +46,9 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.setNewServiceFee(newServiceFee);
     }
 
-    /// @dev `setNewServiceFee` must revert if it is higher than 100
-    function testTakasurePool_setNewServiceFeeMustRevertIfHigherThan100() public {
-        uint8 newServiceFee = 101;
+    /// @dev `setNewServiceFee` must revert if it is higher than 35
+    function testTakasurePool_setNewServiceFeeMustRevertIfHigherThan35() public {
+        uint8 newServiceFee = 36;
         vm.prank(takasurePool.owner());
         vm.expectRevert(TakasurePool.TakasurePool__WrongServiceFee.selector);
         takasurePool.setNewServiceFee(newServiceFee);

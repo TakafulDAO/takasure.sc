@@ -22,6 +22,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     uint256 public constant YEAR = 365 days;
 
     event OnMemberKycVerified(address indexed member);
+    event OnServiceFeeChanged(uint8 indexed newServiceFee);
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
@@ -38,10 +39,12 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     }
 
     /// @dev Test the owner can set a new service fee
-    function testTakasurePool_setNewServiceFee() public {
-        uint8 newServiceFee = 50;
+    function testTakasurePool_setNewServiceFeeToNewValue() public {
+        uint8 newServiceFee = 35;
 
         vm.prank(takasurePool.owner());
+        vm.expectEmit(true, false, false, false, address(takasurePool));
+        emit OnServiceFeeChanged(newServiceFee);
         takasurePool.setNewServiceFee(newServiceFee);
 
         (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
