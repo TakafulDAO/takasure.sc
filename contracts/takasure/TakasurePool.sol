@@ -74,6 +74,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 indexed updatedContribution,
         uint256 updatedTotalServiceFee
     );
+    event OnServiceFeeChanged(uint8 indexed newServiceFee);
 
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
@@ -305,6 +306,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__WrongServiceFee();
         }
         reserve.serviceFee = newServiceFee;
+
+        emit OnServiceFeeChanged(newServiceFee);
     }
 
     function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
