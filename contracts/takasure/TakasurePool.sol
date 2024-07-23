@@ -203,7 +203,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 msg.sender,
                 MemberState.Inactive
             );
-            
+
             // The member will pay the contribution, but will remain inactive until the KYC is verified
             // This means the proformas wont be updated, the amounts wont be added to the reserves,
             // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
@@ -245,7 +245,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             reserve.members[msg.sender].totalContributions,
             reserve.members[msg.sender].totalWakalaFee
         );
-
     }
 
     /**
@@ -520,54 +519,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (_payContribution) {
             _transferAmounts(_depositAmount, _wakalaAmount, _memberWallet);
         }
-    }
-
-    function _updateMember(
-        uint256 _benefitMultiplier,
-        uint256 _contributionAmount,
-        uint256 _membershipDuration,
-        uint256 _wakalaAmount,
-        address _memberWallet,
-        MemberState _memberState
-    ) internal {
-        uint256 currentTimestamp = block.timestamp;
-        uint256 userMembershipDuration;
-
-        if (allowCustomDuration) {
-            userMembershipDuration = _membershipDuration;
-        } else {
-            userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
-        }
-
-        reserve.members[_memberWallet].benefitMultiplier = _benefitMultiplier;
-        reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
-        reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
-        reserve.members[_memberWallet].contribution = _contributionAmount;
-        reserve.members[_memberWallet].totalWakalaFee = _wakalaAmount;
-        reserve.members[_memberWallet].memberState = _memberState;
-
-        if (reserve.members[_memberWallet].membershipDuration != userMembershipDuration) {
-            reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
-        }
-
-        if (!reserve.members[_memberWallet].isKYCVerified) {
-            reserve.members[_memberWallet].isKYCVerified = true;
-        }
-    }
-
-    function _memberPaymentFlow(
-        uint256 _contributionAmount,
-        uint256 _wakalaAmount,
-        uint256 _depositAmount,
-        address _memberWallet
-    ) internal {
-        _updateProFormas(_contributionAmount);
-        _updateReserves(_contributionAmount, _depositAmount);
-        _updateCashMappings(_depositAmount);
-        uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
-        _updateDRR(cashLast12Months);
-        _updateBMA(cashLast12Months);
-        _transferAmounts(_contributionAmount, _depositAmount, _wakalaAmount, _memberWallet);
     }
 
     function _updateProFormas(uint256 _contributionAmount) internal {
