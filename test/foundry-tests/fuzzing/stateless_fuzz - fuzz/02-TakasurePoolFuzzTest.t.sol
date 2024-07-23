@@ -45,6 +45,6 @@ contract TakasurePoolFuzzTest is Test {
 
         vm.prank(notOwner);
         vm.expectRevert();
-        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
+        takasurePool.setKYCStatus(alice);
     }
 }

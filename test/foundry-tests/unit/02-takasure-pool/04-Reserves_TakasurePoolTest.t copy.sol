@@ -45,7 +45,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
     /// @dev Test fund and claim reserves are calculated correctly
     function testTakasurePool_fundAndClaimReserves() public {
         vm.prank(takasurePool.owner());
-        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
+        takasurePool.setKYCStatus(alice);
         (
             uint256 initialDynamicReserveRatio,
             ,
@@ -95,7 +95,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
             vm.prank(takasurePool.owner());
-            takasurePool.setKYCStatus(lotOfUsers[i], CONTRIBUTION_AMOUNT);
+            takasurePool.setKYCStatus(lotOfUsers[i]);
         }
         // Each day 10 users will join with the contribution amount
 
@@ -164,7 +164,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
             vm.prank(takasurePool.owner());
-            takasurePool.setKYCStatus(lotOfUsers[i], CONTRIBUTION_AMOUNT);
+            takasurePool.setKYCStatus(lotOfUsers[i]);
         }
 
         // Test three months two days
@@ -228,7 +228,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
             vm.prank(takasurePool.owner());
-            takasurePool.setKYCStatus(lotOfUsers[i], CONTRIBUTION_AMOUNT);
+            takasurePool.setKYCStatus(lotOfUsers[i]);
         }
 
         // Months 1, 2 and 3, one new member joins daily

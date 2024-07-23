@@ -16,7 +16,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     address contributionTokenAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
-    uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
+    uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
@@ -108,8 +108,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev If it is an active member, can not join again
     function testTakasurePool_activeMembersSholdNotJoinAgain() public {
         vm.prank(takasurePool.owner());
-        takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
-
+        takasurePool.setKYCStatus(alice);
         vm.startPrank(alice);
         // Alice joins the pool
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -125,7 +124,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.prank(takasurePool.owner());
 
         vm.expectRevert(TakasurePool.TakasurePool__ZeroAddress.selector);
-        takasurePool.setKYCStatus(address(0), CONTRIBUTION_AMOUNT);
+        takasurePool.setKYCStatus(address(0));
     }
 
     /// @dev `setKYCStatus` must revert if the member is already KYC verified
@@ -138,5 +137,58 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.setKYCStatus(alice, CONTRIBUTION_AMOUNT);
 
         vm.stopPrank();
+    }
+
+    /// @dev `recurringPayment` must revert if the member is invalid
+    function testTakasurePool_recurringPaymentMustRevertIfMemberIsInvalid() public {
+        vm.prank(alice);
+        vm.expectRevert(TakasurePool.TakasurePool__WrongMemberState.selector);
+        takasurePool.recurringPayment();
+    }
+
+    /// @dev `recurringPayment` must revert if the date is invalid, a year has passed and the member has not paid
+    function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidNotPaidInTime() public {
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(alice);
+
+        vm.startPrank(alice);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank;
+
+        vm.warp(block.timestamp + 366 days);
+        vm.roll(block.number + 1);
+
+        vm.startPrank(alice);
+        vm.expectRevert(TakasurePool.TakasurePool__InvalidDate.selector);
+        takasurePool.recurringPayment();
+        vm.stopPrank;
+    }
+
+    /// @dev `recurringPayment` must revert if the date is invalid, the membership expired
+    function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidMembershipExpired() public {
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(alice);
+
+        vm.startPrank(alice);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank;
+
+        for (uint256 i = 0; i < 5; i++) {
+            vm.warp(block.timestamp + YEAR);
+            vm.roll(block.number + 1);
+
+            vm.startPrank(alice);
+            takasurePool.recurringPayment();
+            vm.stopPrank;
+        }
+
+        vm.warp(block.timestamp + YEAR);
+        vm.roll(block.number + 1);
+
+        vm.startPrank(alice);
+        vm.expectRevert(TakasurePool.TakasurePool__InvalidDate.selector);
+        takasurePool.recurringPayment();
     }
 }
