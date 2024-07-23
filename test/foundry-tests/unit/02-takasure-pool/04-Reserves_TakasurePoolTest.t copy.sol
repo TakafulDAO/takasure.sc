@@ -56,7 +56,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             ,
             ,
             ,
-            uint8 wakalaFee,
+            uint8 serviceFee,
             ,
 
         ) = takasurePool.getReserveValues();
@@ -67,7 +67,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         (, , , , uint256 finalClaimReserve, uint256 finalFundReserve, , , , , , ) = takasurePool
             .getReserveValues();
 
-        uint256 fee = (CONTRIBUTION_AMOUNT * wakalaFee) / 100; // 25USDC * 20% = 5USDC
+        uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
         uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 5USDC = 20USDC
 
         uint256 expectedFinalFundReserve = (deposited * initialDynamicReserveRatio) / 100; // 20USDC * 40% = 8USDC
@@ -147,8 +147,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // 200USDC * 5 days = 1000USDC
 
         uint256 totalMembers = takasurePool.memberIdCounter();
-        (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
-        uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * wakalaFee) / 100);
+        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 
         assertEq(cash, totalDeposited);
@@ -210,8 +210,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         uint256 cash = takasurePool.getCashLast12Months();
 
         uint256 totalMembers = takasurePool.memberIdCounter();
-        (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
-        uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * wakalaFee) / 100);
+        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 
         assertEq(cash, totalDeposited);

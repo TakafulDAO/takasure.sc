@@ -37,16 +37,16 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         vm.stopPrank();
     }
 
-    /// @dev Test the owner can set a new wakala fee
-    function testTakasurePool_setNewWakalaFee() public {
-        uint8 newWakalaFee = 50;
+    /// @dev Test the owner can set a new service fee
+    function testTakasurePool_setNewServiceFee() public {
+        uint8 newServiceFee = 50;
 
         vm.prank(takasurePool.owner());
-        takasurePool.setNewWakalaFee(newWakalaFee);
+        takasurePool.setNewServiceFee(newServiceFee);
 
-        (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
+        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
 
-        assertEq(newWakalaFee, wakalaFee);
+        assertEq(newServiceFee, serviceFee);
     }
 
     /// @dev Test the owner can set a new minimum threshold
@@ -67,12 +67,12 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         assertEq(alice, takasurePool.getContributionTokenAddress());
     }
 
-    /// @dev Test the owner can set a new wakala claim address
-    function testTakasurePool_canSetNewWakalaClaimAddress() public {
+    /// @dev Test the owner can set a new service claim address
+    function testTakasurePool_cansetNewServiceClaimAddress() public {
         vm.prank(takasurePool.owner());
-        takasurePool.setNewWakalaClaimAddress(alice);
+        takasurePool.setNewFeeClaimAddress(alice);
 
-        assertEq(alice, takasurePool.wakalaClaimAddress());
+        assertEq(alice, takasurePool.feeClaimAddress());
     }
 
     /// @dev Test the owner can set custom duration
