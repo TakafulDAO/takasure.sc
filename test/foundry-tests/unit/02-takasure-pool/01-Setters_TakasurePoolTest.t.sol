@@ -84,9 +84,6 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     }
 
     function testTakasurePool_setKYCstatus() public {
-        vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
-
         bool getMemberKYCstatusBefore = takasurePool.getMemberKYCStatus(alice);
 
         vm.prank(takasurePool.owner());

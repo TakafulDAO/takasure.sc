@@ -42,8 +42,21 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
                     JOIN POOL::TRANSFER AMOUNTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Test contribution amount is transferred to the contract
-    function testTakasurePool_contributionAmountTransferToContract() public {
+    /// @dev Test contribution amount is not transferred to the contract if only the KYC is done
+    function testTakasurePool_contributionAmountNotTransferToContractWhenOnlyKyc() public {
+        uint256 contractBalanceBefore = usdc.balanceOf(address(takasurePool));
+
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(alice);
+
+        uint256 contractBalanceAfter = usdc.balanceOf(address(takasurePool));
+
+        assertEq(contractBalanceAfter, contractBalanceBefore);
+    }
+
+    /// @dev Test contribution amount is transferred to the contract when joins the pool
+    function testTakasurePool_contributionAmountTransferToContractWhenJoinPool() public {
+
         uint256 contractBalanceBefore = usdc.balanceOf(address(takasurePool));
 
         (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
@@ -59,8 +72,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         assertEq(contractBalanceAfter, contractBalanceBefore + deposited);
     }
 
-    /// @dev Test wakala fee is transferred
-    function testTakasurePool_wakalaFeeAmountTransfered() public {
+
+    /// @dev Test wakala fee is transferred when the member joins the pool
+    function testTakasurePool_wakalaFeeAmountTransferedWhenJoinsPool() public {
         (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
         address wakalaFeeReceiver = takasurePool.wakalaClaimAddress();
         uint256 wakalaFeeReceiverBalanceBefore = usdc.balanceOf(wakalaFeeReceiver);
