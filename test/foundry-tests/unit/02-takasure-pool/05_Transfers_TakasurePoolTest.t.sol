@@ -56,6 +56,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test contribution amount is transferred to the contract when joins the pool
     function testTakasurePool_contributionAmountTransferToContractWhenJoinPool() public {
+
         uint256 contractBalanceBefore = usdc.balanceOf(address(takasurePool));
 
         (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
@@ -70,6 +71,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
 
         assertEq(contractBalanceAfter, contractBalanceBefore + deposited);
     }
+
 
     /// @dev Test wakala fee is transferred when the member joins the pool
     function testTakasurePool_wakalaFeeAmountTransferedWhenJoinsPool() public {

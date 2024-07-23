@@ -76,7 +76,6 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
         vm.expectEmit(true, false, false, false, address(takasurePool));
         emit OnMemberKycVerified(alice);
-
         takasurePool.setKYCStatus(alice);
 
         uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
@@ -120,7 +119,6 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
         vm.expectEmit(true, true, false, false, address(takasurePool));
         emit OnMemberJoined(memberIdAfterKyc, alice);
-
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         uint256 memberIdAfterJoin = takasurePool.memberIdCounter();
@@ -216,7 +214,6 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
         // Set KYC status to true
         vm.prank(takasurePool.owner());
-
         vm.expectEmit(true, true, true, true, address(takasurePool));
         emit OnMemberUpdated(
             memberIdAfterJoin,
@@ -233,7 +230,6 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
         vm.expectEmit(true, false, false, false, address(takasurePool));
         emit OnMemberKycVerified(alice);
-
         takasurePool.setKYCStatus(alice);
 
         uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
