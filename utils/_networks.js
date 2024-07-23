@@ -1,4 +1,5 @@
 const hre = require("hardhat")
+require("dotenv").config()
 
 const isFork = process.env.FORK === "true"
 const isLocalhost = !isFork && hre.network.name === "localhost"
@@ -10,6 +11,9 @@ const isTestnet = hre.network.name.startsWith("testnet_")
 const isDevnet = isLocalhost || isMemnet
 const isRealChain = !isLocalhost && !isMemnet
 const isProtocolChain = isMemnet || isFork || isLocalhost || isMainnet || isTestnet
+
+const ARBITRUM_MAINNET_RPC_URL = process.env.ARBITRUM_MAINNET_RPC_URL
+const ARBITRUM_TESTNET_SEPOLIA_RPC_URL = process.env.ARBITRUM_TESTNET_SEPOLIA_RPC_URL
 
 const networkConfig = {
     31337: {
@@ -24,13 +28,14 @@ const networkConfig = {
         usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // https://developers.circle.com/developer/docs/supported-chains-and-currencies#native-usdc
         wakalaClaimAddress: "0x", // TODO
         daoOperator: "0x", // TODO
+        rpcUrl: ARBITRUM_MAINNET_RPC_URL,
     },
     421614: {
         name: "testnet_arbitrum_sepolia",
         usdc: "0xf9b2DE65196fA500527c576De9312E3c626C7d6a", // Minimal ERC20 for test purposes
         wakalaClaimAddress: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account // Todo: Change later for better tests
         daoOperator: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account, // Todo: Change later for better tests
-        rpcUrl: "https://arbitrum-sepolia.blockpi.network/v1/rpc/public",
+        rpcUrl: ARBITRUM_TESTNET_SEPOLIA_RPC_URL,
     },
 }
 
