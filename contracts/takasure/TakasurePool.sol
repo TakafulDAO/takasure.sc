@@ -821,16 +821,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function _mintDaoTokens(uint256 _contributionAmount, address _memberWallet) internal {
-        // Mint needed DAO Tokens
-        uint256 mintAmount = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-
-        bool success = daoToken.mint(_memberWallet, mintAmount);
-        if (!success) {
-            revert TakasurePool__MintFailed();
-        }
-    }
-
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
