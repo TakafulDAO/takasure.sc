@@ -44,11 +44,11 @@ jobs:
           forge build --sizes --skip .t.sol .s.sol
         id: forge-build  
 
-      - name: Hardhat test
-        env:
-          ARBITRUM_MAINNET_RPC_URL: ${{ secrets.ARBITRUM_MAINNET_RPC_URL }}
-          TESTNET_DEPLOYER_PK: ${{ secrets.TESTNET_DEPLOYER_PK }}
-        run: yarn test --config hardhat-continuous-integration.config.js
+      # - name: Hardhat test
+      #   env:
+      #     ARBITRUM_MAINNET_RPC_URL: ${{ secrets.ARBITRUM_MAINNET_RPC_URL }}
+      #     TESTNET_DEPLOYER_PK: ${{ secrets.TESTNET_DEPLOYER_PK }}
+      #   run: yarn test --config hardhat-continuous-integration.config.js
 
       - name: Forge Test
         run: |

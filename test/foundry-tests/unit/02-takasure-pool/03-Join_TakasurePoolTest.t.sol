@@ -23,8 +23,6 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
 
-    event OnMemberJoined(address indexed member, uint256 indexed contributionAmount);
-
     function setUp() public {
         deployer = new DeployTokenAndPool();
         (, proxy, , contributionTokenAddress, ) = deployer.run();
@@ -60,6 +58,9 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         vm.stopPrank();
 
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(alice);
+
         (, , , uint256 totalContributions, , , , , , , , ) = takasurePool.getReserveValues();
 
         uint256 memberId = takasurePool.memberIdCounter();
@@ -85,14 +86,17 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         assertEq(memberIdCounterAfter, memberIdCounterBefore + 1);
     }
 
-    modifier aliceJoin() {
+    modifier aliceKYCAndJoin() {
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(alice);
+
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
         _;
     }
 
     /// @dev Test the membership duration is 5 years if allowCustomDuration is false
-    function testTakasurePool_defaultMembershipDuration() public aliceJoin {
+    function testTakasurePool_defaultMembershipDuration() public aliceKYCAndJoin {
         Member memory member = takasurePool.getMemberFromAddress(alice);
 
         assertEq(member.membershipDuration, 5 * YEAR);
@@ -112,11 +116,13 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     }
 
     /// @dev Test the member is created
-    function testTakasurePool_newMember() public aliceJoin {
+    function testTakasurePool_newMember() public {
+        vm.prank(alice);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+
         uint256 memberId = takasurePool.memberIdCounter();
 
         // Check the member is created and added correctly to mappings
-        // idToMember[memberId]
         Member memory testMember = takasurePool.getMemberFromId(memberId);
         Member memory testMember2 = takasurePool.getMemberFromAddress(alice);
 
@@ -124,21 +130,24 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         assertEq(testMember.benefitMultiplier, BENEFIT_MULTIPLIER);
         assertEq(testMember.contribution, CONTRIBUTION_AMOUNT);
         assertEq(testMember.wallet, alice);
-        assertEq(uint8(testMember.memberState), 1);
+        assertEq(uint8(testMember.memberState), 0);
 
         // Both members should be the same
         assertEq(testMember.memberId, testMember2.memberId);
         assertEq(testMember.wallet, testMember2.wallet);
     }
 
-    modifier bobJoin() {
+    modifier bobKYCAndJoin() {
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(bob);
+
         vm.prank(bob);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
         _;
     }
 
     /// @dev More than one can join
-    function testTakasurePool_moreThanOneJoin() public aliceJoin bobJoin {
+    function testTakasurePool_moreThanOneJoin() public aliceKYCAndJoin bobKYCAndJoin {
         Member memory aliceMember = takasurePool.getMemberFromAddress(alice);
         Member memory bobMember = takasurePool.getMemberFromAddress(bob);
 
@@ -155,7 +164,10 @@ contract Join_TakasurePoolTest is StdCheats, Test {
                     JOIN POOL::UPDATE BOTH PRO FORMAS
     //////////////////////////////////////////////////////////////*/
     /// @dev Pro formas updated when a member joins
-    function testTakasurePool_proFormasUpdatedOnMemberJoined() public aliceJoin {
+    function testTakasurePool_proFormasUpdatedOnMemberJoined() public aliceKYCAndJoin {
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(bob);
+
         (
             ,
             ,
@@ -201,6 +213,13 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         (uint256 initialDRR, uint256 currentDRR, , , , , , , , , , ) = takasurePool
             .getReserveValues();
 
+        vm.startPrank(takasurePool.owner());
+
+        takasurePool.setKYCStatus(alice);
+        takasurePool.setKYCStatus(bob);
+
+        vm.stopPrank();
+
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
@@ -227,6 +246,13 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     /// @dev New BMA is calculated when a member joins
     function testTakasurePool_bmaCalculatedOnMemberJoined() public {
         (, , uint256 initialBMA, , , , , , , , , ) = takasurePool.getReserveValues();
+
+        vm.startPrank(takasurePool.owner());
+
+        takasurePool.setKYCStatus(alice);
+        takasurePool.setKYCStatus(bob);
+
+        vm.stopPrank();
 
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));

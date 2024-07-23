@@ -48,7 +48,25 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
-    event OnMemberJoined(address indexed member, uint256 indexed contributionAmount);
+    event OnMemberCreated(
+        uint256 indexed memberId,
+        address indexed member,
+        uint256 indexed benefitMultiplier,
+        uint256 contributionAmount,
+        uint256 wakalaFee,
+        uint256 membershipDuration,
+        uint256 membershipStartTime
+    ); // Emited when a new member is created
+    event OnMemberUpdated(
+        uint256 indexed memberId,
+        address indexed member,
+        uint256 indexed benefitMultiplier,
+        uint256 contributionAmount,
+        uint256 wakalaFee,
+        uint256 membershipDuration,
+        uint256 membershipStartTime
+    ); // Emited when a member is updated. This is used when a member first KYCed and then paid the contribution
+    event OnMemberJoined(uint indexed memberId, address indexed member);
     event OnMemberKycVerified(address indexed member);
 
     error TakasurePool__MemberAlreadyExists();
@@ -58,7 +76,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error TakasurePool__FeeTransferFailed();
     error TakasurePool__MintFailed();
     error TakasurePool__WrongWakalaFee();
-    error TakasurePool__InvalidMember();
     error TakasurePool__MemberAlreadyKYCed();
 
     modifier notZeroAddress(address _address) {
@@ -112,7 +129,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     /**
-     * @notice Allow new members to join the pool
+     * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
+     *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
+     *         member will be active.
      * @param benefitMultiplier fetched from off-chain oracle
      * @param contributionAmount in six decimals
      * @param membershipDuration default 5 years
@@ -136,25 +155,105 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         // Todo: re-calculate DAO Surplus.
 
-        // Setting variables used in different scope blocks
-        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
-        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        contributionAmount =
-            (contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
-            DECIMAL_REQUIREMENT_PRECISION_USDC;
-        uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
-        uint256 depositAmount = contributionAmount - wakalaAmount;
+        bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
 
-        _createNewMember(benefitMultiplier, contributionAmount, membershipDuration, wakalaAmount);
-        _updateProFormas(contributionAmount);
-        _updateReserves(contributionAmount, depositAmount);
-        _updateCashMappings(depositAmount);
-        uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
-        _updateDRR(cashLast12Months);
-        _updateBMA(cashLast12Months);
-        _transferAmounts(contributionAmount, depositAmount, wakalaAmount);
+        (
+            uint256 correctedContributionAmount,
+            uint256 wakalaAmount,
+            uint256 depositAmount
+        ) = _calculateAmountAndFees(contributionAmount);
 
-        emit OnMemberJoined(msg.sender, contributionAmount);
+        if (isKYCVerified) {
+            // It means the user is already in the system, we just need to update the values
+            _updateMember(
+                benefitMultiplier,
+                correctedContributionAmount,
+                membershipDuration,
+                wakalaAmount,
+                msg.sender,
+                MemberState.Active
+            );
+
+            // And we pay the contribution
+            _memberPaymentFlow(
+                correctedContributionAmount,
+                depositAmount,
+                wakalaAmount,
+                msg.sender,
+                true
+            );
+
+            emit OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
+        } else {
+            // If is not KYC verified, we create a new member, inactive, without kyc
+            _createNewMember(
+                benefitMultiplier,
+                correctedContributionAmount,
+                membershipDuration,
+                wakalaAmount,
+                isKYCVerified,
+                msg.sender,
+                MemberState.Inactive
+            );
+
+            // The member will pay the contribution, but will remain inactive until the KYC is verified
+            // This means the proformas wont be updated, the amounts wont be added to the reserves,
+            // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
+            _transferAmounts(depositAmount, wakalaAmount, msg.sender);
+        }
+    }
+
+    /**
+     * @notice Set the KYC status of a member. If the member does not exist, it will be created as inactive
+     *         until the contribution is paid with joinPool. If the member has already joined the pool, then
+     *         the contribution will be paid and the member will be active.
+     * @param memberWallet address of the member
+     * @dev It reverts if the member is the zero address
+     * @dev It reverts if the member is already KYCed
+     */
+    function setKYCStatus(address memberWallet) external onlyOwner {
+        if (memberWallet == address(0)) {
+            revert TakasurePool__ZeroAddress();
+        }
+        if (reserve.members[memberWallet].isKYCVerified) {
+            revert TakasurePool__MemberAlreadyKYCed();
+        }
+
+        if (reserve.members[memberWallet].wallet == address(0)) {
+            // This means the user does not exist yet
+            // We create a new one with some values set to 0, kyced, inactive until the contribution is paid with joinPool
+            _createNewMember(0, 0, 0, 0, true, memberWallet, MemberState.Inactive);
+        } else {
+            // This means the user exists but is not KYCed yet
+
+            (
+                uint256 correctedContributionAmount,
+                uint256 wakalaAmount,
+                uint256 depositAmount
+            ) = _calculateAmountAndFees(reserve.members[memberWallet].contribution);
+
+            _updateMember(
+                reserve.members[memberWallet].benefitMultiplier,
+                correctedContributionAmount,
+                reserve.members[memberWallet].membershipDuration,
+                wakalaAmount,
+                memberWallet,
+                MemberState.Active
+            );
+
+            // Then the everyting needed will be updated, proformas, reserves, cash flow,
+            // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
+            _memberPaymentFlow(
+                correctedContributionAmount,
+                depositAmount,
+                wakalaAmount,
+                memberWallet,
+                false
+            );
+
+            emit OnMemberJoined(reserve.members[memberWallet].memberId, memberWallet);
+        }
+        emit OnMemberKycVerified(memberWallet);
     }
 
     function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
@@ -182,20 +281,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
         allowCustomDuration = _allowCustomDuration;
-    }
-
-    /// @dev It reverts if the member is already KYCed
-    function setKYCStatus(address member) external onlyOwner {
-        if (member == address(0) || reserve.members[member].memberState != MemberState.Active) {
-            revert TakasurePool__InvalidMember();
-        }
-        if (reserve.members[member].isKYCVerified) {
-            revert TakasurePool__MemberAlreadyKYCed();
-        }
-
-        reserve.members[member].isKYCVerified = true;
-
-        emit OnMemberKycVerified(member);
     }
 
     function getReserveValues()
@@ -259,11 +344,31 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
     }
 
+    function _calculateAmountAndFees(
+        uint256 _contributionAmount
+    )
+        internal
+        view
+        returns (uint256 contributionAmount_, uint256 wakalaAmount_, uint256 depositAmount_)
+    {
+        // Then we pay the contribution
+        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
+        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
+        contributionAmount_ =
+            (_contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            DECIMAL_REQUIREMENT_PRECISION_USDC;
+        wakalaAmount_ = (contributionAmount_ * reserve.wakalaFee) / 100;
+        depositAmount_ = contributionAmount_ - wakalaAmount_;
+    }
+
     function _createNewMember(
         uint256 _benefitMultiplier,
         uint256 _contributionAmount,
         uint256 _membershipDuration,
-        uint256 _wakalaAmount
+        uint256 _wakalaAmount,
+        bool _isKYCVerified,
+        address _memberWallet,
+        MemberState _memberState
     ) internal {
         ++memberIdCounter;
         uint256 currentTimestamp = block.timestamp;
@@ -282,15 +387,92 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             membershipStartTime: currentTimestamp,
             contribution: _contributionAmount,
             totalWakalaFee: _wakalaAmount,
-            wallet: msg.sender,
-            memberState: MemberState.Active,
+            wallet: _memberWallet,
+            memberState: _memberState,
             surplus: 0, // Todo
-            isKYCVerified: false
+            isKYCVerified: _isKYCVerified
         });
 
         // Add the member to the corresponding mappings
-        reserve.members[msg.sender] = newMember;
+        reserve.members[_memberWallet] = newMember;
         idToMember[memberIdCounter] = newMember;
+
+        emit OnMemberCreated(
+            memberIdCounter,
+            _memberWallet,
+            _benefitMultiplier,
+            _contributionAmount,
+            _wakalaAmount,
+            userMembershipDuration,
+            currentTimestamp
+        );
+    }
+
+    function _updateMember(
+        uint256 _benefitMultiplier,
+        uint256 _contributionAmount,
+        uint256 _membershipDuration,
+        uint256 _wakalaAmount,
+        address _memberWallet,
+        MemberState _memberState
+    ) internal {
+        uint256 currentTimestamp = block.timestamp;
+        uint256 userMembershipDuration;
+
+        if (allowCustomDuration) {
+            userMembershipDuration = _membershipDuration;
+        } else {
+            userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
+        }
+
+        reserve.members[_memberWallet].benefitMultiplier = _benefitMultiplier;
+        reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
+        reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
+        reserve.members[_memberWallet].contribution = _contributionAmount;
+        reserve.members[_memberWallet].totalWakalaFee = _wakalaAmount;
+        reserve.members[_memberWallet].memberState = _memberState;
+
+        // The KYC here is set to true to save gas doing this assumptions
+        // 1. If the user first KYC and then join the pool, the KYC is already verified
+        // 2. If the user join the pool and then KYC, then the KYC needs to change to true
+        //    when the member is updated
+        // 3. The user can not change the KYC status
+        if (!reserve.members[_memberWallet].isKYCVerified)
+            reserve.members[_memberWallet].isKYCVerified = true;
+
+        emit OnMemberUpdated(
+            reserve.members[_memberWallet].memberId,
+            _memberWallet,
+            _benefitMultiplier,
+            _contributionAmount,
+            _wakalaAmount,
+            userMembershipDuration,
+            currentTimestamp
+        );
+    }
+
+    /**
+     * @notice This function will update all the variables needed when a member pays the contribution
+     * @param _payContribution true -> the contribution will be paid and the credit tokens will be minted
+     *                         false -> np need to pay the contribution as it is already payed
+     */
+    function _memberPaymentFlow(
+        uint256 _contributionAmount,
+        uint256 _depositAmount,
+        uint256 _wakalaAmount,
+        address _memberWallet,
+        bool _payContribution
+    ) internal {
+        _updateProFormas(_contributionAmount);
+        _updateReserves(_contributionAmount, _depositAmount);
+        _updateCashMappings(_depositAmount);
+        uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
+        _updateDRR(cashLast12Months);
+        _updateBMA(cashLast12Months);
+        _mintDaoTokens(_contributionAmount, _memberWallet);
+        if (_payContribution) {
+            _transferAmounts(_depositAmount, _wakalaAmount, _memberWallet);
+        }
     }
 
     function _updateProFormas(uint256 _contributionAmount) internal {
@@ -507,32 +689,32 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _transferAmounts(
-        uint256 _contributionAmount,
         uint256 _depositAmount,
-        uint256 _wakalaAmount
+        uint256 _wakalaAmount,
+        address _memberWallet
     ) internal {
-        // Scope to avoid stack too deep error. This scope include the external calls.
-        // At the end following CEI pattern
         bool success;
 
-        // Mint needed DAO Tokens
-        uint256 mintAmount = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-
-        success = daoToken.mint(msg.sender, mintAmount);
-        if (!success) {
-            revert TakasurePool__MintFailed();
-        }
-
         // Transfer the contribution to the pool
-        success = contributionToken.transferFrom(msg.sender, address(this), _depositAmount);
+        success = contributionToken.transferFrom(_memberWallet, address(this), _depositAmount);
         if (!success) {
             revert TakasurePool__ContributionTransferFailed();
         }
 
-        // Transfer the wakala fee to the DAO
-        success = contributionToken.transferFrom(msg.sender, wakalaClaimAddress, _wakalaAmount);
+        // Transfer the wakala fee to the wakala claim address
+        success = contributionToken.transferFrom(_memberWallet, wakalaClaimAddress, _wakalaAmount);
         if (!success) {
             revert TakasurePool__FeeTransferFailed();
+        }
+    }
+
+    function _mintDaoTokens(uint256 _contributionAmount, address _memberWallet) internal {
+        // Mint needed DAO Tokens
+        uint256 mintAmount = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+
+        bool success = daoToken.mint(_memberWallet, mintAmount);
+        if (!success) {
+            revert TakasurePool__MintFailed();
         }
     }
 

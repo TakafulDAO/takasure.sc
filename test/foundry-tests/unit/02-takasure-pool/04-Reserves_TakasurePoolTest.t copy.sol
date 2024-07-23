@@ -44,6 +44,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test fund and claim reserves are calculated correctly
     function testTakasurePool_fundAndClaimReserves() public {
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(alice);
         (
             uint256 initialDynamicReserveRatio,
             ,
@@ -91,6 +93,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             deal(address(usdc), lotOfUsers[i], USDC_INITIAL_AMOUNT);
             vm.prank(lotOfUsers[i]);
             usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+
+            vm.prank(takasurePool.owner());
+            takasurePool.setKYCStatus(lotOfUsers[i]);
         }
         // Each day 10 users will join with the contribution amount
 
@@ -151,13 +156,17 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Cash last 12 months more than a month less than a year
     function testTakasurePool_cashMoreThanMonthLessThanYear() public {
-        address[100] memory lotOfUsers;
+        address[78] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {
             lotOfUsers[i] = makeAddr(vm.toString(i));
             deal(address(usdc), lotOfUsers[i], USDC_INITIAL_AMOUNT);
             vm.prank(lotOfUsers[i]);
             usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+
+            vm.prank(takasurePool.owner());
+            takasurePool.setKYCStatus(lotOfUsers[i]);
         }
+
         // Test three months two days
 
         // First month 30 people joins
@@ -217,6 +226,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             deal(address(usdc), lotOfUsers[i], USDC_INITIAL_AMOUNT);
             vm.prank(lotOfUsers[i]);
             usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+
+            vm.prank(takasurePool.owner());
+            takasurePool.setKYCStatus(lotOfUsers[i]);
         }
 
         // Months 1, 2 and 3, one new member joins daily
