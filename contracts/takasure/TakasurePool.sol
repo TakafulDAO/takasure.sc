@@ -237,7 +237,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.members[msg.sender].totalWakalaFee += wakalaAmount;
 
         // And we pay the contribution
-        _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, msg.sender);
+        _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, msg.sender, true);
 
         emit OnRecurringPayment(
             msg.sender,
