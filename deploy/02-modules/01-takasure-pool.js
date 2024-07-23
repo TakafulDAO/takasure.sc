@@ -43,17 +43,16 @@ module.exports = async ({ deployments }) => {
     })
 
     log("02.01. TakasurePool Data stored in the deployments folder")
-
-    const rpcUrl = networkConfig[chainId]["rpcUrl"]
-    const provider = new ethers.JsonRpcProvider(rpcUrl)
-
-    const impleAddress = await getImplementationAddress(provider, takasurePoolAddress)
-    console.log("02.01. TakasurePool Implementation Address: ", impleAddress)
-
     log("02.01. TakasurePool Contract Deployed!")
     log("=====================================================================================")
 
     if (!developmentChains.includes(network.name) && process.env.ARBISCAN_API_KEY) {
+        const rpcUrl = networkConfig[chainId]["rpcUrl"]
+        const provider = new ethers.JsonRpcProvider(rpcUrl)
+
+        const impleAddress = await getImplementationAddress(provider, takasurePoolAddress)
+        console.log("02.01. TakasurePool Implementation Address: ", impleAddress)
+
         log("02.01. Verifying Implementation!... ")
         await verify(impleAddress, [])
         log("02.01. Implementation Verified! ")
