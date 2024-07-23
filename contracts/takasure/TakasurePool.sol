@@ -301,7 +301,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyOwner {
-        if (newServiceFee > 100) {
+        if (newServiceFee > 35) {
             revert TakasurePool__WrongServiceFee();
         }
         reserve.serviceFee = newServiceFee;
