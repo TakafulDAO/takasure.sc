@@ -192,4 +192,14 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.expectRevert(TakasurePool.TakasurePool__InvalidDate.selector);
         takasurePool.recurringPayment();
     }
+
+    /// @dev can not refund someone already KYC verified
+    function testTakasurePool_refundRevertIfMemberIsKyc() public {
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(alice);
+
+        vm.prank(alice);
+        vm.expectRevert(TakasurePool.TakasurePool__MemberAlreadyKYCed.selector);
+        takasurePool.refund();
+    }
 }
