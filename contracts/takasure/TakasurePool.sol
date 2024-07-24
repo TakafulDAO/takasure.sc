@@ -273,14 +273,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      */
     function refund() external {
         // The member should not be KYCed
-        // The member should have payed the contribution, to check this we check the contribution amount
-        // This one is bigger than zero only if the contribution was payed
         if (reserve.members[msg.sender].isKYCVerified == true) {
             revert TakasurePool__MemberAlreadyKYCed();
         }
-        if (reserve.members[msg.sender].contribution == 0) {
-            revert TakasurePool__NothingToRefund();
-        }
+        // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
+        // when first KYC and then join the pool. So the previous check is enough
 
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmount = reserve.members[msg.sender].contribution;
