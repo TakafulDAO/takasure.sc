@@ -1,4 +1,5 @@
 const hre = require("hardhat")
+require("dotenv").config()
 
 const isFork = process.env.FORK === "true"
 const isLocalhost = !isFork && hre.network.name === "localhost"
@@ -10,6 +11,9 @@ const isTestnet = hre.network.name.startsWith("testnet_")
 const isDevnet = isLocalhost || isMemnet
 const isRealChain = !isLocalhost && !isMemnet
 const isProtocolChain = isMemnet || isFork || isLocalhost || isMainnet || isTestnet
+
+const ARBITRUM_MAINNET_RPC_URL = process.env.ARBITRUM_MAINNET_RPC_URL
+const ARBITRUM_TESTNET_SEPOLIA_RPC_URL = process.env.ARBITRUM_TESTNET_SEPOLIA_RPC_URL
 
 const networkConfig = {
     31337: {
@@ -24,6 +28,7 @@ const networkConfig = {
         usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // https://developers.circle.com/developer/docs/supported-chains-and-currencies#native-usdc
         wakalaClaimAddress: "0x", // TODO
         daoOperator: "0x", // TODO
+        rpcUrl: ARBITRUM_MAINNET_RPC_URL,
     },
     421614: {
         name: "testnet_arbitrum_sepolia",
@@ -33,6 +38,7 @@ const networkConfig = {
         functionsRouter: "0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C",
         donId: "0x66756e2d617262697472756d2d6d61696e6e65742d3100000000000000000000",
         subscriptionId: 123,
+        rpcUrl: ARBITRUM_TESTNET_SEPOLIA_RPC_URL,
     },
 }
 
