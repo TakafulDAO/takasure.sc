@@ -264,6 +264,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         emit OnMemberKycVerified(memberWallet);
     }
 
+    /**
+     * @notice Refunds the user unable to do KYC
+     */
+    function refund(address member) external {}
+
     function recurringPayment() external {
         if (reserve.members[msg.sender].memberState != MemberState.Active) {
             revert TakasurePool__WrongMemberState();
