@@ -74,6 +74,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 indexed updatedContribution,
         uint256 updatedTotalWakalaFee
     );
+    event OnRefund(address indexed member, uint256 indexed amount);
 
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
@@ -85,6 +86,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error TakasurePool__MemberAlreadyKYCed();
     error TakasurePool__WrongMemberState();
     error TakasurePool__InvalidDate();
+    error TakasurePool__NothingToRefund();
+    error TakasurePool__RefundFailed();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -147,6 +150,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @dev it reverts if the member is already active
      * @dev the contribution amount will be round down so the last four decimals will be zero. This means
      *      that the minimum contribution amount is 0.01 USDC
+     * @dev the contribution amount will be round down so the last four decimals will be zero
      */
     function joinPool(
         uint256 benefitMultiplier,
@@ -267,7 +271,35 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     /**
      * @notice Refunds the user unable to do KYC
      */
-    function refund(address member) external {}
+    function refund() external {
+        // The member should not be KYCed
+        // The member should have payed the contribution, to check this we check the contribution amount
+        // This one is bigger than zero only if the contribution was payed
+        if (reserve.members[msg.sender].isKYCVerified == true) {
+            revert TakasurePool__MemberAlreadyKYCed();
+        }
+        if (reserve.members[msg.sender].contribution == 0) {
+            revert TakasurePool__NothingToRefund();
+        }
+
+        // As there is only one contribution, is easy to calculte with the Member struct values
+        uint256 contributionAmount = reserve.members[msg.sender].contribution;
+        uint256 wakalaAmount = reserve.members[msg.sender].totalWakalaFee;
+        uint256 amountToRefund = contributionAmount - wakalaAmount;
+
+        // Transfer the amount to refund
+        bool success = contributionToken.transfer(msg.sender, amountToRefund);
+        if (!success) {
+            revert TakasurePool__RefundFailed();
+        }
+
+        // Update the member values
+        reserve.members[msg.sender].isRefunded = true;
+
+        // ? Question: Should we update the other values? Or leave it like they are for some sort of history?
+
+        emit OnRefund(msg.sender, amountToRefund);
+    }
 
     function recurringPayment() external {
         if (reserve.members[msg.sender].memberState != MemberState.Active) {
@@ -441,7 +473,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             wallet: _memberWallet,
             memberState: _memberState,
             surplus: 0, // Todo
-            isKYCVerified: _isKYCVerified
+            isKYCVerified: _isKYCVerified,
+            isRefunded: false
         });
 
         // Add the member to the corresponding mappings
