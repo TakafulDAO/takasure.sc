@@ -28,6 +28,10 @@ const networkConfig = {
         usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // https://developers.circle.com/developer/docs/supported-chains-and-currencies#native-usdc
         wakalaClaimAddress: "0x", // TODO
         daoOperator: "0x", // TODO
+        functionsRouter: "", // TODO
+        donId: "0", // TODO
+        gasLimit: 300000,
+        subscriptionId: 0, // TODO
         rpcUrl: ARBITRUM_MAINNET_RPC_URL,
     },
     421614: {
@@ -37,6 +41,7 @@ const networkConfig = {
         daoOperator: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account, // Todo: Change later for better tests
         functionsRouter: "0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C",
         donId: "0x66756e2d617262697472756d2d6d61696e6e65742d3100000000000000000000",
+        gasLimit: 300000,
         subscriptionId: 123,
         rpcUrl: ARBITRUM_TESTNET_SEPOLIA_RPC_URL,
     },

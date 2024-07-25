@@ -7,12 +7,17 @@ module.exports = async ({ deployments }) => {
     const { log } = deployments
     const chainId = network.config.chainId
 
+    let functionsRouter, donId, gasLimit, subscriptionId
+
     log("02.03. Deploying FunctionsConsumer Contract...")
 
     functionsRouter = networkConfig[chainId]["functionsRouter"]
+    donId = networkConfig[chainId]["donId"]
+    gasLimit = networkConfig[chainId]["gasLimit"]
+    subscriptionId = networkConfig[chainId]["subscriptionId"]
 
     const contractName = "FunctionsConsumer"
-    const args = [functionsRouter]
+    const args = [functionsRouter, donId, gasLimit, subscriptionId]
     const deterministicDeployment = false
     const contract = "FunctionsConsumer"
 
