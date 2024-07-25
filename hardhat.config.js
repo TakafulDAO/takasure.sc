@@ -121,7 +121,7 @@ module.exports = {
             default: 0,
             localhost: 0,
         },
-        wakalaClaimAddress: {
+        feeClaimAddress: {
             default: 1,
             localhost: 1,
         },

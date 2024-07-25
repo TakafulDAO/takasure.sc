@@ -32,10 +32,10 @@ contract Getters_TakasurePoolTest is StdCheats, Test {
         vm.stopPrank();
     }
 
-    function testTakasurePool_getWakalaFee() public view {
-        (, , , , , , , , , uint256 wakalaFee, , ) = takasurePool.getReserveValues();
-        uint256 expectedWakalaFee = 20;
-        assertEq(wakalaFee, expectedWakalaFee);
+    function testTakasurePool_getServiceFee() public view {
+        (, , , , , , , , , uint256 serviceFee, , ) = takasurePool.getReserveValues();
+        uint256 expectedServiceFee = 20;
+        assertEq(serviceFee, expectedServiceFee);
     }
 
     function testTakasurePool_getMinimumThreshold() public view {

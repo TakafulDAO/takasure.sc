@@ -20,13 +20,13 @@ contract ReserveMathLibHarness {
     function updateProFormaClaimReserve(
         uint256 currentProFormaClaimReserve,
         uint256 memberNetContribution,
-        uint8 wakalaFee,
+        uint8 serviceFee,
         uint256 initialReserveRatio
     ) external pure returns (uint256 exposedUpdatedProFormaClaimReserve) {
         exposedUpdatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
             currentProFormaClaimReserve,
             memberNetContribution,
-            wakalaFee,
+            serviceFee,
             initialReserveRatio
         );
     }
@@ -48,12 +48,12 @@ contract ReserveMathLibHarness {
 
     function calculateBmaInflowAssumption(
         uint256 cashFlowLastPeriod,
-        uint256 wakalaFee,
+        uint256 serviceFee,
         uint256 initialDRR
     ) external pure returns (uint256 exposedBmaInflowAssumption) {
         exposedBmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
             cashFlowLastPeriod,
-            wakalaFee,
+            serviceFee,
             initialDRR
         );
     }

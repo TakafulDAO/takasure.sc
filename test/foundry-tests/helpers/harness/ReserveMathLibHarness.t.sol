@@ -21,13 +21,13 @@ contract ReserveMathLibHarness {
     function exposed__updateProFormaClaimReserve(
         uint256 currentProFormaClaimReserve,
         uint256 memberNetContribution,
-        uint8 wakalaFee,
+        uint8 serviceFee,
         uint256 initialReserveRatio
     ) external pure returns (uint256 exposedUpdatedProFormaClaimReserve) {
         exposedUpdatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
             currentProFormaClaimReserve,
             memberNetContribution,
-            wakalaFee,
+            serviceFee,
             initialReserveRatio
         );
     }
