@@ -41,21 +41,21 @@ library ReserveMathLib {
      * @notice Calculate the pro forma claim reserve, which should be updated on every cash-in operation
      * @param _currentProFormaClaimReserve Current value. Note: Six decimals
      * @param _memberContribution Net contribution of the member. Note: Six decimals
-     * @param _wakalaFee Wakala fee. Note: Percentage value, i.e. 20% => input should be 20
+     * @param _serviceFee Service fee. Note: Percentage value, i.e. 20% => input should be 20
      * @param _initialReserveRatio Initial reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
      * @return updatedProFormaClaimReserve_ Updated value. Note: Six decimals
      */
     function _updateProFormaClaimReserve(
         uint256 _currentProFormaClaimReserve,
         uint256 _memberContribution,
-        uint8 _wakalaFee,
+        uint8 _serviceFee,
         uint256 _initialReserveRatio
     ) internal pure returns (uint256 updatedProFormaClaimReserve_) {
-        // updatedProFormaClaimReserve = currentProFormaClaimReserve + (memberContribution * (1 - wakalaFee) * (1 - initialReserveRatio))
-        // To avoid rounding issues as (1 - wakalaFee) * (1 - initialReserveRatio) is always 1, in solidity. We use the percentage values and divide by 10^4
+        // updatedProFormaClaimReserve = currentProFormaClaimReserve + (memberContribution * (1 - serviceFee) * (1 - initialReserveRatio))
+        // To avoid rounding issues as (1 - serviceFee) * (1 - initialReserveRatio) is always 1, in solidity. We use the percentage values and divide by 10^4
         updatedProFormaClaimReserve_ =
             _currentProFormaClaimReserve +
-            ((_memberContribution * (100 - uint256(_wakalaFee)) * (100 - _initialReserveRatio)) /
+            ((_memberContribution * (100 - uint256(_serviceFee)) * (100 - _initialReserveRatio)) /
                 10 ** 4);
     }
 
@@ -101,18 +101,18 @@ library ReserveMathLib {
     /**
      * @notice Helper function to calculate the benefit multiplier adjuster
      * @param _cashFlowLastPeriod Cash flow of the last period of 12 months. Note: Six decimals
-     * @param _wakalaFee Wakala fee. Note: Percentage value, i.e. 20% => input should be 20
+     * @param _serviceFee Service fee. Note: Percentage value, i.e. 20% => input should be 20
      * @param _initialDRR Initial dynamic reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
      * @return bmaInflowAssumption_ Six decimals
      */
     // todo: this one can be inlined inside _calculateBmaCashFlowMethod, as it is only used there. It depends if we decide to use another bma method and it is used in other places
     function _calculateBmaInflowAssumption(
         uint256 _cashFlowLastPeriod,
-        uint256 _wakalaFee,
+        uint256 _serviceFee,
         uint256 _initialDRR
     ) internal pure returns (uint256 bmaInflowAssumption_) {
         bmaInflowAssumption_ =
-            (_cashFlowLastPeriod * (100 - _wakalaFee) * (100 - _initialDRR)) /
+            (_cashFlowLastPeriod * (100 - _serviceFee) * (100 - _initialDRR)) /
             10 ** 4;
     }
 

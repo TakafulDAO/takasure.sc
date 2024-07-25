@@ -18,7 +18,7 @@ struct Member {
     uint256 contribution; // in stablecoin currency in Wei
     uint256 claimAddAmount; // amount deposited in the claim reserve, in stablecoin currency in Wei
     uint256 totalContributions; // in stablecoin currency in Wei. This is the total contribution made by the member
-    uint256 totalWakalaFee; // in stablecoin currency in Wei
+    uint256 totalServiceFee; // in stablecoin currency in Wei
     address wallet;
     MemberState memberState;
     uint256 surplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
@@ -36,7 +36,7 @@ struct Reserve {
     uint256 proFormaFundReserve; // Used to update the dynamic reserve ratio
     uint256 proFormaClaimReserve;
     uint256 lossRatio; // Default 0
-    uint8 wakalaFee; // Default 20%, max 100%
+    uint8 serviceFee; // Default 20%, max 100%
     uint8 bmaFundReserveShare; // Default 70%
     uint8 riskMultiplier; // Default to 75% // ? Questuion: 75% to put something but the value needs to be defined
     bool isOptimizerEnabled; // Default false

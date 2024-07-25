@@ -27,7 +27,7 @@ contract DeployTokenAndPool is Script {
         (
             address contributionToken,
             uint256 deployerKey,
-            address wakalaClaimAddress,
+            address feeClaimAddress,
             address daoOperator
         ) = config.activeNetworkConfig();
 
@@ -42,7 +42,7 @@ contract DeployTokenAndPool is Script {
         TakasurePool(address(proxy)).initialize(
             contributionToken,
             address(daoToken),
-            wakalaClaimAddress,
+            feeClaimAddress,
             daoOperator
         );
 

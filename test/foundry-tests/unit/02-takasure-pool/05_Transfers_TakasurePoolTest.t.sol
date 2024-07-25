@@ -58,32 +58,32 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_contributionAmountTransferToContractWhenJoinPool() public {
         uint256 contractBalanceBefore = usdc.balanceOf(address(takasurePool));
 
-        (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
+        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
 
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 contractBalanceAfter = usdc.balanceOf(address(takasurePool));
 
-        uint256 fee = (CONTRIBUTION_AMOUNT * wakalaFee) / 100;
+        uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100;
         uint256 deposited = CONTRIBUTION_AMOUNT - fee;
 
         assertEq(contractBalanceAfter, contractBalanceBefore + deposited);
     }
 
-    /// @dev Test wakala fee is transferred when the member joins the pool
-    function testTakasurePool_wakalaFeeAmountTransferedWhenJoinsPool() public {
-        (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
-        address wakalaFeeReceiver = takasurePool.wakalaClaimAddress();
-        uint256 wakalaFeeReceiverBalanceBefore = usdc.balanceOf(wakalaFeeReceiver);
+    /// @dev Test service fee is transferred when the member joins the pool
+    function testTakasurePool_serviceFeeAmountTransferedWhenJoinsPool() public {
+        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        address serviceFeeReceiver = takasurePool.feeClaimAddress();
+        uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
 
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 wakalaFeeReceiverBalanceAfter = usdc.balanceOf(wakalaFeeReceiver);
+        uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
 
-        uint256 feeColected = (CONTRIBUTION_AMOUNT * wakalaFee) / 100; // 25USDC * 20% = 5USDC
+        uint256 feeColected = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
 
-        assertEq(wakalaFeeReceiverBalanceAfter, wakalaFeeReceiverBalanceBefore + feeColected);
+        assertEq(serviceFeeReceiverBalanceAfter, serviceFeeReceiverBalanceBefore + feeColected);
     }
 }

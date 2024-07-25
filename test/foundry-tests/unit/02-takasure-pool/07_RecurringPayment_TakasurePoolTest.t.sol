@@ -26,7 +26,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
         address indexed member,
         uint256 indexed updatedYearsCovered,
         uint256 indexed updatedContribution,
-        uint256 updatedTotalWakalaFee
+        uint256 updatedTotalServiceFee
     );
 
     function setUp() public {
@@ -50,18 +50,18 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
     }
 
     function testTakasurePool_recurringPaymentThrough5Years() public {
-        uint256 expectedWakalaIncrease = (CONTRIBUTION_AMOUNT * 20) / 100;
+        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 20) / 100;
 
         for (uint256 i = 0; i < 5; i++) {
             Member memory testMember = takasurePool.getMemberFromAddress(alice);
 
             uint256 yearBeforePayment = testMember.yearsCovered;
             uint256 totalContributionBeforePayment = testMember.totalContributions;
-            uint256 totalWakalaFeeBeforePayment = testMember.totalWakalaFee;
+            uint256 totalServiceFeeBeforePayment = testMember.totalServiceFee;
 
             console2.log("Years Covered: ", yearBeforePayment);
             console2.log("Total Contribution: ", totalContributionBeforePayment);
-            console2.log("Total Wakala Fee: ", totalWakalaFeeBeforePayment);
+            console2.log("Total Service Fee: ", totalServiceFeeBeforePayment);
             console2.log("====================================");
 
             vm.warp(block.timestamp + YEAR);
@@ -73,7 +73,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
                 alice,
                 yearBeforePayment + 1,
                 totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
-                totalWakalaFeeBeforePayment + expectedWakalaIncrease
+                totalServiceFeeBeforePayment + expectedServiceIncrease
             );
             takasurePool.recurringPayment();
             vm.stopPrank;
@@ -82,7 +82,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
 
             uint256 yearAfterPayment = testMember.yearsCovered;
             uint256 totalContributionAfterPayment = testMember.totalContributions;
-            uint256 totalWakalaFeeAfterPayment = testMember.totalWakalaFee;
+            uint256 totalServiceFeeAfterPayment = testMember.totalServiceFee;
 
             assert(yearAfterPayment == yearBeforePayment + 1);
             assert(
@@ -90,7 +90,8 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
                     totalContributionBeforePayment + CONTRIBUTION_AMOUNT
             );
             assert(
-                totalWakalaFeeAfterPayment == totalWakalaFeeBeforePayment + expectedWakalaIncrease
+                totalServiceFeeAfterPayment ==
+                    totalServiceFeeBeforePayment + expectedServiceIncrease
             );
         }
     }

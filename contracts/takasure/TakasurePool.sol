@@ -41,7 +41,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     uint256 public minimumThreshold;
     uint256 public memberIdCounter;
-    address public wakalaClaimAddress;
+    address public feeClaimAddress;
 
     uint256 RPOOL; // todo: define this value
 
@@ -55,7 +55,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address indexed member,
         uint256 indexed benefitMultiplier,
         uint256 contributionAmount,
-        uint256 wakalaFee,
+        uint256 serviceFee,
         uint256 membershipDuration,
         uint256 membershipStartTime
     ); // Emited when a new member is created
@@ -64,7 +64,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address indexed member,
         uint256 indexed benefitMultiplier,
         uint256 contributionAmount,
-        uint256 wakalaFee,
+        uint256 serviceFee,
         uint256 membershipDuration,
         uint256 membershipStartTime
     ); // Emited when a member is updated. This is used when a member first KYCed and then paid the contribution
@@ -74,8 +74,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address indexed member,
         uint256 indexed updatedYearsCovered,
         uint256 indexed updatedContribution,
-        uint256 updatedTotalWakalaFee
+        uint256 updatedTotalServiceFee
     );
+    event OnServiceFeeChanged(uint8 indexed newServiceFee);
 
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
@@ -83,7 +84,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error TakasurePool__ContributionTransferFailed();
     error TakasurePool__FeeTransferFailed();
     error TakasurePool__MintFailed();
-    error TakasurePool__WrongWakalaFee();
+    error TakasurePool__WrongServiceFee();
     error TakasurePool__MemberAlreadyKYCed();
     error TakasurePool__WrongMemberState();
     error TakasurePool__InvalidDate();
@@ -103,21 +104,21 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     /**
      * @param _contributionToken default USDC
      * @param _daoToken utility token for the DAO
-     * @param _wakalaClaimAddress address allowed to claim the wakala fee
+     * @param _feeClaimAddress address allowed to claim the service fee
      * @param _daoOperator address allowed to manage the DAO
      * @dev it reverts if any of the addresses is zero
      */
     function initialize(
         address _contributionToken,
         address _daoToken,
-        address _wakalaClaimAddress,
+        address _feeClaimAddress,
         address _daoOperator
     )
         external
         initializer
         notZeroAddress(_contributionToken)
         notZeroAddress(_daoToken)
-        notZeroAddress(_wakalaClaimAddress)
+        notZeroAddress(_feeClaimAddress)
         notZeroAddress(_daoOperator)
     {
         __UUPSUpgradeable_init();
@@ -125,7 +126,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         contributionToken = IERC20(_contributionToken);
         daoToken = ITSToken(_daoToken);
-        wakalaClaimAddress = _wakalaClaimAddress;
+        feeClaimAddress = _feeClaimAddress;
 
         monthReference = 1;
         dayReference = 1;
@@ -134,7 +135,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.initialReserveRatio = 40; // 40% Default
         reserve.dynamicReserveRatio = reserve.initialReserveRatio; // Default
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
-        reserve.wakalaFee = 20; // 20% of the contribution amount. Default
+        reserve.serviceFee = 20; // 20% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
         reserve.riskMultiplier = 75; // 75% Default // todo: here or in a reinitializer? check later
     }
@@ -170,7 +171,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         (
             uint256 correctedContributionAmount,
-            uint256 wakalaAmount,
+            uint256 feeAmount,
             uint256 depositAmount
         ) = _calculateAmountAndFees(contributionAmount);
 
@@ -180,7 +181,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 benefitMultiplier,
                 correctedContributionAmount,
                 membershipDuration,
-                wakalaAmount,
+                feeAmount,
                 msg.sender,
                 MemberState.Active
             );
@@ -189,7 +190,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             _memberPaymentFlow(
                 correctedContributionAmount,
                 depositAmount,
-                wakalaAmount,
+                feeAmount,
                 msg.sender,
                 true
             );
@@ -201,7 +202,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 benefitMultiplier,
                 correctedContributionAmount,
                 membershipDuration,
-                wakalaAmount,
+                feeAmount,
                 isKYCVerified,
                 msg.sender,
                 MemberState.Inactive
@@ -210,7 +211,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // The member will pay the contribution, but will remain inactive until the KYC is verified
             // This means the proformas wont be updated, the amounts wont be added to the reserves,
             // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-            _transferAmounts(depositAmount, wakalaAmount, msg.sender);
+            _transferAmounts(depositAmount, feeAmount, msg.sender);
         }
     }
 
@@ -239,7 +240,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
             (
                 uint256 correctedContributionAmount,
-                uint256 wakalaAmount,
+                uint256 feeAmount,
                 uint256 depositAmount
             ) = _calculateAmountAndFees(reserve.members[memberWallet].contribution);
 
@@ -247,7 +248,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 reserve.members[memberWallet].benefitMultiplier,
                 correctedContributionAmount,
                 reserve.members[memberWallet].membershipDuration,
-                wakalaAmount,
+                feeAmount,
                 memberWallet,
                 MemberState.Active
             );
@@ -257,7 +258,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             _memberPaymentFlow(
                 correctedContributionAmount,
                 depositAmount,
-                wakalaAmount,
+                feeAmount,
                 memberWallet,
                 false
             );
@@ -284,30 +285,32 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         uint256 contributionAmount = reserve.members[msg.sender].contribution;
-        uint256 wakalaAmount = (contributionAmount * reserve.wakalaFee) / 100;
-        uint256 depositAmount = contributionAmount - wakalaAmount;
+        uint256 feeAmount = (contributionAmount * reserve.serviceFee) / 100;
+        uint256 depositAmount = contributionAmount - feeAmount;
 
         // Update the values
         ++reserve.members[msg.sender].yearsCovered;
         reserve.members[msg.sender].totalContributions += contributionAmount;
-        reserve.members[msg.sender].totalWakalaFee += wakalaAmount;
+        reserve.members[msg.sender].totalServiceFee += feeAmount;
 
         // And we pay the contribution
-        _memberPaymentFlow(contributionAmount, wakalaAmount, depositAmount, msg.sender, true);
+        _memberPaymentFlow(contributionAmount, feeAmount, depositAmount, msg.sender, true);
 
         emit OnRecurringPayment(
             msg.sender,
             reserve.members[msg.sender].yearsCovered,
             reserve.members[msg.sender].totalContributions,
-            reserve.members[msg.sender].totalWakalaFee
+            reserve.members[msg.sender].totalServiceFee
         );
     }
 
-    function setNewWakalaFee(uint8 newWakalaFee) external onlyOwner {
-        if (newWakalaFee > 100) {
-            revert TakasurePool__WrongWakalaFee();
+    function setNewServiceFee(uint8 newServiceFee) external onlyOwner {
+        if (newServiceFee > 35) {
+            revert TakasurePool__WrongServiceFee();
         }
-        reserve.wakalaFee = newWakalaFee;
+        reserve.serviceFee = newServiceFee;
+
+        emit OnServiceFeeChanged(newServiceFee);
     }
 
     function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
@@ -320,10 +323,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         contributionToken = IERC20(newContributionToken);
     }
 
-    function setNewWakalaClaimAddress(
-        address newWakalaClaimAddress
-    ) external onlyOwner notZeroAddress(newWakalaClaimAddress) {
-        wakalaClaimAddress = newWakalaClaimAddress;
+    function setNewFeeClaimAddress(
+        address newFeeClaimAddress
+    ) external onlyOwner notZeroAddress(newFeeClaimAddress) {
+        feeClaimAddress = newFeeClaimAddress;
     }
 
     function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
@@ -343,7 +346,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             uint256 proFormaFundReserve_,
             uint256 proFormaClaimReserve_,
             uint256 lossRatio_,
-            uint8 wakalaFee_,
+            uint8 serviceFee_,
             uint8 bmaFundReserveShare_,
             bool isOptimizerEnabled_
         )
@@ -357,7 +360,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         proFormaFundReserve_ = reserve.proFormaFundReserve;
         proFormaClaimReserve_ = reserve.proFormaClaimReserve;
         lossRatio_ = reserve.lossRatio;
-        wakalaFee_ = reserve.wakalaFee;
+        serviceFee_ = reserve.serviceFee;
         bmaFundReserveShare_ = reserve.bmaFundReserveShare;
         isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
@@ -396,7 +399,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     )
         internal
         view
-        returns (uint256 contributionAmount_, uint256 wakalaAmount_, uint256 depositAmount_)
+        returns (uint256 contributionAmount_, uint256 feeAmount_, uint256 depositAmount_)
     {
         // Then we pay the contribution
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
@@ -404,15 +407,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         contributionAmount_ =
             (_contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
-        wakalaAmount_ = (contributionAmount_ * reserve.wakalaFee) / 100;
-        depositAmount_ = contributionAmount_ - wakalaAmount_;
+        feeAmount_ = (contributionAmount_ * reserve.serviceFee) / 100;
+        depositAmount_ = contributionAmount_ - feeAmount_;
     }
 
     function _createNewMember(
         uint256 _benefitMultiplier,
         uint256 _contributionAmount,
         uint256 _membershipDuration,
-        uint256 _wakalaAmount,
+        uint256 _feeAmount,
         bool _isKYCVerified,
         address _memberWallet,
         MemberState _memberState
@@ -436,7 +439,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             contribution: _contributionAmount,
             claimAddAmount: (_contributionAmount * (100 - reserve.dynamicReserveRatio)) / 100,
             totalContributions: _contributionAmount,
-            totalWakalaFee: _wakalaAmount,
+            totalServiceFee: _feeAmount,
             wallet: _memberWallet,
             memberState: _memberState,
             surplus: 0, // Todo
@@ -452,7 +455,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             _memberWallet,
             _benefitMultiplier,
             _contributionAmount,
-            _wakalaAmount,
+            _feeAmount,
             userMembershipDuration,
             currentTimestamp
         );
@@ -462,7 +465,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 _benefitMultiplier,
         uint256 _contributionAmount,
         uint256 _membershipDuration,
-        uint256 _wakalaAmount,
+        uint256 _feeAmount,
         address _memberWallet,
         MemberState _memberState
     ) internal {
@@ -482,7 +485,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.members[_memberWallet].claimAddAmount =
             (_contributionAmount * (100 - reserve.dynamicReserveRatio)) /
             100;
-        reserve.members[_memberWallet].totalWakalaFee = _wakalaAmount;
+        reserve.members[_memberWallet].totalServiceFee = _feeAmount;
         reserve.members[_memberWallet].memberState = _memberState;
 
         // The KYC here is set to true to save gas doing this assumptions
@@ -498,7 +501,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             _memberWallet,
             _benefitMultiplier,
             _contributionAmount,
-            _wakalaAmount,
+            _feeAmount,
             userMembershipDuration,
             currentTimestamp
         );
@@ -512,7 +515,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _memberPaymentFlow(
         uint256 _contributionAmount,
         uint256 _depositAmount,
-        uint256 _wakalaAmount,
+        uint256 _feeAmount,
         address _memberWallet,
         bool _payContribution
     ) internal {
@@ -524,7 +527,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _updateBMA(cashLast12Months);
         _mintDaoTokens(_contributionAmount, _memberWallet);
         if (_payContribution) {
-            _transferAmounts(_depositAmount, _wakalaAmount, _memberWallet);
+            _transferAmounts(_depositAmount, _feeAmount, _memberWallet);
         }
     }
 
@@ -539,7 +542,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
             reserve.proFormaClaimReserve,
             _contributionAmount,
-            reserve.wakalaFee,
+            reserve.serviceFee,
             reserve.initialReserveRatio
         );
 
@@ -726,7 +729,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _updateBMA(uint256 _cash) internal {
         uint256 bmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
             _cash,
-            reserve.wakalaFee,
+            reserve.serviceFee,
             reserve.initialReserveRatio
         );
 
@@ -743,7 +746,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function _transferAmounts(
         uint256 _depositAmount,
-        uint256 _wakalaAmount,
+        uint256 _feeAmount,
         address _memberWallet
     ) internal {
         bool success;
@@ -754,8 +757,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasurePool__ContributionTransferFailed();
         }
 
-        // Transfer the wakala fee to the wakala claim address
-        success = contributionToken.transferFrom(_memberWallet, wakalaClaimAddress, _wakalaAmount);
+        // Transfer the service fee to the fee claim address
+        success = contributionToken.transferFrom(_memberWallet, feeClaimAddress, _feeAmount);
         if (!success) {
             revert TakasurePool__FeeTransferFailed();
         }
