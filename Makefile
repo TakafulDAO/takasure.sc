@@ -6,9 +6,9 @@ DEFAULT_ANVIL_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf
 
 help:
 	@echo "Usage:"
-	@echo "  make deploy [ARGS=...]\n    example: make deploy ARGS=\"--network sepolia\""
+	@echo "  make deploy [ARGS=...]\n    example: make deploy ARGS=\"--network testnet_arbitrum_sepolia\""
 	@echo ""
-	@echo "  make fund [ARGS=...]\n    example: make deploy ARGS=\"--network sepolia\""
+	@echo "  make fund [ARGS=...]\n    example: make deploy ARGS=\"--network testnet_arbitrum_sepolia\""
 
 all: clean remove install update build
 
@@ -18,8 +18,7 @@ clean  :; yarn hardhat clean && forge clean
 # Remove modules
 remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules && git add . && git commit -m "modules"
 
-# install :; forge install cyfrin/foundry-devops@0.0.11 --no-commit && forge install smartcontractkit/chainlink-brownie-contracts@0.6.1 --no-commit && forge install foundry-rs/forge-std@v1.5.3 --no-commit && forge install openzeppelin/openzeppelin-contracts@v4.8.3 --no-commit
-
+install :; forge install cyfrin/foundry-devops@0.0.11 --no-commit && forge install foundry-rs/forge-std --no-commit
 # Update Dependencies
 update:; forge update
 
@@ -40,8 +39,8 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 # This needs to be fixed
-ifeq ($(findstring --network arbitrum sepolia,$(ARGS)),--network sepolia)
-	NETWORK_ARGS := --rpc-url $(ARBITRUM_TESTNET_SEPOLIA_RPC_URL) --private-key $(TESTNET_DEPLOYER_PK) --broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY) -vvvv
+ifeq ($(findstring --network testnet_arbitrum_sepolia,$(ARGS)),--network testnet_arbitrum_sepolia)
+	NETWORK_ARGS := --rpc-url $(ARBITRUM_TESTNET_SEPOLIA_RPC_URL) --account $(ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY) -vvvv
 endif
 
 deploy-token-and-pool:
