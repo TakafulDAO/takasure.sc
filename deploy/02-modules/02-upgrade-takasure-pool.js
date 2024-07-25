@@ -6,7 +6,7 @@ module.exports = async ({ deployments }) => {
     const chainId = network.config.chainId
 
     let usdc, usdcAddress
-    let daoToken, daoTokenAddress, wakalaClaimAddress
+    let daoToken, daoTokenAddress, feeClaimAddress
     let takasureProxy, takasureProxyAddress
 
     log("02.02. Deploying TakasurePool Contract...")
@@ -20,12 +20,12 @@ module.exports = async ({ deployments }) => {
 
     daoToken = await deployments.get("TSToken")
     daoTokenAddress = daoToken.address
-    wakalaClaimAddress = networkConfig[chainId]["wakalaClaimAddress"]
+    feeClaimAddress = networkConfig[chainId]["feeClaimAddress"]
     daoOperator = networkConfig[chainId]["daoOperator"]
     takasureProxy = await deployments.get("TakasurePool")
     takasureProxyAddress = takasureProxy.address
 
-    const initArgs = [usdcAddress, daoTokenAddress, wakalaClaimAddress, daoOperator]
+    const initArgs = [usdcAddress, daoTokenAddress, feeClaimAddress, daoOperator]
 
     const TakasurePoolUpgrade = await ethers.getContractFactory("TakasurePool")
     const takasurePoolUpgrade = await upgrades.upgradeProxy(

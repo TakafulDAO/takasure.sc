@@ -27,7 +27,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         address indexed member,
         uint256 indexed benefitMultiplier,
         uint256 contributionAmount,
-        uint256 wakalaFee,
+        uint256 serviceFee,
         uint256 membershipDuration,
         uint256 membershipStartTime
     ); // Emited when a new member is created
@@ -36,7 +36,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         address indexed member,
         uint256 indexed benefitMultiplier,
         uint256 contributionAmount,
-        uint256 wakalaFee,
+        uint256 serviceFee,
         uint256 membershipDuration,
         uint256 membershipStartTime
     ); // Emited when a member is updated. This is used when a member first KYCed and then paid the contribution
@@ -87,7 +87,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         console2.log("Member ID", testMemberAfterKyc.memberId);
         console2.log("Benefit Multiplier", testMemberAfterKyc.benefitMultiplier);
         console2.log("Contribution", testMemberAfterKyc.contribution);
-        console2.log("Total Wakala Fee", testMemberAfterKyc.totalWakalaFee);
+        console2.log("Total Service Fee", testMemberAfterKyc.totalServiceFee);
         console2.log("Wallet", testMemberAfterKyc.wallet);
         console2.log("Member State", uint8(testMemberAfterKyc.memberState));
         console2.log("KYC Verification", testMemberAfterKyc.isKYCVerified);
@@ -97,7 +97,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         assertEq(testMemberAfterKyc.memberId, memberIdAfterKyc, "Member ID is not correct");
         assertEq(testMemberAfterKyc.benefitMultiplier, 0, "Benefit Multiplier is not correct");
         assertEq(testMemberAfterKyc.contribution, 0, "Contribution is not correct");
-        assertEq(testMemberAfterKyc.totalWakalaFee, 0, "Total Wakala Fee is not correct");
+        assertEq(testMemberAfterKyc.totalServiceFee, 0, "Total Service Fee is not correct");
         assertEq(testMemberAfterKyc.wallet, alice, "Wallet is not correct");
         assertEq(uint8(testMemberAfterKyc.memberState), 0, "Member State is not correct");
         assertEq(testMemberAfterKyc.isKYCVerified, true, "KYC Verification is not correct");
@@ -130,7 +130,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         console2.log("Member ID", testMemberAfterJoin.memberId);
         console2.log("Benefit Multiplier", testMemberAfterJoin.benefitMultiplier);
         console2.log("Contribution", testMemberAfterJoin.contribution);
-        console2.log("Total Wakala Fee", testMemberAfterJoin.totalWakalaFee);
+        console2.log("Total Service Fee", testMemberAfterJoin.totalServiceFee);
         console2.log("Wallet", testMemberAfterJoin.wallet);
         console2.log("Member State", uint8(testMemberAfterJoin.memberState));
         console2.log("KYC Verification", testMemberAfterJoin.isKYCVerified);
@@ -190,7 +190,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         console2.log("Member ID", testMemberAfterJoin.memberId);
         console2.log("Benefit Multiplier", testMemberAfterJoin.benefitMultiplier);
         console2.log("Contribution", testMemberAfterJoin.contribution);
-        console2.log("Total Wakala Fee", testMemberAfterJoin.totalWakalaFee);
+        console2.log("Total Service Fee", testMemberAfterJoin.totalServiceFee);
         console2.log("Wallet", testMemberAfterJoin.wallet);
         console2.log("Member State", uint8(testMemberAfterJoin.memberState));
         console2.log("KYC Verification", testMemberAfterJoin.isKYCVerified);
@@ -241,7 +241,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         console2.log("Member ID", testMemberAfterKyc.memberId);
         console2.log("Benefit Multiplier", testMemberAfterKyc.benefitMultiplier);
         console2.log("Contribution", testMemberAfterKyc.contribution);
-        console2.log("Total Wakala Fee", testMemberAfterKyc.totalWakalaFee);
+        console2.log("Total Service Fee", testMemberAfterKyc.totalServiceFee);
         console2.log("Wallet", testMemberAfterKyc.wallet);
         console2.log("Member State", uint8(testMemberAfterKyc.memberState));
         console2.log("KYC Verification", testMemberAfterKyc.isKYCVerified);

@@ -38,20 +38,20 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
-    /// @dev `setNewWakalaFee` must revert if the caller is not the owner
-    function testTakasurePool_setNewWakalaFeeMustRevertIfTheCallerIsNotTheOwner() public {
-        uint8 newWakalaFee = 50;
+    /// @dev `setNewServiceFee` must revert if the caller is not the owner
+    function testTakasurePool_setNewServiceFeeMustRevertIfTheCallerIsNotTheOwner() public {
+        uint8 newServiceFee = 50;
         vm.prank(alice);
         vm.expectRevert();
-        takasurePool.setNewWakalaFee(newWakalaFee);
+        takasurePool.setNewServiceFee(newServiceFee);
     }
 
-    /// @dev `setNewWakalaFee` must revert if it is higher than 100
-    function testTakasurePool_setNewWakalaFeeMustRevertIfHigherThan100() public {
-        uint8 newWakalaFee = 101;
+    /// @dev `setNewServiceFee` must revert if it is higher than 35
+    function testTakasurePool_setNewServiceFeeMustRevertIfHigherThan35() public {
+        uint8 newServiceFee = 36;
         vm.prank(takasurePool.owner());
-        vm.expectRevert(TakasurePool.TakasurePool__WrongWakalaFee.selector);
-        takasurePool.setNewWakalaFee(newWakalaFee);
+        vm.expectRevert(TakasurePool.TakasurePool__WrongServiceFee.selector);
+        takasurePool.setNewServiceFee(newServiceFee);
     }
 
     /// @dev `setNewMinimumThreshold` must revert if the caller is not the owner
@@ -76,18 +76,18 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.setNewContributionToken(address(0));
     }
 
-    /// @dev `setNewWakalaClaimAddress` must revert if the caller is not the owner
-    function testTakasurePool_setNewWakalaClaimAddressMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setNewFeeClaimAddress` must revert if the caller is not the owner
+    function testTakasurePool_setNewFeeClaimAddressMustRevertIfTheCallerIsNotTheOwner() public {
         vm.prank(alice);
         vm.expectRevert();
-        takasurePool.setNewWakalaClaimAddress(alice);
+        takasurePool.setNewFeeClaimAddress(alice);
     }
 
-    /// @dev `setNewWakalaClaimAddress` must revert if the address is zero
-    function testTakasurePool_setNewWakalaClaimAddressMustRevertIfAddressZero() public {
+    /// @dev `setNewFeeClaimAddress` must revert if the address is zero
+    function testTakasurePool_setNewFeeClaimAddressMustRevertIfAddressZero() public {
         vm.prank(takasurePool.owner());
         vm.expectRevert(TakasurePool.TakasurePool__ZeroAddress.selector);
-        takasurePool.setNewWakalaClaimAddress(address(0));
+        takasurePool.setNewFeeClaimAddress(address(0));
     }
 
     /// @dev `setAllowCustomDuration` must revert if the caller is not the owner

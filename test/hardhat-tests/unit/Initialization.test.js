@@ -88,11 +88,11 @@ const { developmentChains, networkConfig } = require("../../../utils/_networks")
               assert.equal(minimumThreshold, expectedThreshold)
           })
 
-          it("The wakala fee initialized correctly", async () => {
-              const wakalaFee = (await takasurePool.getReserveValues())[9]
+          it("The service fee initialized correctly", async () => {
+              const serviceFee = (await takasurePool.getReserveValues())[9]
 
-              const expectedWakalaFee = 20
+              const expectedServiceFee = 20
 
-              assert.equal(wakalaFee, expectedWakalaFee)
+              assert.equal(serviceFee, expectedServiceFee)
           })
       })
