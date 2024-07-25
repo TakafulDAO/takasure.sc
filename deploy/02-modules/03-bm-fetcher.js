@@ -9,34 +9,34 @@ module.exports = async ({ deployments }) => {
 
     let functionsRouter, donId, gasLimit, subscriptionId
 
-    log("02.03. Deploying FunctionsConsumer Contract...")
+    log("02.03. Deploying BmFetcher Contract...")
 
     functionsRouter = networkConfig[chainId]["functionsRouter"]
     donId = networkConfig[chainId]["donId"]
     gasLimit = networkConfig[chainId]["gasLimit"]
     subscriptionId = networkConfig[chainId]["subscriptionId"]
 
-    const contractName = "FunctionsConsumer"
+    const contractName = "BmFetcher"
     const args = [functionsRouter, donId, gasLimit, subscriptionId]
     const deterministicDeployment = false
-    const contract = "FunctionsConsumer"
+    const contract = "BmFetcher"
 
-    const functionsConsumer = await deploySimpleContract(
+    const bmFetcher = await deploySimpleContract(
         contractName,
         args,
         deterministicDeployment,
         contract,
     )
-    log("02.03. FunctionsConsumer Contract Deployed! ")
+    log("02.03. BmFetcher Contract Deployed! ")
 
     log("=======================================================")
 
     if (!developmentChains.includes(network.name) && process.env.ARBISCAN_API_KEY) {
-        log("02.03. Verifying FunctionsConsumer Contract!... ")
-        await verify(functionsConsumer.address, args)
-        log("02.03. FunctionsConsumer Contract Verified! ")
+        log("02.03. Verifying BmFetcher Contract!... ")
+        await verify(bmFetcher.address, args)
+        log("02.03. BmFetcher Contract Verified! ")
     }
     log("=======================================================")
 }
 
-module.exports.tags = ["functions-consumer"]
+module.exports.tags = ["bm-fetcher"]
