@@ -10,6 +10,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITSToken} from "../interfaces/ITSToken.sol";
+import {IBmFetcher} from "../interfaces/IBmFetcher.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -23,6 +24,7 @@ pragma solidity 0.8.25;
 contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
     ITSToken private daoToken;
+    IBmFetcher private bmFetcher;
 
     Reserve private reserve;
 
@@ -75,6 +77,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 updatedTotalServiceFee
     );
     event OnServiceFeeChanged(uint8 indexed newServiceFee);
+    event OnBmFetcherChanged(address indexed newBmFetcher);
 
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
@@ -110,7 +113,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address _contributionToken,
         address _daoToken,
         address _feeClaimAddress,
-        address _daoOperator
+        address _daoOperator,
+        address _bmFetcher
     )
         external
         initializer
@@ -118,12 +122,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         notZeroAddress(_daoToken)
         notZeroAddress(_feeClaimAddress)
         notZeroAddress(_daoOperator)
+        notZeroAddress(_bmFetcher)
     {
         __UUPSUpgradeable_init();
         __Ownable_init(_daoOperator);
 
         contributionToken = IERC20(_contributionToken);
         daoToken = ITSToken(_daoToken);
+        bmFetcher = IBmFetcher(_bmFetcher);
         feeClaimAddress = _feeClaimAddress;
 
         monthReference = 1;
@@ -324,6 +330,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address newFeeClaimAddress
     ) external onlyOwner notZeroAddress(newFeeClaimAddress) {
         feeClaimAddress = newFeeClaimAddress;
+    }
+
+    function setNewBmFetcher(address newBmFetcher) external onlyOwner notZeroAddress(newBmFetcher) {
+        bmFetcher = IBmFetcher(newBmFetcher);
+
+        emit OnBmFetcherChanged(newBmFetcher);
     }
 
     function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
