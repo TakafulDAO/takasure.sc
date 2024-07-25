@@ -17,6 +17,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 
 import {Reserve, Member, MemberState} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.25;
 
@@ -147,7 +148,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
      *         member will be active.
-     * @param benefitMultiplier fetched from off-chain oracle
      * @param contributionAmount in six decimals
      * @param membershipDuration default 5 years
      * @dev it reverts if the contribution is less than the minimum threshold defaultes to `minimumThreshold`
@@ -155,11 +155,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @dev the contribution amount will be round down so the last four decimals will be zero. This means
      *      that the minimum contribution amount is 0.01 USDC
      */
-    function joinPool(
-        uint256 benefitMultiplier,
-        uint256 contributionAmount,
-        uint256 membershipDuration
-    ) external {
+    function joinPool(uint256 contributionAmount, uint256 membershipDuration) external {
         // Todo: Check the user benefit multiplier against the oracle.
         if (reserve.members[msg.sender].memberState == MemberState.Active) {
             revert TakasurePool__MemberAlreadyExists();
@@ -172,11 +168,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
 
+        uint256 benefitMultiplier = _getBenefitMultiplier(msg.sender);
+
         (
             uint256 correctedContributionAmount,
             uint256 feeAmount,
             uint256 depositAmount
         ) = _calculateAmountAndFees(contributionAmount);
+
+        // Fetch the BM from the oracle
 
         if (isKYCVerified) {
             // It means the user is already in the system, we just need to update the values
@@ -401,6 +401,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function getCashLast12Months() external view returns (uint256 cash_) {
         (uint16 monthFromCall, uint8 dayFromCall) = _monthAndDayFromCall();
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
+    }
+
+    function _getBenefitMultiplier(address _member) internal returns (uint256 benefitMultiplier_) {
+        string[] memory args = new string[](1);
+        args[0] = Strings.toHexString(uint256(uint160(_member)), 20);
+        bmFetcher.sendRequest(args);
+        benefitMultiplier_ = bmFetcher.convertResponseToUint();
     }
 
     function _calculateAmountAndFees(
