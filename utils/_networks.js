@@ -32,6 +32,7 @@ const networkConfig = {
         donId: "0", // TODO
         gasLimit: 300000,
         subscriptionId: 0, // TODO
+        bmRequester: "0x", // TODO
         rpcUrl: ARBITRUM_MAINNET_RPC_URL,
     },
     421614: {
@@ -43,6 +44,7 @@ const networkConfig = {
         donId: "0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000",
         gasLimit: 300000,
         subscriptionId: 123,
+        bmRequester: "0xE12c1c4D162cFd81D3a9667Dcab20bE8a6F4262C",
         rpcUrl: ARBITRUM_TESTNET_SEPOLIA_RPC_URL,
     },
 }
