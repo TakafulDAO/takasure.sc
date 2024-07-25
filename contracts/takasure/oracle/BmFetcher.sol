@@ -13,10 +13,11 @@ import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/l
 
 pragma solidity 0.8.25;
 
-contract FunctionsConsumer is Ownable, FunctionsClient {
+contract BmFetcher is Ownable, FunctionsClient {
     using FunctionsRequest for FunctionsRequest.Request;
 
     bytes32 private donId;
+    uint32 private gasLimit;
     uint64 private subscriptionId;
     string public bmSourceRequestCode;
 
@@ -29,10 +30,37 @@ contract FunctionsConsumer is Ownable, FunctionsClient {
     error OracleConsumer__UnexpectedRequestID(bytes32 requestId);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address router) Ownable(msg.sender) FunctionsClient(router) {}
+    constructor(
+        address router,
+        bytes32 _donId,
+        uint32 _gasLimit,
+        uint64 _subscriptionId
+    ) Ownable(msg.sender) FunctionsClient(router) {
+        donId = _donId;
+        gasLimit = _gasLimit;
+        subscriptionId = _subscriptionId;
+    }
 
+    /**
+     * @notice Send a simple request
+     * @param args List of arguments accessible from within the source code
+     */
+    function sendRequest(string[] memory args) external onlyOwner returns (bytes32 requestId) {
+        FunctionsRequest.Request memory req;
+        req.initializeRequestForInlineJavaScript(bmSourceRequestCode);
+
+        if (args.length > 0) req.setArgs(args);
+        lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donId);
+        return lastRequestId;
+    }
+
+    /// @notice the next set of functions are used to set the values of the contract
     function setDonId(bytes32 _donId) external onlyOwner {
         donId = _donId;
+    }
+
+    function setGasLimit(uint32 _gasLimit) external onlyOwner {
+        gasLimit = _gasLimit;
     }
 
     function setSubscriptionId(uint64 _subscriptionId) external onlyOwner {
@@ -41,25 +69,6 @@ contract FunctionsConsumer is Ownable, FunctionsClient {
 
     function setBMSourceRequestCode(string calldata _bmSourceRequestCode) external onlyOwner {
         bmSourceRequestCode = _bmSourceRequestCode;
-    }
-
-    /**
-     * @notice Send a simple request
-     * @param args List of arguments accessible from within the source code
-     * @param bytesArgs Array of bytes arguments, represented as hex strings
-     */
-    function sendRequest(
-        string[] memory args,
-        bytes[] memory bytesArgs,
-        uint32 gasLimit
-    ) external onlyOwner returns (bytes32 requestId) {
-        FunctionsRequest.Request memory req;
-        req.initializeRequestForInlineJavaScript(bmSourceRequestCode);
-
-        if (args.length > 0) req.setArgs(args);
-        if (bytesArgs.length > 0) req.setBytesArgs(bytesArgs);
-        lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donId);
-        return lastRequestId;
     }
 
     /**
