@@ -12,7 +12,7 @@ const functionsConsumerAbi = require("../../abi/functionsClient.json")
 const ethers = require("ethers")
 require("dotenv").config()
 
-const consumerAddress = "0x8dFf78B7EE3128D00E90611FBeD20A71397064D9" // todo: replace after deployment
+const consumerAddress = "0xE18D8736Db905f21debf8D7E9800D517c804E749" // todo: replace after deployment
 const subscriptionId = 1233
 
 const makeRequestSepolia = async () => {
