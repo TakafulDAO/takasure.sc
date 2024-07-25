@@ -7,7 +7,7 @@ module.exports = async ({ deployments }) => {
     const { log } = deployments
     const chainId = network.config.chainId
 
-    let functionsRouter, donId, gasLimit, subscriptionId
+    let functionsRouter, donId, gasLimit, subscriptionId, bmRequester
 
     log("02.03. Deploying BmFetcher Contract...")
 
@@ -15,9 +15,10 @@ module.exports = async ({ deployments }) => {
     donId = networkConfig[chainId]["donId"]
     gasLimit = networkConfig[chainId]["gasLimit"]
     subscriptionId = networkConfig[chainId]["subscriptionId"]
+    bmRequester = networkConfig[chainId]["bmRequester"]
 
     const contractName = "BmFetcher"
-    const args = [functionsRouter, donId, gasLimit, subscriptionId]
+    const args = [functionsRouter, donId, gasLimit, subscriptionId, bmRequester]
     const deterministicDeployment = false
     const contract = "BmFetcher"
 
