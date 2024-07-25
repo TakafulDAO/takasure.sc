@@ -282,8 +282,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmount = reserve.members[msg.sender].contribution;
-        uint256 wakalaAmount = reserve.members[msg.sender].totalWakalaFee;
-        uint256 amountToRefund = contributionAmount - wakalaAmount;
+        uint256 serviceFeeAmount = reserve.members[msg.sender].totalServiceFee;
+        uint256 amountToRefund = contributionAmount - serviceFeeAmount;
 
         // Transfer the amount to refund
         bool success = contributionToken.transfer(msg.sender, amountToRefund);

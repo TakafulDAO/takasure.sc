@@ -41,8 +41,8 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
     }
 
     function testTakasurePool_refundContribution() public {
-        (, , , , , , , , , uint8 wakalaFee, , ) = takasurePool.getReserveValues();
-        uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - wakalaFee)) / 100;
+        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
 
         uint256 contractBalanceBeforeRefund = usdc.balanceOf(address(takasurePool));
         uint256 aliceBalanceBeforeRefund = usdc.balanceOf(alice);
