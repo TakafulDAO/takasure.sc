@@ -61,7 +61,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
 
         vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 contractBalanceAfter = usdc.balanceOf(address(takasurePool));
 
@@ -78,7 +78,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
 
         vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
 

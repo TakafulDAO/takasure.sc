@@ -40,7 +40,7 @@ contract TakasurePoolHandler is Test {
         vm.startPrank(msg.sender);
         usdc.approve(address(takasurePool), contributionAmount);
 
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
+        takasurePool.joinPool(contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
         vm.stopPrank();
     }
 

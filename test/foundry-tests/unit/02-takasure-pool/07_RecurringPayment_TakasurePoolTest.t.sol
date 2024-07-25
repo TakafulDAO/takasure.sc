@@ -41,7 +41,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
 
         vm.startPrank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
 
         vm.startPrank(takasurePool.owner());

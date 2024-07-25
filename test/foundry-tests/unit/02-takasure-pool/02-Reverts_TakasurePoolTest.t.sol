@@ -102,7 +102,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(alice);
         vm.expectRevert(TakasurePool.TakasurePool__ContributionBelowMinimumThreshold.selector);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, wrongContribution, (5 * YEAR));
+        takasurePool.joinPool(wrongContribution, (5 * YEAR));
     }
 
     /// @dev If it is an active member, can not join again
@@ -112,11 +112,11 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
         vm.startPrank(alice);
         // Alice joins the pool
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // And tries to join again but fails
         vm.expectRevert(TakasurePool.TakasurePool__MemberAlreadyExists.selector);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         vm.stopPrank();
     }
 
@@ -154,7 +154,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
         vm.startPrank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
 
         vm.warp(block.timestamp + 366 days);
@@ -173,7 +173,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
         vm.startPrank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
 
         for (uint256 i = 0; i < 5; i++) {

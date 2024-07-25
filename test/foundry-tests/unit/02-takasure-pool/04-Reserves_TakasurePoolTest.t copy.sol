@@ -62,7 +62,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         ) = takasurePool.getReserveValues();
 
         vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         (, , , , uint256 finalClaimReserve, uint256 finalFundReserve, , , , , , ) = takasurePool
             .getReserveValues();
@@ -102,7 +102,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // First day
         for (uint256 i; i < 10; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -111,7 +111,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // Second day
         for (uint256 i = 10; i < 20; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -120,7 +120,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // Third day
         for (uint256 i = 20; i < 30; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -129,7 +129,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // Fourth day
         for (uint256 i = 30; i < 40; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -138,7 +138,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // Fifth day
         for (uint256 i = 40; i < 50; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         uint256 cash = takasurePool.getCashLast12Months();
@@ -174,7 +174,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // 20 * 30 = 600USDC
         for (uint256 i; i < 30; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         vm.warp(block.timestamp + 31 days);
@@ -184,7 +184,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // 20 * 10 = 200USDC + 600USDC = 800USDC
         for (uint256 i = 30; i < 40; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         vm.warp(block.timestamp + 31 days);
@@ -194,7 +194,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // 20 * 15 = 300USDC + 800USDC = 1100USDC
         for (uint256 i = 40; i < 55; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -204,7 +204,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // 20 * 23 = 460USDC + 1100USDC = 1560USDC
         for (uint256 i = 55; i < 78; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         uint256 cash = takasurePool.getCashLast12Months();
@@ -234,7 +234,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // Months 1, 2 and 3, one new member joins daily
         for (uint256 i; i < 90; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
             vm.warp(block.timestamp + 1 days);
             vm.roll(block.number + 1);
         }
@@ -242,7 +242,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // Months 4 to 12, 10 new members join monthly
         for (uint256 i = 90; i < 180; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
             // End of the month
             if (
@@ -271,7 +271,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // Thirteenth month 10 people joins
         for (uint256 i = 180; i < 190; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         // Month 1 take 29 days => Total 580USDC
@@ -294,7 +294,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // Fourteenth month 10 people joins
         for (uint256 i = 190; i < 200; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         // Month 1 should not count
@@ -318,7 +318,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // Last 2 days 2 people joins
         for (uint256 i = 200; i < 202; i++) {
             vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
             vm.warp(block.timestamp + 1 days);
             vm.roll(block.number + 1);

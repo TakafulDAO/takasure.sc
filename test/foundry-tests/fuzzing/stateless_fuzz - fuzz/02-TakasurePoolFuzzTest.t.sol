@@ -41,7 +41,7 @@ contract TakasurePoolFuzzTest is Test {
         vm.assume(notOwner != takasurePool.owner());
 
         vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         vm.prank(notOwner);
         vm.expectRevert();

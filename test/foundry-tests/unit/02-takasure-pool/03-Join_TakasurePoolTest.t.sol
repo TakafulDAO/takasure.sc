@@ -54,7 +54,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         vm.startPrank(alice);
 
         usdc.approve(address(takasurePool), contributionAmount);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, contributionAmount, (5 * YEAR));
+        takasurePool.joinPool(contributionAmount, (5 * YEAR));
 
         vm.stopPrank();
 
@@ -79,7 +79,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         uint256 memberIdCounterBefore = takasurePool.memberIdCounter();
 
         vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 memberIdCounterAfter = takasurePool.memberIdCounter();
 
@@ -91,7 +91,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         takasurePool.setKYCStatus(alice);
 
         vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         _;
     }
 
@@ -108,7 +108,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         takasurePool.setAllowCustomDuration(true);
 
         vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, YEAR);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, YEAR);
 
         Member memory member = takasurePool.getMemberFromAddress(alice);
 
@@ -118,7 +118,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     /// @dev Test the member is created
     function testTakasurePool_newMember() public {
         vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 memberId = takasurePool.memberIdCounter();
 
@@ -142,7 +142,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         takasurePool.setKYCStatus(bob);
 
         vm.prank(bob);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         _;
     }
 
@@ -184,7 +184,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         ) = takasurePool.getReserveValues();
 
         vm.prank(bob);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         (
             ,
@@ -221,12 +221,12 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         vm.stopPrank();
 
         vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         (, uint256 aliceDRR, , , , , , , , , , ) = takasurePool.getReserveValues();
 
         vm.prank(bob);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         (, uint256 bobDRR, , , , , , , , , , ) = takasurePool.getReserveValues();
 
@@ -255,12 +255,12 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         vm.stopPrank();
 
         vm.prank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         (, , uint256 aliceBMA, , , , , , , , , ) = takasurePool.getReserveValues();
 
         vm.prank(bob);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         (, , uint256 bobBMA, , , , , , , , , ) = takasurePool.getReserveValues();
 
