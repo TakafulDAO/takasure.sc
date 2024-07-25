@@ -40,7 +40,7 @@ const networkConfig = {
         wakalaClaimAddress: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account // Todo: Change later for better tests
         daoOperator: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account, // Todo: Change later for better tests
         functionsRouter: "0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C",
-        donId: "0x66756e2d617262697472756d2d6d61696e6e65742d3100000000000000000000",
+        donId: "0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000",
         gasLimit: 300000,
         subscriptionId: 123,
         rpcUrl: ARBITRUM_TESTNET_SEPOLIA_RPC_URL,
