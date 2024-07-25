@@ -1,5 +1,7 @@
 const { ethers } = require("hardhat")
 
+// The purpose of this script is check the initial functions consumer configuration is correct
+
 async function requestingBm() {
     let accounts
 
