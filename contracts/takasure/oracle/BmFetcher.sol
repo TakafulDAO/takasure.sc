@@ -68,6 +68,13 @@ contract BmFetcher is AccessControl, FunctionsClient {
         return lastRequestId;
     }
 
+    /**
+     * @notice a method convert the last response to an uint256
+     */
+    function convertResponseToUint() external view returns (uint256) {
+        return abi.decode(lastResponse, (uint256));
+    }
+
     /// @notice the next set of functions are used to set the values of the contract
     function setDonId(bytes32 _donId) external onlyRole(DEFAULT_ADMIN_ROLE) {
         donId = _donId;
