@@ -37,7 +37,7 @@
     "coverage": "yarn hardhat coverage",
     "deploy": "yarn hardhat deploy",
     "deploy:takasure:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags takasure",
-    "deploy:bm:fetch:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags functions-consumer",
+    "deploy:bm:fetch:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags bm-fetcher",
     "post-deploy:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags post-deploy",
     "upgrade:takasure:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags upgrade-takasure-pool",
     "local": "yarn hardhat --network localhost",
