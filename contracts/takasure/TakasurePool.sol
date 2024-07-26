@@ -410,6 +410,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         args[0] = Strings.toHexString(uint256(uint160(_member)), 20);
         bmConsumer.sendRequest(args);
         benefitMultiplier_ = bmConsumer.convertResponseToUint();
+        // TODO: Here we need a revert if the BM is 0, skip for now for testing purposes
     }
 
     function _calculateAmountAndFees(
