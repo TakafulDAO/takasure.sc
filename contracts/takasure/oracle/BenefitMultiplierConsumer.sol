@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title BmFetcher
+ * @title BenefitMultiplierConsumer
  * @author Maikel Ordaz
  * @notice This contract is used to fetch the benefit multiplier to be used in the Life Dao protocol
  */
@@ -13,7 +13,7 @@ import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/l
 
 pragma solidity 0.8.25;
 
-contract BmFetcher is AccessControl, FunctionsClient {
+contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
     using FunctionsRequest for FunctionsRequest.Request;
 
     bytes32 public constant BM_REQUESTER_ROLE = keccak256("BM_REQUESTER_ROLE");

@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 import {TSToken} from "../../contracts/token/TSToken.sol";
 import {TakasurePool} from "../../contracts/takasure/TakasurePool.sol";
-import {BmFetcher} from "../../contracts/takasure/oracle/BmFetcher.sol";
+import {BenefitMultiplierConsumer} from "../../contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
@@ -19,7 +19,7 @@ contract DeployTokenAndPool is Script {
             TSToken,
             ERC1967Proxy,
             TakasurePool,
-            BmFetcher,
+            BenefitMultiplierConsumer,
             address contributionTokenAddress,
             HelperConfig
         )
@@ -36,7 +36,7 @@ contract DeployTokenAndPool is Script {
         TakasurePool takasurePool = new TakasurePool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(takasurePool), "");
 
-        BmFetcher bmFetcher = new BmFetcher(
+        BenefitMultiplierConsumer BenefitMultiplierConsumer = new BenefitMultiplierConsumer(
             config.router,
             config.donId,
             config.gasLimit,
@@ -49,7 +49,7 @@ contract DeployTokenAndPool is Script {
             address(daoToken),
             config.feeClaimAddress,
             config.daoOperator,
-            address(bmFetcher)
+            address(BenefitMultiplierConsumer)
         );
 
         daoToken.grantRole(MINTER_ROLE, address(proxy));
@@ -64,6 +64,13 @@ contract DeployTokenAndPool is Script {
 
         contributionTokenAddress = TakasurePool(address(proxy)).getContributionTokenAddress();
 
-        return (daoToken, proxy, takasurePool, bmFetcher, contributionTokenAddress, helperConfig);
+        return (
+            daoToken,
+            proxy,
+            takasurePool,
+            BenefitMultiplierConsumer,
+            contributionTokenAddress,
+            helperConfig
+        );
     }
 }

@@ -10,7 +10,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITSToken} from "../interfaces/ITSToken.sol";
-import {IBmFetcher} from "../interfaces/IBmFetcher.sol";
+import {IBenefitMultiplierConsumer} from "../interfaces/IBenefitMultiplierConsumer.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -25,7 +25,7 @@ pragma solidity 0.8.25;
 contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
     ITSToken private daoToken;
-    IBmFetcher private bmFetcher;
+    IBenefitMultiplierConsumer private bmConsumer;
 
     Reserve private reserve;
 
@@ -78,7 +78,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 updatedTotalServiceFee
     );
     event OnServiceFeeChanged(uint8 indexed newServiceFee);
-    event OnBmFetcherChanged(address indexed newBmFetcher);
+    event OnBenefitMultiplierConsumerChanged(address indexed newBenefitMultiplierConsumer);
 
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
@@ -115,7 +115,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address _daoToken,
         address _feeClaimAddress,
         address _daoOperator,
-        address _bmFetcher
+        address _benefitMultiplierConsumer
     )
         external
         initializer
@@ -123,14 +123,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         notZeroAddress(_daoToken)
         notZeroAddress(_feeClaimAddress)
         notZeroAddress(_daoOperator)
-        notZeroAddress(_bmFetcher)
+        notZeroAddress(_benefitMultiplierConsumer)
     {
         __UUPSUpgradeable_init();
         __Ownable_init(_daoOperator);
 
         contributionToken = IERC20(_contributionToken);
         daoToken = ITSToken(_daoToken);
-        bmFetcher = IBmFetcher(_bmFetcher);
+        bmConsumer = IBenefitMultiplierConsumer(_benefitMultiplierConsumer);
         feeClaimAddress = _feeClaimAddress;
 
         monthReference = 1;
@@ -332,10 +332,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         feeClaimAddress = newFeeClaimAddress;
     }
 
-    function setNewBmFetcher(address newBmFetcher) external onlyOwner notZeroAddress(newBmFetcher) {
-        bmFetcher = IBmFetcher(newBmFetcher);
+    function setNewBenefitMultiplierConsumer(
+        address newBenefitMultiplierConsumer
+    ) external onlyOwner notZeroAddress(newBenefitMultiplierConsumer) {
+        bmConsumer = IBenefitMultiplierConsumer(newBenefitMultiplierConsumer);
 
-        emit OnBmFetcherChanged(newBmFetcher);
+        emit OnBenefitMultiplierConsumerChanged(newBenefitMultiplierConsumer);
     }
 
     function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
@@ -406,8 +408,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _getBenefitMultiplier(address _member) internal returns (uint256 benefitMultiplier_) {
         string[] memory args = new string[](1);
         args[0] = Strings.toHexString(uint256(uint160(_member)), 20);
-        bmFetcher.sendRequest(args);
-        benefitMultiplier_ = bmFetcher.convertResponseToUint();
+        bmConsumer.sendRequest(args);
+        benefitMultiplier_ = bmConsumer.convertResponseToUint();
     }
 
     function _calculateAmountAndFees(

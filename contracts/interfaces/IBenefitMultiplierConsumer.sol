@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.25;
 
-interface IBmFetcher {
+interface IBenefitMultiplierConsumer {
     /**
      * @notice Send a simple request
      * @param args The user address to get the BM

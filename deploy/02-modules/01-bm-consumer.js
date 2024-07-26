@@ -9,7 +9,7 @@ module.exports = async ({ deployments }) => {
 
     let functionsRouter, donId, gasLimit, subscriptionId, bmRequester
 
-    log("02.03. Deploying BmFetcher Contract...")
+    log("02.03. Deploying BenefitMultiplierConsumer Contract...")
 
     functionsRouter = networkConfig[chainId]["functionsRouter"]
     donId = networkConfig[chainId]["donId"]
@@ -17,27 +17,27 @@ module.exports = async ({ deployments }) => {
     subscriptionId = networkConfig[chainId]["subscriptionId"]
     bmRequester = networkConfig[chainId]["bmRequester"]
 
-    const contractName = "BmFetcher"
+    const contractName = "BenefitMultiplierConsumer"
     const args = [functionsRouter, donId, gasLimit, subscriptionId, bmRequester]
     const deterministicDeployment = false
-    const contract = "BmFetcher"
+    const contract = "BenefitMultiplierConsumer"
 
-    const bmFetcher = await deploySimpleContract(
+    const benefitMultiplierConsumer = await deploySimpleContract(
         contractName,
         args,
         deterministicDeployment,
         contract,
     )
-    log("02.03. BmFetcher Contract Deployed! ")
+    log("02.03. BenefitMultiplierConsumer Contract Deployed! ")
 
     log("=======================================================")
 
     if (!developmentChains.includes(network.name) && process.env.ARBISCAN_API_KEY) {
-        log("02.03. Verifying BmFetcher Contract!... ")
-        await verify(bmFetcher.address, args)
-        log("02.03. BmFetcher Contract Verified! ")
+        log("02.03. Verifying BenefitMultiplierConsumer Contract!... ")
+        await verify(benefitMultiplierConsumer.address, args)
+        log("02.03. BenefitMultiplierConsumer Contract Verified! ")
     }
     log("=======================================================")
 }
 
-module.exports.tags = ["all", "bm-fetcher"]
+module.exports.tags = ["all", "bm-consumer"]

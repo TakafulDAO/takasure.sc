@@ -5,19 +5,19 @@ const path = require("path")
 async function addBmFetchCode() {
     let accounts
 
-    const bmFetcher = await ethers.getContract("BmFetcher")
+    const bmConsumer = await ethers.getContract("BenefitMultiplierConsumer")
 
     accounts = await ethers.getSigners()
 
     owner = accounts[0]
 
-    console.log("Adding BM Fetch Code to BmFetcher Contract...")
+    console.log("Adding BM Fetch Code to BenefitMultiplierConsumer Contract...")
 
     const sourceCode = fs.readFileSync(path.resolve(__dirname, "bmFetchCode.js")).toString()
 
-    await bmFetcher.connect(owner).setBMSourceRequestCode(sourceCode)
+    await bmConsumer.connect(owner).setBMSourceRequestCode(sourceCode)
 
-    console.log("BM Fetch Code added to BmFetcher Contract!")
+    console.log("BM Fetch Code added to BenefitMultiplierConsumer Contract!")
 }
 
 addBmFetchCode()
