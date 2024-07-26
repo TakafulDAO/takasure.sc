@@ -46,7 +46,7 @@ const networkConfig = {
         gasLimit: 300000,
         subscriptionId: 123,
         bmRequester: "0xE12c1c4D162cFd81D3a9667Dcab20bE8a6F4262C",
-        bmConsumer: "0x002df74e669676D335076AE4d618c8d5678F7A96",
+        bmConsumer: "0xE9bDC4e497D4C22A72fcd622aD019a816199E126",
         rpcUrl: ARBITRUM_TESTNET_SEPOLIA_RPC_URL,
     },
 }
