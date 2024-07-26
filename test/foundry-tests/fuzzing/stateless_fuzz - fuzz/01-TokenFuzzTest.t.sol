@@ -19,7 +19,7 @@ contract TokenFuzzTest is Test {
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
-        (daoToken, proxy, , , ) = deployer.run();
+        (daoToken, proxy, , , , ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
     }

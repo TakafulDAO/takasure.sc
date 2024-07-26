@@ -5,6 +5,7 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 import {TSToken} from "../../contracts/token/TSToken.sol";
 import {TakasurePool} from "../../contracts/takasure/TakasurePool.sol";
+import {BmFetcher} from "../../contracts/takasure/oracle/BmFetcher.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
@@ -18,39 +19,44 @@ contract DeployTokenAndPool is Script {
             TSToken,
             ERC1967Proxy,
             TakasurePool,
+            BmFetcher,
             address contributionTokenAddress,
             HelperConfig
         )
     {
-        HelperConfig config = new HelperConfig();
+        HelperConfig helperConfig = new HelperConfig();
 
-        (
-            address contributionToken,
-            uint256 deployerKey,
-            address feeClaimAddress,
-            address daoOperator
-        ) = config.activeNetworkConfig();
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
 
-        address deployerAddress = vm.addr(deployerKey);
+        address deployerAddress = vm.addr(config.deployerKey);
 
-        vm.startBroadcast(deployerKey);
+        vm.startBroadcast(config.deployerKey);
 
         TSToken daoToken = new TSToken();
         TakasurePool takasurePool = new TakasurePool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(takasurePool), "");
 
+        BmFetcher bmFetcher = new BmFetcher(
+            config.router,
+            config.donId,
+            config.gasLimit,
+            config.subscriptionId,
+            address(proxy)
+        );
+
         TakasurePool(address(proxy)).initialize(
-            contributionToken,
+            config.contributionToken,
             address(daoToken),
-            feeClaimAddress,
-            daoOperator
+            config.feeClaimAddress,
+            config.daoOperator,
+            address(bmFetcher)
         );
 
         daoToken.grantRole(MINTER_ROLE, address(proxy));
         daoToken.grantRole(BURNER_ROLE, address(proxy));
 
         bytes32 adminRole = daoToken.DEFAULT_ADMIN_ROLE();
-        daoToken.grantRole(adminRole, daoOperator);
+        daoToken.grantRole(adminRole, config.daoOperator);
 
         daoToken.revokeRole(adminRole, deployerAddress);
 
@@ -58,6 +64,6 @@ contract DeployTokenAndPool is Script {
 
         contributionTokenAddress = TakasurePool(address(proxy)).getContributionTokenAddress();
 
-        return (daoToken, proxy, takasurePool, contributionTokenAddress, config);
+        return (daoToken, proxy, takasurePool, bmFetcher, contributionTokenAddress, helperConfig);
     }
 }
