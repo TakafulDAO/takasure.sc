@@ -19,7 +19,7 @@ async function requestingBm() {
     const bm = await bmConsumer.connect(owner).sendRequest(args, { gasLimit: 4000000 })
 
     console.log("BM Requested!")
-    console.log("BM: ", bm)
+    // console.log("BM: ", bm)
 }
 
 requestingBm()
