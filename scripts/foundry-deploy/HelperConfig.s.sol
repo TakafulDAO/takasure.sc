@@ -84,7 +84,7 @@ contract HelperConfig is CodeConstants, Script {
     {
         sepoliaNetworkConfig = NetworkConfig({
             contributionToken: 0xf9b2DE65196fA500527c576De9312E3c626C7d6a,
-            deployerKey: vm.envUint("TESTNET_DEPLOYER_PK"),
+            deployerKey: vm.envUint("TESTNET_DEPLOYER_PK_FOUNDRY"),
             feeClaimAddress: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
             daoOperator: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
             router: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C,

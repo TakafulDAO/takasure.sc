@@ -40,4 +40,4 @@ module.exports = async ({ deployments }) => {
     log("=======================================================")
 }
 
-module.exports.tags = ["bm-fetcher"]
+module.exports.tags = ["all", "bm-fetcher"]

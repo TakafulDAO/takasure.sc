@@ -33,6 +33,7 @@ const networkConfig = {
         gasLimit: 300000,
         subscriptionId: 0, // TODO
         bmRequester: "0x", // TODO
+        bmFetcher: "0x", // TODO
         rpcUrl: ARBITRUM_MAINNET_RPC_URL,
     },
     421614: {
@@ -45,6 +46,7 @@ const networkConfig = {
         gasLimit: 300000,
         subscriptionId: 123,
         bmRequester: "0xE12c1c4D162cFd81D3a9667Dcab20bE8a6F4262C",
+        bmFetcher: "0x002df74e669676D335076AE4d618c8d5678F7A96",
         rpcUrl: ARBITRUM_TESTNET_SEPOLIA_RPC_URL,
     },
 }

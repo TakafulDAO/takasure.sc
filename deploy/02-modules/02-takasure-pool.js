@@ -23,8 +23,9 @@ module.exports = async ({ deployments }) => {
     daoTokenAddress = daoToken.address
     feeClaimAddress = networkConfig[chainId]["feeClaimAddress"]
     daoOperator = networkConfig[chainId]["daoOperator"]
+    bmFetcher = networkConfig[chainId]["bmFetcher"]
 
-    const initArgs = [usdcAddress, daoTokenAddress, feeClaimAddress, daoOperator]
+    const initArgs = [usdcAddress, daoTokenAddress, feeClaimAddress, daoOperator, bmFetcher]
 
     const TakasurePool = await ethers.getContractFactory("TakasurePool")
     const takasurePool = await upgrades.deployProxy(TakasurePool, initArgs)
