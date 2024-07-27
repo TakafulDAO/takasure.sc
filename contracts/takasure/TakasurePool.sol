@@ -17,6 +17,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Reserve, Member, MemberState} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
 import {Events} from "../libraries/Events.sol";
+import {Errors} from "../libraries/Errors.sol";
 
 pragma solidity 0.8.25;
 
@@ -49,20 +50,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
-    error TakasurePool__MemberAlreadyExists();
-    error TakasurePool__ZeroAddress();
-    error TakasurePool__ContributionBelowMinimumThreshold();
-    error TakasurePool__ContributionTransferFailed();
-    error TakasurePool__FeeTransferFailed();
-    error TakasurePool__MintFailed();
-    error TakasurePool__WrongServiceFee();
-    error TakasurePool__MemberAlreadyKYCed();
-    error TakasurePool__WrongMemberState();
-    error TakasurePool__InvalidDate();
-
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
-            revert TakasurePool__ZeroAddress();
+            revert Errors.TakasurePool__ZeroAddress();
         }
         _;
     }
@@ -139,10 +129,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     ) external {
         // Todo: Check the user benefit multiplier against the oracle.
         if (reserve.members[msg.sender].memberState == MemberState.Active) {
-            revert TakasurePool__MemberAlreadyExists();
+            revert Errors.TakasurePool__MemberAlreadyExists();
         }
         if (contributionAmount < minimumThreshold) {
-            revert TakasurePool__ContributionBelowMinimumThreshold();
+            revert Errors.TakasurePool__ContributionBelowMinimumThreshold();
         }
 
         // Todo: re-calculate DAO Surplus.
@@ -205,10 +195,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      */
     function setKYCStatus(address memberWallet) external onlyOwner {
         if (memberWallet == address(0)) {
-            revert TakasurePool__ZeroAddress();
+            revert Errors.TakasurePool__ZeroAddress();
         }
         if (reserve.members[memberWallet].isKYCVerified) {
-            revert TakasurePool__MemberAlreadyKYCed();
+            revert Errors.TakasurePool__MemberAlreadyKYCed();
         }
 
         if (reserve.members[memberWallet].wallet == address(0)) {
@@ -250,7 +240,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function recurringPayment() external {
         if (reserve.members[msg.sender].memberState != MemberState.Active) {
-            revert TakasurePool__WrongMemberState();
+            revert Errors.TakasurePool__WrongMemberState();
         }
         uint256 currentTimestamp = block.timestamp;
         uint256 yearsCovered = reserve.members[msg.sender].yearsCovered;
@@ -261,7 +251,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             currentTimestamp > membershipStartTime + ((yearsCovered) * 365 days) ||
             currentTimestamp > membershipStartTime + membershipDuration
         ) {
-            revert TakasurePool__InvalidDate();
+            revert Errors.TakasurePool__InvalidDate();
         }
 
         uint256 contributionAmount = reserve.members[msg.sender].contribution;
@@ -286,7 +276,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function setNewServiceFee(uint8 newServiceFee) external onlyOwner {
         if (newServiceFee > 35) {
-            revert TakasurePool__WrongServiceFee();
+            revert Errors.TakasurePool__WrongServiceFee();
         }
         reserve.serviceFee = newServiceFee;
 
@@ -742,13 +732,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Transfer the contribution to the pool
         success = contributionToken.transferFrom(_memberWallet, address(this), _depositAmount);
         if (!success) {
-            revert TakasurePool__ContributionTransferFailed();
+            revert Errors.TakasurePool__ContributionTransferFailed();
         }
 
         // Transfer the service fee to the fee claim address
         success = contributionToken.transferFrom(_memberWallet, feeClaimAddress, _feeAmount);
         if (!success) {
-            revert TakasurePool__FeeTransferFailed();
+            revert Errors.TakasurePool__FeeTransferFailed();
         }
     }
 
@@ -758,7 +748,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         bool success = daoToken.mint(_memberWallet, mintAmount);
         if (!success) {
-            revert TakasurePool__MintFailed();
+            revert Errors.TakasurePool__MintFailed();
         }
     }
 
