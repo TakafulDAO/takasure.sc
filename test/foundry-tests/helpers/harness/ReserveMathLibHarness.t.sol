@@ -3,7 +3,7 @@
 
 pragma solidity 0.8.25;
 
-import {ReserveMathLib} from "../../../../contracts/libraries/ReserveMathLib.sol";
+import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 
 contract ReserveMathLibHarness {
     function exposed__updateProFormaFundReserve(

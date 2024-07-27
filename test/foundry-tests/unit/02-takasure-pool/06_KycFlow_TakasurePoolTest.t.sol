@@ -3,12 +3,12 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
+import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "../../../../contracts/types/TakasureTypes.sol";
-import {IUSDC} from "../../../../contracts/mocks/IUSDCmock.sol";
+import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
 
 contract KycFlow_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
