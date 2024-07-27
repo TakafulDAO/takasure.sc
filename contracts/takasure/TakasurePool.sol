@@ -75,6 +75,26 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 updatedTotalServiceFee
     );
     event OnServiceFeeChanged(uint8 indexed newServiceFee);
+    event OnInitialReserveValues(
+        uint256 indexed initialReserveRatio,
+        uint256 dynamicReserveRatio,
+        uint256 indexed benefitMultiplierAdjuster,
+        uint256 indexed serviceFee,
+        uint256 bmaFundReserveShare,
+        address contributionToken,
+        address daoToken
+    );
+    event OnNewProFormaValues(
+        uint256 indexed proFormaFundReserve,
+        uint256 indexed proFormaClaimReserve
+    );
+    event OnNewReserveValues(
+        uint256 indexed totalContributions,
+        uint256 indexed totalClaimReserve,
+        uint256 indexed totalFundReserve
+    );
+    event OnNewDynamicReserveRatio(uint256 indexed dynamicReserveRatio);
+    event OnNewBenefitMultiplierAdjuster(uint256 indexed benefitMultiplierAdjuster);
 
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
@@ -135,6 +155,16 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
         reserve.serviceFee = 20; // 20% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
+
+        emit OnInitialReserveValues(
+            reserve.initialReserveRatio,
+            reserve.dynamicReserveRatio,
+            reserve.benefitMultiplierAdjuster,
+            reserve.serviceFee,
+            reserve.bmaFundReserveShare,
+            address(contributionToken),
+            address(daoToken)
+        );
     }
 
     /**
@@ -541,6 +571,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         reserve.proFormaFundReserve = updatedProFormaFundReserve;
         reserve.proFormaClaimReserve = updatedProFormaClaimReserve;
+
+        emit OnNewProFormaValues(updatedProFormaFundReserve, updatedProFormaClaimReserve);
     }
 
     function _updateReserves(uint256 _contributionAmount, uint256 _depositAmount) internal {
@@ -550,6 +582,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.totalFundReserve += toFundReserve;
         reserve.totalContributions += _contributionAmount;
         reserve.totalClaimReserve += toClaimReserve;
+
+        emit OnNewReserveValues(
+            reserve.totalContributions,
+            reserve.totalClaimReserve,
+            reserve.totalFundReserve
+        );
     }
 
     function _updateCashMappings(uint256 _depositAmount) internal {
@@ -717,6 +755,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             );
 
         reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
+
+        emit OnNewDynamicReserveRatio(updatedDynamicReserveRatio);
     }
 
     function _updateBMA(uint256 _cash) internal {
@@ -735,6 +775,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
 
         reserve.benefitMultiplierAdjuster = updatedBMA;
+
+        emit OnNewBenefitMultiplierAdjuster(updatedBMA);
     }
 
     function _transferAmounts(
