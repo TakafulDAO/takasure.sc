@@ -26,10 +26,11 @@ library Events {
         uint256 membershipDuration,
         uint256 membershipStartTime
     ); // Emited when a member is updated. This is used when a member first KYCed and then paid the contribution
-    event OnMemberJoined(uint indexed memberId, address indexed member);
-    event OnMemberKycVerified(address indexed member);
+    event OnMemberJoined(uint256 indexed memberId, address indexed member);
+    event OnMemberKycVerified(uint256 indexed memberId, address indexed member);
     event OnRecurringPayment(
-        address indexed member,
+        address member,
+        uint256 indexed memberId,
         uint256 indexed updatedYearsCovered,
         uint256 indexed updatedContribution,
         uint256 updatedTotalServiceFee

@@ -235,7 +235,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
             emit Events.OnMemberJoined(reserve.members[memberWallet].memberId, memberWallet);
         }
-        emit Events.OnMemberKycVerified(memberWallet);
+        emit Events.OnMemberKycVerified(reserve.members[memberWallet].memberId, memberWallet);
     }
 
     function recurringPayment() external {
@@ -268,6 +268,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         emit Events.OnRecurringPayment(
             msg.sender,
+            reserve.members[msg.sender].memberId,
             reserve.members[msg.sender].yearsCovered,
             reserve.members[msg.sender].totalContributions,
             reserve.members[msg.sender].totalServiceFee
