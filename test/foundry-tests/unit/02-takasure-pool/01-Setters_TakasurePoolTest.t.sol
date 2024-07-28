@@ -8,6 +8,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
+import {Events} from "contracts/libraries/Events.sol";
 
 contract Setters_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
@@ -20,9 +21,6 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
-
-    event OnMemberKycVerified(address indexed member);
-    event OnServiceFeeChanged(uint8 indexed newServiceFee);
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
@@ -44,7 +42,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
 
         vm.prank(takasurePool.owner());
         vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit OnServiceFeeChanged(newServiceFee);
+        emit Events.OnServiceFeeChanged(newServiceFee);
         takasurePool.setNewServiceFee(newServiceFee);
 
         (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
@@ -91,7 +89,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
 
         vm.prank(takasurePool.owner());
         vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit OnMemberKycVerified(alice);
+        emit Events.OnMemberKycVerified(1, alice);
         takasurePool.setKYCStatus(alice);
 
         bool getMemberKYCstatusAfter = takasurePool.getMemberKYCStatus(alice);
