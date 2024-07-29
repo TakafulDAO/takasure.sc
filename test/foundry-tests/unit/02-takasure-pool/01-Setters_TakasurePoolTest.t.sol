@@ -8,7 +8,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
-import {Events} from "contracts/libraries/Events.sol";
+import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract Setters_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
@@ -42,7 +42,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
 
         vm.prank(takasurePool.owner());
         vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit Events.OnServiceFeeChanged(newServiceFee);
+        emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
         takasurePool.setNewServiceFee(newServiceFee);
 
         (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
@@ -89,7 +89,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
 
         vm.prank(takasurePool.owner());
         vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit Events.OnMemberKycVerified(1, alice);
+        emit TakasureEvents.OnMemberKycVerified(1, alice);
         takasurePool.setKYCStatus(alice);
 
         bool getMemberKYCstatusAfter = takasurePool.getMemberKYCStatus(alice);

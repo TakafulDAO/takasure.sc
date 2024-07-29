@@ -7,7 +7,7 @@
  */
 pragma solidity 0.8.25;
 
-library Events {
+library TakasureEvents {
     event OnMemberCreated(
         uint256 indexed memberId,
         address indexed member,

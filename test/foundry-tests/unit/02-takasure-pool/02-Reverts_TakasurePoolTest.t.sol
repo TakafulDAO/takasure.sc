@@ -8,7 +8,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
-import {Errors} from "contracts/libraries/Errors.sol";
+import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 
 contract Reverts_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
@@ -51,7 +51,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_setNewServiceFeeMustRevertIfHigherThan35() public {
         uint8 newServiceFee = 36;
         vm.prank(takasurePool.owner());
-        vm.expectRevert(Errors.TakasurePool__WrongServiceFee.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongServiceFee.selector);
         takasurePool.setNewServiceFee(newServiceFee);
     }
 
@@ -73,7 +73,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev `setNewContributionToken` must revert if the address is zero
     function testTakasurePool_setNewContributionTokenMustRevertIfAddressZero() public {
         vm.prank(takasurePool.owner());
-        vm.expectRevert(Errors.TakasurePool__ZeroAddress.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
         takasurePool.setNewContributionToken(address(0));
     }
 
@@ -87,7 +87,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev `setNewFeeClaimAddress` must revert if the address is zero
     function testTakasurePool_setNewFeeClaimAddressMustRevertIfAddressZero() public {
         vm.prank(takasurePool.owner());
-        vm.expectRevert(Errors.TakasurePool__ZeroAddress.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
         takasurePool.setNewFeeClaimAddress(address(0));
     }
 
@@ -102,7 +102,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_joinPoolMustRevertIfDepositLessThanMinimum() public {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(alice);
-        vm.expectRevert(Errors.TakasurePool__ContributionBelowMinimumThreshold.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__ContributionBelowMinimumThreshold.selector);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, wrongContribution, (5 * YEAR));
     }
 
@@ -116,7 +116,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // And tries to join again but fails
-        vm.expectRevert(Errors.TakasurePool__MemberAlreadyExists.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__MemberAlreadyExists.selector);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
         vm.stopPrank();
     }
@@ -125,7 +125,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_setKYCStatusMustRevertIfMemberIsAddressZero() public {
         vm.prank(takasurePool.owner());
 
-        vm.expectRevert(Errors.TakasurePool__ZeroAddress.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
         takasurePool.setKYCStatus(address(0));
     }
 
@@ -135,7 +135,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.setKYCStatus(alice);
 
         // And tries to join again but fails
-        vm.expectRevert(Errors.TakasurePool__MemberAlreadyKYCed.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__MemberAlreadyKYCed.selector);
         takasurePool.setKYCStatus(alice);
 
         vm.stopPrank();
@@ -144,7 +144,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev `recurringPayment` must revert if the member is invalid
     function testTakasurePool_recurringPaymentMustRevertIfMemberIsInvalid() public {
         vm.prank(alice);
-        vm.expectRevert(Errors.TakasurePool__WrongMemberState.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
         takasurePool.recurringPayment();
     }
 
@@ -162,7 +162,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.roll(block.number + 1);
 
         vm.startPrank(alice);
-        vm.expectRevert(Errors.TakasurePool__InvalidDate.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
         takasurePool.recurringPayment();
         vm.stopPrank;
     }
@@ -190,7 +190,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.roll(block.number + 1);
 
         vm.startPrank(alice);
-        vm.expectRevert(Errors.TakasurePool__InvalidDate.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
         takasurePool.recurringPayment();
     }
 }

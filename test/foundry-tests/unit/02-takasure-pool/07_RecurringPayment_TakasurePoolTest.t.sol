@@ -9,7 +9,7 @@ import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
-import {Events} from "contracts/libraries/Events.sol";
+import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
@@ -63,7 +63,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
 
             vm.startPrank(alice);
             vm.expectEmit(true, true, true, true, address(takasurePool));
-            emit Events.OnRecurringPayment(
+            emit TakasureEvents.OnRecurringPayment(
                 alice,
                 testMember.memberId,
                 yearBeforePayment + 1,

@@ -9,7 +9,7 @@ import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
-import {Events} from "contracts/libraries/Events.sol";
+import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract KycFlow_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
@@ -52,10 +52,10 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         vm.prank(takasurePool.owner());
 
         vm.expectEmit(true, true, true, true, address(takasurePool));
-        emit Events.OnMemberCreated(memberIdBeforeKyc + 1, alice, 0, 0, 0, 5 * YEAR, 1);
+        emit TakasureEvents.OnMemberCreated(memberIdBeforeKyc + 1, alice, 0, 0, 0, 5 * YEAR, 1);
 
         vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit Events.OnMemberKycVerified(memberIdBeforeKyc + 1, alice);
+        emit TakasureEvents.OnMemberKycVerified(memberIdBeforeKyc + 1, alice);
         takasurePool.setKYCStatus(alice);
 
         uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
@@ -87,7 +87,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         vm.prank(alice);
 
         vm.expectEmit(true, true, true, true, address(takasurePool));
-        emit Events.OnMemberUpdated(
+        emit TakasureEvents.OnMemberUpdated(
             memberIdAfterKyc,
             alice,
             BENEFIT_MULTIPLIER,
@@ -98,7 +98,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         );
 
         vm.expectEmit(true, true, false, false, address(takasurePool));
-        emit Events.OnMemberJoined(memberIdAfterKyc, alice);
+        emit TakasureEvents.OnMemberJoined(memberIdAfterKyc, alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         uint256 memberIdAfterJoin = takasurePool.memberIdCounter();
@@ -149,7 +149,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         vm.prank(alice);
 
         vm.expectEmit(true, true, true, true, address(takasurePool));
-        emit Events.OnMemberCreated(
+        emit TakasureEvents.OnMemberCreated(
             memberIdBeforeJoin + 1,
             alice,
             BENEFIT_MULTIPLIER,
@@ -195,7 +195,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         // Set KYC status to true
         vm.prank(takasurePool.owner());
         vm.expectEmit(true, true, true, true, address(takasurePool));
-        emit Events.OnMemberUpdated(
+        emit TakasureEvents.OnMemberUpdated(
             memberIdAfterJoin,
             alice,
             BENEFIT_MULTIPLIER,
@@ -206,10 +206,10 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         );
 
         vm.expectEmit(true, true, false, false, address(takasurePool));
-        emit Events.OnMemberJoined(memberIdAfterJoin, alice);
+        emit TakasureEvents.OnMemberJoined(memberIdAfterJoin, alice);
 
         vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit Events.OnMemberKycVerified(memberIdAfterJoin, alice);
+        emit TakasureEvents.OnMemberKycVerified(memberIdAfterJoin, alice);
         takasurePool.setKYCStatus(alice);
 
         uint256 memberIdAfterKyc = takasurePool.memberIdCounter();

@@ -7,7 +7,7 @@
  */
 pragma solidity 0.8.25;
 
-library Errors {
+library TakasureErrors {
     error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
     error TakasurePool__ContributionBelowMinimumThreshold();
