@@ -202,4 +202,17 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.expectRevert(TakasurePool.TakasurePool__MemberAlreadyKYCed.selector);
         takasurePool.refund();
     }
+
+    /// @dev can not refund someone already refunded
+    function testTakasurePool_refundRevertIfMemberAlreadyRefunded() public {
+        vm.startPrank(alice);
+        // Join and refund
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        takasurePool.refund();
+
+        // Try to refund again
+        vm.expectRevert(TakasurePool.TakasurePool__NothingToRefund.selector);
+        takasurePool.refund();
+        vm.stopPrank();
+    }
 }

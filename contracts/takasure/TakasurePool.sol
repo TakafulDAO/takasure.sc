@@ -273,9 +273,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @notice Refunds the user unable to do KYC
      */
     function refund() external {
-        // The member should not be KYCed
+        // The member should not be KYCed neither already refunded
         if (reserve.members[msg.sender].isKYCVerified == true) {
             revert TakasurePool__MemberAlreadyKYCed();
+        }
+        if (reserve.members[msg.sender].isRefunded == true) {
+            revert TakasurePool__NothingToRefund();
         }
         // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
         // when first KYC and then join the pool. So the previous check is enough
