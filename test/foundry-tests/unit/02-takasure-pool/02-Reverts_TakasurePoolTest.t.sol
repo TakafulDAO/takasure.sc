@@ -200,7 +200,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.setKYCStatus(alice);
 
         vm.prank(alice);
-        vm.expectRevert(TakasurePool.TakasurePool__MemberAlreadyKYCed.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__MemberAlreadyKYCed.selector);
         takasurePool.refund();
     }
 
@@ -212,7 +212,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.refund();
 
         // Try to refund again
-        vm.expectRevert(TakasurePool.TakasurePool__NothingToRefund.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__NothingToRefund.selector);
         takasurePool.refund();
         vm.stopPrank();
     }

@@ -261,7 +261,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // The member has 14 days to ask for a refund
         uint256 limitTimestamp = membershipStartTime + (14 days);
         if (currentTimestamp > limitTimestamp) {
-            revert TakasurePool__InvalidDate();
+            revert TakasureErrors.TakasurePool__InvalidDate();
         }
         // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
         // when first KYC and then join the pool. So the previous check is enough
@@ -274,7 +274,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Transfer the amount to refund
         bool success = contributionToken.transfer(msg.sender, amountToRefund);
         if (!success) {
-            revert TakasurePool__RefundFailed();
+            revert TakasureErrors.TakasurePool__RefundFailed();
         }
 
         // Update the member values
@@ -282,47 +282,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         // ? Question: Should we update the other values? Or leave it like they are for some sort of history?
 
-        emit OnRefund(msg.sender, amountToRefund);
-    }
-
-    /**
-     * @notice Refunds the user unable to do KYC
-     */
-    function refund() external {
-        // The member should not be KYCed neither already refunded
-        if (reserve.members[msg.sender].isKYCVerified == true) {
-            revert TakasurePool__MemberAlreadyKYCed();
-        }
-        if (reserve.members[msg.sender].isRefunded == true) {
-            revert TakasurePool__NothingToRefund();
-        }
-        uint256 currentTimestamp = block.timestamp;
-        uint256 membershipStartTime = reserve.members[msg.sender].membershipStartTime;
-        // The member has 14 days to ask for a refund
-        uint256 limitTimestamp = membershipStartTime + (14 days);
-        if (currentTimestamp > limitTimestamp) {
-            revert TakasurePool__InvalidDate();
-        }
-        // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
-        // when first KYC and then join the pool. So the previous check is enough
-
-        // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmount = reserve.members[msg.sender].contribution;
-        uint256 serviceFeeAmount = reserve.members[msg.sender].totalServiceFee;
-        uint256 amountToRefund = contributionAmount - serviceFeeAmount;
-
-        // Transfer the amount to refund
-        bool success = contributionToken.transfer(msg.sender, amountToRefund);
-        if (!success) {
-            revert TakasurePool__RefundFailed();
-        }
-
-        // Update the member values
-        reserve.members[msg.sender].isRefunded = true;
-
-        // ? Question: Should we update the other values? Or leave it like they are for some sort of history?
-
-        emit OnRefund(msg.sender, amountToRefund);
+        emit TakasureEvents.OnRefund(msg.sender, amountToRefund);
     }
 
     function recurringPayment() external {

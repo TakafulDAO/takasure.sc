@@ -56,4 +56,5 @@ library TakasureEvents {
     );
     event OnNewDynamicReserveRatio(uint256 indexed dynamicReserveRatio);
     event OnNewBenefitMultiplierAdjuster(uint256 indexed benefitMultiplierAdjuster);
+    event OnRefund(address indexed member, uint256 indexed amount);
 }
