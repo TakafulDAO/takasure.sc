@@ -280,6 +280,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (reserve.members[msg.sender].isRefunded == true) {
             revert TakasurePool__NothingToRefund();
         }
+        uint256 currentTimestamp = block.timestamp;
+        uint256 membershipStartTime = reserve.members[msg.sender].membershipStartTime;
+        // The member has 14 days to ask for a refund
+        uint256 limitTimestamp = membershipStartTime + (14 days);
+        if (currentTimestamp > limitTimestamp) {
+            revert TakasurePool__InvalidDate();
+        }
         // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
         // when first KYC and then join the pool. So the previous check is enough
 
