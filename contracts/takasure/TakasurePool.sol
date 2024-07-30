@@ -17,6 +17,8 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 
 import {Reserve, Member, MemberState} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
+import {TakasureEvents} from "../libraries/TakasureEvents.sol";
+import {TakasureErrors} from "../libraries/TakasureErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.25;
@@ -51,49 +53,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
-    event OnMemberCreated(
-        uint256 indexed memberId,
-        address indexed member,
-        uint256 indexed benefitMultiplier,
-        uint256 contributionAmount,
-        uint256 serviceFee,
-        uint256 membershipDuration,
-        uint256 membershipStartTime
-    ); // Emited when a new member is created
-    event OnMemberUpdated(
-        uint256 indexed memberId,
-        address indexed member,
-        uint256 indexed benefitMultiplier,
-        uint256 contributionAmount,
-        uint256 serviceFee,
-        uint256 membershipDuration,
-        uint256 membershipStartTime
-    ); // Emited when a member is updated. This is used when a member first KYCed and then paid the contribution
-    event OnMemberJoined(uint indexed memberId, address indexed member);
-    event OnMemberKycVerified(address indexed member);
-    event OnRecurringPayment(
-        address indexed member,
-        uint256 indexed updatedYearsCovered,
-        uint256 indexed updatedContribution,
-        uint256 updatedTotalServiceFee
-    );
-    event OnServiceFeeChanged(uint8 indexed newServiceFee);
-    event OnBenefitMultiplierConsumerChanged(address indexed newBenefitMultiplierConsumer);
-
-    error TakasurePool__MemberAlreadyExists();
-    error TakasurePool__ZeroAddress();
-    error TakasurePool__ContributionBelowMinimumThreshold();
-    error TakasurePool__ContributionTransferFailed();
-    error TakasurePool__FeeTransferFailed();
-    error TakasurePool__MintFailed();
-    error TakasurePool__WrongServiceFee();
-    error TakasurePool__MemberAlreadyKYCed();
-    error TakasurePool__WrongMemberState();
-    error TakasurePool__InvalidDate();
-
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
-            revert TakasurePool__ZeroAddress();
+            revert TakasureErrors.TakasurePool__ZeroAddress();
         }
         _;
     }
@@ -142,6 +104,16 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
         reserve.serviceFee = 20; // 20% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
+
+        emit TakasureEvents.OnInitialReserveValues(
+            reserve.initialReserveRatio,
+            reserve.dynamicReserveRatio,
+            reserve.benefitMultiplierAdjuster,
+            reserve.serviceFee,
+            reserve.bmaFundReserveShare,
+            address(contributionToken),
+            address(daoToken)
+        );
     }
 
     /**
@@ -158,10 +130,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function joinPool(uint256 contributionAmount, uint256 membershipDuration) external {
         // Todo: Check the user benefit multiplier against the oracle.
         if (reserve.members[msg.sender].memberState == MemberState.Active) {
-            revert TakasurePool__MemberAlreadyExists();
+            revert TakasureErrors.TakasurePool__MemberAlreadyExists();
         }
         if (contributionAmount < minimumThreshold) {
-            revert TakasurePool__ContributionBelowMinimumThreshold();
+            revert TakasureErrors.TakasurePool__ContributionBelowMinimumThreshold();
         }
 
         // Todo: re-calculate DAO Surplus.
@@ -198,7 +170,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 true
             );
 
-            emit OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
+            emit TakasureEvents.OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
         } else {
             // If is not KYC verified, we create a new member, inactive, without kyc
             _createNewMember(
@@ -228,10 +200,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      */
     function setKYCStatus(address memberWallet) external onlyOwner {
         if (memberWallet == address(0)) {
-            revert TakasurePool__ZeroAddress();
+            revert TakasureErrors.TakasurePool__ZeroAddress();
         }
         if (reserve.members[memberWallet].isKYCVerified) {
-            revert TakasurePool__MemberAlreadyKYCed();
+            revert TakasureErrors.TakasurePool__MemberAlreadyKYCed();
         }
 
         if (reserve.members[memberWallet].wallet == address(0)) {
@@ -266,14 +238,20 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 false
             );
 
-            emit OnMemberJoined(reserve.members[memberWallet].memberId, memberWallet);
+            emit TakasureEvents.OnMemberJoined(
+                reserve.members[memberWallet].memberId,
+                memberWallet
+            );
         }
-        emit OnMemberKycVerified(memberWallet);
+        emit TakasureEvents.OnMemberKycVerified(
+            reserve.members[memberWallet].memberId,
+            memberWallet
+        );
     }
 
     function recurringPayment() external {
         if (reserve.members[msg.sender].memberState != MemberState.Active) {
-            revert TakasurePool__WrongMemberState();
+            revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         uint256 currentTimestamp = block.timestamp;
         uint256 yearsCovered = reserve.members[msg.sender].yearsCovered;
@@ -284,7 +262,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             currentTimestamp > membershipStartTime + ((yearsCovered) * 365 days) ||
             currentTimestamp > membershipStartTime + membershipDuration
         ) {
-            revert TakasurePool__InvalidDate();
+            revert TakasureErrors.TakasurePool__InvalidDate();
         }
 
         uint256 contributionAmount = reserve.members[msg.sender].contribution;
@@ -299,8 +277,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // And we pay the contribution
         _memberPaymentFlow(contributionAmount, feeAmount, depositAmount, msg.sender, true);
 
-        emit OnRecurringPayment(
+        emit TakasureEvents.OnRecurringPayment(
             msg.sender,
+            reserve.members[msg.sender].memberId,
             reserve.members[msg.sender].yearsCovered,
             reserve.members[msg.sender].totalContributions,
             reserve.members[msg.sender].totalServiceFee
@@ -309,11 +288,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function setNewServiceFee(uint8 newServiceFee) external onlyOwner {
         if (newServiceFee > 35) {
-            revert TakasurePool__WrongServiceFee();
+            revert TakasureErrors.TakasurePool__WrongServiceFee();
         }
         reserve.serviceFee = newServiceFee;
 
-        emit OnServiceFeeChanged(newServiceFee);
+        emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
     }
 
     function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
@@ -337,7 +316,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     ) external onlyOwner notZeroAddress(newBenefitMultiplierConsumer) {
         bmConsumer = IBenefitMultiplierConsumer(newBenefitMultiplierConsumer);
 
-        emit OnBenefitMultiplierConsumerChanged(newBenefitMultiplierConsumer);
+        emit TakasureEvents.OnBenefitMultiplierConsumerChanged(newBenefitMultiplierConsumer);
     }
 
     function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
@@ -468,7 +447,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.members[_memberWallet] = newMember;
         idToMember[memberIdCounter] = newMember;
 
-        emit OnMemberCreated(
+        emit TakasureEvents.OnMemberCreated(
             memberIdCounter,
             _memberWallet,
             _benefitMultiplier,
@@ -511,7 +490,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (!reserve.members[_memberWallet].isKYCVerified)
             reserve.members[_memberWallet].isKYCVerified = true;
 
-        emit OnMemberUpdated(
+        emit TakasureEvents.OnMemberUpdated(
             reserve.members[_memberWallet].memberId,
             _memberWallet,
             _benefitMultiplier,
@@ -563,6 +542,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         reserve.proFormaFundReserve = updatedProFormaFundReserve;
         reserve.proFormaClaimReserve = updatedProFormaClaimReserve;
+
+        emit TakasureEvents.OnNewProFormaValues(
+            updatedProFormaFundReserve,
+            updatedProFormaClaimReserve
+        );
     }
 
     function _updateReserves(uint256 _contributionAmount, uint256 _depositAmount) internal {
@@ -572,6 +556,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.totalFundReserve += toFundReserve;
         reserve.totalContributions += _contributionAmount;
         reserve.totalClaimReserve += toClaimReserve;
+
+        emit TakasureEvents.OnNewReserveValues(
+            reserve.totalContributions,
+            reserve.totalClaimReserve,
+            reserve.totalFundReserve
+        );
     }
 
     function _updateCashMappings(uint256 _depositAmount) internal {
@@ -739,6 +729,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             );
 
         reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
+
+        emit TakasureEvents.OnNewDynamicReserveRatio(updatedDynamicReserveRatio);
     }
 
     function _updateBMA(uint256 _cash) internal {
@@ -757,6 +749,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
 
         reserve.benefitMultiplierAdjuster = updatedBMA;
+
+        emit TakasureEvents.OnNewBenefitMultiplierAdjuster(updatedBMA);
     }
 
     function _transferAmounts(
@@ -769,13 +763,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Transfer the contribution to the pool
         success = contributionToken.transferFrom(_memberWallet, address(this), _depositAmount);
         if (!success) {
-            revert TakasurePool__ContributionTransferFailed();
+            revert TakasureErrors.TakasurePool__ContributionTransferFailed();
         }
 
         // Transfer the service fee to the fee claim address
         success = contributionToken.transferFrom(_memberWallet, feeClaimAddress, _feeAmount);
         if (!success) {
-            revert TakasurePool__FeeTransferFailed();
+            revert TakasureErrors.TakasurePool__FeeTransferFailed();
         }
     }
 
@@ -785,7 +779,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         bool success = daoToken.mint(_memberWallet, mintAmount);
         if (!success) {
-            revert TakasurePool__MintFailed();
+            revert TakasureErrors.TakasurePool__MintFailed();
         }
     }
 

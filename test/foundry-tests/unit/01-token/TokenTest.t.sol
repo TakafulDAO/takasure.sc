@@ -3,10 +3,10 @@
 pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
-import {TSToken} from "../../../../contracts/token/TSToken.sol";
+import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {TSToken} from "contracts/token/TSToken.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
+import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 
 contract TokenTest is Test {
     DeployTokenAndPool deployer;
