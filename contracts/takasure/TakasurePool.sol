@@ -282,7 +282,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         // ? Question: Should we update the other values? Or leave it like they are for some sort of history?
 
-        emit TakasureEvents.OnRefund(msg.sender, amountToRefund);
+        emit TakasureEvents.OnRefund(
+            reserve.members[msg.sender].memberId,
+            msg.sender,
+            amountToRefund
+        );
     }
 
     function recurringPayment() external {

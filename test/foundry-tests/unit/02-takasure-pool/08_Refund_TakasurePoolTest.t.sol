@@ -9,6 +9,7 @@ import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "../../../../contracts/types/TakasureTypes.sol";
 import {IUSDC} from "../../../../contracts/mocks/IUSDCmock.sol";
+import {TakasureEvents} from "../../../../contracts/libraries/TakasureEvents.sol";
 
 contract Refund_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
@@ -21,8 +22,6 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
-
-    event OnRefund(address indexed member, uint256 indexed amount);
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
@@ -44,12 +43,14 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
         (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
         uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
 
+        Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);
+
         uint256 contractBalanceBeforeRefund = usdc.balanceOf(address(takasurePool));
         uint256 aliceBalanceBeforeRefund = usdc.balanceOf(alice);
 
         vm.startPrank(alice);
         vm.expectEmit(true, true, false, false, address(takasurePool));
-        emit OnRefund(alice, expectedRefundAmount);
+        emit TakasureEvents.OnRefund(testMemberAfterKyc.memberId, alice, expectedRefundAmount);
         takasurePool.refund();
         vm.stopPrank();
 
