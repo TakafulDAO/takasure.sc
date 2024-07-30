@@ -216,4 +216,21 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.refund();
         vm.stopPrank();
     }
+
+    /// @dev can not refund after 14 days
+    function testTakasurePool_refundRevertIfMemberRefundAfter14Days() public {
+        // Join
+        vm.startPrank(alice);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 15 days);
+        vm.roll(block.number + 1);
+
+        // Try to refund
+        vm.startPrank(alice);
+        vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
+        takasurePool.refund();
+        vm.stopPrank();
+    }
 }
