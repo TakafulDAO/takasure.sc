@@ -3,12 +3,13 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
+import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "../../../../contracts/types/TakasureTypes.sol";
-import {IUSDC} from "../../../../contracts/mocks/IUSDCmock.sol";
+import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
+import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
@@ -21,13 +22,6 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
-
-    event OnRecurringPayment(
-        address indexed member,
-        uint256 indexed updatedYearsCovered,
-        uint256 indexed updatedContribution,
-        uint256 updatedTotalServiceFee
-    );
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
@@ -69,8 +63,9 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
 
             vm.startPrank(alice);
             vm.expectEmit(true, true, true, true, address(takasurePool));
-            emit OnRecurringPayment(
+            emit TakasureEvents.OnRecurringPayment(
                 alice,
+                testMember.memberId,
                 yearBeforePayment + 1,
                 totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease

@@ -3,12 +3,13 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
+import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "../../../../contracts/types/TakasureTypes.sol";
-import {IUSDC} from "../../../../contracts/mocks/IUSDCmock.sol";
+import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
+import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract KycFlow_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
@@ -21,27 +22,6 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 1;
     uint256 public constant YEAR = 365 days;
-
-    event OnMemberCreated(
-        uint256 indexed memberId,
-        address indexed member,
-        uint256 indexed benefitMultiplier,
-        uint256 contributionAmount,
-        uint256 serviceFee,
-        uint256 membershipDuration,
-        uint256 membershipStartTime
-    ); // Emited when a new member is created
-    event OnMemberUpdated(
-        uint256 indexed memberId,
-        address indexed member,
-        uint256 indexed benefitMultiplier,
-        uint256 contributionAmount,
-        uint256 serviceFee,
-        uint256 membershipDuration,
-        uint256 membershipStartTime
-    ); // Emited when a member is updated. This is used when a member first KYCed and then paid the contribution
-    event OnMemberJoined(uint indexed memberId, address indexed member);
-    event OnMemberKycVerified(address indexed member);
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
@@ -73,10 +53,10 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
         vm.expectEmit(true, true, true, true, address(takasurePool));
 
-        emit OnMemberCreated(memberIdBeforeKyc + 1, alice, 0, 0, 0, 5 * YEAR, 1);
+        emit TakasureEvents.OnMemberCreated(memberIdBeforeKyc + 1, alice, 0, 0, 0, 5 * YEAR, 1);
 
         vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit OnMemberKycVerified(alice);
+        emit TakasureEvents.OnMemberKycVerified(memberIdBeforeKyc + 1, alice);
         takasurePool.setKYCStatus(alice);
 
         uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
@@ -108,7 +88,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         vm.prank(alice);
 
         vm.expectEmit(true, true, true, true, address(takasurePool));
-        emit OnMemberUpdated(
+        emit TakasureEvents.OnMemberUpdated(
             memberIdAfterKyc,
             alice,
             BENEFIT_MULTIPLIER,
@@ -119,7 +99,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         );
 
         vm.expectEmit(true, true, false, false, address(takasurePool));
-        emit OnMemberJoined(memberIdAfterKyc, alice);
+        emit TakasureEvents.OnMemberJoined(memberIdAfterKyc, alice);
 
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
 
@@ -171,7 +151,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         vm.prank(alice);
 
         vm.expectEmit(true, true, true, true, address(takasurePool));
-        emit OnMemberCreated(
+        emit TakasureEvents.OnMemberCreated(
             memberIdBeforeJoin + 1,
             alice,
             BENEFIT_MULTIPLIER,
@@ -217,7 +197,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         // Set KYC status to true
         vm.prank(takasurePool.owner());
         vm.expectEmit(true, true, true, true, address(takasurePool));
-        emit OnMemberUpdated(
+        emit TakasureEvents.OnMemberUpdated(
             memberIdAfterJoin,
             alice,
             BENEFIT_MULTIPLIER,
@@ -228,10 +208,10 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         );
 
         vm.expectEmit(true, true, false, false, address(takasurePool));
-        emit OnMemberJoined(memberIdAfterJoin, alice);
+        emit TakasureEvents.OnMemberJoined(memberIdAfterJoin, alice);
 
         vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit OnMemberKycVerified(alice);
+        emit TakasureEvents.OnMemberKycVerified(memberIdAfterJoin, alice);
         takasurePool.setKYCStatus(alice);
 
         uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
