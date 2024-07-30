@@ -18,6 +18,7 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
     address contributionTokenAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
@@ -32,10 +33,15 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), bob, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank;
+
+        vm.startPrank(bob);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
         vm.stopPrank;
     }
 
@@ -59,5 +65,30 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
 
         assertEq(contractBalanceBeforeRefund - expectedRefundAmount, contractBalanceAfterRefund);
         assertEq(aliceBalanceBeforeRefund + expectedRefundAmount, aliceBalanceAfterRefund);
+    }
+
+    function testTakasurePool_sameIdIfJoinsAgainAfterRefund() public {
+        Member memory aliceAfterFirstJoinBeforeRefund = takasurePool.getMemberFromAddress(alice);
+
+        vm.startPrank(alice);
+        takasurePool.refund();
+        vm.stopPrank();
+
+        Member memory aliceAfterRefund = takasurePool.getMemberFromAddress(alice);
+
+        vm.startPrank(bob);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
+
+        Member memory aliceAfterSecondJoin = takasurePool.getMemberFromAddress(alice);
+
+        assert(!aliceAfterFirstJoinBeforeRefund.isRefunded);
+        assert(aliceAfterRefund.isRefunded);
+        assertEq(aliceAfterFirstJoinBeforeRefund.memberId, aliceAfterRefund.memberId);
+        assertEq(aliceAfterRefund.memberId, aliceAfterSecondJoin.memberId);
     }
 }

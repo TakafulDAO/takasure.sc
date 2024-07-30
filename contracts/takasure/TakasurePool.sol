@@ -139,6 +139,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Todo: re-calculate DAO Surplus.
 
         bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
+        bool isRefunded = reserve.members[msg.sender].isRefunded;
 
         (
             uint256 correctedContributionAmount,
@@ -168,21 +169,41 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
             emit TakasureEvents.OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
         } else {
-            // If is not KYC verified, we create a new member, inactive, without kyc
-            _createNewMember(
-                benefitMultiplier,
-                correctedContributionAmount,
-                membershipDuration,
-                feeAmount,
-                isKYCVerified,
-                msg.sender,
-                MemberState.Inactive
-            );
+            if (!isRefunded) {
+                // If is not KYC verified, we create a new member, inactive, without kyc
+                _createNewMember(
+                    benefitMultiplier,
+                    correctedContributionAmount,
+                    membershipDuration,
+                    feeAmount,
+                    isKYCVerified,
+                    msg.sender,
+                    MemberState.Inactive
+                );
 
-            // The member will pay the contribution, but will remain inactive until the KYC is verified
-            // This means the proformas wont be updated, the amounts wont be added to the reserves,
-            // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-            _transferAmounts(depositAmount, feeAmount, msg.sender);
+                // The member will pay the contribution, but will remain inactive until the KYC is verified
+                // This means the proformas wont be updated, the amounts wont be added to the reserves,
+                // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
+                _transferAmounts(depositAmount, feeAmount, msg.sender);
+            } else {
+                _updateMember(
+                    benefitMultiplier,
+                    correctedContributionAmount,
+                    membershipDuration,
+                    feeAmount,
+                    msg.sender,
+                    MemberState.Active
+                );
+
+                // And we pay the contribution
+                _memberPaymentFlow(
+                    correctedContributionAmount,
+                    depositAmount,
+                    feeAmount,
+                    msg.sender,
+                    false
+                );
+            }
         }
     }
 
@@ -514,6 +535,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // 3. The user can not change the KYC status
         if (!reserve.members[_memberWallet].isKYCVerified)
             reserve.members[_memberWallet].isKYCVerified = true;
+
+        // If this function is called by a refunded member, we need to reset the isRefunded to false
+        if (reserve.members[_memberWallet].isRefunded)
+            reserve.members[_memberWallet].isRefunded = false;
 
         emit TakasureEvents.OnMemberUpdated(
             reserve.members[_memberWallet].memberId,
