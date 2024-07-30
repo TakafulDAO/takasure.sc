@@ -21,7 +21,7 @@ library TakasureEvents {
         uint256 indexed memberId,
         address indexed member,
         uint256 indexed benefitMultiplier,
-        uint256 contributionAmount,
+        uint256 contributionBeforeFee,
         uint256 serviceFee,
         uint256 membershipDuration,
         uint256 membershipStartTime
