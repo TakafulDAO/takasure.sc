@@ -36,7 +36,7 @@ contract DeployTokenAndPool is Script {
         TakasurePool takasurePool = new TakasurePool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(takasurePool), "");
 
-        BenefitMultiplierConsumer BenefitMultiplierConsumer = new BenefitMultiplierConsumer(
+        BenefitMultiplierConsumer benefitMultiplierConsumer = new BenefitMultiplierConsumer(
             config.router,
             config.donId,
             config.gasLimit,
@@ -49,7 +49,7 @@ contract DeployTokenAndPool is Script {
             address(daoToken),
             config.feeClaimAddress,
             config.daoOperator,
-            address(BenefitMultiplierConsumer)
+            address(benefitMultiplierConsumer)
         );
 
         daoToken.grantRole(MINTER_ROLE, address(proxy));
@@ -68,7 +68,7 @@ contract DeployTokenAndPool is Script {
             daoToken,
             proxy,
             takasurePool,
-            BenefitMultiplierConsumer,
+            benefitMultiplierConsumer,
             contributionTokenAddress,
             helperConfig
         );
