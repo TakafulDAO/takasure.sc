@@ -9,10 +9,10 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ITSToken} from "../interfaces/ITSToken.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {TSToken} from "../token/TSToken.sol";
 
 import {Reserve, Member, MemberState} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
@@ -24,7 +24,7 @@ pragma solidity 0.8.25;
 // todo: change OwnableUpgradeable to AccessControlUpgradeable
 contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
-    ITSToken private daoToken;
+    TSToken private daoToken;
 
     Reserve private reserve;
 
@@ -64,21 +64,21 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     /**
      * @param _contributionToken default USDC
-     * @param _daoToken utility token for the DAO
      * @param _feeClaimAddress address allowed to claim the service fee
      * @param _daoOperator address allowed to manage the DAO
      * @dev it reverts if any of the addresses is zero
      */
     function initialize(
         address _contributionToken,
-        address _daoToken,
         address _feeClaimAddress,
-        address _daoOperator
+        address _daoOperator,
+        address _tokenAdmin,
+        string memory _tokenName,
+        string memory _tokenSymbol
     )
         external
         initializer
         notZeroAddress(_contributionToken)
-        notZeroAddress(_daoToken)
         notZeroAddress(_feeClaimAddress)
         notZeroAddress(_daoOperator)
     {
@@ -86,7 +86,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         __Ownable_init(_daoOperator);
 
         contributionToken = IERC20(_contributionToken);
-        daoToken = ITSToken(_daoToken);
+        // daoToken = ITSToken(_daoToken);
+        daoToken = new TSToken(_tokenAdmin, _tokenName, _tokenSymbol);
         feeClaimAddress = _feeClaimAddress;
 
         monthReference = 1;
@@ -360,7 +361,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         return reserve.members[member];
     }
 
-    function getTokenAddress() external view returns (address) {
+    function getDaoTokenAddress() external view returns (address) {
         return address(daoToken);
     }
 
