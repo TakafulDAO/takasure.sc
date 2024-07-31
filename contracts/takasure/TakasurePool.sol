@@ -188,7 +188,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             } else {
                 _updateMember(
                     benefitMultiplier,
-                    correctedContributionAmount,
+                    normalizedContributionBeforeFee,
                     membershipDuration,
                     feeAmount,
                     msg.sender,
@@ -197,8 +197,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
                 // And we pay the contribution
                 _memberPaymentFlow(
-                    correctedContributionAmount,
-                    depositAmount,
+                    normalizedContributionBeforeFee,
+                    contributionAfterFee,
                     feeAmount,
                     msg.sender,
                     false
