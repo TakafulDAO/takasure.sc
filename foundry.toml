@@ -1,7 +1,9 @@
 [profile.default]
-src = 'src'
+src = 'contracts'
 out = 'out'
-libs = ['lib']
+libs = ['node_modules', 'lib']
+test = 'test'
+cache_path = 'cache_forge'
 ffi = true
 
 # Compiler settings
