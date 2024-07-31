@@ -209,6 +209,11 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.startPrank(alice);
         // Join and refund
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        // 14 days passed
+        vm.warp(15 days);
+        vm.roll(block.number + 1);
+
         takasurePool.refund();
 
         // Try to refund again
@@ -217,19 +222,16 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.stopPrank();
     }
 
-    /// @dev can not refund after 14 days
-    function testTakasurePool_refundRevertIfMemberRefundAfter14Days() public {
+    /// @dev can not refund before 14 days
+    function testTakasurePool_refundRevertIfMemberRefundBefore14Days() public {
         // Join
         vm.startPrank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
-        vm.warp(block.timestamp + 15 days);
-        vm.roll(block.number + 1);
-
         // Try to refund
         vm.startPrank(alice);
-        vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__TooEarlytoRefund.selector);
         takasurePool.refund();
         vm.stopPrank();
     }

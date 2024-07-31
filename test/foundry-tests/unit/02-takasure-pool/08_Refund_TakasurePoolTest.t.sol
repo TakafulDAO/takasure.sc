@@ -54,6 +54,10 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
         uint256 contractBalanceBeforeRefund = usdc.balanceOf(address(takasurePool));
         uint256 aliceBalanceBeforeRefund = usdc.balanceOf(alice);
 
+        // 14 days passed
+        vm.warp(15 days);
+        vm.roll(block.number + 1);
+
         vm.startPrank(alice);
         vm.expectEmit(true, true, false, false, address(takasurePool));
         emit TakasureEvents.OnRefund(testMemberAfterKyc.memberId, alice, expectedRefundAmount);
@@ -69,6 +73,9 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
 
     function testTakasurePool_sameIdIfJoinsAgainAfterRefund() public {
         Member memory aliceAfterFirstJoinBeforeRefund = takasurePool.getMemberFromAddress(alice);
+        // 14 days passed
+        vm.warp(15 days);
+        vm.roll(block.number + 1);
 
         vm.startPrank(alice);
         takasurePool.refund();

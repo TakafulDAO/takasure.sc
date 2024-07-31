@@ -20,4 +20,5 @@ library TakasureErrors {
     error TakasurePool__InvalidDate();
     error TakasurePool__NothingToRefund();
     error TakasurePool__RefundFailed();
+    error TakasurePool__TooEarlytoRefund();
 }
