@@ -20,14 +20,16 @@ const networkConfig = {
         name: "hardhat",
         // Same as mainnet
         usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // https://developers.circle.com/developer/docs/supported-chains-and-currencies#native-usdc
-        feeClaimAddress: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", // This is hardhat's default account [0]
-        daoOperator: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", // This is hardhat's default account [1]
+        feeClaimAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // This is hardhat's default account [0]
+        daoOperator: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // This is hardhat's default account [1]
+        tokenAdmin: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     },
     42161: {
         name: "mainnet_arbitrum",
         usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // https://developers.circle.com/developer/docs/supported-chains-and-currencies#native-usdc
         feeClaimAddress: "0x", // TODO
         daoOperator: "0x", // TODO
+        tokenAdmin: "0x", // TODO
         rpcUrl: ARBITRUM_MAINNET_RPC_URL,
     },
     421614: {
@@ -35,6 +37,7 @@ const networkConfig = {
         usdc: "0xf9b2DE65196fA500527c576De9312E3c626C7d6a", // Minimal ERC20 for test purposes
         feeClaimAddress: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account // Todo: Change later for better tests
         daoOperator: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account, // Todo: Change later for better tests
+        tokenAdmin: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1", // This is testnet deployer's account, // Todo: Change later for better tests
         rpcUrl: ARBITRUM_TESTNET_SEPOLIA_RPC_URL,
     },
 }
