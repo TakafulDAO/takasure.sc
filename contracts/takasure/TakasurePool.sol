@@ -148,17 +148,18 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         ) = _calculateAmountAndFees(contributionBeforeFee);
 
         if (isKYCVerified) {
+            // Flow 1 KYC -> Join
             // It means the user is already in the system, we just need to update the values
-            _updateMember(
-                benefitMultiplier,
-                normalizedContributionBeforeFee,
-                membershipDuration,
-                feeAmount,
-                msg.sender,
-                MemberState.Active,
-                isKYCVerified,
-                false
-            );
+            _updateMember({
+                _benefitMultiplier: benefitMultiplier, // Will be fetched from off-chain oracle
+                _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
+                _membershipDuration: membershipDuration, // From the input
+                _feeAmount: feeAmount, // Calculated
+                _memberWallet: msg.sender, // The member wallet
+                _memberState: MemberState.Active, // Active state as it is already KYCed and paid the contribution
+                _isKYCVerified: isKYCVerified, // The current state, does not change here
+                _isRefunded: false // Reset to false as the user repays the contribution
+            });
 
             // And we pay the contribution
             _memberPaymentFlow(
@@ -172,30 +173,30 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             emit TakasureEvents.OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
         } else {
             if (!isRefunded) {
+                // Flow 2 Join -> KYC
                 // If is not KYC verified, and not refunded, it is a completele new member, we create it
-                // inactive, without kyc, and refunded false, the other values comes from input and oracle
-                _createNewMember(
-                    benefitMultiplier,
-                    normalizedContributionBeforeFee,
-                    membershipDuration,
-                    feeAmount,
-                    isKYCVerified,
-                    msg.sender,
-                    MemberState.Inactive
-                );
+                _createNewMember({
+                    _benefitMultiplier: benefitMultiplier, // Fetch from oracle
+                    _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
+                    _membershipDuration: membershipDuration, // From the input
+                    _feeAmount: feeAmount, // Calculated
+                    _isKYCVerified: isKYCVerified, // The current state, in this case false
+                    _memberWallet: msg.sender, // The member wallet
+                    _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
+                });
             } else {
-                // If is not KYC verified, but refunded, the member exist already, but previously refunded,
-                // we update the values from inputs and oracle, kyc is false, member is inactive, refunded is false
-                _updateMember(
-                    benefitMultiplier,
-                    normalizedContributionBeforeFee,
-                    membershipDuration,
-                    feeAmount,
-                    msg.sender,
-                    MemberState.Active,
-                    isKYCVerified,
-                    false
-                );
+                // Flow 3 Refund -> Join
+                // If is not KYC verified, but refunded, the member exist already, but was previously refunded
+                _updateMember({
+                    _benefitMultiplier: benefitMultiplier, // Fetch from oracle
+                    _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
+                    _membershipDuration: membershipDuration, // From the input
+                    _feeAmount: feeAmount, // Calculated
+                    _memberWallet: msg.sender, // The member wallet
+                    _memberState: MemberState.Inactive, // Set to inactive until the KYC is verified
+                    _isKYCVerified: isKYCVerified, // The current state, in this case false
+                    _isRefunded: false // Reset to false as the user repays the contribution
+                });
             }
 
             // The member will pay the contribution, but will remain inactive until the KYC is verified
@@ -224,34 +225,37 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         bool isRefunded = reserve.members[msg.sender].isRefunded;
 
         if (reserve.members[memberWallet].wallet == address(0)) {
+            // Flow 1 KYC -> Join
             // This means the user does not exist yet
-            // We create a new one with some values set to 0, kyced, inactive until the contribution is paid with joinPool
-            _createNewMember(0, 0, 0, 0, true, memberWallet, MemberState.Inactive);
+            _createNewMember({
+                _benefitMultiplier: 0, // We dont know it yet
+                _contributionBeforeFee: 0, // We dont know it yet
+                _membershipDuration: 0, // We dont know it yet
+                _feeAmount: 0, // We dont know it yet
+                _isKYCVerified: true, // Set to true with this call
+                _memberWallet: memberWallet, // The member wallet
+                _memberState: MemberState.Inactive // Set to inactive until the contribution is paid
+            });
         } else {
-            if (isRefunded) {
-                // This means the user exists, but was refunded, we reset the values and set the member as inactive, kyc true,
-                // refunded true
-                _updateMember(0, 0, 0, 0, memberWallet, MemberState.Inactive, true, true);
-            } else {
+            if (!isRefunded) {
+                // Flow 2 Join -> KYC
                 // This means the user exists and payed contribution but is not KYCed yet, we update the values
-                // and set the member as active, kyc true, refunded false
-
                 (
                     uint256 normalizedContributionBeforeFee,
                     uint256 feeAmount,
                     uint256 contributionAfterFee
                 ) = _calculateAmountAndFees(reserve.members[memberWallet].contribution);
 
-                _updateMember(
-                    reserve.members[memberWallet].benefitMultiplier,
-                    normalizedContributionBeforeFee,
-                    reserve.members[memberWallet].membershipDuration,
-                    feeAmount,
-                    memberWallet,
-                    MemberState.Active,
-                    true,
-                    false
-                );
+                _updateMember({
+                    _benefitMultiplier: reserve.members[memberWallet].benefitMultiplier, // We take the current value
+                    _contributionBeforeFee: normalizedContributionBeforeFee, // We take the current value
+                    _membershipDuration: reserve.members[memberWallet].membershipDuration, // We take the current value
+                    _feeAmount: feeAmount, // Calculated
+                    _memberWallet: memberWallet, // The member wallet
+                    _memberState: MemberState.Active, // Active state as the user is already paid the contribution and KYCed
+                    _isKYCVerified: true, // Set to true with this call
+                    _isRefunded: false // Remains false as the user is not refunded
+                });
 
                 // Then the everyting needed will be updated, proformas, reserves, cash flow,
                 // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
@@ -267,6 +271,19 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                     reserve.members[memberWallet].memberId,
                     memberWallet
                 );
+            } else {
+                // Flow 4 Refund -> KYC
+                // This means the user exists, but was refunded, we reset the values
+                _updateMember({
+                    _benefitMultiplier: 0, // Reset until the user pays the contribution
+                    _contributionBeforeFee: 0, // Reset until the user pays the contribution
+                    _membershipDuration: 0, // Reset until the user pays the contribution
+                    _feeAmount: 0, // Reset until the user pays the contribution
+                    _memberWallet: memberWallet, // The member wallet
+                    _memberState: MemberState.Inactive, // Set to inactive until the contribution is paid
+                    _isKYCVerified: true, // Set to true with this call
+                    _isRefunded: true // Remains true until the user pays the contribution
+                });
             }
         }
         emit TakasureEvents.OnMemberKycVerified(
