@@ -16,7 +16,7 @@ struct Member {
     uint256 yearsCovered; // 1, 2, 3, 4, 5...
     uint256 membershipStartTime; // in seconds
     uint256 contribution; // in stablecoin currency in Wei
-    uint256 claimAddAmount; // amount deposited in the claim reserve, in stablecoin currency in Wei
+    uint256 claimAddAmount; // amount deposited in the claim reserve, in stablecoin currency in Wei, and without fees
     uint256 totalContributions; // in stablecoin currency in Wei. This is the total contribution made by the member
     uint256 totalServiceFee; // in stablecoin currency in Wei
     address wallet;

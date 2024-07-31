@@ -118,7 +118,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
      *         member will be active.
      * @param benefitMultiplier fetched from off-chain oracle
-     * @param contributionAmount in six decimals
+     * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
      * @dev it reverts if the contribution is less than the minimum threshold defaultes to `minimumThreshold`
      * @dev it reverts if the member is already active
@@ -127,14 +127,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      */
     function joinPool(
         uint256 benefitMultiplier,
-        uint256 contributionAmount,
+        uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external {
         // Todo: Check the user benefit multiplier against the oracle.
         if (reserve.members[msg.sender].memberState == MemberState.Active) {
             revert TakasureErrors.TakasurePool__MemberAlreadyExists();
         }
-        if (contributionAmount < minimumThreshold) {
+        if (contributionBeforeFee < minimumThreshold) {
             revert TakasureErrors.TakasurePool__ContributionBelowMinimumThreshold();
         }
 
@@ -143,16 +143,16 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
 
         (
-            uint256 correctedContributionAmount,
+            uint256 normalizedContributionBeforeFee,
             uint256 feeAmount,
-            uint256 depositAmount
-        ) = _calculateAmountAndFees(contributionAmount);
+            uint256 contributionAfterFee
+        ) = _calculateAmountAndFees(contributionBeforeFee);
 
         if (isKYCVerified) {
             // It means the user is already in the system, we just need to update the values
             _updateMember(
                 benefitMultiplier,
-                correctedContributionAmount,
+                normalizedContributionBeforeFee,
                 membershipDuration,
                 feeAmount,
                 msg.sender,
@@ -161,8 +161,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
             // And we pay the contribution
             _memberPaymentFlow(
-                correctedContributionAmount,
-                depositAmount,
+                normalizedContributionBeforeFee,
+                contributionAfterFee,
                 feeAmount,
                 msg.sender,
                 true
@@ -173,7 +173,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // If is not KYC verified, we create a new member, inactive, without kyc
             _createNewMember(
                 benefitMultiplier,
-                correctedContributionAmount,
+                normalizedContributionBeforeFee,
                 membershipDuration,
                 feeAmount,
                 isKYCVerified,
@@ -184,7 +184,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // The member will pay the contribution, but will remain inactive until the KYC is verified
             // This means the proformas wont be updated, the amounts wont be added to the reserves,
             // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-            _transferAmounts(depositAmount, feeAmount, msg.sender);
+            _transferAmounts(contributionAfterFee, feeAmount, msg.sender);
         }
     }
 
@@ -212,14 +212,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // This means the user exists but is not KYCed yet
 
             (
-                uint256 correctedContributionAmount,
+                uint256 normalizedContributionBeforeFee,
                 uint256 feeAmount,
-                uint256 depositAmount
+                uint256 contributionAfterFee
             ) = _calculateAmountAndFees(reserve.members[memberWallet].contribution);
 
             _updateMember(
                 reserve.members[memberWallet].benefitMultiplier,
-                correctedContributionAmount,
+                normalizedContributionBeforeFee,
                 reserve.members[memberWallet].membershipDuration,
                 feeAmount,
                 memberWallet,
@@ -229,8 +229,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // Then the everyting needed will be updated, proformas, reserves, cash flow,
             // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
             _memberPaymentFlow(
-                correctedContributionAmount,
-                depositAmount,
+                normalizedContributionBeforeFee,
+                contributionAfterFee,
                 feeAmount,
                 memberWallet,
                 false
@@ -263,17 +263,23 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             revert TakasureErrors.TakasurePool__InvalidDate();
         }
 
-        uint256 contributionAmount = reserve.members[msg.sender].contribution;
-        uint256 feeAmount = (contributionAmount * reserve.serviceFee) / 100;
-        uint256 depositAmount = contributionAmount - feeAmount;
+        uint256 contributionBeforeFee = reserve.members[msg.sender].contribution;
+        uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
+        uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
 
         // Update the values
         ++reserve.members[msg.sender].yearsCovered;
-        reserve.members[msg.sender].totalContributions += contributionAmount;
+        reserve.members[msg.sender].totalContributions += contributionBeforeFee;
         reserve.members[msg.sender].totalServiceFee += feeAmount;
 
         // And we pay the contribution
-        _memberPaymentFlow(contributionAmount, feeAmount, depositAmount, msg.sender, true);
+        _memberPaymentFlow(
+            contributionBeforeFee,
+            feeAmount,
+            contributionAfterFee,
+            msg.sender,
+            true
+        );
 
         emit TakasureEvents.OnRecurringPayment(
             msg.sender,
@@ -375,25 +381,29 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _calculateAmountAndFees(
-        uint256 _contributionAmount
+        uint256 _contributionBeforeFee
     )
         internal
         view
-        returns (uint256 contributionAmount_, uint256 feeAmount_, uint256 depositAmount_)
+        returns (
+            uint256 normalizedContributionBeforeFee_,
+            uint256 feeAmount_,
+            uint256 contributionAfterFee_
+        )
     {
         // Then we pay the contribution
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        contributionAmount_ =
-            (_contributionAmount / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+        normalizedContributionBeforeFee_ =
+            (_contributionBeforeFee / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
-        feeAmount_ = (contributionAmount_ * reserve.serviceFee) / 100;
-        depositAmount_ = contributionAmount_ - feeAmount_;
+        feeAmount_ = (normalizedContributionBeforeFee_ * reserve.serviceFee) / 100;
+        contributionAfterFee_ = normalizedContributionBeforeFee_ - feeAmount_;
     }
 
     function _createNewMember(
         uint256 _benefitMultiplier,
-        uint256 _contributionAmount,
+        uint256 _contributionBeforeFee,
         uint256 _membershipDuration,
         uint256 _feeAmount,
         bool _isKYCVerified,
@@ -416,9 +426,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             membershipDuration: userMembershipDuration,
             yearsCovered: 1,
             membershipStartTime: currentTimestamp,
-            contribution: _contributionAmount,
+            contribution: _contributionBeforeFee,
             claimAddAmount: (_contributionAmount * (100 - reserve.dynamicReserveRatio)) / 100,
-            totalContributions: _contributionAmount,
+            totalContributions: _contributionBeforeFee,
             totalServiceFee: _feeAmount,
             wallet: _memberWallet,
             memberState: _memberState,
@@ -434,7 +444,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             memberIdCounter,
             _memberWallet,
             _benefitMultiplier,
-            _contributionAmount,
+            _contributionBeforeFee,
             _feeAmount,
             userMembershipDuration,
             currentTimestamp
@@ -443,7 +453,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function _updateMember(
         uint256 _benefitMultiplier,
-        uint256 _contributionAmount,
+        uint256 _contributionBeforeFee,
         uint256 _membershipDuration,
         uint256 _feeAmount,
         address _memberWallet,
@@ -461,7 +471,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.members[_memberWallet].benefitMultiplier = _benefitMultiplier;
         reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
         reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
-        reserve.members[_memberWallet].contribution = _contributionAmount;
+        reserve.members[_memberWallet].contribution = _contributionBeforeFee;
         reserve.members[_memberWallet].claimAddAmount =
             (_contributionAmount * (100 - reserve.dynamicReserveRatio)) /
             100;
@@ -480,7 +490,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             reserve.members[_memberWallet].memberId,
             _memberWallet,
             _benefitMultiplier,
-            _contributionAmount,
+            _contributionBeforeFee,
             _feeAmount,
             userMembershipDuration,
             currentTimestamp
@@ -493,35 +503,35 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      *                         false -> np need to pay the contribution as it is already payed
      */
     function _memberPaymentFlow(
-        uint256 _contributionAmount,
-        uint256 _depositAmount,
+        uint256 _contributionBeforeFee,
+        uint256 _contributionAfterFee,
         uint256 _feeAmount,
         address _memberWallet,
         bool _payContribution
     ) internal {
-        _updateProFormas(_contributionAmount);
-        _updateReserves(_contributionAmount, _depositAmount);
-        _updateCashMappings(_depositAmount);
+        _updateProFormas(_contributionBeforeFee);
+        _updateReserves(_contributionBeforeFee, _contributionAfterFee);
+        _updateCashMappings(_contributionAfterFee);
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
-        _mintDaoTokens(_contributionAmount, _memberWallet);
+        _mintDaoTokens(_contributionBeforeFee, _memberWallet);
         if (_payContribution) {
-            _transferAmounts(_depositAmount, _feeAmount, _memberWallet);
+            _transferAmounts(_contributionAfterFee, _feeAmount, _memberWallet);
         }
     }
 
-    function _updateProFormas(uint256 _contributionAmount) internal {
+    function _updateProFormas(uint256 _contributionBeforeFee) internal {
         // Scope to avoid stack too deep error. This scope update both pro formas
         uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
             reserve.proFormaFundReserve,
-            _contributionAmount,
+            _contributionBeforeFee,
             reserve.dynamicReserveRatio
         );
 
         uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
             reserve.proFormaClaimReserve,
-            _contributionAmount,
+            _contributionBeforeFee,
             reserve.serviceFee,
             reserve.initialReserveRatio
         );
@@ -535,12 +545,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
     }
 
-    function _updateReserves(uint256 _contributionAmount, uint256 _depositAmount) internal {
-        uint256 toFundReserve = (_depositAmount * reserve.dynamicReserveRatio) / 100;
-        uint256 toClaimReserve = _depositAmount - toFundReserve;
+    function _updateReserves(
+        uint256 _contributionBeforeFee,
+        uint256 _contributionAfterFee
+    ) internal {
+        uint256 toFundReserve = (_contributionAfterFee * reserve.dynamicReserveRatio) / 100;
+        uint256 toClaimReserve = _contributionAfterFee - toFundReserve;
 
         reserve.totalFundReserve += toFundReserve;
-        reserve.totalContributions += _contributionAmount;
+        reserve.totalContributions += _contributionBeforeFee;
         reserve.totalClaimReserve += toClaimReserve;
 
         emit TakasureEvents.OnNewReserveValues(
@@ -550,7 +563,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
     }
 
-    function _updateCashMappings(uint256 _depositAmount) internal {
+    function _updateCashMappings(uint256 _contributionAfterFee) internal {
         uint256 currentTimestamp = block.timestamp;
 
         if (dayDepositTimestamp == 0 && monthDepositTimestamp == 0) {
@@ -558,8 +571,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // Set the initial values for future calculations and reference
             dayDepositTimestamp = currentTimestamp;
             monthDepositTimestamp = currentTimestamp;
-            monthToCashFlow[monthReference] = _depositAmount;
-            dayToCashFlow[monthReference][dayReference] = _depositAmount;
+            monthToCashFlow[monthReference] = _contributionAfterFee;
+            dayToCashFlow[monthReference][dayReference] = _contributionAfterFee;
         } else {
             // Check how many days and months have passed since the last deposit
             uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
@@ -573,17 +586,17 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
             if (monthsPassed == 0) {
                 // If no months have passed, update the mapping for the current month
-                monthToCashFlow[monthReference] += _depositAmount;
+                monthToCashFlow[monthReference] += _contributionAfterFee;
                 if (daysPassed == 0) {
                     // If no days have passed, update the mapping for the current day
-                    dayToCashFlow[monthReference][dayReference] += _depositAmount;
+                    dayToCashFlow[monthReference][dayReference] += _contributionAfterFee;
                 } else {
                     // If it is a new day, update the day deposit timestamp and the new day reference
                     dayDepositTimestamp += daysPassed * DAY;
                     dayReference += uint8(daysPassed);
 
                     // Update the mapping for the new day
-                    dayToCashFlow[monthReference][dayReference] = _depositAmount;
+                    dayToCashFlow[monthReference][dayReference] = _contributionAfterFee;
                 }
             } else {
                 // If it is a new month, update the month deposit timestamp and the day deposit timestamp
@@ -604,8 +617,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 dayReference = uint8(daysPassed) + initialDay;
 
                 // Update the mappings for the new month and day
-                monthToCashFlow[monthReference] = _depositAmount;
-                dayToCashFlow[monthReference][dayReference] = _depositAmount;
+                monthToCashFlow[monthReference] = _contributionAfterFee;
+                dayToCashFlow[monthReference][dayReference] = _contributionAfterFee;
             }
         }
     }
@@ -740,14 +753,18 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _transferAmounts(
-        uint256 _depositAmount,
+        uint256 _contributionAfterFee,
         uint256 _feeAmount,
         address _memberWallet
     ) internal {
         bool success;
 
         // Transfer the contribution to the pool
-        success = contributionToken.transferFrom(_memberWallet, address(this), _depositAmount);
+        success = contributionToken.transferFrom(
+            _memberWallet,
+            address(this),
+            _contributionAfterFee
+        );
         if (!success) {
             revert TakasureErrors.TakasurePool__ContributionTransferFailed();
         }
@@ -759,9 +776,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function _mintDaoTokens(uint256 _contributionAmount, address _memberWallet) internal {
+    function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal {
         // Mint needed DAO Tokens
-        uint256 mintAmount = _contributionAmount * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+        uint256 mintAmount = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
         bool success = daoToken.mint(_memberWallet, mintAmount);
         if (!success) {
