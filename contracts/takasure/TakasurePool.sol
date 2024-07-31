@@ -140,7 +140,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
 
         (
-            uint256 correctedContributionBeforeFee,
+            uint256 normalizedContributionBeforeFee,
             uint256 feeAmount,
             uint256 contributionAfterFee
         ) = _calculateAmountAndFees(contributionBeforeFee);
@@ -149,7 +149,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // It means the user is already in the system, we just need to update the values
             _updateMember(
                 benefitMultiplier,
-                correctedContributionBeforeFee,
+                normalizedContributionBeforeFee,
                 membershipDuration,
                 feeAmount,
                 msg.sender,
@@ -158,7 +158,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
             // And we pay the contribution
             _memberPaymentFlow(
-                correctedContributionBeforeFee,
+                normalizedContributionBeforeFee,
                 contributionAfterFee,
                 feeAmount,
                 msg.sender,
@@ -170,7 +170,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // If is not KYC verified, we create a new member, inactive, without kyc
             _createNewMember(
                 benefitMultiplier,
-                correctedContributionBeforeFee,
+                normalizedContributionBeforeFee,
                 membershipDuration,
                 feeAmount,
                 isKYCVerified,
@@ -209,14 +209,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // This means the user exists but is not KYCed yet
 
             (
-                uint256 correctedContributionBeforeFee,
+                uint256 normalizedContributionBeforeFee,
                 uint256 feeAmount,
                 uint256 contributionAfterFee
             ) = _calculateAmountAndFees(reserve.members[memberWallet].contribution);
 
             _updateMember(
                 reserve.members[memberWallet].benefitMultiplier,
-                correctedContributionBeforeFee,
+                normalizedContributionBeforeFee,
                 reserve.members[memberWallet].membershipDuration,
                 feeAmount,
                 memberWallet,
@@ -226,7 +226,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             // Then the everyting needed will be updated, proformas, reserves, cash flow,
             // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
             _memberPaymentFlow(
-                correctedContributionBeforeFee,
+                normalizedContributionBeforeFee,
                 contributionAfterFee,
                 feeAmount,
                 memberWallet,
@@ -383,7 +383,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         internal
         view
         returns (
-            uint256 correctedContributionBeforeFee_,
+            uint256 normalizedContributionBeforeFee_,
             uint256 feeAmount_,
             uint256 contributionAfterFee_
         )
@@ -391,11 +391,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         // Then we pay the contribution
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        correctedContributionBeforeFee_ =
+        normalizedContributionBeforeFee_ =
             (_contributionBeforeFee / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
-        feeAmount_ = (correctedContributionBeforeFee_ * reserve.serviceFee) / 100;
-        contributionAfterFee_ = correctedContributionBeforeFee_ - feeAmount_;
+        feeAmount_ = (normalizedContributionBeforeFee_ * reserve.serviceFee) / 100;
+        contributionAfterFee_ = normalizedContributionBeforeFee_ - feeAmount_;
     }
 
     function _createNewMember(
