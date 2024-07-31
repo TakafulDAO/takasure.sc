@@ -127,7 +127,7 @@ module.exports = async ({ deployments }) => {
         log("01.01. Implementation Verified! ")
 
         log("01.01. Verifying Dao Token Address!... ")
-        await verify(daoTokenAddress, [tokenName, tokenSymbol])
+        await verify(daoTokenAddress, [tokenAdmin, tokenName, tokenSymbol])
         log("01.01. Dao Token Address Verified! ")
     }
     log("=======================================================")
