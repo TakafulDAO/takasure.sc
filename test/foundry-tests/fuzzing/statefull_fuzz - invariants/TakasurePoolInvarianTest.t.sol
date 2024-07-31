@@ -6,7 +6,7 @@ import {Test, StdInvariant, console2} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
-import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
+import {IUSDC} from "test/foundry-tests/mocks/IUSDCmock.sol";
 import {TakasurePoolHandler} from "../../helpers/handlers/TakasurePoolHandler.t.sol";
 
 contract TakasurePoolInvariantTest is StdInvariant, Test {

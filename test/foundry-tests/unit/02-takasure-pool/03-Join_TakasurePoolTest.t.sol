@@ -8,7 +8,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
-import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
+import {IUSDC} from "test/foundry-tests/mocks/IUSDCmock.sol";
 
 contract Join_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
