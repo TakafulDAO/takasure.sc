@@ -32,8 +32,12 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         _;
     }
 
-    constructor() ERC20("TSToken", "TST") {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // TODO: Discuss. Who? The Dao?
+    constructor(
+        address admin,
+        string memory tokenName,
+        string memory tokenSymbol
+    ) ERC20(tokenName, tokenSymbol) {
+        _grantRole(DEFAULT_ADMIN_ROLE, admin); // TODO: Discuss. Who? The Dao?
         // Todo: Discuss. Allow someone here as Minter and Burner?
     }
 
