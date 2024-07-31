@@ -3,7 +3,7 @@
 pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {USDC} from "../../contracts/mocks/USDCmock.sol";
+import {USDC} from "src/mocks/USDCmock.sol";
 
 abstract contract CodeConstants {
     /*//////////////////////////////////////////////////////////////
