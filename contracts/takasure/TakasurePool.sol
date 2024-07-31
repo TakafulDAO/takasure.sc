@@ -120,7 +120,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
      *         member will be active.
-     * @param benefitMultiplier fetched from off-chain oracle
      * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
      * @dev it reverts if the contribution is less than the minimum threshold defaultes to `minimumThreshold`
