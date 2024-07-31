@@ -9,16 +9,16 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ITSToken} from "src/interfaces/ITSToken.sol";
-import {IBenefitMultiplierConsumer} from "src/interfaces/IBenefitMultiplierConsumer.sol";
+import {ITSToken} from "contracts/interfaces/ITSToken.sol";
+import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import {Reserve, Member, MemberState} from "src/types/TakasureTypes.sol";
-import {ReserveMathLib} from "src/libraries/ReserveMathLib.sol";
-import {TakasureEvents} from "src/libraries/TakasureEvents.sol";
-import {TakasureErrors} from "src/libraries/TakasureErrors.sol";
+import {Reserve, Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
+import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
+import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.25;
