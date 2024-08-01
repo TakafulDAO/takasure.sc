@@ -76,8 +76,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         address _contributionToken,
         address _daoToken,
         address _feeClaimAddress,
-        address _daoOperator,
-        address _benefitMultiplierConsumer
+        address _daoOperator
     )
         external
         initializer
@@ -85,14 +84,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         notZeroAddress(_daoToken)
         notZeroAddress(_feeClaimAddress)
         notZeroAddress(_daoOperator)
-        notZeroAddress(_benefitMultiplierConsumer)
     {
         __UUPSUpgradeable_init();
         __Ownable_init(_daoOperator);
 
         contributionToken = IERC20(_contributionToken);
         daoToken = ITSToken(_daoToken);
-        bmConsumer = IBenefitMultiplierConsumer(_benefitMultiplierConsumer);
         feeClaimAddress = _feeClaimAddress;
 
         monthReference = 1;

@@ -32,6 +32,7 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
     event Response(bytes32 indexed requestId, bytes response, bytes err); // todo: this will be emited during the callback, check if chainlink need this exact name or can use OnResponse
 
     error OracleConsumer__UnexpectedRequestID(bytes32 requestId);
+    error OracleConsumer__NotAddressZero();
 
     /**
      * @custom:oz-upgrades-unsafe-allow constructor
@@ -39,25 +40,22 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
      * @param _donId The data provider ID
      * @param _gasLimit The gas limit for the request
      * @param _subscriptionId The subscription ID
-     * @param _requester The address allowed to request the benefit multiplier. Will be the takasure contract
      */
     constructor(
         address router,
         bytes32 _donId,
         uint32 _gasLimit,
-        uint64 _subscriptionId,
-        address _requester
+        uint64 _subscriptionId
     ) FunctionsClient(router) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(BM_REQUESTER_ROLE, _requester);
-        requester = _requester;
         donId = _donId;
         gasLimit = _gasLimit;
         subscriptionId = _subscriptionId;
     }
 
     function setNewRequester(address newRequester) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _revokeRole(BM_REQUESTER_ROLE, requester);
+        if (newRequester == address(0)) revert OracleConsumer__NotAddressZero();
+        if (requester != address(0)) _revokeRole(BM_REQUESTER_ROLE, requester);
         _grantRole(BM_REQUESTER_ROLE, newRequester);
         requester = newRequester;
     }
@@ -111,9 +109,8 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
         bytes memory response,
         bytes memory err
     ) internal override {
-        if (requestId != lastRequestId) {
-            revert OracleConsumer__UnexpectedRequestID(requestId);
-        }
+        if (requestId != lastRequestId) revert OracleConsumer__UnexpectedRequestID(requestId);
+
         lastResponse = response;
         lastError = err;
 
