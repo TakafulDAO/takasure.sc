@@ -3,7 +3,7 @@
 pragma solidity 0.8.25;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "deploy/DeployTokenAndPool.s.sol";
+import {DeployTokenAndPool} from "deploy/01-DeployTokenAndPool.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";

@@ -3,8 +3,8 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "deploy/DeployTokenAndPool.s.sol";
-import {DeployConsumerMocks} from "deploy/DeployConsumerMocks.s.sol";
+import {DeployTokenAndPool} from "deploy/01-DeployTokenAndPool.s.sol";
+import {DeployConsumerMocks} from "deploy/00-DeployConsumerMocks.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
