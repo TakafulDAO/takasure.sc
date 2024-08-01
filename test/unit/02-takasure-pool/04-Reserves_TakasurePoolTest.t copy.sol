@@ -3,15 +3,18 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {DeployTokenAndPool} from "scripts/DeployTokenAndPool.s.sol";
+import {DeployConsumerMocks} from "scripts/DeployConsumerMocks.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
-import {IUSDC} from "test/foundry-tests/mocks/IUSDCmock.sol";
+import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract Reserves_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
+    DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
     address contributionTokenAddress;
@@ -28,6 +31,14 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         deployer = new DeployTokenAndPool();
         (, proxy, , , contributionTokenAddress, ) = deployer.run();
 
+        mockDeployer = new DeployConsumerMocks();
+        (
+            ,
+            ,
+            BenefitMultiplierConsumerMockSuccess bmConsumerSuccess,
+            address bmDeployer
+        ) = mockDeployer.run();
+
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
 
@@ -36,6 +47,12 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
 
         vm.prank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+
+        vm.prank(takasurePool.owner());
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
+
+        vm.prank(bmDeployer);
+        bmConsumerSuccess.setNewRequester(address(takasurePool));
     }
 
     /*//////////////////////////////////////////////////////////////

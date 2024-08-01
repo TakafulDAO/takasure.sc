@@ -3,13 +3,16 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {DeployTokenAndPool} from "scripts/DeployTokenAndPool.s.sol";
+import {DeployConsumerMocks} from "scripts/DeployConsumerMocks.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
-import {IUSDC} from "test/foundry-tests/mocks/IUSDCmock.sol";
+import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
+import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract TakasurePoolFuzzTest is Test {
     DeployTokenAndPool deployer;
+    DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
     address contributionTokenAddress;
@@ -26,6 +29,14 @@ contract TakasurePoolFuzzTest is Test {
         deployer = new DeployTokenAndPool();
         (, proxy, , , contributionTokenAddress, ) = deployer.run();
 
+        mockDeployer = new DeployConsumerMocks();
+        (
+            ,
+            ,
+            BenefitMultiplierConsumerMockSuccess bmConsumerSuccess,
+            address bmDeployer
+        ) = mockDeployer.run();
+
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
 
@@ -34,6 +45,12 @@ contract TakasurePoolFuzzTest is Test {
 
         vm.prank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+
+        vm.prank(takasurePool.owner());
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
+
+        vm.prank(bmDeployer);
+        bmConsumerSuccess.setNewRequester(address(takasurePool));
     }
 
     function test_fuzz_ownerCanSetKycstatus(address notOwner) public {

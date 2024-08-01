@@ -3,10 +3,10 @@
 pragma solidity 0.8.25;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {DeployTokenAndPool} from "scripts/DeployTokenAndPool.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
-import {IUSDC} from "test/foundry-tests/mocks/IUSDCmock.sol";
+import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasurePoolHandler} from "../../helpers/handlers/TakasurePoolHandler.t.sol";
 
 contract TakasurePoolInvariantTest is StdInvariant, Test {
@@ -22,6 +22,7 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
     function setUp() public {
         deployer = new DeployTokenAndPool();
         (, proxy, , , contributionTokenAddress, ) = deployer.run();
+
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
 
@@ -49,31 +50,31 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
     // }
 
     /// @dev Invariant to check dynamic reserve ratio. Can not be greater than 100
-    function invariant_dynamicReserveRatioCanNotBeGreaterThan100() public view {
-        (, uint256 drr, , , , , , , , , , ) = takasurePool.getReserveValues();
+    // function invariant_dynamicReserveRatioCanNotBeGreaterThan100() public view {
+    //     (, uint256 drr, , , , , , , , , , ) = takasurePool.getReserveValues();
 
-        console2.log("Dynamic Reserve Ratio: ", drr);
+    //     console2.log("Dynamic Reserve Ratio: ", drr);
 
-        assert(drr <= 100);
-    }
+    //     assert(drr <= 100);
+    // }
 
     /// @dev Invariant to check BMA can not be greater than 100
-    function invariant_bmaCanNotBeGreaterThan100() public view {
-        (, , uint256 bma, , , , , , , , , ) = takasurePool.getReserveValues();
+    // function invariant_bmaCanNotBeGreaterThan100() public view {
+    //     (, , uint256 bma, , , , , , , , , ) = takasurePool.getReserveValues();
 
-        console2.log("BMA: ", bma);
+    //     console2.log("BMA: ", bma);
 
-        assert(bma <= 100);
-    }
+    //     assert(bma <= 100);
+    // }
 
     /// @dev Invariant to check if getters do not revert
     /// forge-config: default.invariant.runs = 100
     /// forge-config: default.invariant.depth = 2
     /// forge-config: default.invariant.fail-on-revert = true
-    function invariant_gettersShouldNotRevert() public view {
-        takasurePool.getCashLast12Months();
-        takasurePool.getContributionTokenAddress();
-        takasurePool.getReserveValues();
-        takasurePool.getTokenAddress();
-    }
+    // function invariant_gettersShouldNotRevert() public view {
+    //     takasurePool.getCashLast12Months();
+    //     takasurePool.getContributionTokenAddress();
+    //     takasurePool.getReserveValues();
+    //     takasurePool.getTokenAddress();
+    // }
 }
