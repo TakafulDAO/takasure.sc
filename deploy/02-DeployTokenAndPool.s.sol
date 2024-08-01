@@ -23,17 +23,15 @@ contract DeployTokenAndPool is Script {
         )
     {
         HelperConfig helperConfig = new HelperConfig();
-
         HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
-
         address deployerAddress = vm.addr(config.deployerKey);
 
         vm.startBroadcast(config.deployerKey);
 
         TSToken daoToken = new TSToken();
+
         TakasurePool takasurePool = new TakasurePool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(takasurePool), "");
-
         TakasurePool(address(proxy)).initialize(
             config.contributionToken,
             address(daoToken),
@@ -46,13 +44,11 @@ contract DeployTokenAndPool is Script {
 
         bytes32 adminRole = daoToken.DEFAULT_ADMIN_ROLE();
         daoToken.grantRole(adminRole, config.daoOperator);
-
         daoToken.revokeRole(adminRole, deployerAddress);
 
         vm.stopBroadcast();
 
         contributionTokenAddress = TakasurePool(address(proxy)).getContributionTokenAddress();
-
         return (daoToken, proxy, takasurePool, contributionTokenAddress, helperConfig);
     }
 }
