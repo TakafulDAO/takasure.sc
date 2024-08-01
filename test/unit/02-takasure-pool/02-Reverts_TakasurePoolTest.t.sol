@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {TestDeployTokenAndPool} from "test/utils/TestDeployTokenAndPool.s.sol";
-import {DeployConsumerMocks} from "deploy/00-DeployConsumerMocks.s.sol";
+import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";

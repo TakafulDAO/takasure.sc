@@ -6,7 +6,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {BenefitMultiplierConsumerMockError} from "test/mocks/BenefitMultiplierConsumerMockError.sol";
 import {BenefitMultiplierConsumerMockFailed} from "test/mocks/BenefitMultiplierConsumerMockFailed.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
-import {HelperConfig} from "./HelperConfig.s.sol";
+import {HelperConfig} from "deploy/HelperConfig.s.sol";
 
 contract DeployConsumerMocks is Script {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
