@@ -9,6 +9,7 @@ abstract contract CodeConstants {
     /*//////////////////////////////////////////////////////////////
                                CHAIN IDS
     //////////////////////////////////////////////////////////////*/
+    uint256 public constant ARB_MAINNET_CHAIN_ID = 42161;
     uint256 public constant ARB_SEPOLIA_CHAIN_ID = 421614;
     uint256 public constant LOCAL_CHAIN_ID = 31337;
 
@@ -20,10 +21,31 @@ abstract contract CodeConstants {
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY =
         0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
 
-    // Anvil's account 1 public address
-    address public feeClaimAddressLocal = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
-    // Anvil's account 2 public address
-    address public daoOperatorLocal = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
+    struct FeeClaimAddress {
+        address local;
+        address mainnet;
+        address sepolia;
+    }
+
+    struct DaoOperator {
+        address local;
+        address mainnet;
+        address sepolia;
+    }
+
+    FeeClaimAddress public feeClaimAddress =
+        FeeClaimAddress({
+            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Avil's account 0
+            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+        });
+
+    DaoOperator public daoOperator =
+        DaoOperator({
+            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
+            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+        });
 }
 
 contract HelperConfig is CodeConstants, Script {
@@ -38,13 +60,13 @@ contract HelperConfig is CodeConstants, Script {
 
     struct NetworkConfig {
         address contributionToken;
-        uint256 deployerKey;
         address feeClaimAddress;
         address daoOperator;
-        address router;
+        address functionsRouter;
         bytes32 donId;
         uint32 gasLimit;
         uint64 subscriptionId;
+        uint256 deployerKey;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -84,14 +106,14 @@ contract HelperConfig is CodeConstants, Script {
     {
         sepoliaNetworkConfig = NetworkConfig({
             contributionToken: 0xf9b2DE65196fA500527c576De9312E3c626C7d6a,
-            // deployerKey: vm.envUint("TESTNET_DEPLOYER_PK_FOUNDRY"),
-            deployerKey: DEFAULT_ANVIL_PRIVATE_KEY,
-            feeClaimAddress: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            daoOperator: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            router: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C,
+            feeClaimAddress: feeClaimAddress.sepolia,
+            daoOperator: daoOperator.sepolia,
+            functionsRouter: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C,
             donId: 0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000,
             gasLimit: 300000,
-            subscriptionId: 123
+            subscriptionId: 123,
+            // deployerKey: vm.envUint("TESTNET_DEPLOYER_PK_FOUNDRY"),
+            deployerKey: DEFAULT_ANVIL_PRIVATE_KEY
         });
     }
 
@@ -111,13 +133,13 @@ contract HelperConfig is CodeConstants, Script {
         return
             NetworkConfig({
                 contributionToken: address(usdc),
-                deployerKey: DEFAULT_ANVIL_PRIVATE_KEY,
-                feeClaimAddress: feeClaimAddressLocal,
-                daoOperator: daoOperatorLocal,
-                router: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C,
+                feeClaimAddress: feeClaimAddress.local,
+                daoOperator: daoOperator.local,
+                functionsRouter: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C,
                 donId: 0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000,
                 gasLimit: 300000,
-                subscriptionId: 123
+                subscriptionId: 123,
+                deployerKey: DEFAULT_ANVIL_PRIVATE_KEY
             });
     }
 }

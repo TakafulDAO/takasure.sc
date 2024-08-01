@@ -30,27 +30,24 @@ contract DeployConsumerMocks is Script {
         vm.startBroadcast(config.deployerKey);
 
         BenefitMultiplierConsumerMockError bmConsumerError = new BenefitMultiplierConsumerMockError(
-            config.router,
+            config.functionsRouter,
             config.donId,
             config.gasLimit,
-            config.subscriptionId,
-            address(0)
+            config.subscriptionId
         );
 
         BenefitMultiplierConsumerMockFailed bmConsumerFailed = new BenefitMultiplierConsumerMockFailed(
-                config.router,
+                config.functionsRouter,
                 config.donId,
                 config.gasLimit,
-                config.subscriptionId,
-                address(0)
+                config.subscriptionId
             );
 
         BenefitMultiplierConsumerMockSuccess bmConsumerSuccess = new BenefitMultiplierConsumerMockSuccess(
-                config.router,
+                config.functionsRouter,
                 config.donId,
                 config.gasLimit,
-                config.subscriptionId,
-                address(0)
+                config.subscriptionId
             );
 
         vm.stopBroadcast();
