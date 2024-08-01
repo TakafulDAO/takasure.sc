@@ -3,9 +3,8 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "deploy/02-DeployTokenAndPool.s.sol";
+import {TestDeployTokenAndPool} from "test/utils/TestDeployTokenAndPool.s.sol";
 import {DeployConsumerMocks} from "deploy/00-DeployConsumerMocks.s.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -13,10 +12,10 @@ import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract Join_TakasurePoolTest is StdCheats, Test {
-    DeployTokenAndPool deployer;
+    TestDeployTokenAndPool deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
-    ERC1967Proxy proxy;
+    address proxy;
     address contributionTokenAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -27,8 +26,8 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new DeployTokenAndPool();
-        (, proxy, , contributionTokenAddress, ) = deployer.run();
+        deployer = new TestDeployTokenAndPool();
+        (, proxy, contributionTokenAddress, ) = deployer.run();
 
         mockDeployer = new DeployConsumerMocks();
         (

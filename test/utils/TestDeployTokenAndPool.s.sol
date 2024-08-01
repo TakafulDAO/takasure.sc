@@ -5,10 +5,10 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
-import {HelperConfig} from "./HelperConfig.s.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {HelperConfig} from "deploy/HelperConfig.s.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
-contract DeployTokenAndPool is Script {
+contract TestDeployTokenAndPool is Script {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
@@ -24,8 +24,9 @@ contract DeployTokenAndPool is Script {
 
         TSToken daoToken = new TSToken();
 
-        proxy = Upgrades.deployUUPSProxy(
-            "TakasurePool.sol",
+        address implementation = address(new TakasurePool());
+        proxy = UnsafeUpgrades.deployUUPSProxy(
+            implementation,
             abi.encodeCall(
                 TakasurePool.initialize,
                 (

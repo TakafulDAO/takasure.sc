@@ -3,23 +3,22 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "deploy/02-DeployTokenAndPool.s.sol";
+import {TestDeployTokenAndPool} from "test/utils/TestDeployTokenAndPool.s.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 
 contract TokenFuzzTest is Test {
-    DeployTokenAndPool deployer;
+    TestDeployTokenAndPool deployer;
     TSToken daoToken;
     TakasurePool takasurePool;
-    ERC1967Proxy proxy;
+    address proxy;
 
     address public user = makeAddr("user");
     uint256 public constant MINT_AMOUNT = 1 ether;
 
     function setUp() public {
-        deployer = new DeployTokenAndPool();
-        (daoToken, proxy, , , ) = deployer.run();
+        deployer = new TestDeployTokenAndPool();
+        (daoToken, proxy, , ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
     }

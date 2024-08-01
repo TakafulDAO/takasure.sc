@@ -21,7 +21,7 @@ artifacts
 # Foundry files
 cache_forge/
 out/
-broadcast/
+broadcast/*
 
 # Ignores development broadcast logs
 !/broadcast

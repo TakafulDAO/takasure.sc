@@ -3,17 +3,16 @@
 pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "deploy/02-DeployTokenAndPool.s.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {TestDeployTokenAndPool} from "test/utils/TestDeployTokenAndPool.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract Setters_TakasurePoolTest is StdCheats, Test {
-    DeployTokenAndPool deployer;
+    TestDeployTokenAndPool deployer;
     TakasurePool takasurePool;
-    ERC1967Proxy proxy;
+    address proxy;
     address contributionTokenAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -23,8 +22,8 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new DeployTokenAndPool();
-        (, proxy, , contributionTokenAddress, ) = deployer.run();
+        deployer = new TestDeployTokenAndPool();
+        (, proxy, contributionTokenAddress, ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
