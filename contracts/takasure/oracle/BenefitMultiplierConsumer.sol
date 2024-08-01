@@ -18,6 +18,8 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
 
     bytes32 public constant BM_REQUESTER_ROLE = keccak256("BM_REQUESTER_ROLE");
 
+    address public requester;
+
     bytes32 private donId;
     uint32 private gasLimit;
     uint64 private subscriptionId;
@@ -37,20 +39,27 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
      * @param _donId The data provider ID
      * @param _gasLimit The gas limit for the request
      * @param _subscriptionId The subscription ID
-     * @param requester The address allowed to request the benefit multiplier. Will be the takasure contract
+     * @param _requester The address allowed to request the benefit multiplier. Will be the takasure contract
      */
     constructor(
         address router,
         bytes32 _donId,
         uint32 _gasLimit,
         uint64 _subscriptionId,
-        address requester
+        address _requester
     ) FunctionsClient(router) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(BM_REQUESTER_ROLE, requester);
+        _grantRole(BM_REQUESTER_ROLE, _requester);
+        requester = _requester;
         donId = _donId;
         gasLimit = _gasLimit;
         subscriptionId = _subscriptionId;
+    }
+
+    function setNewRequester(address newRequester) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _revokeRole(BM_REQUESTER_ROLE, requester);
+        _grantRole(BM_REQUESTER_ROLE, newRequester);
+        requester = newRequester;
     }
 
     /**
