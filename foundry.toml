@@ -11,6 +11,7 @@ extra_output = ['storageLayout']
 fs_permissions = [
     { access = "read", path = "./out" },
     { access = 'read', path = './deployments' },
+    { access = 'read', path = './scripts/chainlink-functions/' },
 ]
 
 # Compiler settings

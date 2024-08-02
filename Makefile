@@ -42,9 +42,17 @@ deploy-takasure:
 	@forge clean
 	@forge script deploy/02-DeployTokenAndPool.s.sol:DeployTokenAndPool $(NETWORK_ARGS)
 
+# Interactions with BenefitMultiplierConsumer Contract
+# Add a new BM Requester
 add-bm-requester:
 	@forge script scripts/contract-interactions/bmConsumer/AddBmRequester.s.sol:AddBmRequester $(NETWORK_ARGS)
 
+# Add a new BM fetch code
+add-bm-fetch-code:
+	@forge script scripts/contract-interactions/bmConsumer/AddBmFetchCode.s.sol:AddBmFetchCode $(NETWORK_ARGS)
+
+# Interactions with Takasure Contract
+# Add a new BM Oracle Consumer
 add-bm-consumer:
 	@forge script scripts/contract-interactions/takasure/AddBmOracleConsumer.s.sol:AddBmOracleConsumer $(NETWORK_ARGS)
 
