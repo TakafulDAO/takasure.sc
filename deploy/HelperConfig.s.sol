@@ -17,10 +17,6 @@ abstract contract CodeConstants {
                                ACCOUNTS
     //////////////////////////////////////////////////////////////*/
 
-    // Anvil's account 0 private key
-    uint256 public DEFAULT_ANVIL_PRIVATE_KEY =
-        0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
-
     struct FeeClaimAddress {
         address local;
         address mainnet;
@@ -66,7 +62,6 @@ contract HelperConfig is CodeConstants, Script {
         bytes32 donId;
         uint32 gasLimit;
         uint64 subscriptionId;
-        uint256 deployerKey;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -106,9 +101,7 @@ contract HelperConfig is CodeConstants, Script {
             functionsRouter: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C,
             donId: 0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000,
             gasLimit: 300000,
-            subscriptionId: 123,
-            // deployerKey: vm.envUint("TESTNET_DEPLOYER_PK_FOUNDRY"),
-            deployerKey: DEFAULT_ANVIL_PRIVATE_KEY
+            subscriptionId: 123
         });
     }
 
@@ -133,8 +126,7 @@ contract HelperConfig is CodeConstants, Script {
                 functionsRouter: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C,
                 donId: 0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000,
                 gasLimit: 300000,
-                subscriptionId: 123,
-                deployerKey: DEFAULT_ANVIL_PRIVATE_KEY
+                subscriptionId: 123
             });
     }
 }
