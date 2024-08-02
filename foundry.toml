@@ -31,3 +31,11 @@ seed = "0x2"
 runs = 256
 depth = 32
 fail_on_revert = true
+
+[etherscan]
+arb_one = { key = "${ARBISCAN_API_KEY}" }
+arb_sepolia = { key = "${ARBISCAN_API_KEY}" }
+
+[rpc_endpoints]
+arb_one = "${ARBITRUM_MAINNET_RPC_URL}"
+arb_sepolia = "${ARBITRUM_TESTNET_SEPOLIA_RPC_URL}"
