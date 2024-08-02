@@ -1,5 +1,5 @@
 {
-  "address": "0x595245E83691181070D356d7211dc8b5a67940da.",
+  "address": "0x595245E83691181070D356d7211dc8b5a67940da",
   "abi": [
     { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
     {
