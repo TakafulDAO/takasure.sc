@@ -22,7 +22,7 @@ contract DeployConsumerMocks is Script {
     {
         HelperConfig helperConfig = new HelperConfig();
 
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         vm.startBroadcast();
 
