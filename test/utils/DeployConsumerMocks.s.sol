@@ -17,17 +17,14 @@ contract DeployConsumerMocks is Script {
         returns (
             BenefitMultiplierConsumerMockError,
             BenefitMultiplierConsumerMockFailed,
-            BenefitMultiplierConsumerMockSuccess,
-            address
+            BenefitMultiplierConsumerMockSuccess
         )
     {
         HelperConfig helperConfig = new HelperConfig();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
 
-        address deployerAddress = vm.addr(config.deployerKey);
-
-        vm.startBroadcast(config.deployerKey);
+        vm.startBroadcast();
 
         BenefitMultiplierConsumerMockError bmConsumerError = new BenefitMultiplierConsumerMockError(
             config.functionsRouter,
@@ -52,6 +49,6 @@ contract DeployConsumerMocks is Script {
 
         vm.stopBroadcast();
 
-        return (bmConsumerError, bmConsumerFailed, bmConsumerSuccess, deployerAddress);
+        return (bmConsumerError, bmConsumerFailed, bmConsumerSuccess);
     }
 }

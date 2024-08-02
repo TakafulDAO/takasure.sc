@@ -18,7 +18,6 @@ contract TestDeployTokenAndPool is Script {
     {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
-        address deployerAddress = vm.addr(config.deployerKey);
 
         vm.startBroadcast();
 
@@ -45,7 +44,7 @@ contract TestDeployTokenAndPool is Script {
 
         bytes32 adminRole = daoToken.DEFAULT_ADMIN_ROLE();
         daoToken.grantRole(adminRole, config.daoOperator);
-        daoToken.revokeRole(adminRole, deployerAddress);
+        daoToken.revokeRole(adminRole, msg.sender);
 
         vm.stopBroadcast();
 

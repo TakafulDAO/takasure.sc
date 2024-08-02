@@ -30,12 +30,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         (, proxy, contributionTokenAddress, ) = deployer.run();
 
         mockDeployer = new DeployConsumerMocks();
-        (
-            ,
-            ,
-            BenefitMultiplierConsumerMockSuccess bmConsumerSuccess,
-            address bmDeployer
-        ) = mockDeployer.run();
+        (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -49,7 +44,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         vm.prank(takasurePool.owner());
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
 
-        vm.prank(bmDeployer);
+        vm.prank(msg.sender);
         bmConsumerSuccess.setNewRequester(address(takasurePool));
 
         benefitMultiplierFromConsumer = bmConsumerSuccess.bm();
