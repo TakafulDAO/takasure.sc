@@ -82,11 +82,6 @@ contract HelperConfig is CodeConstants, Script {
 
     constructor() {
         networkConfigs[ARB_SEPOLIA_CHAIN_ID] = getArbSepoliaEthConfig();
-        networkConfigs[LOCAL_CHAIN_ID] = getOrCreateAnvilConfig();
-    }
-
-    function getConfig() public returns (NetworkConfig memory) {
-        return getConfigByChainId(block.chainid);
     }
 
     function getConfigByChainId(uint256 chainId) public returns (NetworkConfig memory) {

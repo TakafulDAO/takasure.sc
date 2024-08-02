@@ -17,8 +17,7 @@ contract DeployTokenAndPool is Script {
         returns (TSToken, address proxy, address contributionTokenAddress, HelperConfig)
     {
         HelperConfig helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
-        address deployerAddress = vm.addr(config.deployerKey);
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         vm.startBroadcast();
 
@@ -44,7 +43,7 @@ contract DeployTokenAndPool is Script {
 
         bytes32 adminRole = daoToken.DEFAULT_ADMIN_ROLE();
         daoToken.grantRole(adminRole, config.daoOperator);
-        daoToken.revokeRole(adminRole, deployerAddress);
+        // daoToken.revokeRole(adminRole, msg.sender);
 
         vm.stopBroadcast();
 

@@ -10,9 +10,9 @@ contract DeployBenefitMultiplierConsumer is Script {
     function run() external returns (BenefitMultiplierConsumer) {
         HelperConfig helperConfig = new HelperConfig();
 
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        vm.startBroadcast(config.deployerKey);
+        vm.startBroadcast();
 
         BenefitMultiplierConsumer benefitMultiplierConsumer = new BenefitMultiplierConsumer(
             config.functionsRouter,
