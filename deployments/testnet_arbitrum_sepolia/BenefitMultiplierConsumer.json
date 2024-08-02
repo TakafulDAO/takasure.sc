@@ -1,804 +1,280 @@
 {
-  "address": "0xE9bDC4e497D4C22A72fcd622aD019a816199E126",
+  "address": "0x0326e4615b8714ee8a33f91f0860cb77a206f097",
   "abi": [
     {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "router",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "_donId",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "uint32",
-          "name": "_gasLimit",
-          "type": "uint32"
-        },
-        {
-          "internalType": "uint64",
-          "name": "_subscriptionId",
-          "type": "uint64"
-        },
-        {
-          "internalType": "address",
-          "name": "requester",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "constructor"
+        "type": "constructor",
+        "inputs": [
+            { "name": "router", "type": "address", "internalType": "address" },
+            { "name": "_donId", "type": "bytes32", "internalType": "bytes32" },
+            { "name": "_gasLimit", "type": "uint32", "internalType": "uint32" },
+            { "name": "_subscriptionId", "type": "uint64", "internalType": "uint64" }
+        ],
+        "stateMutability": "nonpayable"
     },
     {
-      "inputs": [],
-      "name": "AccessControlBadConfirmation",
-      "type": "error"
+        "type": "function",
+        "name": "BM_REQUESTER_ROLE",
+        "inputs": [],
+        "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+        "stateMutability": "view"
     },
     {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "neededRole",
-          "type": "bytes32"
-        }
-      ],
-      "name": "AccessControlUnauthorizedAccount",
-      "type": "error"
+        "type": "function",
+        "name": "DEFAULT_ADMIN_ROLE",
+        "inputs": [],
+        "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+        "stateMutability": "view"
     },
     {
-      "inputs": [],
-      "name": "EmptyArgs",
-      "type": "error"
+        "type": "function",
+        "name": "bmSourceRequestCode",
+        "inputs": [],
+        "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+        "stateMutability": "view"
     },
     {
-      "inputs": [],
-      "name": "EmptySource",
-      "type": "error"
+        "type": "function",
+        "name": "convertResponseToUint",
+        "inputs": [],
+        "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+        "stateMutability": "view"
     },
     {
-      "inputs": [],
-      "name": "NoInlineSecrets",
-      "type": "error"
+        "type": "function",
+        "name": "getRoleAdmin",
+        "inputs": [{ "name": "role", "type": "bytes32", "internalType": "bytes32" }],
+        "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+        "stateMutability": "view"
     },
     {
-      "inputs": [],
-      "name": "OnlyRouterCanFulfill",
-      "type": "error"
+        "type": "function",
+        "name": "grantRole",
+        "inputs": [
+            { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+            { "name": "account", "type": "address", "internalType": "address" }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "requestId",
-          "type": "bytes32"
-        }
-      ],
-      "name": "OracleConsumer__UnexpectedRequestID",
-      "type": "error"
+        "type": "function",
+        "name": "handleOracleFulfillment",
+        "inputs": [
+            { "name": "requestId", "type": "bytes32", "internalType": "bytes32" },
+            { "name": "response", "type": "bytes", "internalType": "bytes" },
+            { "name": "err", "type": "bytes", "internalType": "bytes" }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "id",
-          "type": "bytes32"
-        }
-      ],
-      "name": "RequestFulfilled",
-      "type": "event"
+        "type": "function",
+        "name": "hasRole",
+        "inputs": [
+            { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+            { "name": "account", "type": "address", "internalType": "address" }
+        ],
+        "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+        "stateMutability": "view"
     },
     {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "id",
-          "type": "bytes32"
-        }
-      ],
-      "name": "RequestSent",
-      "type": "event"
+        "type": "function",
+        "name": "lastError",
+        "inputs": [],
+        "outputs": [{ "name": "", "type": "bytes", "internalType": "bytes" }],
+        "stateMutability": "view"
     },
     {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "requestId",
-          "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "response",
-          "type": "bytes"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "err",
-          "type": "bytes"
-        }
-      ],
-      "name": "Response",
-      "type": "event"
+        "type": "function",
+        "name": "lastRequestId",
+        "inputs": [],
+        "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+        "stateMutability": "view"
     },
     {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "role",
-          "type": "bytes32"
-        },
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "previousAdminRole",
-          "type": "bytes32"
-        },
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "newAdminRole",
-          "type": "bytes32"
-        }
-      ],
-      "name": "RoleAdminChanged",
-      "type": "event"
+        "type": "function",
+        "name": "lastResponse",
+        "inputs": [],
+        "outputs": [{ "name": "", "type": "bytes", "internalType": "bytes" }],
+        "stateMutability": "view"
     },
     {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "role",
-          "type": "bytes32"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "sender",
-          "type": "address"
-        }
-      ],
-      "name": "RoleGranted",
-      "type": "event"
+        "type": "function",
+        "name": "renounceRole",
+        "inputs": [
+            { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+            { "name": "callerConfirmation", "type": "address", "internalType": "address" }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "role",
-          "type": "bytes32"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "sender",
-          "type": "address"
-        }
-      ],
-      "name": "RoleRevoked",
-      "type": "event"
+        "type": "function",
+        "name": "requester",
+        "inputs": [],
+        "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+        "stateMutability": "view"
     },
     {
-      "inputs": [],
-      "name": "BM_REQUESTER_ROLE",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+        "type": "function",
+        "name": "revokeRole",
+        "inputs": [
+            { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+            { "name": "account", "type": "address", "internalType": "address" }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
-      "inputs": [],
-      "name": "DEFAULT_ADMIN_ROLE",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+        "type": "function",
+        "name": "sendRequest",
+        "inputs": [{ "name": "args", "type": "string[]", "internalType": "string[]" }],
+        "outputs": [{ "name": "requestId", "type": "bytes32", "internalType": "bytes32" }],
+        "stateMutability": "nonpayable"
     },
     {
-      "inputs": [],
-      "name": "bmSourceRequestCode",
-      "outputs": [
-        {
-          "internalType": "string",
-          "name": "",
-          "type": "string"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+        "type": "function",
+        "name": "setBMSourceRequestCode",
+        "inputs": [
+            { "name": "_bmSourceRequestCode", "type": "string", "internalType": "string" }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
-      "inputs": [],
-      "name": "convertResponseToUint",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+        "type": "function",
+        "name": "setDonId",
+        "inputs": [{ "name": "_donId", "type": "bytes32", "internalType": "bytes32" }],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "role",
-          "type": "bytes32"
-        }
-      ],
-      "name": "getRoleAdmin",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+        "type": "function",
+        "name": "setGasLimit",
+        "inputs": [{ "name": "_gasLimit", "type": "uint32", "internalType": "uint32" }],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "role",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
-      "name": "grantRole",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
+        "type": "function",
+        "name": "setNewRequester",
+        "inputs": [{ "name": "newRequester", "type": "address", "internalType": "address" }],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "requestId",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "bytes",
-          "name": "response",
-          "type": "bytes"
-        },
-        {
-          "internalType": "bytes",
-          "name": "err",
-          "type": "bytes"
-        }
-      ],
-      "name": "handleOracleFulfillment",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
+        "type": "function",
+        "name": "setSubscriptionId",
+        "inputs": [{ "name": "_subscriptionId", "type": "uint64", "internalType": "uint64" }],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "role",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
-      "name": "hasRole",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+        "type": "function",
+        "name": "supportsInterface",
+        "inputs": [{ "name": "interfaceId", "type": "bytes4", "internalType": "bytes4" }],
+        "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+        "stateMutability": "view"
     },
     {
-      "inputs": [],
-      "name": "lastError",
-      "outputs": [
-        {
-          "internalType": "bytes",
-          "name": "",
-          "type": "bytes"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+        "type": "event",
+        "name": "RequestFulfilled",
+        "inputs": [
+            { "name": "id", "type": "bytes32", "indexed": true, "internalType": "bytes32" }
+        ],
+        "anonymous": false
     },
     {
-      "inputs": [],
-      "name": "lastRequestId",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+        "type": "event",
+        "name": "RequestSent",
+        "inputs": [
+            { "name": "id", "type": "bytes32", "indexed": true, "internalType": "bytes32" }
+        ],
+        "anonymous": false
     },
     {
-      "inputs": [],
-      "name": "lastResponse",
-      "outputs": [
-        {
-          "internalType": "bytes",
-          "name": "",
-          "type": "bytes"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+        "type": "event",
+        "name": "Response",
+        "inputs": [
+            {
+                "name": "requestId",
+                "type": "bytes32",
+                "indexed": true,
+                "internalType": "bytes32"
+            },
+            { "name": "response", "type": "bytes", "indexed": false, "internalType": "bytes" },
+            { "name": "err", "type": "bytes", "indexed": false, "internalType": "bytes" }
+        ],
+        "anonymous": false
     },
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "role",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "address",
-          "name": "callerConfirmation",
-          "type": "address"
-        }
-      ],
-      "name": "renounceRole",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
+        "type": "event",
+        "name": "RoleAdminChanged",
+        "inputs": [
+            { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+            {
+                "name": "previousAdminRole",
+                "type": "bytes32",
+                "indexed": true,
+                "internalType": "bytes32"
+            },
+            {
+                "name": "newAdminRole",
+                "type": "bytes32",
+                "indexed": true,
+                "internalType": "bytes32"
+            }
+        ],
+        "anonymous": false
     },
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "role",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
-      "name": "revokeRole",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
+        "type": "event",
+        "name": "RoleGranted",
+        "inputs": [
+            { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+            {
+                "name": "account",
+                "type": "address",
+                "indexed": true,
+                "internalType": "address"
+            },
+            { "name": "sender", "type": "address", "indexed": true, "internalType": "address" }
+        ],
+        "anonymous": false
     },
     {
-      "inputs": [
-        {
-          "internalType": "string[]",
-          "name": "args",
-          "type": "string[]"
-        }
-      ],
-      "name": "sendRequest",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "requestId",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "function"
+        "type": "event",
+        "name": "RoleRevoked",
+        "inputs": [
+            { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+            {
+                "name": "account",
+                "type": "address",
+                "indexed": true,
+                "internalType": "address"
+            },
+            { "name": "sender", "type": "address", "indexed": true, "internalType": "address" }
+        ],
+        "anonymous": false
     },
+    { "type": "error", "name": "AccessControlBadConfirmation", "inputs": [] },
     {
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "_bmSourceRequestCode",
-          "type": "string"
-        }
-      ],
-      "name": "setBMSourceRequestCode",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
+        "type": "error",
+        "name": "AccessControlUnauthorizedAccount",
+        "inputs": [
+            { "name": "account", "type": "address", "internalType": "address" },
+            { "name": "neededRole", "type": "bytes32", "internalType": "bytes32" }
+        ]
     },
+    { "type": "error", "name": "EmptyArgs", "inputs": [] },
+    { "type": "error", "name": "EmptySource", "inputs": [] },
+    { "type": "error", "name": "NoInlineSecrets", "inputs": [] },
+    { "type": "error", "name": "OnlyRouterCanFulfill", "inputs": [] },
+    { "type": "error", "name": "OracleConsumer__NotAddressZero", "inputs": [] },
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "_donId",
-          "type": "bytes32"
-        }
-      ],
-      "name": "setDonId",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint32",
-          "name": "_gasLimit",
-          "type": "uint32"
-        }
-      ],
-      "name": "setGasLimit",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint64",
-          "name": "_subscriptionId",
-          "type": "uint64"
-        }
-      ],
-      "name": "setSubscriptionId",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes4",
-          "name": "interfaceId",
-          "type": "bytes4"
-        }
-      ],
-      "name": "supportsInterface",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+        "type": "error",
+        "name": "OracleConsumer__UnexpectedRequestID",
+        "inputs": [{ "name": "requestId", "type": "bytes32", "internalType": "bytes32" }]
     }
-  ],
-  "transactionHash": "0xdd9736488e9220dca8cb8151e96c6cbf39d97d22c7d4b312ac996d7b8f89a360",
-  "receipt": {
-    "to": null,
-    "from": "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1",
-    "contractAddress": "0xE9bDC4e497D4C22A72fcd622aD019a816199E126",
-    "transactionIndex": 1,
-    "gasUsed": "9513063",
-    "logsBloom": "0x00000004040000000000000000000000000000000000000200080000000000000000000000000000000000000000000000000000000000000000000000800003000000000000000000000000000000000000000000000000000020000000000000100000020000000000000000000800200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001001000000000000000000008000000000000000000100000000000000000000100000000000020000000000000000000000000000000000000000000000000000000000000000000",
-    "blockHash": "0x8a06081b24e4a0ffb4e6384834e1641daccaae4114efb41573b79c8ffc8e5b92",
-    "transactionHash": "0xdd9736488e9220dca8cb8151e96c6cbf39d97d22c7d4b312ac996d7b8f89a360",
-    "logs": [
-      {
-        "transactionIndex": 1,
-        "blockNumber": 66842201,
-        "transactionHash": "0xdd9736488e9220dca8cb8151e96c6cbf39d97d22c7d4b312ac996d7b8f89a360",
-        "address": "0xE9bDC4e497D4C22A72fcd622aD019a816199E126",
-        "topics": [
-          "0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d",
-          "0x0000000000000000000000000000000000000000000000000000000000000000",
-          "0x0000000000000000000000003904f59df9199e0d6dc3800af9f6794c9d037eb1",
-          "0x0000000000000000000000003904f59df9199e0d6dc3800af9f6794c9d037eb1"
-        ],
-        "data": "0x",
-        "logIndex": 0,
-        "blockHash": "0x8a06081b24e4a0ffb4e6384834e1641daccaae4114efb41573b79c8ffc8e5b92"
-      },
-      {
-        "transactionIndex": 1,
-        "blockNumber": 66842201,
-        "transactionHash": "0xdd9736488e9220dca8cb8151e96c6cbf39d97d22c7d4b312ac996d7b8f89a360",
-        "address": "0xE9bDC4e497D4C22A72fcd622aD019a816199E126",
-        "topics": [
-          "0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d",
-          "0xadeaa4f6edbc569c7ea86d399ee7fdbb28dba3aac25a2732ea7eb4e659e2b73d",
-          "0x000000000000000000000000e12c1c4d162cfd81d3a9667dcab20be8a6f4262c",
-          "0x0000000000000000000000003904f59df9199e0d6dc3800af9f6794c9d037eb1"
-        ],
-        "data": "0x",
-        "logIndex": 1,
-        "blockHash": "0x8a06081b24e4a0ffb4e6384834e1641daccaae4114efb41573b79c8ffc8e5b92"
-      }
-    ],
-    "blockNumber": 66842201,
-    "cumulativeGasUsed": "9513063",
-    "status": 1,
-    "byzantium": true
-  },
-  "args": [
-    "0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C",
-    "0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000",
-    300000,
-    123,
-    "0xE12c1c4D162cFd81D3a9667Dcab20bE8a6F4262C"
-  ],
-  "numDeployments": 1,
-  "solcInputHash": "0dcdf28ed4a018ddecc1315c4f5ec295",
-  "metadata": "{\"compiler\":{\"version\":\"0.8.25+commit.b61c2a91\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"router\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"_donId\",\"type\":\"bytes32\"},{\"internalType\":\"uint32\",\"name\":\"_gasLimit\",\"type\":\"uint32\"},{\"internalType\":\"uint64\",\"name\":\"_subscriptionId\",\"type\":\"uint64\"},{\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"AccessControlBadConfirmation\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"neededRole\",\"type\":\"bytes32\"}],\"name\":\"AccessControlUnauthorizedAccount\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"EmptyArgs\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"EmptySource\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NoInlineSecrets\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"OnlyRouterCanFulfill\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"requestId\",\"type\":\"bytes32\"}],\"name\":\"OracleConsumer__UnexpectedRequestID\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"id\",\"type\":\"bytes32\"}],\"name\":\"RequestFulfilled\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"id\",\"type\":\"bytes32\"}],\"name\":\"RequestSent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"requestId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"response\",\"type\":\"bytes\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"err\",\"type\":\"bytes\"}],\"name\":\"Response\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"previousAdminRole\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"newAdminRole\",\"type\":\"bytes32\"}],\"name\":\"RoleAdminChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleGranted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"BM_REQUESTER_ROLE\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"DEFAULT_ADMIN_ROLE\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"bmSourceRequestCode\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"convertResponseToUint\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"}],\"name\":\"getRoleAdmin\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"grantRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"requestId\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"response\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"err\",\"type\":\"bytes\"}],\"name\":\"handleOracleFulfillment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"hasRole\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastError\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastRequestId\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastResponse\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"callerConfirmation\",\"type\":\"address\"}],\"name\":\"renounceRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"revokeRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"args\",\"type\":\"string[]\"}],\"name\":\"sendRequest\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"requestId\",\"type\":\"bytes32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"_bmSourceRequestCode\",\"type\":\"string\"}],\"name\":\"setBMSourceRequestCode\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_donId\",\"type\":\"bytes32\"}],\"name\":\"setDonId\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"_gasLimit\",\"type\":\"uint32\"}],\"name\":\"setGasLimit\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint64\",\"name\":\"_subscriptionId\",\"type\":\"uint64\"}],\"name\":\"setSubscriptionId\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"errors\":{\"AccessControlBadConfirmation()\":[{\"details\":\"The caller of a function is not the expected one. NOTE: Don't confuse with {AccessControlUnauthorizedAccount}.\"}],\"AccessControlUnauthorizedAccount(address,bytes32)\":[{\"details\":\"The `account` is missing a role.\"}]},\"events\":{\"RoleAdminChanged(bytes32,bytes32,bytes32)\":{\"details\":\"Emitted when `newAdminRole` is set as ``role``'s admin role, replacing `previousAdminRole` `DEFAULT_ADMIN_ROLE` is the starting admin for all roles, despite {RoleAdminChanged} not being emitted signaling this.\"},\"RoleGranted(bytes32,address,address)\":{\"details\":\"Emitted when `account` is granted `role`. `sender` is the account that originated the contract call, an admin role bearer except when using {AccessControl-_setupRole}.\"},\"RoleRevoked(bytes32,address,address)\":{\"details\":\"Emitted when `account` is revoked `role`. `sender` is the account that originated the contract call:   - if using `revokeRole`, it is the admin role bearer   - if using `renounceRole`, it is the role bearer (i.e. `account`)\"}},\"kind\":\"dev\",\"methods\":{\"constructor\":{\"custom:oz-upgrades-unsafe-allow\":\"constructor\",\"params\":{\"_donId\":\"The data provider ID\",\"_gasLimit\":\"The gas limit for the request\",\"_subscriptionId\":\"The subscription ID\",\"requester\":\"The address allowed to request the benefit multiplier. Will be the takasure contract\",\"router\":\"The address of the Chainlink node\"}},\"getRoleAdmin(bytes32)\":{\"details\":\"Returns the admin role that controls `role`. See {grantRole} and {revokeRole}. To change a role's admin, use {_setRoleAdmin}.\"},\"grantRole(bytes32,address)\":{\"details\":\"Grants `role` to `account`. If `account` had not been already granted `role`, emits a {RoleGranted} event. Requirements: - the caller must have ``role``'s admin role. May emit a {RoleGranted} event.\"},\"handleOracleFulfillment(bytes32,bytes,bytes)\":{\"details\":\"Either response or error parameter will be set, but never both.\",\"params\":{\"err\":\"Aggregated error either from the request's source code or from the execution pipeline.\",\"requestId\":\"The requestId returned by FunctionsClient.sendRequest().\",\"response\":\"Aggregated response from the request's source code.\"}},\"hasRole(bytes32,address)\":{\"details\":\"Returns `true` if `account` has been granted `role`.\"},\"renounceRole(bytes32,address)\":{\"details\":\"Revokes `role` from the calling account. Roles are often managed via {grantRole} and {revokeRole}: this function's purpose is to provide a mechanism for accounts to lose their privileges if they are compromised (such as when a trusted device is misplaced). If the calling account had been revoked `role`, emits a {RoleRevoked} event. Requirements: - the caller must be `callerConfirmation`. May emit a {RoleRevoked} event.\"},\"revokeRole(bytes32,address)\":{\"details\":\"Revokes `role` from `account`. If `account` had been granted `role`, emits a {RoleRevoked} event. Requirements: - the caller must have ``role``'s admin role. May emit a {RoleRevoked} event.\"},\"sendRequest(string[])\":{\"params\":{\"args\":\"The user address to get the BM\"}},\"supportsInterface(bytes4)\":{\"details\":\"See {IERC165-supportsInterface}.\"}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"convertResponseToUint()\":{\"notice\":\"a method convert the last response to an uint256\"},\"handleOracleFulfillment(bytes32,bytes,bytes)\":{\"notice\":\"Chainlink Functions response handler called by the Functions Router during fullilment from the designated transmitter node in an OCR round.\"},\"sendRequest(string[])\":{\"notice\":\"Send a simple request\"},\"setDonId(bytes32)\":{\"notice\":\"the next set of functions are used to set the values of the contract\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/takasure/oracle/BenefitMultiplierConsumer.sol\":\"BenefitMultiplierConsumer\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.19;\\n\\nimport {IFunctionsRouter} from \\\"./interfaces/IFunctionsRouter.sol\\\";\\nimport {IFunctionsClient} from \\\"./interfaces/IFunctionsClient.sol\\\";\\n\\nimport {FunctionsRequest} from \\\"./libraries/FunctionsRequest.sol\\\";\\n\\n/// @title The Chainlink Functions client contract\\n/// @notice Contract developers can inherit this contract in order to make Chainlink Functions requests\\nabstract contract FunctionsClient is IFunctionsClient {\\n  using FunctionsRequest for FunctionsRequest.Request;\\n\\n  IFunctionsRouter internal immutable i_router;\\n\\n  event RequestSent(bytes32 indexed id);\\n  event RequestFulfilled(bytes32 indexed id);\\n\\n  error OnlyRouterCanFulfill();\\n\\n  constructor(address router) {\\n    i_router = IFunctionsRouter(router);\\n  }\\n\\n  /// @notice Sends a Chainlink Functions request\\n  /// @param data The CBOR encoded bytes data for a Functions request\\n  /// @param subscriptionId The subscription ID that will be charged to service the request\\n  /// @param callbackGasLimit the amount of gas that will be available for the fulfillment callback\\n  /// @return requestId The generated request ID for this request\\n  function _sendRequest(\\n    bytes memory data,\\n    uint64 subscriptionId,\\n    uint32 callbackGasLimit,\\n    bytes32 donId\\n  ) internal returns (bytes32) {\\n    bytes32 requestId = i_router.sendRequest(\\n      subscriptionId,\\n      data,\\n      FunctionsRequest.REQUEST_DATA_VERSION,\\n      callbackGasLimit,\\n      donId\\n    );\\n    emit RequestSent(requestId);\\n    return requestId;\\n  }\\n\\n  /// @notice User defined function to handle a response from the DON\\n  /// @param requestId The request ID, returned by sendRequest()\\n  /// @param response Aggregated response from the execution of the user's source code\\n  /// @param err Aggregated error from the execution of the user code or from the execution pipeline\\n  /// @dev Either response or error parameter will be set, but never both\\n  function fulfillRequest(bytes32 requestId, bytes memory response, bytes memory err) internal virtual;\\n\\n  /// @inheritdoc IFunctionsClient\\n  function handleOracleFulfillment(bytes32 requestId, bytes memory response, bytes memory err) external override {\\n    if (msg.sender != address(i_router)) {\\n      revert OnlyRouterCanFulfill();\\n    }\\n    fulfillRequest(requestId, response, err);\\n    emit RequestFulfilled(requestId);\\n  }\\n}\\n\",\"keccak256\":\"0x40224641403cb9fa03d4f060296d7420a9ff11b46abadc958ae048459205e397\",\"license\":\"MIT\"},\"@chainlink/contracts/src/v0.8/functions/v1_0_0/interfaces/IFunctionsClient.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.19;\\n\\n/// @title Chainlink Functions client interface.\\ninterface IFunctionsClient {\\n  /// @notice Chainlink Functions response handler called by the Functions Router\\n  /// during fullilment from the designated transmitter node in an OCR round.\\n  /// @param requestId The requestId returned by FunctionsClient.sendRequest().\\n  /// @param response Aggregated response from the request's source code.\\n  /// @param err Aggregated error either from the request's source code or from the execution pipeline.\\n  /// @dev Either response or error parameter will be set, but never both.\\n  function handleOracleFulfillment(bytes32 requestId, bytes memory response, bytes memory err) external;\\n}\\n\",\"keccak256\":\"0x6117b82e7c4eec44ce557b0fc8bc1ac5f49e5d160ac6d4485452d6aafdd762ff\",\"license\":\"MIT\"},\"@chainlink/contracts/src/v0.8/functions/v1_0_0/interfaces/IFunctionsRouter.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.19;\\n\\nimport {FunctionsResponse} from \\\"../libraries/FunctionsResponse.sol\\\";\\n\\n/// @title Chainlink Functions Router interface.\\ninterface IFunctionsRouter {\\n  /// @notice The identifier of the route to retrieve the address of the access control contract\\n  /// The access control contract controls which accounts can manage subscriptions\\n  /// @return id - bytes32 id that can be passed to the \\\"getContractById\\\" of the Router\\n  function getAllowListId() external view returns (bytes32);\\n\\n  /// @notice Set the identifier of the route to retrieve the address of the access control contract\\n  /// The access control contract controls which accounts can manage subscriptions\\n  function setAllowListId(bytes32 allowListId) external;\\n\\n  /// @notice Get the flat fee (in Juels of LINK) that will be paid to the Router owner for operation of the network\\n  /// @return adminFee\\n  function getAdminFee() external view returns (uint72 adminFee);\\n\\n  /// @notice Sends a request using the provided subscriptionId\\n  /// @param subscriptionId - A unique subscription ID allocated by billing system,\\n  /// a client can make requests from different contracts referencing the same subscription\\n  /// @param data - CBOR encoded Chainlink Functions request data, use FunctionsClient API to encode a request\\n  /// @param dataVersion - Gas limit for the fulfillment callback\\n  /// @param callbackGasLimit - Gas limit for the fulfillment callback\\n  /// @param donId - An identifier used to determine which route to send the request along\\n  /// @return requestId - A unique request identifier\\n  function sendRequest(\\n    uint64 subscriptionId,\\n    bytes calldata data,\\n    uint16 dataVersion,\\n    uint32 callbackGasLimit,\\n    bytes32 donId\\n  ) external returns (bytes32);\\n\\n  /// @notice Sends a request to the proposed contracts\\n  /// @param subscriptionId - A unique subscription ID allocated by billing system,\\n  /// a client can make requests from different contracts referencing the same subscription\\n  /// @param data - CBOR encoded Chainlink Functions request data, use FunctionsClient API to encode a request\\n  /// @param dataVersion - Gas limit for the fulfillment callback\\n  /// @param callbackGasLimit - Gas limit for the fulfillment callback\\n  /// @param donId - An identifier used to determine which route to send the request along\\n  /// @return requestId - A unique request identifier\\n  function sendRequestToProposed(\\n    uint64 subscriptionId,\\n    bytes calldata data,\\n    uint16 dataVersion,\\n    uint32 callbackGasLimit,\\n    bytes32 donId\\n  ) external returns (bytes32);\\n\\n  /// @notice Fulfill the request by:\\n  /// - calling back the data that the Oracle returned to the client contract\\n  /// - pay the DON for processing the request\\n  /// @dev Only callable by the Coordinator contract that is saved in the commitment\\n  /// @param response response data from DON consensus\\n  /// @param err error from DON consensus\\n  /// @param juelsPerGas - current rate of juels/gas\\n  /// @param costWithoutFulfillment - The cost of processing the request (in Juels of LINK ), without fulfillment\\n  /// @param transmitter - The Node that transmitted the OCR report\\n  /// @param commitment - The parameters of the request that must be held consistent between request and response time\\n  /// @return fulfillResult -\\n  /// @return callbackGasCostJuels -\\n  function fulfill(\\n    bytes memory response,\\n    bytes memory err,\\n    uint96 juelsPerGas,\\n    uint96 costWithoutFulfillment,\\n    address transmitter,\\n    FunctionsResponse.Commitment memory commitment\\n  ) external returns (FunctionsResponse.FulfillResult, uint96);\\n\\n  /// @notice Validate requested gas limit is below the subscription max.\\n  /// @param subscriptionId subscription ID\\n  /// @param callbackGasLimit desired callback gas limit\\n  function isValidCallbackGasLimit(uint64 subscriptionId, uint32 callbackGasLimit) external view;\\n\\n  /// @notice Get the current contract given an ID\\n  /// @param id A bytes32 identifier for the route\\n  /// @return contract The current contract address\\n  function getContractById(bytes32 id) external view returns (address);\\n\\n  /// @notice Get the proposed next contract given an ID\\n  /// @param id A bytes32 identifier for the route\\n  /// @return contract The current or proposed contract address\\n  function getProposedContractById(bytes32 id) external view returns (address);\\n\\n  /// @notice Return the latest proprosal set\\n  /// @return ids The identifiers of the contracts to update\\n  /// @return to The addresses of the contracts that will be updated to\\n  function getProposedContractSet() external view returns (bytes32[] memory, address[] memory);\\n\\n  /// @notice Proposes one or more updates to the contract routes\\n  /// @dev Only callable by owner\\n  function proposeContractsUpdate(bytes32[] memory proposalSetIds, address[] memory proposalSetAddresses) external;\\n\\n  /// @notice Updates the current contract routes to the proposed contracts\\n  /// @dev Only callable by owner\\n  function updateContracts() external;\\n\\n  /// @dev Puts the system into an emergency stopped state.\\n  /// @dev Only callable by owner\\n  function pause() external;\\n\\n  /// @dev Takes the system out of an emergency stopped state.\\n  /// @dev Only callable by owner\\n  function unpause() external;\\n}\\n\",\"keccak256\":\"0x44db41e8ff90c2828ca0ada125abc4b411921a86514a4a047fd9fd43ba9d7e08\",\"license\":\"MIT\"},\"@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.19;\\n\\nimport {CBOR} from \\\"../../../vendor/solidity-cborutils/v2.0.0/CBOR.sol\\\";\\n\\n/// @title Library for encoding the input data of a Functions request into CBOR\\nlibrary FunctionsRequest {\\n  using CBOR for CBOR.CBORBuffer;\\n\\n  uint16 public constant REQUEST_DATA_VERSION = 1;\\n  uint256 internal constant DEFAULT_BUFFER_SIZE = 256;\\n\\n  enum Location {\\n    Inline, // Provided within the Request\\n    Remote, // Hosted through remote location that can be accessed through a provided URL\\n    DONHosted // Hosted on the DON's storage\\n  }\\n\\n  enum CodeLanguage {\\n    JavaScript\\n    // In future version we may add other languages\\n  }\\n\\n  struct Request {\\n    Location codeLocation; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2578 The location of the source code that will be executed on each node in the DON\\n    Location secretsLocation; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2578 The location of secrets that will be passed into the source code. *Only Remote secrets are supported\\n    CodeLanguage language; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2578 The coding language that the source code is written in\\n    string source; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2578 Raw source code for Request.codeLocation of Location.Inline, URL for Request.codeLocation of Location.Remote, or slot decimal number for Request.codeLocation of Location.DONHosted\\n    bytes encryptedSecretsReference; // \\u2550\\u2550\\u2578 Encrypted URLs for Request.secretsLocation of Location.Remote (use addSecretsReference()), or CBOR encoded slotid+version for Request.secretsLocation of Location.DONHosted (use addDONHostedSecrets())\\n    string[] args; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2578 String arguments that will be passed into the source code\\n    bytes[] bytesArgs; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2578 Bytes arguments that will be passed into the source code\\n  }\\n\\n  error EmptySource();\\n  error EmptySecrets();\\n  error EmptyArgs();\\n  error NoInlineSecrets();\\n\\n  /// @notice Encodes a Request to CBOR encoded bytes\\n  /// @param self The request to encode\\n  /// @return CBOR encoded bytes\\n  function encodeCBOR(Request memory self) internal pure returns (bytes memory) {\\n    CBOR.CBORBuffer memory buffer = CBOR.create(DEFAULT_BUFFER_SIZE);\\n\\n    buffer.writeString(\\\"codeLocation\\\");\\n    buffer.writeUInt256(uint256(self.codeLocation));\\n\\n    buffer.writeString(\\\"language\\\");\\n    buffer.writeUInt256(uint256(self.language));\\n\\n    buffer.writeString(\\\"source\\\");\\n    buffer.writeString(self.source);\\n\\n    if (self.args.length > 0) {\\n      buffer.writeString(\\\"args\\\");\\n      buffer.startArray();\\n      for (uint256 i = 0; i < self.args.length; ++i) {\\n        buffer.writeString(self.args[i]);\\n      }\\n      buffer.endSequence();\\n    }\\n\\n    if (self.encryptedSecretsReference.length > 0) {\\n      if (self.secretsLocation == Location.Inline) {\\n        revert NoInlineSecrets();\\n      }\\n      buffer.writeString(\\\"secretsLocation\\\");\\n      buffer.writeUInt256(uint256(self.secretsLocation));\\n      buffer.writeString(\\\"secrets\\\");\\n      buffer.writeBytes(self.encryptedSecretsReference);\\n    }\\n\\n    if (self.bytesArgs.length > 0) {\\n      buffer.writeString(\\\"bytesArgs\\\");\\n      buffer.startArray();\\n      for (uint256 i = 0; i < self.bytesArgs.length; ++i) {\\n        buffer.writeBytes(self.bytesArgs[i]);\\n      }\\n      buffer.endSequence();\\n    }\\n\\n    return buffer.buf.buf;\\n  }\\n\\n  /// @notice Initializes a Chainlink Functions Request\\n  /// @dev Sets the codeLocation and code on the request\\n  /// @param self The uninitialized request\\n  /// @param codeLocation The user provided source code location\\n  /// @param language The programming language of the user code\\n  /// @param source The user provided source code or a url\\n  function initializeRequest(\\n    Request memory self,\\n    Location codeLocation,\\n    CodeLanguage language,\\n    string memory source\\n  ) internal pure {\\n    if (bytes(source).length == 0) revert EmptySource();\\n\\n    self.codeLocation = codeLocation;\\n    self.language = language;\\n    self.source = source;\\n  }\\n\\n  /// @notice Initializes a Chainlink Functions Request\\n  /// @dev Simplified version of initializeRequest for PoC\\n  /// @param self The uninitialized request\\n  /// @param javaScriptSource The user provided JS code (must not be empty)\\n  function initializeRequestForInlineJavaScript(Request memory self, string memory javaScriptSource) internal pure {\\n    initializeRequest(self, Location.Inline, CodeLanguage.JavaScript, javaScriptSource);\\n  }\\n\\n  /// @notice Adds Remote user encrypted secrets to a Request\\n  /// @param self The initialized request\\n  /// @param encryptedSecretsReference Encrypted comma-separated string of URLs pointing to off-chain secrets\\n  function addSecretsReference(Request memory self, bytes memory encryptedSecretsReference) internal pure {\\n    if (encryptedSecretsReference.length == 0) revert EmptySecrets();\\n\\n    self.secretsLocation = Location.Remote;\\n    self.encryptedSecretsReference = encryptedSecretsReference;\\n  }\\n\\n  /// @notice Adds DON-hosted secrets reference to a Request\\n  /// @param self The initialized request\\n  /// @param slotID Slot ID of the user's secrets hosted on DON\\n  /// @param version User data version (for the slotID)\\n  function addDONHostedSecrets(Request memory self, uint8 slotID, uint64 version) internal pure {\\n    CBOR.CBORBuffer memory buffer = CBOR.create(DEFAULT_BUFFER_SIZE);\\n\\n    buffer.writeString(\\\"slotID\\\");\\n    buffer.writeUInt64(slotID);\\n    buffer.writeString(\\\"version\\\");\\n    buffer.writeUInt64(version);\\n\\n    self.secretsLocation = Location.DONHosted;\\n    self.encryptedSecretsReference = buffer.buf.buf;\\n  }\\n\\n  /// @notice Sets args for the user run function\\n  /// @param self The initialized request\\n  /// @param args The array of string args (must not be empty)\\n  function setArgs(Request memory self, string[] memory args) internal pure {\\n    if (args.length == 0) revert EmptyArgs();\\n\\n    self.args = args;\\n  }\\n\\n  /// @notice Sets bytes args for the user run function\\n  /// @param self The initialized request\\n  /// @param args The array of bytes args (must not be empty)\\n  function setBytesArgs(Request memory self, bytes[] memory args) internal pure {\\n    if (args.length == 0) revert EmptyArgs();\\n\\n    self.bytesArgs = args;\\n  }\\n}\\n\",\"keccak256\":\"0xed75be0eaba358d468f1fe18adc377d5044f57eff0070081f884a1f212d0adc2\",\"license\":\"MIT\"},\"@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsResponse.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.19;\\n\\n/// @title Library of types that are used for fulfillment of a Functions request\\nlibrary FunctionsResponse {\\n  // Used to send request information from the Router to the Coordinator\\n  struct RequestMeta {\\n    bytes data; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2578 CBOR encoded Chainlink Functions request data, use FunctionsRequest library to encode a request\\n    bytes32 flags; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2578 Per-subscription flags\\n    address requestingContract; // \\u2550\\u2550\\u2557 The client contract that is sending the request\\n    uint96 availableBalance; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u255d Common LINK balance of the subscription that is controlled by the Router to be used for all consumer requests.\\n    uint72 adminFee; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2557 Flat fee (in Juels of LINK) that will be paid to the Router Owner for operation of the network\\n    uint64 subscriptionId; //        \\u2551 Identifier of the billing subscription that will be charged for the request\\n    uint64 initiatedRequests; //     \\u2551 The number of requests that have been started\\n    uint32 callbackGasLimit; //      \\u2551 The amount of gas that the callback to the consuming contract will be given\\n    uint16 dataVersion; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u255d The version of the structure of the CBOR encoded request data\\n    uint64 completedRequests; // \\u2550\\u2550\\u2550\\u2550\\u2557 The number of requests that have successfully completed or timed out\\n    address subscriptionOwner; // \\u2550\\u2550\\u2550\\u255d The owner of the billing subscription\\n  }\\n\\n  enum FulfillResult {\\n    FULFILLED, // 0\\n    USER_CALLBACK_ERROR, // 1\\n    INVALID_REQUEST_ID, // 2\\n    COST_EXCEEDS_COMMITMENT, // 3\\n    INSUFFICIENT_GAS_PROVIDED, // 4\\n    SUBSCRIPTION_BALANCE_INVARIANT_VIOLATION, // 5\\n    INVALID_COMMITMENT // 6\\n  }\\n\\n  struct Commitment {\\n    bytes32 requestId; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2578 A unique identifier for a Chainlink Functions request\\n    address coordinator; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2557 The Coordinator contract that manages the DON that is servicing a request\\n    uint96 estimatedTotalCostJuels; // \\u2550\\u2550\\u2550\\u2550\\u255d The maximum cost in Juels (1e18) of LINK that will be charged to fulfill a request\\n    address client; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2557 The client contract that sent the request\\n    uint64 subscriptionId; //              \\u2551 Identifier of the billing subscription that will be charged for the request\\n    uint32 callbackGasLimit; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u255d The amount of gas that the callback to the consuming contract will be given\\n    uint72 adminFee; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2557 Flat fee (in Juels of LINK) that will be paid to the Router Owner for operation of the network\\n    uint72 donFee; //                      \\u2551 Fee (in Juels of LINK) that will be split between Node Operators for servicing a request\\n    uint40 gasOverheadBeforeCallback; //   \\u2551 Represents the average gas execution cost before the fulfillment callback.\\n    uint40 gasOverheadAfterCallback; //    \\u2551 Represents the average gas execution cost after the fulfillment callback.\\n    uint32 timeoutTimestamp; // \\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u2550\\u255d The timestamp at which a request will be eligible to be timed out\\n  }\\n}\\n\",\"keccak256\":\"0xc72eb037effef32146f7cd4086af00f44f28c8649d891e5e404fec5fda7e802b\",\"license\":\"MIT\"},\"@chainlink/contracts/src/v0.8/vendor/@ensdomains/buffer/v0.1.0/Buffer.sol\":{\"content\":\"// SPDX-License-Identifier: BSD-2-Clause\\npragma solidity ^0.8.4;\\n\\n/**\\n* @dev A library for working with mutable byte buffers in Solidity.\\n*\\n* Byte buffers are mutable and expandable, and provide a variety of primitives\\n* for appending to them. At any time you can fetch a bytes object containing the\\n* current contents of the buffer. The bytes object should not be stored between\\n* operations, as it may change due to resizing of the buffer.\\n*/\\nlibrary Buffer {\\n    /**\\n    * @dev Represents a mutable buffer. Buffers have a current value (buf) and\\n    *      a capacity. The capacity may be longer than the current value, in\\n    *      which case it can be extended without the need to allocate more memory.\\n    */\\n    struct buffer {\\n        bytes buf;\\n        uint capacity;\\n    }\\n\\n    /**\\n    * @dev Initializes a buffer with an initial capacity.\\n    * @param buf The buffer to initialize.\\n    * @param capacity The number of bytes of space to allocate the buffer.\\n    * @return The buffer, for chaining.\\n    */\\n    function init(buffer memory buf, uint capacity) internal pure returns(buffer memory) {\\n        if (capacity % 32 != 0) {\\n            capacity += 32 - (capacity % 32);\\n        }\\n        // Allocate space for the buffer data\\n        buf.capacity = capacity;\\n        assembly {\\n            let ptr := mload(0x40)\\n            mstore(buf, ptr)\\n            mstore(ptr, 0)\\n            let fpm := add(32, add(ptr, capacity))\\n            if lt(fpm, ptr) {\\n                revert(0, 0)\\n            }\\n            mstore(0x40, fpm)\\n        }\\n        return buf;\\n    }\\n\\n    /**\\n    * @dev Initializes a new buffer from an existing bytes object.\\n    *      Changes to the buffer may mutate the original value.\\n    * @param b The bytes object to initialize the buffer with.\\n    * @return A new buffer.\\n    */\\n    function fromBytes(bytes memory b) internal pure returns(buffer memory) {\\n        buffer memory buf;\\n        buf.buf = b;\\n        buf.capacity = b.length;\\n        return buf;\\n    }\\n\\n    function resize(buffer memory buf, uint capacity) private pure {\\n        bytes memory oldbuf = buf.buf;\\n        init(buf, capacity);\\n        append(buf, oldbuf);\\n    }\\n\\n    /**\\n    * @dev Sets buffer length to 0.\\n    * @param buf The buffer to truncate.\\n    * @return The original buffer, for chaining..\\n    */\\n    function truncate(buffer memory buf) internal pure returns (buffer memory) {\\n        assembly {\\n            let bufptr := mload(buf)\\n            mstore(bufptr, 0)\\n        }\\n        return buf;\\n    }\\n\\n    /**\\n    * @dev Appends len bytes of a byte string to a buffer. Resizes if doing so would exceed\\n    *      the capacity of the buffer.\\n    * @param buf The buffer to append to.\\n    * @param data The data to append.\\n    * @param len The number of bytes to copy.\\n    * @return The original buffer, for chaining.\\n    */\\n    function append(buffer memory buf, bytes memory data, uint len) internal pure returns(buffer memory) {\\n        require(len <= data.length);\\n\\n        uint off = buf.buf.length;\\n        uint newCapacity = off + len;\\n        if (newCapacity > buf.capacity) {\\n            resize(buf, newCapacity * 2);\\n        }\\n\\n        uint dest;\\n        uint src;\\n        assembly {\\n            // Memory address of the buffer data\\n            let bufptr := mload(buf)\\n            // Length of existing buffer data\\n            let buflen := mload(bufptr)\\n            // Start address = buffer address + offset + sizeof(buffer length)\\n            dest := add(add(bufptr, 32), off)\\n            // Update buffer length if we're extending it\\n            if gt(newCapacity, buflen) {\\n                mstore(bufptr, newCapacity)\\n            }\\n            src := add(data, 32)\\n        }\\n\\n        // Copy word-length chunks while possible\\n        for (; len >= 32; len -= 32) {\\n            assembly {\\n                mstore(dest, mload(src))\\n            }\\n            dest += 32;\\n            src += 32;\\n        }\\n\\n        // Copy remaining bytes\\n        unchecked {\\n            uint mask = (256 ** (32 - len)) - 1;\\n            assembly {\\n                let srcpart := and(mload(src), not(mask))\\n                let destpart := and(mload(dest), mask)\\n                mstore(dest, or(destpart, srcpart))\\n            }\\n        }\\n\\n        return buf;\\n    }\\n\\n    /**\\n    * @dev Appends a byte string to a buffer. Resizes if doing so would exceed\\n    *      the capacity of the buffer.\\n    * @param buf The buffer to append to.\\n    * @param data The data to append.\\n    * @return The original buffer, for chaining.\\n    */\\n    function append(buffer memory buf, bytes memory data) internal pure returns (buffer memory) {\\n        return append(buf, data, data.length);\\n    }\\n\\n    /**\\n    * @dev Appends a byte to the buffer. Resizes if doing so would exceed the\\n    *      capacity of the buffer.\\n    * @param buf The buffer to append to.\\n    * @param data The data to append.\\n    * @return The original buffer, for chaining.\\n    */\\n    function appendUint8(buffer memory buf, uint8 data) internal pure returns(buffer memory) {\\n        uint off = buf.buf.length;\\n        uint offPlusOne = off + 1;\\n        if (off >= buf.capacity) {\\n            resize(buf, offPlusOne * 2);\\n        }\\n\\n        assembly {\\n            // Memory address of the buffer data\\n            let bufptr := mload(buf)\\n            // Address = buffer address + sizeof(buffer length) + off\\n            let dest := add(add(bufptr, off), 32)\\n            mstore8(dest, data)\\n            // Update buffer length if we extended it\\n            if gt(offPlusOne, mload(bufptr)) {\\n                mstore(bufptr, offPlusOne)\\n            }\\n        }\\n\\n        return buf;\\n    }\\n\\n    /**\\n    * @dev Appends len bytes of bytes32 to a buffer. Resizes if doing so would\\n    *      exceed the capacity of the buffer.\\n    * @param buf The buffer to append to.\\n    * @param data The data to append.\\n    * @param len The number of bytes to write (left-aligned).\\n    * @return The original buffer, for chaining.\\n    */\\n    function append(buffer memory buf, bytes32 data, uint len) private pure returns(buffer memory) {\\n        uint off = buf.buf.length;\\n        uint newCapacity = len + off;\\n        if (newCapacity > buf.capacity) {\\n            resize(buf, newCapacity * 2);\\n        }\\n\\n        unchecked {\\n            uint mask = (256 ** len) - 1;\\n            // Right-align data\\n            data = data >> (8 * (32 - len));\\n            assembly {\\n                // Memory address of the buffer data\\n                let bufptr := mload(buf)\\n                // Address = buffer address + sizeof(buffer length) + newCapacity\\n                let dest := add(bufptr, newCapacity)\\n                mstore(dest, or(and(mload(dest), not(mask)), data))\\n                // Update buffer length if we extended it\\n                if gt(newCapacity, mload(bufptr)) {\\n                    mstore(bufptr, newCapacity)\\n                }\\n            }\\n        }\\n        return buf;\\n    }\\n\\n    /**\\n    * @dev Appends a bytes20 to the buffer. Resizes if doing so would exceed\\n    *      the capacity of the buffer.\\n    * @param buf The buffer to append to.\\n    * @param data The data to append.\\n    * @return The original buffer, for chhaining.\\n    */\\n    function appendBytes20(buffer memory buf, bytes20 data) internal pure returns (buffer memory) {\\n        return append(buf, bytes32(data), 20);\\n    }\\n\\n    /**\\n    * @dev Appends a bytes32 to the buffer. Resizes if doing so would exceed\\n    *      the capacity of the buffer.\\n    * @param buf The buffer to append to.\\n    * @param data The data to append.\\n    * @return The original buffer, for chaining.\\n    */\\n    function appendBytes32(buffer memory buf, bytes32 data) internal pure returns (buffer memory) {\\n        return append(buf, data, 32);\\n    }\\n\\n    /**\\n     * @dev Appends a byte to the end of the buffer. Resizes if doing so would\\n     *      exceed the capacity of the buffer.\\n     * @param buf The buffer to append to.\\n     * @param data The data to append.\\n     * @param len The number of bytes to write (right-aligned).\\n     * @return The original buffer.\\n     */\\n    function appendInt(buffer memory buf, uint data, uint len) internal pure returns(buffer memory) {\\n        uint off = buf.buf.length;\\n        uint newCapacity = len + off;\\n        if (newCapacity > buf.capacity) {\\n            resize(buf, newCapacity * 2);\\n        }\\n\\n        uint mask = (256 ** len) - 1;\\n        assembly {\\n            // Memory address of the buffer data\\n            let bufptr := mload(buf)\\n            // Address = buffer address + sizeof(buffer length) + newCapacity\\n            let dest := add(bufptr, newCapacity)\\n            mstore(dest, or(and(mload(dest), not(mask)), data))\\n            // Update buffer length if we extended it\\n            if gt(newCapacity, mload(bufptr)) {\\n                mstore(bufptr, newCapacity)\\n            }\\n        }\\n        return buf;\\n    }\\n}\",\"keccak256\":\"0x0d86b367813922094e02594a406ba89f5e97d3d74ec2ce3c4032566840e302b0\",\"license\":\"BSD-2-Clause\"},\"@chainlink/contracts/src/v0.8/vendor/solidity-cborutils/v2.0.0/CBOR.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.4;\\n\\nimport \\\"../../@ensdomains/buffer/v0.1.0/Buffer.sol\\\";\\n\\n/**\\n* @dev A library for populating CBOR encoded payload in Solidity.\\n*\\n* https://datatracker.ietf.org/doc/html/rfc7049\\n*\\n* The library offers various write* and start* methods to encode values of different types.\\n* The resulted buffer can be obtained with data() method.\\n* Encoding of primitive types is staightforward, whereas encoding of sequences can result\\n* in an invalid CBOR if start/write/end flow is violated.\\n* For the purpose of gas saving, the library does not verify start/write/end flow internally,\\n* except for nested start/end pairs.\\n*/\\n\\nlibrary CBOR {\\n    using Buffer for Buffer.buffer;\\n\\n    struct CBORBuffer {\\n        Buffer.buffer buf;\\n        uint256 depth;\\n    }\\n\\n    uint8 private constant MAJOR_TYPE_INT = 0;\\n    uint8 private constant MAJOR_TYPE_NEGATIVE_INT = 1;\\n    uint8 private constant MAJOR_TYPE_BYTES = 2;\\n    uint8 private constant MAJOR_TYPE_STRING = 3;\\n    uint8 private constant MAJOR_TYPE_ARRAY = 4;\\n    uint8 private constant MAJOR_TYPE_MAP = 5;\\n    uint8 private constant MAJOR_TYPE_TAG = 6;\\n    uint8 private constant MAJOR_TYPE_CONTENT_FREE = 7;\\n\\n    uint8 private constant TAG_TYPE_BIGNUM = 2;\\n    uint8 private constant TAG_TYPE_NEGATIVE_BIGNUM = 3;\\n\\n    uint8 private constant CBOR_FALSE = 20;\\n    uint8 private constant CBOR_TRUE = 21;\\n    uint8 private constant CBOR_NULL = 22;\\n    uint8 private constant CBOR_UNDEFINED = 23;\\n\\n    function create(uint256 capacity) internal pure returns(CBORBuffer memory cbor) {\\n        Buffer.init(cbor.buf, capacity);\\n        cbor.depth = 0;\\n        return cbor;\\n    }\\n\\n    function data(CBORBuffer memory buf) internal pure returns(bytes memory) {\\n        require(buf.depth == 0, \\\"Invalid CBOR\\\");\\n        return buf.buf.buf;\\n    }\\n\\n    function writeUInt256(CBORBuffer memory buf, uint256 value) internal pure {\\n        buf.buf.appendUint8(uint8((MAJOR_TYPE_TAG << 5) | TAG_TYPE_BIGNUM));\\n        writeBytes(buf, abi.encode(value));\\n    }\\n\\n    function writeInt256(CBORBuffer memory buf, int256 value) internal pure {\\n        if (value < 0) {\\n            buf.buf.appendUint8(\\n                uint8((MAJOR_TYPE_TAG << 5) | TAG_TYPE_NEGATIVE_BIGNUM)\\n            );\\n            writeBytes(buf, abi.encode(uint256(-1 - value)));\\n        } else {\\n            writeUInt256(buf, uint256(value));\\n        }\\n    }\\n\\n    function writeUInt64(CBORBuffer memory buf, uint64 value) internal pure {\\n        writeFixedNumeric(buf, MAJOR_TYPE_INT, value);\\n    }\\n\\n    function writeInt64(CBORBuffer memory buf, int64 value) internal pure {\\n        if(value >= 0) {\\n            writeFixedNumeric(buf, MAJOR_TYPE_INT, uint64(value));\\n        } else{\\n            writeFixedNumeric(buf, MAJOR_TYPE_NEGATIVE_INT, uint64(-1 - value));\\n        }\\n    }\\n\\n    function writeBytes(CBORBuffer memory buf, bytes memory value) internal pure {\\n        writeFixedNumeric(buf, MAJOR_TYPE_BYTES, uint64(value.length));\\n        buf.buf.append(value);\\n    }\\n\\n    function writeString(CBORBuffer memory buf, string memory value) internal pure {\\n        writeFixedNumeric(buf, MAJOR_TYPE_STRING, uint64(bytes(value).length));\\n        buf.buf.append(bytes(value));\\n    }\\n\\n    function writeBool(CBORBuffer memory buf, bool value) internal pure {\\n        writeContentFree(buf, value ? CBOR_TRUE : CBOR_FALSE);\\n    }\\n\\n    function writeNull(CBORBuffer memory buf) internal pure {\\n        writeContentFree(buf, CBOR_NULL);\\n    }\\n\\n    function writeUndefined(CBORBuffer memory buf) internal pure {\\n        writeContentFree(buf, CBOR_UNDEFINED);\\n    }\\n\\n    function startArray(CBORBuffer memory buf) internal pure {\\n        writeIndefiniteLengthType(buf, MAJOR_TYPE_ARRAY);\\n        buf.depth += 1;\\n    }\\n\\n    function startFixedArray(CBORBuffer memory buf, uint64 length) internal pure {\\n        writeDefiniteLengthType(buf, MAJOR_TYPE_ARRAY, length);\\n    }\\n\\n    function startMap(CBORBuffer memory buf) internal pure {\\n        writeIndefiniteLengthType(buf, MAJOR_TYPE_MAP);\\n        buf.depth += 1;\\n    }\\n\\n    function startFixedMap(CBORBuffer memory buf, uint64 length) internal pure {\\n        writeDefiniteLengthType(buf, MAJOR_TYPE_MAP, length);\\n    }\\n\\n    function endSequence(CBORBuffer memory buf) internal pure {\\n        writeIndefiniteLengthType(buf, MAJOR_TYPE_CONTENT_FREE);\\n        buf.depth -= 1;\\n    }\\n\\n    function writeKVString(CBORBuffer memory buf, string memory key, string memory value) internal pure {\\n        writeString(buf, key);\\n        writeString(buf, value);\\n    }\\n\\n    function writeKVBytes(CBORBuffer memory buf, string memory key, bytes memory value) internal pure {\\n        writeString(buf, key);\\n        writeBytes(buf, value);\\n    }\\n\\n    function writeKVUInt256(CBORBuffer memory buf, string memory key, uint256 value) internal pure {\\n        writeString(buf, key);\\n        writeUInt256(buf, value);\\n    }\\n\\n    function writeKVInt256(CBORBuffer memory buf, string memory key, int256 value) internal pure {\\n        writeString(buf, key);\\n        writeInt256(buf, value);\\n    }\\n\\n    function writeKVUInt64(CBORBuffer memory buf, string memory key, uint64 value) internal pure {\\n        writeString(buf, key);\\n        writeUInt64(buf, value);\\n    }\\n\\n    function writeKVInt64(CBORBuffer memory buf, string memory key, int64 value) internal pure {\\n        writeString(buf, key);\\n        writeInt64(buf, value);\\n    }\\n\\n    function writeKVBool(CBORBuffer memory buf, string memory key, bool value) internal pure {\\n        writeString(buf, key);\\n        writeBool(buf, value);\\n    }\\n\\n    function writeKVNull(CBORBuffer memory buf, string memory key) internal pure {\\n        writeString(buf, key);\\n        writeNull(buf);\\n    }\\n\\n    function writeKVUndefined(CBORBuffer memory buf, string memory key) internal pure {\\n        writeString(buf, key);\\n        writeUndefined(buf);\\n    }\\n\\n    function writeKVMap(CBORBuffer memory buf, string memory key) internal pure {\\n        writeString(buf, key);\\n        startMap(buf);\\n    }\\n\\n    function writeKVArray(CBORBuffer memory buf, string memory key) internal pure {\\n        writeString(buf, key);\\n        startArray(buf);\\n    }\\n\\n    function writeFixedNumeric(\\n        CBORBuffer memory buf,\\n        uint8 major,\\n        uint64 value\\n    ) private pure {\\n        if (value <= 23) {\\n            buf.buf.appendUint8(uint8((major << 5) | value));\\n        } else if (value <= 0xFF) {\\n            buf.buf.appendUint8(uint8((major << 5) | 24));\\n            buf.buf.appendInt(value, 1);\\n        } else if (value <= 0xFFFF) {\\n            buf.buf.appendUint8(uint8((major << 5) | 25));\\n            buf.buf.appendInt(value, 2);\\n        } else if (value <= 0xFFFFFFFF) {\\n            buf.buf.appendUint8(uint8((major << 5) | 26));\\n            buf.buf.appendInt(value, 4);\\n        } else {\\n            buf.buf.appendUint8(uint8((major << 5) | 27));\\n            buf.buf.appendInt(value, 8);\\n        }\\n    }\\n\\n    function writeIndefiniteLengthType(CBORBuffer memory buf, uint8 major)\\n        private\\n        pure\\n    {\\n        buf.buf.appendUint8(uint8((major << 5) | 31));\\n    }\\n\\n    function writeDefiniteLengthType(CBORBuffer memory buf, uint8 major, uint64 length)\\n        private\\n        pure\\n    {\\n        writeFixedNumeric(buf, major, length);\\n    }\\n\\n    function writeContentFree(CBORBuffer memory buf, uint8 value) private pure {\\n        buf.buf.appendUint8(uint8((MAJOR_TYPE_CONTENT_FREE << 5) | value));\\n    }\\n}\",\"keccak256\":\"0xdecf04203502670ac72ba466c75e4f87f4419907365005f0d73e7d07ee3e5715\",\"license\":\"MIT\"},\"@openzeppelin/contracts/access/AccessControl.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (access/AccessControl.sol)\\n\\npragma solidity ^0.8.20;\\n\\nimport {IAccessControl} from \\\"./IAccessControl.sol\\\";\\nimport {Context} from \\\"../utils/Context.sol\\\";\\nimport {ERC165} from \\\"../utils/introspection/ERC165.sol\\\";\\n\\n/**\\n * @dev Contract module that allows children to implement role-based access\\n * control mechanisms. This is a lightweight version that doesn't allow enumerating role\\n * members except through off-chain means by accessing the contract event logs. Some\\n * applications may benefit from on-chain enumerability, for those cases see\\n * {AccessControlEnumerable}.\\n *\\n * Roles are referred to by their `bytes32` identifier. These should be exposed\\n * in the external API and be unique. The best way to achieve this is by\\n * using `public constant` hash digests:\\n *\\n * ```solidity\\n * bytes32 public constant MY_ROLE = keccak256(\\\"MY_ROLE\\\");\\n * ```\\n *\\n * Roles can be used to represent a set of permissions. To restrict access to a\\n * function call, use {hasRole}:\\n *\\n * ```solidity\\n * function foo() public {\\n *     require(hasRole(MY_ROLE, msg.sender));\\n *     ...\\n * }\\n * ```\\n *\\n * Roles can be granted and revoked dynamically via the {grantRole} and\\n * {revokeRole} functions. Each role has an associated admin role, and only\\n * accounts that have a role's admin role can call {grantRole} and {revokeRole}.\\n *\\n * By default, the admin role for all roles is `DEFAULT_ADMIN_ROLE`, which means\\n * that only accounts with this role will be able to grant or revoke other\\n * roles. More complex role relationships can be created by using\\n * {_setRoleAdmin}.\\n *\\n * WARNING: The `DEFAULT_ADMIN_ROLE` is also its own admin: it has permission to\\n * grant and revoke this role. Extra precautions should be taken to secure\\n * accounts that have been granted it. We recommend using {AccessControlDefaultAdminRules}\\n * to enforce additional security measures for this role.\\n */\\nabstract contract AccessControl is Context, IAccessControl, ERC165 {\\n    struct RoleData {\\n        mapping(address account => bool) hasRole;\\n        bytes32 adminRole;\\n    }\\n\\n    mapping(bytes32 role => RoleData) private _roles;\\n\\n    bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;\\n\\n    /**\\n     * @dev Modifier that checks that an account has a specific role. Reverts\\n     * with an {AccessControlUnauthorizedAccount} error including the required role.\\n     */\\n    modifier onlyRole(bytes32 role) {\\n        _checkRole(role);\\n        _;\\n    }\\n\\n    /**\\n     * @dev See {IERC165-supportsInterface}.\\n     */\\n    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {\\n        return interfaceId == type(IAccessControl).interfaceId || super.supportsInterface(interfaceId);\\n    }\\n\\n    /**\\n     * @dev Returns `true` if `account` has been granted `role`.\\n     */\\n    function hasRole(bytes32 role, address account) public view virtual returns (bool) {\\n        return _roles[role].hasRole[account];\\n    }\\n\\n    /**\\n     * @dev Reverts with an {AccessControlUnauthorizedAccount} error if `_msgSender()`\\n     * is missing `role`. Overriding this function changes the behavior of the {onlyRole} modifier.\\n     */\\n    function _checkRole(bytes32 role) internal view virtual {\\n        _checkRole(role, _msgSender());\\n    }\\n\\n    /**\\n     * @dev Reverts with an {AccessControlUnauthorizedAccount} error if `account`\\n     * is missing `role`.\\n     */\\n    function _checkRole(bytes32 role, address account) internal view virtual {\\n        if (!hasRole(role, account)) {\\n            revert AccessControlUnauthorizedAccount(account, role);\\n        }\\n    }\\n\\n    /**\\n     * @dev Returns the admin role that controls `role`. See {grantRole} and\\n     * {revokeRole}.\\n     *\\n     * To change a role's admin, use {_setRoleAdmin}.\\n     */\\n    function getRoleAdmin(bytes32 role) public view virtual returns (bytes32) {\\n        return _roles[role].adminRole;\\n    }\\n\\n    /**\\n     * @dev Grants `role` to `account`.\\n     *\\n     * If `account` had not been already granted `role`, emits a {RoleGranted}\\n     * event.\\n     *\\n     * Requirements:\\n     *\\n     * - the caller must have ``role``'s admin role.\\n     *\\n     * May emit a {RoleGranted} event.\\n     */\\n    function grantRole(bytes32 role, address account) public virtual onlyRole(getRoleAdmin(role)) {\\n        _grantRole(role, account);\\n    }\\n\\n    /**\\n     * @dev Revokes `role` from `account`.\\n     *\\n     * If `account` had been granted `role`, emits a {RoleRevoked} event.\\n     *\\n     * Requirements:\\n     *\\n     * - the caller must have ``role``'s admin role.\\n     *\\n     * May emit a {RoleRevoked} event.\\n     */\\n    function revokeRole(bytes32 role, address account) public virtual onlyRole(getRoleAdmin(role)) {\\n        _revokeRole(role, account);\\n    }\\n\\n    /**\\n     * @dev Revokes `role` from the calling account.\\n     *\\n     * Roles are often managed via {grantRole} and {revokeRole}: this function's\\n     * purpose is to provide a mechanism for accounts to lose their privileges\\n     * if they are compromised (such as when a trusted device is misplaced).\\n     *\\n     * If the calling account had been revoked `role`, emits a {RoleRevoked}\\n     * event.\\n     *\\n     * Requirements:\\n     *\\n     * - the caller must be `callerConfirmation`.\\n     *\\n     * May emit a {RoleRevoked} event.\\n     */\\n    function renounceRole(bytes32 role, address callerConfirmation) public virtual {\\n        if (callerConfirmation != _msgSender()) {\\n            revert AccessControlBadConfirmation();\\n        }\\n\\n        _revokeRole(role, callerConfirmation);\\n    }\\n\\n    /**\\n     * @dev Sets `adminRole` as ``role``'s admin role.\\n     *\\n     * Emits a {RoleAdminChanged} event.\\n     */\\n    function _setRoleAdmin(bytes32 role, bytes32 adminRole) internal virtual {\\n        bytes32 previousAdminRole = getRoleAdmin(role);\\n        _roles[role].adminRole = adminRole;\\n        emit RoleAdminChanged(role, previousAdminRole, adminRole);\\n    }\\n\\n    /**\\n     * @dev Attempts to grant `role` to `account` and returns a boolean indicating if `role` was granted.\\n     *\\n     * Internal function without access restriction.\\n     *\\n     * May emit a {RoleGranted} event.\\n     */\\n    function _grantRole(bytes32 role, address account) internal virtual returns (bool) {\\n        if (!hasRole(role, account)) {\\n            _roles[role].hasRole[account] = true;\\n            emit RoleGranted(role, account, _msgSender());\\n            return true;\\n        } else {\\n            return false;\\n        }\\n    }\\n\\n    /**\\n     * @dev Attempts to revoke `role` to `account` and returns a boolean indicating if `role` was revoked.\\n     *\\n     * Internal function without access restriction.\\n     *\\n     * May emit a {RoleRevoked} event.\\n     */\\n    function _revokeRole(bytes32 role, address account) internal virtual returns (bool) {\\n        if (hasRole(role, account)) {\\n            _roles[role].hasRole[account] = false;\\n            emit RoleRevoked(role, account, _msgSender());\\n            return true;\\n        } else {\\n            return false;\\n        }\\n    }\\n}\\n\",\"keccak256\":\"0xa0e92d42942f4f57c5be50568dac11e9d00c93efcb458026e18d2d9b9b2e7308\",\"license\":\"MIT\"},\"@openzeppelin/contracts/access/IAccessControl.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (access/IAccessControl.sol)\\n\\npragma solidity ^0.8.20;\\n\\n/**\\n * @dev External interface of AccessControl declared to support ERC165 detection.\\n */\\ninterface IAccessControl {\\n    /**\\n     * @dev The `account` is missing a role.\\n     */\\n    error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);\\n\\n    /**\\n     * @dev The caller of a function is not the expected one.\\n     *\\n     * NOTE: Don't confuse with {AccessControlUnauthorizedAccount}.\\n     */\\n    error AccessControlBadConfirmation();\\n\\n    /**\\n     * @dev Emitted when `newAdminRole` is set as ``role``'s admin role, replacing `previousAdminRole`\\n     *\\n     * `DEFAULT_ADMIN_ROLE` is the starting admin for all roles, despite\\n     * {RoleAdminChanged} not being emitted signaling this.\\n     */\\n    event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole);\\n\\n    /**\\n     * @dev Emitted when `account` is granted `role`.\\n     *\\n     * `sender` is the account that originated the contract call, an admin role\\n     * bearer except when using {AccessControl-_setupRole}.\\n     */\\n    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);\\n\\n    /**\\n     * @dev Emitted when `account` is revoked `role`.\\n     *\\n     * `sender` is the account that originated the contract call:\\n     *   - if using `revokeRole`, it is the admin role bearer\\n     *   - if using `renounceRole`, it is the role bearer (i.e. `account`)\\n     */\\n    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);\\n\\n    /**\\n     * @dev Returns `true` if `account` has been granted `role`.\\n     */\\n    function hasRole(bytes32 role, address account) external view returns (bool);\\n\\n    /**\\n     * @dev Returns the admin role that controls `role`. See {grantRole} and\\n     * {revokeRole}.\\n     *\\n     * To change a role's admin, use {AccessControl-_setRoleAdmin}.\\n     */\\n    function getRoleAdmin(bytes32 role) external view returns (bytes32);\\n\\n    /**\\n     * @dev Grants `role` to `account`.\\n     *\\n     * If `account` had not been already granted `role`, emits a {RoleGranted}\\n     * event.\\n     *\\n     * Requirements:\\n     *\\n     * - the caller must have ``role``'s admin role.\\n     */\\n    function grantRole(bytes32 role, address account) external;\\n\\n    /**\\n     * @dev Revokes `role` from `account`.\\n     *\\n     * If `account` had been granted `role`, emits a {RoleRevoked} event.\\n     *\\n     * Requirements:\\n     *\\n     * - the caller must have ``role``'s admin role.\\n     */\\n    function revokeRole(bytes32 role, address account) external;\\n\\n    /**\\n     * @dev Revokes `role` from the calling account.\\n     *\\n     * Roles are often managed via {grantRole} and {revokeRole}: this function's\\n     * purpose is to provide a mechanism for accounts to lose their privileges\\n     * if they are compromised (such as when a trusted device is misplaced).\\n     *\\n     * If the calling account had been granted `role`, emits a {RoleRevoked}\\n     * event.\\n     *\\n     * Requirements:\\n     *\\n     * - the caller must be `callerConfirmation`.\\n     */\\n    function renounceRole(bytes32 role, address callerConfirmation) external;\\n}\\n\",\"keccak256\":\"0xb6b36edd6a2999fd243ff226d6cbf84bd71af2432bbd0dfe19392996a1d9cb41\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/Context.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.1) (utils/Context.sol)\\n\\npragma solidity ^0.8.20;\\n\\n/**\\n * @dev Provides information about the current execution context, including the\\n * sender of the transaction and its data. While these are generally available\\n * via msg.sender and msg.data, they should not be accessed in such a direct\\n * manner, since when dealing with meta-transactions the account sending and\\n * paying for execution may not be the actual sender (as far as an application\\n * is concerned).\\n *\\n * This contract is only required for intermediate, library-like contracts.\\n */\\nabstract contract Context {\\n    function _msgSender() internal view virtual returns (address) {\\n        return msg.sender;\\n    }\\n\\n    function _msgData() internal view virtual returns (bytes calldata) {\\n        return msg.data;\\n    }\\n\\n    function _contextSuffixLength() internal view virtual returns (uint256) {\\n        return 0;\\n    }\\n}\\n\",\"keccak256\":\"0x493033a8d1b176a037b2cc6a04dad01a5c157722049bbecf632ca876224dd4b2\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/introspection/ERC165.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (utils/introspection/ERC165.sol)\\n\\npragma solidity ^0.8.20;\\n\\nimport {IERC165} from \\\"./IERC165.sol\\\";\\n\\n/**\\n * @dev Implementation of the {IERC165} interface.\\n *\\n * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check\\n * for the additional interface id that will be supported. For example:\\n *\\n * ```solidity\\n * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {\\n *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);\\n * }\\n * ```\\n */\\nabstract contract ERC165 is IERC165 {\\n    /**\\n     * @dev See {IERC165-supportsInterface}.\\n     */\\n    function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {\\n        return interfaceId == type(IERC165).interfaceId;\\n    }\\n}\\n\",\"keccak256\":\"0x9e8778b14317ba9e256c30a76fd6c32b960af621987f56069e1e819c77c6a133\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/introspection/IERC165.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (utils/introspection/IERC165.sol)\\n\\npragma solidity ^0.8.20;\\n\\n/**\\n * @dev Interface of the ERC165 standard, as defined in the\\n * https://eips.ethereum.org/EIPS/eip-165[EIP].\\n *\\n * Implementers can declare support of contract interfaces, which can then be\\n * queried by others ({ERC165Checker}).\\n *\\n * For an implementation, see {ERC165}.\\n */\\ninterface IERC165 {\\n    /**\\n     * @dev Returns true if this contract implements the interface defined by\\n     * `interfaceId`. See the corresponding\\n     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]\\n     * to learn more about how these ids are created.\\n     *\\n     * This function call must use less than 30 000 gas.\\n     */\\n    function supportsInterface(bytes4 interfaceId) external view returns (bool);\\n}\\n\",\"keccak256\":\"0x4296879f55019b23e135000eb36896057e7101fb7fb859c5ef690cf14643757b\",\"license\":\"MIT\"},\"contracts/takasure/oracle/BenefitMultiplierConsumer.sol\":{\"content\":\"//SPDX-License-Identifier: GPL-3.0\\r\\n\\r\\n/**\\r\\n * @title BenefitMultiplierConsumer\\r\\n * @author Maikel Ordaz\\r\\n * @notice This contract is used to fetch the benefit multiplier to be used in the Life Dao protocol\\r\\n */\\r\\n\\r\\nimport {AccessControl} from \\\"@openzeppelin/contracts/access/AccessControl.sol\\\";\\r\\nimport {FunctionsClient} from \\\"@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol\\\";\\r\\n\\r\\nimport {FunctionsRequest} from \\\"@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol\\\";\\r\\n\\r\\npragma solidity 0.8.25;\\r\\n\\r\\ncontract BenefitMultiplierConsumer is AccessControl, FunctionsClient {\\r\\n    using FunctionsRequest for FunctionsRequest.Request;\\r\\n\\r\\n    bytes32 public constant BM_REQUESTER_ROLE = keccak256(\\\"BM_REQUESTER_ROLE\\\");\\r\\n\\r\\n    bytes32 private donId;\\r\\n    uint32 private gasLimit;\\r\\n    uint64 private subscriptionId;\\r\\n    string public bmSourceRequestCode;\\r\\n\\r\\n    bytes32 public lastRequestId;\\r\\n    bytes public lastResponse;\\r\\n    bytes public lastError;\\r\\n\\r\\n    event Response(bytes32 indexed requestId, bytes response, bytes err); // todo: this will be emited during the callback, check if chainlink need this exact name or can use OnResponse\\r\\n\\r\\n    error OracleConsumer__UnexpectedRequestID(bytes32 requestId);\\r\\n\\r\\n    /**\\r\\n     * @custom:oz-upgrades-unsafe-allow constructor\\r\\n     * @param router The address of the Chainlink node\\r\\n     * @param _donId The data provider ID\\r\\n     * @param _gasLimit The gas limit for the request\\r\\n     * @param _subscriptionId The subscription ID\\r\\n     * @param requester The address allowed to request the benefit multiplier. Will be the takasure contract\\r\\n     */\\r\\n    constructor(\\r\\n        address router,\\r\\n        bytes32 _donId,\\r\\n        uint32 _gasLimit,\\r\\n        uint64 _subscriptionId,\\r\\n        address requester\\r\\n    ) FunctionsClient(router) {\\r\\n        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);\\r\\n        _grantRole(BM_REQUESTER_ROLE, requester);\\r\\n        donId = _donId;\\r\\n        gasLimit = _gasLimit;\\r\\n        subscriptionId = _subscriptionId;\\r\\n    }\\r\\n\\r\\n    /**\\r\\n     * @notice Send a simple request\\r\\n     * @param args The user address to get the BM\\r\\n     */\\r\\n    function sendRequest(\\r\\n        string[] memory args\\r\\n    ) external onlyRole(BM_REQUESTER_ROLE) returns (bytes32 requestId) {\\r\\n        FunctionsRequest.Request memory req;\\r\\n        req.initializeRequestForInlineJavaScript(bmSourceRequestCode);\\r\\n\\r\\n        if (args.length > 0) req.setArgs(args);\\r\\n        lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donId);\\r\\n        return lastRequestId;\\r\\n    }\\r\\n\\r\\n    /**\\r\\n     * @notice a method convert the last response to an uint256\\r\\n     */\\r\\n    function convertResponseToUint() external view returns (uint256) {\\r\\n        return abi.decode(lastResponse, (uint256));\\r\\n    }\\r\\n\\r\\n    /// @notice the next set of functions are used to set the values of the contract\\r\\n    function setDonId(bytes32 _donId) external onlyRole(DEFAULT_ADMIN_ROLE) {\\r\\n        donId = _donId;\\r\\n    }\\r\\n\\r\\n    function setGasLimit(uint32 _gasLimit) external onlyRole(DEFAULT_ADMIN_ROLE) {\\r\\n        gasLimit = _gasLimit;\\r\\n    }\\r\\n\\r\\n    function setSubscriptionId(uint64 _subscriptionId) external onlyRole(DEFAULT_ADMIN_ROLE) {\\r\\n        subscriptionId = _subscriptionId;\\r\\n    }\\r\\n\\r\\n    function setBMSourceRequestCode(\\r\\n        string calldata _bmSourceRequestCode\\r\\n    ) external onlyRole(DEFAULT_ADMIN_ROLE) {\\r\\n        bmSourceRequestCode = _bmSourceRequestCode;\\r\\n    }\\r\\n\\r\\n    /**\\r\\n     * @notice Callback that is invoked when the DON response is received\\r\\n     */\\r\\n    function fulfillRequest(\\r\\n        bytes32 requestId,\\r\\n        bytes memory response,\\r\\n        bytes memory err\\r\\n    ) internal override {\\r\\n        if (requestId != lastRequestId) {\\r\\n            revert OracleConsumer__UnexpectedRequestID(requestId);\\r\\n        }\\r\\n        lastResponse = response;\\r\\n        lastError = err;\\r\\n\\r\\n        emit Response(requestId, response, err);\\r\\n    }\\r\\n}\\r\\n\",\"keccak256\":\"0x7be1aab2c7bea0bb63d9c78f6c4c4d9e22bc3b34717b595ac1894664b78a68df\",\"license\":\"GPL-3.0\"}},\"version\":1}",
-  "bytecode": "0x60a060405234801561000f575f80fd5b50604051611b51380380611b5183398101604081905261002e91610176565b6001600160a01b0385166080526100455f336100b2565b506100707fadeaa4f6edbc569c7ea86d399ee7fdbb28dba3aac25a2732ea7eb4e659e2b73d826100b2565b5050600192909255600280546001600160401b03909316640100000000026001600160601b031990931663ffffffff90921691909117919091179055506101e8565b5f828152602081815260408083206001600160a01b038516845290915281205460ff16610152575f838152602081815260408083206001600160a01b03861684529091529020805460ff1916600117905561010a3390565b6001600160a01b0316826001600160a01b0316847f2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d60405160405180910390a4506001610155565b505f5b92915050565b80516001600160a01b0381168114610171575f80fd5b919050565b5f805f805f60a0868803121561018a575f80fd5b6101938661015b565b945060208601519350604086015163ffffffff811681146101b2575f80fd5b60608701519093506001600160401b03811681146101ce575f80fd5b91506101dc6080870161015b565b90509295509295909350565b60805161194a6102075f395f81816102dd0152610bb0015261194a5ff3fe608060405234801561000f575f80fd5b506004361061011c575f3560e01c806362747e42116100a9578063b1b7f3c31161006e578063b1b7f3c314610252578063d547741f14610265578063d64bd83314610278578063ea7b4f7714610280578063fc2a88c314610293575f80fd5b806362747e421461021557806378ca5de71461021d57806391d14854146102305780639492c89314610243578063a217fddf1461024b575f80fd5b80632f2ff15d116100ef5780632f2ff15d146101a257806334f7e838146101b557806336568abe146101dc5780634c8f60a3146101ef57806352d84c6214610202575f80fd5b806301ffc9a7146101205780630ca7617514610148578063248a9ca31461015d57806329f0de3f1461018d575b5f80fd5b61013361012e3660046111ba565b61029c565b60405190151581526020015b60405180910390f35b61015b610156366004611297565b6102d2565b005b61017f61016b3660046112fe565b5f9081526020819052604090206001015490565b60405190815260200161013f565b610195610355565b60405161013f9190611343565b61015b6101b0366004611355565b6103e1565b61017f7fadeaa4f6edbc569c7ea86d399ee7fdbb28dba3aac25a2732ea7eb4e659e2b73d81565b61015b6101ea366004611355565b61040b565b61017f6101fd36600461138e565b610443565b61015b61021036600461145c565b610597565b6101956105be565b61015b61022b3660046112fe565b6105cb565b61013361023e366004611355565b6105db565b61017f610603565b61017f5f81565b61015b61026036600461147f565b6106a5565b61015b610273366004611355565b6106bc565b6101956106e0565b61015b61028e3660046114ea565b6106ed565b61017f60045481565b5f6001600160e01b03198216637965db0b60e01b14806102cc57506301ffc9a760e01b6001600160e01b03198316145b92915050565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461031b5760405163c6829f8360e01b815260040160405180910390fd5b610326838383610727565b60405183907f85e1543bf2f84fe80c6badbce3648c8539ad1df4d2b3d822938ca0538be727e6905f90a2505050565b6006805461036290611510565b80601f016020809104026020016040519081016040528092919081815260200182805461038e90611510565b80156103d95780601f106103b0576101008083540402835291602001916103d9565b820191905f5260205f20905b8154815290600101906020018083116103bc57829003601f168201915b505050505081565b5f828152602081905260409020600101546103fb816107aa565b61040583836107b7565b50505050565b6001600160a01b03811633146104345760405163334bd91960e11b815260040160405180910390fd5b61043e8282610846565b505050565b5f7fadeaa4f6edbc569c7ea86d399ee7fdbb28dba3aac25a2732ea7eb4e659e2b73d61046e816107aa565b6104ac6040805160e08101909152805f81526020015f81526020015f8152602001606081526020016060815260200160608152602001606081525090565b610547600380546104bc90611510565b80601f01602080910402602001604051908101604052809291908181526020018280546104e890611510565b80156105335780601f1061050a57610100808354040283529160200191610533565b820191905f5260205f20905b81548152906001019060200180831161051657829003601f168201915b5050505050826108af90919063ffffffff16565b8351156105585761055881856108bf565b610588610564826108e8565b6002546001546001600160401b036401000000008304169163ffffffff1690610bac565b60048190559250505b50919050565b5f6105a1816107aa565b506002805463ffffffff191663ffffffff92909216919091179055565b6005805461036290611510565b5f6105d5816107aa565b50600155565b5f918252602082815260408084206001600160a01b0393909316845291905290205460ff1690565b5f6005805461061190611510565b80601f016020809104026020016040519081016040528092919081815260200182805461063d90611510565b80156106885780601f1061065f57610100808354040283529160200191610688565b820191905f5260205f20905b81548152906001019060200180831161066b57829003601f168201915b50505050508060200190518101906106a09190611542565b905090565b5f6106af816107aa565b60036104058385836115a4565b5f828152602081905260409020600101546106d6816107aa565b6104058383610846565b6003805461036290611510565b5f6106f7816107aa565b50600280546001600160401b03909216640100000000026bffffffffffffffff0000000019909216919091179055565b60045483146107515760405163878da44b60e01b8152600481018490526024015b60405180910390fd5b600561075d838261165d565b50600661076a828261165d565b50827f7873807bf6ddc50401cd3d29bbe0decee23fd4d68d273f4b5eb83cded4d2f172838360405161079d92919061171c565b60405180910390a2505050565b6107b48133610c79565b50565b5f6107c283836105db565b61083f575f838152602081815260408083206001600160a01b03861684529091529020805460ff191660011790556107f73390565b6001600160a01b0316826001600160a01b0316847f2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d60405160405180910390a45060016102cc565b505f6102cc565b5f61085183836105db565b1561083f575f838152602081815260408083206001600160a01b0386168085529252808320805460ff1916905551339286917ff6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b9190a45060016102cc565b6108bb825f8084610cb2565b5050565b80515f036108e05760405163fe936cb760e01b815260040160405180910390fd5b60a090910152565b60605f6108f6610100610d2f565b905061092f6040518060400160405280600c81526020016b31b7b232a637b1b0ba34b7b760a11b81525082610d4f90919063ffffffff16565b825161094d90600281111561094657610946611749565b8290610d68565b6040805180820190915260088152676c616e677561676560c01b6020820152610977908290610d4f565b604083015161098e90801561094657610946611749565b604080518082019091526006815265736f7572636560d01b60208201526109b6908290610d4f565b60608301516109c6908290610d4f565b60a08301515115610a51576040805180820190915260048152636172677360e01b60208201526109f7908290610d4f565b610a0081610da1565b5f5b8360a0015151811015610a4757610a3f8460a001518281518110610a2857610a2861175d565b602002602001015183610d4f90919063ffffffff16565b600101610a02565b50610a5181610dc5565b60808301515115610b14575f83602001516002811115610a7357610a73611749565b03610a915760405163a80d31f760e01b815260040160405180910390fd5b60408051808201909152600f81526e39b2b1b932ba39a637b1b0ba34b7b760891b6020820152610ac2908290610d4f565b610adb8360200151600281111561094657610946611749565b6040805180820190915260078152667365637265747360c81b6020820152610b04908290610d4f565b6080830151610b14908290610de3565b60c08301515115610ba45760408051808201909152600981526862797465734172677360b81b6020820152610b4a908290610d4f565b610b5381610da1565b5f5b8360c0015151811015610b9a57610b928460c001518281518110610b7b57610b7b61175d565b602002602001015183610de390919063ffffffff16565b600101610b55565b50610ba481610dc5565b515192915050565b5f807f00000000000000000000000000000000000000000000000000000000000000006001600160a01b031663461d27628688600188886040518663ffffffff1660e01b8152600401610c03959493929190611771565b6020604051808303815f875af1158015610c1f573d5f803e3d5ffd5b505050506040513d601f19601f82011682018060405250810190610c439190611542565b60405190915081907f1131472297a800fee664d1d89cfa8f7676ff07189ecc53f80bbb5f4969099db8905f90a295945050505050565b610c8382826105db565b6108bb5760405163e2517d3f60e01b81526001600160a01b038216600482015260248101839052604401610748565b80515f03610cd3576040516322ce3edd60e01b815260040160405180910390fd5b83836002811115610ce657610ce6611749565b90816002811115610cf957610cf9611749565b90525060408401828015610d0f57610d0f611749565b90818015610d1f57610d1f611749565b9052506060909301929092525050565b610d37611187565b8051610d439083610df0565b505f6020820152919050565b610d5c8260038351610e64565b815161043e9082610f7d565b8151610d759060c2610fa4565b506108bb8282604051602001610d8d91815260200190565b604051602081830303815290604052610de3565b610dac81600461100b565b600181602001818151610dbf91906117cd565b90525050565b610dd081600761100b565b600181602001818151610dbf91906117e0565b610d5c8260028351610e64565b60408051808201909152606081525f6020820152610e0f6020836117f3565b15610e3757610e1f6020836117f3565b610e2a9060206117e0565b610e3490836117cd565b91505b60208084018390526040518085525f8152908184010181811015610e59575f80fd5b604052509192915050565b6017816001600160401b031611610e8a5782516104059060e0600585901b168317610fa4565b60ff816001600160401b031611610eca578251610eb2906018611fe0600586901b1617610fa4565b508251610405906001600160401b0383166001611022565b61ffff816001600160401b031611610f0b578251610ef3906019611fe0600586901b1617610fa4565b508251610405906001600160401b0383166002611022565b63ffffffff816001600160401b031611610f4e578251610f3690601a611fe0600586901b1617610fa4565b508251610405906001600160401b0383166004611022565b8251610f6590601b611fe0600586901b1617610fa4565b508251610405906001600160401b0383166008611022565b60408051808201909152606081525f6020820152610f9d838384516110a4565b9392505050565b60408051808201909152606081525f60208201528251515f610fc78260016117cd565b905084602001518210610fe857610fe885610fe3836002611812565b611170565b8451602083820101858153508051821115611001578181525b5093949350505050565b815161043e90601f611fe0600585901b1617610fa4565b60408051808201909152606081525f60208201528351515f61104482856117cd565b905085602001518111156110615761106186610fe3836002611812565b5f600161107086610100611909565b61107a91906117e0565b90508651828101878319825116178152508051831115611098578281525b50959695505050505050565b60408051808201909152606081525f602082015282518211156110c5575f80fd5b8351515f6110d384836117cd565b905085602001518111156110f0576110f086610fe3836002611812565b85518051838201602001915f9180851115611109578482525b505050602086015b6020861061114957805182526111286020836117cd565b91506111356020826117cd565b90506111426020876117e0565b9550611111565b5181515f1960208890036101000a0190811690199190911617905250849150509392505050565b815161117c8383610df0565b506104058382610f7d565b60405180604001604052806111ae6040518060400160405280606081526020015f81525090565b81526020015f81525090565b5f602082840312156111ca575f80fd5b81356001600160e01b031981168114610f9d575f80fd5b634e487b7160e01b5f52604160045260245ffd5b604051601f8201601f191681016001600160401b038111828210171561121d5761121d6111e1565b604052919050565b5f6001600160401b0383111561123d5761123d6111e1565b611250601f8401601f19166020016111f5565b9050828152838383011115611263575f80fd5b828260208301375f602084830101529392505050565b5f82601f830112611288575f80fd5b610f9d83833560208501611225565b5f805f606084860312156112a9575f80fd5b8335925060208401356001600160401b03808211156112c6575f80fd5b6112d287838801611279565b935060408601359150808211156112e7575f80fd5b506112f486828701611279565b9150509250925092565b5f6020828403121561130e575f80fd5b5035919050565b5f81518084528060208401602086015e5f602082860101526020601f19601f83011685010191505092915050565b602081525f610f9d6020830184611315565b5f8060408385031215611366575f80fd5b8235915060208301356001600160a01b0381168114611383575f80fd5b809150509250929050565b5f602080838503121561139f575f80fd5b82356001600160401b03808211156113b5575f80fd5b818501915085601f8301126113c8575f80fd5b8135818111156113da576113da6111e1565b8060051b6113e98582016111f5565b9182528381018501918581019089841115611402575f80fd5b86860192505b8383101561144f5782358581111561141e575f80fd5b8601603f81018b1361142e575f80fd5b61143f8b8983013560408401611225565b8352509186019190860190611408565b9998505050505050505050565b5f6020828403121561146c575f80fd5b813563ffffffff81168114610f9d575f80fd5b5f8060208385031215611490575f80fd5b82356001600160401b03808211156114a6575f80fd5b818501915085601f8301126114b9575f80fd5b8135818111156114c7575f80fd5b8660208285010111156114d8575f80fd5b60209290920196919550909350505050565b5f602082840312156114fa575f80fd5b81356001600160401b0381168114610f9d575f80fd5b600181811c9082168061152457607f821691505b60208210810361059157634e487b7160e01b5f52602260045260245ffd5b5f60208284031215611552575f80fd5b5051919050565b601f82111561043e57805f5260205f20601f840160051c8101602085101561157e5750805b601f840160051c820191505b8181101561159d575f815560010161158a565b5050505050565b6001600160401b038311156115bb576115bb6111e1565b6115cf836115c98354611510565b83611559565b5f601f841160018114611600575f85156115e95750838201355b5f19600387901b1c1916600186901b17835561159d565b5f83815260208120601f198716915b8281101561162f578685013582556020948501946001909201910161160f565b508682101561164b575f1960f88860031b161c19848701351681555b505060018560011b0183555050505050565b81516001600160401b03811115611676576116766111e1565b61168a816116848454611510565b84611559565b602080601f8311600181146116bd575f84156116a65750858301515b5f19600386901b1c1916600185901b178555611714565b5f85815260208120601f198616915b828110156116eb578886015182559484019460019091019084016116cc565b508582101561170857878501515f19600388901b60f8161c191681555b505060018460011b0185555b505050505050565b604081525f61172e6040830185611315565b82810360208401526117408185611315565b95945050505050565b634e487b7160e01b5f52602160045260245ffd5b634e487b7160e01b5f52603260045260245ffd5b6001600160401b038616815260a060208201525f61179260a0830187611315565b61ffff9590951660408301525063ffffffff92909216606083015260809091015292915050565b634e487b7160e01b5f52601160045260245ffd5b808201808211156102cc576102cc6117b9565b818103818111156102cc576102cc6117b9565b5f8261180d57634e487b7160e01b5f52601260045260245ffd5b500690565b80820281158282048414176102cc576102cc6117b9565b600181815b8085111561186357815f1904821115611849576118496117b9565b8085161561185657918102915b93841c939080029061182e565b509250929050565b5f82611879575060016102cc565b8161188557505f6102cc565b816001811461189b57600281146118a5576118c1565b60019150506102cc565b60ff8411156118b6576118b66117b9565b50506001821b6102cc565b5060208310610133831016604e8410600b84101617156118e4575081810a6102cc565b6118ee8383611829565b805f1904821115611901576119016117b9565b029392505050565b5f610f9d838361186b56fea2646970667358221220636981aeb999e709d3947e9963ff9f0521bb778270143348842c4cc086136d4464736f6c63430008190033",
-  "deployedBytecode": "0x608060405234801561000f575f80fd5b506004361061011c575f3560e01c806362747e42116100a9578063b1b7f3c31161006e578063b1b7f3c314610252578063d547741f14610265578063d64bd83314610278578063ea7b4f7714610280578063fc2a88c314610293575f80fd5b806362747e421461021557806378ca5de71461021d57806391d14854146102305780639492c89314610243578063a217fddf1461024b575f80fd5b80632f2ff15d116100ef5780632f2ff15d146101a257806334f7e838146101b557806336568abe146101dc5780634c8f60a3146101ef57806352d84c6214610202575f80fd5b806301ffc9a7146101205780630ca7617514610148578063248a9ca31461015d57806329f0de3f1461018d575b5f80fd5b61013361012e3660046111ba565b61029c565b60405190151581526020015b60405180910390f35b61015b610156366004611297565b6102d2565b005b61017f61016b3660046112fe565b5f9081526020819052604090206001015490565b60405190815260200161013f565b610195610355565b60405161013f9190611343565b61015b6101b0366004611355565b6103e1565b61017f7fadeaa4f6edbc569c7ea86d399ee7fdbb28dba3aac25a2732ea7eb4e659e2b73d81565b61015b6101ea366004611355565b61040b565b61017f6101fd36600461138e565b610443565b61015b61021036600461145c565b610597565b6101956105be565b61015b61022b3660046112fe565b6105cb565b61013361023e366004611355565b6105db565b61017f610603565b61017f5f81565b61015b61026036600461147f565b6106a5565b61015b610273366004611355565b6106bc565b6101956106e0565b61015b61028e3660046114ea565b6106ed565b61017f60045481565b5f6001600160e01b03198216637965db0b60e01b14806102cc57506301ffc9a760e01b6001600160e01b03198316145b92915050565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461031b5760405163c6829f8360e01b815260040160405180910390fd5b610326838383610727565b60405183907f85e1543bf2f84fe80c6badbce3648c8539ad1df4d2b3d822938ca0538be727e6905f90a2505050565b6006805461036290611510565b80601f016020809104026020016040519081016040528092919081815260200182805461038e90611510565b80156103d95780601f106103b0576101008083540402835291602001916103d9565b820191905f5260205f20905b8154815290600101906020018083116103bc57829003601f168201915b505050505081565b5f828152602081905260409020600101546103fb816107aa565b61040583836107b7565b50505050565b6001600160a01b03811633146104345760405163334bd91960e11b815260040160405180910390fd5b61043e8282610846565b505050565b5f7fadeaa4f6edbc569c7ea86d399ee7fdbb28dba3aac25a2732ea7eb4e659e2b73d61046e816107aa565b6104ac6040805160e08101909152805f81526020015f81526020015f8152602001606081526020016060815260200160608152602001606081525090565b610547600380546104bc90611510565b80601f01602080910402602001604051908101604052809291908181526020018280546104e890611510565b80156105335780601f1061050a57610100808354040283529160200191610533565b820191905f5260205f20905b81548152906001019060200180831161051657829003601f168201915b5050505050826108af90919063ffffffff16565b8351156105585761055881856108bf565b610588610564826108e8565b6002546001546001600160401b036401000000008304169163ffffffff1690610bac565b60048190559250505b50919050565b5f6105a1816107aa565b506002805463ffffffff191663ffffffff92909216919091179055565b6005805461036290611510565b5f6105d5816107aa565b50600155565b5f918252602082815260408084206001600160a01b0393909316845291905290205460ff1690565b5f6005805461061190611510565b80601f016020809104026020016040519081016040528092919081815260200182805461063d90611510565b80156106885780601f1061065f57610100808354040283529160200191610688565b820191905f5260205f20905b81548152906001019060200180831161066b57829003601f168201915b50505050508060200190518101906106a09190611542565b905090565b5f6106af816107aa565b60036104058385836115a4565b5f828152602081905260409020600101546106d6816107aa565b6104058383610846565b6003805461036290611510565b5f6106f7816107aa565b50600280546001600160401b03909216640100000000026bffffffffffffffff0000000019909216919091179055565b60045483146107515760405163878da44b60e01b8152600481018490526024015b60405180910390fd5b600561075d838261165d565b50600661076a828261165d565b50827f7873807bf6ddc50401cd3d29bbe0decee23fd4d68d273f4b5eb83cded4d2f172838360405161079d92919061171c565b60405180910390a2505050565b6107b48133610c79565b50565b5f6107c283836105db565b61083f575f838152602081815260408083206001600160a01b03861684529091529020805460ff191660011790556107f73390565b6001600160a01b0316826001600160a01b0316847f2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d60405160405180910390a45060016102cc565b505f6102cc565b5f61085183836105db565b1561083f575f838152602081815260408083206001600160a01b0386168085529252808320805460ff1916905551339286917ff6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b9190a45060016102cc565b6108bb825f8084610cb2565b5050565b80515f036108e05760405163fe936cb760e01b815260040160405180910390fd5b60a090910152565b60605f6108f6610100610d2f565b905061092f6040518060400160405280600c81526020016b31b7b232a637b1b0ba34b7b760a11b81525082610d4f90919063ffffffff16565b825161094d90600281111561094657610946611749565b8290610d68565b6040805180820190915260088152676c616e677561676560c01b6020820152610977908290610d4f565b604083015161098e90801561094657610946611749565b604080518082019091526006815265736f7572636560d01b60208201526109b6908290610d4f565b60608301516109c6908290610d4f565b60a08301515115610a51576040805180820190915260048152636172677360e01b60208201526109f7908290610d4f565b610a0081610da1565b5f5b8360a0015151811015610a4757610a3f8460a001518281518110610a2857610a2861175d565b602002602001015183610d4f90919063ffffffff16565b600101610a02565b50610a5181610dc5565b60808301515115610b14575f83602001516002811115610a7357610a73611749565b03610a915760405163a80d31f760e01b815260040160405180910390fd5b60408051808201909152600f81526e39b2b1b932ba39a637b1b0ba34b7b760891b6020820152610ac2908290610d4f565b610adb8360200151600281111561094657610946611749565b6040805180820190915260078152667365637265747360c81b6020820152610b04908290610d4f565b6080830151610b14908290610de3565b60c08301515115610ba45760408051808201909152600981526862797465734172677360b81b6020820152610b4a908290610d4f565b610b5381610da1565b5f5b8360c0015151811015610b9a57610b928460c001518281518110610b7b57610b7b61175d565b602002602001015183610de390919063ffffffff16565b600101610b55565b50610ba481610dc5565b515192915050565b5f807f00000000000000000000000000000000000000000000000000000000000000006001600160a01b031663461d27628688600188886040518663ffffffff1660e01b8152600401610c03959493929190611771565b6020604051808303815f875af1158015610c1f573d5f803e3d5ffd5b505050506040513d601f19601f82011682018060405250810190610c439190611542565b60405190915081907f1131472297a800fee664d1d89cfa8f7676ff07189ecc53f80bbb5f4969099db8905f90a295945050505050565b610c8382826105db565b6108bb5760405163e2517d3f60e01b81526001600160a01b038216600482015260248101839052604401610748565b80515f03610cd3576040516322ce3edd60e01b815260040160405180910390fd5b83836002811115610ce657610ce6611749565b90816002811115610cf957610cf9611749565b90525060408401828015610d0f57610d0f611749565b90818015610d1f57610d1f611749565b9052506060909301929092525050565b610d37611187565b8051610d439083610df0565b505f6020820152919050565b610d5c8260038351610e64565b815161043e9082610f7d565b8151610d759060c2610fa4565b506108bb8282604051602001610d8d91815260200190565b604051602081830303815290604052610de3565b610dac81600461100b565b600181602001818151610dbf91906117cd565b90525050565b610dd081600761100b565b600181602001818151610dbf91906117e0565b610d5c8260028351610e64565b60408051808201909152606081525f6020820152610e0f6020836117f3565b15610e3757610e1f6020836117f3565b610e2a9060206117e0565b610e3490836117cd565b91505b60208084018390526040518085525f8152908184010181811015610e59575f80fd5b604052509192915050565b6017816001600160401b031611610e8a5782516104059060e0600585901b168317610fa4565b60ff816001600160401b031611610eca578251610eb2906018611fe0600586901b1617610fa4565b508251610405906001600160401b0383166001611022565b61ffff816001600160401b031611610f0b578251610ef3906019611fe0600586901b1617610fa4565b508251610405906001600160401b0383166002611022565b63ffffffff816001600160401b031611610f4e578251610f3690601a611fe0600586901b1617610fa4565b508251610405906001600160401b0383166004611022565b8251610f6590601b611fe0600586901b1617610fa4565b508251610405906001600160401b0383166008611022565b60408051808201909152606081525f6020820152610f9d838384516110a4565b9392505050565b60408051808201909152606081525f60208201528251515f610fc78260016117cd565b905084602001518210610fe857610fe885610fe3836002611812565b611170565b8451602083820101858153508051821115611001578181525b5093949350505050565b815161043e90601f611fe0600585901b1617610fa4565b60408051808201909152606081525f60208201528351515f61104482856117cd565b905085602001518111156110615761106186610fe3836002611812565b5f600161107086610100611909565b61107a91906117e0565b90508651828101878319825116178152508051831115611098578281525b50959695505050505050565b60408051808201909152606081525f602082015282518211156110c5575f80fd5b8351515f6110d384836117cd565b905085602001518111156110f0576110f086610fe3836002611812565b85518051838201602001915f9180851115611109578482525b505050602086015b6020861061114957805182526111286020836117cd565b91506111356020826117cd565b90506111426020876117e0565b9550611111565b5181515f1960208890036101000a0190811690199190911617905250849150509392505050565b815161117c8383610df0565b506104058382610f7d565b60405180604001604052806111ae6040518060400160405280606081526020015f81525090565b81526020015f81525090565b5f602082840312156111ca575f80fd5b81356001600160e01b031981168114610f9d575f80fd5b634e487b7160e01b5f52604160045260245ffd5b604051601f8201601f191681016001600160401b038111828210171561121d5761121d6111e1565b604052919050565b5f6001600160401b0383111561123d5761123d6111e1565b611250601f8401601f19166020016111f5565b9050828152838383011115611263575f80fd5b828260208301375f602084830101529392505050565b5f82601f830112611288575f80fd5b610f9d83833560208501611225565b5f805f606084860312156112a9575f80fd5b8335925060208401356001600160401b03808211156112c6575f80fd5b6112d287838801611279565b935060408601359150808211156112e7575f80fd5b506112f486828701611279565b9150509250925092565b5f6020828403121561130e575f80fd5b5035919050565b5f81518084528060208401602086015e5f602082860101526020601f19601f83011685010191505092915050565b602081525f610f9d6020830184611315565b5f8060408385031215611366575f80fd5b8235915060208301356001600160a01b0381168114611383575f80fd5b809150509250929050565b5f602080838503121561139f575f80fd5b82356001600160401b03808211156113b5575f80fd5b818501915085601f8301126113c8575f80fd5b8135818111156113da576113da6111e1565b8060051b6113e98582016111f5565b9182528381018501918581019089841115611402575f80fd5b86860192505b8383101561144f5782358581111561141e575f80fd5b8601603f81018b1361142e575f80fd5b61143f8b8983013560408401611225565b8352509186019190860190611408565b9998505050505050505050565b5f6020828403121561146c575f80fd5b813563ffffffff81168114610f9d575f80fd5b5f8060208385031215611490575f80fd5b82356001600160401b03808211156114a6575f80fd5b818501915085601f8301126114b9575f80fd5b8135818111156114c7575f80fd5b8660208285010111156114d8575f80fd5b60209290920196919550909350505050565b5f602082840312156114fa575f80fd5b81356001600160401b0381168114610f9d575f80fd5b600181811c9082168061152457607f821691505b60208210810361059157634e487b7160e01b5f52602260045260245ffd5b5f60208284031215611552575f80fd5b5051919050565b601f82111561043e57805f5260205f20601f840160051c8101602085101561157e5750805b601f840160051c820191505b8181101561159d575f815560010161158a565b5050505050565b6001600160401b038311156115bb576115bb6111e1565b6115cf836115c98354611510565b83611559565b5f601f841160018114611600575f85156115e95750838201355b5f19600387901b1c1916600186901b17835561159d565b5f83815260208120601f198716915b8281101561162f578685013582556020948501946001909201910161160f565b508682101561164b575f1960f88860031b161c19848701351681555b505060018560011b0183555050505050565b81516001600160401b03811115611676576116766111e1565b61168a816116848454611510565b84611559565b602080601f8311600181146116bd575f84156116a65750858301515b5f19600386901b1c1916600185901b178555611714565b5f85815260208120601f198616915b828110156116eb578886015182559484019460019091019084016116cc565b508582101561170857878501515f19600388901b60f8161c191681555b505060018460011b0185555b505050505050565b604081525f61172e6040830185611315565b82810360208401526117408185611315565b95945050505050565b634e487b7160e01b5f52602160045260245ffd5b634e487b7160e01b5f52603260045260245ffd5b6001600160401b038616815260a060208201525f61179260a0830187611315565b61ffff9590951660408301525063ffffffff92909216606083015260809091015292915050565b634e487b7160e01b5f52601160045260245ffd5b808201808211156102cc576102cc6117b9565b818103818111156102cc576102cc6117b9565b5f8261180d57634e487b7160e01b5f52601260045260245ffd5b500690565b80820281158282048414176102cc576102cc6117b9565b600181815b8085111561186357815f1904821115611849576118496117b9565b8085161561185657918102915b93841c939080029061182e565b509250929050565b5f82611879575060016102cc565b8161188557505f6102cc565b816001811461189b57600281146118a5576118c1565b60019150506102cc565b60ff8411156118b6576118b66117b9565b50506001821b6102cc565b5060208310610133831016604e8410600b84101617156118e4575081810a6102cc565b6118ee8383611829565b805f1904821115611901576119016117b9565b029392505050565b5f610f9d838361186b56fea2646970667358221220636981aeb999e709d3947e9963ff9f0521bb778270143348842c4cc086136d4464736f6c63430008190033",
-  "devdoc": {
-    "errors": {
-      "AccessControlBadConfirmation()": [
-        {
-          "details": "The caller of a function is not the expected one. NOTE: Don't confuse with {AccessControlUnauthorizedAccount}."
-        }
-      ],
-      "AccessControlUnauthorizedAccount(address,bytes32)": [
-        {
-          "details": "The `account` is missing a role."
-        }
-      ]
-    },
-    "events": {
-      "RoleAdminChanged(bytes32,bytes32,bytes32)": {
-        "details": "Emitted when `newAdminRole` is set as ``role``'s admin role, replacing `previousAdminRole` `DEFAULT_ADMIN_ROLE` is the starting admin for all roles, despite {RoleAdminChanged} not being emitted signaling this."
-      },
-      "RoleGranted(bytes32,address,address)": {
-        "details": "Emitted when `account` is granted `role`. `sender` is the account that originated the contract call, an admin role bearer except when using {AccessControl-_setupRole}."
-      },
-      "RoleRevoked(bytes32,address,address)": {
-        "details": "Emitted when `account` is revoked `role`. `sender` is the account that originated the contract call:   - if using `revokeRole`, it is the admin role bearer   - if using `renounceRole`, it is the role bearer (i.e. `account`)"
-      }
-    },
-    "kind": "dev",
-    "methods": {
-      "constructor": {
-        "custom:oz-upgrades-unsafe-allow": "constructor",
-        "params": {
-          "_donId": "The data provider ID",
-          "_gasLimit": "The gas limit for the request",
-          "_subscriptionId": "The subscription ID",
-          "requester": "The address allowed to request the benefit multiplier. Will be the takasure contract",
-          "router": "The address of the Chainlink node"
-        }
-      },
-      "getRoleAdmin(bytes32)": {
-        "details": "Returns the admin role that controls `role`. See {grantRole} and {revokeRole}. To change a role's admin, use {_setRoleAdmin}."
-      },
-      "grantRole(bytes32,address)": {
-        "details": "Grants `role` to `account`. If `account` had not been already granted `role`, emits a {RoleGranted} event. Requirements: - the caller must have ``role``'s admin role. May emit a {RoleGranted} event."
-      },
-      "handleOracleFulfillment(bytes32,bytes,bytes)": {
-        "details": "Either response or error parameter will be set, but never both.",
-        "params": {
-          "err": "Aggregated error either from the request's source code or from the execution pipeline.",
-          "requestId": "The requestId returned by FunctionsClient.sendRequest().",
-          "response": "Aggregated response from the request's source code."
-        }
-      },
-      "hasRole(bytes32,address)": {
-        "details": "Returns `true` if `account` has been granted `role`."
-      },
-      "renounceRole(bytes32,address)": {
-        "details": "Revokes `role` from the calling account. Roles are often managed via {grantRole} and {revokeRole}: this function's purpose is to provide a mechanism for accounts to lose their privileges if they are compromised (such as when a trusted device is misplaced). If the calling account had been revoked `role`, emits a {RoleRevoked} event. Requirements: - the caller must be `callerConfirmation`. May emit a {RoleRevoked} event."
-      },
-      "revokeRole(bytes32,address)": {
-        "details": "Revokes `role` from `account`. If `account` had been granted `role`, emits a {RoleRevoked} event. Requirements: - the caller must have ``role``'s admin role. May emit a {RoleRevoked} event."
-      },
-      "sendRequest(string[])": {
-        "params": {
-          "args": "The user address to get the BM"
-        }
-      },
-      "supportsInterface(bytes4)": {
-        "details": "See {IERC165-supportsInterface}."
-      }
-    },
-    "version": 1
-  },
-  "userdoc": {
-    "kind": "user",
-    "methods": {
-      "convertResponseToUint()": {
-        "notice": "a method convert the last response to an uint256"
-      },
-      "handleOracleFulfillment(bytes32,bytes,bytes)": {
-        "notice": "Chainlink Functions response handler called by the Functions Router during fullilment from the designated transmitter node in an OCR round."
-      },
-      "sendRequest(string[])": {
-        "notice": "Send a simple request"
-      },
-      "setDonId(bytes32)": {
-        "notice": "the next set of functions are used to set the values of the contract"
-      }
-    },
-    "version": 1
-  },
-  "storageLayout": {
-    "storage": [
-      {
-        "astId": 2771,
-        "contract": "contracts/takasure/oracle/BenefitMultiplierConsumer.sol:BenefitMultiplierConsumer",
-        "label": "_roles",
-        "offset": 0,
-        "slot": "0",
-        "type": "t_mapping(t_bytes32,t_struct(RoleData)2766_storage)"
-      },
-      {
-        "astId": 7672,
-        "contract": "contracts/takasure/oracle/BenefitMultiplierConsumer.sol:BenefitMultiplierConsumer",
-        "label": "donId",
-        "offset": 0,
-        "slot": "1",
-        "type": "t_bytes32"
-      },
-      {
-        "astId": 7674,
-        "contract": "contracts/takasure/oracle/BenefitMultiplierConsumer.sol:BenefitMultiplierConsumer",
-        "label": "gasLimit",
-        "offset": 0,
-        "slot": "2",
-        "type": "t_uint32"
-      },
-      {
-        "astId": 7676,
-        "contract": "contracts/takasure/oracle/BenefitMultiplierConsumer.sol:BenefitMultiplierConsumer",
-        "label": "subscriptionId",
-        "offset": 4,
-        "slot": "2",
-        "type": "t_uint64"
-      },
-      {
-        "astId": 7678,
-        "contract": "contracts/takasure/oracle/BenefitMultiplierConsumer.sol:BenefitMultiplierConsumer",
-        "label": "bmSourceRequestCode",
-        "offset": 0,
-        "slot": "3",
-        "type": "t_string_storage"
-      },
-      {
-        "astId": 7680,
-        "contract": "contracts/takasure/oracle/BenefitMultiplierConsumer.sol:BenefitMultiplierConsumer",
-        "label": "lastRequestId",
-        "offset": 0,
-        "slot": "4",
-        "type": "t_bytes32"
-      },
-      {
-        "astId": 7682,
-        "contract": "contracts/takasure/oracle/BenefitMultiplierConsumer.sol:BenefitMultiplierConsumer",
-        "label": "lastResponse",
-        "offset": 0,
-        "slot": "5",
-        "type": "t_bytes_storage"
-      },
-      {
-        "astId": 7684,
-        "contract": "contracts/takasure/oracle/BenefitMultiplierConsumer.sol:BenefitMultiplierConsumer",
-        "label": "lastError",
-        "offset": 0,
-        "slot": "6",
-        "type": "t_bytes_storage"
-      }
-    ],
-    "types": {
-      "t_address": {
-        "encoding": "inplace",
-        "label": "address",
-        "numberOfBytes": "20"
-      },
-      "t_bool": {
-        "encoding": "inplace",
-        "label": "bool",
-        "numberOfBytes": "1"
-      },
-      "t_bytes32": {
-        "encoding": "inplace",
-        "label": "bytes32",
-        "numberOfBytes": "32"
-      },
-      "t_bytes_storage": {
-        "encoding": "bytes",
-        "label": "bytes",
-        "numberOfBytes": "32"
-      },
-      "t_mapping(t_address,t_bool)": {
-        "encoding": "mapping",
-        "key": "t_address",
-        "label": "mapping(address => bool)",
-        "numberOfBytes": "32",
-        "value": "t_bool"
-      },
-      "t_mapping(t_bytes32,t_struct(RoleData)2766_storage)": {
-        "encoding": "mapping",
-        "key": "t_bytes32",
-        "label": "mapping(bytes32 => struct AccessControl.RoleData)",
-        "numberOfBytes": "32",
-        "value": "t_struct(RoleData)2766_storage"
-      },
-      "t_string_storage": {
-        "encoding": "bytes",
-        "label": "string",
-        "numberOfBytes": "32"
-      },
-      "t_struct(RoleData)2766_storage": {
-        "encoding": "inplace",
-        "label": "struct AccessControl.RoleData",
-        "members": [
-          {
-            "astId": 2763,
-            "contract": "contracts/takasure/oracle/BenefitMultiplierConsumer.sol:BenefitMultiplierConsumer",
-            "label": "hasRole",
-            "offset": 0,
-            "slot": "0",
-            "type": "t_mapping(t_address,t_bool)"
-          },
-          {
-            "astId": 2765,
-            "contract": "contracts/takasure/oracle/BenefitMultiplierConsumer.sol:BenefitMultiplierConsumer",
-            "label": "adminRole",
-            "offset": 0,
-            "slot": "1",
-            "type": "t_bytes32"
-          }
-        ],
-        "numberOfBytes": "64"
-      },
-      "t_uint32": {
-        "encoding": "inplace",
-        "label": "uint32",
-        "numberOfBytes": "4"
-      },
-      "t_uint64": {
-        "encoding": "inplace",
-        "label": "uint64",
-        "numberOfBytes": "8"
-      }
-    }
-  }
+]
 }
