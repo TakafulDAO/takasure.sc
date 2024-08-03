@@ -54,14 +54,18 @@ request-bm:
 add-bm-fetch-code:
 	@forge script scripts/contract-interactions/bmConsumer/AddBmFetchCode.s.sol:AddBmFetchCode $(NETWORK_ARGS)
 
+# Interactions with USDC
+approve-spender:
+	@forge script scripts/contract-interactions/usdc/ApproveSpender.s.sol:ApproveSpender $(NETWORK_ARGS)
+
 # Interactions with Takasure Contract
 # Add a new BM Oracle Consumer
 add-bm-consumer:
 	@forge script scripts/contract-interactions/takasure/AddBmOracleConsumer.s.sol:AddBmOracleConsumer $(NETWORK_ARGS)
 
-# Interactions with USDC
-approve-spender:
-	@forge script scripts/contract-interactions/usdc/ApproveSpender.s.sol:ApproveSpender $(NETWORK_ARGS)
+# Join pool
+join-pool:
+	@forge script scripts/contract-interactions/takasure/JoinPool.s.sol:JoinPool $(NETWORK_ARGS)
 	
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
