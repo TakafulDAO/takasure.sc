@@ -18,16 +18,19 @@ console.log("Waiting for response...")
 // Execute the API request (Promise)
 const bmResponse = await bmRequest
 if (bmResponse.error) {
-    return Functions.encodeUint256(0)
+    console.error(bmResponse.error)
 }
 
-const data = bmResponse["data"]
+console.log("Response received from BM API")
+console.log(bmResponse.data)
+
+const data = bmResponse.data
 if (data.Response === "Error") {
     console.error(data.Message)
     throw Error(`Functional error. Read message: ${data.Message}`)
 }
 
-const bm = data["BenefitMultiplier"]
-console.log(`${userAddress} bm is: ${bm}`)
+console.log(`${userAddress} bm is: ${data}`)
+const bm = data * 100
 
 return Functions.encodeUint256(bm)

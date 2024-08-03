@@ -9,14 +9,13 @@ const {
     decodeResult,
     FulfillmentCode,
 } = require("@chainlink/functions-toolkit")
-const functionsConsumerAbi = require("./utils/computationContractAbi.json")
 const { ethers } = require("ethers")
 require("dotenv").config()
 const {
-    bmConsumerJsonSepolia,
+    abi,
+    address,
 } = require("../../deployments/testnet_arbitrum_sepolia/BenefitMultiplierConsumer.json")
 
-const consumerAddressSepolia = bmConsumerJsonSepolia["address"]
 const subscriptionId = 123
 
 const makeRequest = async () => {
@@ -27,9 +26,9 @@ const makeRequest = async () => {
     const explorerUrl = "https://sepolia.arbiscan.io/"
 
     // Initialize functions settings
-    const source = fs.readFileSync(path.resolve(__dirname, "addElements.js")).toString()
+    const source = fs.readFileSync(path.resolve(__dirname, "bmFetchCode.js")).toString()
 
-    const args = []
+    const args = ["0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1"]
     const gasLimit = 300000
 
     // Initialize ethers signer and provider to interact with the contracts onchain
@@ -42,10 +41,7 @@ const makeRequest = async () => {
 
     const provider = new ethers.providers.JsonRpcProvider(rpcUrl)
 
-    // const wallet = new ethers.Wallet(privateKey)
     const signer = new ethers.Wallet(privateKey, provider) // create ethers signer for signing transactions
-
-    // const signer = wallet.connect(provider) // create ethers signer for signing transactions
 
     ///////// START SIMULATION ////////////
 
@@ -98,28 +94,20 @@ const makeRequest = async () => {
         `Fulfillment cost estimated to ${ethers.utils.formatEther(estimatedCostInJuels)} LINK`,
     )
 
-    //////// MAKE REQUEST ////////
+    // Uncomment the following code to make the actual request
+
+    // ////// MAKE REQUEST ////////
 
     // console.log("\nMake request...")
 
-    // const functionsConsumer = new ethers.Contract(consumerAddress, functionsConsumerAbi, signer)
+    // const functionsConsumer = new ethers.Contract(address, abi, signer)
 
     // // Actual transaction call
-    // const transaction = await functionsConsumer.sendRequest(
-    //     source, // source
-    //     "0x", // user hosted secrets - encryptedSecretsUrls
-    //     0, // don hosted secrets - slot ID
-    //     0, // don hosted secrets - version
-    //     args,
-    //     [], // bytesArgs - arguments can be encoded off-chain to bytes.
-    //     subscriptionId,
-    //     gasLimit,
-    //     ethers.utils.formatBytes32String(donId) // jobId is bytes32 representation of donId
-    // )
+    // const transaction = await functionsConsumer.sendRequest(args)
 
     // // Log transaction details
     // console.log(
-    //     `\n✅ Functions request sent! Transaction hash ${transaction.hash}. Waiting for a response...`
+    //     `\n✅ Functions request sent! Transaction hash ${transaction.hash}. Waiting for a response...`,
     // )
 
     // console.log(`See your request in the explorer ${explorerUrl}/tx/${transaction.hash}`)
@@ -148,27 +136,27 @@ const makeRequest = async () => {
     //                 `\n✅ Request ${
     //                     response.requestId
     //                 } successfully fulfilled. Cost is ${ethers.utils.formatEther(
-    //                     response.totalCostInJuels
+    //                     response.totalCostInJuels,
     //                 )} LINK.Complete reponse: `,
-    //                 response
+    //                 response,
     //             )
     //         } else if (fulfillmentCode === FulfillmentCode.USER_CALLBACK_ERROR) {
     //             console.log(
     //                 `\n⚠️ Request ${
     //                     response.requestId
     //                 } fulfilled. However, the consumer contract callback failed. Cost is ${ethers.utils.formatEther(
-    //                     response.totalCostInJuels
+    //                     response.totalCostInJuels,
     //                 )} LINK.Complete reponse: `,
-    //                 response
+    //                 response,
     //             )
     //         } else {
     //             console.log(
     //                 `\n❌ Request ${
     //                     response.requestId
     //                 } not fulfilled. Code: ${fulfillmentCode}. Cost is ${ethers.utils.formatEther(
-    //                     response.totalCostInJuels
+    //                     response.totalCostInJuels,
     //                 )} LINK.Complete reponse: `,
-    //                 response
+    //                 response,
     //             )
     //         }
 
@@ -180,7 +168,7 @@ const makeRequest = async () => {
     //             if (ethers.utils.arrayify(responseBytesHexstring).length > 0) {
     //                 const decodedResponse = decodeResult(
     //                     response.responseBytesHexstring,
-    //                     ReturnType.uint256
+    //                     ReturnType.uint256,
     //                 )
     //                 console.log(`\n✅ Decoded response to ${ReturnType.uint256}: `, decodedResponse)
     //             }
