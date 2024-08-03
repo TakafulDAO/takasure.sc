@@ -42,6 +42,10 @@ deploy-takasure:
 	@forge clean
 	@forge script deploy/02-DeployTokenAndPool.s.sol:DeployTokenAndPool $(NETWORK_ARGS)
 
+upgrade-takasure:
+	@forge clean
+	@forge script deploy/03-UpgradeTakasure.s.sol:UpgradeTakasure $(NETWORK_ARGS)
+
 # Interactions with BenefitMultiplierConsumer Contract
 # Add a new BM Requester
 add-bm-requester:
