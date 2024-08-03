@@ -16,7 +16,14 @@ contract JoinPool is Script, GetContractAddress {
 
         console2.log("Joining Takasure Pool...");
 
-        takasurePool.joinPool(CONTRIBUTION_AMOUNT, MEMBERSHIP_DURATION);
+        // takasurePool.joinPool(CONTRIBUTION_AMOUNT, MEMBERSHIP_DURATION, {gas: 2000000});
+        (bool success, ) = takasureAddress.call{gas: 4_000_000}(
+            abi.encodeWithSelector(
+                takasurePool.joinPool.selector,
+                CONTRIBUTION_AMOUNT,
+                MEMBERSHIP_DURATION
+            )
+        );
 
         console2.log("Joined");
 
