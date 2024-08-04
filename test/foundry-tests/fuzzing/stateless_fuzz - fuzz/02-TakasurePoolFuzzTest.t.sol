@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {HelperConfig} from "scripts/foundry-deploy/HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {IUSDC} from "contracts/mocks/IUSDCmock.sol";
@@ -12,7 +13,9 @@ contract TakasurePoolFuzzTest is Test {
     DeployTokenAndPool deployer;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
+    HelperConfig config;
     address contributionTokenAddress;
+    address admin;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -24,7 +27,9 @@ contract TakasurePoolFuzzTest is Test {
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
-        (, proxy, , contributionTokenAddress, ) = deployer.run();
+        (, proxy, , contributionTokenAddress, config) = deployer.run();
+
+        (, , , admin) = config.activeNetworkConfig();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -36,14 +41,14 @@ contract TakasurePoolFuzzTest is Test {
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
     }
 
-    function test_fuzz_ownerCanSetKycstatus(address notOwner) public {
+    function test_fuzz_ownerCanSetKycstatus(address notAdmin) public {
         // The input address must not be the same as the takasurePool address
-        vm.assume(notOwner != takasurePool.owner());
+        vm.assume(notAdmin != admin);
 
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        vm.prank(notOwner);
+        vm.prank(notAdmin);
         vm.expectRevert();
         takasurePool.setKYCStatus(alice);
     }

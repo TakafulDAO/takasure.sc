@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {HelperConfig} from "scripts/foundry-deploy/HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -14,6 +15,8 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
+    HelperConfig config;
+    address admin;
     address contributionTokenAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -24,7 +27,9 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
-        (, proxy, , contributionTokenAddress, ) = deployer.run();
+        (, proxy, , contributionTokenAddress, config) = deployer.run();
+
+        (, , , admin) = config.activeNetworkConfig();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -40,7 +45,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_setNewServiceFeeToNewValue() public {
         uint8 newServiceFee = 35;
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         vm.expectEmit(true, false, false, false, address(takasurePool));
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
         takasurePool.setNewServiceFee(newServiceFee);
@@ -54,7 +59,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_setNewMinimumThreshold() public {
         uint256 newThreshold = 50e6;
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setNewMinimumThreshold(newThreshold);
 
         assertEq(newThreshold, takasurePool.minimumThreshold());
@@ -62,7 +67,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test the owner can set a new contribution token
     function testTakasurePool_setNewContributionToken() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setNewContributionToken(alice);
 
         assertEq(alice, takasurePool.getContributionTokenAddress());
@@ -70,7 +75,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test the owner can set a new service claim address
     function testTakasurePool_cansetNewServiceClaimAddress() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setNewFeeClaimAddress(alice);
 
         assertEq(alice, takasurePool.feeClaimAddress());
@@ -78,7 +83,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test the owner can set custom duration
     function testTakasurePool_setAllowCustomDuration() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setAllowCustomDuration(true);
 
         assertEq(true, takasurePool.allowCustomDuration());
@@ -87,7 +92,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_setKYCstatus() public {
         bool getMemberKYCstatusBefore = takasurePool.getMemberKYCStatus(alice);
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         vm.expectEmit(true, false, false, false, address(takasurePool));
         emit TakasureEvents.OnMemberKycVerified(1, alice);
         takasurePool.setKYCStatus(alice);

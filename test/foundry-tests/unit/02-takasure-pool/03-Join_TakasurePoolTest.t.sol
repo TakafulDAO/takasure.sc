@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {HelperConfig} from "scripts/foundry-deploy/HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -14,6 +15,8 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
+    HelperConfig config;
+    address admin;
     address contributionTokenAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -25,7 +28,9 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
-        (, proxy, , contributionTokenAddress, ) = deployer.run();
+        (, proxy, , contributionTokenAddress, config) = deployer.run();
+
+        (, , , admin) = config.activeNetworkConfig();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -58,7 +63,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         vm.stopPrank();
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         (, , , uint256 totalContributions, , , , , , , , ) = takasurePool.getReserveValues();
@@ -87,7 +92,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     }
 
     modifier aliceKYCAndJoin() {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         vm.prank(alice);
@@ -104,7 +109,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test the membership custom duration
     function testTakasurePool_customMembershipDuration() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setAllowCustomDuration(true);
 
         vm.prank(alice);
@@ -138,7 +143,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     }
 
     modifier bobKYCAndJoin() {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(bob);
 
         vm.prank(bob);
@@ -165,7 +170,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     //////////////////////////////////////////////////////////////*/
     /// @dev Pro formas updated when a member joins
     function testTakasurePool_proFormasUpdatedOnMemberJoined() public aliceKYCAndJoin {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(bob);
 
         (
@@ -213,7 +218,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         (uint256 initialDRR, uint256 currentDRR, , , , , , , , , , ) = takasurePool
             .getReserveValues();
 
-        vm.startPrank(takasurePool.owner());
+        vm.startPrank(admin);
 
         takasurePool.setKYCStatus(alice);
         takasurePool.setKYCStatus(bob);
@@ -247,7 +252,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_bmaCalculatedOnMemberJoined() public {
         (, , uint256 initialBMA, , , , , , , , , ) = takasurePool.getReserveValues();
 
-        vm.startPrank(takasurePool.owner());
+        vm.startPrank(admin);
 
         takasurePool.setKYCStatus(alice);
         takasurePool.setKYCStatus(bob);

@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {HelperConfig} from "scripts/foundry-deploy/HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -15,6 +16,8 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
+    HelperConfig config;
+    address admin;
     address contributionTokenAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -25,7 +28,9 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
-        (, proxy, , contributionTokenAddress, ) = deployer.run();
+        (, proxy, , contributionTokenAddress, config) = deployer.run();
+
+        (, , , admin) = config.activeNetworkConfig();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -38,7 +43,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
 
-        vm.startPrank(takasurePool.owner());
+        vm.startPrank(admin);
         takasurePool.setKYCStatus(alice);
         vm.stopPrank;
     }

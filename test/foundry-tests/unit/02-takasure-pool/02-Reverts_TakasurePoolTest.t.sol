@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {DeployTokenAndPool} from "scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {HelperConfig} from "scripts/foundry-deploy/HelperConfig.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -14,6 +15,8 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     DeployTokenAndPool deployer;
     TakasurePool takasurePool;
     ERC1967Proxy proxy;
+    HelperConfig config;
+    address admin;
     address contributionTokenAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -24,7 +27,9 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new DeployTokenAndPool();
-        (, proxy, , contributionTokenAddress, ) = deployer.run();
+        (, proxy, , contributionTokenAddress, config) = deployer.run();
+
+        (, , , admin) = config.activeNetworkConfig();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -50,7 +55,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev `setNewServiceFee` must revert if it is higher than 35
     function testTakasurePool_setNewServiceFeeMustRevertIfHigherThan35() public {
         uint8 newServiceFee = 36;
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         vm.expectRevert(TakasureErrors.TakasurePool__WrongServiceFee.selector);
         takasurePool.setNewServiceFee(newServiceFee);
     }
@@ -72,7 +77,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `setNewContributionToken` must revert if the address is zero
     function testTakasurePool_setNewContributionTokenMustRevertIfAddressZero() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
         takasurePool.setNewContributionToken(address(0));
     }
@@ -86,7 +91,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `setNewFeeClaimAddress` must revert if the address is zero
     function testTakasurePool_setNewFeeClaimAddressMustRevertIfAddressZero() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
         takasurePool.setNewFeeClaimAddress(address(0));
     }
@@ -108,7 +113,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev If it is an active member, can not join again
     function testTakasurePool_activeMembersSholdNotJoinAgain() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         vm.startPrank(alice);
@@ -123,7 +128,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `setKYCStatus` must revert if the member is address zero
     function testTakasurePool_setKYCStatusMustRevertIfMemberIsAddressZero() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
 
         vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
         takasurePool.setKYCStatus(address(0));
@@ -131,7 +136,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `setKYCStatus` must revert if the member is already KYC verified
     function testTakasurePool_setKYCStatusMustRevertIfMemberIsAlreadyKYCVerified() public {
-        vm.startPrank(takasurePool.owner());
+        vm.startPrank(admin);
         takasurePool.setKYCStatus(alice);
 
         // And tries to join again but fails
@@ -150,7 +155,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `recurringPayment` must revert if the date is invalid, a year has passed and the member has not paid
     function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidNotPaidInTime() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         vm.startPrank(alice);
@@ -169,7 +174,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `recurringPayment` must revert if the date is invalid, the membership expired
     function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidMembershipExpired() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         vm.startPrank(alice);
