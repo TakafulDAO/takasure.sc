@@ -42,6 +42,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     uint8 private dayReference; // Will count the day of the month from 1 -> 30, then resets to 1
 
     uint256 public minimumThreshold;
+    uint256 public maximumThreshold;
     uint256 public memberIdCounter;
     address public feeClaimAddress;
 
@@ -92,6 +93,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         monthReference = 1;
         dayReference = 1;
         minimumThreshold = 25e6; // 25 USDC // 6 decimals
+        maximumThreshold = 250e6; // 250 USDC // 6 decimals
 
         reserve.initialReserveRatio = 40; // 40% Default
         reserve.dynamicReserveRatio = reserve.initialReserveRatio; // Default
@@ -131,8 +133,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         if (reserve.members[msg.sender].memberState == MemberState.Active) {
             revert TakasureErrors.TakasurePool__MemberAlreadyExists();
         }
-        if (contributionBeforeFee < minimumThreshold) {
-            revert TakasureErrors.TakasurePool__ContributionBelowMinimumThreshold();
+        if (contributionBeforeFee < minimumThreshold || contributionBeforeFee > maximumThreshold) {
+            revert TakasureErrors.TakasurePool__ContributionOutOfRange();
         }
 
         // Todo: re-calculate DAO Surplus.
