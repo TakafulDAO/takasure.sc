@@ -300,6 +300,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
         minimumThreshold = newMinimumThreshold;
+
+        emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
     }
 
     function setMaximumThreshold(uint256 newMaximumThreshold) external onlyOwner {
