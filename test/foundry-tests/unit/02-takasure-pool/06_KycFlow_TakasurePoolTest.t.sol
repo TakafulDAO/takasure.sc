@@ -92,7 +92,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
             alice,
             BENEFIT_MULTIPLIER,
             CONTRIBUTION_AMOUNT,
-            ((CONTRIBUTION_AMOUNT * 20) / 100),
+            ((CONTRIBUTION_AMOUNT * 22) / 100),
             5 * YEAR,
             1
         );
@@ -154,7 +154,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
             alice,
             BENEFIT_MULTIPLIER,
             CONTRIBUTION_AMOUNT,
-            ((CONTRIBUTION_AMOUNT * 20) / 100),
+            ((CONTRIBUTION_AMOUNT * 22) / 100),
             5 * YEAR,
             1
         );
@@ -200,7 +200,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
             alice,
             BENEFIT_MULTIPLIER,
             CONTRIBUTION_AMOUNT,
-            ((CONTRIBUTION_AMOUNT * 20) / 100),
+            ((CONTRIBUTION_AMOUNT * 22) / 100),
             5 * YEAR,
             1
         );
