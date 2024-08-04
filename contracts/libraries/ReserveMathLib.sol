@@ -71,6 +71,7 @@ library ReserveMathLib {
      * @dev The dynamic reserve ratio is calculated based on the current pro forma fund reserve
      */
     function _calculateDynamicReserveRatioReserveShortfallMethod(
+        uint256 _initialReserveRatio,
         uint256 _currentDynamicReserveRatio,
         uint256 _proFormaFundReserve,
         uint256 _fundReserve,
@@ -83,7 +84,8 @@ library ReserveMathLib {
                 ((uint256(fundReserveShortfall) * 100) / _cashFlowLastPeriod);
 
             if (possibleDRR < 100) {
-                updatedDynamicReserveRatio_ = possibleDRR;
+                if (_initialReserveRatio < possibleDRR) updatedDynamicReserveRatio_ = possibleDRR;
+                else updatedDynamicReserveRatio_ = _initialReserveRatio;
             } else {
                 updatedDynamicReserveRatio_ = 100;
             }
