@@ -167,9 +167,9 @@ library ReserveMathLib {
         uint256 year = 365 days;
 
         // Time passed since the membership started
-        uint256 membersipTerm = (currentTimestamp - member.membershipStartTime) % year;
+        uint256 membershipTerm = (currentTimestamp - member.membershipStartTime) % year;
 
-        ecRes_ = ((year - membersipTerm) / year) * (claimReserveAdd);
+        ecRes_ = ((year - membershipTerm) / year) * (claimReserveAdd);
 
         // Unearned contribution reserve
         ucRes_ = claimReserveAdd - ecRes_;
