@@ -64,13 +64,13 @@ contract ReserveMathLibTest is Test {
         uint256 currentProFormaClaimReserve = 0;
         uint256 memberNetContribution = 25e6;
         uint8 serviceFee = 20;
-        uint256 initialDynamicReserveRatio = 40;
+        uint256 initialReserveRatio = 40;
 
         // math:
-        // Should be = currentProFormaClaimReserve + (memberNetContribution * (1 - serviceFee) * (1 - initialDynamicReserveRatio))
+        // Should be = currentProFormaClaimReserve + (memberNetContribution * (1 - serviceFee) * (1 - initialReserveRatio))
         // 0 + (25_000_000 * (1 - 0.2) * (1 - 0.4) = 25_000_000 * 0.8 * 0.6 = 12_000_000
 
-        // Solidity = currentProFormaClaimReserve + (memberNetContribution * (100 - serviceFee) * (100 - initialDynamicReserveRatio) / 1_000)
+        // Solidity = currentProFormaClaimReserve + (memberNetContribution * (100 - serviceFee) * (100 - initialReserveRatio) / 1_000)
         // 0 + (25_000_000 * (100 - 20) * (100 - 40) / 1_000) = 25_000_000 * 80 * 60 / 1_000 = 120_000_000_000 / 1_000 = 12_000_000
 
         uint256 expectedProFormaClaimReserve = 12e6; // 12000000
@@ -80,7 +80,7 @@ contract ReserveMathLibTest is Test {
                 currentProFormaClaimReserve,
                 memberNetContribution,
                 serviceFee,
-                initialDynamicReserveRatio
+                initialReserveRatio
             );
 
         assertEq(updatedProFormaClaimReserve, expectedProFormaClaimReserve);
@@ -90,13 +90,13 @@ contract ReserveMathLibTest is Test {
         uint256 currentProFormaClaimReserve = 10e6;
         uint256 memberNetContribution = 50e6;
         uint8 serviceFee = 20;
-        uint256 initialDynamicReserveRatio = 40;
+        uint256 initialReserveRatio = 40;
 
         // math:
-        // Should be = currentProFormaClaimReserve + (memberNetContribution * (1 - serviceFee) * (1 - initialDynamicReserveRatio))
+        // Should be = currentProFormaClaimReserve + (memberNetContribution * (1 - serviceFee) * (1 - initialReserveRatio))
         // 10_000_000 + (50_000_000 * (1 - 0.2) * (1 - 0.4) = 10_000_000 + (50_000_000 * 0.8 * 0.6) = 10_000_000 + 24_000_000 = 34_000_000
 
-        // Solidity = currentProFormaClaimReserve + (memberNetContribution * (100 - serviceFee) * (100 - initialDynamicReserveRatio) / 1_000)
+        // Solidity = currentProFormaClaimReserve + (memberNetContribution * (100 - serviceFee) * (100 - initialReserveRatio) / 1_000)
         // 10_000_000 + (50_000_000 * (100 - 20) * (100 - 40) / 1_000) = 10_000_000 + (50_000_000 * 80 * 60 / 1_000) = 10_000_000 + (240_000_000_000 / 1_000)
         // 10_000_000 + 24_000_000 = 34_000_000
 
@@ -107,7 +107,7 @@ contract ReserveMathLibTest is Test {
                 currentProFormaClaimReserve,
                 memberNetContribution,
                 serviceFee,
-                initialDynamicReserveRatio
+                initialReserveRatio
             );
 
         assertEq(updatedProFormaClaimReserve, expectedProFormaClaimReserve);
