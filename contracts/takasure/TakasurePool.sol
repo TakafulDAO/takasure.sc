@@ -12,7 +12,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITSToken} from "../interfaces/ITSToken.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import {Reserve, Member, MemberState} from "../types/TakasureTypes.sol";
 import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
@@ -22,7 +22,7 @@ import {TakasureErrors} from "../libraries/TakasureErrors.sol";
 pragma solidity 0.8.25;
 
 // todo: change OwnableUpgradeable to AccessControlUpgradeable
-contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     IERC20 private contributionToken;
     ITSToken private daoToken;
 
@@ -83,7 +83,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         notZeroAddress(_daoOperator)
     {
         __UUPSUpgradeable_init();
-        __Ownable_init(_daoOperator);
+        __AccessControl_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
 
         contributionToken = IERC20(_contributionToken);
         daoToken = ITSToken(_daoToken);
@@ -193,7 +194,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function setKYCStatus(address memberWallet) external onlyOwner {
+    function setKYCStatus(address memberWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (memberWallet == address(0)) {
             revert TakasureErrors.TakasurePool__ZeroAddress();
         }
@@ -287,7 +288,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         );
     }
 
-    function setNewServiceFee(uint8 newServiceFee) external onlyOwner {
+    function setNewServiceFee(uint8 newServiceFee) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newServiceFee > 35) {
             revert TakasureErrors.TakasurePool__WrongServiceFee();
         }
@@ -296,23 +297,27 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
     }
 
-    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
+    function setNewMinimumThreshold(
+        uint256 newMinimumThreshold
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         minimumThreshold = newMinimumThreshold;
     }
 
     function setNewContributionToken(
         address newContributionToken
-    ) external onlyOwner notZeroAddress(newContributionToken) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) notZeroAddress(newContributionToken) {
         contributionToken = IERC20(newContributionToken);
     }
 
     function setNewFeeClaimAddress(
         address newFeeClaimAddress
-    ) external onlyOwner notZeroAddress(newFeeClaimAddress) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) notZeroAddress(newFeeClaimAddress) {
         feeClaimAddress = newFeeClaimAddress;
     }
 
-    function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
+    function setAllowCustomDuration(
+        bool _allowCustomDuration
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         allowCustomDuration = _allowCustomDuration;
     }
 
@@ -780,5 +785,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }
