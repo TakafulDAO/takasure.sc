@@ -714,6 +714,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _updateDRR(uint256 _cash) internal {
         uint256 updatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
+                reserve.initialReserveRatio,
                 reserve.dynamicReserveRatio,
                 reserve.proFormaFundReserve,
                 reserve.totalFundReserve,
