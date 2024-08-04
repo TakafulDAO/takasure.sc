@@ -35,7 +35,7 @@ struct Reserve {
     uint256 proFormaFundReserve; // Used to update the dynamic reserve ratio
     uint256 proFormaClaimReserve;
     uint256 lossRatio; // Default 0
-    uint8 serviceFee; // Default 20%, max 100%
+    uint8 serviceFee; // Default 22%, max 100%
     uint8 bmaFundReserveShare; // Default 70%
     bool isOptimizerEnabled; // Default false
 }
