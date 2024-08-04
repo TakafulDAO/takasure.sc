@@ -23,6 +23,7 @@ contract ReserveMathLibFuzzTest is Test {
         uint256 fundReserve,
         uint256 cashFlowLastPeriod
     ) public view {
+        uint256 initialReserveRatio = 40;
         uint256 expectedDRR;
         currentDynamicReserveRatio = bound(currentDynamicReserveRatio, 1, 100);
         // The next three bounds are arbitrary, but they should be in the same range as the other
@@ -41,7 +42,8 @@ contract ReserveMathLibFuzzTest is Test {
                 ((uint256(fundReserveShortfall) * 100) / cashFlowLastPeriod);
 
             if (possibleDRR < 100) {
-                expectedDRR = possibleDRR;
+                if (initialReserveRatio < possibleDRR) expectedDRR = possibleDRR;
+                else expectedDRR = initialReserveRatio;
             } else {
                 expectedDRR = 100;
             }
@@ -49,6 +51,7 @@ contract ReserveMathLibFuzzTest is Test {
 
         uint256 updatedDynamicReserveRatio = reserveMathLibHarness
             .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
+                initialReserveRatio,
                 currentDynamicReserveRatio,
                 proFormaFundReserve,
                 fundReserve,

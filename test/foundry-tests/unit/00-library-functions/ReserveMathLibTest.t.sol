@@ -122,6 +122,7 @@ contract ReserveMathLibTest is Test {
         public
         view
     {
+        uint256 initialReserveRatio = 40;
         uint256 currentDynamicReserveRatio = 40;
         uint256 proFormaFundReserve = 10000000;
         uint256 fundReserve = 25000000;
@@ -132,6 +133,7 @@ contract ReserveMathLibTest is Test {
 
         uint256 updatedDynamicReserveRatio = reserveMathLibHarness
             .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
+                initialReserveRatio,
                 currentDynamicReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
@@ -146,6 +148,7 @@ contract ReserveMathLibTest is Test {
         public
         view
     {
+        uint256 initialReserveRatio = 40;
         uint256 currentDynamicReserveRatio = 40;
         uint256 proFormaFundReserve = 100000000;
         uint256 fundReserve = 25000000;
@@ -155,6 +158,7 @@ contract ReserveMathLibTest is Test {
 
         uint256 updatedDynamicReserveRatio = reserveMathLibHarness
             .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
+                initialReserveRatio,
                 currentDynamicReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
@@ -169,6 +173,7 @@ contract ReserveMathLibTest is Test {
         public
         view
     {
+        uint256 initialReserveRatio = 40;
         uint256 currentDynamicReserveRatio = 85;
         uint256 proFormaFundReserve = 257e5; // 25700000
         uint256 fundReserve = 25e6; // 25000000
@@ -193,6 +198,7 @@ contract ReserveMathLibTest is Test {
 
         uint256 updatedDynamicReserveRatio_1 = reserveMathLibHarness
             .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
+                initialReserveRatio,
                 currentDynamicReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
@@ -201,6 +207,7 @@ contract ReserveMathLibTest is Test {
 
         uint256 updatedDynamicReserveRatio_2 = reserveMathLibHarness
             .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
+                initialReserveRatio,
                 currentDynamicReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
@@ -216,6 +223,7 @@ contract ReserveMathLibTest is Test {
         public
         view
     {
+        uint256 initialReserveRatio = 40;
         uint256 currentDynamicReserveRatio = 40;
         uint256 proFormaFundReserve = 100000000;
         uint256 fundReserve = 25000000;
@@ -233,6 +241,7 @@ contract ReserveMathLibTest is Test {
 
         uint256 updatedDynamicReserveRatio = reserveMathLibHarness
             .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
+                initialReserveRatio,
                 currentDynamicReserveRatio,
                 proFormaFundReserve,
                 fundReserve,

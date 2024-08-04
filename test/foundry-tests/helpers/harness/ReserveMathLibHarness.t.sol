@@ -33,6 +33,7 @@ contract ReserveMathLibHarness {
     }
 
     function exposed__calculateDynamicReserveRatioReserveShortfallMethod(
+        uint256 initialReserveRatio,
         uint256 currentDynamicReserveRatio,
         uint256 proFormaFundReserve,
         uint256 fundReserve,
@@ -40,6 +41,7 @@ contract ReserveMathLibHarness {
     ) external pure returns (uint256 exposedUpdatedDynamicReserveRatio) {
         exposedUpdatedDynamicReserveRatio = ReserveMathLib
             ._calculateDynamicReserveRatioReserveShortfallMethod(
+                initialReserveRatio,
                 currentDynamicReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
