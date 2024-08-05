@@ -96,7 +96,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.initialReserveRatio = 40; // 40% Default
         reserve.dynamicReserveRatio = reserve.initialReserveRatio; // Default
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
-        reserve.serviceFee = 20; // 20% of the contribution amount. Default
+        reserve.serviceFee = 22; // 22% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
 
         emit TakasureEvents.OnInitialReserveValues(

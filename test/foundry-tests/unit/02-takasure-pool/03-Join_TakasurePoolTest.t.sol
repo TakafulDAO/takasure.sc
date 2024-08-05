@@ -237,8 +237,8 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         (, uint256 bobDRR, , , , , , , , , , ) = takasurePool.getReserveValues();
 
         uint256 expectedInitialDRR = 40;
-        uint256 expectedAliceDRR = 50;
-        uint256 expectedBobDRR = 61;
+        uint256 expectedAliceDRR = 51;
+        uint256 expectedBobDRR = 63;
 
         assertEq(initialDRR, expectedInitialDRR);
         assertEq(currentDRR, initialDRR);
@@ -272,7 +272,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         uint256 expectedInitialBMA = 100;
         uint256 expectedAliceBMA = 91;
-        uint256 expectedBobBMA = 88;
+        uint256 expectedBobBMA = 87;
 
         assertEq(initialBMA, expectedInitialBMA);
         assertEq(aliceBMA, expectedAliceBMA);
