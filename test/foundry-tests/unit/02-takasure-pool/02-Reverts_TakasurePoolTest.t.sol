@@ -102,7 +102,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_joinPoolMustRevertIfDepositLessThanMinimum() public {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(alice);
-        vm.expectRevert(TakasureErrors.TakasurePool__ContributionBelowMinimumThreshold.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__ContributionOutOfRange.selector);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, wrongContribution, (5 * YEAR));
     }
 
