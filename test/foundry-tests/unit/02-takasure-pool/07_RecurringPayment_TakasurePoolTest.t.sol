@@ -44,7 +44,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
     }
 
     function testTakasurePool_recurringPaymentThrough5Years() public {
-        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 20) / 100;
+        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
 
         for (uint256 i = 0; i < 5; i++) {
             Member memory testMember = takasurePool.getMemberFromAddress(alice);

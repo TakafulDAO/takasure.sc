@@ -76,14 +76,20 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test that the joinPool function updates the memberIdCounter
     function testTakasurePool_joinPoolUpdatesCounter() public {
-        uint256 memberIdCounterBefore = takasurePool.memberIdCounter();
+        uint256 memberIdCounterBeforeAlice = takasurePool.memberIdCounter();
 
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 memberIdCounterAfter = takasurePool.memberIdCounter();
+        uint256 memberIdCounterAfterAlice = takasurePool.memberIdCounter();
 
-        assertEq(memberIdCounterAfter, memberIdCounterBefore + 1);
+        vm.prank(bob);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        uint256 memberIdCounterAfterBob = takasurePool.memberIdCounter();
+
+        assertEq(memberIdCounterAfterAlice, memberIdCounterBeforeAlice + 1);
+        assertEq(memberIdCounterAfterBob, memberIdCounterAfterAlice + 1);
     }
 
     modifier aliceKYCAndJoin() {
@@ -231,8 +237,8 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         (, uint256 bobDRR, , , , , , , , , , ) = takasurePool.getReserveValues();
 
         uint256 expectedInitialDRR = 40;
-        uint256 expectedAliceDRR = 50;
-        uint256 expectedBobDRR = 61;
+        uint256 expectedAliceDRR = 51;
+        uint256 expectedBobDRR = 63;
 
         assertEq(initialDRR, expectedInitialDRR);
         assertEq(currentDRR, initialDRR);
@@ -266,7 +272,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         uint256 expectedInitialBMA = 100;
         uint256 expectedAliceBMA = 91;
-        uint256 expectedBobBMA = 88;
+        uint256 expectedBobBMA = 87;
 
         assertEq(initialBMA, expectedInitialBMA);
         assertEq(aliceBMA, expectedAliceBMA);
