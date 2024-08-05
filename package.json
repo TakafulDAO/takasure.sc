@@ -35,7 +35,6 @@
     "coverage": "yarn hardhat coverage",
     "deploy": "yarn hardhat deploy",
     "deploy:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags takasure",
-    "post-deploy:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags post-deploy",
     "upgrade:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags upgrade",
     "local": "yarn hardhat --network localhost",
     "n": "yarn hardhat node",

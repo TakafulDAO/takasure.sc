@@ -35,16 +35,21 @@ contract DeployTokenAndPool is Script {
 
         vm.startBroadcast(deployerKey);
 
-        TSToken daoToken = new TSToken();
         TakasurePool takasurePool = new TakasurePool();
         ERC1967Proxy proxy = new ERC1967Proxy(address(takasurePool), "");
 
         TakasurePool(address(proxy)).initialize(
             contributionToken,
-            address(daoToken),
             feeClaimAddress,
-            daoOperator
+            daoOperator,
+            deployerAddress,
+            "Takasure DAO Token",
+            "TST"
         );
+
+        address daoTokenAddress = TakasurePool(address(proxy)).getDaoTokenAddress();
+
+        TSToken daoToken = TSToken(daoTokenAddress);
 
         daoToken.grantRole(MINTER_ROLE, address(proxy));
         daoToken.grantRole(BURNER_ROLE, address(proxy));

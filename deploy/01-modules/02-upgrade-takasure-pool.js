@@ -1,7 +1,5 @@
 const { network, ethers, upgrades } = require("hardhat")
-const { isDevnet, networkConfig, developmentChains } = require("../../utils/_networks")
-const { getImplementationAddress } = require("@openzeppelin/upgrades-core")
-const { verify } = require("../../scripts/verify")
+const { isDevnet, networkConfig } = require("../../utils/_networks")
 
 module.exports = async ({ deployments }) => {
     const { log } = deployments
@@ -9,8 +7,9 @@ module.exports = async ({ deployments }) => {
 
     let usdc, usdcAddress
     let daoToken, daoTokenAddress, feeClaimAddress
+    let takasureProxy, takasureProxyAddress
 
-    log("02.01. Deploying TakasurePool Contract...")
+    log("01.02. Deploying TakasurePool Contract...")
 
     if (isDevnet) {
         usdc = await deployments.get("USDC")
@@ -23,27 +22,27 @@ module.exports = async ({ deployments }) => {
     daoTokenAddress = daoToken.address
     feeClaimAddress = networkConfig[chainId]["feeClaimAddress"]
     daoOperator = networkConfig[chainId]["daoOperator"]
+    takasureProxy = await deployments.get("TakasurePool")
+    takasureProxyAddress = takasureProxy.address
 
     const initArgs = [usdcAddress, daoTokenAddress, feeClaimAddress, daoOperator]
 
-    const TakasurePool = await ethers.getContractFactory("TakasurePool")
-    const takasurePool = await upgrades.deployProxy(TakasurePool, initArgs)
-    await takasurePool.waitForDeployment()
+    const TakasurePoolUpgrade = await ethers.getContractFactory("TakasurePool")
+    const takasurePoolUpgrade = await upgrades.upgradeProxy(
+        takasureProxyAddress,
+        TakasurePoolUpgrade,
+    )
 
-    takasurePoolAddress = await takasurePool.getAddress()
     const artifact = await deployments.getArtifact("TakasurePool")
-
-    log("02.01. Writing TakasurePool Contract Deployment Data...")
 
     deployments.save("TakasurePool", {
         abi: artifact.abi,
-        address: takasurePoolAddress,
+        address: takasureProxyAddress,
         bytecode: artifact.bytecode,
         deployedBytecode: artifact.deployedBytecode,
     })
 
-    log("02.01. TakasurePool Data stored in the deployments folder")
-    log("02.01. TakasurePool Contract Deployed!")
+    log("01.02. TakasurePool Contract Upgraded!")
     log("=====================================================================================")
 
     if (!developmentChains.includes(network.name) && process.env.ARBISCAN_API_KEY) {
@@ -51,13 +50,13 @@ module.exports = async ({ deployments }) => {
         const provider = new ethers.JsonRpcProvider(rpcUrl)
 
         const impleAddress = await getImplementationAddress(provider, takasurePoolAddress)
-        console.log("02.01. TakasurePool Implementation Address: ", impleAddress)
+        console.log("01.01. TakasurePool Implementation Address: ", impleAddress)
 
-        log("02.01. Verifying Implementation!... ")
+        log("01.01. Verifying Implementation!... ")
         await verify(impleAddress, [])
-        log("02.01. Implementation Verified! ")
+        log("01.01. Implementation Verified! ")
     }
     log("=======================================================")
 }
 
-module.exports.tags = ["all", "pool", "takasure"]
+module.exports.tags = ["upgrade"]
