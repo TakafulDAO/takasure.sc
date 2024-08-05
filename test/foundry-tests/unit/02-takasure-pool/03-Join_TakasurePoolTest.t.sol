@@ -76,14 +76,20 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test that the joinPool function updates the memberIdCounter
     function testTakasurePool_joinPoolUpdatesCounter() public {
-        uint256 memberIdCounterBefore = takasurePool.memberIdCounter();
+        uint256 memberIdCounterBeforeAlice = takasurePool.memberIdCounter();
 
         vm.prank(alice);
         takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 memberIdCounterAfter = takasurePool.memberIdCounter();
+        uint256 memberIdCounterAfterAlice = takasurePool.memberIdCounter();
 
-        assertEq(memberIdCounterAfter, memberIdCounterBefore + 1);
+        vm.prank(bob);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        uint256 memberIdCounterAfterBob = takasurePool.memberIdCounter();
+
+        assertEq(memberIdCounterAfterAlice, memberIdCounterBeforeAlice + 1);
+        assertEq(memberIdCounterAfterBob, memberIdCounterAfterAlice + 1);
     }
 
     modifier aliceKYCAndJoin() {

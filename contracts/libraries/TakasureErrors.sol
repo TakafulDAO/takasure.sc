@@ -18,4 +18,7 @@ library TakasureErrors {
     error TakasurePool__MemberAlreadyKYCed();
     error TakasurePool__WrongMemberState();
     error TakasurePool__InvalidDate();
+    error TakasurePool__NothingToRefund();
+    error TakasurePool__RefundFailed();
+    error TakasurePool__TooEarlytoRefund();
 }

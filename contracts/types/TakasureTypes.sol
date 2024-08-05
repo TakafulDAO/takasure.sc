@@ -21,7 +21,8 @@ struct Member {
     address wallet;
     MemberState memberState;
     uint256 surplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
-    bool isKYCVerified;
+    bool isKYCVerified; // Can not be true if isRefunded is true
+    bool isRefunded; // Can not be true if isKYCVerified is true
 }
 
 struct Reserve {
