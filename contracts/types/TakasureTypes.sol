@@ -22,7 +22,8 @@ struct Member {
     address wallet;
     MemberState memberState;
     uint256 surplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
-    bool isKYCVerified;
+    bool isKYCVerified; // Can not be true if isRefunded is true
+    bool isRefunded; // Can not be true if isKYCVerified is true
 }
 
 struct Reserve {
@@ -36,7 +37,7 @@ struct Reserve {
     uint256 proFormaFundReserve; // Used to update the dynamic reserve ratio
     uint256 proFormaClaimReserve;
     uint256 lossRatio; // Default 0
-    uint8 serviceFee; // Default 20%, max 100%
+    uint8 serviceFee; // Default 22%, max 100%
     uint8 bmaFundReserveShare; // Default 70%
     uint8 riskMultiplier; // Default to 2% // TODO: Fetch from oracle? It goes from 1.4% to 6%
     bool isOptimizerEnabled; // Default false
