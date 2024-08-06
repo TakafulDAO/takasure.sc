@@ -9,15 +9,17 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {TSToken} from "../token/TSToken.sol";
 
-import {Reserve, Member, MemberState} from "../types/TakasureTypes.sol";
-import {ReserveMathLib} from "../libraries/ReserveMathLib.sol";
-import {TakasureEvents} from "../libraries/TakasureEvents.sol";
-import {TakasureErrors} from "../libraries/TakasureErrors.sol";
+import {Reserve, Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
+import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
+import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.25;
 
@@ -25,6 +27,7 @@ pragma solidity 0.8.25;
 contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 private contributionToken;
     TSToken private daoToken;
+    IBenefitMultiplierConsumer private bmConsumer;
 
     Reserve private reserve;
 
@@ -117,7 +120,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
      *         member will be active.
-     * @param benefitMultiplier fetched from off-chain oracle
      * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
      * @dev it reverts if the contribution is less than the minimum threshold defaultes to `minimumThreshold`
@@ -126,11 +128,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      *      that the minimum contribution amount is 0.01 USDC
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
-    function joinPool(
-        uint256 benefitMultiplier,
-        uint256 contributionBeforeFee,
-        uint256 membershipDuration
-    ) external {
+    function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
         // Todo: Check the user benefit multiplier against the oracle.
         if (reserve.members[msg.sender].memberState == MemberState.Active) {
             revert TakasureErrors.TakasurePool__MemberAlreadyExists();
@@ -144,11 +142,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
         bool isRefunded = reserve.members[msg.sender].isRefunded;
 
+        uint256 benefitMultiplier = _getBenefitMultiplier(msg.sender);
+
         (
             uint256 normalizedContributionBeforeFee,
             uint256 feeAmount,
             uint256 contributionAfterFee
         ) = _calculateAmountAndFees(contributionBeforeFee);
+
+        // Fetch the BM from the oracle
 
         if (isKYCVerified) {
             // Flow 1 KYC -> Join
@@ -415,6 +417,18 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         feeClaimAddress = newFeeClaimAddress;
     }
 
+    function setNewBenefitMultiplierConsumer(
+        address newBenefitMultiplierConsumer
+    ) external onlyOwner notZeroAddress(newBenefitMultiplierConsumer) {
+        address oldBenefitMultiplierConsumer = address(bmConsumer);
+        bmConsumer = IBenefitMultiplierConsumer(newBenefitMultiplierConsumer);
+
+        emit TakasureEvents.OnBenefitMultiplierConsumerChanged(
+            newBenefitMultiplierConsumer,
+            oldBenefitMultiplierConsumer
+        );
+    }
+
     function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
         allowCustomDuration = _allowCustomDuration;
     }
@@ -478,6 +492,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function getCashLast12Months() external view returns (uint256 cash_) {
         (uint16 monthFromCall, uint8 dayFromCall) = _monthAndDayFromCall();
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
+    }
+
+    function _getBenefitMultiplier(address _member) internal returns (uint256 benefitMultiplier_) {
+        string[] memory args = new string[](1);
+        args[0] = Strings.toHexString(uint256(uint160(_member)), 20);
+        bmConsumer.sendRequest(args);
+        benefitMultiplier_ = bmConsumer.convertResponseToUint();
+        // TODO: Here we need a revert if the BM is 0, skip for now for testing purposes
     }
 
     function _calculateAmountAndFees(
