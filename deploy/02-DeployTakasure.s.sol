@@ -18,6 +18,8 @@ contract DeployTakasure is Script {
 
         vm.startBroadcast();
 
+        console2.log("Deploying TakasurePool...");
+
         proxy = Upgrades.deployUUPSProxy(
             "TakasurePool.sol",
             abi.encodeCall(
@@ -32,6 +34,8 @@ contract DeployTakasure is Script {
                 )
             )
         );
+
+        console2.log("TakasurePool deployed");
 
         vm.stopBroadcast();
 
