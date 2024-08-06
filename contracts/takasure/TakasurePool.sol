@@ -551,6 +551,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             contribution: _contributionBeforeFee,
             totalContributions: _contributionBeforeFee,
             totalServiceFee: _feeAmount,
+            creditTokensBalance: 0,
             wallet: _memberWallet,
             memberState: _memberState,
             surplus: 0, // Todo
@@ -614,15 +615,15 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     /**
      * @notice This function will update all the variables needed when a member pays the contribution
-     * @param _payContribution true -> the contribution will be paid and the credit tokens will be minted
-     *                         false -> np need to pay the contribution as it is already payed
+     * @param _payContributionAndMintTokens true -> the contribution will be paid and the credit tokens will be minted
+     *                                      false -> no need to pay the contribution as it is already payed
      */
     function _memberPaymentFlow(
         uint256 _contributionBeforeFee,
         uint256 _contributionAfterFee,
         uint256 _feeAmount,
         address _memberWallet,
-        bool _payContribution
+        bool _payContributionAndMintTokens
     ) internal {
         _updateProFormas(_contributionBeforeFee);
         _updateReserves(_contributionBeforeFee, _contributionAfterFee);
@@ -631,7 +632,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
         _mintDaoTokens(_contributionBeforeFee, _memberWallet);
-        if (_payContribution) {
+        if (_payContributionAndMintTokens) {
             _transferAmounts(_contributionAfterFee, _feeAmount, _memberWallet);
         }
     }
