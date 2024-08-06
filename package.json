@@ -10,35 +10,13 @@
     "yarn": ">=1.22"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-chai-matchers": "^2.0.6",
-    "@nomicfoundation/hardhat-ethers": "^3.0.5",
-    "@nomicfoundation/hardhat-foundry": "^1.1.1",
-    "@nomicfoundation/hardhat-verify": "^2.0.5",
-    "@openzeppelin/contracts": "^5.0.2",
-    "@openzeppelin/contracts-upgradeable": "^5.0.2",
-    "@openzeppelin/hardhat-upgrades": "^3.2.0",
-    "chai": "^4.4.1",
+    "@chainlink/functions-toolkit": "^0.2.8",
     "dotenv": "^16.4.5",
-    "ethers": "^6.11.1",
-    "hardhat": "^2.22.3",
-    "hardhat-contract-sizer": "^2.10.0",
-    "hardhat-deploy": "^0.12.4",
-    "hardhat-deploy-ethers": "^0.4.1",
-    "hardhat-gas-reporter": "^2.1.1",
+    "ethers": "^5.7.2",
     "prettier": "^3.2.5",
-    "prettier-plugin-solidity": "^1.3.1",
-    "solidity-coverage": "^0.8.12"
+    "prettier-plugin-solidity": "^1.3.1"
   },
   "scripts": {
-    "compile": "yarn hardhat compile",
-    "test": "yarn hardhat test",
-    "coverage": "yarn hardhat coverage",
-    "deploy": "yarn hardhat deploy",
-    "deploy:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags takasure",
-    "post-deploy:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags post-deploy",
-    "upgrade:sepolia": "yarn hardhat deploy --network testnet_arbitrum_sepolia --tags upgrade",
-    "local": "yarn hardhat --network localhost",
-    "n": "yarn hardhat node",
     "slither": "slither . --solc-remaps '@openzeppelin=node_modules/@openzeppelin' --exclude naming-convention,low-level-calls --buidler-ignore-compile",
     "format": "yarn prettier --write ."
   }
