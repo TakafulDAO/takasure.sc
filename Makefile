@@ -40,7 +40,7 @@ deploy-bm-consumer:
 
 deploy-takasure:
 	@forge clean
-	@forge script deploy/02-DeployTokenAndPool.s.sol:DeployTokenAndPool $(NETWORK_ARGS)
+	@forge script deploy/02-DeployTakasure.s.sol:DeployTakasure $(NETWORK_ARGS)
 
 upgrade-takasure:
 	@forge clean
