@@ -78,7 +78,6 @@ contract TokenTest is Test {
     function testToken_TakasurePoolIsMinterAndBurner() public view {
         bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
         bytes32 BURNER_ROLE = keccak256("BURNER_ROLE");
-        bytes32 DEFAULT_ADMIN_ROLE = 0x00;
 
         bool isMinter = daoToken.hasRole(MINTER_ROLE, address(takasurePool));
         bool isBurner = daoToken.hasRole(BURNER_ROLE, address(takasurePool));
