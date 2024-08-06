@@ -5,6 +5,7 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
+import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -15,8 +16,10 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
+    HelperConfig helperConfig;
     address proxy;
     address contributionTokenAddress;
+    address admin;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -28,7 +31,11 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+
+        admin = config.daoOperator;
 
         mockDeployer = new DeployConsumerMocks();
         (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
@@ -42,7 +49,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         vm.prank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
 
         vm.prank(msg.sender);
@@ -55,7 +62,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test fund and claim reserves are calculated correctly
     function testTakasurePool_fundAndClaimReserves() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
         (
             uint256 initialDynamicReserveRatio,
@@ -105,7 +112,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             vm.prank(lotOfUsers[i]);
             usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
-            vm.prank(takasurePool.owner());
+            vm.prank(admin);
             takasurePool.setKYCStatus(lotOfUsers[i]);
         }
         // Each day 10 users will join with the contribution amount
@@ -174,7 +181,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             vm.prank(lotOfUsers[i]);
             usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
-            vm.prank(takasurePool.owner());
+            vm.prank(admin);
             takasurePool.setKYCStatus(lotOfUsers[i]);
         }
 
@@ -238,7 +245,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             vm.prank(lotOfUsers[i]);
             usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
-            vm.prank(takasurePool.owner());
+            vm.prank(admin);
             takasurePool.setKYCStatus(lotOfUsers[i]);
         }
 

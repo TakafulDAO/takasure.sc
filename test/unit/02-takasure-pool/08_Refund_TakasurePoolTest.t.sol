@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -17,8 +17,10 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
+    HelperConfig helperConfig;
     address proxy;
     address contributionTokenAddress;
+    address admin;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
@@ -29,7 +31,11 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+
+        admin = config.daoOperator;
 
         mockDeployer = new DeployConsumerMocks();
         (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
@@ -37,7 +43,7 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
 
         vm.prank(msg.sender);

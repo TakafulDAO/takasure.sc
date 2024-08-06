@@ -402,7 +402,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
     }
 
-    function setMaximumThreshold(uint256 newMaximumThreshold) external onlyOwner {
+    function setMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(DEFAULT_ADMIN_ROLE) {
         maximumThreshold = newMaximumThreshold;
 
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);

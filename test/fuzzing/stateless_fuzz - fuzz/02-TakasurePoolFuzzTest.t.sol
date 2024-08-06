@@ -5,6 +5,7 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
+import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
@@ -13,8 +14,10 @@ contract TakasurePoolFuzzTest is Test {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
+    HelperConfig helperConfig;
     address proxy;
     address contributionTokenAddress;
+    address admin;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -26,7 +29,11 @@ contract TakasurePoolFuzzTest is Test {
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+
+        admin = config.daoOperator;
 
         mockDeployer = new DeployConsumerMocks();
         (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
@@ -40,7 +47,7 @@ contract TakasurePoolFuzzTest is Test {
         vm.prank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
 
         vm.prank(msg.sender);
@@ -49,7 +56,7 @@ contract TakasurePoolFuzzTest is Test {
 
     function test_fuzz_ownerCanSetKycstatus(address notOwner) public {
         // The input address must not be the same as the takasurePool address
-        vm.assume(notOwner != takasurePool.owner());
+        vm.assume(notOwner != admin);
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
