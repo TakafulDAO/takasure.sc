@@ -615,7 +615,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     /**
      * @notice This function will update all the variables needed when a member pays the contribution
-     * @param _payContributionAndMintTokens true -> the contribution will be paid and the credit tokens will be minted
+     * @param _payContribution true -> the contribution will be paid and the credit tokens will be minted
      *                                      false -> no need to pay the contribution as it is already payed
      */
     function _memberPaymentFlow(
@@ -623,7 +623,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         uint256 _contributionAfterFee,
         uint256 _feeAmount,
         address _memberWallet,
-        bool _payContributionAndMintTokens
+        bool _payContribution
     ) internal {
         _updateProFormas(_contributionBeforeFee);
         _updateReserves(_contributionBeforeFee, _contributionAfterFee);
@@ -632,7 +632,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
         _mintDaoTokens(_contributionBeforeFee, _memberWallet);
-        if (_payContributionAndMintTokens) {
+        if (_payContribution) {
             _transferAmounts(_contributionAfterFee, _feeAmount, _memberWallet);
         }
     }
@@ -895,8 +895,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal {
         // Mint needed DAO Tokens
         uint256 mintAmount = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+        reserve.members[_memberWallet].creditTokensBalance = mintAmount;
 
-        bool success = daoToken.mint(_memberWallet, mintAmount);
+        bool success = daoToken.mint(address(this), mintAmount);
         if (!success) {
             revert TakasureErrors.TakasurePool__MintFailed();
         }
