@@ -87,9 +87,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         assertEq(initialClaimReserve, 0);
         assertEq(initialFundReserve, 0);
         assertEq(finalClaimReserve, expectedFinalClaimReserve);
-        assertEq(finalClaimReserve, 12e6);
+        assertEq(finalClaimReserve, 117e5);
         assertEq(finalFundReserve, expectedFinalFundReserve);
-        assertEq(finalFundReserve, 8e6);
+        assertEq(finalFundReserve, 78e5);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -273,11 +273,11 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         }
 
         // Month 1 take 29 days => Total 580USDC
-        // Months 1 to 12 take all => Total 3580USDC
-        // Month 13 0USDC => Total 3580USDC
+        // Months 1 to 12 take all => Total 3490.5USDC
+        // Month 13 0USDC => Total 3490.5USDC
 
         cash = takasurePool.getCashLast12Months();
-        assertEq(cash, 3580e6);
+        assertEq(cash, 34905e5);
 
         // Thirteenth month 10 people joins
         for (uint256 i = 180; i < 190; i++) {
@@ -286,21 +286,21 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         }
 
         // Month 1 take 29 days => Total 580USDC
-        // Month 2 to 13 take all => Total 3780USDC
+        // Month 2 to 13 take all => Total 3685.5USDC
 
         cash = takasurePool.getCashLast12Months();
-        assertEq(cash, 3780e6);
+        assertEq(cash, 36855e5);
 
         vm.warp(block.timestamp + 30 days);
         vm.roll(block.number + 1);
 
         // Month 1 Should not count
         // Month 2 take 29 days => Total 580USDC
-        // Month 3 to 13 take all => Total 3180USDC
-        // Month 14 0USDC => Total 3180USDC
+        // Month 3 to 13 take all => Total 3100.5USDC
+        // Month 14 0USDC => Total 3100.5USDC
 
         cash = takasurePool.getCashLast12Months();
-        assertEq(cash, 3180e6);
+        assertEq(cash, 31005e5);
 
         // Fourteenth month 10 people joins
         for (uint256 i = 190; i < 200; i++) {
@@ -310,10 +310,10 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
 
         // Month 1 should not count
         // Month 2 take 29 days => Total 580USDC
-        // Month 3 to 14 take all => Total 3380USDC
+        // Month 3 to 14 take all => Total 3295.5USDC
 
         cash = takasurePool.getCashLast12Months();
-        assertEq(cash, 3380e6);
+        assertEq(cash, 32955e5);
 
         vm.warp(block.timestamp + 30 days);
         vm.roll(block.number + 1);
@@ -321,10 +321,10 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // Month 1 and 2 should not count
         // Month 3 take 29 days => Total 580USDC
         // Month 4 to 14 take all => Total 2780USDC
-        // Month 15 0USDC => Total 2780USDC
+        // Month 15 0USDC => Total 2710.5USDC
 
         cash = takasurePool.getCashLast12Months();
-        assertEq(cash, 2780e6);
+        assertEq(cash, 27105e5);
 
         // Last 2 days 2 people joins
         for (uint256 i = 200; i < 202; i++) {
@@ -337,11 +337,11 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
 
         // Month 1 and 2 should not count
         // Month 3 take 27 days => Total 540USDC
-        // Month 4 to 15 take all => Total 2780USDC
+        // Month 4 to 15 take all => Total 2710.5USDC
 
         cash = takasurePool.getCashLast12Months();
 
-        assertEq(cash, 2780e6);
+        assertEq(cash, 27105e5);
 
         // If no one joins for the next 12 months, the cash should be 0
         // As the months are counted with 30 days, the 12 months should be 360 days

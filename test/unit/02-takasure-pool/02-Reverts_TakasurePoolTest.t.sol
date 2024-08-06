@@ -113,7 +113,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_joinPoolMustRevertIfDepositLessThanMinimum() public {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(alice);
-        vm.expectRevert(TakasureErrors.TakasurePool__ContributionBelowMinimumThreshold.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__ContributionOutOfRange.selector);
         takasurePool.joinPool(wrongContribution, (5 * YEAR));
     }
 
@@ -203,5 +203,47 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.startPrank(alice);
         vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
         takasurePool.recurringPayment();
+    }
+
+    /// @dev can not refund someone already KYC verified
+    function testTakasurePool_refundRevertIfMemberIsKyc() public {
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(alice);
+
+        vm.prank(alice);
+        vm.expectRevert(TakasureErrors.TakasurePool__MemberAlreadyKYCed.selector);
+        takasurePool.refund();
+    }
+
+    /// @dev can not refund someone already refunded
+    function testTakasurePool_refundRevertIfMemberAlreadyRefunded() public {
+        vm.startPrank(alice);
+        // Join and refund
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        // 14 days passed
+        vm.warp(15 days);
+        vm.roll(block.number + 1);
+
+        takasurePool.refund();
+
+        // Try to refund again
+        vm.expectRevert(TakasureErrors.TakasurePool__NothingToRefund.selector);
+        takasurePool.refund();
+        vm.stopPrank();
+    }
+
+    /// @dev can not refund before 14 days
+    function testTakasurePool_refundRevertIfMemberRefundBefore14Days() public {
+        // Join
+        vm.startPrank(alice);
+        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
+
+        // Try to refund
+        vm.startPrank(alice);
+        vm.expectRevert(TakasureErrors.TakasurePool__TooEarlytoRefund.selector);
+        takasurePool.refund();
+        vm.stopPrank();
     }
 }
