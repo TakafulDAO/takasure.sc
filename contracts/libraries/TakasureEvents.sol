@@ -59,5 +59,8 @@ library TakasureEvents {
     event OnRefund(uint256 indexed memberId, address indexed member, uint256 indexed amount);
     event OnNewMinimumThreshold(uint256 indexed minimumThreshold);
     event OnNewMaximumThreshold(uint256 indexed maximumThreshold);
-    event OnBenefitMultiplierConsumerChanged(address indexed newBenefitMultiplierConsumer);
+    event OnBenefitMultiplierConsumerChanged(
+        address indexed newBenefitMultiplierConsumer,
+        address indexed oldBenefitMultiplierConsumer
+    );
 }

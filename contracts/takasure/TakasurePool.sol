@@ -420,9 +420,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
     ) external onlyOwner notZeroAddress(newBenefitMultiplierConsumer) {
+        address oldBenefitMultiplierConsumer = address(bmConsumer);
         bmConsumer = IBenefitMultiplierConsumer(newBenefitMultiplierConsumer);
 
-        emit TakasureEvents.OnBenefitMultiplierConsumerChanged(newBenefitMultiplierConsumer);
+        emit TakasureEvents.OnBenefitMultiplierConsumerChanged(
+            newBenefitMultiplierConsumer,
+            oldBenefitMultiplierConsumer
+        );
     }
 
     function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
