@@ -8,20 +8,15 @@ import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
-contract DeployTokenAndPool is Script {
+contract DeployTakasure is Script {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
-    function run()
-        external
-        returns (TSToken, address proxy, address contributionTokenAddress, HelperConfig)
-    {
+    function run() external returns (address proxy) {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         vm.startBroadcast();
-
-        TSToken daoToken = new TSToken();
 
         proxy = Upgrades.deployUUPSProxy(
             "TakasurePool.sol",
@@ -29,25 +24,17 @@ contract DeployTokenAndPool is Script {
                 TakasurePool.initialize,
                 (
                     config.contributionToken,
-                    address(daoToken),
                     config.feeClaimAddress,
-                    config.daoOperator
+                    config.daoOperator,
+                    config.tokenAdmin,
+                    config.tokenName,
+                    config.tokenSymbol
                 )
             )
         );
 
-        TakasurePool takasurePool = TakasurePool(proxy);
-
-        daoToken.grantRole(MINTER_ROLE, proxy);
-        daoToken.grantRole(BURNER_ROLE, proxy);
-
-        bytes32 adminRole = daoToken.DEFAULT_ADMIN_ROLE();
-        daoToken.grantRole(adminRole, config.daoOperator);
-        // daoToken.revokeRole(adminRole, msg.sender);
-
         vm.stopBroadcast();
 
-        contributionTokenAddress = takasurePool.getContributionTokenAddress();
-        return (daoToken, proxy, contributionTokenAddress, helperConfig);
+        return (proxy);
     }
 }
