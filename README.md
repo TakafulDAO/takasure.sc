@@ -43,32 +43,26 @@ To view the testnet and mainnet deployments, check out the tags under this repo.
 git clone https://github.com/TakafulDAO/takasure.sc
 cd takasure.sc
 yarn install
-forge install
-forge build
+make all
 ```
 
 2. Create a .env file with the variables explained on the next section. You can also check the `.env.example` file
 
 ### env
-1. Private keys. For development purposes, this three private keys can be the same
-    + DEPLOYER_PK
-    + ARBITRUM_MAINNET_DEPLOYER_PK
+1. Private keys. For development purposes, this is used only in the script to check the chainlink functions script
     + TESTNET_DEPLOYER_PK
-2. Deployers address. Address of the private keys above. As explained before for development purposes, this addresses can be the same
-    + DEPLOYER_ADDRESS
+2. Deployers addresses
+    + MAINNET_DEPLOYER_ADDRESS
     + TESTNET_DEPLOYER_ADDRESS
 3. Mainnet RPC URL
     + ARBITRUM_MAINNET_RPC_URL
 4. Testnet RPC_URL
- + ARBITRUM_TESTNET_SEPOLIA_RPC_URL
+    + ARBITRUM_TESTNET_SEPOLIA_RPC_URL
 5. Scans api keys. [here](https://docs.arbiscan.io/getting-started/viewing-api-usage-statistics)
     + ARBISCAN_API_KEY
-6. Price feeds api keys. You can get it [here](https://coinmarketcap.com/api/)
-    + COINMARKETCAP_API_KEY=
-7. Features. Especial features for tests
-    + FORK= true to fork arbitrum mainnet. Most of the tests require this to be set to true
-    + GAS_REPORT= true to get gas report on the output file
-    + SIZE= true to get contract's size report when compile
+6. Accounts. This are the names of the accounts encripted with `cast wallet import`
+    + MAINNET_ACCOUNT=
+    + TESTNET_ACCOUNT=
 
 > [!CAUTION]
 > Never expose private keys with real funds
@@ -77,23 +71,15 @@ forge build
 
 ### Compile
 
-Use `yarn compile` or `forge build`
-
-> [!TIP]
-> `forge build` will compile the contracts inside the contracts and test folder. Use it if you change the tests
+Use `forge build` or `make build`
 
 ### Testing
 
-- Use `yarn test` to run hardhat tests
-- Use `forge test` to run foundry tests
-- Use `make test` to run both
-- Use `forge coverage` to get the coverage report
+Use `forge test` or `make test`
+Use `forge coverage --ir-minimum` to get the coverage report
 
 > [!TIP]
 > To run a specific test use `forge test --mt <TEST_NAME>`
-
-> [!NOTE]
-> The deployments are managed by hardhat. So the hardhat test check all the initializations and the foundry tests check the contract's logic
 
 >[!NOTE]
 > Some formal verification is made in this repo. Follow the instructions in the README file in the `certora` folder
