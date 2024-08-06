@@ -3,7 +3,7 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTokenAndPool} from "test/utils/TestDeployTokenAndPool.s.sol";
+import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
@@ -13,7 +13,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
-    TestDeployTokenAndPool deployer;
+    TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     address proxy;
@@ -26,7 +26,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new TestDeployTokenAndPool();
+        deployer = new TestDeployTakasure();
         (, proxy, contributionTokenAddress, ) = deployer.run();
 
         mockDeployer = new DeployConsumerMocks();

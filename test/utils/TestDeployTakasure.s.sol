@@ -8,7 +8,7 @@ import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
-contract TestDeployTokenAndPool is Script {
+contract TestDeployTakasure is Script {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
@@ -21,8 +21,6 @@ contract TestDeployTokenAndPool is Script {
 
         vm.startBroadcast();
 
-        TSToken daoToken = new TSToken();
-
         address implementation = address(new TakasurePool());
         proxy = UnsafeUpgrades.deployUUPSProxy(
             implementation,
@@ -30,21 +28,20 @@ contract TestDeployTokenAndPool is Script {
                 TakasurePool.initialize,
                 (
                     config.contributionToken,
-                    address(daoToken),
                     config.feeClaimAddress,
-                    config.daoOperator
+                    config.daoOperator,
+                    config.tokenAdmin,
+                    config.tokenName,
+                    config.tokenSymbol
                 )
             )
         );
 
         TakasurePool takasurePool = TakasurePool(proxy);
 
-        daoToken.grantRole(MINTER_ROLE, proxy);
-        daoToken.grantRole(BURNER_ROLE, proxy);
+        address daoTokenAddress = takasurePool.getDaoTokenAddress();
 
-        bytes32 adminRole = daoToken.DEFAULT_ADMIN_ROLE();
-        daoToken.grantRole(adminRole, config.daoOperator);
-        daoToken.revokeRole(adminRole, msg.sender);
+        TSToken daoToken = TSToken(daoTokenAddress);
 
         vm.stopBroadcast();
 

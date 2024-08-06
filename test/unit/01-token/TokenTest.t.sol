@@ -2,13 +2,13 @@
 
 pragma solidity 0.8.25;
 
-import {Test, console} from "forge-std/Test.sol";
-import {TestDeployTokenAndPool} from "test/utils/TestDeployTokenAndPool.s.sol";
+import {Test, console2} from "forge-std/Test.sol";
+import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 
 contract TokenTest is Test {
-    TestDeployTokenAndPool deployer;
+    TestDeployTakasure deployer;
     TSToken daoToken;
     TakasurePool takasurePool;
     address proxy;
@@ -22,7 +22,7 @@ contract TokenTest is Test {
     event OnTokenBurned(address indexed from, uint256 indexed amount);
 
     function setUp() public {
-        deployer = new TestDeployTokenAndPool();
+        deployer = new TestDeployTakasure();
         (daoToken, proxy, , ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
@@ -78,6 +78,7 @@ contract TokenTest is Test {
     function testToken_TakasurePoolIsMinterAndBurner() public view {
         bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
         bytes32 BURNER_ROLE = keccak256("BURNER_ROLE");
+        bytes32 DEFAULT_ADMIN_ROLE = 0x00;
 
         bool isMinter = daoToken.hasRole(MINTER_ROLE, address(takasurePool));
         bool isBurner = daoToken.hasRole(BURNER_ROLE, address(takasurePool));

@@ -3,18 +3,21 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {DeployTokenAndPool} from "../../../../scripts/foundry-deploy/DeployTokenAndPool.s.sol";
+import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
+import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {TakasurePool} from "../../../../contracts/takasure/TakasurePool.sol";
+import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "../../../../contracts/types/TakasureTypes.sol";
-import {IUSDC} from "../../../../contracts/mocks/IUSDCmock.sol";
-import {TakasureEvents} from "../../../../contracts/libraries/TakasureEvents.sol";
+import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract Refund_TakasurePoolTest is StdCheats, Test {
-    DeployTokenAndPool deployer;
+    TestDeployTakasure deployer;
+    DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
-    ERC1967Proxy proxy;
+    address proxy;
     address contributionTokenAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -25,11 +28,20 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new DeployTokenAndPool();
-        (, proxy, , contributionTokenAddress, ) = deployer.run();
+        deployer = new TestDeployTakasure();
+        (, proxy, contributionTokenAddress, ) = deployer.run();
+
+        mockDeployer = new DeployConsumerMocks();
+        (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
+
+        vm.prank(takasurePool.owner());
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
+
+        vm.prank(msg.sender);
+        bmConsumerSuccess.setNewRequester(address(takasurePool));
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
@@ -37,7 +49,7 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
 
         vm.startPrank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
 
         vm.startPrank(bob);
@@ -84,11 +96,11 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
         Member memory aliceAfterRefund = takasurePool.getMemberFromAddress(alice);
 
         vm.startPrank(bob);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         Member memory aliceAfterSecondJoin = takasurePool.getMemberFromAddress(alice);

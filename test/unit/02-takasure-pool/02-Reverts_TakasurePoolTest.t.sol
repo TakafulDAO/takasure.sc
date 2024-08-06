@@ -3,7 +3,7 @@
 pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
-import {TestDeployTokenAndPool} from "test/utils/TestDeployTokenAndPool.s.sol";
+import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
@@ -12,7 +12,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 
 contract Reverts_TakasurePoolTest is StdCheats, Test {
-    TestDeployTokenAndPool deployer;
+    TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     address proxy;
@@ -25,7 +25,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new TestDeployTokenAndPool();
+        deployer = new TestDeployTakasure();
         (, proxy, contributionTokenAddress, ) = deployer.run();
 
         mockDeployer = new DeployConsumerMocks();
@@ -219,7 +219,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_refundRevertIfMemberAlreadyRefunded() public {
         vm.startPrank(alice);
         // Join and refund
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // 14 days passed
         vm.warp(15 days);
@@ -237,7 +237,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_refundRevertIfMemberRefundBefore14Days() public {
         // Join
         vm.startPrank(alice);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         // Try to refund

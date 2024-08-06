@@ -3,7 +3,7 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTokenAndPool} from "test/utils/TestDeployTokenAndPool.s.sol";
+import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
@@ -12,7 +12,7 @@ import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract Join_TakasurePoolTest is StdCheats, Test {
-    TestDeployTokenAndPool deployer;
+    TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     address proxy;
@@ -26,7 +26,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new TestDeployTokenAndPool();
+        deployer = new TestDeployTakasure();
         (, proxy, contributionTokenAddress, ) = deployer.run();
 
         mockDeployer = new DeployConsumerMocks();
@@ -95,7 +95,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         uint256 memberIdCounterAfterAlice = takasurePool.memberIdCounter();
 
         vm.prank(bob);
-        takasurePool.joinPool(BENEFIT_MULTIPLIER, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 memberIdCounterAfterBob = takasurePool.memberIdCounter();
 

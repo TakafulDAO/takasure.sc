@@ -3,13 +3,13 @@
 pragma solidity 0.8.25;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {TestDeployTokenAndPool} from "test/utils/TestDeployTokenAndPool.s.sol";
+import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {TakasurePoolHandler} from "../../helpers/handlers/TakasurePoolHandler.t.sol";
+import {TakasurePoolHandler} from "test/helpers/handlers/TakasurePoolHandler.t.sol";
 
 contract TakasurePoolInvariantTest is StdInvariant, Test {
-    TestDeployTokenAndPool deployer;
+    TestDeployTakasure deployer;
     TakasurePool takasurePool;
     address proxy;
     TakasurePoolHandler handler;
@@ -19,7 +19,7 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
 
     function setUp() public {
-        deployer = new TestDeployTokenAndPool();
+        deployer = new TestDeployTakasure();
         (, proxy, contributionTokenAddress, ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));

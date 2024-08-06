@@ -3,12 +3,12 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTokenAndPool} from "test/utils/TestDeployTokenAndPool.s.sol";
+import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 
 contract TokenFuzzTest is Test {
-    TestDeployTokenAndPool deployer;
+    TestDeployTakasure deployer;
     TSToken daoToken;
     TakasurePool takasurePool;
     address proxy;
@@ -17,7 +17,7 @@ contract TokenFuzzTest is Test {
     uint256 public constant MINT_AMOUNT = 1 ether;
 
     function setUp() public {
-        deployer = new TestDeployTokenAndPool();
+        deployer = new TestDeployTakasure();
         (daoToken, proxy, , ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
