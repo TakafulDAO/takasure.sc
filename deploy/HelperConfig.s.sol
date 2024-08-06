@@ -29,6 +29,12 @@ abstract contract CodeConstants {
         address sepolia;
     }
 
+    struct TokenAdmin {
+        address local;
+        address mainnet;
+        address sepolia;
+    }
+
     FeeClaimAddress public feeClaimAddress =
         FeeClaimAddress({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Avil's account 0
@@ -38,6 +44,13 @@ abstract contract CodeConstants {
 
     DaoOperator public daoOperator =
         DaoOperator({
+            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
+            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+        });
+
+    TokenAdmin public tokenAdmin =
+        TokenAdmin({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
             mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
@@ -58,6 +71,9 @@ contract HelperConfig is CodeConstants, Script {
         address contributionToken;
         address feeClaimAddress;
         address daoOperator;
+        address tokenAdmin;
+        string tokenName;
+        string tokenSymbol;
         address functionsRouter;
         bytes32 donId;
         uint32 gasLimit;
@@ -76,7 +92,7 @@ contract HelperConfig is CodeConstants, Script {
     //////////////////////////////////////////////////////////////*/
 
     constructor() {
-        networkConfigs[ARB_SEPOLIA_CHAIN_ID] = getArbSepoliaEthConfig();
+        networkConfigs[ARB_SEPOLIA_CHAIN_ID] = getArbSepoliaConfig();
     }
 
     function getConfigByChainId(uint256 chainId) public returns (NetworkConfig memory) {
@@ -89,15 +105,14 @@ contract HelperConfig is CodeConstants, Script {
         }
     }
 
-    function getArbSepoliaEthConfig()
-        public
-        view
-        returns (NetworkConfig memory sepoliaNetworkConfig)
-    {
+    function getArbSepoliaConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
         sepoliaNetworkConfig = NetworkConfig({
             contributionToken: 0xf9b2DE65196fA500527c576De9312E3c626C7d6a,
             feeClaimAddress: feeClaimAddress.sepolia,
             daoOperator: daoOperator.sepolia,
+            tokenAdmin: tokenAdmin.sepolia,
+            tokenName: "Takasure DAO Token",
+            tokenSymbol: "TST",
             functionsRouter: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C,
             donId: 0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000,
             gasLimit: 300000,
@@ -123,10 +138,13 @@ contract HelperConfig is CodeConstants, Script {
                 contributionToken: address(usdc),
                 feeClaimAddress: feeClaimAddress.local,
                 daoOperator: daoOperator.local,
-                functionsRouter: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C,
-                donId: 0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000,
+                tokenAdmin: tokenAdmin.local,
+                tokenName: "Takasure DAO Token",
+                tokenSymbol: "TST",
+                functionsRouter: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C, // Same as sepolia
+                donId: 0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000, // Same as sepolia
                 gasLimit: 300000,
-                subscriptionId: 123
+                subscriptionId: 123 // Same as sepolia
             });
     }
 }
