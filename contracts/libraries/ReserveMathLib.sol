@@ -160,21 +160,31 @@ library ReserveMathLib {
 
     /// @notice Calculate the earned and unearned contribution reserves for a member
     function _calculateECResAndUCResByMember(
-        Member memory member
-    ) internal view returns (uint256 ecRes_, uint256 ucRes_) {
+        Member storage member
+    ) internal returns (uint256 , uint256 ) {
         uint256 currentTimestamp = block.timestamp;
         uint256 claimReserveAdd = member.claimAddAmount;
+        uint256 lastEcresTime = member.lastEcresTime;
         uint256 year = 365 days;
+        uint256 ecRes;
+        uint256 ucRes;
 
-        // Time passed since the membership started
-        uint256 membershipTerm = (currentTimestamp - member.membershipStartTime) % year;
-
-        ecRes_ = ((year - membershipTerm) / year) * (claimReserveAdd);
-
+        if (lastEcresTime == 0) {
+            // Time passed since the membership started
+            uint256 membershipTerm = (currentTimestamp - member.membershipStartTime) % year;
+            ecRes = ((year - membershipTerm) / year) * (claimReserveAdd);
+        } else {
+            ecRes = ((currentTimestamp - lastEcresTime) / year) * (claimReserveAdd);
+        }    
+               
         // Unearned contribution reserve
-        ucRes_ = claimReserveAdd - ecRes_;
+        ucRes = claimReserveAdd - ecRes;
 
-        // Todo: maybe emit events here? possible implementation includes doing a for loop off chain so we might need it
+        member.lastEcresTime = currentTimestamp;
+        member.lastEcres += ecRes;
+        member.lastUcres += ucRes;
+
+        return (member.lastEcres, member.lastUcres);
     }
 
     /*//////////////////////////////////////////////////////////////
