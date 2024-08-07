@@ -129,7 +129,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
     function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
-        // Todo: Check the user benefit multiplier against the oracle.
         if (reserve.members[msg.sender].memberState == MemberState.Active) {
             revert TakasureErrors.TakasurePool__MemberAlreadyExists();
         }
@@ -193,7 +192,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 // Flow 3 Refund -> Join
                 // If is not KYC verified, but refunded, the member exist already, but was previously refunded
                 _updateMember({
-                    _benefitMultiplier: benefitMultiplier, // Fetch from oracle
+                    _benefitMultiplier: reserve.members[msg.sender].benefitMultiplier, // We take the current value
                     _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
                     _membershipDuration: membershipDuration, // From the input
                     _feeAmount: feeAmount, // Calculated
@@ -280,7 +279,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 // Flow 4 Refund -> KYC
                 // This means the user exists, but was refunded, we reset the values
                 _updateMember({
-                    _benefitMultiplier: 0, // Reset until the user pays the contribution
+                    _benefitMultiplier: reserve.members[memberWallet].benefitMultiplier, // As the B, does not change, we can avoid re-fetching
                     _contributionBeforeFee: 0, // Reset until the user pays the contribution
                     _membershipDuration: 0, // Reset until the user pays the contribution
                     _feeAmount: 0, // Reset until the user pays the contribution
@@ -499,7 +498,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         args[0] = Strings.toHexString(uint256(uint160(_member)), 20);
         bmConsumer.sendRequest(args);
         benefitMultiplier_ = bmConsumer.convertResponseToUint();
-        // TODO: Here we need a revert if the BM is 0, skip for now for testing purposes
     }
 
     function _calculateAmountAndFees(
