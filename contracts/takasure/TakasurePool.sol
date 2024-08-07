@@ -31,6 +31,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
 
     Reserve private reserve;
 
+    bytes32 public constant TAKASURE_MULTISIG = keccak256("TAKASURE_MULTISIG");
+    bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
+
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
     uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
@@ -70,12 +73,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
      * @param _contributionToken default USDC
      * @param _feeClaimAddress address allowed to claim the service fee
      * @param _daoOperator address allowed to manage the DAO
+     * @param _takasureMultisig address of the Takasure multisig contract
      * @dev it reverts if any of the addresses is zero
      */
     function initialize(
         address _contributionToken,
         address _feeClaimAddress,
         address _daoOperator,
+        address _takasureMultisig,
         address _tokenAdmin,
         string memory _tokenName,
         string memory _tokenSymbol
@@ -85,10 +90,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         notZeroAddress(_contributionToken)
         notZeroAddress(_feeClaimAddress)
         notZeroAddress(_daoOperator)
+        notZeroAddress(_takasureMultisig)
     {
         __UUPSUpgradeable_init();
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
+        _grantRole(TAKASURE_MULTISIG, _takasureMultisig);
+        _grantRole(DAO_MULTISIG, _daoOperator);
 
         contributionToken = IERC20(_contributionToken);
         // daoToken = ITSToken(_daoToken);
@@ -220,7 +228,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function setKYCStatus(address memberWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setKYCStatus(address memberWallet) external onlyRole(DAO_MULTISIG) {
         if (memberWallet == address(0)) {
             revert TakasureErrors.TakasurePool__ZeroAddress();
         }
@@ -385,7 +393,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         );
     }
 
-    function setNewServiceFee(uint8 newServiceFee) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKASURE_MULTISIG) {
         if (newServiceFee > 35) {
             revert TakasureErrors.TakasurePool__WrongServiceFee();
         }
@@ -394,15 +402,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
     }
 
-    function setNewMinimumThreshold(
-        uint256 newMinimumThreshold
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyRole(DAO_MULTISIG) {
         minimumThreshold = newMinimumThreshold;
 
         emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
     }
 
-    function setMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(DAO_MULTISIG) {
         maximumThreshold = newMaximumThreshold;
 
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
@@ -410,19 +416,19 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
 
     function setNewContributionToken(
         address newContributionToken
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) notZeroAddress(newContributionToken) {
+    ) external onlyRole(DAO_MULTISIG) notZeroAddress(newContributionToken) {
         contributionToken = IERC20(newContributionToken);
     }
 
     function setNewFeeClaimAddress(
         address newFeeClaimAddress
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) notZeroAddress(newFeeClaimAddress) {
+    ) external onlyRole(DAO_MULTISIG) notZeroAddress(newFeeClaimAddress) {
         feeClaimAddress = newFeeClaimAddress;
     }
 
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) notZeroAddress(newBenefitMultiplierConsumer) {
+    ) external onlyRole(DAO_MULTISIG) notZeroAddress(newBenefitMultiplierConsumer) {
         address oldBenefitMultiplierConsumer = address(bmConsumer);
         bmConsumer = IBenefitMultiplierConsumer(newBenefitMultiplierConsumer);
 
@@ -432,9 +438,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         );
     }
 
-    function setAllowCustomDuration(
-        bool _allowCustomDuration
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setAllowCustomDuration(bool _allowCustomDuration) external onlyRole(DAO_MULTISIG) {
         allowCustomDuration = _allowCustomDuration;
     }
 
@@ -909,5 +913,5 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+    ) internal override onlyRole(DAO_MULTISIG) {}
 }
