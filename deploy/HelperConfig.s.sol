@@ -23,7 +23,13 @@ abstract contract CodeConstants {
         address sepolia;
     }
 
-    struct DaoOperator {
+    struct DaoMultisig {
+        address local;
+        address mainnet;
+        address sepolia;
+    }
+
+    struct TakasureMultisig {
         address local;
         address mainnet;
         address sepolia;
@@ -42,8 +48,15 @@ abstract contract CodeConstants {
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
-    DaoOperator public daoOperator =
-        DaoOperator({
+    DaoMultisig public daoMultisig =
+        DaoMultisig({
+            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
+            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+        });
+
+    TakasureMultisig public takasureMultisig =
+        TakasureMultisig({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
             mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
@@ -70,7 +83,8 @@ contract HelperConfig is CodeConstants, Script {
     struct NetworkConfig {
         address contributionToken;
         address feeClaimAddress;
-        address daoOperator;
+        address daoMultisig;
+        address takasureMultisig;
         address tokenAdmin;
         string tokenName;
         string tokenSymbol;
@@ -109,7 +123,8 @@ contract HelperConfig is CodeConstants, Script {
         sepoliaNetworkConfig = NetworkConfig({
             contributionToken: 0xf9b2DE65196fA500527c576De9312E3c626C7d6a,
             feeClaimAddress: feeClaimAddress.sepolia,
-            daoOperator: daoOperator.sepolia,
+            daoMultisig: daoMultisig.sepolia,
+            takasureMultisig: takasureMultisig.sepolia,
             tokenAdmin: tokenAdmin.sepolia,
             tokenName: "Takasure DAO Token",
             tokenSymbol: "TST",
@@ -137,7 +152,8 @@ contract HelperConfig is CodeConstants, Script {
             NetworkConfig({
                 contributionToken: address(usdc),
                 feeClaimAddress: feeClaimAddress.local,
-                daoOperator: daoOperator.local,
+                daoMultisig: daoMultisig.local,
+                takasureMultisig: takasureMultisig.local,
                 tokenAdmin: tokenAdmin.local,
                 tokenName: "Takasure DAO Token",
                 tokenSymbol: "TST",

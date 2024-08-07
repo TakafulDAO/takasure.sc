@@ -34,7 +34,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        admin = config.daoOperator;
+        admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
         (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();

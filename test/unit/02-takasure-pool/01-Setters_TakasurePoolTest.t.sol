@@ -30,7 +30,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        admin = config.daoOperator;
+        admin = config.daoMultisig;
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
