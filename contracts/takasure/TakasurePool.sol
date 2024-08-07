@@ -557,12 +557,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             totalServiceFee: _feeAmount,
             wallet: _memberWallet,
             memberState: _memberState,
-            surplus: 0, // Todo
+            memberSurplus: 0, // Todo
             isKYCVerified: _isKYCVerified,
             isRefunded: false,
-            lastEcresTime: 0,
-            lastEcres: 0,
-            lastUcres: 0
+            lastEcrTime: 0,
+            lastEcr: 0,
+            lastUcr: 0
         });
 
         // Add the member to the corresponding mappings
@@ -920,11 +920,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         for (uint256 i = 1; i <= memberIdCounter; ) {
             Member storage memberToCheck = idToMember[i];
             if (memberToCheck.memberState == MemberState.Active) {
-                (uint256 memberECRes, uint256 memberUCRes) = ReserveMathLib
-                    ._calculateECResAndUCResByMember(memberToCheck);
+                (uint256 memberEcr, uint256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
+                    memberToCheck
+                );
 
-                totalECRes_ += memberECRes;
-                totalUCRes_ += memberUCRes;
+                totalECRes_ += memberEcr;
+                totalUCRes_ += memberUcr;
             }
 
             unchecked {

@@ -159,32 +159,32 @@ library ReserveMathLib {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Calculate the earned and unearned contribution reserves for a member
-    function _calculateECResAndUCResByMember(
+    function _calculateEcrAndUcrByMember(
         Member storage member
-    ) internal returns (uint256 , uint256 ) {
+    ) internal returns (uint256, uint256) {
         uint256 currentTimestamp = block.timestamp;
         uint256 claimReserveAdd = member.claimAddAmount;
-        uint256 lastEcresTime = member.lastEcresTime;
+        uint256 lastEcrTime = member.lastEcrTime;
         uint256 year = 365 days;
-        uint256 ecRes;
-        uint256 ucRes;
+        uint256 ecr;
+        uint256 ucr;
 
-        if (lastEcresTime == 0) {
+        if (lastEcrTime == 0) {
             // Time passed since the membership started
             uint256 membershipTerm = (currentTimestamp - member.membershipStartTime) % year;
-            ecRes = ((year - membershipTerm) / year) * (claimReserveAdd);
+            ecr = ((year - membershipTerm) / year) * (claimReserveAdd);
         } else {
-            ecRes = ((currentTimestamp - lastEcresTime) / year) * (claimReserveAdd);
-        }    
-               
+            ecr = ((currentTimestamp - lastEcrTime) / year) * (claimReserveAdd);
+        }
+
         // Unearned contribution reserve
-        ucRes = claimReserveAdd - ecRes;
+        ucr = claimReserveAdd - ecr;
 
-        member.lastEcresTime = currentTimestamp;
-        member.lastEcres += ecRes;
-        member.lastUcres += ucRes;
+        member.lastEcrTime = currentTimestamp;
+        member.lastEcr += ecr;
+        member.lastUcr += ucr;
 
-        return (member.lastEcres, member.lastUcres);
+        return (member.lastEcr, member.lastUcr);
     }
 
     /*//////////////////////////////////////////////////////////////

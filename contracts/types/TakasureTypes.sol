@@ -21,12 +21,12 @@ struct Member {
     uint256 totalServiceFee; // in stablecoin currency in Wei
     address wallet;
     MemberState memberState;
-    uint256 surplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
+    uint256 memberSurplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
     bool isKYCVerified; // Can not be true if isRefunded is true
     bool isRefunded; // Can not be true if isKYCVerified is true
-    uint256 lastEcresTime; // the timestamp when the last ECRes was calculated
-    uint256 lastEcres; // the last ECRes calculated
-    uint256 lastUcres; // the last UCRes calculated
+    uint256 lastEcrTime; // the timestamp when the last ECR was calculated for the member
+    uint256 lastEcr; // the last ECR calculated
+    uint256 lastUcr; // the last UCR calculated
 }
 
 struct Reserve {
@@ -44,5 +44,5 @@ struct Reserve {
     uint8 bmaFundReserveShare; // Default 70%
     uint8 riskMultiplier; // Default to 2% // TODO: Fetch from oracle? It goes from 1.4% to 6%
     bool isOptimizerEnabled; // Default false
-    uint256 reserveSurplus; // Default 0
+    uint256 surplus; // Default 0
 }
