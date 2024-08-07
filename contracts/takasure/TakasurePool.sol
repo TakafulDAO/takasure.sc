@@ -86,15 +86,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         address _tokenAdmin,
         string memory _tokenName,
         string memory _tokenSymbol
-    )
-        external
-        initializer
-        notZeroAddress(_contributionToken)
-        notZeroAddress(_feeClaimAddress)
-        notZeroAddress(_daoOperator)
-        notZeroAddress(_takasureMultisig)
-        notZeroAddress(_kycProvider)
-    {
+    ) external initializer {
+        // _initDependencies(_contributionToken, _tokenAdmin, _tokenName, _tokenSymbol);
+        // _assignRoles(_daoOperator, _takasureMultisig, _kycProvider);
         __UUPSUpgradeable_init();
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
@@ -103,7 +97,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         _grantRole(KYC_PROVIDER, _kycProvider);
 
         contributionToken = IERC20(_contributionToken);
-        // daoToken = ITSToken(_daoToken);
         daoToken = new TSToken(_tokenAdmin, _tokenName, _tokenSymbol);
         feeClaimAddress = _feeClaimAddress;
 
@@ -127,6 +120,29 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
             address(contributionToken),
             address(daoToken)
         );
+    }
+
+    function _initDependencies(
+        address _contributionToken,
+        address _tokenAdmin,
+        string memory _tokenName,
+        string memory _tokenSymbol
+    ) internal {
+        __UUPSUpgradeable_init();
+        __AccessControl_init();
+        contributionToken = IERC20(_contributionToken);
+        daoToken = new TSToken(_tokenAdmin, _tokenName, _tokenSymbol);
+    }
+
+    function _assignRoles(
+        address _daoOperator,
+        address _takasureMultisig,
+        address _kycProvider
+    ) internal {
+        _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
+        _grantRole(DAO_MULTISIG, _daoOperator);
+        _grantRole(TAKASURE_MULTISIG, _takasureMultisig);
+        _grantRole(KYC_PROVIDER, _kycProvider);
     }
 
     /**
