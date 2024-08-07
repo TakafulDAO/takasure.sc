@@ -23,8 +23,7 @@ contract DeployBenefitMultiplierConsumer is Script {
 
         vm.startBroadcast();
 
-        console2.log("Deploying BenefitMultiplierConsumer...");
-
+        // Deploy BenefitMultiplierConsumer
         BenefitMultiplierConsumer benefitMultiplierConsumer = new BenefitMultiplierConsumer(
             config.functionsRouter,
             config.donId,
@@ -32,13 +31,8 @@ contract DeployBenefitMultiplierConsumer is Script {
             config.subscriptionId
         );
 
-        console2.log("BenefitMultiplierConsumer deployed");
-
-        console2.log("Adding New source code to BenefitMultiplierConsumer...");
-
+        // Add new source code to BenefitMultiplierConsumer
         benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
-
-        console2.log("New Source Code added");
 
         vm.stopBroadcast();
 
