@@ -33,6 +33,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
 
     bytes32 public constant TAKASURE_MULTISIG = keccak256("TAKASURE_MULTISIG");
     bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
+    bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
@@ -81,6 +82,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         address _feeClaimAddress,
         address _daoOperator,
         address _takasureMultisig,
+        address _kycProvider,
         address _tokenAdmin,
         string memory _tokenName,
         string memory _tokenSymbol
@@ -91,12 +93,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         notZeroAddress(_feeClaimAddress)
         notZeroAddress(_daoOperator)
         notZeroAddress(_takasureMultisig)
+        notZeroAddress(_kycProvider)
     {
         __UUPSUpgradeable_init();
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
         _grantRole(TAKASURE_MULTISIG, _takasureMultisig);
         _grantRole(DAO_MULTISIG, _daoOperator);
+        _grantRole(KYC_PROVIDER, _kycProvider);
 
         contributionToken = IERC20(_contributionToken);
         // daoToken = ITSToken(_daoToken);

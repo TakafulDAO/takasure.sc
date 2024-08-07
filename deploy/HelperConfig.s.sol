@@ -35,6 +35,12 @@ abstract contract CodeConstants {
         address sepolia;
     }
 
+    struct KycProvider {
+        address local;
+        address mainnet;
+        address sepolia;
+    }
+
     struct TokenAdmin {
         address local;
         address mainnet;
@@ -57,6 +63,13 @@ abstract contract CodeConstants {
 
     TakasureMultisig public takasureMultisig =
         TakasureMultisig({
+            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
+            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+        });
+
+    KycProvider public kycProvider =
+        KycProvider({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
             mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
@@ -85,6 +98,7 @@ contract HelperConfig is CodeConstants, Script {
         address feeClaimAddress;
         address daoMultisig;
         address takasureMultisig;
+        address kycProvider;
         address tokenAdmin;
         string tokenName;
         string tokenSymbol;
@@ -125,6 +139,7 @@ contract HelperConfig is CodeConstants, Script {
             feeClaimAddress: feeClaimAddress.sepolia,
             daoMultisig: daoMultisig.sepolia,
             takasureMultisig: takasureMultisig.sepolia,
+            kycProvider: kycProvider.sepolia,
             tokenAdmin: tokenAdmin.sepolia,
             tokenName: "Takasure DAO Token",
             tokenSymbol: "TST",
@@ -154,6 +169,7 @@ contract HelperConfig is CodeConstants, Script {
                 feeClaimAddress: feeClaimAddress.local,
                 daoMultisig: daoMultisig.local,
                 takasureMultisig: takasureMultisig.local,
+                kycProvider: kycProvider.local,
                 tokenAdmin: tokenAdmin.local,
                 tokenName: "Takasure DAO Token",
                 tokenSymbol: "TST",
