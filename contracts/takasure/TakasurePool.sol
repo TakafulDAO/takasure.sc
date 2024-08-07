@@ -545,6 +545,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
+        uint256 contributionAfterFee = _contributionBeforeFee - _feeAmount;
+
         Member memory newMember = Member({
             memberId: memberIdCounter,
             benefitMultiplier: _benefitMultiplier,
@@ -552,7 +554,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             yearsCovered: 1,
             membershipStartTime: currentTimestamp,
             contribution: _contributionBeforeFee,
-            claimAddAmount: (_contributionBeforeFee * (100 - reserve.dynamicReserveRatio)) / 100,
+            claimAddAmount: (contributionAfterFee * (100 - reserve.dynamicReserveRatio)) / 100,
             totalContributions: _contributionBeforeFee,
             totalServiceFee: _feeAmount,
             wallet: _memberWallet,
@@ -592,6 +594,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     ) internal {
         uint256 currentTimestamp = block.timestamp;
         uint256 userMembershipDuration;
+        uint256 contributionAfterFee = _contributionBeforeFee - _feeAmount;
 
         if (allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
@@ -604,7 +607,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
         reserve.members[_memberWallet].contribution = _contributionBeforeFee;
         reserve.members[_memberWallet].claimAddAmount =
-            (_contributionBeforeFee * (100 - reserve.dynamicReserveRatio)) /
+            (contributionAfterFee * (100 - reserve.dynamicReserveRatio)) /
             100;
         reserve.members[_memberWallet].totalServiceFee = _feeAmount;
         reserve.members[_memberWallet].memberState = _memberState;
