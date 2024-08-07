@@ -559,7 +559,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             memberState: _memberState,
             surplus: 0, // Todo
             isKYCVerified: _isKYCVerified,
-            isRefunded: false
+            isRefunded: false,
+            lastEcresTime: 0,
+            lastEcres: 0,
+            lastUcres: 0
         });
 
         // Add the member to the corresponding mappings
@@ -912,11 +915,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
     function _totalECResAndCResUnboundedForLoop()
         internal
-        view
         returns (uint256 totalECRes_, uint256 totalUCRes_)
     {
         for (uint256 i = 1; i <= memberIdCounter; ) {
-            Member memory memberToCheck = idToMember[i];
+            Member storage memberToCheck = idToMember[i];
             if (memberToCheck.memberState == MemberState.Active) {
                 (uint256 memberECRes, uint256 memberUCRes) = ReserveMathLib
                     ._calculateECResAndUCResByMember(memberToCheck);
@@ -931,7 +933,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function _calculateSurplus() internal view returns (uint256 surplus_) {
+    function _calculateSurplus() internal returns (uint256 surplus_) {
         int256 possibleSurplus;
 
         (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndCResUnboundedForLoop();
