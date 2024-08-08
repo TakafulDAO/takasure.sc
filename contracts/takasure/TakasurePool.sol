@@ -962,6 +962,8 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         } else {
             surplus_ = uint256(possibleSurplus);
         }
+
+        reserve.surplus = surplus_;
     }
 
     ///@dev required by the OZ UUPS module
