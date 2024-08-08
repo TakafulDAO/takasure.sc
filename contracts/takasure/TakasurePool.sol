@@ -644,6 +644,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
         _mintDaoTokens(_contributionBeforeFee, _memberWallet);
+        _memberSurplus();
         if (_payContribution) {
             _transferAmounts(_contributionAfterFee, _feeAmount, _memberWallet);
         }
@@ -965,6 +966,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         reserve.surplus = surplus_;
+    }
+
+    function _memberSurplus() internal {
+        uint256 totalSurplus = _calculateSurplus();
+        uint256 userCreditTokensBalance = reserve.members[msg.sender].creditTokensBalance;
+        uint256 totalCreditTokens = daoToken.balanceOf(address(this));
+        uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
+        reserve.members[msg.sender].memberSurplus = userSurplus;
     }
 
     ///@dev required by the OZ UUPS module
