@@ -18,6 +18,7 @@ struct Member {
     uint256 contribution; // in stablecoin currency in Wei, this is the yearly contribution, and without fees
     uint256 totalContributions; // in stablecoin currency in Wei. This is the total contribution made by the member
     uint256 totalServiceFee; // in stablecoin currency in Wei
+    uint256 creditTokensBalance; // 18 decimals
     address wallet;
     MemberState memberState;
     uint256 surplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
