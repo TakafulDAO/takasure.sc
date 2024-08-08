@@ -120,29 +120,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         );
     }
 
-    function _initDependencies(
-        address _contributionToken,
-        address _tokenAdmin,
-        string memory _tokenName,
-        string memory _tokenSymbol
-    ) internal {
-        __UUPSUpgradeable_init();
-        __AccessControl_init();
-        contributionToken = IERC20(_contributionToken);
-        daoToken = new TSToken(_tokenAdmin, _tokenName, _tokenSymbol);
-    }
-
-    function _assignRoles(
-        address _daoOperator,
-        address _takasureMultisig,
-        address _kycProvider
-    ) internal {
-        _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
-        _grantRole(DAO_MULTISIG, _daoOperator);
-        _grantRole(TAKASURE_MULTISIG, _takasureMultisig);
-        _grantRole(KYC_PROVIDER, _kycProvider);
-    }
-
     /**
      * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
