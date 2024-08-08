@@ -87,8 +87,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         string memory _tokenName,
         string memory _tokenSymbol
     ) external initializer {
-        // _initDependencies(_contributionToken, _tokenAdmin, _tokenName, _tokenSymbol);
-        // _assignRoles(_daoOperator, _takasureMultisig, _kycProvider);
         __UUPSUpgradeable_init();
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
