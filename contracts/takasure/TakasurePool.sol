@@ -92,7 +92,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         __Ownable_init(_daoOperator);
 
         contributionToken = IERC20(_contributionToken);
-        // daoToken = ITSToken(_daoToken);
         daoToken = new TSToken(_tokenAdmin, _tokenName, _tokenSymbol);
         feeClaimAddress = _feeClaimAddress;
 
@@ -557,6 +556,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             claimAddAmount: (contributionAfterFee * (100 - reserve.dynamicReserveRatio)) / 100,
             totalContributions: _contributionBeforeFee,
             totalServiceFee: _feeAmount,
+            creditTokensBalance: 0,
             wallet: _memberWallet,
             memberState: _memberState,
             memberSurplus: 0, // Todo
@@ -628,7 +628,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     /**
      * @notice This function will update all the variables needed when a member pays the contribution
      * @param _payContribution true -> the contribution will be paid and the credit tokens will be minted
-     *                         false -> np need to pay the contribution as it is already payed
+     *                                      false -> no need to pay the contribution as it is already payed
      */
     function _memberPaymentFlow(
         uint256 _contributionBeforeFee,
@@ -907,8 +907,9 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal {
         // Mint needed DAO Tokens
         uint256 mintAmount = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+        reserve.members[_memberWallet].creditTokensBalance = mintAmount;
 
-        bool success = daoToken.mint(_memberWallet, mintAmount);
+        bool success = daoToken.mint(address(this), mintAmount);
         if (!success) {
             revert TakasureErrors.TakasurePool__MintFailed();
         }
