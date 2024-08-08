@@ -6,6 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TSToken} from "contracts/token/TSToken.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
@@ -288,5 +289,40 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         assertEq(initialBMA, expectedInitialBMA);
         assertEq(aliceBMA, expectedAliceBMA);
         assertEq(bobBMA, expectedBobBMA);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        JOINPOOL::TOKENS MINTED
+    //////////////////////////////////////////////////////////////*/
+    /// @dev Test the tokens minted are staked in the pool
+    function testTakasurePool_tokensMinted() public {
+        address creditToken = takasurePool.getDaoTokenAddress();
+        TSToken creditTokenInstance = TSToken(creditToken);
+
+        uint256 contractCreditTokenBalanceBefore = creditTokenInstance.balanceOf(
+            address(takasurePool)
+        );
+        uint256 aliceCreditTokenBalanceBefore = creditTokenInstance.balanceOf(alice);
+
+        vm.prank(takasurePool.owner());
+        takasurePool.setKYCStatus(alice);
+
+        vm.prank(alice);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        uint256 contractCreditTokenBalanceAfter = creditTokenInstance.balanceOf(
+            address(takasurePool)
+        );
+        uint256 aliceCreditTokenBalanceAfter = creditTokenInstance.balanceOf(alice);
+
+        Member memory member = takasurePool.getMemberFromAddress(alice);
+
+        assertEq(contractCreditTokenBalanceBefore, 0);
+        assertEq(aliceCreditTokenBalanceBefore, 0);
+
+        assertEq(contractCreditTokenBalanceAfter, CONTRIBUTION_AMOUNT * 10 ** 12);
+        assertEq(aliceCreditTokenBalanceAfter, 0);
+
+        assertEq(member.creditTokensBalance, contractCreditTokenBalanceAfter);
     }
 }
