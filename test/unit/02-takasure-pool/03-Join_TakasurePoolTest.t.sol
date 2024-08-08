@@ -311,7 +311,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         );
         uint256 aliceCreditTokenBalanceBefore = creditTokenInstance.balanceOf(alice);
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         vm.prank(alice);

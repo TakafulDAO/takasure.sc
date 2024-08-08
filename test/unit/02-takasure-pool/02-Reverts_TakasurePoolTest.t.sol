@@ -57,8 +57,8 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
-    /// @dev `setNewServiceFee` must revert if the caller is not the owner
-    function testTakasurePool_setNewServiceFeeMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setNewServiceFee` must revert if the caller is not the admin
+    function testTakasurePool_setNewServiceFeeMustRevertIfTheCallerIsNotTheAdmin() public {
         uint8 newServiceFee = 50;
         vm.prank(alice);
         vm.expectRevert();
@@ -73,16 +73,16 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.setNewServiceFee(newServiceFee);
     }
 
-    /// @dev `setNewMinimumThreshold` must revert if the caller is not the owner
-    function testTakasurePool_setNewMinimumThresholdMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setNewMinimumThreshold` must revert if the caller is not the admin
+    function testTakasurePool_setNewMinimumThresholdMustRevertIfTheCallerIsNotTheAdmin() public {
         uint8 newThreshold = 50;
         vm.prank(alice);
         vm.expectRevert();
         takasurePool.setNewMinimumThreshold(newThreshold);
     }
 
-    /// @dev `setNewContributionToken` must revert if the caller is not the owner
-    function testTakasurePool_setNewContributionTokenMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setNewContributionToken` must revert if the caller is not the admin
+    function testTakasurePool_setNewContributionTokenMustRevertIfTheCallerIsNotTheAdmin() public {
         vm.prank(alice);
         vm.expectRevert();
         takasurePool.setNewContributionToken(alice);
@@ -95,8 +95,8 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.setNewContributionToken(address(0));
     }
 
-    /// @dev `setNewFeeClaimAddress` must revert if the caller is not the owner
-    function testTakasurePool_setNewFeeClaimAddressMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setNewFeeClaimAddress` must revert if the caller is not the admin
+    function testTakasurePool_setNewFeeClaimAddressMustRevertIfTheCallerIsNotTheAdmin() public {
         vm.prank(alice);
         vm.expectRevert();
         takasurePool.setNewFeeClaimAddress(alice);
@@ -109,8 +109,8 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         takasurePool.setNewFeeClaimAddress(address(0));
     }
 
-    /// @dev `setAllowCustomDuration` must revert if the caller is not the owner
-    function testTakasurePool_setAllowCustomDurationMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setAllowCustomDuration` must revert if the caller is not the admin
+    function testTakasurePool_setAllowCustomDurationMustRevertIfTheCallerIsNotTheAdmin() public {
         vm.prank(alice);
         vm.expectRevert();
         takasurePool.setAllowCustomDuration(true);
