@@ -13,7 +13,8 @@ import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplie
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {TSToken} from "../token/TSToken.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {TSToken} from "contracts/token/TSToken.sol";
 
 import {Reserve, Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
@@ -24,7 +25,12 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 pragma solidity 0.8.25;
 
 // todo: change OwnableUpgradeable to AccessControlUpgradeable
-contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract TakasurePool is
+    Initializable,
+    UUPSUpgradeable,
+    OwnableUpgradeable,
+    ReentrancyGuardTransientUpgradeable
+{
     IERC20 private contributionToken;
     TSToken private daoToken;
     IBenefitMultiplierConsumer private bmConsumer;
@@ -130,7 +136,10 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      *      that the minimum contribution amount is 0.01 USDC
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
-    function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
+    function joinPool(
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration
+    ) external nonReentrant {
         // Todo: Check the user benefit multiplier against the oracle.
         if (reserve.members[msg.sender].memberState == MemberState.Active) {
             revert TakasureErrors.TakasurePool__MemberAlreadyExists();
