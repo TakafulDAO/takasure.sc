@@ -90,7 +90,6 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         __Ownable_init(_daoOperator);
 
         contributionToken = IERC20(_contributionToken);
-        // daoToken = ITSToken(_daoToken);
         daoToken = new TSToken(_tokenAdmin, _tokenName, _tokenSymbol);
         feeClaimAddress = _feeClaimAddress;
 
