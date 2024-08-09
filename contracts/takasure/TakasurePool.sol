@@ -31,7 +31,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
 
     Reserve private reserve;
 
-    bytes32 public constant TAKASURE_MULTISIG = keccak256("TAKASURE_MULTISIG");
+    bytes32 public constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
 
@@ -74,14 +74,13 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
      * @param _contributionToken default USDC
      * @param _feeClaimAddress address allowed to claim the service fee
      * @param _daoOperator address allowed to manage the DAO
-     * @param _takasureMultisig address of the Takasure multisig contract
      * @dev it reverts if any of the addresses is zero
      */
     function initialize(
         address _contributionToken,
         address _feeClaimAddress,
         address _daoOperator,
-        address _takasureMultisig,
+        address _takadaoOperator,
         address _kycProvider,
         address _tokenAdmin,
         string memory _tokenName,
@@ -90,7 +89,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         __UUPSUpgradeable_init();
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
-        _grantRole(TAKASURE_MULTISIG, _takasureMultisig);
+        _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
         _grantRole(DAO_MULTISIG, _daoOperator);
         _grantRole(KYC_PROVIDER, _kycProvider);
 
@@ -388,7 +387,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         );
     }
 
-    function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKASURE_MULTISIG) {
+    function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
         if (newServiceFee > 35) {
             revert TakasureErrors.TakasurePool__WrongServiceFee();
         }
@@ -417,7 +416,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
 
     function setNewFeeClaimAddress(
         address newFeeClaimAddress
-    ) external onlyRole(DAO_MULTISIG) notZeroAddress(newFeeClaimAddress) {
+    ) external onlyRole(TAKADAO_OPERATOR) notZeroAddress(newFeeClaimAddress) {
         feeClaimAddress = newFeeClaimAddress;
     }
 
