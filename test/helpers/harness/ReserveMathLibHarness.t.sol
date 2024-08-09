@@ -32,19 +32,18 @@ contract ReserveMathLibHarness {
         );
     }
 
-    function exposed__calculateDynamicReserveRatioReserveShortfallMethod(
+    function exposed__calculateDynamicReserveRatio(
         uint256 initialReserveRatio,
         uint256 proFormaFundReserve,
         uint256 fundReserve,
         uint256 cashFlowLastPeriod
     ) external pure returns (uint256 exposedUpdatedDynamicReserveRatio) {
-        exposedUpdatedDynamicReserveRatio = ReserveMathLib
-            ._calculateDynamicReserveRatioReserveShortfallMethod(
-                initialReserveRatio,
-                proFormaFundReserve,
-                fundReserve,
-                cashFlowLastPeriod
-            );
+        exposedUpdatedDynamicReserveRatio = ReserveMathLib._calculateDynamicReserveRatio(
+            initialReserveRatio,
+            proFormaFundReserve,
+            fundReserve,
+            cashFlowLastPeriod
+        );
     }
 
     function exposed_calculateBmaCashFlowMethod(

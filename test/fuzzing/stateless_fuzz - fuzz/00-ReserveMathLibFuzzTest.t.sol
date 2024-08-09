@@ -13,7 +13,7 @@ contract ReserveMathLibFuzzTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                 DYNAMIC RESERVE RATIO SHORTFALL METHOD
+                            DYNAMIC RESERVE
     //////////////////////////////////////////////////////////////*/
 
     /// @dev The DRR should be updated if the fund reserve is less than the pro forma fund reserve and the possible DRR is less than 100
@@ -48,7 +48,7 @@ contract ReserveMathLibFuzzTest is Test {
         }
 
         uint256 updatedDynamicReserveRatio = reserveMathLibHarness
-            .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
+            .exposed__calculateDynamicReserveRatio(
                 initialReserveRatio,
                 proFormaFundReserve,
                 fundReserve,

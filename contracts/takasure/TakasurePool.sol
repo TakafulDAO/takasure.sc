@@ -857,13 +857,12 @@ contract TakasurePool is
     }
 
     function _updateDRR(uint256 _cash) internal {
-        uint256 updatedDynamicReserveRatio = ReserveMathLib
-            ._calculateDynamicReserveRatioReserveShortfallMethod(
-                INITIAL_RESERVE_RATIO,
-                reserve.proFormaFundReserve,
-                reserve.totalFundReserve,
-                _cash
-            );
+        uint256 updatedDynamicReserveRatio = ReserveMathLib._calculateDynamicReserveRatio(
+            INITIAL_RESERVE_RATIO,
+            reserve.proFormaFundReserve,
+            reserve.totalFundReserve,
+            _cash
+        );
 
         reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
 

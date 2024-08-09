@@ -12,7 +12,7 @@ library ReserveMathLib {
     error WrongTimestamps();
 
     /*//////////////////////////////////////////////////////////////
-                               PRO FORMA
+                           PRO FORMA RESERVES
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -68,7 +68,7 @@ library ReserveMathLib {
      * @return updatedDynamicReserveRatio_ Updated value. Note: Percentage value, i.e. 40% => return value will be 40
      * @dev The dynamic reserve ratio is calculated based on the current pro forma fund reserve
      */
-    function _calculateDynamicReserveRatioReserveShortfallMethod(
+    function _calculateDynamicReserveRatio(
         uint256 _initialReserveRatio,
         uint256 _proFormaFundReserve,
         uint256 _fundReserve,
