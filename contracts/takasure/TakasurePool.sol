@@ -495,8 +495,18 @@ contract TakasurePool is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function _getBenefitMultiplier(address _member) internal returns (uint256 benefitMultiplier_) {
         string[] memory args = new string[](1);
         args[0] = Strings.toHexString(uint256(uint160(_member)), 20);
-        bmConsumer.sendRequest(args);
-        benefitMultiplier_ = bmConsumer.convertResponseToUint();
+        bytes32 requestId = bmConsumer.sendRequest(args);
+        bool successRequest = bmConsumer.idToSuccessRequest(requestId);
+        if (!successRequest) {
+            revert TakasureErrors.TakasurePool__BenefitMultiplierRequestFailed();
+        } else {
+            uint256 bm = bmConsumer.idToBenefitMultiplier(requestId);
+            if (bm == 0) {
+                revert TakasureErrors.TakasurePool__WrongBenefitMultiplier();
+            } else {
+                benefitMultiplier_ = bm;
+            }
+        }
     }
 
     function _calculateAmountAndFees(
