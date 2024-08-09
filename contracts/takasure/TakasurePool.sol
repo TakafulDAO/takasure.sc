@@ -422,7 +422,12 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
 
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
-    ) external onlyRole(DAO_MULTISIG) notZeroAddress(newBenefitMultiplierConsumer) {
+    )
+        external
+        onlyRole(DAO_MULTISIG)
+        onlyRole(TAKADAO_OPERATOR)
+        notZeroAddress(newBenefitMultiplierConsumer)
+    {
         address oldBenefitMultiplierConsumer = address(bmConsumer);
         bmConsumer = IBenefitMultiplierConsumer(newBenefitMultiplierConsumer);
 
