@@ -23,7 +23,6 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.25;
 
-// todo: change OwnableUpgradeable to AccessControlUpgradeable
 contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     IERC20 private contributionToken;
     TSToken private daoToken;
@@ -34,6 +33,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
     bytes32 public constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
+    bytes32 public constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN"); // Todo: to grant on governance implementation
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
