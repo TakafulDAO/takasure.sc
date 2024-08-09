@@ -116,6 +116,7 @@ contract TakasurePool is
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
         reserve.serviceFee = 22; // 22% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
+        reserve.isOptimizerEnabled = true; // Default
 
         emit TakasureEvents.OnInitialReserveValues(
             INITIAL_RESERVE_RATIO,
@@ -123,6 +124,7 @@ contract TakasurePool is
             reserve.benefitMultiplierAdjuster,
             reserve.serviceFee,
             reserve.bmaFundReserveShare,
+            reserve.isOptimizerEnabled,
             address(contributionToken),
             address(daoToken)
         );
