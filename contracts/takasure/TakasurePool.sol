@@ -99,6 +99,7 @@ contract TakasurePool is
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
+        __ReentrancyGuardTransient_init();
         __Pausable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
         _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
