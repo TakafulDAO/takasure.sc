@@ -257,7 +257,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         uint256 expectedInitialDRR = 40;
         uint256 expectedAliceDRR = 51;
-        uint256 expectedBobDRR = 63;
+        uint256 expectedBobDRR = 45;
 
         assertEq(initialDRR, expectedInitialDRR);
         assertEq(currentDRR, initialDRR);

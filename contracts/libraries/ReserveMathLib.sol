@@ -21,18 +21,17 @@ library ReserveMathLib {
      * @dev This value will lately be used to update the dynamic reserve ratio
      * @param _currentProFormaFundReserve Current value. Note: Six decimals
      * @param _memberContribution Net contribution of the member. Note: Six decimals
-     * @param _currentDynamicReserveRatio Current dynamic reserve ratio. Note: Percentage value,
-     *                                    i.e. 40% => input should be 40
+     * @param _initialReserveRatio Note: Percentage value, i.e. 40% => input should be 40
      * @return updatedProFormaFundReserve_ Updated value. Note: Six decimals
      */
     function _updateProFormaFundReserve(
         uint256 _currentProFormaFundReserve,
         uint256 _memberContribution,
-        uint256 _currentDynamicReserveRatio
+        uint256 _initialReserveRatio
     ) internal pure returns (uint256 updatedProFormaFundReserve_) {
         updatedProFormaFundReserve_ =
             _currentProFormaFundReserve +
-            ((_memberContribution * _currentDynamicReserveRatio) / 100);
+            ((_memberContribution * _initialReserveRatio) / 100);
     }
 
     /**
@@ -63,7 +62,6 @@ library ReserveMathLib {
 
     /**
      * @notice Calculate the dynamic reserve ratio on every cash-in operation
-     * @param _currentDynamicReserveRatio Current value. Note: Percentage value, i.e. 40% => input should be 40
      * @param _proFormaFundReserve Pro forma fund reserve. Note: Six decimals
      * @param _fundReserve Fund reserve. Note: Six decimals
      * @param _cashFlowLastPeriod Cash flow of the last period of 12 months. Note: Six decimals
@@ -72,7 +70,6 @@ library ReserveMathLib {
      */
     function _calculateDynamicReserveRatioReserveShortfallMethod(
         uint256 _initialReserveRatio,
-        uint256 _currentDynamicReserveRatio,
         uint256 _proFormaFundReserve,
         uint256 _fundReserve,
         uint256 _cashFlowLastPeriod
@@ -80,7 +77,7 @@ library ReserveMathLib {
         int256 fundReserveShortfall = int256(_proFormaFundReserve) - int256(_fundReserve);
 
         if (fundReserveShortfall > 0 && _cashFlowLastPeriod > 0) {
-            uint256 possibleDRR = _currentDynamicReserveRatio +
+            uint256 possibleDRR = _initialReserveRatio +
                 ((uint256(fundReserveShortfall) * 100) / _cashFlowLastPeriod);
 
             if (possibleDRR < 100) {
@@ -90,7 +87,7 @@ library ReserveMathLib {
                 updatedDynamicReserveRatio_ = 100;
             }
         } else {
-            updatedDynamicReserveRatio_ = _currentDynamicReserveRatio;
+            updatedDynamicReserveRatio_ = _initialReserveRatio;
         }
     }
 
@@ -102,17 +99,17 @@ library ReserveMathLib {
      * @notice Helper function to calculate the benefit multiplier adjuster
      * @param _cashFlowLastPeriod Cash flow of the last period of 12 months. Note: Six decimals
      * @param _serviceFee Service fee. Note: Percentage value, i.e. 20% => input should be 20
-     * @param _initialDRR Initial dynamic reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
+     * @param _initialReserveRatio Initial dynamic reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
      * @return bmaInflowAssumption_ Six decimals
      */
     // todo: this one can be inlined inside _calculateBmaCashFlowMethod, as it is only used there. It depends if we decide to use another bma method and it is used in other places
     function _calculateBmaInflowAssumption(
         uint256 _cashFlowLastPeriod,
         uint256 _serviceFee,
-        uint256 _initialDRR
+        uint256 _initialReserveRatio
     ) internal pure returns (uint256 bmaInflowAssumption_) {
         bmaInflowAssumption_ =
-            (_cashFlowLastPeriod * (100 - _serviceFee) * (100 - _initialDRR)) /
+            (_cashFlowLastPeriod * (100 - _serviceFee) * (100 - _initialReserveRatio)) /
             10 ** 4;
     }
 
