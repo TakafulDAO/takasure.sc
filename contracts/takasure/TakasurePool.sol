@@ -222,7 +222,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function setKYCStatus(address memberWallet) external onlyRole(DAO_MULTISIG) {
+    function setKYCStatus(address memberWallet) external onlyRole(KYC_PROVIDER) {
         if (memberWallet == address(0)) {
             revert TakasureErrors.TakasurePool__ZeroAddress();
         }
