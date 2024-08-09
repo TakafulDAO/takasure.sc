@@ -5,6 +5,7 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
+import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -16,8 +17,10 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
+    HelperConfig helperConfig;
     address proxy;
     address contributionTokenAddress;
+    address admin;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
@@ -27,7 +30,11 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+
+        admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
         (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
@@ -35,7 +42,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
         takasurePool = TakasurePool(proxy);
         usdc = IUSDC(contributionTokenAddress);
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
 
         vm.prank(msg.sender);
@@ -49,7 +56,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
 
-        vm.startPrank(takasurePool.owner());
+        vm.startPrank(admin);
         takasurePool.setKYCStatus(alice);
         vm.stopPrank;
     }

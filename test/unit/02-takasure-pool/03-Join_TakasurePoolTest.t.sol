@@ -5,6 +5,7 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
+import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
@@ -16,8 +17,10 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
+    HelperConfig helperConfig;
     address proxy;
     address contributionTokenAddress;
+    address admin;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
@@ -28,7 +31,11 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+
+        admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
         (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
@@ -46,7 +53,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         vm.prank(bob);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
 
         vm.prank(msg.sender);
@@ -70,7 +77,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         vm.stopPrank();
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         (, , , uint256 totalContributions, , , , , , , , ) = takasurePool.getReserveValues();
@@ -105,7 +112,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     }
 
     modifier aliceKYCAndJoin() {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -121,7 +128,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test the membership custom duration
     function testTakasurePool_customMembershipDuration() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setAllowCustomDuration(true);
 
         vm.prank(alice);
@@ -155,7 +162,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     }
 
     modifier bobKYCAndJoin() {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(bob);
         vm.prank(bob);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -181,7 +188,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     //////////////////////////////////////////////////////////////*/
     /// @dev Pro formas updated when a member joins
     function testTakasurePool_proFormasUpdatedOnMemberJoined() public aliceKYCAndJoin {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(bob);
 
         (
@@ -229,7 +236,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         (uint256 initialDRR, uint256 currentDRR, , , , , , , , , , ) = takasurePool
             .getReserveValues();
 
-        vm.startPrank(takasurePool.owner());
+        vm.startPrank(admin);
 
         takasurePool.setKYCStatus(alice);
         takasurePool.setKYCStatus(bob);
@@ -263,7 +270,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_bmaCalculatedOnMemberJoined() public {
         (, , uint256 initialBMA, , , , , , , , , ) = takasurePool.getReserveValues();
 
-        vm.startPrank(takasurePool.owner());
+        vm.startPrank(admin);
 
         takasurePool.setKYCStatus(alice);
         takasurePool.setKYCStatus(bob);
@@ -302,7 +309,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         );
         uint256 aliceCreditTokenBalanceBefore = creditTokenInstance.balanceOf(alice);
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         vm.prank(alice);

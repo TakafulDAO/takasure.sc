@@ -5,6 +5,7 @@ pragma solidity 0.8.25;
 import {Test, console} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
+import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -15,8 +16,10 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
+    HelperConfig helperConfig;
     address proxy;
     address contributionTokenAddress;
+    address admin;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
@@ -26,7 +29,11 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+
+        admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
         (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
@@ -40,7 +47,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.prank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
 
         vm.prank(msg.sender);
@@ -50,8 +57,8 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
-    /// @dev `setNewServiceFee` must revert if the caller is not the owner
-    function testTakasurePool_setNewServiceFeeMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setNewServiceFee` must revert if the caller is not the admin
+    function testTakasurePool_setNewServiceFeeMustRevertIfTheCallerIsNotTheAdmin() public {
         uint8 newServiceFee = 50;
         vm.prank(alice);
         vm.expectRevert();
@@ -61,21 +68,21 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     /// @dev `setNewServiceFee` must revert if it is higher than 35
     function testTakasurePool_setNewServiceFeeMustRevertIfHigherThan35() public {
         uint8 newServiceFee = 36;
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         vm.expectRevert(TakasureErrors.TakasurePool__WrongServiceFee.selector);
         takasurePool.setNewServiceFee(newServiceFee);
     }
 
-    /// @dev `setNewMinimumThreshold` must revert if the caller is not the owner
-    function testTakasurePool_setNewMinimumThresholdMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setNewMinimumThreshold` must revert if the caller is not the admin
+    function testTakasurePool_setNewMinimumThresholdMustRevertIfTheCallerIsNotTheAdmin() public {
         uint8 newThreshold = 50;
         vm.prank(alice);
         vm.expectRevert();
         takasurePool.setNewMinimumThreshold(newThreshold);
     }
 
-    /// @dev `setNewContributionToken` must revert if the caller is not the owner
-    function testTakasurePool_setNewContributionTokenMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setNewContributionToken` must revert if the caller is not the admin
+    function testTakasurePool_setNewContributionTokenMustRevertIfTheCallerIsNotTheAdmin() public {
         vm.prank(alice);
         vm.expectRevert();
         takasurePool.setNewContributionToken(alice);
@@ -83,13 +90,13 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `setNewContributionToken` must revert if the address is zero
     function testTakasurePool_setNewContributionTokenMustRevertIfAddressZero() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
         takasurePool.setNewContributionToken(address(0));
     }
 
-    /// @dev `setNewFeeClaimAddress` must revert if the caller is not the owner
-    function testTakasurePool_setNewFeeClaimAddressMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setNewFeeClaimAddress` must revert if the caller is not the admin
+    function testTakasurePool_setNewFeeClaimAddressMustRevertIfTheCallerIsNotTheAdmin() public {
         vm.prank(alice);
         vm.expectRevert();
         takasurePool.setNewFeeClaimAddress(alice);
@@ -97,13 +104,13 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `setNewFeeClaimAddress` must revert if the address is zero
     function testTakasurePool_setNewFeeClaimAddressMustRevertIfAddressZero() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
         takasurePool.setNewFeeClaimAddress(address(0));
     }
 
-    /// @dev `setAllowCustomDuration` must revert if the caller is not the owner
-    function testTakasurePool_setAllowCustomDurationMustRevertIfTheCallerIsNotTheOwner() public {
+    /// @dev `setAllowCustomDuration` must revert if the caller is not the admin
+    function testTakasurePool_setAllowCustomDurationMustRevertIfTheCallerIsNotTheAdmin() public {
         vm.prank(alice);
         vm.expectRevert();
         takasurePool.setAllowCustomDuration(true);
@@ -119,7 +126,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev If it is an active member, can not join again
     function testTakasurePool_activeMembersSholdNotJoinAgain() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
         vm.startPrank(alice);
         // Alice joins the pool
@@ -133,7 +140,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `setKYCStatus` must revert if the member is address zero
     function testTakasurePool_setKYCStatusMustRevertIfMemberIsAddressZero() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
 
         vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
         takasurePool.setKYCStatus(address(0));
@@ -141,7 +148,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `setKYCStatus` must revert if the member is already KYC verified
     function testTakasurePool_setKYCStatusMustRevertIfMemberIsAlreadyKYCVerified() public {
-        vm.startPrank(takasurePool.owner());
+        vm.startPrank(admin);
         takasurePool.setKYCStatus(alice);
 
         // And tries to join again but fails
@@ -160,7 +167,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `recurringPayment` must revert if the date is invalid, a year has passed and the member has not paid
     function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidNotPaidInTime() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         vm.startPrank(alice);
@@ -179,7 +186,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev `recurringPayment` must revert if the date is invalid, the membership expired
     function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidMembershipExpired() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         vm.startPrank(alice);
@@ -206,7 +213,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
 
     /// @dev can not refund someone already KYC verified
     function testTakasurePool_refundRevertIfMemberIsKyc() public {
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
         vm.prank(alice);

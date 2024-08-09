@@ -16,6 +16,17 @@ contract DeployTakasure is Script {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
+        require(
+            config.contributionToken != address(0) &&
+                config.feeClaimAddress != address(0) &&
+                config.daoMultisig != address(0) &&
+                config.takadaoOperator != address(0) &&
+                config.kycProvider != address(0) &&
+                config.pauseGuardian != address(0) &&
+                config.tokenAdmin != address(0),
+            "No address 0 allowed"
+        );
+
         vm.startBroadcast();
 
         console2.log("Deploying TakasurePool...");
@@ -27,7 +38,10 @@ contract DeployTakasure is Script {
                 (
                     config.contributionToken,
                     config.feeClaimAddress,
-                    config.daoOperator,
+                    config.daoMultisig,
+                    config.takadaoOperator,
+                    config.kycProvider,
+                    config.pauseGuardian,
                     config.tokenAdmin,
                     config.tokenName,
                     config.tokenSymbol

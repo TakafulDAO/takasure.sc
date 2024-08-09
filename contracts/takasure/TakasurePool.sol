@@ -12,7 +12,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
@@ -24,11 +25,11 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.25;
 
-// todo: change OwnableUpgradeable to AccessControlUpgradeable
 contract TakasurePool is
     Initializable,
     UUPSUpgradeable,
-    OwnableUpgradeable,
+    AccessControlUpgradeable,
+    PausableUpgradeable,
     ReentrancyGuardTransientUpgradeable
 {
     IERC20 private contributionToken;
@@ -36,6 +37,11 @@ contract TakasurePool is
     IBenefitMultiplierConsumer private bmConsumer;
 
     Reserve private reserve;
+
+    bytes32 public constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
+    bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
+    bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
+    bytes32 public constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
@@ -84,18 +90,21 @@ contract TakasurePool is
         address _contributionToken,
         address _feeClaimAddress,
         address _daoOperator,
+        address _takadaoOperator,
+        address _kycProvider,
+        address _pauseGuardian,
         address _tokenAdmin,
         string memory _tokenName,
         string memory _tokenSymbol
-    )
-        external
-        initializer
-        notZeroAddress(_contributionToken)
-        notZeroAddress(_feeClaimAddress)
-        notZeroAddress(_daoOperator)
-    {
+    ) external initializer {
         __UUPSUpgradeable_init();
-        __Ownable_init(_daoOperator);
+        __AccessControl_init();
+        __Pausable_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
+        _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
+        _grantRole(DAO_MULTISIG, _daoOperator);
+        _grantRole(KYC_PROVIDER, _kycProvider);
+        _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
 
         contributionToken = IERC20(_contributionToken);
         daoToken = new TSToken(_tokenAdmin, _tokenName, _tokenSymbol);
@@ -230,7 +239,7 @@ contract TakasurePool is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function setKYCStatus(address memberWallet) external onlyOwner {
+    function setKYCStatus(address memberWallet) external onlyRole(KYC_PROVIDER) {
         if (memberWallet == address(0)) {
             revert TakasureErrors.TakasurePool__ZeroAddress();
         }
@@ -395,7 +404,7 @@ contract TakasurePool is
         );
     }
 
-    function setNewServiceFee(uint8 newServiceFee) external onlyOwner {
+    function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
         if (newServiceFee > 35) {
             revert TakasureErrors.TakasurePool__WrongServiceFee();
         }
@@ -404,13 +413,13 @@ contract TakasurePool is
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
     }
 
-    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyOwner {
+    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyRole(DAO_MULTISIG) {
         minimumThreshold = newMinimumThreshold;
 
         emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
     }
 
-    function setMaximumThreshold(uint256 newMaximumThreshold) external onlyOwner {
+    function setMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(DAO_MULTISIG) {
         maximumThreshold = newMaximumThreshold;
 
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
@@ -418,19 +427,24 @@ contract TakasurePool is
 
     function setNewContributionToken(
         address newContributionToken
-    ) external onlyOwner notZeroAddress(newContributionToken) {
+    ) external onlyRole(DAO_MULTISIG) notZeroAddress(newContributionToken) {
         contributionToken = IERC20(newContributionToken);
     }
 
     function setNewFeeClaimAddress(
         address newFeeClaimAddress
-    ) external onlyOwner notZeroAddress(newFeeClaimAddress) {
+    ) external onlyRole(TAKADAO_OPERATOR) notZeroAddress(newFeeClaimAddress) {
         feeClaimAddress = newFeeClaimAddress;
     }
 
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
-    ) external onlyOwner notZeroAddress(newBenefitMultiplierConsumer) {
+    )
+        external
+        onlyRole(DAO_MULTISIG)
+        onlyRole(TAKADAO_OPERATOR)
+        notZeroAddress(newBenefitMultiplierConsumer)
+    {
         address oldBenefitMultiplierConsumer = address(bmConsumer);
         bmConsumer = IBenefitMultiplierConsumer(newBenefitMultiplierConsumer);
 
@@ -440,8 +454,13 @@ contract TakasurePool is
         );
     }
 
-    function setAllowCustomDuration(bool _allowCustomDuration) external onlyOwner {
+    function setAllowCustomDuration(bool _allowCustomDuration) external onlyRole(DAO_MULTISIG) {
         allowCustomDuration = _allowCustomDuration;
+    }
+
+    function setNewPauseGuardian(address newPauseGuardian) external onlyRole(PAUSE_GUARDIAN) {
+        _grantRole(PAUSE_GUARDIAN, newPauseGuardian);
+        _revokeRole(PAUSE_GUARDIAN, msg.sender);
     }
 
     function getReserveValues()
@@ -925,6 +944,14 @@ contract TakasurePool is
         }
     }
 
+    function _pause() internal override whenNotPaused onlyRole(PAUSE_GUARDIAN) {
+        super._pause();
+    }
+
+    function _unpause() internal override whenPaused onlyRole(PAUSE_GUARDIAN) {
+        super._unpause();
+    }
+
     /// @notice Calculate the total earned and unearned contribution reserves for all active members
     // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
     function _totalECResAndCResUnboundedForLoop()
@@ -986,5 +1013,7 @@ contract TakasurePool is
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(DAO_MULTISIG) {}
 }
