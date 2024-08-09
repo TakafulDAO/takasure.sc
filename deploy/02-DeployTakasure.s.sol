@@ -20,7 +20,7 @@ contract DeployTakasure is Script {
             config.contributionToken != address(0) &&
                 config.feeClaimAddress != address(0) &&
                 config.daoMultisig != address(0) &&
-                config.takasureMultisig != address(0) &&
+                config.takadaoOperator != address(0) &&
                 config.kycProvider != address(0) &&
                 config.tokenAdmin != address(0),
             "No address 0 allowed"
@@ -38,7 +38,7 @@ contract DeployTakasure is Script {
                     config.contributionToken,
                     config.feeClaimAddress,
                     config.daoMultisig,
-                    config.takasureMultisig,
+                    config.takadaoOperator,
                     config.kycProvider,
                     config.tokenAdmin,
                     config.tokenName,

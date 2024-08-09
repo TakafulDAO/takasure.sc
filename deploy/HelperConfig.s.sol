@@ -29,7 +29,7 @@ abstract contract CodeConstants {
         address sepolia;
     }
 
-    struct TakasureMultisig {
+    struct TakadaoOperator {
         address local;
         address mainnet;
         address sepolia;
@@ -61,8 +61,8 @@ abstract contract CodeConstants {
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
-    TakasureMultisig public takasureMultisig =
-        TakasureMultisig({
+    TakadaoOperator public takadaoOperator =
+        TakadaoOperator({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
             mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1

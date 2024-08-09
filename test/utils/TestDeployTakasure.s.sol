@@ -30,7 +30,7 @@ contract TestDeployTakasure is Script {
                     config.contributionToken,
                     config.feeClaimAddress,
                     config.daoMultisig,
-                    config.takasureMultisig,
+                    config.takadaoOperator,
                     config.kycProvider,
                     config.tokenAdmin,
                     config.tokenName,
