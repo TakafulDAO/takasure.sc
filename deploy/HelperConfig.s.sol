@@ -97,7 +97,7 @@ contract HelperConfig is CodeConstants, Script {
         address contributionToken;
         address feeClaimAddress;
         address daoMultisig;
-        address takasureMultisig;
+        address takadaoOperator;
         address kycProvider;
         address tokenAdmin;
         string tokenName;
@@ -138,7 +138,7 @@ contract HelperConfig is CodeConstants, Script {
             contributionToken: 0xf9b2DE65196fA500527c576De9312E3c626C7d6a,
             feeClaimAddress: feeClaimAddress.sepolia,
             daoMultisig: daoMultisig.sepolia,
-            takasureMultisig: takasureMultisig.sepolia,
+            takadaoOperator: takadaoOperator.sepolia,
             kycProvider: kycProvider.sepolia,
             tokenAdmin: tokenAdmin.sepolia,
             tokenName: "Takasure DAO Token",
@@ -168,7 +168,7 @@ contract HelperConfig is CodeConstants, Script {
                 contributionToken: address(usdc),
                 feeClaimAddress: feeClaimAddress.local,
                 daoMultisig: daoMultisig.local,
-                takasureMultisig: takasureMultisig.local,
+                takadaoOperator: takadaoOperator.local,
                 kycProvider: kycProvider.local,
                 tokenAdmin: tokenAdmin.local,
                 tokenName: "Takasure DAO Token",
