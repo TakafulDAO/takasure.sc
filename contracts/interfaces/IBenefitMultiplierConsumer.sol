@@ -3,14 +3,17 @@
 pragma solidity 0.8.25;
 
 interface IBenefitMultiplierConsumer {
-    /**
-     * @notice Send a simple request
-     * @param args The user address to get the BM
-     */
-    function sendRequest(string[] memory args) external returns (bytes32 requestId);
+    function idToBenefitMultiplier(
+        bytes32 requestId
+    ) external view returns (uint256 benefitMultiplier);
 
-    /**
-     * @notice a method convert the last response to an uint256
-     */
-    function convertResponseToUint() external view returns (uint256);
+    function idToError(bytes32 requestId) external view returns (bytes memory error);
+
+    function idToResponse(bytes32 requestId) external view returns (bytes memory response);
+
+    function idToSuccessRequest(bytes32 requestId) external view returns (bool successRequest);
+
+    function memberToRequestId(string memory member) external view returns (bytes32 requestId);
+
+    function sendRequest(string[] memory args) external returns (bytes32 requestId);
 }
