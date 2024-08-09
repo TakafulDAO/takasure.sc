@@ -5,6 +5,7 @@ pragma solidity 0.8.25;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
+import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -16,8 +17,10 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
+    HelperConfig helperConfig;
     address proxy;
     address contributionTokenAddress;
+    address admin;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -27,7 +30,11 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+
+        admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
         (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
@@ -41,7 +48,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         vm.prank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
 
         vm.prank(msg.sender);
@@ -62,7 +69,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_KycFlow1() public {
         uint256 memberIdBeforeKyc = takasurePool.memberIdCounter();
 
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
 
         vm.expectEmit(true, true, true, true, address(takasurePool));
         emit TakasureEvents.OnMemberCreated(memberIdBeforeKyc + 1, alice, 0, 0, 0, 5 * YEAR, 1);
@@ -206,7 +213,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         assertEq(testMemberAfterJoin.isKYCVerified, false, "KYC Verification is not correct");
 
         // Set KYC status to true
-        vm.prank(takasurePool.owner());
+        vm.prank(admin);
         vm.expectEmit(true, true, true, true, address(takasurePool));
         emit TakasureEvents.OnMemberUpdated(
             memberIdAfterJoin,
