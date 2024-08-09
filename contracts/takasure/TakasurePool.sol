@@ -649,7 +649,7 @@ contract TakasurePool is
         address _memberWallet,
         bool _payContribution
     ) internal {
-        _updateProFormas(_contributionBeforeFee);
+        _updateProFormas(_contributionAfterFee, _contributionBeforeFee);
         _updateReserves(_contributionBeforeFee, _contributionAfterFee);
         _updateCashMappings(_contributionAfterFee);
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
@@ -661,11 +661,14 @@ contract TakasurePool is
         }
     }
 
-    function _updateProFormas(uint256 _contributionBeforeFee) internal {
+    function _updateProFormas(
+        uint256 _contributionAfterFee,
+        uint256 _contributionBeforeFee
+    ) internal {
         // Scope to avoid stack too deep error. This scope update both pro formas
         uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
             reserve.proFormaFundReserve,
-            _contributionBeforeFee,
+            _contributionAfterFee,
             INITIAL_RESERVE_RATIO
         );
 
