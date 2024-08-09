@@ -22,6 +22,7 @@ contract DeployTakasure is Script {
                 config.daoMultisig != address(0) &&
                 config.takadaoOperator != address(0) &&
                 config.kycProvider != address(0) &&
+                config.pauseGuardian != address(0) &&
                 config.tokenAdmin != address(0),
             "No address 0 allowed"
         );
@@ -40,6 +41,7 @@ contract DeployTakasure is Script {
                     config.daoMultisig,
                     config.takadaoOperator,
                     config.kycProvider,
+                    config.pauseGuardian,
                     config.tokenAdmin,
                     config.tokenName,
                     config.tokenSymbol

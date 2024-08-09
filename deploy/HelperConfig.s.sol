@@ -41,6 +41,12 @@ abstract contract CodeConstants {
         address sepolia;
     }
 
+    struct PauseGuardian {
+        address local;
+        address mainnet;
+        address sepolia;
+    }
+
     struct TokenAdmin {
         address local;
         address mainnet;
@@ -75,6 +81,13 @@ abstract contract CodeConstants {
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
+    PauseGuardian public pauseGuardian =
+        PauseGuardian({
+            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
+            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+        });
+
     TokenAdmin public tokenAdmin =
         TokenAdmin({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
@@ -99,6 +112,7 @@ contract HelperConfig is CodeConstants, Script {
         address daoMultisig;
         address takadaoOperator;
         address kycProvider;
+        address pauseGuardian;
         address tokenAdmin;
         string tokenName;
         string tokenSymbol;
@@ -140,6 +154,7 @@ contract HelperConfig is CodeConstants, Script {
             daoMultisig: daoMultisig.sepolia,
             takadaoOperator: takadaoOperator.sepolia,
             kycProvider: kycProvider.sepolia,
+            pauseGuardian: pauseGuardian.sepolia,
             tokenAdmin: tokenAdmin.sepolia,
             tokenName: "Takasure DAO Token",
             tokenSymbol: "TST",
@@ -170,6 +185,7 @@ contract HelperConfig is CodeConstants, Script {
                 daoMultisig: daoMultisig.local,
                 takadaoOperator: takadaoOperator.local,
                 kycProvider: kycProvider.local,
+                pauseGuardian: pauseGuardian.local,
                 tokenAdmin: tokenAdmin.local,
                 tokenName: "Takasure DAO Token",
                 tokenSymbol: "TST",

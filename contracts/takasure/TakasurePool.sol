@@ -13,6 +13,7 @@ import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplie
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "../token/TSToken.sol";
 
 import {Reserve, Member, MemberState} from "contracts/types/TakasureTypes.sol";
@@ -23,7 +24,12 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.25;
 
-contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
+contract TakasurePool is
+    Initializable,
+    UUPSUpgradeable,
+    AccessControlUpgradeable,
+    PausableUpgradeable
+{
     IERC20 private contributionToken;
     TSToken private daoToken;
     IBenefitMultiplierConsumer private bmConsumer;
@@ -33,7 +39,7 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
     bytes32 public constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-    bytes32 public constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN"); // Todo: to grant on governance implementation
+    bytes32 public constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
@@ -82,16 +88,19 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         address _daoOperator,
         address _takadaoOperator,
         address _kycProvider,
+        address _pauseGuardian,
         address _tokenAdmin,
         string memory _tokenName,
         string memory _tokenSymbol
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
+        __Pausable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
         _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
         _grantRole(DAO_MULTISIG, _daoOperator);
         _grantRole(KYC_PROVIDER, _kycProvider);
+        _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
 
         contributionToken = IERC20(_contributionToken);
         daoToken = new TSToken(_tokenAdmin, _tokenName, _tokenSymbol);
@@ -439,6 +448,11 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
 
     function setAllowCustomDuration(bool _allowCustomDuration) external onlyRole(DAO_MULTISIG) {
         allowCustomDuration = _allowCustomDuration;
+    }
+
+    function setNewPauseGuardian(address newPauseGuardian) external onlyRole(PAUSE_GUARDIAN) {
+        _grantRole(PAUSE_GUARDIAN, newPauseGuardian);
+        _revokeRole(PAUSE_GUARDIAN, msg.sender);
     }
 
     function getReserveValues()
@@ -909,6 +923,14 @@ contract TakasurePool is Initializable, UUPSUpgradeable, AccessControlUpgradeabl
         if (!success) {
             revert TakasureErrors.TakasurePool__MintFailed();
         }
+    }
+
+    function _pause() internal override whenNotPaused onlyRole(PAUSE_GUARDIAN) {
+        super._pause();
+    }
+
+    function _unpause() internal override whenPaused onlyRole(PAUSE_GUARDIAN) {
+        super._unpause();
     }
 
     ///@dev required by the OZ UUPS module

@@ -32,6 +32,7 @@ contract TestDeployTakasure is Script {
                     config.daoMultisig,
                     config.takadaoOperator,
                     config.kycProvider,
+                    config.pauseGuardian,
                     config.tokenAdmin,
                     config.tokenName,
                     config.tokenSymbol
