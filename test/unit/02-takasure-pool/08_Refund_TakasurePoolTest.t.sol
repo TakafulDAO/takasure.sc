@@ -12,12 +12,14 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
+import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Refund_TakasurePoolTest is StdCheats, Test {
+contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
+    BenefitMultiplierConsumerMockSuccess bmConsumerSuccess;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -38,7 +40,7 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
+        (, , bmConsumerSuccess) = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -94,6 +96,9 @@ contract Refund_TakasurePoolTest is StdCheats, Test {
         // 14 days passed
         vm.warp(15 days);
         vm.roll(block.number + 1);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerSuccess));
 
         vm.startPrank(alice);
         takasurePool.refund();

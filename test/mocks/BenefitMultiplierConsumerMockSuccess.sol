@@ -122,4 +122,12 @@ contract BenefitMultiplierConsumerMockSuccess is AccessControl, FunctionsClient 
 
         emit OnBenefitMultiplierResponse(requestId, response, err);
     }
+
+    function simulateDonResponse(
+        bytes32 requestId,
+        bytes memory response,
+        bytes memory err
+    ) external {
+        fulfillRequest(requestId, response, err);
+    }
 }

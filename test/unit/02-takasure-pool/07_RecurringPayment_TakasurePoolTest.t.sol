@@ -12,12 +12,14 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
+import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
+contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
+    BenefitMultiplierConsumerMockSuccess bmConsumerSuccess;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -37,7 +39,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
+        (, , bmConsumerSuccess) = mockDeployer.run();
 
         takasurePool = TakasurePool(proxy);
         usdc = IUSDC(contributionTokenAddress);
@@ -55,6 +57,9 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test {
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerSuccess));
 
         vm.startPrank(admin);
         takasurePool.setKYCStatus(alice);

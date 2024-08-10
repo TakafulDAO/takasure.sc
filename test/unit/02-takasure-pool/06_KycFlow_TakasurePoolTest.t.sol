@@ -12,12 +12,14 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
+import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract KycFlow_TakasurePoolTest is StdCheats, Test {
+contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
+    BenefitMultiplierConsumerMockSuccess bmConsumerSuccess;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -25,7 +27,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-    uint256 public benefitMultiplierFromConsumer;
+    uint256 public constant BENEFIT_MULTIPLIER_FROM_CONSUMER = 100046; // Mock respose
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
@@ -37,7 +39,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
+        (, , bmConsumerSuccess) = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -53,8 +55,6 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
         vm.prank(msg.sender);
         bmConsumerSuccess.setNewRequester(address(takasurePool));
-
-        benefitMultiplierFromConsumer = bmConsumerSuccess.bm();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -103,6 +103,9 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         assertEq(testMemberAfterKyc.isKYCVerified, true, "KYC Verification is not correct");
         console2.log("=====================================");
 
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerSuccess));
+
         // Join the pool
         vm.prank(alice);
 
@@ -110,7 +113,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         emit TakasureEvents.OnMemberUpdated(
             memberIdAfterKyc,
             alice,
-            benefitMultiplierFromConsumer,
+            BENEFIT_MULTIPLIER_FROM_CONSUMER,
             CONTRIBUTION_AMOUNT,
             ((CONTRIBUTION_AMOUNT * 22) / 100),
             5 * YEAR,
@@ -140,7 +143,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         assertEq(testMemberAfterJoin.memberId, memberIdAfterJoin, "Member ID is not correct");
         assertEq(
             testMemberAfterJoin.benefitMultiplier,
-            benefitMultiplierFromConsumer,
+            BENEFIT_MULTIPLIER_FROM_CONSUMER,
             "Benefit Multiplier is not correct"
         );
         assertEq(
@@ -172,7 +175,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         emit TakasureEvents.OnMemberCreated(
             memberIdBeforeJoin + 1,
             alice,
-            benefitMultiplierFromConsumer,
+            0,
             CONTRIBUTION_AMOUNT,
             ((CONTRIBUTION_AMOUNT * 22) / 100),
             5 * YEAR,
@@ -198,11 +201,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
 
         // Check the values
         assertEq(testMemberAfterJoin.memberId, memberIdAfterJoin, "Member ID is not correct");
-        assertEq(
-            testMemberAfterJoin.benefitMultiplier,
-            benefitMultiplierFromConsumer,
-            "Benefit Multiplier is not correct"
-        );
+        assertEq(testMemberAfterJoin.benefitMultiplier, 0, "Benefit Multiplier is not correct");
         assertEq(
             testMemberAfterJoin.contribution,
             CONTRIBUTION_AMOUNT,
@@ -212,13 +211,16 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         assertEq(uint8(testMemberAfterJoin.memberState), 0, "Member State is not correct");
         assertEq(testMemberAfterJoin.isKYCVerified, false, "KYC Verification is not correct");
 
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerSuccess));
+
         // Set KYC status to true
         vm.prank(admin);
         vm.expectEmit(true, true, true, true, address(takasurePool));
         emit TakasureEvents.OnMemberUpdated(
             memberIdAfterJoin,
             alice,
-            benefitMultiplierFromConsumer,
+            BENEFIT_MULTIPLIER_FROM_CONSUMER,
             CONTRIBUTION_AMOUNT,
             ((CONTRIBUTION_AMOUNT * 22) / 100),
             5 * YEAR,
@@ -251,7 +253,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test {
         assertEq(memberIdAfterJoin, memberIdAfterKyc, "Member ID is not correct");
         assertEq(
             testMemberAfterKyc.benefitMultiplier,
-            benefitMultiplierFromConsumer,
+            BENEFIT_MULTIPLIER_FROM_CONSUMER,
             "Benefit Multiplier is not correct"
         );
         assertEq(

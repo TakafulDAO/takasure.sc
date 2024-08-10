@@ -11,12 +11,14 @@ import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplier
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reserves_TakasurePoolTest is StdCheats, Test {
+contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
+    BenefitMultiplierConsumerMockSuccess bmConsumerSuccess;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -38,7 +40,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
+        (, , bmConsumerSuccess) = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -79,6 +81,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
 
         ) = takasurePool.getReserveValues();
 
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerSuccess));
+
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
@@ -116,6 +121,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             takasurePool.setKYCStatus(lotOfUsers[i]);
         }
         // Each day 10 users will join with the contribution amount
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerSuccess));
 
         // First day
         for (uint256 i; i < 10; i++) {
@@ -185,6 +193,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             takasurePool.setKYCStatus(lotOfUsers[i]);
         }
 
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerSuccess));
+
         // Test three months two days
 
         // First month 30 people joins
@@ -248,6 +259,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
             vm.prank(admin);
             takasurePool.setKYCStatus(lotOfUsers[i]);
         }
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerSuccess));
 
         // Months 1, 2 and 3, one new member joins daily
         for (uint256 i; i < 90; i++) {
