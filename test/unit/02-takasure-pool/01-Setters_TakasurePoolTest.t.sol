@@ -17,7 +17,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerSuccess;
+    BenefitMultiplierConsumerMock bmConnsumerMock;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -37,7 +37,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        (, , bmConsumerSuccess) = mockDeployer.run();
+        bmConnsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -49,10 +49,10 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         vm.stopPrank();
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerSuccess.setNewRequester(address(takasurePool));
+        bmConnsumerMock.setNewRequester(address(takasurePool));
     }
 
     /// @dev Test the owner can set a new service fee

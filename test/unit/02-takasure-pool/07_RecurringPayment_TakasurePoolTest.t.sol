@@ -19,7 +19,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerSuccess;
+    BenefitMultiplierConsumerMock bmConnsumerMock;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -39,16 +39,16 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        (, , bmConsumerSuccess) = mockDeployer.run();
+        bmConnsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(proxy);
         usdc = IUSDC(contributionTokenAddress);
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerSuccess.setNewRequester(address(takasurePool));
+        bmConnsumerMock.setNewRequester(address(takasurePool));
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
@@ -59,7 +59,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
         vm.stopPrank;
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConsumerSuccess));
+        _successResponse(address(bmConnsumerMock));
 
         vm.startPrank(admin);
         takasurePool.setKYCStatus(alice);

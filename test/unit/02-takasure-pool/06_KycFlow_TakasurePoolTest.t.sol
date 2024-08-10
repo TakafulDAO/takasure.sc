@@ -19,7 +19,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerSuccess;
+    BenefitMultiplierConsumerMock bmConnsumerMock;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -39,7 +39,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        (, , bmConsumerSuccess) = mockDeployer.run();
+        bmConnsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -51,10 +51,10 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerSuccess.setNewRequester(address(takasurePool));
+        bmConnsumerMock.setNewRequester(address(takasurePool));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -104,7 +104,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         console2.log("=====================================");
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConsumerSuccess));
+        _successResponse(address(bmConnsumerMock));
 
         // Join the pool
         vm.prank(alice);
@@ -212,7 +212,7 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         assertEq(testMemberAfterJoin.isKYCVerified, false, "KYC Verification is not correct");
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConsumerSuccess));
+        _successResponse(address(bmConnsumerMock));
 
         // Set KYC status to true
         vm.prank(admin);

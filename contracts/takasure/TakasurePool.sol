@@ -665,7 +665,7 @@ contract TakasurePool is
             // If there is no request id, it means the member has no valid BM yet. So we make a new request
             string[] memory args = new string[](1);
             args[0] = memberAddressToString;
-            bytes32 newRequestId = bmConsumer.sendRequest(args);
+            bmConsumer.sendRequest(args);
         } else {
             // If there is a request id, we check if it was successful
             bool successRequest = bmConsumer.idToSuccessRequest(requestId);

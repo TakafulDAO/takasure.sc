@@ -18,7 +18,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerSuccess;
+    BenefitMultiplierConsumerMock bmConnsumerMock;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -38,7 +38,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        (, , bmConsumerSuccess) = mockDeployer.run();
+        bmConnsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -50,10 +50,10 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerSuccess.setNewRequester(address(takasurePool));
+        bmConnsumerMock.setNewRequester(address(takasurePool));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -132,7 +132,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.setKYCStatus(alice);
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConsumerSuccess));
+        _successResponse(address(bmConnsumerMock));
 
         vm.startPrank(alice);
         // Alice joins the pool
@@ -177,7 +177,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.setKYCStatus(alice);
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConsumerSuccess));
+        _successResponse(address(bmConnsumerMock));
 
         vm.startPrank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
@@ -199,7 +199,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.setKYCStatus(alice);
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConsumerSuccess));
+        _successResponse(address(bmConnsumerMock));
 
         vm.startPrank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
