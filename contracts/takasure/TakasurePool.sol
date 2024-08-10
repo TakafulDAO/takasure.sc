@@ -153,15 +153,14 @@ contract TakasurePool is
         bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
         bool isRefunded = reserve.members[msg.sender].isRefunded;
 
-        uint256 benefitMultiplier = _getBenefitMultiplier(msg.sender);
+        // Fetch the BM from the oracle
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(msg.sender);
 
         (
             uint256 normalizedContributionBeforeFee,
             uint256 feeAmount,
             uint256 contributionAfterFee
         ) = _calculateAmountAndFees(contributionBeforeFee);
-
-        // Fetch the BM from the oracle
 
         if (isKYCVerified) {
             // Flow 1 KYC -> Join
@@ -204,7 +203,7 @@ contract TakasurePool is
                 // Flow 3 Refund -> Join
                 // If is not KYC verified, but refunded, the member exist already, but was previously refunded
                 _updateMember({
-                    _benefitMultiplier: reserve.members[msg.sender].benefitMultiplier, // We take the current value
+                    _benefitMultiplier: benefitMultiplier,
                     _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
                     _membershipDuration: membershipDuration, // From the input
                     _feeAmount: feeAmount, // Calculated
@@ -238,13 +237,16 @@ contract TakasurePool is
             revert TakasureErrors.TakasurePool__MemberAlreadyKYCed();
         }
 
-        bool isRefunded = reserve.members[msg.sender].isRefunded;
+        bool isRefunded = reserve.members[memberWallet].isRefunded;
+
+        // Fetch the BM from the oracle
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
         if (reserve.members[memberWallet].wallet == address(0)) {
             // Flow 1 KYC -> Join
             // This means the user does not exist yet
             _createNewMember({
-                _benefitMultiplier: 0, // We dont know it yet
+                _benefitMultiplier: benefitMultiplier,
                 _contributionBeforeFee: 0, // We dont know it yet
                 _membershipDuration: 0, // We dont know it yet
                 _feeAmount: 0, // We dont know it yet
@@ -263,7 +265,7 @@ contract TakasurePool is
                 ) = _calculateAmountAndFees(reserve.members[memberWallet].contribution);
 
                 _updateMember({
-                    _benefitMultiplier: reserve.members[memberWallet].benefitMultiplier, // We take the current value
+                    _benefitMultiplier: benefitMultiplier, // We take the current value
                     _contributionBeforeFee: normalizedContributionBeforeFee, // We take the current value
                     _membershipDuration: reserve.members[memberWallet].membershipDuration, // We take the current value
                     _feeAmount: feeAmount, // Calculated
@@ -291,7 +293,7 @@ contract TakasurePool is
                 // Flow 4 Refund -> KYC
                 // This means the user exists, but was refunded, we reset the values
                 _updateMember({
-                    _benefitMultiplier: reserve.members[memberWallet].benefitMultiplier, // As the B, does not change, we can avoid re-fetching
+                    _benefitMultiplier: benefitMultiplier, // As the B, does not change, we can avoid re-fetching
                     _contributionBeforeFee: 0, // Reset until the user pays the contribution
                     _membershipDuration: 0, // Reset until the user pays the contribution
                     _feeAmount: 0, // Reset until the user pays the contribution
@@ -515,23 +517,6 @@ contract TakasurePool is
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
     }
 
-    function _getBenefitMultiplier(address _member) internal returns (uint256 benefitMultiplier_) {
-        string[] memory args = new string[](1);
-        args[0] = Strings.toHexString(uint256(uint160(_member)), 20);
-        bytes32 requestId = bmConsumer.sendRequest(args);
-        bool successRequest = bmConsumer.idToSuccessRequest(requestId);
-        if (!successRequest) {
-            revert TakasureErrors.TakasurePool__BenefitMultiplierRequestFailed();
-        } else {
-            uint256 bm = bmConsumer.idToBenefitMultiplier(requestId);
-            if (bm == 0) {
-                revert TakasureErrors.TakasurePool__WrongBenefitMultiplier();
-            } else {
-                benefitMultiplier_ = bm;
-            }
-        }
-    }
-
     function _calculateAmountAndFees(
         uint256 _contributionBeforeFee
     )
@@ -655,6 +640,15 @@ contract TakasurePool is
         address _memberWallet,
         bool _payContribution
     ) internal {
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(_memberWallet);
+        if (
+            benefitMultiplier != 0 &&
+            benefitMultiplier != reserve.members[_memberWallet].benefitMultiplier
+        ) {
+            reserve.members[_memberWallet].benefitMultiplier = benefitMultiplier;
+        } else {
+            revert TakasureErrors.TakasurePool__WrongBenefitMultiplier();
+        }
         _updateProFormas(_contributionBeforeFee);
         _updateReserves(_contributionBeforeFee, _contributionAfterFee);
         _updateCashMappings(_contributionAfterFee);
@@ -664,6 +658,33 @@ contract TakasurePool is
         _mintDaoTokens(_contributionBeforeFee, _memberWallet);
         if (_payContribution) {
             _transferAmounts(_contributionAfterFee, _feeAmount, _memberWallet);
+        }
+    }
+
+    function _getBenefitMultiplierFromOracle(
+        address _member
+    ) internal returns (uint256 benefitMultiplier_) {
+        string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
+
+        // First we check if there is already a request id for this member
+        bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);
+
+        if (requestId == 0) {
+            // If there is no request id, it means the member has no valid BM yet. So we make a new request
+            string[] memory args = new string[](1);
+            args[0] = memberAddressToString;
+            bytes32 newRequestId = bmConsumer.sendRequest(args);
+        } else {
+            // If there is a request id, we check if it was successful
+            bool successRequest = bmConsumer.idToSuccessRequest(requestId);
+
+            if (successRequest) {
+                benefitMultiplier_ = bmConsumer.idToBenefitMultiplier(requestId);
+            } else {
+                // If failed we get the error and revert with it
+                bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
+                revert TakasureErrors.TakasurePool__BenefitMultiplierRequestFailed(errorResponse);
+            }
         }
     }
 
