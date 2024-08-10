@@ -30,8 +30,8 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
     bytes public lastError;
 
     mapping(bytes32 requestId => bool successRequest) public idToSuccessRequest;
-    mapping(bytes32 requestId => bytes response) public idToResponse;
-    mapping(bytes32 requestId => bytes error) public idToError;
+    mapping(bytes32 requestId => bytes successResponse) public idToSuccessResponse;
+    mapping(bytes32 requestId => bytes errorResponse) public idToErrorResponse;
     mapping(bytes32 requestId => uint256 benefitMultiplier) public idToBenefitMultiplier;
     mapping(string member => bytes32 requestId) public memberToRequestId;
 
@@ -116,10 +116,10 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
 
         if (err.length > 0) {
             idToSuccessRequest[requestId] = false;
-            idToError[requestId] = err;
+            idToErrorResponse[requestId] = err;
         } else {
             idToSuccessRequest[requestId] = true;
-            idToResponse[requestId] = response;
+            idToSuccessResponse[requestId] = response;
             idToBenefitMultiplier[requestId] = abi.decode(response, (uint256));
         }
 

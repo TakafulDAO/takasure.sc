@@ -7,9 +7,13 @@ interface IBenefitMultiplierConsumer {
         bytes32 requestId
     ) external view returns (uint256 benefitMultiplier);
 
-    function idToError(bytes32 requestId) external view returns (bytes memory error);
+    function idToErrorResponse(
+        bytes32 requestId
+    ) external view returns (bytes memory errorResponse);
 
-    function idToResponse(bytes32 requestId) external view returns (bytes memory response);
+    function idToSuccessResponse(
+        bytes32 requestId
+    ) external view returns (bytes memory successResponse);
 
     function idToSuccessRequest(bytes32 requestId) external view returns (bool successRequest);
 
