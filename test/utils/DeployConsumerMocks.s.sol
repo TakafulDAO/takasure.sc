@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 import {BenefitMultiplierConsumerMockError} from "test/mocks/BenefitMultiplierConsumerMockError.sol";
 import {BenefitMultiplierConsumerMockFailed} from "test/mocks/BenefitMultiplierConsumerMockFailed.sol";
-import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
+import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 
 contract DeployConsumerMocks is Script {
@@ -17,7 +17,7 @@ contract DeployConsumerMocks is Script {
         returns (
             BenefitMultiplierConsumerMockError,
             BenefitMultiplierConsumerMockFailed,
-            BenefitMultiplierConsumerMockSuccess
+            BenefitMultiplierConsumerMock
         )
     {
         HelperConfig helperConfig = new HelperConfig();
@@ -40,12 +40,12 @@ contract DeployConsumerMocks is Script {
                 config.subscriptionId
             );
 
-        BenefitMultiplierConsumerMockSuccess bmConsumerSuccess = new BenefitMultiplierConsumerMockSuccess(
-                config.functionsRouter,
-                config.donId,
-                config.gasLimit,
-                config.subscriptionId
-            );
+        BenefitMultiplierConsumerMock bmConsumerSuccess = new BenefitMultiplierConsumerMock(
+            config.functionsRouter,
+            config.donId,
+            config.gasLimit,
+            config.subscriptionId
+        );
 
         vm.stopBroadcast();
 
