@@ -640,15 +640,7 @@ contract TakasurePool is
         address _memberWallet,
         bool _payContribution
     ) internal {
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(_memberWallet);
-        if (
-            benefitMultiplier != 0 &&
-            benefitMultiplier != reserve.members[_memberWallet].benefitMultiplier
-        ) {
-            reserve.members[_memberWallet].benefitMultiplier = benefitMultiplier;
-        } else {
-            revert TakasureErrors.TakasurePool__WrongBenefitMultiplier();
-        }
+        _getBenefitMultiplierFromOracle(_memberWallet);
         _updateProFormas(_contributionBeforeFee);
         _updateReserves(_contributionBeforeFee, _contributionAfterFee);
         _updateCashMappings(_contributionAfterFee);
@@ -680,6 +672,7 @@ contract TakasurePool is
 
             if (successRequest) {
                 benefitMultiplier_ = bmConsumer.idToBenefitMultiplier(requestId);
+                reserve.members[_member].benefitMultiplier = benefitMultiplier_;
             } else {
                 // If failed we get the error and revert with it
                 bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
