@@ -9,7 +9,6 @@ import {HelperConfig} from "./HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
 contract DeployAll is Script {
-
     function run() external returns (address proxy) {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -31,7 +30,10 @@ contract DeployAll is Script {
                 (
                     config.contributionToken,
                     config.feeClaimAddress,
-                    config.daoOperator,
+                    config.daoMultisig,
+                    config.takadaoOperator,
+                    config.kycProvider,
+                    config.pauseGuardian,
                     config.tokenAdmin,
                     config.tokenName,
                     config.tokenSymbol
@@ -39,14 +41,13 @@ contract DeployAll is Script {
             )
         );
 
-        // Deploy BenefitMultiplierConsumer 
+        // Deploy BenefitMultiplierConsumer
         BenefitMultiplierConsumer benefitMultiplierConsumer = new BenefitMultiplierConsumer(
             config.functionsRouter,
             config.donId,
             config.gasLimit,
             config.subscriptionId
         );
-
 
         // Set BenefitMultiplierConsumer as an oracle in TakasurePool
         TakasurePool(proxy).setNewBenefitMultiplierConsumer(address(benefitMultiplierConsumer));
