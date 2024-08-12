@@ -1003,6 +1003,8 @@ contract TakasurePool is
         }
 
         reserve.surplus = surplus_;
+
+        emit TakasureEvents.OnFundSurplusUpdated(surplus_);
     }
 
     function _memberSurplus() internal {
@@ -1011,6 +1013,10 @@ contract TakasurePool is
         uint256 totalCreditTokens = daoToken.balanceOf(address(this));
         uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
         reserve.members[msg.sender].memberSurplus = userSurplus;
+        emit TakasureEvents.OnMemberSurplusUpdated(
+            reserve.members[msg.sender].memberId,
+            userSurplus
+        );
     }
 
     ///@dev required by the OZ UUPS module

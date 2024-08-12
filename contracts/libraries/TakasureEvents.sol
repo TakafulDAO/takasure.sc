@@ -63,4 +63,6 @@ library TakasureEvents {
         address indexed newBenefitMultiplierConsumer,
         address indexed oldBenefitMultiplierConsumer
     );
+    event OnFundSurplusUpdated(uint256 indexed surplus);
+    event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
 }
