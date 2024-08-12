@@ -13,18 +13,17 @@ contract ReserveMathLibFuzzTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                 DYNAMIC RESERVE RATIO SHORTFALL METHOD
+                            DYNAMIC RESERVE
     //////////////////////////////////////////////////////////////*/
 
     /// @dev The DRR should be updated if the fund reserve is less than the pro forma fund reserve and the possible DRR is less than 100
     function test_fuzz_calculateDynamicReserveRatioReserve(
-        uint256 currentDynamicReserveRatio,
         uint256 proFormaFundReserve,
         uint256 fundReserve,
         uint256 cashFlowLastPeriod
     ) public view {
+        uint256 initialReserveRatio = 40;
         uint256 expectedDRR;
-        currentDynamicReserveRatio = bound(currentDynamicReserveRatio, 1, 100);
         // The next three bounds are arbitrary, but they should be in the same range as the other
         // values and should not be 0. Only to avoid weird random values in the fuzzing
         proFormaFundReserve = bound(proFormaFundReserve, 1, 1000);
@@ -34,22 +33,23 @@ contract ReserveMathLibFuzzTest is Test {
         int256 fundReserveShortfall = int256(proFormaFundReserve) - int256(fundReserve);
 
         if (fundReserveShortfall <= 0) {
-            expectedDRR = currentDynamicReserveRatio;
+            expectedDRR = initialReserveRatio;
         } else {
             // possibleDRR = _currentDynamicReserveRatio + (uint256(_fundReserveShortfall * 100) / _cashFlowLastPeriod);
-            uint256 possibleDRR = currentDynamicReserveRatio +
+            uint256 possibleDRR = initialReserveRatio +
                 ((uint256(fundReserveShortfall) * 100) / cashFlowLastPeriod);
 
             if (possibleDRR < 100) {
-                expectedDRR = possibleDRR;
+                if (initialReserveRatio < possibleDRR) expectedDRR = possibleDRR;
+                else expectedDRR = initialReserveRatio;
             } else {
                 expectedDRR = 100;
             }
         }
 
         uint256 updatedDynamicReserveRatio = reserveMathLibHarness
-            .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
-                currentDynamicReserveRatio,
+            .exposed__calculateDynamicReserveRatio(
+                initialReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
                 cashFlowLastPeriod

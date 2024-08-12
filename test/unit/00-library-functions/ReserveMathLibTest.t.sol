@@ -21,9 +21,6 @@ contract ReserveMathLibTest is Test {
         uint256 memberNetContribution = 25000000;
         uint256 currentDynamicReserveRatio = 40;
 
-        // updatedProFormaFundReserve = currentProFormaFundReserve + ((memberNetContribution * currentDynamicReserveRatio) / 100);
-        // updatedProFormaFundReserve = 0 + ((25_000_000 * 40) / 100) = 10_000_000
-
         uint256 expectedProFormaFundReserve = 10000000;
 
         uint256 updatedProFormaFundReserve = reserveMathLibHarness
@@ -40,9 +37,6 @@ contract ReserveMathLibTest is Test {
         uint256 currentProFormaFundReserve = 10000000;
         uint256 memberNetContribution = 50000000;
         uint256 currentDynamicReserveRatio = 43;
-
-        // updatedProFormaFundReserve = currentProFormaFundReserve + ((memberNetContribution * currentDynamicReserveRatio) / 100);
-        // updatedProFormaFundReserve = 10_000_000 + ((50_000_000 * 43) / 100) = 31_500_000
 
         uint256 expectedProFormaFundReserve = 31500000;
 
@@ -64,14 +58,7 @@ contract ReserveMathLibTest is Test {
         uint256 currentProFormaClaimReserve = 0;
         uint256 memberNetContribution = 25e6;
         uint8 serviceFee = 20;
-        uint256 initialDynamicReserveRatio = 40;
-
-        // math:
-        // Should be = currentProFormaClaimReserve + (memberNetContribution * (1 - serviceFee) * (1 - initialDynamicReserveRatio))
-        // 0 + (25_000_000 * (1 - 0.2) * (1 - 0.4) = 25_000_000 * 0.8 * 0.6 = 12_000_000
-
-        // Solidity = currentProFormaClaimReserve + (memberNetContribution * (100 - serviceFee) * (100 - initialDynamicReserveRatio) / 1_000)
-        // 0 + (25_000_000 * (100 - 20) * (100 - 40) / 1_000) = 25_000_000 * 80 * 60 / 1_000 = 120_000_000_000 / 1_000 = 12_000_000
+        uint256 initialReserveRatio = 40;
 
         uint256 expectedProFormaClaimReserve = 12e6; // 12000000
 
@@ -80,7 +67,7 @@ contract ReserveMathLibTest is Test {
                 currentProFormaClaimReserve,
                 memberNetContribution,
                 serviceFee,
-                initialDynamicReserveRatio
+                initialReserveRatio
             );
 
         assertEq(updatedProFormaClaimReserve, expectedProFormaClaimReserve);
@@ -90,15 +77,7 @@ contract ReserveMathLibTest is Test {
         uint256 currentProFormaClaimReserve = 10e6;
         uint256 memberNetContribution = 50e6;
         uint8 serviceFee = 20;
-        uint256 initialDynamicReserveRatio = 40;
-
-        // math:
-        // Should be = currentProFormaClaimReserve + (memberNetContribution * (1 - serviceFee) * (1 - initialDynamicReserveRatio))
-        // 10_000_000 + (50_000_000 * (1 - 0.2) * (1 - 0.4) = 10_000_000 + (50_000_000 * 0.8 * 0.6) = 10_000_000 + 24_000_000 = 34_000_000
-
-        // Solidity = currentProFormaClaimReserve + (memberNetContribution * (100 - serviceFee) * (100 - initialDynamicReserveRatio) / 1_000)
-        // 10_000_000 + (50_000_000 * (100 - 20) * (100 - 40) / 1_000) = 10_000_000 + (50_000_000 * 80 * 60 / 1_000) = 10_000_000 + (240_000_000_000 / 1_000)
-        // 10_000_000 + 24_000_000 = 34_000_000
+        uint256 initialReserveRatio = 40;
 
         uint256 expectedProFormaClaimReserve = 34e6;
 
@@ -107,22 +86,19 @@ contract ReserveMathLibTest is Test {
                 currentProFormaClaimReserve,
                 memberNetContribution,
                 serviceFee,
-                initialDynamicReserveRatio
+                initialReserveRatio
             );
 
         assertEq(updatedProFormaClaimReserve, expectedProFormaClaimReserve);
     }
 
     /*//////////////////////////////////////////////////////////////
-                 DYNAMIC RESERVE RATIO SHORTFALL METHOD
+                         DYNAMIC RESERVE RATIO
     //////////////////////////////////////////////////////////////*/
 
     /// @dev The DRR should remain the same if the fund reserve is greater than the pro forma fund reserve
-    function testReserveMathLib__calculateDynamicReserveRatioReserveShortfallMethod_noShortfall_1()
-        public
-        view
-    {
-        uint256 currentDynamicReserveRatio = 40;
+    function testReserveMathLib__calculateDynamicReserveRatio_noShortfall_1() public view {
+        uint256 initialReserveRatio = 40;
         uint256 proFormaFundReserve = 10000000;
         uint256 fundReserve = 25000000;
         uint256 cashFlowLastPeriod = 25000000;
@@ -131,22 +107,19 @@ contract ReserveMathLibTest is Test {
         // fundReserveShortfall = 10_000_000 - 25_000_000 = -15_000_000 < 0 => DRR remains the same
 
         uint256 updatedDynamicReserveRatio = reserveMathLibHarness
-            .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
-                currentDynamicReserveRatio,
+            .exposed__calculateDynamicReserveRatio(
+                initialReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
                 cashFlowLastPeriod
             );
 
-        assertEq(updatedDynamicReserveRatio, currentDynamicReserveRatio);
+        assertEq(updatedDynamicReserveRatio, initialReserveRatio);
     }
 
     /// @dev The DRR should remain the same if the fund reserve is greater than the pro forma fund reserve
-    function testReserveMathLib__calculateDynamicReserveRatioReserveShortfallMethod_noShortfall_2()
-        public
-        view
-    {
-        uint256 currentDynamicReserveRatio = 40;
+    function testReserveMathLib__calculateDynamicReserveRatio_noShortfall_2() public view {
+        uint256 initialReserveRatio = 40;
         uint256 proFormaFundReserve = 100000000;
         uint256 fundReserve = 25000000;
         uint256 cashFlowLastPeriod = 0;
@@ -154,54 +127,38 @@ contract ReserveMathLibTest is Test {
         // cashFlowLastPeriod = 0 => DRR remains the same
 
         uint256 updatedDynamicReserveRatio = reserveMathLibHarness
-            .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
-                currentDynamicReserveRatio,
+            .exposed__calculateDynamicReserveRatio(
+                initialReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
                 cashFlowLastPeriod
             );
 
-        assertEq(updatedDynamicReserveRatio, currentDynamicReserveRatio);
+        assertEq(updatedDynamicReserveRatio, initialReserveRatio);
     }
 
     /// @dev The DRR should be updated if the fund reserve is less than the pro forma fund reserve and the possible DRR is less than 100
-    function testReserveMathLib__calculateDynamicReserveRatioReserveShortfallMethod_shortfallLessThan100()
-        public
-        view
-    {
-        uint256 currentDynamicReserveRatio = 85;
+    function testReserveMathLib__calculateDynamicReserveRatio_shortfallLessThan100() public view {
+        uint256 initialReserveRatio = 40;
         uint256 proFormaFundReserve = 257e5; // 25700000
         uint256 fundReserve = 25e6; // 25000000
         uint256 cashFlowLastPeriod_1 = 200e6; // 200000000
         uint256 cashFlowLastPeriod_2 = 30e6; // 30000000
 
-        // fundReserveShortfall = proFormaFundReserve - fundReserve;
-        // fundReserveShortfall = 25_700_000 - 25_000_000 = 700_000 > 0
-        // cashFlowLastPeriod_1 = 200_000_000 > 0
-        // cashFlowLastPeriod_2 = 30_000_000 > 0
-
-        // possibleDRR_1 = currentDynamicReserveRatio + (fundReserveShortfall * 100 / cashFlowLastPeriod_1);
-        // possibleDRR_1 = 85 + (70_000_000 / 25_000_000) = 85 < 100 => Updated DRR = 85
-        // expectedDRR_1 = 85
-
-        // possibleDRR_2 = currentDynamicReserveRatio + (fundReserveShortfall * 100 / cashFlowLastPeriod_2);
-        // possibleDRR_2 = 85 + (70_000_000 / 30_000_000) = 85 < 100 => Updated DRR = 85
-        // expectedDRR_2 = 87
-
-        uint256 expectedDRR_1 = 85;
-        uint256 expectedDRR_2 = 87;
+        uint256 expectedDRR_1 = 40;
+        uint256 expectedDRR_2 = 42;
 
         uint256 updatedDynamicReserveRatio_1 = reserveMathLibHarness
-            .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
-                currentDynamicReserveRatio,
+            .exposed__calculateDynamicReserveRatio(
+                initialReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
                 cashFlowLastPeriod_1
             );
 
         uint256 updatedDynamicReserveRatio_2 = reserveMathLibHarness
-            .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
-                currentDynamicReserveRatio,
+            .exposed__calculateDynamicReserveRatio(
+                initialReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
                 cashFlowLastPeriod_2
@@ -212,28 +169,20 @@ contract ReserveMathLibTest is Test {
     }
 
     /// @dev The DRR should be updated if the fund reserve is less than the pro forma fund reserve and the possible DRR is greater than 100
-    function testReserveMathLib__calculateDynamicReserveRatioReserveShortfallMethod_shortfallGreaterThan100()
+    function testReserveMathLib__calculateDynamicReserveRatio_shortfallGreaterThan100()
         public
         view
     {
-        uint256 currentDynamicReserveRatio = 40;
+        uint256 initialReserveRatio = 40;
         uint256 proFormaFundReserve = 100000000;
         uint256 fundReserve = 25000000;
         uint256 cashFlowLastPeriod = 25000000;
 
-        // fundReserveShortfall = proFormaFundReserve - fundReserve;
-        // fundReserveShortfall = 100_000_000 - 25_000_000 = 75_000_000 > 0
-        // cashFlowLastPeriod = 25_000_000 > 0
-
-        // possibleDRR = currentDynamicReserveRatio + (fundReserveShortfall * 100 / cashFlowLastPeriod);
-        // possibleDRR = 40 + (75_000_000 / 25_000_000) = 340 > 100 => Updated DRR = 100
-        // expectedDRR = 100
-
         uint256 expectedDRR = 100;
 
         uint256 updatedDynamicReserveRatio = reserveMathLibHarness
-            .exposed__calculateDynamicReserveRatioReserveShortfallMethod(
-                currentDynamicReserveRatio,
+            .exposed__calculateDynamicReserveRatio(
+                initialReserveRatio,
                 proFormaFundReserve,
                 fundReserve,
                 cashFlowLastPeriod
