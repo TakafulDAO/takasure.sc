@@ -42,6 +42,7 @@ library TakasureEvents {
         uint256 indexed benefitMultiplierAdjuster,
         uint256 indexed serviceFee,
         uint256 bmaFundReserveShare,
+        bool isOptimizerEnabled,
         address contributionToken,
         address daoToken
     );

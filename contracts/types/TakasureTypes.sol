@@ -32,7 +32,6 @@ struct Member {
 
 struct Reserve {
     mapping(address member => Member) members;
-    uint256 initialReserveRatio; // Default 40%
     uint256 dynamicReserveRatio; // Default 40%
     uint256 benefitMultiplierAdjuster; // Default 100%
     uint256 totalContributions; // Default 0
@@ -44,6 +43,6 @@ struct Reserve {
     uint8 serviceFee; // Default 22%, max 100%
     uint8 bmaFundReserveShare; // Default 70%
     uint8 riskMultiplier; // Default to 2% // TODO: Fetch from oracle? It goes from 1.4% to 6%
-    bool isOptimizerEnabled; // Default false
+    bool isOptimizerEnabled; // Default true
     uint256 surplus; // Default 0
 }

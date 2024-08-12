@@ -48,6 +48,7 @@ contract TakasurePool is
     uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
     uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
     uint256 private constant DAY = 1 days;
+    uint256 public constant INITIAL_RESERVE_RATIO = 40; // 40% Default
 
     bool public allowCustomDuration; // while false, the membership duration is fixed to 5 years
 
@@ -116,19 +117,20 @@ contract TakasurePool is
         minimumThreshold = 25e6; // 25 USDC // 6 decimals
         maximumThreshold = 250e6; // 250 USDC // 6 decimals
 
-        reserve.initialReserveRatio = 40; // 40% Default
-        reserve.dynamicReserveRatio = reserve.initialReserveRatio; // Default
+        reserve.dynamicReserveRatio = INITIAL_RESERVE_RATIO; // Default
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
         reserve.serviceFee = 22; // 22% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
         reserve.riskMultiplier = 2; // 2% Default
+        reserve.isOptimizerEnabled = true; // Default
 
         emit TakasureEvents.OnInitialReserveValues(
-            reserve.initialReserveRatio,
+            INITIAL_RESERVE_RATIO,
             reserve.dynamicReserveRatio,
             reserve.benefitMultiplierAdjuster,
             reserve.serviceFee,
             reserve.bmaFundReserveShare,
+            reserve.isOptimizerEnabled,
             address(contributionToken),
             address(daoToken)
         );
@@ -482,7 +484,7 @@ contract TakasurePool is
             bool isOptimizerEnabled_
         )
     {
-        initialReserveRatio_ = reserve.initialReserveRatio;
+        initialReserveRatio_ = INITIAL_RESERVE_RATIO;
         dynamicReserveRatio_ = reserve.dynamicReserveRatio;
         benefitMultiplierAdjuster_ = reserve.benefitMultiplierAdjuster;
         totalContributions_ = reserve.totalContributions;
@@ -666,7 +668,7 @@ contract TakasurePool is
         address _memberWallet,
         bool _payContribution
     ) internal {
-        _updateProFormas(_contributionBeforeFee);
+        _updateProFormas(_contributionAfterFee, _contributionBeforeFee);
         _updateReserves(_contributionBeforeFee, _contributionAfterFee);
         _updateCashMappings(_contributionAfterFee);
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
@@ -679,19 +681,22 @@ contract TakasurePool is
         }
     }
 
-    function _updateProFormas(uint256 _contributionBeforeFee) internal {
+    function _updateProFormas(
+        uint256 _contributionAfterFee,
+        uint256 _contributionBeforeFee
+    ) internal {
         // Scope to avoid stack too deep error. This scope update both pro formas
         uint256 updatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
             reserve.proFormaFundReserve,
-            _contributionBeforeFee,
-            reserve.dynamicReserveRatio
+            _contributionAfterFee,
+            INITIAL_RESERVE_RATIO
         );
 
         uint256 updatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
             reserve.proFormaClaimReserve,
             _contributionBeforeFee,
             reserve.serviceFee,
-            reserve.initialReserveRatio
+            INITIAL_RESERVE_RATIO
         );
 
         reserve.proFormaFundReserve = updatedProFormaFundReserve;
@@ -877,13 +882,12 @@ contract TakasurePool is
     }
 
     function _updateDRR(uint256 _cash) internal {
-        uint256 updatedDynamicReserveRatio = ReserveMathLib
-            ._calculateDynamicReserveRatioReserveShortfallMethod(
-                reserve.dynamicReserveRatio,
-                reserve.proFormaFundReserve,
-                reserve.totalFundReserve,
-                _cash
-            );
+        uint256 updatedDynamicReserveRatio = ReserveMathLib._calculateDynamicReserveRatio(
+            INITIAL_RESERVE_RATIO,
+            reserve.proFormaFundReserve,
+            reserve.totalFundReserve,
+            _cash
+        );
 
         reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
 
@@ -894,7 +898,7 @@ contract TakasurePool is
         uint256 bmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
             _cash,
             reserve.serviceFee,
-            reserve.initialReserveRatio
+            INITIAL_RESERVE_RATIO
         );
 
         uint256 updatedBMA = ReserveMathLib._calculateBmaCashFlowMethod(

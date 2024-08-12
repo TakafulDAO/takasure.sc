@@ -65,7 +65,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
         (
-            uint256 initialDynamicReserveRatio,
+            uint256 initialReserveRatio,
             ,
             ,
             ,
@@ -88,7 +88,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
         uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 5USDC = 20USDC
 
-        uint256 expectedFinalFundReserve = (deposited * initialDynamicReserveRatio) / 100; // 20USDC * 40% = 8USDC
+        uint256 expectedFinalFundReserve = (deposited * initialReserveRatio) / 100; // 20USDC * 40% = 8USDC
         uint256 expectedFinalClaimReserve = deposited - expectedFinalFundReserve; // 20USDC - 8USDC = 12USDC
 
         assertEq(initialClaimReserve, 0);
