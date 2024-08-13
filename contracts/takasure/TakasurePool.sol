@@ -116,7 +116,7 @@ contract TakasurePool is
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
         reserve.serviceFee = 22; // 22% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
-        reserve.marketExpendsFundReserveAddShare = 20; // 20% Default
+        reserve.fundMarketExpendsAddShare = 20; // 20% Default
         reserve.isOptimizerEnabled = true; // Default
 
         emit TakasureEvents.OnInitialReserveValues(
@@ -412,6 +412,18 @@ contract TakasurePool is
         minimumThreshold = newMinimumThreshold;
 
         emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
+    }
+
+    function setNewFundMarketExpendsShare(
+        uint8 newFundMarketExpendsAddShare
+    ) external onlyRole(DAO_MULTISIG) {
+        uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
+        reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
+
+        emit TakasureEvents.OnNewMarketExpendsFundReserveAddShare(
+            newFundMarketExpendsAddShare,
+            oldFundMarketExpendsAddShare
+        );
     }
 
     function setMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(DAO_MULTISIG) {

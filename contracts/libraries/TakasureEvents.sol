@@ -64,4 +64,8 @@ library TakasureEvents {
         address indexed newBenefitMultiplierConsumer,
         address indexed oldBenefitMultiplierConsumer
     );
+    event OnNewMarketExpendsFundReserveAddShare(
+        uint8 indexed newMarketExpendsFundReserveAddShare,
+        uint8 indexed oldMarketExpendsFundReserveAddShare
+    );
 }
