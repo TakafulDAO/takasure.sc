@@ -708,8 +708,14 @@ contract TakasurePool is
         uint256 _contributionBeforeFee,
         uint256 _contributionAfterFee
     ) internal {
-        uint256 toFundReserve = (_contributionAfterFee * reserve.dynamicReserveRatio) / 100;
-        uint256 toClaimReserve = _contributionAfterFee - toFundReserve;
+        uint256 toFundReserveBeforeExpenditures = (_contributionAfterFee *
+            reserve.dynamicReserveRatio) / 100;
+
+        uint256 marketExpenditure = (toFundReserveBeforeExpenditures *
+            reserve.fundMarketExpendsAddShare) / 100;
+
+        uint256 toFundReserve = toFundReserveBeforeExpenditures - marketExpenditure;
+        uint256 toClaimReserve = _contributionAfterFee - toFundReserveBeforeExpenditures;
 
         reserve.totalFundReserve += toFundReserve;
         reserve.totalContributions += _contributionBeforeFee;
