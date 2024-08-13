@@ -579,8 +579,6 @@ contract TakasurePool is
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
-        uint256 contributionAfterFee = _contributionBeforeFee - _feeAmount;
-
         Member memory newMember = Member({
             memberId: memberIdCounter,
             benefitMultiplier: _benefitMultiplier,
@@ -588,7 +586,6 @@ contract TakasurePool is
             yearsCovered: 1,
             membershipStartTime: currentTimestamp,
             contribution: _contributionBeforeFee,
-            fundAddAmount: (contributionAfterFee * reserve.dynamicReserveRatio) / 100,
             totalContributions: _contributionBeforeFee,
             totalServiceFee: _feeAmount,
             creditTokensBalance: 0,
