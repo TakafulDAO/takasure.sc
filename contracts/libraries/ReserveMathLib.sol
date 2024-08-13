@@ -152,6 +152,17 @@ library ReserveMathLib {
     }
 
     /*//////////////////////////////////////////////////////////////
+                               LOSS RATIO
+    //////////////////////////////////////////////////////////////*/
+
+    function _calculateLossRatio(
+        uint256 currentTotalFundCost,
+        uint256 currentTotalFundRevenues
+    ) internal pure returns (uint256 newLossRatio_) {
+        newLossRatio_ = currentTotalFundCost / currentTotalFundRevenues;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  DATES
     //////////////////////////////////////////////////////////////*/
 
