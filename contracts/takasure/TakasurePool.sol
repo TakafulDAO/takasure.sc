@@ -716,15 +716,32 @@ contract TakasurePool is
 
         reserve.totalFundReserve += toFundReserve;
         reserve.totalClaimReserve += toClaimReserve;
-        reserve.totalFundExpenditures += marketExpenditure;
         reserve.totalContributions += _contributionBeforeFee;
+
+        reserve.totalFundCost += marketExpenditure;
+        reserve.totalFundRevenues = _updateRevenues(_contributionAfterFee);
+
+        reserve.lossRatio = ReserveMathLib._calculateLossRatio(
+            reserve.totalFundCost,
+            reserve.totalFundRevenues
+        );
 
         emit TakasureEvents.OnNewReserveValues(
             reserve.totalContributions,
             reserve.totalClaimReserve,
             reserve.totalFundReserve,
-            reserve.totalFundExpenditures
+            reserve.totalFundCost
         );
+
+        emit TakasureEvents.OnNewLossRatio(reserve.lossRatio);
+    }
+
+    // Todo: now internal, but we might need a public one that call this on other tipes of revenue
+    function _updateRevenues(uint256 _newRevenue) internal returns (uint256 totalRevenues_) {
+        reserve.totalFundRevenues += _newRevenue;
+        totalRevenues_ = reserve.totalFundRevenues;
+
+        emit TakasureEvents.OnTotalRevenuesUpdated(totalRevenues_);
     }
 
     function _updateCashMappings(uint256 _contributionAfterFee) internal {
