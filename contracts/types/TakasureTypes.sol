@@ -38,5 +38,6 @@ struct Reserve {
     uint256 lossRatio; // Default 0
     uint8 serviceFee; // Default 22%, max 100%
     uint8 bmaFundReserveShare; // Default 70%
+    uint8 marketExpendsFundReserveAddShare; // Default 20%
     bool isOptimizerEnabled; // Default true
 }
