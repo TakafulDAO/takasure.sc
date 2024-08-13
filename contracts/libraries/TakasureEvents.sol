@@ -53,7 +53,8 @@ library TakasureEvents {
     event OnNewReserveValues(
         uint256 indexed totalContributions,
         uint256 indexed totalClaimReserve,
-        uint256 indexed totalFundReserve
+        uint256 indexed totalFundReserve,
+        uint256 totalFundExpenditures
     );
     event OnNewDynamicReserveRatio(uint256 indexed dynamicReserveRatio);
     event OnNewBenefitMultiplierAdjuster(uint256 indexed benefitMultiplierAdjuster);

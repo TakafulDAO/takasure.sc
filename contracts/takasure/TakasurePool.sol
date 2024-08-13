@@ -715,13 +715,15 @@ contract TakasurePool is
         uint256 toClaimReserve = _contributionAfterFee - toFundReserveBeforeExpenditures;
 
         reserve.totalFundReserve += toFundReserve;
-        reserve.totalContributions += _contributionBeforeFee;
         reserve.totalClaimReserve += toClaimReserve;
+        reserve.totalFundExpenditures += marketExpenditure;
+        reserve.totalContributions += _contributionBeforeFee;
 
         emit TakasureEvents.OnNewReserveValues(
             reserve.totalContributions,
             reserve.totalClaimReserve,
-            reserve.totalFundReserve
+            reserve.totalFundReserve,
+            reserve.totalFundExpenditures
         );
     }
 
