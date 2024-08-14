@@ -64,26 +64,17 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_fundAndClaimReserves() public {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
-        (
-            uint256 initialReserveRatio,
-            ,
-            ,
-            ,
-            uint256 initialClaimReserve,
-            uint256 initialFundReserve,
-            ,
-            ,
-            ,
-            uint8 serviceFee,
-            ,
 
-        ) = takasurePool.getReserveValues();
+        uint256 initialReserveRatio = takasurePool.INITIAL_RESERVE_RATIO();
+        (, uint256 initialClaimReserve, uint256 initialFundReserve, , ) = takasurePool
+            .getCurrentReservesBalances();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        (, , , , uint256 finalClaimReserve, uint256 finalFundReserve, , , , , , ) = takasurePool
-            .getReserveValues();
+        (, uint256 finalClaimReserve, uint256 finalFundReserve, , ) = takasurePool
+            .getCurrentReservesBalances();
 
         uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
         uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 5USDC = 20USDC
@@ -165,7 +156,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         // 200USDC * 5 days = 1000USDC
 
         uint256 totalMembers = takasurePool.memberIdCounter();
-        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 
@@ -228,7 +219,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         uint256 cash = takasurePool.getCashLast12Months();
 
         uint256 totalMembers = takasurePool.memberIdCounter();
-        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 

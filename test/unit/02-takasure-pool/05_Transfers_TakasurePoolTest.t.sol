@@ -76,7 +76,7 @@ contract Transfers_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_contributionAmountTransferToContractWhenJoinPool() public {
         uint256 contractBalanceBefore = usdc.balanceOf(address(takasurePool));
 
-        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -91,7 +91,7 @@ contract Transfers_TakasurePoolTest is StdCheats, Test {
 
     /// @dev Test service fee is transferred when the member joins the pool
     function testTakasurePool_serviceFeeAmountTransferedWhenJoinsPool() public {
-        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
         address serviceFeeReceiver = takasurePool.feeClaimAddress();
         uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
 
