@@ -69,6 +69,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         (, uint256 initialClaimReserve, uint256 initialFundReserve, , ) = takasurePool
             .getCurrentReservesBalances();
         uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        (, uint8 fundMarketExpendsShare) = takasurePool.getCurrentSharePercentages();
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -76,18 +77,20 @@ contract Reserves_TakasurePoolTest is StdCheats, Test {
         (, uint256 finalClaimReserve, uint256 finalFundReserve, , ) = takasurePool
             .getCurrentReservesBalances();
 
-        uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
-        uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 5USDC = 20USDC
+        uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 22% = 5.5USDC
 
-        uint256 expectedFinalFundReserve = (deposited * initialReserveRatio) / 100; // 20USDC * 40% = 8USDC
-        uint256 expectedFinalClaimReserve = deposited - expectedFinalFundReserve; // 20USDC - 8USDC = 12USDC
+        uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 5.5USDC = 19.5USDC
 
+        uint256 toFundReserveBeforeExpends = (deposited * initialReserveRatio) / 100; // 19.5USDC * 40% = 7.8USDC
+        uint256 marketExpends = (toFundReserveBeforeExpends * fundMarketExpendsShare) / 100; // 7.8USDC * 20% = 1.56USDC
+        uint256 expectedFinalClaimReserve = deposited - toFundReserveBeforeExpends; // 19.5USDC - 7.8USDC = 11.7USDC
+        uint256 expectedFinalFundReserve = toFundReserveBeforeExpends - marketExpends; // 7.8USDC - 1.56USDC = 6.24USDC
         assertEq(initialClaimReserve, 0);
         assertEq(initialFundReserve, 0);
         assertEq(finalClaimReserve, expectedFinalClaimReserve);
         assertEq(finalClaimReserve, 117e5);
         assertEq(finalFundReserve, expectedFinalFundReserve);
-        assertEq(finalFundReserve, 78e5);
+        assertEq(finalFundReserve, 624e4);
     }
 
     /*//////////////////////////////////////////////////////////////
