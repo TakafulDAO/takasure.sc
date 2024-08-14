@@ -473,35 +473,59 @@ contract TakasurePool is
         _revokeRole(PAUSE_GUARDIAN, msg.sender);
     }
 
-    function getReserveValues()
+    function getCurrentDRR() external view returns (uint256 dynamicReserveRatio_) {
+        dynamicReserveRatio_ = reserve.dynamicReserveRatio;
+    }
+
+    function getCurrentBMA() external view returns (uint256 benefitMultiplierAdjuster_) {
+        benefitMultiplierAdjuster_ = reserve.benefitMultiplierAdjuster;
+    }
+
+    function getCurrentReservesBalances()
         external
         view
         returns (
-            uint256 initialReserveRatio_,
-            uint256 dynamicReserveRatio_,
-            uint256 benefitMultiplierAdjuster_,
             uint256 totalContributions_,
             uint256 totalClaimReserve_,
             uint256 totalFundReserve_,
-            uint256 proFormaFundReserve_,
-            uint256 proFormaClaimReserve_,
-            uint256 lossRatio_,
-            uint8 serviceFee_,
-            uint8 bmaFundReserveShare_,
-            bool isOptimizerEnabled_
+            uint256 totalFundCost_,
+            uint256 totalFundRevenues_
         )
     {
-        initialReserveRatio_ = INITIAL_RESERVE_RATIO;
-        dynamicReserveRatio_ = reserve.dynamicReserveRatio;
-        benefitMultiplierAdjuster_ = reserve.benefitMultiplierAdjuster;
         totalContributions_ = reserve.totalContributions;
         totalClaimReserve_ = reserve.totalClaimReserve;
         totalFundReserve_ = reserve.totalFundReserve;
+        totalFundCost_ = reserve.totalFundCost;
+        totalFundRevenues_ = reserve.totalFundRevenues;
+    }
+
+    function getCurrentProFormas()
+        external
+        view
+        returns (uint256 proFormaFundReserve_, uint256 proFormaClaimReserve_)
+    {
         proFormaFundReserve_ = reserve.proFormaFundReserve;
         proFormaClaimReserve_ = reserve.proFormaClaimReserve;
+    }
+
+    function getCurrentLossRatio() external view returns (uint256 lossRatio_) {
         lossRatio_ = reserve.lossRatio;
+    }
+
+    function getCurrentServiceFee() external view returns (uint8 serviceFee_) {
         serviceFee_ = reserve.serviceFee;
+    }
+
+    function getCurrentSharePercentages()
+        external
+        view
+        returns (uint8 bmaFundReserveShare_, uint8 fundMarketExpendsAddShare_)
+    {
         bmaFundReserveShare_ = reserve.bmaFundReserveShare;
+        fundMarketExpendsAddShare_ = reserve.fundMarketExpendsAddShare;
+    }
+
+    function getCurrentOptimizerValue() external view returns (bool isOptimizerEnabled_) {
         isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
 
