@@ -417,6 +417,9 @@ contract TakasurePool is
     function setNewFundMarketExpendsShare(
         uint8 newFundMarketExpendsAddShare
     ) external onlyRole(DAO_MULTISIG) {
+        if (newFundMarketExpendsAddShare > 35) {
+            revert TakasureErrors.TakasurePool__WrongFundMarketExpendsShare();
+        }
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
         reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
 
