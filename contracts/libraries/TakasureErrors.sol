@@ -22,4 +22,7 @@ library TakasureErrors {
     error TakasurePool__RefundFailed();
     error TakasurePool__TooEarlytoRefund();
     error TakasurePool__WrongFundMarketExpendsShare();
+    error TakasurePool__WrongRevenueType();
+    error TakasurePool__RevenueApprovalFailed();
+    error TakasurePool__RevenueTransferFailed();
 }
