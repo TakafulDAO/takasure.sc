@@ -19,11 +19,9 @@ contract AddBmFetchCode is Script, GetContractAddress {
         BenefitMultiplierConsumer bmConsumer = BenefitMultiplierConsumer(bmConsumerAddress);
 
         vm.startBroadcast();
-        console2.log("Adding New source code to BenefitMultiplierConsumer...");
 
         bmConsumer.setBMSourceRequestCode(bmFetchScript);
 
-        console2.log("New Source Code added");
         vm.stopBroadcast();
     }
 }

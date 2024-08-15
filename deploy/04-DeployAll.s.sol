@@ -2,27 +2,23 @@
 
 pragma solidity 0.8.25;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
-contract DeployTakasure is Script {
-
+contract DeployAll is Script {
     function run() external returns (address proxy) {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        require(
-            config.contributionToken != address(0) &&
-                config.feeClaimAddress != address(0) &&
-                config.daoMultisig != address(0) &&
-                config.takadaoOperator != address(0) &&
-                config.kycProvider != address(0) &&
-                config.pauseGuardian != address(0) &&
-                config.tokenAdmin != address(0),
-            "No address 0 allowed"
+        string memory root = vm.projectRoot();
+        string memory scriptPath = string.concat(
+            root,
+            "/scripts/chainlink-functions/bmFetchCode.js"
         );
+        string memory bmFetchScript = vm.readFile(scriptPath);
 
         vm.startBroadcast();
 
@@ -44,6 +40,23 @@ contract DeployTakasure is Script {
                 )
             )
         );
+
+        // Deploy BenefitMultiplierConsumer
+        BenefitMultiplierConsumer benefitMultiplierConsumer = new BenefitMultiplierConsumer(
+            config.functionsRouter,
+            config.donId,
+            config.gasLimit,
+            config.subscriptionId
+        );
+
+        // Set BenefitMultiplierConsumer as an oracle in TakasurePool
+        TakasurePool(proxy).setNewBenefitMultiplierConsumer(address(benefitMultiplierConsumer));
+
+        // Setting TakasurePool as a requester in BenefitMultiplierConsumer
+        benefitMultiplierConsumer.setNewRequester(proxy);
+
+        // Add new source code to BenefitMultiplierConsumer
+        benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
 
         vm.stopBroadcast();
 

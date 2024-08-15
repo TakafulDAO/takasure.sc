@@ -15,11 +15,7 @@ contract ApproveSpender is Script, GetContractAddress {
 
         vm.startBroadcast();
 
-        console2.log("Approving Takasure to spend usdc...");
-
         usdc.approve(takasureAddress, CONTRIUTION_AMOUNNT);
-
-        console2.log("TakasurePool Approved to spend USDC successfully!");
 
         vm.stopBroadcast();
     }

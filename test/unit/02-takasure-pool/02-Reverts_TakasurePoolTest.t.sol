@@ -2,21 +2,23 @@
 
 pragma solidity 0.8.25;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
-import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
+import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
+import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reverts_TakasurePoolTest is StdCheats, Test {
+contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
+    BenefitMultiplierConsumerMock bmConnsumerMock;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -36,7 +38,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
+        bmConnsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -48,10 +50,10 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerSuccess.setNewRequester(address(takasurePool));
+        bmConnsumerMock.setNewRequester(address(takasurePool));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -128,6 +130,10 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_activeMembersSholdNotJoinAgain() public {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
+
         vm.startPrank(alice);
         // Alice joins the pool
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -170,6 +176,9 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
+
         vm.startPrank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
@@ -188,6 +197,9 @@ contract Reverts_TakasurePoolTest is StdCheats, Test {
     function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidMembershipExpired() public {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
 
         vm.startPrank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
