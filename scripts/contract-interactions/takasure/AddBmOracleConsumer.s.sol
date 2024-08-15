@@ -10,13 +10,10 @@ contract AddBmOracleConsumer is Script, GetContractAddress {
         address takasureAddress = _getContractAddress(block.chainid, "TakasurePool");
         address bmConsumerAddress = _getContractAddress(block.chainid, "BenefitMultiplierConsumer");
         TakasurePool takasurePool = TakasurePool(takasureAddress);
+
         vm.startBroadcast();
 
-        console2.log("Adding new Benefit Multiplier Consumer contract");
-
         takasurePool.setNewBenefitMultiplierConsumer(bmConsumerAddress);
-
-        console2.log("New Benefit Multiplier Consumer contract added");
 
         vm.stopBroadcast();
     }

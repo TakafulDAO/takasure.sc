@@ -8,16 +8,18 @@ import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {BenefitMultiplierConsumerMockSuccess} from "test/mocks/BenefitMultiplierConsumerMockSuccess.sol";
+import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Join_TakasurePoolTest is StdCheats, Test {
+contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
+    BenefitMultiplierConsumerMock bmConnsumerMock;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -38,7 +40,7 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        (, , BenefitMultiplierConsumerMockSuccess bmConsumerSuccess) = mockDeployer.run();
+        bmConnsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -54,10 +56,10 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerSuccess));
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerSuccess.setNewRequester(address(takasurePool));
+        bmConnsumerMock.setNewRequester(address(takasurePool));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -76,6 +78,9 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         takasurePool.joinPool(contributionAmount, (5 * YEAR));
 
         vm.stopPrank();
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
 
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
@@ -114,6 +119,9 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     modifier aliceKYCAndJoin() {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -165,6 +173,9 @@ contract Join_TakasurePoolTest is StdCheats, Test {
     modifier bobKYCAndJoin() {
         vm.prank(admin);
         takasurePool.setKYCStatus(bob);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
 
         vm.prank(bob);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -245,6 +256,9 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         vm.stopPrank();
 
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
+
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
@@ -278,6 +292,9 @@ contract Join_TakasurePoolTest is StdCheats, Test {
         takasurePool.setKYCStatus(bob);
 
         vm.stopPrank();
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -313,6 +330,9 @@ contract Join_TakasurePoolTest is StdCheats, Test {
 
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));

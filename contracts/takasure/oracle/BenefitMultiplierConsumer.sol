@@ -29,7 +29,13 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
     bytes public lastResponse;
     bytes public lastError;
 
-    event Response(bytes32 indexed requestId, bytes response, bytes err); // todo: this will be emited during the callback, check if chainlink need this exact name or can use OnResponse
+    mapping(bytes32 requestId => bool successRequest) public idToSuccessRequest;
+    mapping(bytes32 requestId => bytes successResponse) public idToSuccessResponse;
+    mapping(bytes32 requestId => bytes errorResponse) public idToErrorResponse;
+    mapping(bytes32 requestId => uint256 benefitMultiplier) public idToBenefitMultiplier;
+    mapping(string member => bytes32 requestId) public memberToRequestId;
+
+    event OnBenefitMultiplierResponse(bytes32 indexed requestId, bytes response, bytes err);
 
     error OracleConsumer__UnexpectedRequestID(bytes32 requestId);
     error OracleConsumer__NotAddressZero();
@@ -72,14 +78,8 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
 
         if (args.length > 0) req.setArgs(args);
         lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donId);
-        return lastRequestId;
-    }
-
-    /**
-     * @notice a method convert the last response to an uint256
-     */
-    function convertResponseToUint() external view returns (uint256) {
-        return abi.decode(lastResponse, (uint256));
+        memberToRequestId[args[0]] = lastRequestId;
+        requestId = lastRequestId;
     }
 
     /// @notice the next set of functions are used to set the values of the contract
@@ -114,6 +114,15 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
         lastResponse = response;
         lastError = err;
 
-        emit Response(requestId, response, err);
+        if (err.length > 0) {
+            idToSuccessRequest[requestId] = false;
+            idToErrorResponse[requestId] = err;
+        } else {
+            idToSuccessRequest[requestId] = true;
+            idToSuccessResponse[requestId] = response;
+            idToBenefitMultiplier[requestId] = abi.decode(response, (uint256));
+        }
+
+        emit OnBenefitMultiplierResponse(requestId, response, err);
     }
 }

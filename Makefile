@@ -35,6 +35,10 @@ snapshot :; forge snapshot
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
+deploy-all:
+	@forge clean
+	@forge script deploy/04-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
+	
 deploy-bm-consumer:
 	@forge script deploy/01-DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)
 

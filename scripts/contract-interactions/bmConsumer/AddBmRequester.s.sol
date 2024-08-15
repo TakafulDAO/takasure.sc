@@ -12,11 +12,7 @@ contract AddBmRequester is Script, GetContractAddress {
         BenefitMultiplierConsumer bmConsumer = BenefitMultiplierConsumer(bmConsumerAddress);
         vm.startBroadcast();
 
-        console2.log("Adding TakasurePool as requester for BenefitMultiplierConsumer");
-
         bmConsumer.setNewRequester(takasureAddress);
-
-        console2.log("TakasurePool added as requester for BenefitMultiplierConsumer");
 
         vm.stopBroadcast();
     }
