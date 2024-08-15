@@ -16,7 +16,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "../token/TSToken.sol";
 
-import {Reserve, Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, RevenueType} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -399,6 +399,36 @@ contract TakasurePool is
         );
     }
 
+    /**
+     * @notice To be called by the DAO to update the Fund reserve with new revenues from the market
+     * @param newRevenue the new revenue to be added to the fund reserve
+     * @param revenueType the type of revenue to be added
+     */
+    function updateRevenues(
+        uint256 newRevenue,
+        RevenueType revenueType
+    ) external onlyRole(DAO_MULTISIG) {
+        if (revenueType == RevenueType.Contribution) {
+            revert TakasureErrors.TakasurePool__WrongRevenueType();
+        }
+        _updateRevenues(newRevenue);
+        _updateCashMappings(newRevenue);
+        reserve.totalFundReserve += newRevenue;
+
+        // To avoid two transactions from DAO Multisig, we approve, transfer and decrease the allowance
+        bool success = contributionToken.approve(address(this), newRevenue);
+        if (!success) {
+            revert TakasureErrors.TakasurePool__RevenueApprovalFailed();
+        }
+
+        success = contributionToken.transferFrom(msg.sender, address(this), newRevenue);
+        if (!success) {
+            revert TakasureErrors.TakasurePool__RevenueTransferFailed();
+        }
+
+        emit TakasureEvents.OnExternalRevenue(newRevenue, revenueType);
+    }
+
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
         if (newServiceFee > 35) {
             revert TakasureErrors.TakasurePool__WrongServiceFee();
@@ -763,7 +793,6 @@ contract TakasurePool is
         emit TakasureEvents.OnNewLossRatio(reserve.lossRatio);
     }
 
-    // Todo: now internal, but we might need a public one that call this on other tipes of revenue
     function _updateRevenues(uint256 _newRevenue) internal returns (uint256 totalRevenues_) {
         reserve.totalFundRevenues += _newRevenue;
         totalRevenues_ = reserve.totalFundRevenues;
@@ -771,7 +800,7 @@ contract TakasurePool is
         emit TakasureEvents.OnTotalRevenuesUpdated(totalRevenues_);
     }
 
-    function _updateCashMappings(uint256 _contributionAfterFee) internal {
+    function _updateCashMappings(uint256 _cashIn) internal {
         uint256 currentTimestamp = block.timestamp;
 
         if (dayDepositTimestamp == 0 && monthDepositTimestamp == 0) {
@@ -779,8 +808,8 @@ contract TakasurePool is
             // Set the initial values for future calculations and reference
             dayDepositTimestamp = currentTimestamp;
             monthDepositTimestamp = currentTimestamp;
-            monthToCashFlow[monthReference] = _contributionAfterFee;
-            dayToCashFlow[monthReference][dayReference] = _contributionAfterFee;
+            monthToCashFlow[monthReference] = _cashIn;
+            dayToCashFlow[monthReference][dayReference] = _cashIn;
         } else {
             // Check how many days and months have passed since the last deposit
             uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
@@ -794,17 +823,17 @@ contract TakasurePool is
 
             if (monthsPassed == 0) {
                 // If no months have passed, update the mapping for the current month
-                monthToCashFlow[monthReference] += _contributionAfterFee;
+                monthToCashFlow[monthReference] += _cashIn;
                 if (daysPassed == 0) {
                     // If no days have passed, update the mapping for the current day
-                    dayToCashFlow[monthReference][dayReference] += _contributionAfterFee;
+                    dayToCashFlow[monthReference][dayReference] += _cashIn;
                 } else {
                     // If it is a new day, update the day deposit timestamp and the new day reference
                     dayDepositTimestamp += daysPassed * DAY;
                     dayReference += uint8(daysPassed);
 
                     // Update the mapping for the new day
-                    dayToCashFlow[monthReference][dayReference] = _contributionAfterFee;
+                    dayToCashFlow[monthReference][dayReference] = _cashIn;
                 }
             } else {
                 // If it is a new month, update the month deposit timestamp and the day deposit timestamp
@@ -825,8 +854,8 @@ contract TakasurePool is
                 dayReference = uint8(daysPassed) + initialDay;
 
                 // Update the mappings for the new month and day
-                monthToCashFlow[monthReference] = _contributionAfterFee;
-                dayToCashFlow[monthReference][dayReference] = _contributionAfterFee;
+                monthToCashFlow[monthReference] = _cashIn;
+                dayToCashFlow[monthReference][dayReference] = _cashIn;
             }
         }
     }
