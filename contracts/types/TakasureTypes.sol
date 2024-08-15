@@ -9,6 +9,13 @@ enum MemberState {
     Deceased
 }
 
+enum RevenueType {
+    Contribution,
+    Investment,
+    CatDonation,
+    CatLoan
+}
+
 struct Member {
     uint256 memberId;
     uint256 benefitMultiplier;
