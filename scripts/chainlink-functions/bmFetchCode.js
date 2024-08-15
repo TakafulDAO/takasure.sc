@@ -1,7 +1,7 @@
 const userAddress = args[0]
 
 // make HTTP request
-const url = `http://uat.thelifedao.io:5559/api/v1/user/bm`
+const url = `https://uat.thelifedao.io/api/v1/user/bm`
 console.log(`HTTP GET Request to ${url}?fsyms=${userAddress}`)
 
 const bmRequest = Functions.makeHttpRequest({
