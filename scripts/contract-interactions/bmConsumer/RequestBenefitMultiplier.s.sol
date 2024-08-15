@@ -21,12 +21,11 @@ contract RequestBenefitMultiplier is Script, GetContractAddress {
         string[] memory args = new string[](1);
         args[0] = Strings.toHexString(uint256(uint160(testAddress)), 20);
 
+        vm.startBroadcast();
+
         bmConsumer.sendRequest(args);
 
         uint256 benefitMultiplier = bmConsumer.convertResponseToUint();
-
-        console2.log("Benefit Multiplier: ", benefitMultiplier);
-        console2.log("Benefit Multiplier requested successfully!");
 
         vm.stopBroadcast();
     }

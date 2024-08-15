@@ -1,19 +1,20 @@
 //SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title BenefitMultiplierConsumerMockBad
+ * @title BenefitMultiplierConsumer
  * @author Maikel Ordaz
- * @notice This contract mocks an error response from the benefit multiplier oracle
+ * @notice This contract is used to fetch the benefit multiplier to be used in the Life Dao protocol
  */
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
 
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
+import {console2} from "forge-std/Test.sol";
 
 pragma solidity 0.8.25;
 
-contract BenefitMultiplierConsumerMockError is AccessControl, FunctionsClient {
+contract BenefitMultiplierConsumerMock is AccessControl, FunctionsClient {
     using FunctionsRequest for FunctionsRequest.Request;
 
     bytes32 public constant BM_REQUESTER_ROLE = keccak256("BM_REQUESTER_ROLE");
@@ -29,7 +30,13 @@ contract BenefitMultiplierConsumerMockError is AccessControl, FunctionsClient {
     bytes public lastResponse;
     bytes public lastError;
 
-    event Response(bytes32 indexed requestId, bytes response, bytes err); // todo: this will be emited during the callback, check if chainlink need this exact name or can use OnResponse
+    mapping(bytes32 requestId => bool successRequest) public idToSuccessRequest;
+    mapping(bytes32 requestId => bytes successResponse) public idToSuccessResponse;
+    mapping(bytes32 requestId => bytes errorResponse) public idToErrorResponse;
+    mapping(bytes32 requestId => uint256 benefitMultiplier) public idToBenefitMultiplier;
+    mapping(string member => bytes32 requestId) public memberToRequestId;
+
+    event OnBenefitMultiplierResponse(bytes32 indexed requestId, bytes response, bytes err);
 
     error OracleConsumer__UnexpectedRequestID(bytes32 requestId);
     error OracleConsumer__NotAddressZero();
@@ -67,24 +74,9 @@ contract BenefitMultiplierConsumerMockError is AccessControl, FunctionsClient {
     function sendRequest(
         string[] memory args
     ) external onlyRole(BM_REQUESTER_ROLE) returns (bytes32 requestId) {
-        bytes32 newRequestId = bytes32(uint256(lastRequestId) + 1);
-        // Then we set the response and error
-        bytes memory response = "";
-        bytes memory err = abi.encode("Failed response");
-
-        lastRequestId = newRequestId;
-        // Call the callback
-        fulfillRequest(newRequestId, response, err);
-
-        // And return the newRequestId
-        requestId = newRequestId;
-    }
-
-    /**
-     * @notice a method convert the last response to an uint256
-     */
-    function convertResponseToUint() external view returns (uint256) {
-        return abi.decode(lastResponse, (uint256));
+        lastRequestId = bytes32(uint256(1));
+        memberToRequestId[args[0]] = lastRequestId;
+        requestId = lastRequestId;
     }
 
     /// @notice the next set of functions are used to set the values of the contract
@@ -119,6 +111,23 @@ contract BenefitMultiplierConsumerMockError is AccessControl, FunctionsClient {
         lastResponse = response;
         lastError = err;
 
-        emit Response(requestId, response, err);
+        if (err.length > 0) {
+            idToSuccessRequest[requestId] = false;
+            idToErrorResponse[requestId] = err;
+        } else {
+            idToSuccessRequest[requestId] = true;
+            idToSuccessResponse[requestId] = response;
+            idToBenefitMultiplier[requestId] = abi.decode(response, (uint256));
+        }
+
+        emit OnBenefitMultiplierResponse(requestId, response, err);
+    }
+
+    function simulateDonResponse(
+        bytes32 requestId,
+        bytes memory response,
+        bytes memory err
+    ) external {
+        fulfillRequest(requestId, response, err);
     }
 }
