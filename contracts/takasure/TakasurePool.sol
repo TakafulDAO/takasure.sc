@@ -1004,6 +1004,9 @@ contract TakasurePool is
                 ++i;
             }
         }
+
+        reserve.ECRes = totalECRes_;
+        reserve.UCRes = totalUCRes_;
     }
 
     function _calculateSurplus() internal returns (uint256 surplus_) {
