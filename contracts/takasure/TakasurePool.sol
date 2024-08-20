@@ -1010,9 +1010,7 @@ contract TakasurePool is
         (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
         uint256 UCRisk;
 
-        if (totalUCRes * reserve.riskMultiplier > 0) {
-            UCRisk = totalUCRes * reserve.riskMultiplier;
-        }
+        UCRisk = totalUCRes * reserve.riskMultiplier;
 
         // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
         surplus_ = uint256(
