@@ -317,4 +317,19 @@ contract ReserveMathLibTest is Test {
             14
         );
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               UTILITIES
+    //////////////////////////////////////////////////////////////*/
+    function testReserveMathLib__evaluateMax() public view {
+        assertEq(reserveMathLibHarness.exposed__evaluateMax(10, 20), 20);
+        assertEq(reserveMathLibHarness.exposed__evaluateMax(20, 10), 20);
+        assertEq(reserveMathLibHarness.exposed__evaluateMax(10, 10), 10);
+        assertEq(reserveMathLibHarness.exposed__evaluateMax(0, 0), 0);
+        assertEq(reserveMathLibHarness.exposed__evaluateMax(0, 10), 10);
+        assertEq(reserveMathLibHarness.exposed__evaluateMax(10, 0), 10);
+        assertEq(reserveMathLibHarness.exposed__evaluateMax(3, 7), 7);
+        assertEq(reserveMathLibHarness.exposed__evaluateMax(584, 325), 584);
+        assertEq(reserveMathLibHarness.exposed__evaluateMax(28091985, 5041990), 28091985);
+    }
 }

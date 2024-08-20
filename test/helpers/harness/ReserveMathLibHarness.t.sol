@@ -81,4 +81,8 @@ contract ReserveMathLibHarness {
             initialMonthTimestamp
         );
     }
+
+    function exposed__evaluateMax(uint256 x, uint256 y) external pure returns (uint256 exposedMax) {
+        exposedMax = ReserveMathLib._evaluateMax(x, y);
+    }
 }
