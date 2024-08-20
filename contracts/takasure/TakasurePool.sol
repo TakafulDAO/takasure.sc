@@ -1007,8 +1007,6 @@ contract TakasurePool is
     }
 
     function _calculateSurplus() internal returns (uint256 surplus_) {
-        int256 possibleSurplus;
-
         (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
         uint256 UCRisk;
 
@@ -1017,20 +1015,16 @@ contract TakasurePool is
         }
 
         // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
-
-        int256 unearned = int256(UCRisk) - int256(totalUCRes) - int256(RPOOL);
-
-        if (unearned < 0) {
-            unearned = 0;
-        }
-
-        possibleSurplus = int256(totalECRes) - unearned;
-
-        if (possibleSurplus < 0) {
-            surplus_ = 0;
-        } else {
-            surplus_ = uint256(possibleSurplus);
-        }
+        surplus_ = uint256(
+            ReserveMathLib._maxInt(
+                0,
+                (int256(totalECRes) -
+                    ReserveMathLib._maxInt(
+                        0,
+                        (int256(UCRisk) - int256(totalUCRes) - int256(RPOOL))
+                    ))
+            )
+        );
 
         reserve.surplus = surplus_;
 
