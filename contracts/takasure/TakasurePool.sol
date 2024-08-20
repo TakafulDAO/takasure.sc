@@ -670,6 +670,7 @@ contract TakasurePool is
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
         _mintDaoTokens(_contributionBeforeFee, _memberWallet);
+        // update ucrisk calculation ratio
         _memberSurplus();
         if (_payContribution) {
             _transferAmounts(_contributionAfterFee, _feeAmount, _memberWallet);
