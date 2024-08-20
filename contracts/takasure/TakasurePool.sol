@@ -390,6 +390,8 @@ contract TakasurePool is
         ++reserve.members[msg.sender].yearsCovered;
         reserve.members[msg.sender].totalContributions += contributionBeforeFee;
         reserve.members[msg.sender].totalServiceFee += feeAmount;
+        reserve.members[msg.sender].lastEcr = 0;
+        reserve.members[msg.sender].lastUcr = 0;
 
         // And we pay the contribution
         _memberPaymentFlow(
