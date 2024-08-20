@@ -234,4 +234,14 @@ library ReserveMathLib {
             }
         }
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function _evaluateMax(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        assembly {
+            z := xor(x, mul(xor(x, y), gt(y, x)))
+        }
+    }
 }
