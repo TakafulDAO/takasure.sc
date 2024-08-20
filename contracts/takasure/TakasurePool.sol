@@ -572,6 +572,7 @@ contract TakasurePool is
         }
 
         uint256 contributionAfterFee = _contributionBeforeFee - _feeAmount;
+        uint256 claimAddAmount = (contributionAfterFee * (100 - reserve.dynamicReserveRatio)) / 100;
 
         Member memory newMember = Member({
             memberId: memberIdCounter,
@@ -580,7 +581,7 @@ contract TakasurePool is
             yearsCovered: 1,
             membershipStartTime: currentTimestamp,
             contribution: _contributionBeforeFee,
-            claimAddAmount: (contributionAfterFee * (100 - reserve.dynamicReserveRatio)) / 100,
+            claimAddAmount: claimAddAmount,
             totalContributions: _contributionBeforeFee,
             totalServiceFee: _feeAmount,
             creditTokensBalance: 0,
@@ -622,6 +623,7 @@ contract TakasurePool is
         uint256 currentTimestamp = block.timestamp;
         uint256 userMembershipDuration;
         uint256 contributionAfterFee = _contributionBeforeFee - _feeAmount;
+        uint256 claimAddAmount = (contributionAfterFee * (100 - reserve.dynamicReserveRatio)) / 100;
 
         if (allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
@@ -633,9 +635,7 @@ contract TakasurePool is
         reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
         reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
         reserve.members[_memberWallet].contribution = _contributionBeforeFee;
-        reserve.members[_memberWallet].claimAddAmount =
-            (contributionAfterFee * (100 - reserve.dynamicReserveRatio)) /
-            100;
+        reserve.members[_memberWallet].claimAddAmount = claimAddAmount;
         reserve.members[_memberWallet].totalServiceFee = _feeAmount;
         reserve.members[_memberWallet].memberState = _memberState;
         reserve.members[_memberWallet].isKYCVerified = _isKYCVerified;
