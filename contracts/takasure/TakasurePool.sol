@@ -982,7 +982,7 @@ contract TakasurePool is
 
     /// @notice Calculate the total earned and unearned contribution reserves for all active members
     // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
-    function _totalECResAndCResUnboundedForLoop()
+    function _totalECResAndCResUnboundedLoop()
         internal
         returns (uint256 totalECRes_, uint256 totalUCRes_)
     {
