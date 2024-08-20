@@ -321,15 +321,30 @@ contract ReserveMathLibTest is Test {
     /*//////////////////////////////////////////////////////////////
                                UTILITIES
     //////////////////////////////////////////////////////////////*/
-    function testReserveMathLib__evaluateMax() public view {
-        assertEq(reserveMathLibHarness.exposed__evaluateMax(10, 20), 20);
-        assertEq(reserveMathLibHarness.exposed__evaluateMax(20, 10), 20);
-        assertEq(reserveMathLibHarness.exposed__evaluateMax(10, 10), 10);
-        assertEq(reserveMathLibHarness.exposed__evaluateMax(0, 0), 0);
-        assertEq(reserveMathLibHarness.exposed__evaluateMax(0, 10), 10);
-        assertEq(reserveMathLibHarness.exposed__evaluateMax(10, 0), 10);
-        assertEq(reserveMathLibHarness.exposed__evaluateMax(3, 7), 7);
-        assertEq(reserveMathLibHarness.exposed__evaluateMax(584, 325), 584);
-        assertEq(reserveMathLibHarness.exposed__evaluateMax(28091985, 5041990), 28091985);
+    function testReserveMathLib__evaluateMaxAndMin() public view {
+        assertEq(reserveMathLibHarness.exposed__maxUint(10, 20), 20);
+        assertEq(reserveMathLibHarness.exposed__maxUint(20, 10), 20);
+        assertEq(reserveMathLibHarness.exposed__maxUint(10, 10), 10);
+        assertEq(reserveMathLibHarness.exposed__maxUint(0, 10), 10);
+        assertEq(reserveMathLibHarness.exposed__maxUint(10, 0), 10);
+        assertEq(reserveMathLibHarness.exposed__maxUint(28091985, 5041990), 28091985);
+        assertEq(reserveMathLibHarness.exposed__maxInt(-10, 20), 20);
+        assertEq(reserveMathLibHarness.exposed__maxInt(20, -10), 20);
+        assertEq(reserveMathLibHarness.exposed__maxInt(-10, -10), -10);
+        assertEq(reserveMathLibHarness.exposed__maxInt(0, 10), 10);
+        assertEq(reserveMathLibHarness.exposed__maxInt(-10, 0), 0);
+        assertEq(reserveMathLibHarness.exposed__maxInt(-28091985, -5041990), -5041990);
+        assertEq(reserveMathLibHarness.exposed__minUint(10, 20), 10);
+        assertEq(reserveMathLibHarness.exposed__minUint(20, 10), 10);
+        assertEq(reserveMathLibHarness.exposed__minUint(10, 10), 10);
+        assertEq(reserveMathLibHarness.exposed__minUint(0, 10), 0);
+        assertEq(reserveMathLibHarness.exposed__minUint(10, 0), 0);
+        assertEq(reserveMathLibHarness.exposed__minUint(28091985, 5041990), 5041990);
+        assertEq(reserveMathLibHarness.exposed__minInt(-10, 20), -10);
+        assertEq(reserveMathLibHarness.exposed__minInt(20, -10), -10);
+        assertEq(reserveMathLibHarness.exposed__minInt(-10, -10), -10);
+        assertEq(reserveMathLibHarness.exposed__minInt(0, 10), 0);
+        assertEq(reserveMathLibHarness.exposed__minInt(-10, 0), -10);
+        assertEq(reserveMathLibHarness.exposed__minInt(-28091985, -5041990), -28091985);
     }
 }
