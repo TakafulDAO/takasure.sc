@@ -1,5 +1,5 @@
 {
-  "address": "0x915d53f97F89D86687ea88aA619FF40914dd342F",
+  "address": "0x6984a762808EAB72777e199192C3E928B5Bb8AE2",
   "abi": [
     {
         "type": "constructor",
@@ -81,16 +81,9 @@
     },
     {
         "type": "function",
-        "name": "idToError",
+        "name": "idToErrorResponse",
         "inputs": [{ "name": "requestId", "type": "bytes32", "internalType": "bytes32" }],
-        "outputs": [{ "name": "error", "type": "bytes", "internalType": "bytes" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "idToResponse",
-        "inputs": [{ "name": "requestId", "type": "bytes32", "internalType": "bytes32" }],
-        "outputs": [{ "name": "response", "type": "bytes", "internalType": "bytes" }],
+        "outputs": [{ "name": "errorResponse", "type": "bytes", "internalType": "bytes" }],
         "stateMutability": "view"
     },
     {
@@ -98,6 +91,13 @@
         "name": "idToSuccessRequest",
         "inputs": [{ "name": "requestId", "type": "bytes32", "internalType": "bytes32" }],
         "outputs": [{ "name": "successRequest", "type": "bool", "internalType": "bool" }],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "idToSuccessResponse",
+        "inputs": [{ "name": "requestId", "type": "bytes32", "internalType": "bytes32" }],
+        "outputs": [{ "name": "successResponse", "type": "bytes", "internalType": "bytes" }],
         "stateMutability": "view"
     },
     {
