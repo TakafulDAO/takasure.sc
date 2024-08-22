@@ -164,16 +164,28 @@ library ReserveMathLib {
         uint256 currentTimestamp = block.timestamp;
         uint256 claimReserveAdd = member.claimAddAmount;
         uint256 lastEcrTime = member.lastEcrTime;
-        uint256 year = 365 days;
+        uint256 year = 365;
+        uint256 decimalCorrection = 1e3;
         uint256 ecr;
         uint256 ucr;
 
         if (lastEcrTime == 0) {
             // Time passed since the membership started
-            uint256 membershipTerm = (currentTimestamp - member.membershipStartTime) % year;
-            ecr = ((year - membershipTerm) / year) * (claimReserveAdd);
+            uint256 membershipTerm = _calculateDaysPassed(
+                currentTimestamp,
+                member.membershipStartTime
+            );
+
+            ecr =
+                ((((year - membershipTerm) * decimalCorrection) / year) * (claimReserveAdd)) /
+                decimalCorrection;
         } else {
-            ecr = ((currentTimestamp - lastEcrTime) / year) * (claimReserveAdd);
+            // Time passed since last ECR calculation
+            uint256 timeSinceLastCalc = _calculateDaysPassed(currentTimestamp, lastEcrTime);
+
+            ecr =
+                (((timeSinceLastCalc * decimalCorrection) / year) * (claimReserveAdd)) /
+                decimalCorrection;
         }
 
         // Unearned contribution reserve
