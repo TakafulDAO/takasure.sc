@@ -64,7 +64,7 @@ contract TakasurePool is
 
     uint256 RPOOL; // todo: define this value
 
-    mapping(uint256 memberIdCounter => Member) private idToMember;
+    mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
@@ -502,12 +502,16 @@ contract TakasurePool is
         isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
 
+    function getSurplus() external view returns (uint256 surplus_) {
+        surplus_ = reserve.surplus;
+    }
+
     function getMemberKYCStatus(address member) external view returns (bool isKYCVerified_) {
         isKYCVerified_ = reserve.members[member].isKYCVerified;
     }
 
-    function getMemberFromId(uint256 memberId) external view returns (Member memory) {
-        return idToMember[memberId];
+    function getMemberFromId(uint256 memberId) external view returns (address) {
+        return idToMemberWallet[memberId];
     }
 
     function getMemberFromAddress(address member) external view returns (Member memory) {
@@ -597,7 +601,7 @@ contract TakasurePool is
 
         // Add the member to the corresponding mappings
         reserve.members[_memberWallet] = newMember;
-        idToMember[memberIdCounter] = newMember;
+        idToMemberWallet[memberIdCounter] = _memberWallet;
 
         emit TakasureEvents.OnMemberCreated(
             memberIdCounter,
@@ -990,7 +994,9 @@ contract TakasurePool is
         returns (uint256 totalECRes_, uint256 totalUCRes_)
     {
         for (uint256 i = 1; i <= memberIdCounter; ) {
-            Member storage memberToCheck = idToMember[i];
+            address memberWallet = idToMemberWallet[i];
+            Member storage memberToCheck = reserve.members[memberWallet];
+            MemberState memberState = memberToCheck.memberState;
             if (memberToCheck.memberState == MemberState.Active) {
                 (uint256 memberEcr, uint256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
                     memberToCheck
