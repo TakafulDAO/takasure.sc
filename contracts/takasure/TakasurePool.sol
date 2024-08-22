@@ -996,7 +996,6 @@ contract TakasurePool is
         for (uint256 i = 1; i <= memberIdCounter; ) {
             address memberWallet = idToMemberWallet[i];
             Member storage memberToCheck = reserve.members[memberWallet];
-            MemberState memberState = memberToCheck.memberState;
             if (memberToCheck.memberState == MemberState.Active) {
                 (uint256 memberEcr, uint256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
                     memberToCheck
