@@ -502,7 +502,9 @@ contract TakasurePool is
         isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
 
-    function getSurplus() external view returns (uint256 surplus_) {
+    function getSurplus() external view returns (uint256 ECRes_, int256 UCRes_, uint256 surplus_) {
+        ECRes_ = reserve.ECRes;
+        UCRes_ = reserve.UCRes;
         surplus_ = reserve.surplus;
     }
 
@@ -993,6 +995,7 @@ contract TakasurePool is
         internal
         returns (uint256 totalECRes_, int256 totalUCRes_)
     {
+        uint256 newECRes;
         // We check for every member except the recently added
         for (uint256 i = 1; i <= memberIdCounter - 1; ) {
             address memberWallet = idToMemberWallet[i];
@@ -1002,7 +1005,7 @@ contract TakasurePool is
                     memberToCheck
                 );
 
-                totalECRes_ += memberEcr;
+                newECRes += memberEcr;
                 totalUCRes_ += memberUcr;
             }
 
@@ -1011,15 +1014,20 @@ contract TakasurePool is
             }
         }
 
-        reserve.ECRes += totalECRes_;
+        reserve.ECRes += newECRes;
         reserve.UCRes = totalUCRes_;
+
+        totalECRes_ = reserve.ECRes;
     }
 
     function _calculateSurplus() internal returns (uint256 surplus_) {
         (uint256 totalECRes, int256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
         int256 UCRisk;
 
-        UCRisk = ReserveMathLib._maxInt(0, (totalUCRes * int256(int8(reserve.riskMultiplier))));
+        UCRisk = ReserveMathLib._maxInt(
+            0,
+            ((totalUCRes * int256(int8(reserve.riskMultiplier))) / 100)
+        );
 
         // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
         surplus_ = uint256(
