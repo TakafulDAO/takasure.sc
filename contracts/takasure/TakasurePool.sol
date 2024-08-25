@@ -401,7 +401,7 @@ contract TakasurePool is
     }
 
     /**
-     * @notice To be called by the DAO to update the Fund reserve with new revenues from the market
+     * @notice To be called by the DAO to update the Fund reserve with new revenues
      * @param newRevenue the new revenue to be added to the fund reserve
      * @param investmentReturn the type of revenue to be added
      */
