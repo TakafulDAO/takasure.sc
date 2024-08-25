@@ -405,14 +405,14 @@ contract TakasurePool is
      * @param newRevenue the new revenue to be added to the fund reserve
      * @param investmentReturn the type of revenue to be added
      */
-    function updateRevenues(
+    function depositRevenue(
         uint256 newRevenue,
         InvestmentReturn investmentReturn
     ) external onlyRole(DAO_MULTISIG) {
         if (investmentReturn == InvestmentReturn.Contribution) {
             revert TakasureErrors.TakasurePool__WrongInvestmentReturn();
         }
-        _updateRevenues(newRevenue);
+        _depositRevenue(newRevenue);
         _updateCashMappings(newRevenue);
         reserve.totalFundReserve += newRevenue;
 
@@ -798,7 +798,7 @@ contract TakasurePool is
         reserve.totalContributions += _contributionBeforeFee;
 
         reserve.totalFundCost += marketExpenditure;
-        reserve.totalFundRevenues = _updateRevenues(_contributionAfterFee);
+        reserve.totalFundRevenues = _depositRevenue(_contributionAfterFee);
 
         reserve.lossRatio = ReserveMathLib._calculateLossRatio(
             reserve.totalFundCost,
@@ -815,7 +815,7 @@ contract TakasurePool is
         emit TakasureEvents.OnNewLossRatio(reserve.lossRatio);
     }
 
-    function _updateRevenues(uint256 _newRevenue) internal returns (uint256 totalRevenues_) {
+    function _depositRevenue(uint256 _newRevenue) internal returns (uint256 totalRevenues_) {
         reserve.totalFundRevenues += _newRevenue;
         totalRevenues_ = reserve.totalFundRevenues;
 
