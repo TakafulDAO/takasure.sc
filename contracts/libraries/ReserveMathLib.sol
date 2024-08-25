@@ -191,7 +191,7 @@ library ReserveMathLib {
 
         member.lastEcrTime = currentTimestamp;
         member.lastEcr += ecr;
-        member.lastUcr += ucr; // todo: not adding to previous
+        member.lastUcr = ucr;
 
         return (member.lastEcr, member.lastUcr);
     }
