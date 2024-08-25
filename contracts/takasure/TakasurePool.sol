@@ -993,7 +993,8 @@ contract TakasurePool is
         internal
         returns (uint256 totalECRes_, uint256 totalUCRes_)
     {
-        for (uint256 i = 1; i <= memberIdCounter; ) {
+        // We check for every member except the recently added
+        for (uint256 i = 1; i <= memberIdCounter - 1; ) {
             address memberWallet = idToMemberWallet[i];
             Member storage memberToCheck = reserve.members[memberWallet];
             if (memberToCheck.memberState == MemberState.Active) {
