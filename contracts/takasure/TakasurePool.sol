@@ -991,14 +991,14 @@ contract TakasurePool is
     // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
     function _totalECResAndUCResUnboundedLoop()
         internal
-        returns (uint256 totalECRes_, uint256 totalUCRes_)
+        returns (uint256 totalECRes_, int256 totalUCRes_)
     {
         // We check for every member except the recently added
         for (uint256 i = 1; i <= memberIdCounter - 1; ) {
             address memberWallet = idToMemberWallet[i];
             Member storage memberToCheck = reserve.members[memberWallet];
             if (memberToCheck.memberState == MemberState.Active) {
-                (uint256 memberEcr, uint256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
+                (uint256 memberEcr, int256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
                     memberToCheck
                 );
 
@@ -1016,10 +1016,10 @@ contract TakasurePool is
     }
 
     function _calculateSurplus() internal returns (uint256 surplus_) {
-        (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
-        uint256 UCRisk;
+        (uint256 totalECRes, int256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
+        int256 UCRisk;
 
-        UCRisk = totalUCRes * reserve.riskMultiplier;
+        UCRisk = ReserveMathLib._maxInt(0, (totalUCRes * int256(int8(reserve.riskMultiplier))));
 
         // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
         surplus_ = uint256(

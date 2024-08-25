@@ -27,7 +27,7 @@ struct Member {
     bool isRefunded; // Can not be true if isKYCVerified is true
     uint256 lastEcrTime; // the timestamp when the last ECR was calculated for the member
     uint256 lastEcr; // the last ECR calculated
-    uint256 lastUcr; // the last UCR calculated
+    int256 lastUcr; // the last UCR calculated
 }
 
 struct Reserve {
@@ -45,6 +45,6 @@ struct Reserve {
     uint8 riskMultiplier; // Default to 2% // TODO: Fetch from oracle? It goes from 1.4% to 6%
     bool isOptimizerEnabled; // Default true
     uint256 ECRes; // Default 0
-    uint256 UCRes; // Default 0
+    int256 UCRes; // Default 0
     uint256 surplus; // Default 0
 }
