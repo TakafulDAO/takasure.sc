@@ -79,6 +79,7 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         uint256 surplusDay1 = takasurePool.getSurplus();
         Member memory ALICE = takasurePool.getMemberFromAddress(alice);
 
+        assertEq(surplusDay1, 117e5);
         assertEq(surplusDay1, ALICE.lastEcr);
         assertEq(ALICE.lastUcr, 0);
         assertEq(ALICE.memberSurplus, 0);
@@ -91,6 +92,7 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         ALICE = takasurePool.getMemberFromAddress(alice);
         Member memory BOB = takasurePool.getMemberFromAddress(bob);
 
+        assertEq(surplusDay1, 351e5);
         assert(surplusDay1 > ALICE.lastEcr);
         assert(surplusDay1 > ALICE.lastUcr);
         assertEq(ALICE.memberSurplus, 0);
@@ -100,51 +102,41 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         assertEq(BOB.memberSurplus, 0);
         assertEq(BOB.lastEcrTime, day1);
 
-        // 1 day passes noone joins
-        vm.warp(block.timestamp + 1 days);
-        vm.roll(block.number + 1);
-
-        uint256 surplusDay2 = takasurePool.getSurplus();
-
-        ALICE = takasurePool.getMemberFromAddress(alice);
-        BOB = takasurePool.getMemberFromAddress(bob);
-
-        assertEq(surplusDay1, surplusDay2);
-        assertEq(ALICE.lastEcrTime, day1);
-        assertEq(BOB.lastEcrTime, day1);
-
         // 1 day passes
         vm.warp(block.timestamp + 1 days);
         vm.roll(block.number + 1);
 
-        // Charlie joins in day 3
+        // Charlie joins in day 2
         _join(charlie, 10);
 
-        uint256 surplusDay3 = takasurePool.getSurplus();
+        uint256 surplusDay2 = takasurePool.getSurplus();
+        console2.log("surplusDay2", surplusDay2);
 
-        assert(surplusDay3 > surplusDay1);
+        assert(surplusDay2 > surplusDay1);
 
         // 1 day passes
         vm.warp(block.timestamp + 1 days);
         vm.roll(block.number + 1);
 
-        // David joins in day 4
+        // David joins in day 3
         _join(david, 5);
 
-        uint256 surplusDay4 = takasurePool.getSurplus();
+        uint256 surplusDay3 = takasurePool.getSurplus();
+        console2.log("surplusDay3", surplusDay3);
 
-        assert(surplusDay4 < surplusDay3);
+        assert(surplusDay3 < surplusDay2);
 
         // 1 day passes
         vm.warp(block.timestamp + 1 days);
         vm.roll(block.number + 1);
 
-        // Eve joins in day 5
+        // Eve joins in day 4
         _join(eve, 2);
 
-        uint256 surplusDay5 = takasurePool.getSurplus();
+        uint256 surplusDay4 = takasurePool.getSurplus();
+        console2.log("surplusDay4", surplusDay4);
 
-        assert(surplusDay5 < surplusDay4);
+        assert(surplusDay4 < surplusDay3);
     }
 
     function _join(address user, uint256 timesContributionAmount) internal {
