@@ -16,7 +16,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "../token/TSToken.sol";
 
-import {Reserve, Member, MemberState, RevenueType} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, InvestmentReturn} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -403,14 +403,14 @@ contract TakasurePool is
     /**
      * @notice To be called by the DAO to update the Fund reserve with new revenues from the market
      * @param newRevenue the new revenue to be added to the fund reserve
-     * @param revenueType the type of revenue to be added
+     * @param investmentReturn the type of revenue to be added
      */
     function updateRevenues(
         uint256 newRevenue,
-        RevenueType revenueType
+        InvestmentReturn investmentReturn
     ) external onlyRole(DAO_MULTISIG) {
-        if (revenueType == RevenueType.Contribution) {
-            revert TakasureErrors.TakasurePool__WrongRevenueType();
+        if (investmentReturn == InvestmentReturn.Contribution) {
+            revert TakasureErrors.TakasurePool__WrongInvestmentReturn();
         }
         _updateRevenues(newRevenue);
         _updateCashMappings(newRevenue);
@@ -427,7 +427,7 @@ contract TakasurePool is
             revert TakasureErrors.TakasurePool__RevenueTransferFailed();
         }
 
-        emit TakasureEvents.OnExternalRevenue(newRevenue, revenueType);
+        emit TakasureEvents.OnExternalRevenue(newRevenue, investmentReturn);
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {

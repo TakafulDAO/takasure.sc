@@ -9,7 +9,7 @@ enum MemberState {
     Deceased
 }
 
-enum RevenueType {
+enum InvestmentReturn {
     Contribution,
     Investment,
     CatDonation,
