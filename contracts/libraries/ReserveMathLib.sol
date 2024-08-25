@@ -165,7 +165,6 @@ library ReserveMathLib {
         uint256 year = 365;
         uint256 decimalCorrection = 1e3;
         uint256 ecr;
-        int256 ucr;
 
         if (lastEcrTime == 0) {
             // Time passed since the membership started
@@ -186,12 +185,9 @@ library ReserveMathLib {
                 decimalCorrection;
         }
 
-        // Unearned contribution reserve
-        ucr = int256(claimReserveAdd) - int256(ecr);
-
         member.lastEcrTime = currentTimestamp;
         member.lastEcr += ecr;
-        member.lastUcr = ucr;
+        member.lastUcr = int256(claimReserveAdd) - int256(member.lastEcr);
 
         return (member.lastEcr, member.lastUcr);
     }
