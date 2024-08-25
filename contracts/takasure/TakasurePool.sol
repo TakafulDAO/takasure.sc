@@ -1011,7 +1011,7 @@ contract TakasurePool is
             }
         }
 
-        reserve.ECRes = totalECRes_;
+        reserve.ECRes += totalECRes_;
         reserve.UCRes = totalUCRes_;
     }
 
