@@ -313,47 +313,20 @@ contract TakasurePool is
     }
 
     /**
-     * @notice Refunds the user unable to do KYC
+     * @notice Method to refunds a user
+     * @dev To be called by the user itself
      */
     function refund() external {
-        // The member should not be KYCed neither already refunded
-        if (reserve.members[msg.sender].isKYCVerified == true) {
-            revert TakasureErrors.TakasurePool__MemberAlreadyKYCed();
-        }
-        if (reserve.members[msg.sender].isRefunded == true) {
-            revert TakasureErrors.TakasurePool__NothingToRefund();
-        }
-        uint256 currentTimestamp = block.timestamp;
-        uint256 membershipStartTime = reserve.members[msg.sender].membershipStartTime;
-        // The member can refund after 14 days of the payment
-        uint256 limitTimestamp = membershipStartTime + (14 days);
-        if (currentTimestamp < limitTimestamp) {
-            revert TakasureErrors.TakasurePool__TooEarlytoRefund();
-        }
-        // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
-        // when first KYC and then join the pool. So the previous check is enough
+        _refund(msg.sender);
+    }
 
-        // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmount = reserve.members[msg.sender].contribution;
-        uint256 serviceFeeAmount = reserve.members[msg.sender].totalServiceFee;
-        uint256 amountToRefund = contributionAmount - serviceFeeAmount;
-
-        // Transfer the amount to refund
-        bool success = contributionToken.transfer(msg.sender, amountToRefund);
-        if (!success) {
-            revert TakasureErrors.TakasurePool__RefundFailed();
-        }
-
-        // Update the member values
-        reserve.members[msg.sender].isRefunded = true;
-
-        // ? Question: Should we update the other values? Or leave it like they are for some sort of history?
-
-        emit TakasureEvents.OnRefund(
-            reserve.members[msg.sender].memberId,
-            msg.sender,
-            amountToRefund
-        );
+    /**
+     * @notice Method to refunds a user
+     * @dev To be called by anyone
+     * @param memberWallet address to be refunded
+     */
+    function refund(address memberWallet) external notZeroAddress(memberWallet) {
+        _refund(memberWallet);
     }
 
     function recurringPayment() external {
@@ -517,6 +490,45 @@ contract TakasurePool is
     function getCashLast12Months() external view returns (uint256 cash_) {
         (uint16 monthFromCall, uint8 dayFromCall) = _monthAndDayFromCall();
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
+    }
+
+    function _refund(address _memberWallet) internal {
+        // The member should not be KYCed neither already refunded
+        if (reserve.members[_memberWallet].isKYCVerified == true) {
+            revert TakasureErrors.TakasurePool__MemberAlreadyKYCed();
+        }
+        if (reserve.members[_memberWallet].isRefunded == true) {
+            revert TakasureErrors.TakasurePool__NothingToRefund();
+        }
+        uint256 currentTimestamp = block.timestamp;
+        uint256 membershipStartTime = reserve.members[_memberWallet].membershipStartTime;
+        // The member can refund after 14 days of the payment
+        uint256 limitTimestamp = membershipStartTime + (14 days);
+        if (currentTimestamp < limitTimestamp) {
+            revert TakasureErrors.TakasurePool__TooEarlytoRefund();
+        }
+        // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
+        // when first KYC and then join the pool. So the previous check is enough
+
+        // As there is only one contribution, is easy to calculte with the Member struct values
+        uint256 contributionAmount = reserve.members[_memberWallet].contribution;
+        uint256 serviceFeeAmount = reserve.members[_memberWallet].totalServiceFee;
+        uint256 amountToRefund = contributionAmount - serviceFeeAmount;
+
+        // Update the member values
+        reserve.members[_memberWallet].isRefunded = true;
+
+        // Transfer the amount to refund
+        bool success = contributionToken.transfer(_memberWallet, amountToRefund);
+        if (!success) {
+            revert TakasureErrors.TakasurePool__RefundFailed();
+        }
+
+        emit TakasureEvents.OnRefund(
+            reserve.members[_memberWallet].memberId,
+            _memberWallet,
+            amountToRefund
+        );
     }
 
     function _calculateAmountAndFees(
