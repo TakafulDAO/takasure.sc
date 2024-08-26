@@ -416,13 +416,7 @@ contract TakasurePool is
         _updateCashMappings(newRevenue);
         reserve.totalFundReserve += newRevenue;
 
-        // To avoid two transactions from DAO Multisig, we approve, transfer and decrease the allowance
-        bool success = contributionToken.approve(address(this), newRevenue);
-        if (!success) {
-            revert TakasureErrors.TakasurePool__RevenueApprovalFailed();
-        }
-
-        success = contributionToken.transferFrom(msg.sender, address(this), newRevenue);
+        bool success = contributionToken.transferFrom(msg.sender, address(this), newRevenue);
         if (!success) {
             revert TakasureErrors.TakasurePool__RevenueTransferFailed();
         }
