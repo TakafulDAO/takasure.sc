@@ -515,14 +515,14 @@ contract TakasurePool is
         uint256 serviceFeeAmount = reserve.members[_memberWallet].totalServiceFee;
         uint256 amountToRefund = contributionAmount - serviceFeeAmount;
 
+        // Update the member values
+        reserve.members[_memberWallet].isRefunded = true;
+
         // Transfer the amount to refund
         bool success = contributionToken.transfer(_memberWallet, amountToRefund);
         if (!success) {
             revert TakasureErrors.TakasurePool__RefundFailed();
         }
-
-        // Update the member values
-        reserve.members[_memberWallet].isRefunded = true;
 
         emit TakasureEvents.OnRefund(
             reserve.members[_memberWallet].memberId,
