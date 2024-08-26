@@ -155,11 +155,13 @@ library ReserveMathLib {
                                LOSS RATIO
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev return is in six decimals
     function _calculateLossRatio(
         uint256 currentTotalFundCost,
         uint256 currentTotalFundRevenues
     ) internal pure returns (uint256 newLossRatio_) {
-        newLossRatio_ = currentTotalFundCost / currentTotalFundRevenues;
+        uint256 decimalCorrection = 1e6;
+        newLossRatio_ = (currentTotalFundCost * decimalCorrection) / currentTotalFundRevenues;
     }
 
     /*//////////////////////////////////////////////////////////////
