@@ -711,6 +711,7 @@ contract TakasurePool is
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
+        _updateLossRatio(reserve.totalFundCost, reserve.totalFundRevenues);
         _mintDaoTokens(_contributionBeforeFee, _memberWallet);
         if (_payContribution) {
             _transferAmounts(_contributionAfterFee, _feeAmount, _memberWallet);
@@ -795,18 +796,16 @@ contract TakasurePool is
             InvestmentReturn.Contribution
         );
 
-        reserve.lossRatio = ReserveMathLib._calculateLossRatio(
-            reserve.totalFundCost,
-            reserve.totalFundRevenues
-        );
-
         emit TakasureEvents.OnNewReserveValues(
             reserve.totalContributions,
             reserve.totalClaimReserve,
             reserve.totalFundReserve,
             reserve.totalFundCost
         );
+    }
 
+    function _updateLossRatio(uint256 _totalFundCost, uint256 _totalFundRevenues) internal {
+        reserve.lossRatio = ReserveMathLib._calculateLossRatio(_totalFundCost, _totalFundRevenues);
         emit TakasureEvents.OnNewLossRatio(reserve.lossRatio);
     }
 
