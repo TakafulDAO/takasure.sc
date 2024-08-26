@@ -121,4 +121,21 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         assertEq(aliceAfterFirstJoinBeforeRefund.memberId, aliceAfterRefund.memberId);
         assertEq(aliceAfterRefund.memberId, aliceAfterSecondJoin.memberId);
     }
+
+    function testTakasurePool_refundCalledByAnyone() public {
+        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
+
+        Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);
+
+        // 14 days passed
+        vm.warp(15 days);
+        vm.roll(block.number + 1);
+
+        vm.startPrank(bob);
+        vm.expectEmit(true, true, false, false, address(takasurePool));
+        emit TakasureEvents.OnRefund(testMemberAfterKyc.memberId, alice, expectedRefundAmount);
+        takasurePool.refund(alice);
+        vm.stopPrank();
+    }
 }
