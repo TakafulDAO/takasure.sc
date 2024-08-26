@@ -412,7 +412,7 @@ contract TakasurePool is
         if (investmentReturn == InvestmentReturn.Contribution) {
             revert TakasureErrors.TakasurePool__WrongInvestmentReturn();
         }
-        _depositRevenue(newRevenue);
+        _depositRevenue(newRevenue, investmentReturn);
         _updateCashMappings(newRevenue);
         reserve.totalFundReserve += newRevenue;
 
@@ -426,8 +426,6 @@ contract TakasurePool is
         if (!success) {
             revert TakasureErrors.TakasurePool__RevenueTransferFailed();
         }
-
-        emit TakasureEvents.OnExternalRevenue(newRevenue, investmentReturn);
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
@@ -798,7 +796,10 @@ contract TakasurePool is
         reserve.totalContributions += _contributionBeforeFee;
 
         reserve.totalFundCost += marketExpenditure;
-        reserve.totalFundRevenues = _depositRevenue(_contributionAfterFee);
+        reserve.totalFundRevenues = _depositRevenue(
+            _contributionAfterFee,
+            InvestmentReturn.Contribution
+        );
 
         reserve.lossRatio = ReserveMathLib._calculateLossRatio(
             reserve.totalFundCost,
@@ -815,11 +816,14 @@ contract TakasurePool is
         emit TakasureEvents.OnNewLossRatio(reserve.lossRatio);
     }
 
-    function _depositRevenue(uint256 _newRevenue) internal returns (uint256 totalRevenues_) {
+    function _depositRevenue(
+        uint256 _newRevenue,
+        InvestmentReturn _investmentReturn
+    ) internal returns (uint256 totalRevenues_) {
         reserve.totalFundRevenues += _newRevenue;
         totalRevenues_ = reserve.totalFundRevenues;
 
-        emit TakasureEvents.OnTotalRevenuesUpdated(totalRevenues_);
+        emit TakasureEvents.OnExternalRevenue(_newRevenue, totalRevenues_, _investmentReturn);
     }
 
     function _updateCashMappings(uint256 _cashIn) internal {

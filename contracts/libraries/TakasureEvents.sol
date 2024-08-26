@@ -72,6 +72,9 @@ library TakasureEvents {
         uint8 indexed oldMarketExpendsFundReserveAddShare
     );
     event OnNewLossRatio(uint256 indexed lossRatio);
-    event OnTotalRevenuesUpdated(uint256 indexed amount);
-    event OnExternalRevenue(uint256 indexed amount, InvestmentReturn indexed investmentReturn);
+    event OnExternalRevenue(
+        uint256 indexed newRevenueAmount,
+        uint256 indexed totalRevenues,
+        InvestmentReturn indexed investmentReturn
+    );
 }
