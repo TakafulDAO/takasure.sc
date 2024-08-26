@@ -9,6 +9,14 @@ enum MemberState {
     Deceased
 }
 
+enum CostTypes {
+    Marketing,
+    Claim,
+    Surplus,
+    CatFees,
+    CastRepayment // Risk payment
+}
+
 enum InvestmentReturn {
     Contribution,
     Investment,
