@@ -367,6 +367,8 @@ contract TakasurePool is
         } else if (currentTimestamp >= secondLimitTimestamp) {
             // Update the state, this will allow to cancel the membership
             reserve.members[msg.sender].memberState = MemberState.Defaulted;
+
+            emit TakasureEvents.OnMemberDefaulted(reserve.members[msg.sender].memberId, msg.sender);
         } else {
             uint256 contributionBeforeFee = member.contribution;
             uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
@@ -568,6 +570,11 @@ contract TakasurePool is
 
         if (currentTimestamp >= limitTimestamp) {
             reserve.members[_memberWallet].memberState = MemberState.Canceled;
+
+            emit TakasureEvents.OnMemberCanceled(
+                reserve.members[_memberWallet].memberId,
+                _memberWallet
+            );
         } else {
             revert TakasureErrors.TakasurePool__TooEarlyToCancel();
         }
