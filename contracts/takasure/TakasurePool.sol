@@ -346,46 +346,54 @@ contract TakasurePool is
     }
 
     function recurringPayment() external {
-        if (reserve.members[msg.sender].memberState != MemberState.Active) {
+        // The member can pay the contribution if active or defaulted but at least 30 days have passed from the new year
+        Member memory member = reserve.members[msg.sender];
+        if (
+            member.memberState != MemberState.Active && member.memberState != MemberState.Defaulted
+        ) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         uint256 currentTimestamp = block.timestamp;
-        uint256 yearsCovered = reserve.members[msg.sender].yearsCovered;
-        uint256 membershipStartTime = reserve.members[msg.sender].membershipStartTime;
-        uint256 membershipDuration = reserve.members[msg.sender].membershipDuration;
+        uint256 yearsCovered = member.yearsCovered;
+        // uint256 membershipStartTime = member.membershipStartTime;
+        // uint256 membershipDuration = member.membershipDuration;
+        uint256 firstLimitTimestamp = member.membershipStartTime + member.membershipDuration; // The complete membership duration
+        uint256 secondLimitTimestamp = member.membershipStartTime +
+            (yearsCovered * 365 days) +
+            (30 days); // 30 days after the new membership year
 
-        if (
-            currentTimestamp > membershipStartTime + ((yearsCovered) * 365 days) ||
-            currentTimestamp > membershipStartTime + membershipDuration
-        ) {
+        if (currentTimestamp > firstLimitTimestamp) {
             revert TakasureErrors.TakasurePool__InvalidDate();
+        } else if (currentTimestamp >= secondLimitTimestamp) {
+            // Update the state, this will allow to cancel the membership
+            reserve.members[msg.sender].memberState = MemberState.Defaulted;
+        } else {
+            uint256 contributionBeforeFee = member.contribution;
+            uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
+            uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
+
+            // Update the values
+            ++reserve.members[msg.sender].yearsCovered;
+            reserve.members[msg.sender].totalContributions += contributionBeforeFee;
+            reserve.members[msg.sender].totalServiceFee += feeAmount;
+
+            // And we pay the contribution
+            _memberPaymentFlow(
+                contributionBeforeFee,
+                feeAmount,
+                contributionAfterFee,
+                msg.sender,
+                true
+            );
+
+            emit TakasureEvents.OnRecurringPayment(
+                msg.sender,
+                member.memberId,
+                reserve.members[msg.sender].yearsCovered,
+                reserve.members[msg.sender].totalContributions,
+                reserve.members[msg.sender].totalServiceFee
+            );
         }
-
-        uint256 contributionBeforeFee = reserve.members[msg.sender].contribution;
-        uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
-        uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
-
-        // Update the values
-        ++reserve.members[msg.sender].yearsCovered;
-        reserve.members[msg.sender].totalContributions += contributionBeforeFee;
-        reserve.members[msg.sender].totalServiceFee += feeAmount;
-
-        // And we pay the contribution
-        _memberPaymentFlow(
-            contributionBeforeFee,
-            feeAmount,
-            contributionAfterFee,
-            msg.sender,
-            true
-        );
-
-        emit TakasureEvents.OnRecurringPayment(
-            msg.sender,
-            reserve.members[msg.sender].memberId,
-            reserve.members[msg.sender].yearsCovered,
-            reserve.members[msg.sender].totalContributions,
-            reserve.members[msg.sender].totalServiceFee
-        );
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
