@@ -19,7 +19,7 @@ enum CostTypes {
 
 enum RevenueType {
     Contribution,
-    Investment,
+    InvestmentReturn,
     CatDonation,
     CatLoan
 }
