@@ -385,7 +385,7 @@ contract TakasurePool is
         if (revenueType == RevenueType.Contribution) {
             revert TakasureErrors.TakasurePool__WrongRevenueType();
         }
-        _depositRevenue(newRevenue, revenueType);
+        _updateRevenue(newRevenue, revenueType);
         _updateCashMappings(newRevenue);
         reserve.totalFundReserve += newRevenue;
 
@@ -803,10 +803,7 @@ contract TakasurePool is
         reserve.totalContributions += _contributionBeforeFee;
 
         reserve.totalFundCost += marketExpenditure;
-        reserve.totalFundRevenues = _depositRevenue(
-            _contributionAfterFee,
-            RevenueType.Contribution
-        );
+        reserve.totalFundRevenues = _updateRevenue(_contributionAfterFee, RevenueType.Contribution);
 
         emit TakasureEvents.OnNewReserveValues(
             reserve.totalContributions,
@@ -821,7 +818,7 @@ contract TakasurePool is
         emit TakasureEvents.OnNewLossRatio(reserve.lossRatio);
     }
 
-    function _depositRevenue(
+    function _updateRevenue(
         uint256 _newRevenue,
         RevenueType _revenueType
     ) internal returns (uint256 totalRevenues_) {
