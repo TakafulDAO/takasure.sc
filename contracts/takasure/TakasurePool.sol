@@ -559,7 +559,7 @@ contract TakasurePool is
             (30 days);
 
         if (currentTimestamp >= limitTimestamp) {
-            member.memberState = MemberState.Canceled;
+            reserve.members[_memberWallet].memberState = MemberState.Canceled;
         } else {
             revert TakasureErrors.TakasurePool__TooEarlyToCancel();
         }
