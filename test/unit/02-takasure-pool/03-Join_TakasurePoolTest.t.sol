@@ -19,7 +19,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConnsumerMock;
+    BenefitMultiplierConsumerMock bmConsumerMock;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -40,7 +40,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        bmConnsumerMock = mockDeployer.run();
+        bmConsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -56,10 +56,10 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConnsumerMock.setNewRequester(address(takasurePool));
+        bmConsumerMock.setNewRequester(address(takasurePool));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -80,7 +80,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.stopPrank();
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConnsumerMock));
+        _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
@@ -121,7 +121,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.setKYCStatus(alice);
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConnsumerMock));
+        _successResponse(address(bmConsumerMock));
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -175,7 +175,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.setKYCStatus(bob);
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConnsumerMock));
+        _successResponse(address(bmConsumerMock));
 
         vm.prank(bob);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -257,7 +257,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.stopPrank();
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConnsumerMock));
+        _successResponse(address(bmConsumerMock));
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -294,7 +294,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.stopPrank();
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConnsumerMock));
+        _successResponse(address(bmConsumerMock));
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -332,7 +332,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.setKYCStatus(alice);
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConnsumerMock));
+        _successResponse(address(bmConsumerMock));
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));

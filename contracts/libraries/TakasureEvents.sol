@@ -64,4 +64,6 @@ library TakasureEvents {
         address indexed newBenefitMultiplierConsumer,
         address indexed oldBenefitMultiplierConsumer
     );
+    event OnMemberDefaulted(uint256 indexed memberId, address indexed member);
+    event OnMemberCanceled(uint256 indexed memberId, address indexed member);
 }
