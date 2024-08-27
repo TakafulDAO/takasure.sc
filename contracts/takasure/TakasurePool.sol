@@ -547,7 +547,23 @@ contract TakasurePool is
         );
     }
 
-    function _cancelMembership(address _memberWallet) internal {}
+    function _cancelMembership(address _memberWallet) internal {
+        // To cancel the member should be defaulted and at least 30 days have passed from the new year
+        Member memory member = reserve.members[_memberWallet];
+        if (member.memberState != MemberState.Defaulted) {
+            revert TakasureErrors.TakasurePool__WrongMemberState();
+        }
+        uint256 currentTimestamp = block.timestamp;
+        uint256 limitTimestamp = member.membershipStartTime +
+            (member.yearsCovered * 365 days) +
+            (30 days);
+
+        if (currentTimestamp >= limitTimestamp) {
+            member.memberState = MemberState.Canceled;
+        } else {
+            revert TakasureErrors.TakasurePool__TooEarlyToCancel();
+        }
+    }
 
     function _calculateAmountAndFees(
         uint256 _contributionBeforeFee
