@@ -329,6 +329,22 @@ contract TakasurePool is
         _refund(memberWallet);
     }
 
+    /**
+     * @notice Method to cancel a membership
+     * @dev To be called by the user itself
+     */
+    function cancelMembership() external {
+        _cancelMembership(msg.sender);
+    }
+
+    /**
+     * @notice Method to cancel a membership
+     * @dev To be called by anyone
+     */
+    function cancelMembership(address memberWallet) external notZeroAddress(memberWallet) {
+        _cancelMembership(memberWallet);
+    }
+
     function recurringPayment() external {
         if (reserve.members[msg.sender].memberState != MemberState.Active) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
@@ -530,6 +546,8 @@ contract TakasurePool is
             amountToRefund
         );
     }
+
+    function _cancelMembership(address _memberWallet) internal {}
 
     function _calculateAmountAndFees(
         uint256 _contributionBeforeFee
