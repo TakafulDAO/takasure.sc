@@ -17,7 +17,7 @@ enum CostTypes {
     CastRepayment // Risk payment
 }
 
-enum InvestmentReturn {
+enum RevenueType {
     Contribution,
     Investment,
     CatDonation,

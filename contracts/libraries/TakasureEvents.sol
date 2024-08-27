@@ -5,7 +5,7 @@
  * @author  Maikel Ordaz
  * @notice  This library is used to store the events of the Takasure protocol
  */
-import {InvestmentReturn} from "contracts/types/TakasureTypes.sol";
+import {RevenueType} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.25;
 
@@ -75,6 +75,6 @@ library TakasureEvents {
     event OnExternalRevenue(
         uint256 indexed newRevenueAmount,
         uint256 indexed totalRevenues,
-        InvestmentReturn indexed investmentReturn
+        RevenueType indexed revenueType
     );
 }

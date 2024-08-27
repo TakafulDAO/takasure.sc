@@ -16,7 +16,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "../token/TSToken.sol";
 
-import {Reserve, Member, MemberState, InvestmentReturn} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, RevenueType} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -376,16 +376,16 @@ contract TakasurePool is
     /**
      * @notice To be called by the DAO to update the Fund reserve with new revenues
      * @param newRevenue the new revenue to be added to the fund reserve
-     * @param investmentReturn the type of revenue to be added
+     * @param revenueType the type of revenue to be added
      */
     function depositRevenue(
         uint256 newRevenue,
-        InvestmentReturn investmentReturn
+        RevenueType revenueType
     ) external onlyRole(DAO_MULTISIG) {
-        if (investmentReturn == InvestmentReturn.Contribution) {
-            revert TakasureErrors.TakasurePool__WrongInvestmentReturn();
+        if (revenueType == RevenueType.Contribution) {
+            revert TakasureErrors.TakasurePool__WrongRevenueType();
         }
-        _depositRevenue(newRevenue, investmentReturn);
+        _depositRevenue(newRevenue, revenueType);
         _updateCashMappings(newRevenue);
         reserve.totalFundReserve += newRevenue;
 
@@ -805,7 +805,7 @@ contract TakasurePool is
         reserve.totalFundCost += marketExpenditure;
         reserve.totalFundRevenues = _depositRevenue(
             _contributionAfterFee,
-            InvestmentReturn.Contribution
+            RevenueType.Contribution
         );
 
         emit TakasureEvents.OnNewReserveValues(
@@ -823,12 +823,12 @@ contract TakasurePool is
 
     function _depositRevenue(
         uint256 _newRevenue,
-        InvestmentReturn _investmentReturn
+        RevenueType _revenueType
     ) internal returns (uint256 totalRevenues_) {
         reserve.totalFundRevenues += _newRevenue;
         totalRevenues_ = reserve.totalFundRevenues;
 
-        emit TakasureEvents.OnExternalRevenue(_newRevenue, totalRevenues_, _investmentReturn);
+        emit TakasureEvents.OnExternalRevenue(_newRevenue, totalRevenues_, _revenueType);
     }
 
     function _updateCashMappings(uint256 _cashIn) internal {
