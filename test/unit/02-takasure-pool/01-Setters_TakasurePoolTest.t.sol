@@ -9,7 +9,6 @@ import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract Setters_TakasurePoolTest is StdCheats, Test {
@@ -17,42 +16,29 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConnsumerMock;
+    BenefitMultiplierConsumerMock bmConsumerMock;
     address proxy;
-    address contributionTokenAddress;
     address admin;
-    IUSDC usdc;
     address public alice = makeAddr("alice");
-    uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
-    uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-    uint256 public constant BENEFIT_MULTIPLIER = 0;
-    uint256 public constant YEAR = 365 days;
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+        (, proxy, , helperConfig) = deployer.run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        bmConnsumerMock = mockDeployer.run();
+        bmConsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
-        usdc = IUSDC(contributionTokenAddress);
-
-        // For easier testing there is a minimal USDC mock contract without restrictions
-        vm.startPrank(alice);
-        usdc.mintUSDC(alice, USDC_INITIAL_AMOUNT);
-        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
-        vm.stopPrank();
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConnsumerMock.setNewRequester(address(takasurePool));
+        bmConsumerMock.setNewRequester(address(takasurePool));
     }
 
     /// @dev Test the owner can set a new service fee
