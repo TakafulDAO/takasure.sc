@@ -72,6 +72,12 @@ contract TakasurePool is
         _;
     }
 
+    modifier onlyDaoOrTakadao() {
+        if (!hasRole(TAKADAO_OPERATOR, msg.sender) && !hasRole(DAO_MULTISIG, msg.sender))
+            revert TakasureErrors.OnlyDaoOrTakadao();
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -407,12 +413,7 @@ contract TakasurePool is
 
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
-    )
-        external
-        onlyRole(DAO_MULTISIG)
-        onlyRole(TAKADAO_OPERATOR)
-        notZeroAddress(newBenefitMultiplierConsumer)
-    {
+    ) external onlyDaoOrTakadao notZeroAddress(newBenefitMultiplierConsumer) {
         address oldBenefitMultiplierConsumer = address(bmConsumer);
         bmConsumer = IBenefitMultiplierConsumer(newBenefitMultiplierConsumer);
 
