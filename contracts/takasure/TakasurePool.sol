@@ -431,6 +431,14 @@ contract TakasurePool is
         _revokeRole(PAUSE_GUARDIAN, msg.sender);
     }
 
+    function pause() external onlyRole(PAUSE_GUARDIAN) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(PAUSE_GUARDIAN) {
+        _unpause();
+    }
+
     function getReserveValues()
         external
         view
@@ -961,14 +969,6 @@ contract TakasurePool is
         if (!success) {
             revert TakasureErrors.TakasurePool__MintFailed();
         }
-    }
-
-    function _pause() internal override whenNotPaused onlyRole(PAUSE_GUARDIAN) {
-        super._pause();
-    }
-
-    function _unpause() internal override whenPaused onlyRole(PAUSE_GUARDIAN) {
-        super._unpause();
     }
 
     ///@dev required by the OZ UUPS module
