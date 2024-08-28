@@ -72,6 +72,13 @@ contract TakasurePool is
         _;
     }
 
+    modifier neededState(address memberWallet, MemberState state) {
+        if (reserve.members[memberWallet].memberState != state) {
+            revert TakasureErrors.TakasurePool__WrongMemberState();
+        }
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -396,10 +403,9 @@ contract TakasurePool is
         }
     }
 
-    function defaultMember(address memberWallet) external {
-        if (reserve.members[memberWallet].memberState != MemberState.Active) {
-            revert TakasureErrors.TakasurePool__WrongMemberState();
-        }
+    function defaultMember(
+        address memberWallet
+    ) external neededState(memberWallet, MemberState.Active) {
         Member memory member = reserve.members[memberWallet];
 
         uint256 currentTimestamp = block.timestamp;
@@ -575,12 +581,11 @@ contract TakasurePool is
         );
     }
 
-    function _cancelMembership(address _memberWallet) internal {
+    function _cancelMembership(
+        address _memberWallet
+    ) internal neededState(_memberWallet, MemberState.Defaulted) {
         // To cancel the member should be defaulted and at least 30 days have passed from the new year
         Member memory member = reserve.members[_memberWallet];
-        if (member.memberState != MemberState.Defaulted) {
-            revert TakasureErrors.TakasurePool__WrongMemberState();
-        }
         uint256 currentTimestamp = block.timestamp;
         uint256 limitTimestamp = member.membershipStartTime +
             (member.yearsCovered * 365 days) +
