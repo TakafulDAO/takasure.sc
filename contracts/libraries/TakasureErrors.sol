@@ -23,4 +23,5 @@ library TakasureErrors {
     error TakasurePool__TooEarlytoRefund();
     error TakasurePool__BenefitMultiplierRequestFailed(bytes errorResponse);
     error TakasurePool__TooEarlyToCancel();
+    error TakasurePool__TooEarlyToDefault();
 }
