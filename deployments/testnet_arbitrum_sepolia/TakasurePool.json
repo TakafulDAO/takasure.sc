@@ -330,6 +330,13 @@
     },
     {
         "type": "function",
+        "name": "refund",
+        "inputs": [{ "name": "memberWallet", "type": "address", "internalType": "address" }],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
         "name": "renounceRole",
         "inputs": [
             { "name": "role", "type": "bytes32", "internalType": "bytes32" },
