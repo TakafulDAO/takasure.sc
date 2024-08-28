@@ -355,8 +355,6 @@ contract TakasurePool is
         }
         uint256 currentTimestamp = block.timestamp;
         uint256 yearsCovered = member.yearsCovered;
-        // uint256 membershipStartTime = member.membershipStartTime;
-        // uint256 membershipDuration = member.membershipDuration;
         uint256 firstLimitTimestamp = member.membershipStartTime + member.membershipDuration; // The complete membership duration
         uint256 secondLimitTimestamp = member.membershipStartTime +
             (yearsCovered * 365 days) +
@@ -395,6 +393,26 @@ contract TakasurePool is
                 reserve.members[msg.sender].totalContributions,
                 reserve.members[msg.sender].totalServiceFee
             );
+        }
+    }
+
+    function defaultMember(address memberWallet) external {
+        if (reserve.members[memberWallet].memberState != MemberState.Active) {
+            revert TakasureErrors.TakasurePool__WrongMemberState();
+        }
+        Member memory member = reserve.members[memberWallet];
+
+        uint256 currentTimestamp = block.timestamp;
+        uint256 yearsCovered = member.yearsCovered;
+        uint256 limitTimestamp = member.membershipStartTime + (yearsCovered * 365 days) + (30 days); // 30 days after the new membership year
+
+        if (currentTimestamp >= limitTimestamp) {
+            //     // Update the state, this will allow to cancel the membership
+            reserve.members[memberWallet].memberState = MemberState.Defaulted;
+
+            emit TakasureEvents.OnMemberDefaulted(reserve.members[msg.sender].memberId, msg.sender);
+        } else {
+            revert TakasureErrors.TakasurePool__TooEarlyToDefault();
         }
     }
 
