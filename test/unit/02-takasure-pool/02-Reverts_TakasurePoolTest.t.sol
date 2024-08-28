@@ -12,6 +12,7 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
+import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
@@ -22,6 +23,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     address proxy;
     address contributionTokenAddress;
     address admin;
+    address takadao;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
@@ -36,6 +38,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
+        takadao = config.takadaoOperator;
 
         mockDeployer = new DeployConsumerMocks();
         bmConnsumerMock = mockDeployer.run();
@@ -263,5 +266,21 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.expectRevert(TakasureErrors.TakasurePool__TooEarlytoRefund.selector);
         takasurePool.refund();
         vm.stopPrank();
+    }
+
+    function test_onlyDaoAndTakadaoCanSetNewBenefitMultiplier() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        takasurePool.setNewBenefitMultiplierConsumer(alice);
+
+        vm.prank(admin);
+        vm.expectEmit(true, true, false, false, address(takasurePool));
+        emit TakasureEvents.OnBenefitMultiplierConsumerChanged(alice, address(bmConnsumerMock));
+        takasurePool.setNewBenefitMultiplierConsumer(alice);
+
+        vm.prank(takadao);
+        vm.expectEmit(true, true, false, false, address(takasurePool));
+        emit TakasureEvents.OnBenefitMultiplierConsumerChanged(address(bmConnsumerMock), alice);
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
     }
 }

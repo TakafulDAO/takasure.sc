@@ -17,7 +17,8 @@ contract TakasurePoolFuzzTest is Test {
     HelperConfig helperConfig;
     address proxy;
     address contributionTokenAddress;
-    address admin;
+    address daoMultisig;
+    address takadao;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -33,7 +34,8 @@ contract TakasurePoolFuzzTest is Test {
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        admin = config.daoMultisig;
+        daoMultisig = config.daoMultisig;
+        takadao = config.takadaoOperator;
 
         mockDeployer = new DeployConsumerMocks();
         BenefitMultiplierConsumerMock bmConnsumerMock = mockDeployer.run();
@@ -47,7 +49,7 @@ contract TakasurePoolFuzzTest is Test {
         vm.prank(alice);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
-        vm.prank(admin);
+        vm.prank(daoMultisig);
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
 
         vm.prank(msg.sender);
@@ -56,7 +58,7 @@ contract TakasurePoolFuzzTest is Test {
 
     function test_fuzz_ownerCanSetKycstatus(address notOwner) public {
         // The input address must not be the same as the takasurePool address
-        vm.assume(notOwner != admin);
+        vm.assume(notOwner != daoMultisig);
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -64,5 +66,13 @@ contract TakasurePoolFuzzTest is Test {
         vm.prank(notOwner);
         vm.expectRevert();
         takasurePool.setKYCStatus(alice);
+    }
+
+    function test_fuzz_onlyDaoAndTakadaoCanSetNewBenefitMultiplier(address notAuthorized) public {
+        vm.assume(notAuthorized != daoMultisig && notAuthorized != takadao);
+
+        vm.prank(notAuthorized);
+        vm.expectRevert();
+        takasurePool.setNewBenefitMultiplierConsumer(alice);
     }
 }
