@@ -144,8 +144,8 @@ contract TakasurePool is
      */
     function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
         Member memory member = reserve.members[msg.sender];
-        if (member.memberState == MemberState.Active) {
-            revert TakasureErrors.TakasurePool__MemberAlreadyExists();
+        if (member.memberState != MemberState.Inactive) {
+            revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         if (contributionBeforeFee < minimumThreshold || contributionBeforeFee > maximumThreshold) {
             revert TakasureErrors.TakasurePool__ContributionOutOfRange();

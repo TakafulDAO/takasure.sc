@@ -139,7 +139,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // And tries to join again but fails
-        vm.expectRevert(TakasureErrors.TakasurePool__MemberAlreadyExists.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         vm.stopPrank();
     }

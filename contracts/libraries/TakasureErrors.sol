@@ -8,7 +8,6 @@
 pragma solidity 0.8.25;
 
 library TakasureErrors {
-    error TakasurePool__MemberAlreadyExists();
     error TakasurePool__ZeroAddress();
     error TakasurePool__ContributionOutOfRange();
     error TakasurePool__ContributionTransferFailed();
