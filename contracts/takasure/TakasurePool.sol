@@ -192,6 +192,9 @@ contract TakasurePool is
         } else {
             if (!isRefunded) {
                 // Flow 2 Join -> KYC
+                if (member.wallet != address(0)) {
+                    revert TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC();
+                }
                 // If is not KYC verified, and not refunded, it is a completele new member, we create it
                 _createNewMember({
                     _benefitMultiplier: benefitMultiplier, // Fetch from oracle
