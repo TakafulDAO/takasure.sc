@@ -24,6 +24,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     address admin;
     IUSDC usdc;
     address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
@@ -45,8 +46,12 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), bob, USDC_INITIAL_AMOUNT);
 
         vm.prank(alice);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+
+        vm.prank(bob);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
         vm.prank(admin);
@@ -262,6 +267,21 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(alice);
         vm.expectRevert(TakasureErrors.TakasurePool__TooEarlytoRefund.selector);
         takasurePool.refund();
+        vm.stopPrank();
+    }
+
+    function testTakasurePool_revertIfTryToJoinTwice() public {
+        // First check kyc -> join -> join again must revert
+        vm.prank(admin);
+        takasurePool.setKYCStatus(alice);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
+
+        vm.startPrank(alice);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
     }
 }
