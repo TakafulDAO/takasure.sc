@@ -271,7 +271,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     function testTakasurePool_revertIfTryToJoinTwice() public {
-        // First check kyc -> join -> join again must revert
+        // First check kyc alice -> alice join -> alice join again must revert
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
@@ -283,5 +283,16 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
+
+        // Second check bob join -> kyc bob -> bob join again must revert
+        vm.prank(bob);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        vm.prank(admin);
+        takasurePool.setKYCStatus(bob);
+
+        vm.prank(bob);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
     }
 }
