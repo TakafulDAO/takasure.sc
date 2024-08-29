@@ -143,7 +143,8 @@ contract TakasurePool is
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
     function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
-        if (reserve.members[msg.sender].memberState == MemberState.Active) {
+        Member memory member = reserve.members[msg.sender];
+        if (member.memberState == MemberState.Active) {
             revert TakasureErrors.TakasurePool__MemberAlreadyExists();
         }
         if (contributionBeforeFee < minimumThreshold || contributionBeforeFee > maximumThreshold) {
@@ -152,8 +153,8 @@ contract TakasurePool is
 
         // Todo: re-calculate DAO Surplus.
 
-        bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
-        bool isRefunded = reserve.members[msg.sender].isRefunded;
+        bool isKYCVerified = member.isKYCVerified;
+        bool isRefunded = member.isRefunded;
 
         // Fetch the BM from the oracle
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(msg.sender);
