@@ -344,12 +344,14 @@ contract TakasurePool is
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         uint256 currentTimestamp = block.timestamp;
-        uint256 yearsCovered = reserve.members[msg.sender].yearsCovered;
         uint256 membershipStartTime = reserve.members[msg.sender].membershipStartTime;
         uint256 membershipDuration = reserve.members[msg.sender].membershipDuration;
+        uint256 lastPaidYearStartDate = reserve.members[msg.sender].lastPaidYearStartDate;
+        uint256 year = 365 days;
+        uint256 gracePeriod = 30 days;
 
         if (
-            currentTimestamp > membershipStartTime + ((yearsCovered) * 365 days) ||
+            currentTimestamp > lastPaidYearStartDate + year + gracePeriod ||
             currentTimestamp > membershipStartTime + membershipDuration
         ) {
             revert TakasureErrors.TakasurePool__InvalidDate();
@@ -360,7 +362,7 @@ contract TakasurePool is
         uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
 
         // Update the values
-        ++reserve.members[msg.sender].yearsCovered;
+        reserve.members[msg.sender].lastPaidYearStartDate += 365 days;
         reserve.members[msg.sender].totalContributions += contributionBeforeFee;
         reserve.members[msg.sender].totalServiceFee += feeAmount;
         reserve.members[msg.sender].lastEcr = 0;
@@ -378,7 +380,7 @@ contract TakasurePool is
         emit TakasureEvents.OnRecurringPayment(
             msg.sender,
             reserve.members[msg.sender].memberId,
-            reserve.members[msg.sender].yearsCovered,
+            reserve.members[msg.sender].lastPaidYearStartDate,
             reserve.members[msg.sender].totalContributions,
             reserve.members[msg.sender].totalServiceFee
         );
@@ -475,7 +477,7 @@ contract TakasurePool is
         isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
 
-    function getSurplus() external view returns (uint256 ECRes_, int256 UCRes_, uint256 surplus_) {
+    function getSurplus() external view returns (uint256 ECRes_, uint256 UCRes_, uint256 surplus_) {
         ECRes_ = reserve.ECRes;
         UCRes_ = reserve.UCRes;
         surplus_ = reserve.surplus;
@@ -596,8 +598,8 @@ contract TakasurePool is
             memberId: memberIdCounter,
             benefitMultiplier: _benefitMultiplier,
             membershipDuration: userMembershipDuration,
-            yearsCovered: 1,
             membershipStartTime: currentTimestamp,
+            lastPaidYearStartDate: currentTimestamp,
             contribution: _contributionBeforeFee,
             claimAddAmount: claimAddAmount,
             totalContributions: _contributionBeforeFee,
@@ -608,7 +610,6 @@ contract TakasurePool is
             memberSurplus: 0, // Todo
             isKYCVerified: _isKYCVerified,
             isRefunded: false,
-            lastEcrTime: 0,
             lastEcr: 0,
             lastUcr: 0
         });
@@ -1005,7 +1006,7 @@ contract TakasurePool is
     // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
     function _totalECResAndUCResUnboundedLoop()
         internal
-        returns (uint256 totalECRes_, int256 totalUCRes_)
+        returns (uint256 totalECRes_, uint256 totalUCRes_)
     {
         uint256 newECRes;
         // We check for every member except the recently added
@@ -1013,7 +1014,7 @@ contract TakasurePool is
             address memberWallet = idToMemberWallet[i];
             Member storage memberToCheck = reserve.members[memberWallet];
             if (memberToCheck.memberState == MemberState.Active) {
-                (uint256 memberEcr, int256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
+                (uint256 memberEcr, uint256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
                     memberToCheck
                 );
 
@@ -1033,13 +1034,10 @@ contract TakasurePool is
     }
 
     function _calculateSurplus() internal returns (uint256 surplus_) {
-        (uint256 totalECRes, int256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
-        int256 UCRisk;
+        (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
+        uint256 UCRisk;
 
-        UCRisk = ReserveMathLib._maxInt(
-            0,
-            ((totalUCRes * int256(int8(reserve.riskMultiplier))) / 100)
-        );
+        UCRisk = (totalUCRes * reserve.riskMultiplier) / 100;
 
         // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
         surplus_ = uint256(
