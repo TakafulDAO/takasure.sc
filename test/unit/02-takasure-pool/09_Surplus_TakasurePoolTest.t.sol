@@ -77,7 +77,7 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Alice joins in day 1
         _join(alice, 1);
 
-        (uint256 ECRes, int256 UCRes, uint256 surplus) = takasurePool.getSurplus();
+        (uint256 ECRes, uint256 UCRes, uint256 surplus) = takasurePool.getSurplus();
         Member memory ALICE = takasurePool.getMemberFromAddress(alice);
 
         assertEq(ALICE.lastEcr, 0);
@@ -113,15 +113,15 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         BOB = takasurePool.getMemberFromAddress(bob);
         Member memory CHARLIE = takasurePool.getMemberFromAddress(charlie);
 
-        assertEq(ALICE.lastEcr, 11723400);
-        assertEq(ALICE.lastUcr, -23400);
-        assertEq(BOB.lastEcr, 34994700);
-        assertEq(BOB.lastUcr, 105300);
+        assertEq(ALICE.lastEcr, 11_664_900);
+        assertEq(ALICE.lastUcr, 35_100);
+        assertEq(BOB.lastEcr, 34_994_700);
+        assertEq(BOB.lastUcr, 105_300);
         assertEq(CHARLIE.lastEcr, 0);
         assertEq(CHARLIE.lastUcr, 0);
-        assertEq(ECRes, 58418100);
-        assertEq(UCRes, 81900);
-        assertEq(surplus, 58418100);
+        assertEq(ECRes, 58_359_600);
+        assertEq(UCRes, 140_400);
+        assertEq(surplus, 58_359_600);
 
         // 1 day passes
         vm.warp(block.timestamp + 1 days);
@@ -136,17 +136,17 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         CHARLIE = takasurePool.getMemberFromAddress(charlie);
         Member memory DAVID = takasurePool.getMemberFromAddress(david);
 
-        assertEq(ALICE.lastEcr, 11746800);
-        assertEq(ALICE.lastUcr, -46800);
-        assertEq(BOB.lastEcr, 35064900);
-        assertEq(BOB.lastUcr, 35100);
-        assertEq(CHARLIE.lastEcr, 116649000);
-        assertEq(CHARLIE.lastUcr, 351000);
+        assertEq(ALICE.lastEcr, 11_629_800);
+        assertEq(ALICE.lastUcr, 70_200);
+        assertEq(BOB.lastEcr, 34_889_400);
+        assertEq(BOB.lastUcr, 210_600);
+        assertEq(CHARLIE.lastEcr, 116_649_000);
+        assertEq(CHARLIE.lastUcr, 351_000);
         assertEq(DAVID.lastEcr, 0);
         assertEq(DAVID.lastUcr, 0);
-        assertEq(ECRes, 221878800);
-        assertEq(UCRes, 339300);
-        assertEq(surplus, 221878800);
+        assertEq(ECRes, 221_527_800);
+        assertEq(UCRes, 631_800);
+        assertEq(surplus, 221_527_800);
 
         // 1 day passes
         vm.warp(block.timestamp + 1 days);
@@ -162,19 +162,19 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         DAVID = takasurePool.getMemberFromAddress(david);
         Member memory ERIN = takasurePool.getMemberFromAddress(erin);
 
-        assertEq(ALICE.lastEcr, 11770200);
-        assertEq(ALICE.lastUcr, -70200);
-        assertEq(BOB.lastEcr, 35135100);
-        assertEq(BOB.lastUcr, -35100);
-        assertEq(CHARLIE.lastEcr, 116883000);
-        assertEq(CHARLIE.lastUcr, 117000);
-        assertEq(DAVID.lastEcr, 58324500);
-        assertEq(DAVID.lastUcr, 175500);
+        assertEq(ALICE.lastEcr, 11_594_700);
+        assertEq(ALICE.lastUcr, 105_300);
+        assertEq(BOB.lastEcr, 34_784_100);
+        assertEq(BOB.lastUcr, 315_900);
+        assertEq(CHARLIE.lastEcr, 116_298_000);
+        assertEq(CHARLIE.lastUcr, 702_000);
+        assertEq(DAVID.lastEcr, 58_324_500);
+        assertEq(DAVID.lastUcr, 175_500);
         assertEq(ERIN.lastEcr, 0);
         assertEq(ERIN.lastUcr, 0);
-        assertEq(ECRes, 443991600);
-        assertEq(UCRes, 187200);
-        assertEq(surplus, 443991600);
+        assertEq(ECRes, 442_529_100);
+        assertEq(UCRes, 1_298_700);
+        assertEq(surplus, 442_529_100);
 
         // 1 day passes
         vm.warp(block.timestamp + 1 days);
@@ -191,21 +191,21 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         ERIN = takasurePool.getMemberFromAddress(erin);
         Member memory FRANK = takasurePool.getMemberFromAddress(frank);
 
-        assertEq(ALICE.lastEcr, 11793600);
-        assertEq(ALICE.lastUcr, -93600);
-        assertEq(BOB.lastEcr, 35205300);
-        assertEq(BOB.lastUcr, -105300);
-        assertEq(CHARLIE.lastEcr, 117117000);
-        assertEq(CHARLIE.lastUcr, -117000);
-        assertEq(DAVID.lastEcr, 58441500);
-        assertEq(DAVID.lastUcr, 58500);
-        assertEq(ERIN.lastEcr, 23329800);
-        assertEq(ERIN.lastUcr, 70200);
+        assertEq(ALICE.lastEcr, 11_571_300);
+        assertEq(ALICE.lastUcr, 128_700);
+        assertEq(BOB.lastEcr, 34_713_900);
+        assertEq(BOB.lastUcr, 386_100);
+        assertEq(CHARLIE.lastEcr, 11_5947_000);
+        assertEq(CHARLIE.lastUcr, 1_053_000);
+        assertEq(DAVID.lastEcr, 58_149_000);
+        assertEq(DAVID.lastUcr, 351_000);
+        assertEq(ERIN.lastEcr, 23_329_800);
+        assertEq(ERIN.lastUcr, 70_200);
         assertEq(FRANK.lastEcr, 0);
         assertEq(FRANK.lastUcr, 0);
-        assertEq(ECRes, 689878800);
-        assertEq(UCRes, -187200);
-        assertEq(surplus, 689691600);
+        assertEq(ECRes, 686_240_100);
+        assertEq(UCRes, 1_989_000);
+        assertEq(surplus, 686_240_100);
     }
 
     function _join(address user, uint256 timesContributionAmount) internal {
