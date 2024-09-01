@@ -158,38 +158,34 @@ library ReserveMathLib {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Calculate the earned and unearned contribution reserves for a member
-    function _calculateEcrAndUcrByMember(Member storage member) internal returns (uint256, int256) {
+    function _calculateEcrAndUcrByMember(
+        Member storage member
+    ) internal returns (uint256, uint256) {
         uint256 currentTimestamp = block.timestamp;
         uint256 claimReserveAdd = member.claimAddAmount;
-        uint256 lastEcrTime = member.lastEcrTime;
         uint256 year = 365;
         uint256 decimalCorrection = 1e3;
         uint256 ecr;
 
-        if (lastEcrTime == 0) {
-            // Time passed since the membership started
-            uint256 membershipTerm = _calculateDaysPassed(
-                currentTimestamp,
-                member.membershipStartTime
-            );
+        // Time passed since the membership started
+        uint256 membershipTerm = _calculateDaysPassed(
+            currentTimestamp,
+            member.lastPaidYearStartDate
+        );
 
+        if (membershipTerm > year) {
+            // Thihs means the user is in the grace period and waiting for payment, we skip it
+            return (0, 0);
+        } else {
             ecr =
                 ((((year - membershipTerm) * decimalCorrection) / year) * (claimReserveAdd)) /
                 decimalCorrection;
-        } else {
-            // Time passed since last ECR calculation
-            uint256 timeSinceLastCalc = _calculateDaysPassed(currentTimestamp, lastEcrTime);
 
-            ecr =
-                (((timeSinceLastCalc * decimalCorrection) / year) * (claimReserveAdd)) /
-                decimalCorrection;
+            member.lastEcr = ecr;
+            member.lastUcr = claimReserveAdd - member.lastEcr;
+
+            return (member.lastEcr, member.lastUcr);
         }
-
-        member.lastEcrTime = currentTimestamp;
-        member.lastEcr += ecr;
-        member.lastUcr = int256(claimReserveAdd) - int256(member.lastEcr);
-
-        return (member.lastEcr, member.lastUcr);
     }
 
     /*//////////////////////////////////////////////////////////////
