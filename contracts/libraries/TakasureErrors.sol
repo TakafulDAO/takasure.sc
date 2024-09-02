@@ -23,6 +23,10 @@ library TakasureErrors {
     error TakasurePool__BenefitMultiplierRequestFailed(bytes errorResponse);
     error TakasurePool__TooEarlyToCancel();
     error TakasurePool__TooEarlyToDefault();
+    error TakasurePool__WrongFundMarketExpendsShare();
+    error TakasurePool__WrongRevenueType();
+    error TakasurePool__RevenueApprovalFailed();
+    error TakasurePool__RevenueTransferFailed();
     error TakasurePool__AlreadyJoinedPendingForKYC();
     error OnlyDaoOrTakadao();
 }

@@ -20,8 +20,8 @@ contract Getters_TakasurePoolTest is StdCheats, Test {
     }
 
     function testTakasurePool_getServiceFee() public view {
-        (, , , , , , , , , uint256 serviceFee, , ) = takasurePool.getReserveValues();
-        uint256 expectedServiceFee = 22;
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        uint8 expectedServiceFee = 22;
         assertEq(serviceFee, expectedServiceFee);
     }
 

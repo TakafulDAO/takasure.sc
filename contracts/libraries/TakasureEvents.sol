@@ -5,6 +5,8 @@
  * @author  Maikel Ordaz
  * @notice  This library is used to store the events of the Takasure protocol
  */
+import {RevenueType} from "contracts/types/TakasureTypes.sol";
+
 pragma solidity 0.8.25;
 
 library TakasureEvents {
@@ -31,7 +33,7 @@ library TakasureEvents {
     event OnRecurringPayment(
         address member,
         uint256 indexed memberId,
-        uint256 indexed updatedYearsCovered,
+        uint256 indexed lastPaidYearDate,
         uint256 indexed updatedContribution,
         uint256 updatedTotalServiceFee
     );
@@ -53,7 +55,8 @@ library TakasureEvents {
     event OnNewReserveValues(
         uint256 indexed totalContributions,
         uint256 indexed totalClaimReserve,
-        uint256 indexed totalFundReserve
+        uint256 indexed totalFundReserve,
+        uint256 totalFundExpenditures
     );
     event OnNewDynamicReserveRatio(uint256 indexed dynamicReserveRatio);
     event OnNewBenefitMultiplierAdjuster(uint256 indexed benefitMultiplierAdjuster);
@@ -66,4 +69,16 @@ library TakasureEvents {
     );
     event OnMemberDefaulted(uint256 indexed memberId, address indexed member);
     event OnMemberCanceled(uint256 indexed memberId, address indexed member);
+    event OnNewMarketExpendsFundReserveAddShare(
+        uint8 indexed newMarketExpendsFundReserveAddShare,
+        uint8 indexed oldMarketExpendsFundReserveAddShare
+    );
+    event OnNewLossRatio(uint256 indexed lossRatio);
+    event OnExternalRevenue(
+        uint256 indexed newRevenueAmount,
+        uint256 indexed totalRevenues,
+        RevenueType indexed revenueType
+    );
+    event OnFundSurplusUpdated(uint256 indexed surplus);
+    event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
 }

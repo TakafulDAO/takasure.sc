@@ -85,10 +85,9 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
-        (, , , uint256 totalContributions, , , , , , , , ) = takasurePool.getReserveValues();
+        (uint256 totalContributions, , , , ) = takasurePool.getCurrentReservesBalances();
 
-        uint256 memberId = takasurePool.memberIdCounter();
-        Member memory member = takasurePool.getMemberFromId(memberId);
+        Member memory member = takasurePool.getMemberFromAddress(alice);
 
         assertEq(member.contribution, 227120000); // 227.120000 USDC
         assertEq(totalContributions, member.contribution);
@@ -156,18 +155,13 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         uint256 memberId = takasurePool.memberIdCounter();
 
         // Check the member is created and added correctly to mappings
-        Member memory testMember = takasurePool.getMemberFromId(memberId);
-        Member memory testMember2 = takasurePool.getMemberFromAddress(alice);
+        Member memory testMember = takasurePool.getMemberFromAddress(alice);
 
         assertEq(testMember.memberId, memberId);
         assertEq(testMember.benefitMultiplier, BENEFIT_MULTIPLIER);
         assertEq(testMember.contribution, CONTRIBUTION_AMOUNT);
         assertEq(testMember.wallet, alice);
         assertEq(uint8(testMember.memberState), 0);
-
-        // Both members should be the same
-        assertEq(testMember.memberId, testMember2.memberId);
-        assertEq(testMember.wallet, testMember2.wallet);
     }
 
     modifier bobKYCAndJoin() {
@@ -187,7 +181,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         Member memory aliceMember = takasurePool.getMemberFromAddress(alice);
         Member memory bobMember = takasurePool.getMemberFromAddress(bob);
 
-        (, , , uint256 totalContributions, , , , , , , , ) = takasurePool.getReserveValues();
+        (uint256 totalContributions, , , , ) = takasurePool.getCurrentReservesBalances();
 
         assertEq(aliceMember.wallet, alice);
         assertEq(bobMember.wallet, bob);
@@ -204,38 +198,14 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(admin);
         takasurePool.setKYCStatus(bob);
 
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 initialProFormaFundReserve,
-            uint256 initialProFormaClaimReserve,
-            ,
-            ,
-            ,
-
-        ) = takasurePool.getReserveValues();
+        (uint256 initialProFormaFundReserve, uint256 initialProFormaClaimReserve) = takasurePool
+            .getCurrentProFormas();
 
         vm.prank(bob);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 finalProFormaFundReserve,
-            uint256 finalProFormaClaimReserve,
-            ,
-            ,
-            ,
-
-        ) = takasurePool.getReserveValues();
+        (uint256 finalProFormaFundReserve, uint256 finalProFormaClaimReserve) = takasurePool
+            .getCurrentProFormas();
 
         assert(finalProFormaFundReserve > initialProFormaFundReserve);
         assert(finalProFormaClaimReserve > initialProFormaClaimReserve);
@@ -246,8 +216,8 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     /// @dev New DRR is calculated when a member joins
     function testTakasurePool_drrCalculatedOnMemberJoined() public {
-        (uint256 initialDRR, uint256 currentDRR, , , , , , , , , , ) = takasurePool
-            .getReserveValues();
+        uint256 currentDRR = takasurePool.getCurrentDRR();
+        uint256 initialDRR = takasurePool.INITIAL_RESERVE_RATIO();
 
         vm.startPrank(admin);
 
@@ -262,18 +232,16 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        (, uint256 aliceDRR, , , , , , , , , , ) = takasurePool.getReserveValues();
+        uint256 aliceDRR = takasurePool.getCurrentDRR();
 
         vm.prank(bob);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        (, uint256 bobDRR, , , , , , , , , , ) = takasurePool.getReserveValues();
+        uint256 bobDRR = takasurePool.getCurrentDRR();
 
-        uint256 expectedInitialDRR = 40;
-        uint256 expectedAliceDRR = 40;
-        uint256 expectedBobDRR = 40;
+        uint256 expectedAliceDRR = 48;
+        uint256 expectedBobDRR = 44;
 
-        assertEq(initialDRR, expectedInitialDRR);
         assertEq(currentDRR, initialDRR);
         assertEq(aliceDRR, expectedAliceDRR);
         assertEq(bobDRR, expectedBobDRR);
@@ -284,7 +252,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     /// @dev New BMA is calculated when a member joins
     function testTakasurePool_bmaCalculatedOnMemberJoined() public {
-        (, , uint256 initialBMA, , , , , , , , , ) = takasurePool.getReserveValues();
+        uint256 initialBMA = takasurePool.getCurrentBMA();
 
         vm.startPrank(admin);
 
@@ -299,16 +267,16 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        (, , uint256 aliceBMA, , , , , , , , , ) = takasurePool.getReserveValues();
+        uint256 aliceBMA = takasurePool.getCurrentBMA();
 
         vm.prank(bob);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        (, , uint256 bobBMA, , , , , , , , , ) = takasurePool.getReserveValues();
+        uint256 bobBMA = takasurePool.getCurrentBMA();
 
         uint256 expectedInitialBMA = 100;
-        uint256 expectedAliceBMA = 91;
-        uint256 expectedBobBMA = 91;
+        uint256 expectedAliceBMA = 90;
+        uint256 expectedBobBMA = 88;
 
         assertEq(initialBMA, expectedInitialBMA);
         assertEq(aliceBMA, expectedAliceBMA);

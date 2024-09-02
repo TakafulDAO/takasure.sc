@@ -66,7 +66,7 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     function testTakasurePool_refundContribution() public {
-        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
         uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
 
         Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);
@@ -123,7 +123,7 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     function testTakasurePool_refundCalledByAnyone() public {
-        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
         uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
 
         Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);
