@@ -79,4 +79,7 @@ library TakasureEvents {
     );
     event OnFundSurplusUpdated(uint256 indexed surplus);
     event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
+    event OnContributionTokenChanged(address indexed newContributionToken);
+    event OnNewFeeClaimAddress(address indexed newFeeClaimAddress);
+    event OnAllowCustomDuration(bool indexed allowCustomDuration);
 }

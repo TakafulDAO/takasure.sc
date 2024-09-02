@@ -50,7 +50,7 @@ contract TakasurePool is
     uint256 private constant DAY = 1 days;
     uint256 public constant INITIAL_RESERVE_RATIO = 40; // 40% Default
 
-    bool public allowCustomDuration; // while false, the membership duration is fixed to 5 years
+    bool private allowCustomDuration; // while false, the membership duration is fixed to 5 years
 
     uint256 private dayDepositTimestamp; // 0 at begining, then never is zero again
     uint256 private monthDepositTimestamp; // 0 at begining, then never is zero again
@@ -458,12 +458,16 @@ contract TakasurePool is
         address newContributionToken
     ) external onlyRole(DAO_MULTISIG) notZeroAddress(newContributionToken) {
         contributionToken = IERC20(newContributionToken);
+
+        emit TakasureEvents.OnContributionTokenChanged(newContributionToken);
     }
 
     function setNewFeeClaimAddress(
         address newFeeClaimAddress
     ) external onlyRole(TAKADAO_OPERATOR) notZeroAddress(newFeeClaimAddress) {
         feeClaimAddress = newFeeClaimAddress;
+
+        emit TakasureEvents.OnNewFeeClaimAddress(newFeeClaimAddress);
     }
 
     function setNewBenefitMultiplierConsumer(
@@ -480,6 +484,8 @@ contract TakasurePool is
 
     function setAllowCustomDuration(bool _allowCustomDuration) external onlyRole(DAO_MULTISIG) {
         allowCustomDuration = _allowCustomDuration;
+
+        emit TakasureEvents.OnAllowCustomDuration(_allowCustomDuration);
     }
 
     function setNewPauseGuardian(address newPauseGuardian) external onlyRole(PAUSE_GUARDIAN) {

@@ -95,13 +95,13 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     //     assertEq(alice, takasurePool.feeClaimAddress());
     // }
 
-    /// @dev Test the owner can set custom duration
-    function testTakasurePool_setAllowCustomDuration() public {
-        vm.prank(admin);
-        takasurePool.setAllowCustomDuration(true);
+    // /// @dev Test the owner can set custom duration
+    // function testTakasurePool_setAllowCustomDuration() public {
+    //     vm.prank(admin);
+    //     takasurePool.setAllowCustomDuration(true);
 
-        assertEq(true, takasurePool.allowCustomDuration());
-    }
+    //     assertEq(true, takasurePool.allowCustomDuration());
+    // }
 
     function testTakasurePool_setKYCstatus() public {
         bool getMemberKYCstatusBefore = takasurePool.getMemberKYCStatus(alice);
