@@ -70,19 +70,6 @@ contract TakasurePool is
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
-    modifier notZeroAddress(address _address) {
-        if (_address == address(0)) {
-            revert TakasureErrors.TakasurePool__ZeroAddress();
-        }
-        _;
-    }
-
-    modifier onlyDaoOrTakadao() {
-        if (!hasRole(TAKADAO_OPERATOR, msg.sender) && !hasRole(DAO_MULTISIG, msg.sender))
-            revert TakasureErrors.OnlyDaoOrTakadao();
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -253,9 +240,10 @@ contract TakasurePool is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function setKYCStatus(
-        address memberWallet
-    ) external notZeroAddress(memberWallet) onlyRole(KYC_PROVIDER) {
+    function setKYCStatus(address memberWallet) external onlyRole(KYC_PROVIDER) {
+        if (memberWallet == address(0)) {
+            revert TakasureErrors.TakasurePool__ZeroAddress();
+        }
         if (members[memberWallet].isKYCVerified) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
@@ -340,7 +328,10 @@ contract TakasurePool is
      * @dev To be called by anyone
      * @param memberWallet address to be refunded
      */
-    function refund(address memberWallet) external notZeroAddress(memberWallet) {
+    function refund(address memberWallet) external {
+        if (memberWallet == address(0)) {
+            revert TakasureErrors.TakasurePool__ZeroAddress();
+        }
         _refund(memberWallet);
     }
 
@@ -449,25 +440,32 @@ contract TakasurePool is
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
     }
 
-    function setNewContributionToken(
-        address newContributionToken
-    ) external onlyRole(DAO_MULTISIG) notZeroAddress(newContributionToken) {
+    function setNewContributionToken(address newContributionToken) external onlyRole(DAO_MULTISIG) {
+        if (newContributionToken == address(0)) {
+            revert TakasureErrors.TakasurePool__ZeroAddress();
+        }
         contributionToken = IERC20(newContributionToken);
 
         emit TakasureEvents.OnContributionTokenChanged(newContributionToken);
     }
 
-    function setNewFeeClaimAddress(
-        address newFeeClaimAddress
-    ) external onlyRole(TAKADAO_OPERATOR) notZeroAddress(newFeeClaimAddress) {
+    function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(TAKADAO_OPERATOR) {
+        if (newFeeClaimAddress == address(0)) {
+            revert TakasureErrors.TakasurePool__ZeroAddress();
+        }
         feeClaimAddress = newFeeClaimAddress;
 
         emit TakasureEvents.OnNewFeeClaimAddress(newFeeClaimAddress);
     }
 
-    function setNewBenefitMultiplierConsumer(
-        address newBenefitMultiplierConsumer
-    ) external onlyDaoOrTakadao notZeroAddress(newBenefitMultiplierConsumer) {
+    function setNewBenefitMultiplierConsumer(address newBenefitMultiplierConsumer) external {
+        if (newBenefitMultiplierConsumer == address(0)) {
+            revert TakasureErrors.TakasurePool__ZeroAddress();
+        }
+        if (!hasRole(TAKADAO_OPERATOR, msg.sender) && !hasRole(DAO_MULTISIG, msg.sender)) {
+            revert TakasureErrors.OnlyDaoOrTakadao();
+        }
+
         address oldBenefitMultiplierConsumer = address(bmConsumer);
         bmConsumer = IBenefitMultiplierConsumer(newBenefitMultiplierConsumer);
 
