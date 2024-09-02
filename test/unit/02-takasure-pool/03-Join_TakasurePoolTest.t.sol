@@ -87,8 +87,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         (uint256 totalContributions, , , , ) = takasurePool.getCurrentReservesBalances();
 
-        uint256 memberId = takasurePool.memberIdCounter();
-        Member memory member = takasurePool.getMemberFromId(memberId);
+        Member memory member = takasurePool.getMemberFromAddress(alice);
 
         assertEq(member.contribution, 227120000); // 227.120000 USDC
         assertEq(totalContributions, member.contribution);
@@ -156,18 +155,13 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         uint256 memberId = takasurePool.memberIdCounter();
 
         // Check the member is created and added correctly to mappings
-        Member memory testMember = takasurePool.getMemberFromId(memberId);
-        Member memory testMember2 = takasurePool.getMemberFromAddress(alice);
+        Member memory testMember = takasurePool.getMemberFromAddress(alice);
 
         assertEq(testMember.memberId, memberId);
         assertEq(testMember.benefitMultiplier, BENEFIT_MULTIPLIER);
         assertEq(testMember.contribution, CONTRIBUTION_AMOUNT);
         assertEq(testMember.wallet, alice);
         assertEq(uint8(testMember.memberState), 0);
-
-        // Both members should be the same
-        assertEq(testMember.memberId, testMember2.memberId);
-        assertEq(testMember.wallet, testMember2.wallet);
     }
 
     modifier bobKYCAndJoin() {

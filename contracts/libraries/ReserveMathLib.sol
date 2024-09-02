@@ -8,6 +8,8 @@
 
 pragma solidity 0.8.25;
 
+import {Member} from "../types/TakasureTypes.sol";
+
 library ReserveMathLib {
     error WrongTimestamps();
 
@@ -152,6 +154,7 @@ library ReserveMathLib {
     }
 
     /*//////////////////////////////////////////////////////////////
+
                                LOSS RATIO
     //////////////////////////////////////////////////////////////*/
 
@@ -162,6 +165,47 @@ library ReserveMathLib {
     ) internal pure returns (uint256 newLossRatio_) {
         uint256 decimalCorrection = 1e6;
         newLossRatio_ = (currentTotalFundCost * decimalCorrection) / currentTotalFundRevenues;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              ECRes & UCRes
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Calculate the earned and unearned contribution reserves for a member
+     * @dev If the member is in the grace period, the function will return 0, 0
+     * @param member Member struct
+     * @return ecr Earned contribution reserve. Six decimals
+     * @return ucr Unearned contribution reserve. Six decimals
+     */
+    function _calculateEcrAndUcrByMember(
+        Member storage member
+    ) internal returns (uint256, uint256) {
+        uint256 currentTimestamp = block.timestamp;
+        uint256 claimReserveAdd = member.claimAddAmount;
+        uint256 year = 365;
+        uint256 decimalCorrection = 1e3;
+        uint256 ecr;
+
+        // Time passed since the membership started
+        uint256 membershipTerm = _calculateDaysPassed(
+            currentTimestamp,
+            member.lastPaidYearStartDate
+        );
+
+        if (membershipTerm > year) {
+            // Thihs means the user is in the grace period and waiting for payment, we skip it
+            return (0, 0);
+        } else {
+            ecr =
+                ((((year - membershipTerm) * decimalCorrection) / year) * (claimReserveAdd)) /
+                decimalCorrection;
+
+            member.lastEcr = ecr;
+            member.lastUcr = claimReserveAdd - member.lastEcr;
+
+            return (member.lastEcr, member.lastUcr);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -210,6 +254,34 @@ library ReserveMathLib {
             } else {
                 monthsPassed_ = monthTimePassed / month;
             }
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               UTILITIES
+    //////////////////////////////////////////////////////////////*/
+
+    function _maxUint(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        assembly {
+            z := xor(x, mul(xor(x, y), gt(y, x)))
+        }
+    }
+
+    function _maxInt(int256 x, int256 y) internal pure returns (int256 z) {
+        assembly {
+            z := xor(x, mul(xor(x, y), sgt(y, x)))
+        }
+    }
+
+    function _minUint(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        assembly {
+            z := xor(x, mul(xor(x, y), lt(y, x)))
+        }
+    }
+
+    function _minInt(int256 x, int256 y) internal pure returns (int256 z) {
+        assembly {
+            z := xor(x, mul(xor(x, y), slt(y, x)))
         }
     }
 }

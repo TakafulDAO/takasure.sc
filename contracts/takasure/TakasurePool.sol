@@ -14,7 +14,8 @@ import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplie
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {TSToken} from "../token/TSToken.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {TSToken} from "contracts/token/TSToken.sol";
 
 import {Reserve, Member, MemberState, RevenueType} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
@@ -28,7 +29,8 @@ contract TakasurePool is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
-    PausableUpgradeable
+    PausableUpgradeable,
+    ReentrancyGuardTransientUpgradeable
 {
     IERC20 private contributionToken;
     TSToken private daoToken;
@@ -60,7 +62,9 @@ contract TakasurePool is
     uint256 public memberIdCounter;
     address public feeClaimAddress;
 
-    mapping(uint256 memberIdCounter => Member) private idToMember;
+    uint256 RPOOL; // todo: define this value
+
+    mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
@@ -102,6 +106,7 @@ contract TakasurePool is
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
+        __ReentrancyGuardTransient_init();
         __Pausable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
         _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
@@ -123,6 +128,7 @@ contract TakasurePool is
         reserve.serviceFee = 22; // 22% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
         reserve.fundMarketExpendsAddShare = 20; // 20% Default
+        reserve.riskMultiplier = 2; // 2% Default
         reserve.isOptimizerEnabled = true; // Default
 
         emit TakasureEvents.OnInitialReserveValues(
@@ -149,7 +155,11 @@ contract TakasurePool is
      *      that the minimum contribution amount is 0.01 USDC
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
-    function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
+    function joinPool(
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration
+    ) external nonReentrant {
+        // Todo: Check the user benefit multiplier against the oracle.
         Member memory member = reserve.members[msg.sender];
         if (member.memberState != MemberState.Inactive) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
@@ -344,12 +354,14 @@ contract TakasurePool is
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         uint256 currentTimestamp = block.timestamp;
-        uint256 yearsCovered = reserve.members[msg.sender].yearsCovered;
         uint256 membershipStartTime = reserve.members[msg.sender].membershipStartTime;
         uint256 membershipDuration = reserve.members[msg.sender].membershipDuration;
+        uint256 lastPaidYearStartDate = reserve.members[msg.sender].lastPaidYearStartDate;
+        uint256 year = 365 days;
+        uint256 gracePeriod = 30 days;
 
         if (
-            currentTimestamp > membershipStartTime + ((yearsCovered) * 365 days) ||
+            currentTimestamp > lastPaidYearStartDate + year + gracePeriod ||
             currentTimestamp > membershipStartTime + membershipDuration
         ) {
             revert TakasureErrors.TakasurePool__InvalidDate();
@@ -360,9 +372,11 @@ contract TakasurePool is
         uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
 
         // Update the values
-        ++reserve.members[msg.sender].yearsCovered;
+        reserve.members[msg.sender].lastPaidYearStartDate += 365 days;
         reserve.members[msg.sender].totalContributions += contributionBeforeFee;
         reserve.members[msg.sender].totalServiceFee += feeAmount;
+        reserve.members[msg.sender].lastEcr = 0;
+        reserve.members[msg.sender].lastUcr = 0;
 
         // And we pay the contribution
         _memberPaymentFlow(
@@ -376,7 +390,7 @@ contract TakasurePool is
         emit TakasureEvents.OnRecurringPayment(
             msg.sender,
             reserve.members[msg.sender].memberId,
-            reserve.members[msg.sender].yearsCovered,
+            reserve.members[msg.sender].lastPaidYearStartDate,
             reserve.members[msg.sender].totalContributions,
             reserve.members[msg.sender].totalServiceFee
         );
@@ -537,12 +551,18 @@ contract TakasurePool is
         isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
 
+    function getSurplus() external view returns (uint256 ECRes_, uint256 UCRes_, uint256 surplus_) {
+        ECRes_ = reserve.ECRes;
+        UCRes_ = reserve.UCRes;
+        surplus_ = reserve.surplus;
+    }
+
     function getMemberKYCStatus(address member) external view returns (bool isKYCVerified_) {
         isKYCVerified_ = reserve.members[member].isKYCVerified;
     }
 
-    function getMemberFromId(uint256 memberId) external view returns (Member memory) {
-        return idToMember[memberId];
+    function getMemberFromId(uint256 memberId) external view returns (address) {
+        return idToMemberWallet[memberId];
     }
 
     function getMemberFromAddress(address member) external view returns (Member memory) {
@@ -645,26 +665,32 @@ contract TakasurePool is
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
+        uint256 contributionAfterFee = _contributionBeforeFee - _feeAmount;
+        uint256 claimAddAmount = (contributionAfterFee * (100 - reserve.dynamicReserveRatio)) / 100;
+
         Member memory newMember = Member({
             memberId: memberIdCounter,
             benefitMultiplier: _benefitMultiplier,
             membershipDuration: userMembershipDuration,
-            yearsCovered: 1,
             membershipStartTime: currentTimestamp,
+            lastPaidYearStartDate: currentTimestamp,
             contribution: _contributionBeforeFee,
+            claimAddAmount: claimAddAmount,
             totalContributions: _contributionBeforeFee,
             totalServiceFee: _feeAmount,
             creditTokensBalance: 0,
             wallet: _memberWallet,
             memberState: _memberState,
-            surplus: 0, // Todo
+            memberSurplus: 0, // Todo
             isKYCVerified: _isKYCVerified,
-            isRefunded: false
+            isRefunded: false,
+            lastEcr: 0,
+            lastUcr: 0
         });
 
         // Add the member to the corresponding mappings
         reserve.members[_memberWallet] = newMember;
-        idToMember[memberIdCounter] = newMember;
+        idToMemberWallet[memberIdCounter] = _memberWallet;
 
         emit TakasureEvents.OnMemberCreated(
             memberIdCounter,
@@ -689,6 +715,8 @@ contract TakasurePool is
     ) internal {
         uint256 currentTimestamp = block.timestamp;
         uint256 userMembershipDuration;
+        uint256 contributionAfterFee = _contributionBeforeFee - _feeAmount;
+        uint256 claimAddAmount = (contributionAfterFee * (100 - reserve.dynamicReserveRatio)) / 100;
 
         if (allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
@@ -700,6 +728,7 @@ contract TakasurePool is
         reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
         reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
         reserve.members[_memberWallet].contribution = _contributionBeforeFee;
+        reserve.members[_memberWallet].claimAddAmount = claimAddAmount;
         reserve.members[_memberWallet].totalServiceFee = _feeAmount;
         reserve.members[_memberWallet].memberState = _memberState;
         reserve.members[_memberWallet].isKYCVerified = _isKYCVerified;
@@ -737,6 +766,8 @@ contract TakasurePool is
         _updateBMA(cashLast12Months);
         _updateLossRatio(reserve.totalFundCost, reserve.totalFundRevenues);
         _mintDaoTokens(_contributionBeforeFee, _memberWallet);
+        // update ucrisk calculation ratio
+        _memberSurplus();
         if (_payContribution) {
             _transferAmounts(_contributionAfterFee, _feeAmount, _memberWallet);
         }
@@ -1061,6 +1092,86 @@ contract TakasurePool is
         if (!success) {
             revert TakasureErrors.TakasurePool__MintFailed();
         }
+    }
+
+    /**
+     * @notice Calculate the total earned and unearned contribution reserves for all active members
+     * @dev It does not count the recently added member
+     * @dev It updates the total earned and unearned contribution reserves every time it is called
+     * @dev Members in the grace period are not considered
+     * @return totalECRes_ the total earned contribution reserve. Six decimals
+     * @return totalUCRes_ the total unearned contribution reserve. Six decimals
+     */
+    // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
+    function _totalECResAndUCResUnboundedLoop()
+        internal
+        returns (uint256 totalECRes_, uint256 totalUCRes_)
+    {
+        uint256 newECRes;
+        // We check for every member except the recently added
+        for (uint256 i = 1; i <= memberIdCounter - 1; ) {
+            address memberWallet = idToMemberWallet[i];
+            Member storage memberToCheck = reserve.members[memberWallet];
+            if (memberToCheck.memberState == MemberState.Active) {
+                (uint256 memberEcr, uint256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
+                    memberToCheck
+                );
+
+                newECRes += memberEcr;
+                totalUCRes_ += memberUcr;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        reserve.ECRes = newECRes;
+        reserve.UCRes = totalUCRes_;
+
+        totalECRes_ = reserve.ECRes;
+    }
+
+    /**
+     * @notice Surplus to be distributed among the members
+     * @return surplus_ in six decimals
+     */
+    function _calculateSurplus() internal returns (uint256 surplus_) {
+        (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
+        uint256 UCRisk;
+
+        UCRisk = (totalUCRes * reserve.riskMultiplier) / 100;
+
+        // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
+        surplus_ = uint256(
+            ReserveMathLib._maxInt(
+                0,
+                (int256(totalECRes) -
+                    ReserveMathLib._maxInt(
+                        0,
+                        (int256(UCRisk) - int256(totalUCRes) - int256(RPOOL))
+                    ))
+            )
+        );
+
+        reserve.surplus = surplus_;
+
+        emit TakasureEvents.OnFundSurplusUpdated(surplus_);
+    }
+
+    /**
+     * @notice Calculate the surplus for a member
+     */
+    function _memberSurplus() internal {
+        uint256 totalSurplus = _calculateSurplus();
+        uint256 userCreditTokensBalance = reserve.members[msg.sender].creditTokensBalance;
+        uint256 totalCreditTokens = daoToken.balanceOf(address(this));
+        uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
+        reserve.members[msg.sender].memberSurplus = userSurplus;
+        emit TakasureEvents.OnMemberSurplusUpdated(
+            reserve.members[msg.sender].memberId,
+            userSurplus
+        );
     }
 
     ///@dev required by the OZ UUPS module

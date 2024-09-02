@@ -72,14 +72,9 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
         for (uint256 i = 0; i < 5; i++) {
             Member memory testMember = takasurePool.getMemberFromAddress(alice);
 
-            uint256 yearBeforePayment = testMember.yearsCovered;
+            uint256 lastYearStartDateBefore = testMember.lastPaidYearStartDate;
             uint256 totalContributionBeforePayment = testMember.totalContributions;
             uint256 totalServiceFeeBeforePayment = testMember.totalServiceFee;
-
-            console2.log("Years Covered: ", yearBeforePayment);
-            console2.log("Total Contribution: ", totalContributionBeforePayment);
-            console2.log("Total Service Fee: ", totalServiceFeeBeforePayment);
-            console2.log("====================================");
 
             vm.warp(block.timestamp + YEAR);
             vm.roll(block.number + 1);
@@ -89,7 +84,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
             emit TakasureEvents.OnRecurringPayment(
                 alice,
                 testMember.memberId,
-                yearBeforePayment + 1,
+                lastYearStartDateBefore + 365 days,
                 totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
@@ -98,11 +93,11 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
 
             testMember = takasurePool.getMemberFromAddress(alice);
 
-            uint256 yearAfterPayment = testMember.yearsCovered;
+            uint256 lastYearStartDateAfter = testMember.lastPaidYearStartDate;
             uint256 totalContributionAfterPayment = testMember.totalContributions;
             uint256 totalServiceFeeAfterPayment = testMember.totalServiceFee;
 
-            assert(yearAfterPayment == yearBeforePayment + 1);
+            assert(lastYearStartDateAfter == lastYearStartDateBefore + 365 days);
             assert(
                 totalContributionAfterPayment ==
                     totalContributionBeforePayment + CONTRIBUTION_AMOUNT
