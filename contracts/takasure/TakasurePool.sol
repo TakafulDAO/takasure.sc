@@ -165,7 +165,7 @@ contract TakasurePool is
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         if (contributionBeforeFee < minimumThreshold || contributionBeforeFee > maximumThreshold) {
-            revert TakasureErrors.TakasurePool__ContributionOutOfRange();
+            revert TakasureErrors.TakasurePool__WrongInput();
         }
 
         // Todo: re-calculate DAO Surplus.
@@ -210,7 +210,7 @@ contract TakasurePool is
             if (!isRefunded) {
                 // Flow 2 Join -> KYC
                 if (member.wallet != address(0)) {
-                    revert TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC();
+                    revert TakasureErrors.TakasurePool__WrongMemberState();
                 }
                 // If is not KYC verified, and not refunded, it is a completele new member, we create it
                 _createNewMember({
@@ -256,7 +256,7 @@ contract TakasurePool is
         address memberWallet
     ) external notZeroAddress(memberWallet) onlyRole(KYC_PROVIDER) {
         if (reserve.members[memberWallet].isKYCVerified) {
-            revert TakasureErrors.TakasurePool__MemberAlreadyKYCed();
+            revert TakasureErrors.TakasurePool__WrongMemberState();
         }
 
         bool isRefunded = reserve.members[memberWallet].isRefunded;
@@ -406,7 +406,7 @@ contract TakasurePool is
         RevenueType revenueType
     ) external onlyRole(DAO_MULTISIG) {
         if (revenueType == RevenueType.Contribution) {
-            revert TakasureErrors.TakasurePool__WrongRevenueType();
+            revert TakasureErrors.TakasurePool__WrongInput();
         }
         _updateRevenue(newRevenue, revenueType);
         _updateCashMappings(newRevenue);
@@ -414,13 +414,13 @@ contract TakasurePool is
 
         bool success = contributionToken.transferFrom(msg.sender, address(this), newRevenue);
         if (!success) {
-            revert TakasureErrors.TakasurePool__RevenueTransferFailed();
+            revert TakasureErrors.TakasurePool__TransferFailed();
         }
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
         if (newServiceFee > 35) {
-            revert TakasureErrors.TakasurePool__WrongServiceFee();
+            revert TakasureErrors.TakasurePool__WrongInput();
         }
         reserve.serviceFee = newServiceFee;
 
@@ -437,7 +437,7 @@ contract TakasurePool is
         uint8 newFundMarketExpendsAddShare
     ) external onlyRole(DAO_MULTISIG) {
         if (newFundMarketExpendsAddShare > 35) {
-            revert TakasureErrors.TakasurePool__WrongFundMarketExpendsShare();
+            revert TakasureErrors.TakasurePool__WrongInput();
         }
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
         reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
@@ -589,7 +589,7 @@ contract TakasurePool is
     function _refund(address _memberWallet) internal {
         // The member should not be KYCed neither already refunded
         if (reserve.members[_memberWallet].isKYCVerified == true) {
-            revert TakasureErrors.TakasurePool__MemberAlreadyKYCed();
+            revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         if (reserve.members[_memberWallet].isRefunded == true) {
             revert TakasureErrors.TakasurePool__NothingToRefund();
@@ -599,7 +599,7 @@ contract TakasurePool is
         // The member can refund after 14 days of the payment
         uint256 limitTimestamp = membershipStartTime + (14 days);
         if (currentTimestamp < limitTimestamp) {
-            revert TakasureErrors.TakasurePool__TooEarlytoRefund();
+            revert TakasureErrors.TakasurePool__InvalidDate();
         }
         // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
         // when first KYC and then join the pool. So the previous check is enough
@@ -615,7 +615,7 @@ contract TakasurePool is
         // Transfer the amount to refund
         bool success = contributionToken.transfer(_memberWallet, amountToRefund);
         if (!success) {
-            revert TakasureErrors.TakasurePool__RefundFailed();
+            revert TakasureErrors.TakasurePool__TransferFailed();
         }
 
         emit TakasureEvents.OnRefund(
@@ -1079,13 +1079,13 @@ contract TakasurePool is
             _contributionAfterFee
         );
         if (!success) {
-            revert TakasureErrors.TakasurePool__ContributionTransferFailed();
+            revert TakasureErrors.TakasurePool__TransferFailed();
         }
 
         // Transfer the service fee to the fee claim address
         success = contributionToken.transferFrom(_memberWallet, feeClaimAddress, _feeAmount);
         if (!success) {
-            revert TakasureErrors.TakasurePool__FeeTransferFailed();
+            revert TakasureErrors.TakasurePool__TransferFailed();
         }
     }
 

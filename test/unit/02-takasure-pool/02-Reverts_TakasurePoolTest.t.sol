@@ -94,7 +94,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     function testTakasurePool_setNewServiceFeeMustRevertIfHigherThan35() public {
         uint8 newServiceFee = 36;
         vm.prank(admin);
-        vm.expectRevert(TakasureErrors.TakasurePool__WrongServiceFee.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongInput.selector);
         takasurePool.setNewServiceFee(newServiceFee);
     }
 
@@ -145,7 +145,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     function testTakasurePool_joinPoolMustRevertIfDepositLessThanMinimum() public {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(alice);
-        vm.expectRevert(TakasureErrors.TakasurePool__ContributionOutOfRange.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongInput.selector);
         takasurePool.joinPool(wrongContribution, (5 * YEAR));
     }
 
@@ -181,7 +181,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.setKYCStatus(alice);
 
         // And tries to join again but fails
-        vm.expectRevert(TakasureErrors.TakasurePool__MemberAlreadyKYCed.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
         takasurePool.setKYCStatus(alice);
 
         vm.stopPrank();
@@ -252,7 +252,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.setKYCStatus(alice);
 
         vm.prank(alice);
-        vm.expectRevert(TakasureErrors.TakasurePool__MemberAlreadyKYCed.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
         takasurePool.refund();
     }
 
@@ -283,7 +283,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         // Try to refund
         vm.startPrank(alice);
-        vm.expectRevert(TakasureErrors.TakasurePool__TooEarlytoRefund.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
         takasurePool.refund();
         vm.stopPrank();
     }
@@ -332,7 +332,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Third check charlie join -> charlie join again must revert
         vm.startPrank(charlie);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.expectRevert(TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
@@ -384,7 +384,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(frank);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.expectRevert(TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
     }
