@@ -500,10 +500,6 @@ contract TakasurePool is
         return reserve;
     }
 
-    function getMemberKYCStatus(address member) external view returns (bool isKYCVerified_) {
-        isKYCVerified_ = members[member].isKYCVerified;
-    }
-
     function getMemberFromId(uint256 memberId) external view returns (address) {
         return idToMemberWallet[memberId];
     }

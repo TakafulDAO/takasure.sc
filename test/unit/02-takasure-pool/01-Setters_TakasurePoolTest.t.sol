@@ -11,7 +11,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
-import {Reserve} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member} from "contracts/types/TakasureTypes.sol";
 
 contract Setters_TakasurePoolTest is StdCheats, Test {
     TestDeployTakasure deployer;
@@ -106,14 +106,16 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     }
 
     function testTakasurePool_setKYCstatus() public {
-        bool getMemberKYCstatusBefore = takasurePool.getMemberKYCStatus(alice);
+        Member memory member = takasurePool.getMemberFromAddress(alice);
+        bool getMemberKYCstatusBefore = member.isKYCVerified;
 
         vm.prank(admin);
         vm.expectEmit(true, false, false, false, address(takasurePool));
         emit TakasureEvents.OnMemberKycVerified(1, alice);
         takasurePool.setKYCStatus(alice);
 
-        bool getMemberKYCstatusAfter = takasurePool.getMemberKYCStatus(alice);
+        member = takasurePool.getMemberFromAddress(alice);
+        bool getMemberKYCstatusAfter = member.isKYCVerified;
 
         assert(!getMemberKYCstatusBefore);
         assert(getMemberKYCstatusAfter);
