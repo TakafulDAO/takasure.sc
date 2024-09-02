@@ -64,7 +64,7 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
         takasurePool.setNewServiceFee(newServiceFee);
 
-        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
 
         assertEq(newServiceFee, serviceFee);
     }

@@ -17,7 +17,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
-import {Reserve, Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, RevenueType} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -127,6 +127,7 @@ contract TakasurePool is
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
         reserve.serviceFee = 22; // 22% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
+        reserve.fundMarketExpendsAddShare = 20; // 20% Default
         reserve.riskMultiplier = 2; // 2% Default
         reserve.isOptimizerEnabled = true; // Default
 
@@ -251,10 +252,9 @@ contract TakasurePool is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function setKYCStatus(address memberWallet) external onlyRole(KYC_PROVIDER) {
-        if (memberWallet == address(0)) {
-            revert TakasureErrors.TakasurePool__ZeroAddress();
-        }
+    function setKYCStatus(
+        address memberWallet
+    ) external notZeroAddress(memberWallet) onlyRole(KYC_PROVIDER) {
         if (reserve.members[memberWallet].isKYCVerified) {
             revert TakasureErrors.TakasurePool__MemberAlreadyKYCed();
         }
@@ -396,6 +396,28 @@ contract TakasurePool is
         );
     }
 
+    /**
+     * @notice To be called by the DAO to update the Fund reserve with new revenues
+     * @param newRevenue the new revenue to be added to the fund reserve
+     * @param revenueType the type of revenue to be added
+     */
+    function depositRevenue(
+        uint256 newRevenue,
+        RevenueType revenueType
+    ) external onlyRole(DAO_MULTISIG) {
+        if (revenueType == RevenueType.Contribution) {
+            revert TakasureErrors.TakasurePool__WrongRevenueType();
+        }
+        _updateRevenue(newRevenue, revenueType);
+        _updateCashMappings(newRevenue);
+        reserve.totalFundReserve += newRevenue;
+
+        bool success = contributionToken.transferFrom(msg.sender, address(this), newRevenue);
+        if (!success) {
+            revert TakasureErrors.TakasurePool__RevenueTransferFailed();
+        }
+    }
+
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
         if (newServiceFee > 35) {
             revert TakasureErrors.TakasurePool__WrongServiceFee();
@@ -409,6 +431,21 @@ contract TakasurePool is
         minimumThreshold = newMinimumThreshold;
 
         emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
+    }
+
+    function setNewFundMarketExpendsShare(
+        uint8 newFundMarketExpendsAddShare
+    ) external onlyRole(DAO_MULTISIG) {
+        if (newFundMarketExpendsAddShare > 35) {
+            revert TakasureErrors.TakasurePool__WrongFundMarketExpendsShare();
+        }
+        uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
+        reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
+
+        emit TakasureEvents.OnNewMarketExpendsFundReserveAddShare(
+            newFundMarketExpendsAddShare,
+            oldFundMarketExpendsAddShare
+        );
     }
 
     function setMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(DAO_MULTISIG) {
@@ -458,35 +495,59 @@ contract TakasurePool is
         _unpause();
     }
 
-    function getReserveValues()
+    function getCurrentDRR() external view returns (uint256 dynamicReserveRatio_) {
+        dynamicReserveRatio_ = reserve.dynamicReserveRatio;
+    }
+
+    function getCurrentBMA() external view returns (uint256 benefitMultiplierAdjuster_) {
+        benefitMultiplierAdjuster_ = reserve.benefitMultiplierAdjuster;
+    }
+
+    function getCurrentReservesBalances()
         external
         view
         returns (
-            uint256 initialReserveRatio_,
-            uint256 dynamicReserveRatio_,
-            uint256 benefitMultiplierAdjuster_,
             uint256 totalContributions_,
             uint256 totalClaimReserve_,
             uint256 totalFundReserve_,
-            uint256 proFormaFundReserve_,
-            uint256 proFormaClaimReserve_,
-            uint256 lossRatio_,
-            uint8 serviceFee_,
-            uint8 bmaFundReserveShare_,
-            bool isOptimizerEnabled_
+            uint256 totalFundCost_,
+            uint256 totalFundRevenues_
         )
     {
-        initialReserveRatio_ = INITIAL_RESERVE_RATIO;
-        dynamicReserveRatio_ = reserve.dynamicReserveRatio;
-        benefitMultiplierAdjuster_ = reserve.benefitMultiplierAdjuster;
         totalContributions_ = reserve.totalContributions;
         totalClaimReserve_ = reserve.totalClaimReserve;
         totalFundReserve_ = reserve.totalFundReserve;
+        totalFundCost_ = reserve.totalFundCost;
+        totalFundRevenues_ = reserve.totalFundRevenues;
+    }
+
+    function getCurrentProFormas()
+        external
+        view
+        returns (uint256 proFormaFundReserve_, uint256 proFormaClaimReserve_)
+    {
         proFormaFundReserve_ = reserve.proFormaFundReserve;
         proFormaClaimReserve_ = reserve.proFormaClaimReserve;
+    }
+
+    function getCurrentLossRatio() external view returns (uint256 lossRatio_) {
         lossRatio_ = reserve.lossRatio;
+    }
+
+    function getCurrentServiceFee() external view returns (uint8 serviceFee_) {
         serviceFee_ = reserve.serviceFee;
+    }
+
+    function getCurrentSharePercentages()
+        external
+        view
+        returns (uint8 bmaFundReserveShare_, uint8 fundMarketExpendsAddShare_)
+    {
         bmaFundReserveShare_ = reserve.bmaFundReserveShare;
+        fundMarketExpendsAddShare_ = reserve.fundMarketExpendsAddShare;
+    }
+
+    function getCurrentOptimizerValue() external view returns (bool isOptimizerEnabled_) {
         isOptimizerEnabled_ = reserve.isOptimizerEnabled;
     }
 
@@ -703,6 +764,7 @@ contract TakasurePool is
         uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
         _updateDRR(cashLast12Months);
         _updateBMA(cashLast12Months);
+        _updateLossRatio(reserve.totalFundCost, reserve.totalFundRevenues);
         _mintDaoTokens(_contributionBeforeFee, _memberWallet);
         // update ucrisk calculation ratio
         _memberSurplus();
@@ -770,21 +832,52 @@ contract TakasurePool is
         uint256 _contributionBeforeFee,
         uint256 _contributionAfterFee
     ) internal {
-        uint256 toFundReserve = (_contributionAfterFee * reserve.dynamicReserveRatio) / 100;
-        uint256 toClaimReserve = _contributionAfterFee - toFundReserve;
+        uint256 toFundReserveBeforeExpenditures = (_contributionAfterFee *
+            reserve.dynamicReserveRatio) / 100;
+
+        uint256 marketExpenditure = (toFundReserveBeforeExpenditures *
+            reserve.fundMarketExpendsAddShare) / 100;
+
+        uint256 toFundReserve = toFundReserveBeforeExpenditures - marketExpenditure;
+        uint256 toClaimReserve = _contributionAfterFee - toFundReserveBeforeExpenditures;
 
         reserve.totalFundReserve += toFundReserve;
-        reserve.totalContributions += _contributionBeforeFee;
         reserve.totalClaimReserve += toClaimReserve;
+        reserve.totalContributions += _contributionBeforeFee;
+
+        reserve.totalFundCost += marketExpenditure;
+        reserve.totalFundRevenues = _updateRevenue(_contributionAfterFee, RevenueType.Contribution);
 
         emit TakasureEvents.OnNewReserveValues(
             reserve.totalContributions,
             reserve.totalClaimReserve,
-            reserve.totalFundReserve
+            reserve.totalFundReserve,
+            reserve.totalFundCost
         );
     }
 
-    function _updateCashMappings(uint256 _contributionAfterFee) internal {
+    function _updateLossRatio(uint256 _totalFundCost, uint256 _totalFundRevenues) internal {
+        reserve.lossRatio = ReserveMathLib._calculateLossRatio(_totalFundCost, _totalFundRevenues);
+        emit TakasureEvents.OnNewLossRatio(reserve.lossRatio);
+    }
+
+    /**
+     * @notice Update the fund reserve with the external revenue
+     * @param _newRevenue the new revenue to be added to the fund reserve
+     * @param _revenueType the type of revenue to be added. Six decimals
+     * @return totalRevenues_ the total revenues in the fund reserve
+     */
+    function _updateRevenue(
+        uint256 _newRevenue,
+        RevenueType _revenueType
+    ) internal returns (uint256 totalRevenues_) {
+        reserve.totalFundRevenues += _newRevenue;
+        totalRevenues_ = reserve.totalFundRevenues;
+
+        emit TakasureEvents.OnExternalRevenue(_newRevenue, totalRevenues_, _revenueType);
+    }
+
+    function _updateCashMappings(uint256 _cashIn) internal {
         uint256 currentTimestamp = block.timestamp;
 
         if (dayDepositTimestamp == 0 && monthDepositTimestamp == 0) {
@@ -792,8 +885,8 @@ contract TakasurePool is
             // Set the initial values for future calculations and reference
             dayDepositTimestamp = currentTimestamp;
             monthDepositTimestamp = currentTimestamp;
-            monthToCashFlow[monthReference] = _contributionAfterFee;
-            dayToCashFlow[monthReference][dayReference] = _contributionAfterFee;
+            monthToCashFlow[monthReference] = _cashIn;
+            dayToCashFlow[monthReference][dayReference] = _cashIn;
         } else {
             // Check how many days and months have passed since the last deposit
             uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
@@ -807,17 +900,17 @@ contract TakasurePool is
 
             if (monthsPassed == 0) {
                 // If no months have passed, update the mapping for the current month
-                monthToCashFlow[monthReference] += _contributionAfterFee;
+                monthToCashFlow[monthReference] += _cashIn;
                 if (daysPassed == 0) {
                     // If no days have passed, update the mapping for the current day
-                    dayToCashFlow[monthReference][dayReference] += _contributionAfterFee;
+                    dayToCashFlow[monthReference][dayReference] += _cashIn;
                 } else {
                     // If it is a new day, update the day deposit timestamp and the new day reference
                     dayDepositTimestamp += daysPassed * DAY;
                     dayReference += uint8(daysPassed);
 
                     // Update the mapping for the new day
-                    dayToCashFlow[monthReference][dayReference] = _contributionAfterFee;
+                    dayToCashFlow[monthReference][dayReference] = _cashIn;
                 }
             } else {
                 // If it is a new month, update the month deposit timestamp and the day deposit timestamp
@@ -838,8 +931,8 @@ contract TakasurePool is
                 dayReference = uint8(daysPassed) + initialDay;
 
                 // Update the mappings for the new month and day
-                monthToCashFlow[monthReference] = _contributionAfterFee;
-                dayToCashFlow[monthReference][dayReference] = _contributionAfterFee;
+                monthToCashFlow[monthReference] = _cashIn;
+                dayToCashFlow[monthReference][dayReference] = _cashIn;
             }
         }
     }

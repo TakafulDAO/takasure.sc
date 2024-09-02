@@ -66,20 +66,12 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     function testTakasurePool_fundAndClaimReserves() public {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
-        (
-            uint256 initialReserveRatio,
-            ,
-            ,
-            ,
-            uint256 initialClaimReserve,
-            uint256 initialFundReserve,
-            ,
-            ,
-            ,
-            uint8 serviceFee,
-            ,
 
-        ) = takasurePool.getReserveValues();
+        uint256 initialReserveRatio = takasurePool.INITIAL_RESERVE_RATIO();
+        (, uint256 initialClaimReserve, uint256 initialFundReserve, , ) = takasurePool
+            .getCurrentReservesBalances();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        (, uint8 fundMarketExpendsShare) = takasurePool.getCurrentSharePercentages();
 
         // We simulate a request before the KYC
         _successResponse(address(bmConnsumerMock));
@@ -87,21 +79,23 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        (, , , , uint256 finalClaimReserve, uint256 finalFundReserve, , , , , , ) = takasurePool
-            .getReserveValues();
+        (, uint256 finalClaimReserve, uint256 finalFundReserve, , ) = takasurePool
+            .getCurrentReservesBalances();
 
-        uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
-        uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 5USDC = 20USDC
+        uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 22% = 5.5USDC
 
-        uint256 expectedFinalFundReserve = (deposited * initialReserveRatio) / 100; // 20USDC * 40% = 8USDC
-        uint256 expectedFinalClaimReserve = deposited - expectedFinalFundReserve; // 20USDC - 8USDC = 12USDC
+        uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 5.5USDC = 19.5USDC
 
+        uint256 toFundReserveBeforeExpends = (deposited * initialReserveRatio) / 100; // 19.5USDC * 40% = 7.8USDC
+        uint256 marketExpends = (toFundReserveBeforeExpends * fundMarketExpendsShare) / 100; // 7.8USDC * 20% = 1.56USDC
+        uint256 expectedFinalClaimReserve = deposited - toFundReserveBeforeExpends; // 19.5USDC - 7.8USDC = 11.7USDC
+        uint256 expectedFinalFundReserve = toFundReserveBeforeExpends - marketExpends; // 7.8USDC - 1.56USDC = 6.24USDC
         assertEq(initialClaimReserve, 0);
         assertEq(initialFundReserve, 0);
         assertEq(finalClaimReserve, expectedFinalClaimReserve);
         assertEq(finalClaimReserve, 117e5);
         assertEq(finalFundReserve, expectedFinalFundReserve);
-        assertEq(finalFundReserve, 78e5);
+        assertEq(finalFundReserve, 624e4);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -173,7 +167,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // 200USDC * 5 days = 1000USDC
 
         uint256 totalMembers = takasurePool.memberIdCounter();
-        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 
@@ -239,7 +233,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         uint256 cash = takasurePool.getCashLast12Months();
 
         uint256 totalMembers = takasurePool.memberIdCounter();
-        (, , , , , , , , , uint8 serviceFee, , ) = takasurePool.getReserveValues();
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 

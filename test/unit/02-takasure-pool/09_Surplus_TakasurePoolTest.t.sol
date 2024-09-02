@@ -115,13 +115,13 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         assertEq(ALICE.lastEcr, 11_664_900);
         assertEq(ALICE.lastUcr, 35_100);
-        assertEq(BOB.lastEcr, 34_994_700);
-        assertEq(BOB.lastUcr, 105_300);
+        assertEq(BOB.lastEcr, 30_328_740);
+        assertEq(BOB.lastUcr, 91_260);
         assertEq(CHARLIE.lastEcr, 0);
         assertEq(CHARLIE.lastUcr, 0);
-        assertEq(ECRes, 46_659_600);
-        assertEq(UCRes, 140_400);
-        assertEq(surplus, 46_659_600);
+        assertEq(ECRes, 41_993_640);
+        assertEq(UCRes, 126_360);
+        assertEq(surplus, 41_993_640);
 
         // 1 day passes
         vm.warp(block.timestamp + 1 days);
@@ -138,15 +138,15 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         assertEq(ALICE.lastEcr, 11_629_800);
         assertEq(ALICE.lastUcr, 70_200);
-        assertEq(BOB.lastEcr, 34_889_400);
-        assertEq(BOB.lastUcr, 210_600);
-        assertEq(CHARLIE.lastEcr, 116_649_000);
-        assertEq(CHARLIE.lastUcr, 351_000);
+        assertEq(BOB.lastEcr, 30_237_480);
+        assertEq(BOB.lastUcr, 182_520);
+        assertEq(CHARLIE.lastEcr, 110_816_550);
+        assertEq(CHARLIE.lastUcr, 333_450);
         assertEq(DAVID.lastEcr, 0);
         assertEq(DAVID.lastUcr, 0);
-        assertEq(ECRes, 163_168_200);
-        assertEq(UCRes, 631_800);
-        assertEq(surplus, 163_168_200);
+        assertEq(ECRes, 152_683_830);
+        assertEq(UCRes, 586_170);
+        assertEq(surplus, 152_683_830);
 
         // 1 day passes
         vm.warp(block.timestamp + 1 days);
@@ -164,17 +164,17 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         assertEq(ALICE.lastEcr, 11_594_700);
         assertEq(ALICE.lastUcr, 105_300);
-        assertEq(BOB.lastEcr, 34_784_100);
-        assertEq(BOB.lastUcr, 315_900);
-        assertEq(CHARLIE.lastEcr, 116_298_000);
-        assertEq(CHARLIE.lastUcr, 702_000);
-        assertEq(DAVID.lastEcr, 58_324_500);
-        assertEq(DAVID.lastUcr, 175_500);
+        assertEq(BOB.lastEcr, 30_146_220);
+        assertEq(BOB.lastUcr, 273_780);
+        assertEq(CHARLIE.lastEcr, 110_483_100);
+        assertEq(CHARLIE.lastUcr, 666_900);
+        assertEq(DAVID.lastEcr, 54_436_200);
+        assertEq(DAVID.lastUcr, 163_800);
         assertEq(ERIN.lastEcr, 0);
         assertEq(ERIN.lastUcr, 0);
-        assertEq(ECRes, 221_001_300);
-        assertEq(UCRes, 1_298_700);
-        assertEq(surplus, 221_001_300);
+        assertEq(ECRes, 206_660_220);
+        assertEq(UCRes, 1_209_780);
+        assertEq(surplus, 206_660_220);
 
         // 1 day passes
         vm.warp(block.timestamp + 1 days);
@@ -193,19 +193,19 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         assertEq(ALICE.lastEcr, 11_571_300);
         assertEq(ALICE.lastUcr, 128_700);
-        assertEq(BOB.lastEcr, 34_713_900);
-        assertEq(BOB.lastUcr, 386_100);
-        assertEq(CHARLIE.lastEcr, 11_5947_000);
-        assertEq(CHARLIE.lastUcr, 1_053_000);
-        assertEq(DAVID.lastEcr, 58_149_000);
-        assertEq(DAVID.lastUcr, 351_000);
-        assertEq(ERIN.lastEcr, 23_329_800);
-        assertEq(ERIN.lastUcr, 70_200);
+        assertEq(BOB.lastEcr, 30_085_380);
+        assertEq(BOB.lastUcr, 334_620);
+        assertEq(CHARLIE.lastEcr, 110_149_650);
+        assertEq(CHARLIE.lastUcr, 1_000_350);
+        assertEq(DAVID.lastEcr, 54_272_400);
+        assertEq(DAVID.lastUcr, 327_600);
+        assertEq(ERIN.lastEcr, 21_774_480);
+        assertEq(ERIN.lastUcr, 65_520);
         assertEq(FRANK.lastEcr, 0);
         assertEq(FRANK.lastUcr, 0);
-        assertEq(ECRes, 243_711_000);
-        assertEq(UCRes, 1_989_000);
-        assertEq(surplus, 243_711_000);
+        assertEq(ECRes, 227_853_210);
+        assertEq(UCRes, 1_856_790);
+        assertEq(surplus, 227_853_210);
     }
 
     function _join(address user, uint256 timesContributionAmount) internal {
