@@ -109,8 +109,6 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
         bytes memory response,
         bytes memory err
     ) internal override {
-        if (requestId != lastRequestId) revert OracleConsumer__UnexpectedRequestID(requestId);
-
         lastResponse = response;
         lastError = err;
 

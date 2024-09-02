@@ -149,8 +149,9 @@ contract TakasurePool is
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
     function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
-        if (reserve.members[msg.sender].memberState == MemberState.Active) {
-            revert TakasureErrors.TakasurePool__MemberAlreadyExists();
+        Member memory member = reserve.members[msg.sender];
+        if (member.memberState != MemberState.Inactive) {
+            revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         if (contributionBeforeFee < minimumThreshold || contributionBeforeFee > maximumThreshold) {
             revert TakasureErrors.TakasurePool__ContributionOutOfRange();
@@ -158,8 +159,8 @@ contract TakasurePool is
 
         // Todo: re-calculate DAO Surplus.
 
-        bool isKYCVerified = reserve.members[msg.sender].isKYCVerified;
-        bool isRefunded = reserve.members[msg.sender].isRefunded;
+        bool isKYCVerified = member.isKYCVerified;
+        bool isRefunded = member.isRefunded;
 
         // Fetch the BM from the oracle
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(msg.sender);
@@ -197,6 +198,9 @@ contract TakasurePool is
         } else {
             if (!isRefunded) {
                 // Flow 2 Join -> KYC
+                if (member.wallet != address(0)) {
+                    revert TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC();
+                }
                 // If is not KYC verified, and not refunded, it is a completele new member, we create it
                 _createNewMember({
                     _benefitMultiplier: benefitMultiplier, // Fetch from oracle
@@ -430,6 +434,14 @@ contract TakasurePool is
     function setNewPauseGuardian(address newPauseGuardian) external onlyRole(PAUSE_GUARDIAN) {
         _grantRole(PAUSE_GUARDIAN, newPauseGuardian);
         _revokeRole(PAUSE_GUARDIAN, msg.sender);
+    }
+
+    function pause() external onlyRole(PAUSE_GUARDIAN) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(PAUSE_GUARDIAN) {
+        _unpause();
     }
 
     function getReserveValues()
@@ -962,14 +974,6 @@ contract TakasurePool is
         if (!success) {
             revert TakasureErrors.TakasurePool__MintFailed();
         }
-    }
-
-    function _pause() internal override whenNotPaused onlyRole(PAUSE_GUARDIAN) {
-        super._pause();
-    }
-
-    function _unpause() internal override whenPaused onlyRole(PAUSE_GUARDIAN) {
-        super._unpause();
     }
 
     ///@dev required by the OZ UUPS module

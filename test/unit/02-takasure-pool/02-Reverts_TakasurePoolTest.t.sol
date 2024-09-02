@@ -26,6 +26,11 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     address takadao;
     IUSDC usdc;
     address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
+    address public charlie = makeAddr("charlie");
+    address public david = makeAddr("david");
+    address public erin = makeAddr("erin");
+    address public frank = makeAddr("frank");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
@@ -48,8 +53,23 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), bob, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), charlie, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), david, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), erin, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), frank, USDC_INITIAL_AMOUNT);
 
         vm.prank(alice);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        vm.prank(bob);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        vm.prank(charlie);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        vm.prank(david);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        vm.prank(erin);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        vm.prank(frank);
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
         vm.prank(admin);
@@ -142,7 +162,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // And tries to join again but fails
-        vm.expectRevert(TakasureErrors.TakasurePool__MemberAlreadyExists.selector);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         vm.stopPrank();
     }
@@ -282,5 +302,90 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.expectEmit(true, true, false, false, address(takasurePool));
         emit TakasureEvents.OnBenefitMultiplierConsumerChanged(address(bmConnsumerMock), alice);
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
+    }
+
+    function testTakasurePool_revertIfTryToJoinTwice() public {
+        // First check kyc alice -> alice join -> alice join again must revert
+        vm.prank(admin);
+        takasurePool.setKYCStatus(alice);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConnsumerMock));
+
+        vm.startPrank(alice);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
+
+        // Second check bob join -> kyc bob -> bob join again must revert
+        vm.prank(bob);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        vm.prank(admin);
+        takasurePool.setKYCStatus(bob);
+
+        vm.prank(bob);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        // Third check charlie join -> charlie join again must revert
+        vm.startPrank(charlie);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.expectRevert(TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC.selector);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
+
+        // Fourth check david join -> 14 days passes -> refund david -> kyc david -> david join -> david join again must revert
+        vm.prank(david);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        vm.warp(block.timestamp + 15 days);
+        vm.roll(block.number + 1);
+
+        takasurePool.refund(david);
+
+        vm.prank(admin);
+        takasurePool.setKYCStatus(david);
+
+        vm.startPrank(david);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
+
+        // Fifth check erin join -> 14 days passes -> refund erin -> erin join -> kyc erin -> erin join again must revert
+        vm.prank(erin);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        vm.warp(block.timestamp + 15 days);
+        vm.roll(block.number + 1);
+
+        takasurePool.refund(erin);
+
+        vm.prank(erin);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        vm.prank(admin);
+        takasurePool.setKYCStatus(erin);
+
+        vm.prank(erin);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        // Sixth check frank join -> 14 days passes -> refund frank -> frank join -> frank join again must revert
+        vm.prank(frank);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        vm.warp(block.timestamp + 15 days);
+        vm.roll(block.number + 1);
+
+        takasurePool.refund(frank);
+
+        vm.startPrank(frank);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.expectRevert(TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC.selector);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
     }
 }
