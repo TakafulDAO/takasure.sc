@@ -25,14 +25,11 @@ jobs:
         with:
           version: "nightly"
 
-      - name: Install dependencies
-        run: yarn install
-
       - name: Forge Build
         run: |
           forge --version
           forge clean
-          forge build --sizes --skip .t.sol .s.sol
+          forge build --skip .t.sol .s.sol
         id: forge-build  
 
       - name: Forge Test

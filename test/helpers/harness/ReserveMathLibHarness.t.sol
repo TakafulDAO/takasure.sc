@@ -81,4 +81,20 @@ contract ReserveMathLibHarness {
             initialMonthTimestamp
         );
     }
+
+    function exposed__maxUint(uint256 x, uint256 y) external pure returns (uint256 exposedMaxUint) {
+        exposedMaxUint = ReserveMathLib._maxUint(x, y);
+    }
+
+    function exposed__maxInt(int256 x, int256 y) external pure returns (int256 exposedMaxInt) {
+        exposedMaxInt = ReserveMathLib._maxInt(x, y);
+    }
+
+    function exposed__minUint(uint256 x, uint256 y) external pure returns (uint256 exposedMinUint) {
+        exposedMinUint = ReserveMathLib._minUint(x, y);
+    }
+
+    function exposed__minInt(int256 x, int256 y) external pure returns (int256 exposedMinInt) {
+        exposedMinInt = ReserveMathLib._minInt(x, y);
+    }
 }

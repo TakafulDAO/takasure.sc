@@ -31,7 +31,7 @@ library TakasureEvents {
     event OnRecurringPayment(
         address member,
         uint256 indexed memberId,
-        uint256 indexed updatedYearsCovered,
+        uint256 indexed lastPaidYearDate,
         uint256 indexed updatedContribution,
         uint256 updatedTotalServiceFee
     );
@@ -64,4 +64,6 @@ library TakasureEvents {
         address indexed newBenefitMultiplierConsumer,
         address indexed oldBenefitMultiplierConsumer
     );
+    event OnFundSurplusUpdated(uint256 indexed surplus);
+    event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
 }

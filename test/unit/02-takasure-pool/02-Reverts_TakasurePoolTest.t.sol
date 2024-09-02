@@ -207,7 +207,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
 
-        vm.warp(block.timestamp + 366 days);
+        vm.warp(block.timestamp + 396 days);
         vm.roll(block.number + 1);
 
         vm.startPrank(alice);
