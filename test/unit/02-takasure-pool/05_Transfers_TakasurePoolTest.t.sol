@@ -20,6 +20,7 @@ contract Transfers_TakasurePoolTest is StdCheats, Test {
     address proxy;
     address contributionTokenAddress;
     address admin;
+    address serviceFeeReceiver;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -36,6 +37,7 @@ contract Transfers_TakasurePoolTest is StdCheats, Test {
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
+        serviceFeeReceiver = config.feeClaimAddress;
 
         mockDeployer = new DeployConsumerMocks();
         BenefitMultiplierConsumerMock bmConnsumerMock = mockDeployer.run();
@@ -89,19 +91,18 @@ contract Transfers_TakasurePoolTest is StdCheats, Test {
         assertEq(contractBalanceAfter, contractBalanceBefore + deposited);
     }
 
-    // /// @dev Test service fee is transferred when the member joins the pool
-    // function testTakasurePool_serviceFeeAmountTransferedWhenJoinsPool() public {
-    //     uint8 serviceFee = takasurePool.getCurrentServiceFee();
-    //     address serviceFeeReceiver = takasurePool.feeClaimAddress();
-    //     uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
+    /// @dev Test service fee is transferred when the member joins the pool
+    function testTakasurePool_serviceFeeAmountTransferedWhenJoinsPool() public {
+        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
 
-    //     vm.prank(alice);
-    //     takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.prank(alice);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-    //     uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
+        uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
 
-    //     uint256 feeColected = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
+        uint256 feeColected = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
 
-    //     assertEq(serviceFeeReceiverBalanceAfter, serviceFeeReceiverBalanceBefore + feeColected);
-    // }
+        assertEq(serviceFeeReceiverBalanceAfter, serviceFeeReceiverBalanceBefore + feeColected);
+    }
 }

@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.25;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -37,9 +37,14 @@ contract Getters_TakasurePoolTest is StdCheats, Test {
         assertEq(serviceFee, expectedServiceFee);
     }
 
-    // function testTakasurePool_getMinimumThreshold() public view {
-    //     uint256 minimumThreshold = takasurePool.minimumThreshold();
-    //     uint256 expectedMinimumThreshold = 25e6;
-    //     assertEq(minimumThreshold, expectedMinimumThreshold);
-    // }
+    function testTakasurePool_getMinimumThreshold() public view {
+        uint256 minimumThresholdSlot = 22;
+        bytes32 minimumThreshold = vm.load(
+            address(takasurePool),
+            bytes32(uint256(minimumThresholdSlot))
+        );
+        uint256 minimum = uint256(minimumThreshold);
+        uint256 expectedMinimumThreshold = 25e6;
+        assertEq(minimum, expectedMinimumThreshold);
+    }
 }

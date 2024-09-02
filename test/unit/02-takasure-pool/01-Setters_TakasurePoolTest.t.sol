@@ -69,15 +69,15 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         assertEq(newServiceFee, serviceFee);
     }
 
-    // /// @dev Test the owner can set a new minimum threshold
-    // function testTakasurePool_setNewMinimumThreshold() public {
-    //     uint256 newThreshold = 50e6;
+    /// @dev Test the owner can set a new minimum threshold
+    function testTakasurePool_setNewMinimumThreshold() public {
+        uint256 newMinimumThreshold = 50e6;
 
-    //     vm.prank(admin);
-    //     takasurePool.setNewMinimumThreshold(newThreshold);
-
-    //     assertEq(newThreshold, takasurePool.minimumThreshold());
-    // }
+        vm.prank(admin);
+        vm.expectEmit(true, false, false, false, address(takasurePool));
+        emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
+        takasurePool.setNewMinimumThreshold(newMinimumThreshold);
+    }
 
     /// @dev Test the owner can set a new contribution token
     function testTakasurePool_setNewContributionToken() public {
@@ -87,21 +87,21 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         assertEq(alice, takasurePool.getContributionTokenAddress());
     }
 
-    // /// @dev Test the owner can set a new service claim address
-    // function testTakasurePool_cansetNewServiceClaimAddress() public {
-    //     vm.prank(admin);
-    //     takasurePool.setNewFeeClaimAddress(alice);
+    /// @dev Test the owner can set a new service claim address
+    function testTakasurePool_cansetNewServiceClaimAddress() public {
+        vm.prank(admin);
+        vm.expectEmit(true, false, false, false, address(takasurePool));
+        emit TakasureEvents.OnNewFeeClaimAddress(alice);
+        takasurePool.setNewFeeClaimAddress(alice);
+    }
 
-    //     assertEq(alice, takasurePool.feeClaimAddress());
-    // }
-
-    // /// @dev Test the owner can set custom duration
-    // function testTakasurePool_setAllowCustomDuration() public {
-    //     vm.prank(admin);
-    //     takasurePool.setAllowCustomDuration(true);
-
-    //     assertEq(true, takasurePool.allowCustomDuration());
-    // }
+    /// @dev Test the owner can set custom duration
+    function testTakasurePool_setAllowCustomDuration() public {
+        vm.prank(admin);
+        vm.expectEmit(true, false, false, false, address(takasurePool));
+        emit TakasureEvents.OnAllowCustomDuration(true);
+        takasurePool.setAllowCustomDuration(true);
+    }
 
     function testTakasurePool_setKYCstatus() public {
         bool getMemberKYCstatusBefore = takasurePool.getMemberKYCStatus(alice);
