@@ -330,6 +330,13 @@
     },
     {
         "type": "function",
+        "name": "refund",
+        "inputs": [{ "name": "memberWallet", "type": "address", "internalType": "address" }],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
         "name": "renounceRole",
         "inputs": [
             { "name": "role", "type": "bytes32", "internalType": "bytes32" },
@@ -925,6 +932,7 @@
             { "name": "length", "type": "uint256", "internalType": "uint256" }
         ]
     },
+    { "type": "error", "name": "TakasurePool__AlreadyJoinedPendingForKYC", "inputs": [] },
     {
         "type": "error",
         "name": "TakasurePool__BenefitMultiplierRequestFailed",
@@ -934,7 +942,6 @@
     { "type": "error", "name": "TakasurePool__ContributionTransferFailed", "inputs": [] },
     { "type": "error", "name": "TakasurePool__FeeTransferFailed", "inputs": [] },
     { "type": "error", "name": "TakasurePool__InvalidDate", "inputs": [] },
-    { "type": "error", "name": "TakasurePool__MemberAlreadyExists", "inputs": [] },
     { "type": "error", "name": "TakasurePool__MemberAlreadyKYCed", "inputs": [] },
     { "type": "error", "name": "TakasurePool__MintFailed", "inputs": [] },
     { "type": "error", "name": "TakasurePool__NothingToRefund", "inputs": [] },
