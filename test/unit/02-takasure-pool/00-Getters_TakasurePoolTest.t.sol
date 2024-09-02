@@ -38,7 +38,7 @@ contract Getters_TakasurePoolTest is StdCheats, Test {
     }
 
     function testTakasurePool_getMinimumThreshold() public view {
-        uint256 minimumThresholdSlot = 22;
+        uint256 minimumThresholdSlot = 21;
         bytes32 minimumThreshold = vm.load(
             address(takasurePool),
             bytes32(uint256(minimumThresholdSlot))

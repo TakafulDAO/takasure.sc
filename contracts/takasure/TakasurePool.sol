@@ -64,6 +64,7 @@ contract TakasurePool is
 
     uint256 private RPOOL; // todo: define this value
 
+    mapping(address member => Member) members;
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
@@ -160,7 +161,7 @@ contract TakasurePool is
         uint256 membershipDuration
     ) external nonReentrant {
         // Todo: Check the user benefit multiplier against the oracle.
-        Member memory member = reserve.members[msg.sender];
+        Member memory member = members[msg.sender];
         if (member.memberState != MemberState.Inactive) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
@@ -205,7 +206,7 @@ contract TakasurePool is
                 true
             );
 
-            emit TakasureEvents.OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
+            emit TakasureEvents.OnMemberJoined(members[msg.sender].memberId, msg.sender);
         } else {
             if (!isRefunded) {
                 // Flow 2 Join -> KYC
@@ -255,16 +256,16 @@ contract TakasurePool is
     function setKYCStatus(
         address memberWallet
     ) external notZeroAddress(memberWallet) onlyRole(KYC_PROVIDER) {
-        if (reserve.members[memberWallet].isKYCVerified) {
+        if (members[memberWallet].isKYCVerified) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
 
-        bool isRefunded = reserve.members[memberWallet].isRefunded;
+        bool isRefunded = members[memberWallet].isRefunded;
 
         // Fetch the BM from the oracle
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
-        if (reserve.members[memberWallet].wallet == address(0)) {
+        if (members[memberWallet].wallet == address(0)) {
             // Flow 1 KYC -> Join
             // This means the user does not exist yet
             _createNewMember({
@@ -284,12 +285,12 @@ contract TakasurePool is
                     uint256 normalizedContributionBeforeFee,
                     uint256 feeAmount,
                     uint256 contributionAfterFee
-                ) = _calculateAmountAndFees(reserve.members[memberWallet].contribution);
+                ) = _calculateAmountAndFees(members[memberWallet].contribution);
 
                 _updateMember({
                     _benefitMultiplier: benefitMultiplier, // We take the current value
                     _contributionBeforeFee: normalizedContributionBeforeFee, // We take the current value
-                    _membershipDuration: reserve.members[memberWallet].membershipDuration, // We take the current value
+                    _membershipDuration: members[memberWallet].membershipDuration, // We take the current value
                     _feeAmount: feeAmount, // Calculated
                     _memberWallet: memberWallet, // The member wallet
                     _memberState: MemberState.Active, // Active state as the user is already paid the contribution and KYCed
@@ -307,10 +308,7 @@ contract TakasurePool is
                     false
                 );
 
-                emit TakasureEvents.OnMemberJoined(
-                    reserve.members[memberWallet].memberId,
-                    memberWallet
-                );
+                emit TakasureEvents.OnMemberJoined(members[memberWallet].memberId, memberWallet);
             } else {
                 // Flow 4 Refund -> KYC
                 // This means the user exists, but was refunded, we reset the values
@@ -326,10 +324,7 @@ contract TakasurePool is
                 });
             }
         }
-        emit TakasureEvents.OnMemberKycVerified(
-            reserve.members[memberWallet].memberId,
-            memberWallet
-        );
+        emit TakasureEvents.OnMemberKycVerified(members[memberWallet].memberId, memberWallet);
     }
 
     /**
@@ -350,13 +345,13 @@ contract TakasurePool is
     }
 
     function recurringPayment() external {
-        if (reserve.members[msg.sender].memberState != MemberState.Active) {
+        if (members[msg.sender].memberState != MemberState.Active) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         uint256 currentTimestamp = block.timestamp;
-        uint256 membershipStartTime = reserve.members[msg.sender].membershipStartTime;
-        uint256 membershipDuration = reserve.members[msg.sender].membershipDuration;
-        uint256 lastPaidYearStartDate = reserve.members[msg.sender].lastPaidYearStartDate;
+        uint256 membershipStartTime = members[msg.sender].membershipStartTime;
+        uint256 membershipDuration = members[msg.sender].membershipDuration;
+        uint256 lastPaidYearStartDate = members[msg.sender].lastPaidYearStartDate;
         uint256 year = 365 days;
         uint256 gracePeriod = 30 days;
 
@@ -367,16 +362,16 @@ contract TakasurePool is
             revert TakasureErrors.TakasurePool__InvalidDate();
         }
 
-        uint256 contributionBeforeFee = reserve.members[msg.sender].contribution;
+        uint256 contributionBeforeFee = members[msg.sender].contribution;
         uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
         uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
 
         // Update the values
-        reserve.members[msg.sender].lastPaidYearStartDate += 365 days;
-        reserve.members[msg.sender].totalContributions += contributionBeforeFee;
-        reserve.members[msg.sender].totalServiceFee += feeAmount;
-        reserve.members[msg.sender].lastEcr = 0;
-        reserve.members[msg.sender].lastUcr = 0;
+        members[msg.sender].lastPaidYearStartDate += 365 days;
+        members[msg.sender].totalContributions += contributionBeforeFee;
+        members[msg.sender].totalServiceFee += feeAmount;
+        members[msg.sender].lastEcr = 0;
+        members[msg.sender].lastUcr = 0;
 
         // And we pay the contribution
         _memberPaymentFlow(
@@ -389,10 +384,10 @@ contract TakasurePool is
 
         emit TakasureEvents.OnRecurringPayment(
             msg.sender,
-            reserve.members[msg.sender].memberId,
-            reserve.members[msg.sender].lastPaidYearStartDate,
-            reserve.members[msg.sender].totalContributions,
-            reserve.members[msg.sender].totalServiceFee
+            members[msg.sender].memberId,
+            members[msg.sender].lastPaidYearStartDate,
+            members[msg.sender].totalContributions,
+            members[msg.sender].totalServiceFee
         );
     }
 
@@ -564,7 +559,7 @@ contract TakasurePool is
     }
 
     function getMemberKYCStatus(address member) external view returns (bool isKYCVerified_) {
-        isKYCVerified_ = reserve.members[member].isKYCVerified;
+        isKYCVerified_ = members[member].isKYCVerified;
     }
 
     function getMemberFromId(uint256 memberId) external view returns (address) {
@@ -572,7 +567,7 @@ contract TakasurePool is
     }
 
     function getMemberFromAddress(address member) external view returns (Member memory) {
-        return reserve.members[member];
+        return members[member];
     }
 
     function getDaoTokenAddress() external view returns (address) {
@@ -594,14 +589,14 @@ contract TakasurePool is
 
     function _refund(address _memberWallet) internal {
         // The member should not be KYCed neither already refunded
-        if (reserve.members[_memberWallet].isKYCVerified == true) {
+        if (members[_memberWallet].isKYCVerified == true) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
-        if (reserve.members[_memberWallet].isRefunded == true) {
+        if (members[_memberWallet].isRefunded == true) {
             revert TakasureErrors.TakasurePool__NothingToRefund();
         }
         uint256 currentTimestamp = block.timestamp;
-        uint256 membershipStartTime = reserve.members[_memberWallet].membershipStartTime;
+        uint256 membershipStartTime = members[_memberWallet].membershipStartTime;
         // The member can refund after 14 days of the payment
         uint256 limitTimestamp = membershipStartTime + (14 days);
         if (currentTimestamp < limitTimestamp) {
@@ -611,12 +606,12 @@ contract TakasurePool is
         // when first KYC and then join the pool. So the previous check is enough
 
         // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmount = reserve.members[_memberWallet].contribution;
-        uint256 serviceFeeAmount = reserve.members[_memberWallet].totalServiceFee;
+        uint256 contributionAmount = members[_memberWallet].contribution;
+        uint256 serviceFeeAmount = members[_memberWallet].totalServiceFee;
         uint256 amountToRefund = contributionAmount - serviceFeeAmount;
 
         // Update the member values
-        reserve.members[_memberWallet].isRefunded = true;
+        members[_memberWallet].isRefunded = true;
 
         // Transfer the amount to refund
         bool success = contributionToken.transfer(_memberWallet, amountToRefund);
@@ -625,7 +620,7 @@ contract TakasurePool is
         }
 
         emit TakasureEvents.OnRefund(
-            reserve.members[_memberWallet].memberId,
+            members[_memberWallet].memberId,
             _memberWallet,
             amountToRefund
         );
@@ -695,7 +690,7 @@ contract TakasurePool is
         });
 
         // Add the member to the corresponding mappings
-        reserve.members[_memberWallet] = newMember;
+        members[_memberWallet] = newMember;
         idToMemberWallet[memberIdCounter] = _memberWallet;
 
         emit TakasureEvents.OnMemberCreated(
@@ -730,18 +725,18 @@ contract TakasurePool is
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
-        reserve.members[_memberWallet].benefitMultiplier = _benefitMultiplier;
-        reserve.members[_memberWallet].membershipDuration = userMembershipDuration;
-        reserve.members[_memberWallet].membershipStartTime = currentTimestamp;
-        reserve.members[_memberWallet].contribution = _contributionBeforeFee;
-        reserve.members[_memberWallet].claimAddAmount = claimAddAmount;
-        reserve.members[_memberWallet].totalServiceFee = _feeAmount;
-        reserve.members[_memberWallet].memberState = _memberState;
-        reserve.members[_memberWallet].isKYCVerified = _isKYCVerified;
-        reserve.members[_memberWallet].isRefunded = _isRefunded;
+        members[_memberWallet].benefitMultiplier = _benefitMultiplier;
+        members[_memberWallet].membershipDuration = userMembershipDuration;
+        members[_memberWallet].membershipStartTime = currentTimestamp;
+        members[_memberWallet].contribution = _contributionBeforeFee;
+        members[_memberWallet].claimAddAmount = claimAddAmount;
+        members[_memberWallet].totalServiceFee = _feeAmount;
+        members[_memberWallet].memberState = _memberState;
+        members[_memberWallet].isKYCVerified = _isKYCVerified;
+        members[_memberWallet].isRefunded = _isRefunded;
 
         emit TakasureEvents.OnMemberUpdated(
-            reserve.members[_memberWallet].memberId,
+            members[_memberWallet].memberId,
             _memberWallet,
             _benefitMultiplier,
             _contributionBeforeFee,
@@ -798,7 +793,7 @@ contract TakasurePool is
 
             if (successRequest) {
                 benefitMultiplier_ = bmConsumer.idToBenefitMultiplier(requestId);
-                reserve.members[_member].benefitMultiplier = benefitMultiplier_;
+                members[_member].benefitMultiplier = benefitMultiplier_;
             } else {
                 // If failed we get the error and revert with it
                 bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
@@ -1098,7 +1093,7 @@ contract TakasurePool is
     function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal {
         // Mint needed DAO Tokens
         uint256 mintAmount = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-        reserve.members[_memberWallet].creditTokensBalance = mintAmount;
+        members[_memberWallet].creditTokensBalance = mintAmount;
 
         bool success = daoToken.mint(address(this), mintAmount);
         if (!success) {
@@ -1123,7 +1118,7 @@ contract TakasurePool is
         // We check for every member except the recently added
         for (uint256 i = 1; i <= memberIdCounter - 1; ) {
             address memberWallet = idToMemberWallet[i];
-            Member storage memberToCheck = reserve.members[memberWallet];
+            Member storage memberToCheck = members[memberWallet];
             if (memberToCheck.memberState == MemberState.Active) {
                 (uint256 memberEcr, uint256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
                     memberToCheck
@@ -1176,14 +1171,11 @@ contract TakasurePool is
      */
     function _memberSurplus() internal {
         uint256 totalSurplus = _calculateSurplus();
-        uint256 userCreditTokensBalance = reserve.members[msg.sender].creditTokensBalance;
+        uint256 userCreditTokensBalance = members[msg.sender].creditTokensBalance;
         uint256 totalCreditTokens = daoToken.balanceOf(address(this));
         uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
-        reserve.members[msg.sender].memberSurplus = userSurplus;
-        emit TakasureEvents.OnMemberSurplusUpdated(
-            reserve.members[msg.sender].memberId,
-            userSurplus
-        );
+        members[msg.sender].memberSurplus = userSurplus;
+        emit TakasureEvents.OnMemberSurplusUpdated(members[msg.sender].memberId, userSurplus);
     }
 
     ///@dev required by the OZ UUPS module
