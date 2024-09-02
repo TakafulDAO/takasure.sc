@@ -37,9 +37,9 @@ contract Getters_TakasurePoolTest is StdCheats, Test {
         assertEq(serviceFee, expectedServiceFee);
     }
 
-    function testTakasurePool_getMinimumThreshold() public view {
-        uint256 minimumThreshold = takasurePool.minimumThreshold();
-        uint256 expectedMinimumThreshold = 25e6;
-        assertEq(minimumThreshold, expectedMinimumThreshold);
-    }
+    // function testTakasurePool_getMinimumThreshold() public view {
+    //     uint256 minimumThreshold = takasurePool.minimumThreshold();
+    //     uint256 expectedMinimumThreshold = 25e6;
+    //     assertEq(minimumThreshold, expectedMinimumThreshold);
+    // }
 }

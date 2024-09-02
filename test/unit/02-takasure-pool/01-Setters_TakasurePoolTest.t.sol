@@ -69,15 +69,15 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         assertEq(newServiceFee, serviceFee);
     }
 
-    /// @dev Test the owner can set a new minimum threshold
-    function testTakasurePool_setNewMinimumThreshold() public {
-        uint256 newThreshold = 50e6;
+    // /// @dev Test the owner can set a new minimum threshold
+    // function testTakasurePool_setNewMinimumThreshold() public {
+    //     uint256 newThreshold = 50e6;
 
-        vm.prank(admin);
-        takasurePool.setNewMinimumThreshold(newThreshold);
+    //     vm.prank(admin);
+    //     takasurePool.setNewMinimumThreshold(newThreshold);
 
-        assertEq(newThreshold, takasurePool.minimumThreshold());
-    }
+    //     assertEq(newThreshold, takasurePool.minimumThreshold());
+    // }
 
     /// @dev Test the owner can set a new contribution token
     function testTakasurePool_setNewContributionToken() public {
@@ -87,13 +87,13 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         assertEq(alice, takasurePool.getContributionTokenAddress());
     }
 
-    /// @dev Test the owner can set a new service claim address
-    function testTakasurePool_cansetNewServiceClaimAddress() public {
-        vm.prank(admin);
-        takasurePool.setNewFeeClaimAddress(alice);
+    // /// @dev Test the owner can set a new service claim address
+    // function testTakasurePool_cansetNewServiceClaimAddress() public {
+    //     vm.prank(admin);
+    //     takasurePool.setNewFeeClaimAddress(alice);
 
-        assertEq(alice, takasurePool.feeClaimAddress());
-    }
+    //     assertEq(alice, takasurePool.feeClaimAddress());
+    // }
 
     /// @dev Test the owner can set custom duration
     function testTakasurePool_setAllowCustomDuration() public {

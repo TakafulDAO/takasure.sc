@@ -57,12 +57,12 @@ contract TakasurePool is
     uint16 private monthReference; // Will count the month. For gas issues will grow undefinitely
     uint8 private dayReference; // Will count the day of the month from 1 -> 30, then resets to 1
 
-    uint256 public minimumThreshold;
-    uint256 public maximumThreshold;
+    uint256 private minimumThreshold;
+    uint256 private maximumThreshold;
     uint256 public memberIdCounter;
-    address public feeClaimAddress;
+    address private feeClaimAddress;
 
-    uint256 RPOOL; // todo: define this value
+    uint256 private RPOOL; // todo: define this value
 
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
