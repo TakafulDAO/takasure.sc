@@ -861,6 +861,12 @@ contract TakasurePool is
         emit TakasureEvents.OnNewLossRatio(reserve.lossRatio);
     }
 
+    /**
+     * @notice Update the fund reserve with the external revenue
+     * @param _newRevenue the new revenue to be added to the fund reserve
+     * @param _revenueType the type of revenue to be added. Six decimals
+     * @return totalRevenues_ the total revenues in the fund reserve
+     */
     function _updateRevenue(
         uint256 _newRevenue,
         RevenueType _revenueType
