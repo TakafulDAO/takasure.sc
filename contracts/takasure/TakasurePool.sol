@@ -496,66 +496,8 @@ contract TakasurePool is
         _unpause();
     }
 
-    function getCurrentDRR() external view returns (uint256 dynamicReserveRatio_) {
-        dynamicReserveRatio_ = reserve.dynamicReserveRatio;
-    }
-
-    function getCurrentBMA() external view returns (uint256 benefitMultiplierAdjuster_) {
-        benefitMultiplierAdjuster_ = reserve.benefitMultiplierAdjuster;
-    }
-
-    function getCurrentReservesBalances()
-        external
-        view
-        returns (
-            uint256 totalContributions_,
-            uint256 totalClaimReserve_,
-            uint256 totalFundReserve_,
-            uint256 totalFundCost_,
-            uint256 totalFundRevenues_
-        )
-    {
-        totalContributions_ = reserve.totalContributions;
-        totalClaimReserve_ = reserve.totalClaimReserve;
-        totalFundReserve_ = reserve.totalFundReserve;
-        totalFundCost_ = reserve.totalFundCost;
-        totalFundRevenues_ = reserve.totalFundRevenues;
-    }
-
-    function getCurrentProFormas()
-        external
-        view
-        returns (uint256 proFormaFundReserve_, uint256 proFormaClaimReserve_)
-    {
-        proFormaFundReserve_ = reserve.proFormaFundReserve;
-        proFormaClaimReserve_ = reserve.proFormaClaimReserve;
-    }
-
-    function getCurrentLossRatio() external view returns (uint256 lossRatio_) {
-        lossRatio_ = reserve.lossRatio;
-    }
-
-    function getCurrentServiceFee() external view returns (uint8 serviceFee_) {
-        serviceFee_ = reserve.serviceFee;
-    }
-
-    function getCurrentSharePercentages()
-        external
-        view
-        returns (uint8 bmaFundReserveShare_, uint8 fundMarketExpendsAddShare_)
-    {
-        bmaFundReserveShare_ = reserve.bmaFundReserveShare;
-        fundMarketExpendsAddShare_ = reserve.fundMarketExpendsAddShare;
-    }
-
-    function getCurrentOptimizerValue() external view returns (bool isOptimizerEnabled_) {
-        isOptimizerEnabled_ = reserve.isOptimizerEnabled;
-    }
-
-    function getSurplus() external view returns (uint256 ECRes_, uint256 UCRes_, uint256 surplus_) {
-        ECRes_ = reserve.ECRes;
-        UCRes_ = reserve.UCRes;
-        surplus_ = reserve.surplus;
+    function getReserveValues() external view returns (Reserve memory) {
+        return reserve;
     }
 
     function getMemberKYCStatus(address member) external view returns (bool isKYCVerified_) {

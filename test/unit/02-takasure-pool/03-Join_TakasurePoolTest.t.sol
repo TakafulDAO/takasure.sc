@@ -10,7 +10,7 @@ import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
@@ -85,7 +85,8 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
-        (uint256 totalContributions, , , , ) = takasurePool.getCurrentReservesBalances();
+        Reserve memory reserve = takasurePool.getReserveValues();
+        uint256 totalContributions = reserve.totalContributions;
 
         Member memory member = takasurePool.getMemberFromAddress(alice);
 
@@ -181,7 +182,8 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         Member memory aliceMember = takasurePool.getMemberFromAddress(alice);
         Member memory bobMember = takasurePool.getMemberFromAddress(bob);
 
-        (uint256 totalContributions, , , , ) = takasurePool.getCurrentReservesBalances();
+        Reserve memory reserve = takasurePool.getReserveValues();
+        uint256 totalContributions = reserve.totalContributions;
 
         assertEq(aliceMember.wallet, alice);
         assertEq(bobMember.wallet, bob);
@@ -198,14 +200,16 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(admin);
         takasurePool.setKYCStatus(bob);
 
-        (uint256 initialProFormaFundReserve, uint256 initialProFormaClaimReserve) = takasurePool
-            .getCurrentProFormas();
+        Reserve memory reserve = takasurePool.getReserveValues();
+        uint256 initialProFormaFundReserve = reserve.proFormaFundReserve;
+        uint256 initialProFormaClaimReserve = reserve.proFormaClaimReserve;
 
         vm.prank(bob);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        (uint256 finalProFormaFundReserve, uint256 finalProFormaClaimReserve) = takasurePool
-            .getCurrentProFormas();
+        reserve = takasurePool.getReserveValues();
+        uint256 finalProFormaFundReserve = reserve.proFormaFundReserve;
+        uint256 finalProFormaClaimReserve = reserve.proFormaClaimReserve;
 
         assert(finalProFormaFundReserve > initialProFormaFundReserve);
         assert(finalProFormaClaimReserve > initialProFormaClaimReserve);
@@ -216,7 +220,8 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     /// @dev New DRR is calculated when a member joins
     function testTakasurePool_drrCalculatedOnMemberJoined() public {
-        uint256 currentDRR = takasurePool.getCurrentDRR();
+        Reserve memory reserve = takasurePool.getReserveValues();
+        uint256 currentDRR = reserve.dynamicReserveRatio;
         uint256 initialDRR = takasurePool.INITIAL_RESERVE_RATIO();
 
         vm.startPrank(admin);
@@ -232,12 +237,14 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 aliceDRR = takasurePool.getCurrentDRR();
+        reserve = takasurePool.getReserveValues();
+        uint256 aliceDRR = reserve.dynamicReserveRatio;
 
         vm.prank(bob);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 bobDRR = takasurePool.getCurrentDRR();
+        reserve = takasurePool.getReserveValues();
+        uint256 bobDRR = reserve.dynamicReserveRatio;
 
         uint256 expectedAliceDRR = 48;
         uint256 expectedBobDRR = 44;
@@ -252,7 +259,8 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     /// @dev New BMA is calculated when a member joins
     function testTakasurePool_bmaCalculatedOnMemberJoined() public {
-        uint256 initialBMA = takasurePool.getCurrentBMA();
+        Reserve memory reserve = takasurePool.getReserveValues();
+        uint256 initialBMA = reserve.benefitMultiplierAdjuster;
 
         vm.startPrank(admin);
 
@@ -267,12 +275,14 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 aliceBMA = takasurePool.getCurrentBMA();
+        reserve = takasurePool.getReserveValues();
+        uint256 aliceBMA = reserve.benefitMultiplierAdjuster;
 
         vm.prank(bob);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 bobBMA = takasurePool.getCurrentBMA();
+        reserve = takasurePool.getReserveValues();
+        uint256 bobBMA = reserve.benefitMultiplierAdjuster;
 
         uint256 expectedInitialBMA = 100;
         uint256 expectedAliceBMA = 90;

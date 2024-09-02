@@ -11,6 +11,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
+import {Reserve} from "contracts/types/TakasureTypes.sol";
 
 contract Setters_TakasurePoolTest is StdCheats, Test {
     TestDeployTakasure deployer;
@@ -64,7 +65,8 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
         takasurePool.setNewServiceFee(newServiceFee);
 
-        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        Reserve memory reserve = takasurePool.getReserveValues();
+        uint8 serviceFee = reserve.serviceFee;
 
         assertEq(newServiceFee, serviceFee);
     }

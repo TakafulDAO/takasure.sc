@@ -9,7 +9,7 @@ import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
@@ -77,7 +77,10 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Alice joins in day 1
         _join(alice, 1);
 
-        (uint256 ECRes, uint256 UCRes, uint256 surplus) = takasurePool.getSurplus();
+        Reserve memory reserve = takasurePool.getReserveValues();
+        uint256 ECRes = reserve.ECRes;
+        uint256 UCRes = reserve.UCRes;
+        uint256 surplus = reserve.surplus;
         Member memory ALICE = takasurePool.getMemberFromAddress(alice);
 
         assertEq(ALICE.lastEcr, 0);
@@ -89,7 +92,10 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Bob joins in day 1
         _join(bob, 3);
 
-        (ECRes, UCRes, surplus) = takasurePool.getSurplus();
+        reserve = takasurePool.getReserveValues();
+        ECRes = reserve.ECRes;
+        UCRes = reserve.UCRes;
+        surplus = reserve.surplus;
         ALICE = takasurePool.getMemberFromAddress(alice);
         Member memory BOB = takasurePool.getMemberFromAddress(bob);
 
@@ -108,7 +114,10 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Charlie joins in day 2
         _join(charlie, 10);
 
-        (ECRes, UCRes, surplus) = takasurePool.getSurplus();
+        reserve = takasurePool.getReserveValues();
+        ECRes = reserve.ECRes;
+        UCRes = reserve.UCRes;
+        surplus = reserve.surplus;
         ALICE = takasurePool.getMemberFromAddress(alice);
         BOB = takasurePool.getMemberFromAddress(bob);
         Member memory CHARLIE = takasurePool.getMemberFromAddress(charlie);
@@ -130,7 +139,10 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // David joins in day 3
         _join(david, 5);
 
-        (ECRes, UCRes, surplus) = takasurePool.getSurplus();
+        reserve = takasurePool.getReserveValues();
+        ECRes = reserve.ECRes;
+        UCRes = reserve.UCRes;
+        surplus = reserve.surplus;
         ALICE = takasurePool.getMemberFromAddress(alice);
         BOB = takasurePool.getMemberFromAddress(bob);
         CHARLIE = takasurePool.getMemberFromAddress(charlie);
@@ -155,7 +167,10 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Erin joins in day 4
         _join(erin, 2);
 
-        (ECRes, UCRes, surplus) = takasurePool.getSurplus();
+        reserve = takasurePool.getReserveValues();
+        ECRes = reserve.ECRes;
+        UCRes = reserve.UCRes;
+        surplus = reserve.surplus;
         ALICE = takasurePool.getMemberFromAddress(alice);
         BOB = takasurePool.getMemberFromAddress(bob);
         CHARLIE = takasurePool.getMemberFromAddress(charlie);
@@ -183,7 +198,10 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Frank joins in day 5
         _join(frank, 7);
 
-        (ECRes, UCRes, surplus) = takasurePool.getSurplus();
+        reserve = takasurePool.getReserveValues();
+        ECRes = reserve.ECRes;
+        UCRes = reserve.UCRes;
+        surplus = reserve.surplus;
         ALICE = takasurePool.getMemberFromAddress(alice);
         BOB = takasurePool.getMemberFromAddress(bob);
         CHARLIE = takasurePool.getMemberFromAddress(charlie);

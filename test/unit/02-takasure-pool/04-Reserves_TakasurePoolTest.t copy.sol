@@ -9,7 +9,7 @@ import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
@@ -68,10 +68,11 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         takasurePool.setKYCStatus(alice);
 
         uint256 initialReserveRatio = takasurePool.INITIAL_RESERVE_RATIO();
-        (, uint256 initialClaimReserve, uint256 initialFundReserve, , ) = takasurePool
-            .getCurrentReservesBalances();
-        uint8 serviceFee = takasurePool.getCurrentServiceFee();
-        (, uint8 fundMarketExpendsShare) = takasurePool.getCurrentSharePercentages();
+        Reserve memory reserves = takasurePool.getReserveValues();
+        uint256 initialClaimReserve = reserves.totalClaimReserve;
+        uint256 initialFundReserve = reserves.totalFundReserve;
+        uint8 serviceFee = reserves.serviceFee;
+        uint8 fundMarketExpendsShare = reserves.fundMarketExpendsAddShare;
 
         // We simulate a request before the KYC
         _successResponse(address(bmConnsumerMock));
@@ -79,8 +80,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        (, uint256 finalClaimReserve, uint256 finalFundReserve, , ) = takasurePool
-            .getCurrentReservesBalances();
+        reserves = takasurePool.getReserveValues();
+        uint256 finalClaimReserve = reserves.totalClaimReserve;
+        uint256 finalFundReserve = reserves.totalFundReserve;
 
         uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 22% = 5.5USDC
 
@@ -167,7 +169,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // 200USDC * 5 days = 1000USDC
 
         uint256 totalMembers = takasurePool.memberIdCounter();
-        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        Reserve memory reserves = takasurePool.getReserveValues();
+        uint8 serviceFee = reserves.serviceFee;
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 
@@ -233,7 +236,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         uint256 cash = takasurePool.getCashLast12Months();
 
         uint256 totalMembers = takasurePool.memberIdCounter();
-        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        Reserve memory reserves = takasurePool.getReserveValues();
+        uint8 serviceFee = reserves.serviceFee;
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 

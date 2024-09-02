@@ -9,7 +9,7 @@ import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
@@ -66,7 +66,8 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     function testTakasurePool_refundContribution() public {
-        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        Reserve memory reserve = takasurePool.getReserveValues();
+        uint8 serviceFee = reserve.serviceFee;
         uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
 
         Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);
@@ -123,7 +124,8 @@ contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     function testTakasurePool_refundCalledByAnyone() public {
-        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        Reserve memory reserve = takasurePool.getReserveValues();
+        uint8 serviceFee = reserve.serviceFee;
         uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
 
         Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);

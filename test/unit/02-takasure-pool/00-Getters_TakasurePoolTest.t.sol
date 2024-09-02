@@ -7,6 +7,7 @@ import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {Reserve} from "contracts/types/TakasureTypes.sol";
 
 contract Getters_TakasurePoolTest is StdCheats, Test {
     TestDeployTakasure deployer;
@@ -32,9 +33,9 @@ contract Getters_TakasurePoolTest is StdCheats, Test {
     }
 
     function testTakasurePool_getServiceFee() public view {
-        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        Reserve memory reserve = takasurePool.getReserveValues();
         uint8 expectedServiceFee = 22;
-        assertEq(serviceFee, expectedServiceFee);
+        assertEq(reserve.serviceFee, expectedServiceFee);
     }
 
     function testTakasurePool_getMinimumThreshold() public view {
