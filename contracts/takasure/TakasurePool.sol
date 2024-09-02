@@ -1007,7 +1007,14 @@ contract TakasurePool is
         }
     }
 
-    /// @notice Calculate the total earned and unearned contribution reserves for all active members
+    /**
+     * @notice Calculate the total earned and unearned contribution reserves for all active members
+     * @dev It does not count the recently added member
+     * @dev It updates the total earned and unearned contribution reserves every time it is called
+     * @dev Members in the grace period are not considered
+     * @return totalECRes_ the total earned contribution reserve. Six decimals
+     * @return totalUCRes_ the total unearned contribution reserve. Six decimals
+     */
     // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
     function _totalECResAndUCResUnboundedLoop()
         internal
@@ -1038,6 +1045,10 @@ contract TakasurePool is
         totalECRes_ = reserve.ECRes;
     }
 
+    /**
+     * @notice Surplus to be distributed among the members
+     * @return surplus_ in six decimals
+     */
     function _calculateSurplus() internal returns (uint256 surplus_) {
         (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
         uint256 UCRisk;
@@ -1061,6 +1072,9 @@ contract TakasurePool is
         emit TakasureEvents.OnFundSurplusUpdated(surplus_);
     }
 
+    /**
+     * @notice Calculate the surplus for a member
+     */
     function _memberSurplus() internal {
         uint256 totalSurplus = _calculateSurplus();
         uint256 userCreditTokensBalance = reserve.members[msg.sender].creditTokensBalance;

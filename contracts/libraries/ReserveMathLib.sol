@@ -157,7 +157,13 @@ library ReserveMathLib {
                               ECRes & UCRes
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Calculate the earned and unearned contribution reserves for a member
+    /**
+     * @notice Calculate the earned and unearned contribution reserves for a member
+     * @dev If the member is in the grace period, the function will return 0, 0
+     * @param member Member struct
+     * @return ecr Earned contribution reserve. Six decimals
+     * @return ucr Unearned contribution reserve. Six decimals
+     */
     function _calculateEcrAndUcrByMember(
         Member storage member
     ) internal returns (uint256, uint256) {
