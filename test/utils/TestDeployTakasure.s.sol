@@ -48,7 +48,15 @@ contract TestDeployTakasure is Script {
 
         vm.stopBroadcast();
 
-        contributionTokenAddress = takasurePool.getContributionTokenAddress();
+        uint256 contributionTokenAddressSlot = 0;
+        bytes32 contributionTokenAddressSlotBytes = vm.load(
+            address(takasurePool),
+            bytes32(uint256(contributionTokenAddressSlot))
+        );
+
+        contributionTokenAddress = address(uint160(uint256(contributionTokenAddressSlotBytes)));
+
+        // contributionTokenAddress = takasurePool.getContributionTokenAddress();
         return (daoToken, proxy, contributionTokenAddress, helperConfig);
     }
 }

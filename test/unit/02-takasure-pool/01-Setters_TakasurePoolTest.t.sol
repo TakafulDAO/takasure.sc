@@ -84,9 +84,9 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     /// @dev Test the owner can set a new contribution token
     function testTakasurePool_setNewContributionToken() public {
         vm.prank(admin);
+        vm.expectEmit(true, false, false, false, address(takasurePool));
+        emit TakasureEvents.OnContributionTokenChanged(alice);
         takasurePool.setNewContributionToken(alice);
-
-        assertEq(alice, takasurePool.getContributionTokenAddress());
     }
 
     /// @dev Test the owner can set a new service claim address

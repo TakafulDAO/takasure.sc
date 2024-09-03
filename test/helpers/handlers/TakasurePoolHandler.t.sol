@@ -18,7 +18,16 @@ contract TakasurePoolHandler is Test {
 
     constructor(TakasurePool _takasurePool) {
         takasurePool = _takasurePool;
-        usdc = ERC20(address(takasurePool.getContributionTokenAddress()));
+        uint256 contributionTokenAddressSlot = 0;
+        bytes32 contributionTokenAddressSlotBytes = vm.load(
+            address(takasurePool),
+            bytes32(uint256(contributionTokenAddressSlot))
+        );
+
+        address contributionTokenAddress = address(
+            uint160(uint256(contributionTokenAddressSlotBytes))
+        );
+        usdc = ERC20(contributionTokenAddress);
     }
 
     function joinPool(uint256 contributionAmount) public {
