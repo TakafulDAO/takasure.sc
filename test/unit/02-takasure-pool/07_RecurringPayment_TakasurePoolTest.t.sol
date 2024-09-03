@@ -19,7 +19,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConnsumerMock;
+    BenefitMultiplierConsumerMock bmConsumerMock;
     address proxy;
     address contributionTokenAddress;
     address admin;
@@ -39,16 +39,16 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
         admin = config.daoMultisig;
 
         mockDeployer = new DeployConsumerMocks();
-        bmConnsumerMock = mockDeployer.run();
+        bmConsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(proxy);
         usdc = IUSDC(contributionTokenAddress);
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConnsumerMock.setNewRequester(address(takasurePool));
+        bmConsumerMock.setNewRequester(address(takasurePool));
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
@@ -59,7 +59,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
         vm.stopPrank;
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConnsumerMock));
+        _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
         takasurePool.setKYCStatus(alice);
@@ -107,5 +107,24 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
                     totalServiceFeeBeforePayment + expectedServiceIncrease
             );
         }
+    }
+
+    /// @dev `recurringPayment` must default member, a year + 30 days has passed and the member has not paid
+    function testTakasurePool_recurringPaymentMustDefaultMemberIfEnoughTimeHasPassed() public {
+        vm.warp(block.timestamp + 395 days);
+        vm.roll(block.number + 1);
+
+        vm.startPrank(alice);
+        vm.expectEmit(true, true, false, false, address(takasurePool));
+        emit TakasureEvents.OnMemberDefaulted(
+            takasurePool.getMemberFromAddress(alice).memberId,
+            alice
+        );
+        takasurePool.recurringPayment();
+        vm.stopPrank;
+
+        Member memory testMember = takasurePool.getMemberFromAddress(alice);
+
+        assert(testMember.memberState == MemberState.Defaulted);
     }
 }
