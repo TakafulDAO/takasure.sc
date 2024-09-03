@@ -61,15 +61,9 @@ library TakasureEvents {
     event OnNewDynamicReserveRatio(uint256 indexed dynamicReserveRatio);
     event OnNewBenefitMultiplierAdjuster(uint256 indexed benefitMultiplierAdjuster);
     event OnRefund(uint256 indexed memberId, address indexed member, uint256 indexed amount);
-    event OnNewMinimumThreshold(uint256 indexed minimumThreshold);
-    event OnNewMaximumThreshold(uint256 indexed maximumThreshold);
     event OnBenefitMultiplierConsumerChanged(
         address indexed newBenefitMultiplierConsumer,
         address indexed oldBenefitMultiplierConsumer
-    );
-    event OnNewMarketExpendsFundReserveAddShare(
-        uint8 indexed newMarketExpendsFundReserveAddShare,
-        uint8 indexed oldMarketExpendsFundReserveAddShare
     );
     event OnNewLossRatio(uint256 indexed lossRatio);
     event OnExternalRevenue(
@@ -79,7 +73,4 @@ library TakasureEvents {
     );
     event OnFundSurplusUpdated(uint256 indexed surplus);
     event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
-    event OnContributionTokenChanged(address indexed newContributionToken);
-    event OnNewFeeClaimAddress(address indexed newFeeClaimAddress);
-    event OnAllowCustomDuration(bool indexed allowCustomDuration);
 }

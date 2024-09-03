@@ -140,18 +140,18 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         assertEq(member.membershipDuration, 5 * YEAR);
     }
 
-    /// @dev Test the membership custom duration
-    function testTakasurePool_customMembershipDuration() public {
-        vm.prank(admin);
-        takasurePool.setAllowCustomDuration(true);
+    // /// @dev Test the membership custom duration
+    // function testTakasurePool_customMembershipDuration() public {
+    //     vm.prank(admin);
+    //     takasurePool.setAllowCustomDuration(true);
 
-        vm.prank(alice);
-        takasurePool.joinPool(CONTRIBUTION_AMOUNT, YEAR);
+    //     vm.prank(alice);
+    //     takasurePool.joinPool(CONTRIBUTION_AMOUNT, YEAR);
 
-        Member memory member = takasurePool.getMemberFromAddress(alice);
+    //     Member memory member = takasurePool.getMemberFromAddress(alice);
 
-        assertEq(member.membershipDuration, YEAR);
-    }
+    //     assertEq(member.membershipDuration, YEAR);
+    // }
 
     /// @dev Test the member is created
     function testTakasurePool_newMember() public {

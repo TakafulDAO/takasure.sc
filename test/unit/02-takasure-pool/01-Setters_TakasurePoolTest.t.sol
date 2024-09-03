@@ -57,53 +57,53 @@ contract Setters_TakasurePoolTest is StdCheats, Test {
     }
 
     /// @dev Test the owner can set a new service fee
-    function testTakasurePool_setNewServiceFeeToNewValue() public {
-        uint8 newServiceFee = 35;
+    // function testTakasurePool_setNewServiceFeeToNewValue() public {
+    //     uint8 newServiceFee = 35;
 
-        vm.prank(admin);
-        vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
-        takasurePool.setNewServiceFee(newServiceFee);
+    //     vm.prank(admin);
+    //     vm.expectEmit(true, false, false, false, address(takasurePool));
+    //     emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
+    //     takasurePool.setNewServiceFee(newServiceFee);
 
-        Reserve memory reserve = takasurePool.getReserveValues();
-        uint8 serviceFee = reserve.serviceFee;
+    //     Reserve memory reserve = takasurePool.getReserveValues();
+    //     uint8 serviceFee = reserve.serviceFee;
 
-        assertEq(newServiceFee, serviceFee);
-    }
+    //     assertEq(newServiceFee, serviceFee);
+    // }
 
-    /// @dev Test the owner can set a new minimum threshold
-    function testTakasurePool_setNewMinimumThreshold() public {
-        uint256 newMinimumThreshold = 50e6;
+    // /// @dev Test the owner can set a new minimum threshold
+    // function testTakasurePool_setNewMinimumThreshold() public {
+    //     uint256 newMinimumThreshold = 50e6;
 
-        vm.prank(admin);
-        vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
-        takasurePool.setNewMinimumThreshold(newMinimumThreshold);
-    }
+    //     vm.prank(admin);
+    //     vm.expectEmit(true, false, false, false, address(takasurePool));
+    //     emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
+    //     takasurePool.setNewMinimumThreshold(newMinimumThreshold);
+    // }
 
-    /// @dev Test the owner can set a new contribution token
-    function testTakasurePool_setNewContributionToken() public {
-        vm.prank(admin);
-        vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit TakasureEvents.OnContributionTokenChanged(alice);
-        takasurePool.setNewContributionToken(alice);
-    }
+    // /// @dev Test the owner can set a new contribution token
+    // function testTakasurePool_setNewContributionToken() public {
+    //     vm.prank(admin);
+    //     vm.expectEmit(true, false, false, false, address(takasurePool));
+    //     emit TakasureEvents.OnContributionTokenChanged(alice);
+    //     takasurePool.setNewContributionToken(alice);
+    // }
 
-    /// @dev Test the owner can set a new service claim address
-    function testTakasurePool_cansetNewServiceClaimAddress() public {
-        vm.prank(admin);
-        vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit TakasureEvents.OnNewFeeClaimAddress(alice);
-        takasurePool.setNewFeeClaimAddress(alice);
-    }
+    // /// @dev Test the owner can set a new service claim address
+    // function testTakasurePool_cansetNewServiceClaimAddress() public {
+    //     vm.prank(admin);
+    //     vm.expectEmit(true, false, false, false, address(takasurePool));
+    //     emit TakasureEvents.OnNewFeeClaimAddress(alice);
+    //     takasurePool.setNewFeeClaimAddress(alice);
+    // }
 
-    /// @dev Test the owner can set custom duration
-    function testTakasurePool_setAllowCustomDuration() public {
-        vm.prank(admin);
-        vm.expectEmit(true, false, false, false, address(takasurePool));
-        emit TakasureEvents.OnAllowCustomDuration(true);
-        takasurePool.setAllowCustomDuration(true);
-    }
+    // /// @dev Test the owner can set custom duration
+    // function testTakasurePool_setAllowCustomDuration() public {
+    //     vm.prank(admin);
+    //     vm.expectEmit(true, false, false, false, address(takasurePool));
+    //     emit TakasureEvents.OnAllowCustomDuration(true);
+    //     takasurePool.setAllowCustomDuration(true);
+    // }
 
     function testTakasurePool_setKYCstatus() public {
         Member memory member = takasurePool.getMemberFromAddress(alice);

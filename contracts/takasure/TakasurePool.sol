@@ -408,60 +408,6 @@ contract TakasurePool is
         }
     }
 
-    function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
-        if (newServiceFee > 35) {
-            revert TakasureErrors.TakasurePool__WrongInput();
-        }
-        reserve.serviceFee = newServiceFee;
-
-        emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
-    }
-
-    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyRole(DAO_MULTISIG) {
-        minimumThreshold = newMinimumThreshold;
-
-        emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
-    }
-
-    function setNewFundMarketExpendsShare(
-        uint8 newFundMarketExpendsAddShare
-    ) external onlyRole(DAO_MULTISIG) {
-        if (newFundMarketExpendsAddShare > 35) {
-            revert TakasureErrors.TakasurePool__WrongInput();
-        }
-        uint8 oldFundMarketExpendsAddShare = fundMarketExpendsAddShare;
-        fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
-
-        emit TakasureEvents.OnNewMarketExpendsFundReserveAddShare(
-            newFundMarketExpendsAddShare,
-            oldFundMarketExpendsAddShare
-        );
-    }
-
-    function setMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(DAO_MULTISIG) {
-        maximumThreshold = newMaximumThreshold;
-
-        emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
-    }
-
-    function setNewContributionToken(address newContributionToken) external onlyRole(DAO_MULTISIG) {
-        if (newContributionToken == address(0)) {
-            revert TakasureErrors.TakasurePool__ZeroAddress();
-        }
-        contributionToken = IERC20(newContributionToken);
-
-        emit TakasureEvents.OnContributionTokenChanged(newContributionToken);
-    }
-
-    function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(TAKADAO_OPERATOR) {
-        if (newFeeClaimAddress == address(0)) {
-            revert TakasureErrors.TakasurePool__ZeroAddress();
-        }
-        feeClaimAddress = newFeeClaimAddress;
-
-        emit TakasureEvents.OnNewFeeClaimAddress(newFeeClaimAddress);
-    }
-
     function setNewBenefitMultiplierConsumer(address newBenefitMultiplierConsumer) external {
         if (newBenefitMultiplierConsumer == address(0)) {
             revert TakasureErrors.TakasurePool__ZeroAddress();
@@ -477,17 +423,6 @@ contract TakasurePool is
             newBenefitMultiplierConsumer,
             oldBenefitMultiplierConsumer
         );
-    }
-
-    function setAllowCustomDuration(bool _allowCustomDuration) external onlyRole(DAO_MULTISIG) {
-        allowCustomDuration = _allowCustomDuration;
-
-        emit TakasureEvents.OnAllowCustomDuration(_allowCustomDuration);
-    }
-
-    function setNewPauseGuardian(address newPauseGuardian) external onlyRole(PAUSE_GUARDIAN) {
-        _grantRole(PAUSE_GUARDIAN, newPauseGuardian);
-        _revokeRole(PAUSE_GUARDIAN, msg.sender);
     }
 
     function pause() external onlyRole(PAUSE_GUARDIAN) {

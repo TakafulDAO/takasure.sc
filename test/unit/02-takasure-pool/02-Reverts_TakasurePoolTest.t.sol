@@ -82,64 +82,64 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
-    /// @dev `setNewServiceFee` must revert if the caller is not the admin
-    function testTakasurePool_setNewServiceFeeMustRevertIfTheCallerIsNotTheAdmin() public {
-        uint8 newServiceFee = 50;
-        vm.prank(alice);
-        vm.expectRevert();
-        takasurePool.setNewServiceFee(newServiceFee);
-    }
+    // /// @dev `setNewServiceFee` must revert if the caller is not the admin
+    // function testTakasurePool_setNewServiceFeeMustRevertIfTheCallerIsNotTheAdmin() public {
+    //     uint8 newServiceFee = 50;
+    //     vm.prank(alice);
+    //     vm.expectRevert();
+    //     takasurePool.setNewServiceFee(newServiceFee);
+    // }
 
-    /// @dev `setNewServiceFee` must revert if it is higher than 35
-    function testTakasurePool_setNewServiceFeeMustRevertIfHigherThan35() public {
-        uint8 newServiceFee = 36;
-        vm.prank(admin);
-        vm.expectRevert(TakasureErrors.TakasurePool__WrongInput.selector);
-        takasurePool.setNewServiceFee(newServiceFee);
-    }
+    // /// @dev `setNewServiceFee` must revert if it is higher than 35
+    // function testTakasurePool_setNewServiceFeeMustRevertIfHigherThan35() public {
+    //     uint8 newServiceFee = 36;
+    //     vm.prank(admin);
+    //     vm.expectRevert(TakasureErrors.TakasurePool__WrongInput.selector);
+    //     takasurePool.setNewServiceFee(newServiceFee);
+    // }
 
-    /// @dev `setNewMinimumThreshold` must revert if the caller is not the admin
-    function testTakasurePool_setNewMinimumThresholdMustRevertIfTheCallerIsNotTheAdmin() public {
-        uint8 newThreshold = 50;
-        vm.prank(alice);
-        vm.expectRevert();
-        takasurePool.setNewMinimumThreshold(newThreshold);
-    }
+    // /// @dev `setNewMinimumThreshold` must revert if the caller is not the admin
+    // function testTakasurePool_setNewMinimumThresholdMustRevertIfTheCallerIsNotTheAdmin() public {
+    //     uint8 newThreshold = 50;
+    //     vm.prank(alice);
+    //     vm.expectRevert();
+    //     takasurePool.setNewMinimumThreshold(newThreshold);
+    // }
 
-    /// @dev `setNewContributionToken` must revert if the caller is not the admin
-    function testTakasurePool_setNewContributionTokenMustRevertIfTheCallerIsNotTheAdmin() public {
-        vm.prank(alice);
-        vm.expectRevert();
-        takasurePool.setNewContributionToken(alice);
-    }
+    // /// @dev `setNewContributionToken` must revert if the caller is not the admin
+    // function testTakasurePool_setNewContributionTokenMustRevertIfTheCallerIsNotTheAdmin() public {
+    //     vm.prank(alice);
+    //     vm.expectRevert();
+    //     takasurePool.setNewContributionToken(alice);
+    // }
 
-    /// @dev `setNewContributionToken` must revert if the address is zero
-    function testTakasurePool_setNewContributionTokenMustRevertIfAddressZero() public {
-        vm.prank(admin);
-        vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
-        takasurePool.setNewContributionToken(address(0));
-    }
+    // /// @dev `setNewContributionToken` must revert if the address is zero
+    // function testTakasurePool_setNewContributionTokenMustRevertIfAddressZero() public {
+    //     vm.prank(admin);
+    //     vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
+    //     takasurePool.setNewContributionToken(address(0));
+    // }
 
-    /// @dev `setNewFeeClaimAddress` must revert if the caller is not the admin
-    function testTakasurePool_setNewFeeClaimAddressMustRevertIfTheCallerIsNotTheAdmin() public {
-        vm.prank(alice);
-        vm.expectRevert();
-        takasurePool.setNewFeeClaimAddress(alice);
-    }
+    // /// @dev `setNewFeeClaimAddress` must revert if the caller is not the admin
+    // function testTakasurePool_setNewFeeClaimAddressMustRevertIfTheCallerIsNotTheAdmin() public {
+    //     vm.prank(alice);
+    //     vm.expectRevert();
+    //     takasurePool.setNewFeeClaimAddress(alice);
+    // }
 
-    /// @dev `setNewFeeClaimAddress` must revert if the address is zero
-    function testTakasurePool_setNewFeeClaimAddressMustRevertIfAddressZero() public {
-        vm.prank(admin);
-        vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
-        takasurePool.setNewFeeClaimAddress(address(0));
-    }
+    // /// @dev `setNewFeeClaimAddress` must revert if the address is zero
+    // function testTakasurePool_setNewFeeClaimAddressMustRevertIfAddressZero() public {
+    //     vm.prank(admin);
+    //     vm.expectRevert(TakasureErrors.TakasurePool__ZeroAddress.selector);
+    //     takasurePool.setNewFeeClaimAddress(address(0));
+    // }
 
-    /// @dev `setAllowCustomDuration` must revert if the caller is not the admin
-    function testTakasurePool_setAllowCustomDurationMustRevertIfTheCallerIsNotTheAdmin() public {
-        vm.prank(alice);
-        vm.expectRevert();
-        takasurePool.setAllowCustomDuration(true);
-    }
+    // /// @dev `setAllowCustomDuration` must revert if the caller is not the admin
+    // function testTakasurePool_setAllowCustomDurationMustRevertIfTheCallerIsNotTheAdmin() public {
+    //     vm.prank(alice);
+    //     vm.expectRevert();
+    //     takasurePool.setAllowCustomDuration(true);
+    // }
 
     /// @dev `joinPool` must revert if the contribution is less than the minimum threshold
     function testTakasurePool_joinPoolMustRevertIfDepositLessThanMinimum() public {
