@@ -26,8 +26,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-    uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
+    uint256 private constant INITIAL_RESERVE_RATIO = 40;
 
     event MemberJoined(address indexed member, uint256 indexed contributionAmount);
 
@@ -67,7 +67,6 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
-        uint256 initialReserveRatio = takasurePool.INITIAL_RESERVE_RATIO();
         Reserve memory reserves = takasurePool.getReserveValues();
         uint256 initialClaimReserve = reserves.totalClaimReserve;
         uint256 initialFundReserve = reserves.totalFundReserve;
@@ -88,7 +87,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 5.5USDC = 19.5USDC
 
-        uint256 toFundReserveBeforeExpends = (deposited * initialReserveRatio) / 100; // 19.5USDC * 40% = 7.8USDC
+        uint256 toFundReserveBeforeExpends = (deposited * INITIAL_RESERVE_RATIO) / 100; // 19.5USDC * 40% = 7.8USDC
         uint256 marketExpends = (toFundReserveBeforeExpends * fundMarketExpendsShare) / 100; // 7.8USDC * 20% = 1.56USDC
         uint256 expectedFinalClaimReserve = deposited - toFundReserveBeforeExpends; // 19.5USDC - 7.8USDC = 11.7USDC
         uint256 expectedFinalFundReserve = toFundReserveBeforeExpends - marketExpends; // 7.8USDC - 1.56USDC = 6.24USDC

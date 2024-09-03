@@ -30,6 +30,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
+    uint256 public constant INITIAL_RESERVE_RATIO = 40;
 
     function setUp() public {
         deployer = new TestDeployTakasure();
@@ -222,7 +223,6 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     function testTakasurePool_drrCalculatedOnMemberJoined() public {
         Reserve memory reserve = takasurePool.getReserveValues();
         uint256 currentDRR = reserve.dynamicReserveRatio;
-        uint256 initialDRR = takasurePool.INITIAL_RESERVE_RATIO();
 
         vm.startPrank(admin);
 
@@ -249,7 +249,7 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         uint256 expectedAliceDRR = 48;
         uint256 expectedBobDRR = 44;
 
-        assertEq(currentDRR, initialDRR);
+        assertEq(currentDRR, INITIAL_RESERVE_RATIO);
         assertEq(aliceDRR, expectedAliceDRR);
         assertEq(bobDRR, expectedBobDRR);
     }

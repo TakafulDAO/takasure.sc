@@ -38,17 +38,17 @@ contract TakasurePool is
 
     Reserve private reserve;
 
-    bytes32 public constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
-    bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
-    bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-    bytes32 public constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
+    bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
+    bytes32 private constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
+    bytes32 private constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
+    bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
     uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
     uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
     uint256 private constant DAY = 1 days;
-    uint256 public constant INITIAL_RESERVE_RATIO = 40; // 40% Default
+    uint256 private constant INITIAL_RESERVE_RATIO = 40; // 40% Default
 
     bool private allowCustomDuration; // while false, the membership duration is fixed to 5 years
 
