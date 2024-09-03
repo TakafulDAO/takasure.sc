@@ -167,7 +167,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Each day 25USDC - fee = 20USDC will be deposited
         // 200USDC * 5 days = 1000USDC
 
-        uint256 totalMembers = takasurePool.memberIdCounter();
+        uint256 memberIdSlot = 23;
+        bytes32 memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 totalMembers = uint256(memberIdBytes32);
         Reserve memory reserves = takasurePool.getReserveValues();
         uint8 serviceFee = reserves.serviceFee;
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
@@ -234,7 +236,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         uint256 cash = takasurePool.getCashLast12Months();
 
-        uint256 totalMembers = takasurePool.memberIdCounter();
+        uint256 memberIdSlot = 23;
+        bytes32 memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 totalMembers = uint256(memberIdBytes32);
         Reserve memory reserves = takasurePool.getReserveValues();
         uint8 serviceFee = reserves.serviceFee;
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);

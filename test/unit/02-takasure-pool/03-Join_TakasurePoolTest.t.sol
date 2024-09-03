@@ -101,17 +101,21 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev Test that the joinPool function updates the memberIdCounter
     function testTakasurePool_joinPoolUpdatesCounter() public {
-        uint256 memberIdCounterBeforeAlice = takasurePool.memberIdCounter();
+        uint256 memberIdSlot = 23;
+        bytes32 memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 memberIdCounterBeforeAlice = uint256(memberIdBytes32);
 
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 memberIdCounterAfterAlice = takasurePool.memberIdCounter();
+        memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 memberIdCounterAfterAlice = uint256(memberIdBytes32);
 
         vm.prank(bob);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 memberIdCounterAfterBob = takasurePool.memberIdCounter();
+        memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 memberIdCounterAfterBob = uint256(memberIdBytes32);
 
         assertEq(memberIdCounterAfterAlice, memberIdCounterBeforeAlice + 1);
         assertEq(memberIdCounterAfterBob, memberIdCounterAfterAlice + 1);
@@ -154,7 +158,9 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 memberId = takasurePool.memberIdCounter();
+        uint256 memberIdSlot = 23;
+        bytes32 memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 memberId = uint256(memberIdBytes32);
 
         // Check the member is created and added correctly to mappings
         Member memory testMember = takasurePool.getMemberFromAddress(alice);

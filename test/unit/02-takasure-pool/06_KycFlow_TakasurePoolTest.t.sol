@@ -67,7 +67,9 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev Test contribution amount is transferred to the contract
     function testTakasurePool_KycFlow1() public {
-        uint256 memberIdBeforeKyc = takasurePool.memberIdCounter();
+        uint256 memberIdSlot = 23;
+        bytes32 memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 memberIdBeforeKyc = uint256(memberIdBytes32);
 
         vm.prank(admin);
 
@@ -78,7 +80,8 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         emit TakasureEvents.OnMemberKycVerified(memberIdBeforeKyc + 1, alice);
         takasurePool.setKYCStatus(alice);
 
-        uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
+        memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 memberIdAfterKyc = uint256(memberIdBytes32);
 
         // member values only after KYC verification without joining the pool
         Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);
@@ -124,7 +127,8 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         emit TakasureEvents.OnMemberJoined(memberIdAfterKyc, alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
 
-        uint256 memberIdAfterJoin = takasurePool.memberIdCounter();
+        memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 memberIdAfterJoin = uint256(memberIdBytes32);
 
         // member values only after joining the pool
         Member memory testMemberAfterJoin = takasurePool.getMemberFromAddress(alice);
@@ -166,7 +170,9 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev Test contribution amount is transferred to the contract
     function testTakasurePool_KycFlow2() public {
-        uint256 memberIdBeforeJoin = takasurePool.memberIdCounter();
+        uint256 memberIdSlot = 23;
+        bytes32 memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 memberIdBeforeJoin = uint256(memberIdBytes32);
 
         // Join the pool
         vm.prank(alice);
@@ -184,7 +190,8 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
 
-        uint256 memberIdAfterJoin = takasurePool.memberIdCounter();
+        memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 memberIdAfterJoin = uint256(memberIdBytes32);
 
         // member values only after joining the pool
         Member memory testMemberAfterJoin = takasurePool.getMemberFromAddress(alice);
@@ -234,7 +241,8 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         emit TakasureEvents.OnMemberKycVerified(memberIdAfterJoin, alice);
         takasurePool.setKYCStatus(alice);
 
-        uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
+        memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
+        uint256 memberIdAfterKyc = uint256(memberIdBytes32);
 
         // member values only after KYC verification without joining the pool
         Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);

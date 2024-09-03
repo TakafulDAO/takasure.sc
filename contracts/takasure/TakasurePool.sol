@@ -59,7 +59,7 @@ contract TakasurePool is
 
     uint256 private minimumThreshold;
     uint256 private maximumThreshold;
-    uint256 public memberIdCounter;
+    uint256 private memberIdCounter;
     address private feeClaimAddress;
 
     uint256 private RPOOL; // todo: define this value
