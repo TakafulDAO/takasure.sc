@@ -145,19 +145,15 @@ contract TakasurePool is
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
     function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
-        // Todo: Check the user benefit multiplier against the oracle.
-        Member memory member = members[msg.sender];
-        if (member.memberState != MemberState.Inactive) {
+        if (members[msg.sender].memberState != MemberState.Inactive) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         if (contributionBeforeFee < minimumThreshold || contributionBeforeFee > maximumThreshold) {
             revert TakasureErrors.TakasurePool__WrongInput();
         }
 
-        // Todo: re-calculate DAO Surplus.
-
-        bool isKYCVerified = member.isKYCVerified;
-        bool isRefunded = member.isRefunded;
+        bool isKYCVerified = members[msg.sender].isKYCVerified;
+        bool isRefunded = members[msg.sender].isRefunded;
 
         // Fetch the BM from the oracle
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(msg.sender);
@@ -195,7 +191,7 @@ contract TakasurePool is
         } else {
             if (!isRefunded) {
                 // Flow 2 Join -> KYC
-                if (member.wallet != address(0)) {
+                if (members[msg.sender].wallet != address(0)) {
                     revert TakasureErrors.TakasurePool__WrongMemberState();
                 }
                 // If is not KYC verified, and not refunded, it is a completele new member, we create it
