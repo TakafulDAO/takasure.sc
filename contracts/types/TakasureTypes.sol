@@ -25,6 +25,7 @@ enum RevenueType {
 }
 
 struct Member {
+    MemberState memberState;
     uint256 memberId;
     uint256 benefitMultiplier;
     uint256 membershipDuration; // in years
@@ -36,7 +37,6 @@ struct Member {
     uint256 totalServiceFee; // in stablecoin currency in Wei
     uint256 creditTokensBalance; // 18 decimals
     address wallet;
-    MemberState memberState;
     uint256 memberSurplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
     bool isKYCVerified; // Can not be true if isRefunded is true
     bool isRefunded; // Can not be true if isKYCVerified is true
@@ -56,10 +56,6 @@ struct Reserve {
     uint256 proFormaClaimReserve;
     uint256 lossRatio; // Default 0
     uint8 serviceFee; // Default 22%, max 100%
-    uint8 bmaFundReserveShare; // Default 70%
-    uint8 fundMarketExpendsAddShare; // Default 20%
-    uint8 riskMultiplier; // Default to 2%
-    bool isOptimizerEnabled; // Default true
     uint256 ECRes; // Default 0
     uint256 UCRes; // Default 0
     uint256 surplus; // Default 0

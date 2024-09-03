@@ -71,7 +71,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         uint256 initialClaimReserve = reserves.totalClaimReserve;
         uint256 initialFundReserve = reserves.totalFundReserve;
         uint8 serviceFee = reserves.serviceFee;
-        uint8 fundMarketExpendsShare = reserves.fundMarketExpendsAddShare;
+        // uint8 fundMarketExpendsShare = reserves.fundMarketExpendsAddShare;
+        uint8 fundMarketExpendsShare = 20;
 
         // We simulate a request before the KYC
         _successResponse(address(bmConnsumerMock));
@@ -170,8 +171,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         uint256 memberIdSlot = 23;
         bytes32 memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
         uint256 totalMembers = uint256(memberIdBytes32);
-        Reserve memory reserves = takasurePool.getReserveValues();
-        uint8 serviceFee = reserves.serviceFee;
+        // Reserve memory reserves = takasurePool.getReserveValues();
+        // uint8 serviceFee = reserves.serviceFee;
+        uint8 serviceFee = 22;
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 
@@ -239,8 +241,9 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         uint256 memberIdSlot = 23;
         bytes32 memberIdBytes32 = vm.load(address(takasurePool), bytes32(uint256(memberIdSlot)));
         uint256 totalMembers = uint256(memberIdBytes32);
-        Reserve memory reserves = takasurePool.getReserveValues();
-        uint8 serviceFee = reserves.serviceFee;
+        // Reserve memory reserves = takasurePool.getReserveValues();
+        // uint8 serviceFee = reserves.serviceFee;
+        uint8 serviceFee = 22;
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 

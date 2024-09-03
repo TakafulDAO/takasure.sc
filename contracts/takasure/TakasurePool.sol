@@ -51,6 +51,10 @@ contract TakasurePool is
     uint256 private constant INITIAL_RESERVE_RATIO = 40; // 40% Default
 
     bool private allowCustomDuration; // while false, the membership duration is fixed to 5 years
+    bool private isOptimizerEnabled; // Default true
+    uint8 private riskMultiplier; // Default to 2%
+    uint8 private bmaFundReserveShare; // Default 70%
+    uint8 private fundMarketExpendsAddShare; // Default 20%
 
     uint256 private dayDepositTimestamp; // 0 at begining, then never is zero again
     uint256 private monthDepositTimestamp; // 0 at begining, then never is zero again
@@ -114,18 +118,18 @@ contract TakasurePool is
         reserve.dynamicReserveRatio = INITIAL_RESERVE_RATIO; // Default
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
         reserve.serviceFee = 22; // 22% of the contribution amount. Default
-        reserve.bmaFundReserveShare = 70; // 70% Default
-        reserve.fundMarketExpendsAddShare = 20; // 20% Default
-        reserve.riskMultiplier = 2; // 2% Default
-        reserve.isOptimizerEnabled = true; // Default
+        fundMarketExpendsAddShare = 20; // 20% Default
+        bmaFundReserveShare = 70; // 70% Default
+        riskMultiplier = 2; // 2% Default
+        isOptimizerEnabled = true; // Default
 
         emit TakasureEvents.OnInitialReserveValues(
             INITIAL_RESERVE_RATIO,
             reserve.dynamicReserveRatio,
             reserve.benefitMultiplierAdjuster,
             reserve.serviceFee,
-            reserve.bmaFundReserveShare,
-            reserve.isOptimizerEnabled,
+            bmaFundReserveShare,
+            isOptimizerEnabled,
             address(contributionToken),
             address(daoToken)
         );
@@ -425,8 +429,8 @@ contract TakasurePool is
         if (newFundMarketExpendsAddShare > 35) {
             revert TakasureErrors.TakasurePool__WrongInput();
         }
-        uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
-        reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
+        uint8 oldFundMarketExpendsAddShare = fundMarketExpendsAddShare;
+        fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
 
         emit TakasureEvents.OnNewMarketExpendsFundReserveAddShare(
             newFundMarketExpendsAddShare,
@@ -760,8 +764,8 @@ contract TakasurePool is
         uint256 toFundReserveBeforeExpenditures = (_contributionAfterFee *
             reserve.dynamicReserveRatio) / 100;
 
-        uint256 marketExpenditure = (toFundReserveBeforeExpenditures *
-            reserve.fundMarketExpendsAddShare) / 100;
+        uint256 marketExpenditure = (toFundReserveBeforeExpenditures * fundMarketExpendsAddShare) /
+            100;
 
         uint256 toFundReserve = toFundReserveBeforeExpenditures - marketExpenditure;
         uint256 toClaimReserve = _contributionAfterFee - toFundReserveBeforeExpenditures;
@@ -980,7 +984,7 @@ contract TakasurePool is
         uint256 updatedBMA = ReserveMathLib._calculateBmaCashFlowMethod(
             reserve.totalClaimReserve,
             reserve.totalFundReserve,
-            reserve.bmaFundReserveShare,
+            bmaFundReserveShare,
             reserve.proFormaClaimReserve,
             bmaInflowAssumption
         );
@@ -1071,7 +1075,7 @@ contract TakasurePool is
         (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
         uint256 UCRisk;
 
-        UCRisk = (totalUCRes * reserve.riskMultiplier) / 100;
+        UCRisk = (totalUCRes * riskMultiplier) / 100;
 
         // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
         surplus_ = uint256(
