@@ -298,7 +298,12 @@ contract Join_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     /// @dev Test the tokens minted are staked in the pool
     function testTakasurePool_tokensMinted() public {
-        address creditToken = takasurePool.getDaoTokenAddress();
+        uint256 daoTokenAddressSlot = 1;
+        bytes32 daoTokenAddressSlotBytes = vm.load(
+            address(takasurePool),
+            bytes32(uint256(daoTokenAddressSlot))
+        );
+        address creditToken = address(uint160(uint256(daoTokenAddressSlotBytes)));
         TSToken creditTokenInstance = TSToken(creditToken);
 
         uint256 contractCreditTokenBalanceBefore = creditTokenInstance.balanceOf(

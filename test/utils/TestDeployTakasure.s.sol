@@ -42,7 +42,13 @@ contract TestDeployTakasure is Script {
 
         TakasurePool takasurePool = TakasurePool(proxy);
 
-        address daoTokenAddress = takasurePool.getDaoTokenAddress();
+        uint256 daoTokenAddressSlot = 1;
+        bytes32 daoTokenAddressSlotBytes = vm.load(
+            address(takasurePool),
+            bytes32(uint256(daoTokenAddressSlot))
+        );
+
+        address daoTokenAddress = address(uint160(uint256(daoTokenAddressSlotBytes)));
 
         TSToken daoToken = TSToken(daoTokenAddress);
 

@@ -502,10 +502,6 @@ contract TakasurePool is
         return members[member];
     }
 
-    function getDaoTokenAddress() external view returns (address) {
-        return address(daoToken);
-    }
-
     /**
      * @notice Get the cash flow for the last 12 months. From the time is called
      * @return cash_ the cash flow for the last 12 months
