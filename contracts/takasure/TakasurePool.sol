@@ -64,7 +64,7 @@ contract TakasurePool is
 
     uint256 private RPOOL; // todo: define this value
 
-    mapping(address member => Member) members;
+    mapping(address member => Member) private members;
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
     mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
