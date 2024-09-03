@@ -1,45 +1,10 @@
 {
-  "address": "0xfE84d314B4fDa2d8689618a9f4776D53451aEe72",
+  "address": "0xb135f67A8D5AEE21B1F48E4906933924b51E13C7",
   "abi": [
     { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
     {
         "type": "function",
-        "name": "DAO_MULTISIG",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
         "name": "DEFAULT_ADMIN_ROLE",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "INITIAL_RESERVE_RATIO",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "KYC_PROVIDER",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "PAUSE_GUARDIAN",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "TAKADAO_OPERATOR",
         "inputs": [],
         "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
         "stateMutability": "view"
@@ -53,39 +18,19 @@
     },
     {
         "type": "function",
-        "name": "allowCustomDuration",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "feeClaimAddress",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
-        "stateMutability": "view"
+        "name": "depositRevenue",
+        "inputs": [
+            { "name": "newRevenue", "type": "uint256", "internalType": "uint256" },
+            { "name": "revenueType", "type": "uint8", "internalType": "enum RevenueType" }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
         "type": "function",
         "name": "getCashLast12Months",
         "inputs": [],
         "outputs": [{ "name": "cash_", "type": "uint256", "internalType": "uint256" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "getContributionTokenAddress",
-        "inputs": [],
-        "outputs": [
-            { "name": "contributionToken_", "type": "address", "internalType": "address" }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "getDaoTokenAddress",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
         "stateMutability": "view"
     },
     {
@@ -98,6 +43,11 @@
                 "type": "tuple",
                 "internalType": "struct Member",
                 "components": [
+                    {
+                        "name": "memberState",
+                        "type": "uint8",
+                        "internalType": "enum MemberState"
+                    },
                     { "name": "memberId", "type": "uint256", "internalType": "uint256" },
                     {
                         "name": "benefitMultiplier",
@@ -109,13 +59,18 @@
                         "type": "uint256",
                         "internalType": "uint256"
                     },
-                    { "name": "yearsCovered", "type": "uint256", "internalType": "uint256" },
                     {
                         "name": "membershipStartTime",
                         "type": "uint256",
                         "internalType": "uint256"
                     },
+                    {
+                        "name": "lastPaidYearStartDate",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
                     { "name": "contribution", "type": "uint256", "internalType": "uint256" },
+                    { "name": "claimAddAmount", "type": "uint256", "internalType": "uint256" },
                     {
                         "name": "totalContributions",
                         "type": "uint256",
@@ -128,77 +83,14 @@
                         "internalType": "uint256"
                     },
                     { "name": "wallet", "type": "address", "internalType": "address" },
-                    {
-                        "name": "memberState",
-                        "type": "uint8",
-                        "internalType": "enum MemberState"
-                    },
-                    { "name": "surplus", "type": "uint256", "internalType": "uint256" },
+                    { "name": "memberSurplus", "type": "uint256", "internalType": "uint256" },
                     { "name": "isKYCVerified", "type": "bool", "internalType": "bool" },
-                    { "name": "isRefunded", "type": "bool", "internalType": "bool" }
+                    { "name": "isRefunded", "type": "bool", "internalType": "bool" },
+                    { "name": "lastEcr", "type": "uint256", "internalType": "uint256" },
+                    { "name": "lastUcr", "type": "uint256", "internalType": "uint256" }
                 ]
             }
         ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "getMemberFromId",
-        "inputs": [{ "name": "memberId", "type": "uint256", "internalType": "uint256" }],
-        "outputs": [
-            {
-                "name": "",
-                "type": "tuple",
-                "internalType": "struct Member",
-                "components": [
-                    { "name": "memberId", "type": "uint256", "internalType": "uint256" },
-                    {
-                        "name": "benefitMultiplier",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    {
-                        "name": "membershipDuration",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    { "name": "yearsCovered", "type": "uint256", "internalType": "uint256" },
-                    {
-                        "name": "membershipStartTime",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    { "name": "contribution", "type": "uint256", "internalType": "uint256" },
-                    {
-                        "name": "totalContributions",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    { "name": "totalServiceFee", "type": "uint256", "internalType": "uint256" },
-                    {
-                        "name": "creditTokensBalance",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    { "name": "wallet", "type": "address", "internalType": "address" },
-                    {
-                        "name": "memberState",
-                        "type": "uint8",
-                        "internalType": "enum MemberState"
-                    },
-                    { "name": "surplus", "type": "uint256", "internalType": "uint256" },
-                    { "name": "isKYCVerified", "type": "bool", "internalType": "bool" },
-                    { "name": "isRefunded", "type": "bool", "internalType": "bool" }
-                ]
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "getMemberKYCStatus",
-        "inputs": [{ "name": "member", "type": "address", "internalType": "address" }],
-        "outputs": [{ "name": "isKYCVerified_", "type": "bool", "internalType": "bool" }],
         "stateMutability": "view"
     },
     {
@@ -206,22 +98,59 @@
         "name": "getReserveValues",
         "inputs": [],
         "outputs": [
-            { "name": "initialReserveRatio_", "type": "uint256", "internalType": "uint256" },
-            { "name": "dynamicReserveRatio_", "type": "uint256", "internalType": "uint256" },
             {
-                "name": "benefitMultiplierAdjuster_",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            { "name": "totalContributions_", "type": "uint256", "internalType": "uint256" },
-            { "name": "totalClaimReserve_", "type": "uint256", "internalType": "uint256" },
-            { "name": "totalFundReserve_", "type": "uint256", "internalType": "uint256" },
-            { "name": "proFormaFundReserve_", "type": "uint256", "internalType": "uint256" },
-            { "name": "proFormaClaimReserve_", "type": "uint256", "internalType": "uint256" },
-            { "name": "lossRatio_", "type": "uint256", "internalType": "uint256" },
-            { "name": "serviceFee_", "type": "uint8", "internalType": "uint8" },
-            { "name": "bmaFundReserveShare_", "type": "uint8", "internalType": "uint8" },
-            { "name": "isOptimizerEnabled_", "type": "bool", "internalType": "bool" }
+                "name": "",
+                "type": "tuple",
+                "internalType": "struct Reserve",
+                "components": [
+                    {
+                        "name": "dynamicReserveRatio",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
+                    {
+                        "name": "benefitMultiplierAdjuster",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
+                    {
+                        "name": "totalContributions",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
+                    {
+                        "name": "totalClaimReserve",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
+                    {
+                        "name": "totalFundReserve",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
+                    { "name": "totalFundCost", "type": "uint256", "internalType": "uint256" },
+                    {
+                        "name": "totalFundRevenues",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
+                    {
+                        "name": "proFormaFundReserve",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
+                    {
+                        "name": "proFormaClaimReserve",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
+                    { "name": "lossRatio", "type": "uint256", "internalType": "uint256" },
+                    { "name": "serviceFee", "type": "uint8", "internalType": "uint8" },
+                    { "name": "ECRes", "type": "uint256", "internalType": "uint256" },
+                    { "name": "UCRes", "type": "uint256", "internalType": "uint256" },
+                    { "name": "surplus", "type": "uint256", "internalType": "uint256" }
+                ]
+            }
         ],
         "stateMutability": "view"
     },
@@ -281,27 +210,6 @@
     },
     {
         "type": "function",
-        "name": "maximumThreshold",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "memberIdCounter",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "minimumThreshold",
-        "inputs": [],
-        "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
         "name": "paused",
         "inputs": [],
         "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
@@ -357,24 +265,8 @@
     },
     {
         "type": "function",
-        "name": "setAllowCustomDuration",
-        "inputs": [{ "name": "_allowCustomDuration", "type": "bool", "internalType": "bool" }],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
         "name": "setKYCStatus",
         "inputs": [{ "name": "memberWallet", "type": "address", "internalType": "address" }],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "setMaximumThreshold",
-        "inputs": [
-            { "name": "newMaximumThreshold", "type": "uint256", "internalType": "uint256" }
-        ],
         "outputs": [],
         "stateMutability": "nonpayable"
     },
@@ -388,49 +280,6 @@
                 "internalType": "address"
             }
         ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "setNewContributionToken",
-        "inputs": [
-            { "name": "newContributionToken", "type": "address", "internalType": "address" }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "setNewFeeClaimAddress",
-        "inputs": [
-            { "name": "newFeeClaimAddress", "type": "address", "internalType": "address" }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "setNewMinimumThreshold",
-        "inputs": [
-            { "name": "newMinimumThreshold", "type": "uint256", "internalType": "uint256" }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "setNewPauseGuardian",
-        "inputs": [
-            { "name": "newPauseGuardian", "type": "address", "internalType": "address" }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "setNewServiceFee",
-        "inputs": [{ "name": "newServiceFee", "type": "uint8", "internalType": "uint8" }],
         "outputs": [],
         "stateMutability": "nonpayable"
     },
@@ -475,6 +324,39 @@
                 "indexed": true,
                 "internalType": "address"
             }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "OnExternalRevenue",
+        "inputs": [
+            {
+                "name": "newRevenueAmount",
+                "type": "uint256",
+                "indexed": true,
+                "internalType": "uint256"
+            },
+            {
+                "name": "totalRevenues",
+                "type": "uint256",
+                "indexed": true,
+                "internalType": "uint256"
+            },
+            {
+                "name": "revenueType",
+                "type": "uint8",
+                "indexed": true,
+                "internalType": "enum RevenueType"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "OnFundSurplusUpdated",
+        "inputs": [
+            { "name": "surplus", "type": "uint256", "indexed": true, "internalType": "uint256" }
         ],
         "anonymous": false
     },
@@ -607,6 +489,20 @@
     },
     {
         "type": "event",
+        "name": "OnMemberSurplusUpdated",
+        "inputs": [
+            {
+                "name": "memberId",
+                "type": "uint256",
+                "indexed": true,
+                "internalType": "uint256"
+            },
+            { "name": "surplus", "type": "uint256", "indexed": true, "internalType": "uint256" }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
         "name": "OnMemberUpdated",
         "inputs": [
             {
@@ -677,23 +573,10 @@
     },
     {
         "type": "event",
-        "name": "OnNewMaximumThreshold",
+        "name": "OnNewLossRatio",
         "inputs": [
             {
-                "name": "maximumThreshold",
-                "type": "uint256",
-                "indexed": true,
-                "internalType": "uint256"
-            }
-        ],
-        "anonymous": false
-    },
-    {
-        "type": "event",
-        "name": "OnNewMinimumThreshold",
-        "inputs": [
-            {
-                "name": "minimumThreshold",
+                "name": "lossRatio",
                 "type": "uint256",
                 "indexed": true,
                 "internalType": "uint256"
@@ -741,6 +624,12 @@
                 "type": "uint256",
                 "indexed": true,
                 "internalType": "uint256"
+            },
+            {
+                "name": "totalFundExpenditures",
+                "type": "uint256",
+                "indexed": false,
+                "internalType": "uint256"
             }
         ],
         "anonymous": false
@@ -762,7 +651,7 @@
                 "internalType": "uint256"
             },
             {
-                "name": "updatedYearsCovered",
+                "name": "lastPaidYearDate",
                 "type": "uint256",
                 "indexed": true,
                 "internalType": "uint256"
@@ -794,19 +683,6 @@
             },
             { "name": "member", "type": "address", "indexed": true, "internalType": "address" },
             { "name": "amount", "type": "uint256", "indexed": true, "internalType": "uint256" }
-        ],
-        "anonymous": false
-    },
-    {
-        "type": "event",
-        "name": "OnServiceFeeChanged",
-        "inputs": [
-            {
-                "name": "newServiceFee",
-                "type": "uint8",
-                "indexed": true,
-                "internalType": "uint8"
-            }
         ],
         "anonymous": false
     },
@@ -924,6 +800,7 @@
     { "type": "error", "name": "FailedCall", "inputs": [] },
     { "type": "error", "name": "InvalidInitialization", "inputs": [] },
     { "type": "error", "name": "NotInitializing", "inputs": [] },
+    { "type": "error", "name": "OnlyDaoOrTakadao", "inputs": [] },
     {
         "type": "error",
         "name": "StringsInsufficientHexLength",
@@ -932,23 +809,17 @@
             { "name": "length", "type": "uint256", "internalType": "uint256" }
         ]
     },
-    { "type": "error", "name": "TakasurePool__AlreadyJoinedPendingForKYC", "inputs": [] },
     {
         "type": "error",
         "name": "TakasurePool__BenefitMultiplierRequestFailed",
         "inputs": [{ "name": "errorResponse", "type": "bytes", "internalType": "bytes" }]
     },
-    { "type": "error", "name": "TakasurePool__ContributionOutOfRange", "inputs": [] },
-    { "type": "error", "name": "TakasurePool__ContributionTransferFailed", "inputs": [] },
-    { "type": "error", "name": "TakasurePool__FeeTransferFailed", "inputs": [] },
     { "type": "error", "name": "TakasurePool__InvalidDate", "inputs": [] },
-    { "type": "error", "name": "TakasurePool__MemberAlreadyKYCed", "inputs": [] },
     { "type": "error", "name": "TakasurePool__MintFailed", "inputs": [] },
     { "type": "error", "name": "TakasurePool__NothingToRefund", "inputs": [] },
-    { "type": "error", "name": "TakasurePool__RefundFailed", "inputs": [] },
-    { "type": "error", "name": "TakasurePool__TooEarlytoRefund", "inputs": [] },
+    { "type": "error", "name": "TakasurePool__TransferFailed", "inputs": [] },
+    { "type": "error", "name": "TakasurePool__WrongInput", "inputs": [] },
     { "type": "error", "name": "TakasurePool__WrongMemberState", "inputs": [] },
-    { "type": "error", "name": "TakasurePool__WrongServiceFee", "inputs": [] },
     { "type": "error", "name": "TakasurePool__ZeroAddress", "inputs": [] },
     { "type": "error", "name": "UUPSUnauthorizedCallContext", "inputs": [] },
     {
