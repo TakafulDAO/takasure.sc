@@ -498,10 +498,6 @@ contract TakasurePool is
         return reserve;
     }
 
-    function getMemberFromId(uint256 memberId) external view returns (address) {
-        return idToMemberWallet[memberId];
-    }
-
     function getMemberFromAddress(address member) external view returns (Member memory) {
         return members[member];
     }
