@@ -14,7 +14,6 @@ import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplie
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
 import {Reserve, Member, MemberState, RevenueType} from "contracts/types/TakasureTypes.sol";
@@ -29,8 +28,7 @@ contract TakasurePool is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
-    PausableUpgradeable,
-    ReentrancyGuardTransientUpgradeable
+    PausableUpgradeable
 {
     IERC20 private contributionToken;
     TSToken private daoToken;
@@ -98,7 +96,6 @@ contract TakasurePool is
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
-        __ReentrancyGuardTransient_init();
         __Pausable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
         _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
@@ -147,10 +144,7 @@ contract TakasurePool is
      *      that the minimum contribution amount is 0.01 USDC
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
-    function joinPool(
-        uint256 contributionBeforeFee,
-        uint256 membershipDuration
-    ) external nonReentrant {
+    function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
         // Todo: Check the user benefit multiplier against the oracle.
         Member memory member = members[msg.sender];
         if (member.memberState != MemberState.Inactive) {
