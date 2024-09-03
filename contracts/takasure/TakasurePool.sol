@@ -419,14 +419,6 @@ contract TakasurePool is
         );
     }
 
-    function pause() external onlyRole(PAUSE_GUARDIAN) {
-        _pause();
-    }
-
-    function unpause() external onlyRole(PAUSE_GUARDIAN) {
-        _unpause();
-    }
-
     function getReserveValues() external view returns (Reserve memory) {
         return reserve;
     }
