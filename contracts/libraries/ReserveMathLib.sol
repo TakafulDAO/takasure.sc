@@ -153,6 +153,18 @@ library ReserveMathLib {
         }
     }
 
+    function _calculateBmaLossRatioMethod(
+        uint256 _lossRatioThreshold,
+        uint256 _lossRatio,
+        uint256 _currentBma
+    ) internal pure returns (uint256 bma_) {
+        if (_lossRatio > _lossRatioThreshold) {
+            bma_ = 100 - (_lossRatio - _lossRatioThreshold);
+        } else {
+            bma_ = _currentBma;
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
 
                                LOSS RATIO
