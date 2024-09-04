@@ -126,6 +126,7 @@ contract TakasurePool is
         reserve.dynamicReserveRatio = INITIAL_RESERVE_RATIO; // Default
         reserve.benefitMultiplierAdjuster = 100; // 100% Default
         reserve.serviceFee = 22; // 22% of the contribution amount. Default
+        reserve.lossRatioThreshold = 80; // 80% Default
         reserve.bmaFundReserveShare = 70; // 70% Default
         reserve.fundMarketExpendsAddShare = 20; // 20% Default
         reserve.riskMultiplier = 2; // 2% Default
