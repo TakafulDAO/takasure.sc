@@ -27,4 +27,6 @@ library TakasureErrors {
     error TakasurePool__RevenueTransferFailed();
     error TakasurePool__AlreadyJoinedPendingForKYC();
     error OnlyDaoOrTakadao();
+    error TakasurePool__SameModuleContract();
+    error OnlyModuleContract();
 }

@@ -79,4 +79,33 @@ library TakasureEvents {
     );
     event OnFundSurplusUpdated(uint256 indexed surplus);
     event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
+    event OnNewPauseGuardianAddress(
+        address indexed oldPauseGuardian,
+        address indexed newPauseGuardian
+    );
+    event OnNewKycProviderAddress(
+        address indexed oldKycProvider,
+        address indexed newKycProviderAddress
+    );
+    event OnAllowCustomDuration(bool allowCustomDuration);
+    event OnNewContributionToken(
+        address indexed oldContributionToken,
+        address indexed newContributionToken
+    );
+    event OnNewFeeClaimAddress(
+        address indexed oldFeeClaimAddress,
+        address indexed newFeeClaimAddress
+    );
+    event OnNewJoinModuleContract(
+        address indexed oldJoinModuleContract,
+        address indexed newJoinModuleContract
+    );
+    event OnNewMemberModuleContract(
+        address indexed oldMemberModuleContract,
+        address indexed newMembersModuleContract
+    );
+    event OnNewClaimModuleContract(
+        address indexed oldClaimModuleContract,
+        address indexed newClaimModuleContract
+    );
 }
