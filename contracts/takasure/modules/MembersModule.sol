@@ -16,7 +16,7 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {NewReserve, Member, MemberState, RevenueType} from "contracts/types/TakasureTypes.sol";
+import {NewReserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -38,14 +38,6 @@ contract MembersModule is
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
     uint256 private constant DAY = 1 days;
-
-    uint256 private dayDepositTimestamp; // 0 at begining, then never is zero again
-    uint256 private monthDepositTimestamp; // 0 at begining, then never is zero again
-    uint16 private monthReference; // Will count the month. For gas issues will grow undefinitely
-    uint8 private dayReference; // Will count the day of the month from 1 -> 30, then resets to 1
-
-    mapping(uint16 month => uint256 montCashFlow) private monthToCashFlow;
-    mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) private dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -72,9 +64,6 @@ contract MembersModule is
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(TAKADAO_OPERATOR, takadaoOperator);
-
-        monthReference = 1;
-        dayReference = 1;
     }
 
     function recurringPayment() external nonReentrant {
@@ -222,7 +211,7 @@ contract MembersModule is
         _reserve.totalFundRevenues += _contributionAfterFee;
 
         _updateCashMappings(_contributionAfterFee);
-        uint256 cashLast12Months = _cashLast12Months(monthReference, dayReference);
+        uint256 cashLast12Months = _cashLast12Months();
 
         uint256 updatedDynamicReserveRatio = _updateDRR(cashLast12Months, _reserve);
         _reserve.dynamicReserveRatio = updatedDynamicReserveRatio;
@@ -286,69 +275,104 @@ contract MembersModule is
     }
 
     function _updateCashMappings(uint256 _cashIn) internal {
-        uint256 currentTimestamp = block.timestamp;
+        CashFlowVars memory cashFlowVars = takasureReserve.getCashFlowValues();
 
-        if (dayDepositTimestamp == 0 && monthDepositTimestamp == 0) {
+        uint256 currentTimestamp = block.timestamp;
+        uint256 prevCashIn;
+
+        if (cashFlowVars.dayDepositTimestamp == 0 && cashFlowVars.monthDepositTimestamp == 0) {
             // If the depositTimestamp is 0 it means it is the first deposit
             // Set the initial values for future calculations and reference
-            dayDepositTimestamp = currentTimestamp;
-            monthDepositTimestamp = currentTimestamp;
-            monthToCashFlow[monthReference] = _cashIn;
-            dayToCashFlow[monthReference][dayReference] = _cashIn;
+            cashFlowVars.dayDepositTimestamp = currentTimestamp;
+            cashFlowVars.monthDepositTimestamp = currentTimestamp;
+            takasureReserve.setMonthToCashFlowValuesFromModule(
+                cashFlowVars.monthReference,
+                _cashIn
+            );
+            takasureReserve.setDayToCashFlowValuesFromModule(
+                cashFlowVars.monthReference,
+                cashFlowVars.dayReference,
+                _cashIn
+            );
         } else {
             // Check how many days and months have passed since the last deposit
             uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
                 currentTimestamp,
-                dayDepositTimestamp
+                cashFlowVars.dayDepositTimestamp
             );
             uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
                 currentTimestamp,
-                monthDepositTimestamp
+                cashFlowVars.monthDepositTimestamp
             );
 
             if (monthsPassed == 0) {
                 // If no months have passed, update the mapping for the current month
-                monthToCashFlow[monthReference] += _cashIn;
+                prevCashIn = takasureReserve.monthToCashFlow(cashFlowVars.monthReference);
+                takasureReserve.setMonthToCashFlowValuesFromModule(
+                    cashFlowVars.monthReference,
+                    prevCashIn + _cashIn
+                );
                 if (daysPassed == 0) {
                     // If no days have passed, update the mapping for the current day
-                    dayToCashFlow[monthReference][dayReference] += _cashIn;
+                    prevCashIn = takasureReserve.dayToCashFlow(
+                        cashFlowVars.monthReference,
+                        cashFlowVars.dayReference
+                    );
+                    takasureReserve.setDayToCashFlowValuesFromModule(
+                        cashFlowVars.monthReference,
+                        cashFlowVars.dayReference,
+                        prevCashIn + _cashIn
+                    );
                 } else {
                     // If it is a new day, update the day deposit timestamp and the new day reference
-                    dayDepositTimestamp += daysPassed * DAY;
-                    dayReference += uint8(daysPassed);
+                    cashFlowVars.dayDepositTimestamp += daysPassed * DAY;
+                    cashFlowVars.dayReference += uint8(daysPassed);
 
                     // Update the mapping for the new day
-                    dayToCashFlow[monthReference][dayReference] = _cashIn;
+                    takasureReserve.setDayToCashFlowValuesFromModule(
+                        cashFlowVars.monthReference,
+                        cashFlowVars.dayReference,
+                        _cashIn
+                    );
                 }
             } else {
                 // If it is a new month, update the month deposit timestamp and the day deposit timestamp
                 // both should be the same as it is a new month
-                monthDepositTimestamp += monthsPassed * MONTH;
-                dayDepositTimestamp = monthDepositTimestamp;
+                cashFlowVars.monthDepositTimestamp += monthsPassed * MONTH;
+                cashFlowVars.dayDepositTimestamp = cashFlowVars.monthDepositTimestamp;
                 // Update the month reference to the corresponding month
-                monthReference += uint16(monthsPassed);
+                cashFlowVars.monthReference += uint16(monthsPassed);
                 // Calculate the day reference for the new month, we need to recalculate the days passed
                 // with the new day deposit timestamp
                 daysPassed = ReserveMathLib._calculateDaysPassed(
                     currentTimestamp,
-                    dayDepositTimestamp
+                    cashFlowVars.dayDepositTimestamp
                 );
                 // The new day reference is the days passed + initial day. Initial day refers
                 // to the first day of the month
                 uint8 initialDay = 1;
-                dayReference = uint8(daysPassed) + initialDay;
+                cashFlowVars.dayReference = uint8(daysPassed) + initialDay;
 
                 // Update the mappings for the new month and day
-                monthToCashFlow[monthReference] = _cashIn;
-                dayToCashFlow[monthReference][dayReference] = _cashIn;
+                takasureReserve.setMonthToCashFlowValuesFromModule(
+                    cashFlowVars.monthReference,
+                    _cashIn
+                );
+                takasureReserve.setDayToCashFlowValuesFromModule(
+                    cashFlowVars.monthReference,
+                    cashFlowVars.dayReference,
+                    _cashIn
+                );
             }
         }
+
+        takasureReserve.setCashFlowValuesFromModule(cashFlowVars);
     }
 
-    function _cashLast12Months(
-        uint16 _currentMonth,
-        uint8 _currentDay
-    ) internal view returns (uint256 cashLast12Months_) {
+    function _cashLast12Months() internal view returns (uint256 cashLast12Months_) {
+        CashFlowVars memory cashFlowVars = takasureReserve.getCashFlowValues();
+        uint16 _currentMonth = cashFlowVars.monthReference;
+        uint8 _currentDay = cashFlowVars.dayReference;
         uint256 cash = 0;
 
         // Then make the iterations, according the month and day this function is called
@@ -356,7 +380,7 @@ contract MembersModule is
             // Less than a complete year, iterate through every month passed
             // Return everything stored in the mappings until now
             for (uint8 i = 1; i <= _currentMonth; ) {
-                cash += monthToCashFlow[i];
+                cash += takasureReserve.monthToCashFlow(i);
 
                 unchecked {
                     ++i;
@@ -370,7 +394,7 @@ contract MembersModule is
 
             for (uint8 i; i < monthsInYear; ) {
                 monthBackCounter = _currentMonth - i;
-                cash += monthToCashFlow[monthBackCounter];
+                cash += takasureReserve.monthToCashFlow(monthBackCounter);
 
                 unchecked {
                     ++i;
@@ -383,7 +407,7 @@ contract MembersModule is
             uint8 extraDaysToCheck = dayBackCounter - _currentDay;
 
             for (uint8 i; i < extraDaysToCheck; ) {
-                cash += dayToCashFlow[extraMonthToCheck][dayBackCounter];
+                cash += takasureReserve.dayToCashFlow(extraMonthToCheck, dayBackCounter);
 
                 unchecked {
                     ++i;

@@ -26,6 +26,13 @@ enum RevenueType {
     CatLoan
 }
 
+struct CashFlowVars {
+    uint256 dayDepositTimestamp;
+    uint256 monthDepositTimestamp;
+    uint16 monthReference;
+    uint8 dayReference;
+}
+
 struct Member {
     uint256 memberId;
     uint256 benefitMultiplier;

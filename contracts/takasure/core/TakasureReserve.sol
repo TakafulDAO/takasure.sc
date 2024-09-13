@@ -13,7 +13,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
-import {NewReserve, Member} from "contracts/types/TakasureTypes.sol";
+import {NewReserve, Member, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -27,6 +27,7 @@ contract TakasureReserve is
     PausableUpgradeable
 {
     NewReserve private reserve;
+    CashFlowVars private cashFlowVars;
 
     address public bmConsumer;
     address public kycProvider;
@@ -43,6 +44,9 @@ contract TakasureReserve is
     bytes32 private constant JOIN_MODULE_CONTRACT = keccak256("JOIN_MODULE_CONTRACT");
     bytes32 private constant MEMBERS_MODULE_CONTRACT = keccak256("MEMBERS_MODULE_CONTRACT");
     bytes32 private constant CLAIM_MODULE_CONTRACT = keccak256("CLAIM_MODULE_CONTRACT");
+
+    mapping(uint16 month => uint256 montCashFlow) public monthToCashFlow;
+    mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) public dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
     mapping(address member => Member) private members;
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
@@ -106,6 +110,9 @@ contract TakasureReserve is
 
         TSToken daoToken = new TSToken(_tokenAdmin, _tokenName, _tokenSymbol);
 
+        cashFlowVars.monthReference = 1;
+        cashFlowVars.dayReference = 1;
+
         reserve.serviceFee = 22; // 22% of the contribution amount. Default
         reserve.bmaFundReserveShare = 70; // 70% Default
         reserve.fundMarketExpendsAddShare = 20; // 20% Default
@@ -150,6 +157,27 @@ contract TakasureReserve is
         NewReserve memory newReserve
     ) external whenNotPaused onlyModuleContract {
         reserve = newReserve;
+    }
+
+    function setCashFlowValuesFromModule(
+        CashFlowVars memory newCashFlowVars
+    ) external whenNotPaused onlyModuleContract {
+        cashFlowVars = newCashFlowVars;
+    }
+
+    function setMonthToCashFlowValuesFromModule(
+        uint16 month,
+        uint256 monthCashFlow
+    ) external whenNotPaused onlyModuleContract {
+        monthToCashFlow[month] = monthCashFlow;
+    }
+
+    function setDayToCashFlowValuesFromModule(
+        uint16 month,
+        uint8 day,
+        uint256 dayCashFlow
+    ) external whenNotPaused onlyModuleContract {
+        dayToCashFlow[month][day] = dayCashFlow;
     }
 
     function setNewJoinModuleContract(
@@ -310,6 +338,10 @@ contract TakasureReserve is
 
     function getMemberFromId(uint256 memberId) external view returns (address) {
         return idToMemberWallet[memberId];
+    }
+
+    function getCashFlowValues() external view returns (CashFlowVars memory) {
+        return cashFlowVars;
     }
 
     ///@dev required by the OZ UUPS module
