@@ -33,10 +33,10 @@ contract TakasureReserve is
     address public kycProvider;
     address public feeClaimAddress;
     address public takadaoOperator;
-    address private pauseGuardian;
-    address private joinModuleContract;
-    address private memberModuleContract;
-    address private claimModuleContract;
+    address public pauseGuardian;
+    address public joinModuleContract;
+    address public memberModuleContract;
+    address public claimModuleContract;
 
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 private constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
@@ -193,8 +193,6 @@ contract TakasureReserve is
 
         joinModuleContract = newJoinModuleContract;
         grantRole(JOIN_MODULE_CONTRACT, newJoinModuleContract);
-
-        emit TakasureEvents.OnNewJoinModuleContract(oldJoinModuleContract, newJoinModuleContract);
     }
 
     function setNewMembersModuleContract(
@@ -210,11 +208,6 @@ contract TakasureReserve is
 
         memberModuleContract = newMembersModuleContract;
         grantRole(MEMBERS_MODULE_CONTRACT, newMembersModuleContract);
-
-        emit TakasureEvents.OnNewMemberModuleContract(
-            oldMemberModuleContract,
-            newMembersModuleContract
-        );
     }
 
     function setNewClaimModuleContract(
@@ -230,11 +223,6 @@ contract TakasureReserve is
 
         claimModuleContract = newClaimModuleContract;
         grantRole(CLAIM_MODULE_CONTRACT, newClaimModuleContract);
-
-        emit TakasureEvents.OnNewClaimModuleContract(
-            oldClaimModuleContract,
-            newClaimModuleContract
-        );
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
@@ -282,19 +270,13 @@ contract TakasureReserve is
     function setNewContributionToken(
         address newContributionToken
     ) external onlyRole(DAO_MULTISIG) notZeroAddress(newContributionToken) {
-        address oldContributionToken = reserve.contributionToken;
         reserve.contributionToken = newContributionToken;
-
-        emit TakasureEvents.OnNewContributionToken(oldContributionToken, newContributionToken);
     }
 
     function setNewFeeClaimAddress(
         address newFeeClaimAddress
     ) external onlyRole(TAKADAO_OPERATOR) notZeroAddress(newFeeClaimAddress) {
-        address oldFeeClaimAddress = feeClaimAddress;
         feeClaimAddress = newFeeClaimAddress;
-
-        emit TakasureEvents.OnNewFeeClaimAddress(oldFeeClaimAddress, newFeeClaimAddress);
     }
 
     function setNewBenefitMultiplierConsumerAddress(
@@ -312,10 +294,7 @@ contract TakasureReserve is
     function setNewKycProviderAddress(
         address newKycProviderAddress
     ) external onlyRole(DAO_MULTISIG) {
-        address oldKycProvider = kycProvider;
         kycProvider = newKycProviderAddress;
-
-        emit TakasureEvents.OnNewKycProviderAddress(oldKycProvider, newKycProviderAddress);
     }
 
     function setNewPauseGuardianAddress(address newPauseGuardianAddress) external onlyDaoOrTakadao {
@@ -324,8 +303,6 @@ contract TakasureReserve is
 
         _grantRole(PAUSE_GUARDIAN, newPauseGuardianAddress);
         _revokeRole(PAUSE_GUARDIAN, oldPauseGuardian);
-
-        emit TakasureEvents.OnNewPauseGuardianAddress(oldPauseGuardian, newPauseGuardianAddress);
     }
 
     function getReserveValues() external view returns (NewReserve memory) {
