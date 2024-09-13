@@ -4,11 +4,13 @@
  * @title TakasureReserve
  * @author Maikel Ordaz
  * @notice This contract will hold all the reserve values and the members data as well as balances
+ * @dev Modules will be able to interact with this contract to update the reserve values and the members data
  * @dev Upgradeable contract with UUPS pattern
  */
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
 import {NewReserve, Member} from "contracts/types/TakasureTypes.sol";
@@ -18,19 +20,26 @@ import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 
 pragma solidity 0.8.25;
 
-contract TakasureReserve is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
+contract TakasureReserve is
+    Initializable,
+    UUPSUpgradeable,
+    AccessControlUpgradeable,
+    PausableUpgradeable
+{
     NewReserve private reserve;
 
     address public bmConsumer;
     address public kycProvider;
-    address public pauseGuardian;
     address public feeClaimAddress;
+    address public takadaoOperator;
+    address private pauseGuardian;
     address private joinModuleContract;
     address private memberModuleContract;
     address private claimModuleContract;
 
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 private constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
+    bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
     bytes32 private constant JOIN_MODULE_CONTRACT = keccak256("JOIN_MODULE_CONTRACT");
     bytes32 private constant MEMBERS_MODULE_CONTRACT = keccak256("MEMBERS_MODULE_CONTRACT");
     bytes32 private constant CLAIM_MODULE_CONTRACT = keccak256("CLAIM_MODULE_CONTRACT");
@@ -84,13 +93,16 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, AccessControlUpgrade
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
+        __Pausable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
         _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
         _grantRole(DAO_MULTISIG, _daoOperator);
+        _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
 
+        takadaoOperator = _takadaoOperator;
         kycProvider = _kycProvider;
-        pauseGuardian = _pauseGuardian;
         feeClaimAddress = _feeClaimAddress;
+        pauseGuardian = _pauseGuardian;
 
         TSToken daoToken = new TSToken(_tokenAdmin, _tokenName, _tokenSymbol);
 
@@ -119,14 +131,24 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, AccessControlUpgrade
         );
     }
 
-    function setMemberValuesFromModule(
-        address member,
-        Member memory newMember
-    ) external onlyModuleContract {
-        members[member] = newMember;
+    function pause() external onlyRole(PAUSE_GUARDIAN) {
+        _pause();
     }
 
-    function setReserveValuesFromModule(NewReserve memory newReserve) external onlyModuleContract {
+    function unpause() external onlyRole(PAUSE_GUARDIAN) {
+        _unpause();
+    }
+
+    function setMemberValuesFromModule(
+        Member memory newMember
+    ) external whenNotPaused onlyModuleContract {
+        members[newMember.wallet] = newMember;
+        idToMemberWallet[newMember.memberId] = newMember.wallet;
+    }
+
+    function setReserveValuesFromModule(
+        NewReserve memory newReserve
+    ) external whenNotPaused onlyModuleContract {
         reserve = newReserve;
     }
 
@@ -271,6 +293,9 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, AccessControlUpgrade
     function setNewPauseGuardianAddress(address newPauseGuardianAddress) external onlyDaoOrTakadao {
         address oldPauseGuardian = pauseGuardian;
         pauseGuardian = newPauseGuardianAddress;
+
+        _grantRole(PAUSE_GUARDIAN, newPauseGuardianAddress);
+        _revokeRole(PAUSE_GUARDIAN, oldPauseGuardian);
 
         emit TakasureEvents.OnNewPauseGuardianAddress(oldPauseGuardian, newPauseGuardianAddress);
     }
