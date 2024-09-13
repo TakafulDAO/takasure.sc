@@ -16,7 +16,7 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {NewReserve, Reserve, Member, MemberState, RevenueType} from "contracts/types/TakasureTypes.sol";
+import {NewReserve, Member, MemberState, RevenueType} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -62,15 +62,12 @@ contract JoinModule is
         _disableInitializers();
     }
 
-    /**
-     * @dev it reverts if any of the addresses is zero
-     */
-    function initialize(address _takaureReserveAddress) external initializer {
+    function initialize(address _takasureReserveAddress) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
-        takasureReserve = ITakasureReserve(_takaureReserveAddress);
+        takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
         address takadaoOperator = takasureReserve.takadaoOperator();
 
