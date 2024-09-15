@@ -14,6 +14,7 @@ import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/acces
 pragma solidity 0.8.25;
 
 contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
+    uint8 public SERVICE_FEE = 22;
     bool public isPreJoinEnabled;
 
     event OnPreJoinEnabledChanged(bool isPreJoinEnabled);
@@ -35,11 +36,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
         isPreJoinEnabled = _isPreJoinEnabled;
 
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
-    }
-
-    function _getServiceFee() internal pure returns (uint256) {
-        // TODO: After the size optimization this must be a call to the correct contract and method. Until then, it is hardcoded
-        return 22;
     }
 
     ///@dev required by the OZ UUPS module
