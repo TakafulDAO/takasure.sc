@@ -129,6 +129,13 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         childContributions[msg.sender] = contribution;
         childParent[msg.sender] = parent;
         childTDAO[msg.sender] = tDAO;
+
+        if (isChildKYCed[msg.sender]) {
+            parentRewards[parent][msg.sender] = 0;
+            usdc.safeTransfer(parent, parentReward);
+
+            emit OnParentRewarded(parent, msg.sender, parentReward);
+        }
     }
 
     function setKYCStatus(address child) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
@@ -141,6 +148,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         if (childContributions[child] > 0) {
             address parent = childParent[child];
             uint256 parentReward = parentRewards[parent][child];
+            parentRewards[parent][child] = 0;
+
             usdc.safeTransfer(parent, parentReward);
 
             emit OnParentRewarded(parent, child, parentReward);
