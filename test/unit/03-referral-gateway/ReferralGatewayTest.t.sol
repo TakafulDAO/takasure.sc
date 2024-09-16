@@ -106,6 +106,6 @@ contract ReferralGatewayTest is Test {
         referralGateway.approveAsAmbassador(ambassador);
 
         assert(referralGateway.hasRole(AMBASSADOR, ambassador));
-        assertEq(referralGateway.ambassadorRewards(ambassador), 0);
+        assertEq(referralGateway.parentRewards(ambassador), 0);
     }
 }

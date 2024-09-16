@@ -22,7 +22,13 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     IERC20 private usdc;
 
-    uint8 public SERVICE_FEE = 22;
+    uint8 public constant SERVICE_FEE = 22;
+    uint256 private constant MINIMUM_SERVICE_FEE = 25e6; // 25 USDC
+    uint256 private constant MAXIMUM_SERVICE_FEE = 250e6; // 250 USDC
+    uint8 public defaultRewardRatio;
+    uint8 public memberRewardRatio;
+    uint8 public ambassadorRewardRatio;
+
     bool public isPreJoinEnabled;
 
     uint256 private collectedFees;
@@ -33,14 +39,16 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
 
     mapping(address proposedAmbassador => bool) public proposedAmbassadors;
-    mapping(address ambassador => uint256 rewards) public ambassadorRewards;
+    mapping(address parent => uint256 rewards) public parentRewards;
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewAmbassadorProposal(address indexed proposedAmbassador);
     event OnNewAmbassador(address indexed ambassador);
+    event OnJoinByReferral();
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__OnlyProposedAmbassadors();
+    error ReferralGateway__ContributionOutOfRange();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -90,10 +98,47 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         emit OnNewAmbassador(ambassador);
     }
 
+    function joinByReferral(address parent, uint256 contribution, address tDAO) external {
+        if (contribution < MINIMUM_SERVICE_FEE || contribution > MAXIMUM_SERVICE_FEE) {
+            revert ReferralGateway__ContributionOutOfRange();
+        }
+        uint256 rewardRatio;
+        if (hasRole(AMBASSADOR, parent)) {
+            rewardRatio = ambassadorRewardRatio;
+        } else if (hasRole(MEMBER, parent)) {
+            rewardRatio = memberRewardRatio;
+        } else {
+            rewardRatio = defaultRewardRatio;
+        }
+        uint256 fee = (contribution * SERVICE_FEE) / 100;
+        uint256 parentReward = (fee * rewardRatio) / 100;
+
+        parentRewards[parent] += parentReward;
+        collectedFees += fee;
+    }
+
     function setPreJoinEnabled(bool _isPreJoinEnabled) external onlyRole(TAKADAO_OPERATOR) {
         isPreJoinEnabled = _isPreJoinEnabled;
 
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
+    }
+
+    function setNewMemberRewardRatio(
+        uint8 _newMemberRewardRatio
+    ) external onlyRole(TAKADAO_OPERATOR) {
+        memberRewardRatio = _newMemberRewardRatio;
+    }
+
+    function setNewAmbassadorRewardRatio(
+        uint8 _newAmbassadorRewardRatio
+    ) external onlyRole(TAKADAO_OPERATOR) {
+        ambassadorRewardRatio = _newAmbassadorRewardRatio;
+    }
+
+    function setNewDefaultRewardRatio(
+        uint8 _newDefaultRewardRatio
+    ) external onlyRole(TAKADAO_OPERATOR) {
+        defaultRewardRatio = _newDefaultRewardRatio;
     }
 
     function withdrawFees() external onlyRole(TAKADAO_OPERATOR) {
