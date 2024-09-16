@@ -19,12 +19,23 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
 
     event OnPreJoinEnabledChanged(bool isPreJoinEnabled);
 
+    error ReferralGateway__ZeroAddress();
+
+    modifier notZeroAddress(address _address) {
+        if (_address == address(0)) {
+            revert ReferralGateway__ZeroAddress();
+        }
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(address takadaoOperator) external initializer {
+    function initialize(
+        address takadaoOperator
+    ) external notZeroAddress(takadaoOperator) initializer {
         __UUPSUpgradeable_init();
         __Ownable_init(takadaoOperator);
         __Ownable2Step_init();
