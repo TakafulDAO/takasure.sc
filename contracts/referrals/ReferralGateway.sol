@@ -28,10 +28,11 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     uint256 private collectedFees;
     address private takadaoOperator;
 
-    bytes32 public constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
+    bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
+    bytes32 private constant MEMBER = keccak256("MEMBER");
+    bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
 
     mapping(address proposedAmbassador => bool) public proposedAmbassadors;
-    mapping(address ambassador => bool) public lifeDaoAmbassadors;
     mapping(address ambassador => uint256 rewards) public ambassadorRewards;
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
@@ -83,7 +84,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         if (!proposedAmbassadors[ambassador]) {
             revert ReferralGateway__OnlyProposedAmbassadors();
         }
-        lifeDaoAmbassadors[ambassador] = true;
+        _grantRole(AMBASSADOR, ambassador);
+        proposedAmbassadors[ambassador] = false;
 
         emit OnNewAmbassador(ambassador);
     }

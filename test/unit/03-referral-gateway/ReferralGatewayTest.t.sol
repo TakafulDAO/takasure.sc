@@ -15,6 +15,8 @@ contract ReferralGatewayTest is Test {
     address takadao;
     address ambassador = makeAddr("ambassador");
 
+    bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
+
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewAmbassadorProposal(address indexed proposedAmbassador);
     event OnNewAmbassador(address indexed ambassador);
@@ -97,13 +99,13 @@ contract ReferralGatewayTest is Test {
     }
 
     function testApproveAsAmbassador() public proposeAsAmbassador {
-        assert(!referralGateway.lifeDaoAmbassadors(ambassador));
+        assert(!referralGateway.hasRole(AMBASSADOR, ambassador));
         vm.prank(takadao);
         vm.expectEmit(true, false, false, false, address(referralGateway));
         emit OnNewAmbassador(ambassador);
         referralGateway.approveAsAmbassador(ambassador);
 
-        assert(referralGateway.lifeDaoAmbassadors(ambassador));
+        assert(referralGateway.hasRole(AMBASSADOR, ambassador));
         assertEq(referralGateway.ambassadorRewards(ambassador), 0);
     }
 }
