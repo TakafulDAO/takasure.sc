@@ -19,6 +19,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
 
     mapping(address proposedAmbassador => bool) public proposedAmbassadors;
     mapping(address ambassador => bool) public lifeDaoAmbassadors;
+    mapping(address ambassador => uint256 rewards) public ambassadorRewards;
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewAmbassadorProposal(address indexed proposedAmbassador);

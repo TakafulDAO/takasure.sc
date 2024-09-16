@@ -48,13 +48,13 @@ contract ReferralGatewayTest is Test {
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
 
-    function testPropossedAsAmbassadorMustRevertIfIsAddressZero() public {
+    function testPropossedAmbassadorMustRevertIfIsAddressZero() public {
         vm.prank(referralGateway.owner());
         vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
         referralGateway.proposeAsAmbassador(address(0));
     }
 
-    function testApproveAsAmbassadorMustRevertIfIsAddressZero() public {
+    function testApproveAmbassadorMustRevertIfIsAddressZero() public {
         vm.prank(referralGateway.owner());
         vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
         referralGateway.approveAsAmbassador(address(0));
@@ -104,5 +104,6 @@ contract ReferralGatewayTest is Test {
         referralGateway.approveAsAmbassador(ambassador);
 
         assert(referralGateway.lifeDaoAmbassadors(ambassador));
+        assertEq(referralGateway.ambassadorRewards(ambassador), 0);
     }
 }
