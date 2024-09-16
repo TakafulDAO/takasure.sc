@@ -126,7 +126,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         parentRewards[parent][msg.sender] = parentReward;
         collectedFees += fee;
 
-        childContributions[msg.sender] = contribution;
+        childContributions[msg.sender] += contribution;
         childParent[msg.sender] = parent;
         childTDAO[msg.sender] = tDAO;
 
