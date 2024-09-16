@@ -17,9 +17,15 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
     uint8 public SERVICE_FEE = 22;
     bool public isPreJoinEnabled;
 
-    event OnPreJoinEnabledChanged(bool isPreJoinEnabled);
+    mapping(address proposedAmbassador => bool) public proposedAmbassadors;
+    mapping(address ambassador => bool) public lifeDaoAmbassadors;
+
+    event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
+    event OnNewAmbassadorProposal(address indexed proposedAmbassador);
+    event OnNewAmbassador(address indexed ambassador);
 
     error ReferralGateway__ZeroAddress();
+    error ReferralGateway__OnlyProposedAmbassadors();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -43,10 +49,35 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
         isPreJoinEnabled = true;
     }
 
+    function proposeAsAmbassador() external {
+        _proposeAsAmbassador(msg.sender);
+    }
+
+    function proposeAsAmbassador(
+        address propossedAmbassador
+    ) external notZeroAddress(propossedAmbassador) {
+        _proposeAsAmbassador(propossedAmbassador);
+    }
+
+    function approveAsAmbassador(address ambassador) external notZeroAddress(ambassador) onlyOwner {
+        if (!proposedAmbassadors[ambassador]) {
+            revert ReferralGateway__OnlyProposedAmbassadors();
+        }
+        lifeDaoAmbassadors[ambassador] = true;
+
+        emit OnNewAmbassador(ambassador);
+    }
+
     function setPreJoinEnabled(bool _isPreJoinEnabled) external onlyOwner {
         isPreJoinEnabled = _isPreJoinEnabled;
 
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
+    }
+
+    function _proposeAsAmbassador(address _propossedAmbassador) internal {
+        proposedAmbassadors[_propossedAmbassador] = true;
+
+        emit OnNewAmbassadorProposal(_propossedAmbassador);
     }
 
     ///@dev required by the OZ UUPS module

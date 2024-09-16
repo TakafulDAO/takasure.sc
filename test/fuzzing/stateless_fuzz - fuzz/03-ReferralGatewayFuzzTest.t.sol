@@ -33,4 +33,19 @@ contract ReferralGatewayFuzzTest is Test {
         vm.expectRevert();
         referralGateway.setPreJoinEnabled(false);
     }
+
+    function test_fuzz_onlyOwnerCanApproveAsAmbassador(
+        address notOwner,
+        address ambassador
+    ) public {
+        // The input address must not be the same as the takasurePool address
+        vm.assume(notOwner != takadao);
+        vm.assume(ambassador != takadao);
+        vm.assume(ambassador != notOwner);
+        vm.assume(ambassador != address(0));
+
+        vm.prank(notOwner);
+        vm.expectRevert();
+        referralGateway.approveAsAmbassador(ambassador);
+    }
 }

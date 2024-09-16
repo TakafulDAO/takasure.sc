@@ -13,6 +13,11 @@ contract ReferralGatewayTest is Test {
     HelperConfig helperConfig;
     address proxy;
     address takadao;
+    address ambassador = makeAddr("ambassador");
+
+    event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
+    event OnNewAmbassadorProposal(address indexed proposedAmbassador);
+    event OnNewAmbassador(address indexed ambassador);
 
     function setUp() public {
         deployer = new TestDeployReferralGateway();
@@ -32,6 +37,8 @@ contract ReferralGatewayTest is Test {
         assert(referralGateway.isPreJoinEnabled());
 
         vm.prank(referralGateway.owner());
+        vm.expectEmit(true, false, false, false, address(referralGateway));
+        emit OnPreJoinEnabledChanged(false);
         referralGateway.setPreJoinEnabled(false);
 
         assert(!referralGateway.isPreJoinEnabled());
@@ -40,4 +47,62 @@ contract ReferralGatewayTest is Test {
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
+
+    function testPropossedAsAmbassadorMustRevertIfIsAddressZero() public {
+        vm.prank(referralGateway.owner());
+        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
+        referralGateway.proposeAsAmbassador(address(0));
+    }
+
+    function testApproveAsAmbassadorMustRevertIfIsAddressZero() public {
+        vm.prank(referralGateway.owner());
+        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
+        referralGateway.approveAsAmbassador(address(0));
+    }
+
+    function testMustRevertIfAmbassadorIsNotPreviouslyProposed() public {
+        vm.prank(referralGateway.owner());
+        vm.expectRevert(ReferralGateway.ReferralGateway__OnlyProposedAmbassadors.selector);
+        referralGateway.approveAsAmbassador(ambassador);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              AMBASSADORS
+    //////////////////////////////////////////////////////////////*/
+
+    function testProposeAsAmbassadorCalledByOther() public {
+        assert(!referralGateway.proposedAmbassadors(ambassador));
+        vm.prank(referralGateway.owner());
+        vm.expectEmit(true, false, false, false, address(referralGateway));
+        emit OnNewAmbassadorProposal(ambassador);
+        referralGateway.proposeAsAmbassador(ambassador);
+
+        assert(referralGateway.proposedAmbassadors(ambassador));
+    }
+
+    function testProposeAsAmbassadorCalledBySelf() public {
+        assert(!referralGateway.proposedAmbassadors(ambassador));
+        vm.prank(ambassador);
+        vm.expectEmit(true, false, false, false, address(referralGateway));
+        emit OnNewAmbassadorProposal(ambassador);
+        referralGateway.proposeAsAmbassador();
+
+        assert(referralGateway.proposedAmbassadors(ambassador));
+    }
+
+    modifier proposeAsAmbassador() {
+        vm.prank(referralGateway.owner());
+        referralGateway.proposeAsAmbassador(ambassador);
+        _;
+    }
+
+    function testApproveAsAmbassador() public proposeAsAmbassador {
+        assert(!referralGateway.lifeDaoAmbassadors(ambassador));
+        vm.prank(referralGateway.owner());
+        vm.expectEmit(true, false, false, false, address(referralGateway));
+        emit OnNewAmbassador(ambassador);
+        referralGateway.approveAsAmbassador(ambassador);
+
+        assert(referralGateway.lifeDaoAmbassadors(ambassador));
+    }
 }
