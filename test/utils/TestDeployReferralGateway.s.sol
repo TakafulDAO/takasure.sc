@@ -19,7 +19,7 @@ contract TestDeployReferralGateway is Script {
             implementation,
             abi.encodeCall(
                 ReferralGateway.initialize,
-                (config.takadaoOperator, config.contributionToken)
+                (config.takadaoOperator, config.kycProvider, config.contributionToken)
             )
         );
 

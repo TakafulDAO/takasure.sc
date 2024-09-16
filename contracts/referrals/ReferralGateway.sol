@@ -35,20 +35,28 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     address private takadaoOperator;
 
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
+    bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 private constant MEMBER = keccak256("MEMBER");
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
 
     mapping(address proposedAmbassador => bool) public proposedAmbassadors;
-    mapping(address parent => uint256 rewards) public parentRewards;
+    mapping(address parent => mapping(address child => uint256 rewards)) public parentRewards;
+    mapping(address child => uint256 contribution) public childContributions;
+    mapping(address child => address parent) public childParent;
+    mapping(address child => address tDAO) public childTDAO;
+    mapping(address child => bool) private isChildKYCed;
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewAmbassadorProposal(address indexed proposedAmbassador);
     event OnNewAmbassador(address indexed ambassador);
     event OnJoinByReferral();
+    event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
+    event OnChildKycVerified(address indexed child);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__OnlyProposedAmbassadors();
     error ReferralGateway__ContributionOutOfRange();
+    error ReferralGateway__MemberAlreadyKYCed();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -64,12 +72,14 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     function initialize(
         address _takadaoOperator,
+        address _kycProvider,
         address _usdcAddress
     ) external notZeroAddress(_takadaoOperator) notZeroAddress(_usdcAddress) initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _takadaoOperator);
         _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
+        _grantRole(KYC_PROVIDER, _kycProvider);
 
         takadaoOperator = _takadaoOperator;
         isPreJoinEnabled = true;
@@ -113,8 +123,30 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 fee = (contribution * SERVICE_FEE) / 100;
         uint256 parentReward = (fee * rewardRatio) / 100;
 
-        parentRewards[parent] += parentReward;
+        parentRewards[parent][msg.sender] = parentReward;
         collectedFees += fee;
+
+        childContributions[msg.sender] = contribution;
+        childParent[msg.sender] = parent;
+        childTDAO[msg.sender] = tDAO;
+    }
+
+    function setKYCStatus(address child) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
+        if (isChildKYCed[child]) {
+            revert ReferralGateway__MemberAlreadyKYCed();
+        }
+
+        isChildKYCed[child] = true;
+
+        if (childContributions[child] > 0) {
+            address parent = childParent[child];
+            uint256 parentReward = parentRewards[parent][child];
+            usdc.safeTransfer(parent, parentReward);
+
+            emit OnParentRewarded(parent, child, parentReward);
+        }
+
+        emit OnChildKycVerified(child);
     }
 
     function setPreJoinEnabled(bool _isPreJoinEnabled) external onlyRole(TAKADAO_OPERATOR) {

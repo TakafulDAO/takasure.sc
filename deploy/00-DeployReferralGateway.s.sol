@@ -19,7 +19,7 @@ contract DeployReferralGateway is Script {
             "ReferralGateway.sol",
             abi.encodeCall(
                 ReferralGateway.initialize,
-                (config.takadaoOperator, config.contributionToken)
+                (config.takadaoOperator, config.kycProvider, config.contributionToken)
             )
         );
 
