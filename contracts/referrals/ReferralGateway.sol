@@ -11,13 +11,13 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.25;
 
-contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
+contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     using SafeERC20 for IERC20;
 
     IERC20 private usdc;
@@ -25,7 +25,10 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
     uint8 public SERVICE_FEE = 22;
     bool public isPreJoinEnabled;
 
-    uint256 collectedFees;
+    uint256 private collectedFees;
+    address private takadaoOperator;
+
+    bytes32 public constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
 
     mapping(address proposedAmbassador => bool) public proposedAmbassadors;
     mapping(address ambassador => bool) public lifeDaoAmbassadors;
@@ -51,15 +54,17 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
     }
 
     function initialize(
-        address takadaoOperator,
-        address usdcAddress
-    ) external notZeroAddress(takadaoOperator) initializer {
+        address _takadaoOperator,
+        address _usdcAddress
+    ) external notZeroAddress(_takadaoOperator) notZeroAddress(_usdcAddress) initializer {
         __UUPSUpgradeable_init();
-        __Ownable_init(takadaoOperator);
-        __Ownable2Step_init();
+        __AccessControl_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, _takadaoOperator);
+        _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
 
+        takadaoOperator = _takadaoOperator;
         isPreJoinEnabled = true;
-        usdc = IERC20(usdcAddress);
+        usdc = IERC20(_usdcAddress);
     }
 
     function proposeAsAmbassador() external {
@@ -72,7 +77,9 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
         _proposeAsAmbassador(propossedAmbassador);
     }
 
-    function approveAsAmbassador(address ambassador) external notZeroAddress(ambassador) onlyOwner {
+    function approveAsAmbassador(
+        address ambassador
+    ) external notZeroAddress(ambassador) onlyRole(TAKADAO_OPERATOR) {
         if (!proposedAmbassadors[ambassador]) {
             revert ReferralGateway__OnlyProposedAmbassadors();
         }
@@ -81,14 +88,14 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
         emit OnNewAmbassador(ambassador);
     }
 
-    function setPreJoinEnabled(bool _isPreJoinEnabled) external onlyOwner {
+    function setPreJoinEnabled(bool _isPreJoinEnabled) external onlyRole(TAKADAO_OPERATOR) {
         isPreJoinEnabled = _isPreJoinEnabled;
 
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
     }
 
-    function withdrawFees() external onlyOwner {
-        usdc.safeTransfer(owner(), collectedFees);
+    function withdrawFees() external onlyRole(TAKADAO_OPERATOR) {
+        usdc.safeTransfer(takadaoOperator, collectedFees);
         collectedFees = 0;
     }
 
@@ -99,5 +106,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(TAKADAO_OPERATOR) {}
 }
