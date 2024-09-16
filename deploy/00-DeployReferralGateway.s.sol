@@ -17,7 +17,10 @@ contract DeployReferralGateway is Script {
         // Deploy TakasurePool
         proxy = Upgrades.deployUUPSProxy(
             "ReferralGateway.sol",
-            abi.encodeCall(ReferralGateway.initialize, (config.takadaoOperator))
+            abi.encodeCall(
+                ReferralGateway.initialize,
+                (config.takadaoOperator, config.contributionToken)
+            )
         );
 
         vm.stopBroadcast();

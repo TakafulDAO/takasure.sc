@@ -17,7 +17,10 @@ contract TestDeployReferralGateway is Script {
         address implementation = address(new ReferralGateway());
         proxy = UnsafeUpgrades.deployUUPSProxy(
             implementation,
-            abi.encodeCall(ReferralGateway.initialize, (config.takadaoOperator))
+            abi.encodeCall(
+                ReferralGateway.initialize,
+                (config.takadaoOperator, config.contributionToken)
+            )
         );
 
         ReferralGateway referralGateway = ReferralGateway(proxy);

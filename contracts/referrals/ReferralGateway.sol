@@ -8,14 +8,24 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.25;
 
 contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
+    using SafeERC20 for IERC20;
+
+    IERC20 private usdc;
+
     uint8 public SERVICE_FEE = 22;
     bool public isPreJoinEnabled;
+
+    uint256 collectedFees;
 
     mapping(address proposedAmbassador => bool) public proposedAmbassadors;
     mapping(address ambassador => bool) public lifeDaoAmbassadors;
@@ -41,13 +51,15 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
     }
 
     function initialize(
-        address takadaoOperator
+        address takadaoOperator,
+        address usdcAddress
     ) external notZeroAddress(takadaoOperator) initializer {
         __UUPSUpgradeable_init();
         __Ownable_init(takadaoOperator);
         __Ownable2Step_init();
 
         isPreJoinEnabled = true;
+        usdc = IERC20(usdcAddress);
     }
 
     function proposeAsAmbassador() external {
@@ -73,6 +85,11 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, Ownable2StepUpgradea
         isPreJoinEnabled = _isPreJoinEnabled;
 
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
+    }
+
+    function withdrawFees() external onlyOwner {
+        usdc.safeTransfer(owner(), collectedFees);
+        collectedFees = 0;
     }
 
     function _proposeAsAmbassador(address _propossedAmbassador) internal {
