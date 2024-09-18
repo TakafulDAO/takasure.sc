@@ -16,7 +16,7 @@ contract ReferralGatewayFuzzTest is Test {
 
     function setUp() public {
         deployer = new TestDeployReferralGateway();
-        (, proxy, helperConfig) = deployer.run();
+        (, proxy, , helperConfig) = deployer.run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
