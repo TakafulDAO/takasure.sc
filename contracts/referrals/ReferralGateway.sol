@@ -7,11 +7,12 @@
  *      to the LifeDao protocol
  * @dev Upgradeable contract with UUPS pattern
  */
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ITakasurePool} from "contracts/interfaces/ITakasurePool.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -31,7 +32,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     bool public isPreJoinEnabled;
 
-    uint256 private collectedFees;
+    uint256 public collectedFees;
     address private takadaoOperator;
 
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
@@ -43,16 +44,17 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     mapping(address parent => mapping(address child => uint256 rewards)) public parentRewards;
     mapping(uint256 childCounter => address child) public childs;
     mapping(address child => PrePaidMember) public prePaidMembers;
+    mapping(string tDAOName => address tDAO) public tDAOs;
 
     struct PrePaidMember {
         bool isChildKYCed;
-        address tDAO;
+        string tDAOName;
         address parent;
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
     }
 
-    uint256 private childCounter;
+    uint256 public childCounter;
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewAmbassadorProposal(address indexed proposedAmbassador);
@@ -67,7 +69,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     error ReferralGateway__MemberAlreadyKYCed();
     error ReferralGateway__NotAllowedToPrePay();
     error ReferralGateway__NotKYCed();
-    error ReferralGateway__FailedToJoin();
+    error ReferralGateway__tDAOAddressNotAssignedYet();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -95,6 +97,10 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         takadaoOperator = _takadaoOperator;
         isPreJoinEnabled = true;
         usdc = IERC20(_usdcAddress);
+
+        defaultRewardRatio = 1;
+        memberRewardRatio = 2;
+        ambassadorRewardRatio = 5;
     }
 
     function proposeAsAmbassador() external {
@@ -119,7 +125,11 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         emit OnNewAmbassador(ambassador);
     }
 
-    function prePaymentWithReferral(address parent, uint256 contribution, address tDAO) external {
+    function prePaymentWithReferral(
+        address parent,
+        uint256 contribution,
+        string calldata tDAOName
+    ) external {
         if (!isPreJoinEnabled) {
             revert ReferralGateway__NotAllowedToPrePay();
         }
@@ -130,11 +140,19 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 rewardRatio;
         if (hasRole(AMBASSADOR, parent)) {
             rewardRatio = ambassadorRewardRatio;
-        } else if (hasRole(MEMBER, parent)) {
-            rewardRatio = memberRewardRatio;
+        } else if (tDAOs[tDAOName] != address(0)) {
+            Member memory parentMember = ITakasurePool(tDAOs[tDAOName]).getMemberFromAddress(
+                parent
+            );
+            if (parentMember.memberState == MemberState.Active || hasRole(MEMBER, parent)) {
+                rewardRatio = memberRewardRatio;
+            } else {
+                rewardRatio = defaultRewardRatio;
+            }
         } else {
             rewardRatio = defaultRewardRatio;
         }
+
         uint256 fee = (contribution * SERVICE_FEE) / 100;
         uint256 parentReward = (fee * rewardRatio) / 100;
 
@@ -142,7 +160,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         collectedFees += fee;
 
         if (prePaidMembers[msg.sender].isChildKYCed) {
-            prePaidMembers[msg.sender].tDAO = tDAO;
+            prePaidMembers[msg.sender].tDAOName = tDAOName;
             prePaidMembers[msg.sender].parent = parent;
             prePaidMembers[msg.sender].contributionBeforeFee = contribution;
             prePaidMembers[msg.sender].contributionAfterFee = contribution - fee;
@@ -157,7 +175,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
             PrePaidMember memory prePaidMember = PrePaidMember({
                 isChildKYCed: false,
-                tDAO: tDAO,
+                tDAOName: tDAOName,
                 parent: parent,
                 contributionBeforeFee: contribution,
                 contributionAfterFee: contribution - fee
@@ -171,8 +189,18 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         emit OnPrePayment(parent, msg.sender, contribution);
     }
 
+    function assignTDaoAddress(
+        string calldata tDAOName,
+        address tDAOAddress
+    ) external notZeroAddress(tDAOAddress) onlyRole(TAKADAO_OPERATOR) {
+        tDAOs[tDAOName] = tDAOAddress;
+    }
+
     function joinDao() external {
         PrePaidMember memory member = prePaidMembers[msg.sender];
+        if (tDAOs[member.tDAOName] == address(0)) {
+            revert ReferralGateway__tDAOAddressNotAssignedYet();
+        }
         if (!member.isChildKYCed) {
             revert ReferralGateway__NotKYCed();
         }
@@ -190,19 +218,15 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             emit OnParentRewarded(parent, msg.sender, parentReward);
         }
 
-        (bool success, ) = member.tDAO.call(
-            abi.encodeWithSignature(
-                "joinByReferral(address,uint256,uint256)",
-                msg.sender,
-                member.contributionBeforeFee,
-                member.contributionAfterFee
-            )
-        );
-        if (!success) {
-            revert ReferralGateway__FailedToJoin();
-        }
+        address tDAO = tDAOs[member.tDAOName];
 
-        usdc.safeTransfer(member.tDAO, member.contributionAfterFee);
+        ITakasurePool(tDAO).joinByReferral(
+            msg.sender,
+            member.contributionBeforeFee,
+            member.contributionAfterFee
+        );
+
+        usdc.safeTransfer(tDAO, member.contributionAfterFee);
     }
 
     function setKYCStatus(address child) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
