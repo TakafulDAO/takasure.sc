@@ -8,7 +8,10 @@ import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
 contract TestDeployReferralGateway is Script {
-    function run() external returns (ReferralGateway, address proxy, address, HelperConfig) {
+    function run()
+        external
+        returns (ReferralGateway, address proxy, address, address, HelperConfig)
+    {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -27,6 +30,6 @@ contract TestDeployReferralGateway is Script {
 
         vm.stopBroadcast();
 
-        return (referralGateway, proxy, config.contributionToken, helperConfig);
+        return (referralGateway, proxy, config.contributionToken, config.kycProvider, helperConfig);
     }
 }

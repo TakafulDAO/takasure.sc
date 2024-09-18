@@ -45,10 +45,11 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     mapping(uint256 childCounter => address child) public childs;
     mapping(address child => PrePaidMember) public prePaidMembers;
     mapping(string tDAOName => address tDAO) public tDAOs;
+    mapping(address child => bool) public isChildKYCed;
 
     struct PrePaidMember {
-        bool isChildKYCed;
         string tDAOName;
+        address child;
         address parent;
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
@@ -141,10 +142,11 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         if (hasRole(AMBASSADOR, parent)) {
             rewardRatio = ambassadorRewardRatio;
         } else if (tDAOs[tDAOName] != address(0)) {
-            Member memory parentMember = ITakasurePool(tDAOs[tDAOName]).getMemberFromAddress(
-                parent
-            );
-            if (parentMember.memberState == MemberState.Active || hasRole(MEMBER, parent)) {
+            if (
+                hasRole(MEMBER, parent) ||
+                ITakasurePool(tDAOs[tDAOName]).getMemberFromAddress(parent).memberState ==
+                MemberState.Active
+            ) {
                 rewardRatio = memberRewardRatio;
             } else {
                 rewardRatio = defaultRewardRatio;
@@ -156,34 +158,32 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 fee = (contribution * SERVICE_FEE) / 100;
         uint256 parentReward = (fee * rewardRatio) / 100;
 
-        parentRewards[parent][msg.sender] = parentReward;
         collectedFees += fee;
 
-        if (prePaidMembers[msg.sender].isChildKYCed) {
-            prePaidMembers[msg.sender].tDAOName = tDAOName;
-            prePaidMembers[msg.sender].parent = parent;
-            prePaidMembers[msg.sender].contributionBeforeFee = contribution;
-            prePaidMembers[msg.sender].contributionAfterFee = contribution - fee;
+        ++childCounter;
 
-            parentRewards[parent][msg.sender] = 0;
-            usdc.safeTransferFrom(msg.sender, address(this), contribution);
-            usdc.safeTransfer(parent, parentReward);
+        PrePaidMember memory prePaidMember = PrePaidMember({
+            tDAOName: tDAOName,
+            child: msg.sender,
+            parent: parent,
+            contributionBeforeFee: contribution,
+            contributionAfterFee: contribution - fee
+        });
 
-            emit OnParentRewarded(parent, msg.sender, parentReward);
-        } else {
-            ++childCounter;
+        childs[childCounter] = msg.sender;
+        prePaidMembers[msg.sender] = prePaidMember;
 
-            PrePaidMember memory prePaidMember = PrePaidMember({
-                isChildKYCed: false,
-                tDAOName: tDAOName,
-                parent: parent,
-                contributionBeforeFee: contribution,
-                contributionAfterFee: contribution - fee
-            });
+        usdc.safeTransferFrom(msg.sender, address(this), contribution);
 
-            childs[childCounter] = msg.sender;
-            prePaidMembers[msg.sender] = prePaidMember;
-            usdc.safeTransferFrom(msg.sender, address(this), contribution);
+        if (parent != address(0)) {
+            if (isChildKYCed[msg.sender]) {
+                parentRewards[parent][msg.sender] = 0;
+                usdc.safeTransfer(parent, parentReward);
+
+                emit OnParentRewarded(parent, msg.sender, parentReward);
+            } else {
+                parentRewards[parent][msg.sender] = parentReward;
+            }
         }
 
         emit OnPrePayment(parent, msg.sender, contribution);
@@ -201,7 +201,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         if (tDAOs[member.tDAOName] == address(0)) {
             revert ReferralGateway__tDAOAddressNotAssignedYet();
         }
-        if (!member.isChildKYCed) {
+        if (!isChildKYCed[member.child]) {
             revert ReferralGateway__NotKYCed();
         }
         if (!isPreJoinEnabled) {
@@ -231,13 +231,13 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     function setKYCStatus(address child) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
         PrePaidMember memory member = prePaidMembers[child];
-        if (member.isChildKYCed) {
+        if (isChildKYCed[child]) {
             revert ReferralGateway__MemberAlreadyKYCed();
         }
 
-        prePaidMembers[child].isChildKYCed = true;
+        isChildKYCed[child] = true;
 
-        if (member.contributionBeforeFee > 0) {
+        if (member.contributionBeforeFee > 0 && member.parent != address(0)) {
             address parent = member.parent;
             uint256 parentReward = parentRewards[parent][child];
             parentRewards[parent][child] = 0;
