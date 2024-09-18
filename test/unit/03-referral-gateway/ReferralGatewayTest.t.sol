@@ -107,4 +107,8 @@ contract ReferralGatewayTest is Test {
 
         assert(referralGateway.hasRole(AMBASSADOR, ambassador));
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                PREPAYS
+    //////////////////////////////////////////////////////////////*/
 }
