@@ -143,6 +143,50 @@ contract TakasurePool is
         );
     }
 
+    function joinByReferral(
+        address newMember,
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration
+    ) external nonReentrant {
+        Member memory member = reserve.members[msg.sender];
+        if (member.memberState != MemberState.Inactive) {
+            revert TakasureErrors.TakasurePool__WrongMemberState();
+        }
+        if (contributionBeforeFee < minimumThreshold || contributionBeforeFee > maximumThreshold) {
+            revert TakasureErrors.TakasurePool__ContributionOutOfRange();
+        }
+
+        // Fetch the BM from the oracle
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(msg.sender);
+
+        (
+            uint256 normalizedContributionBeforeFee,
+            uint256 feeAmount,
+            uint256 contributionAfterFee
+        ) = _calculateAmountAndFees(contributionBeforeFee);
+
+        _createNewMember({
+            _benefitMultiplier: benefitMultiplier, // Fetch from oracle
+            _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
+            _membershipDuration: membershipDuration, // From the input
+            _feeAmount: feeAmount, // Calculated
+            _isKYCVerified: true,
+            _memberWallet: newMember, // The member wallet
+            _memberState: MemberState.Active
+        });
+
+        // And we pay the contribution
+        _memberPaymentFlow(
+            normalizedContributionBeforeFee,
+            contributionAfterFee,
+            feeAmount,
+            msg.sender,
+            false
+        );
+
+        emit TakasureEvents.OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
+    }
+
     /**
      * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
