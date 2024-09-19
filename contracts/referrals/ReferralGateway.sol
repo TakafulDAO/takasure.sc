@@ -99,7 +99,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         usdc = IERC20(_usdcAddress);
 
         defaultRewardRatio = 1;
-        memberRewardRatio = 2;
+        memberRewardRatio = 20;
         ambassadorRewardRatio = 5;
     }
 
