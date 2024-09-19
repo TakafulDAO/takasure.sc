@@ -37,7 +37,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-    bytes32 private constant MEMBER = keccak256("MEMBER");
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
 
     mapping(address proposedAmbassador => bool) public proposedAmbassadors;
@@ -143,7 +142,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             rewardRatio = ambassadorRewardRatio;
         } else if (tDAOs[tDAOName] != address(0)) {
             if (
-                hasRole(MEMBER, parent) ||
                 ITakasurePool(tDAOs[tDAOName]).getMemberFromAddress(parent).memberState ==
                 MemberState.Active
             ) {

@@ -30,14 +30,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     address kycProvider;
     address ambassador = makeAddr("ambassador");
     address member = makeAddr("member");
+    address notMember = makeAddr("notMember");
     address child = makeAddr("child");
-    address tDAO = makeAddr("tDAO");
     string tDAOName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
 
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
-    bytes32 private constant MEMBER = keccak256("MEMBER");
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewAmbassadorProposal(address indexed proposedAmbassador);
@@ -88,9 +87,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
         vm.prank(member);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5);
-
-        vm.prank(takadao);
-        referralGateway.grantRole(MEMBER, member);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -110,13 +106,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     function testAssignTDAOAddress() public {
         assertEq(referralGateway.tDAOs(tDAOName), address(0));
         vm.prank(takadao);
-        referralGateway.assignTDaoAddress(tDAOName, tDAO);
-        assertEq(referralGateway.tDAOs(tDAOName), tDAO);
+        referralGateway.assignTDaoAddress(tDAOName, address(takasurePool));
+        assertEq(referralGateway.tDAOs(tDAOName), address(takasurePool));
     }
 
     modifier assignTDAOAddress() {
         vm.prank(takadao);
-        referralGateway.assignTDaoAddress(tDAOName, tDAO);
+        referralGateway.assignTDaoAddress(tDAOName, address(takasurePool));
         _;
     }
 
@@ -308,7 +304,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(referralGateway.collectedFees(), collectedFees);
         assertEq(collectedFees, 5_500_000);
-        assertEq(referralGateway.parentRewards(ambassador, child), 0);
+        assertEq(referralGateway.parentRewards(member, child), 0);
         assertEq(parentReward, 55_000);
         assertEq(usdc.balanceOf(member), USDC_INITIAL_AMOUNT - CONTRIBUTION_AMOUNT + parentReward);
         assertEq(referralGateway.childCounter(), 1);
@@ -344,7 +340,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.collectedFees(), 0);
         assertEq(referralGateway.childCounter(), 0);
         assertEq(usdc.balanceOf(member), USDC_INITIAL_AMOUNT - CONTRIBUTION_AMOUNT);
-        assertEq(usdc.balanceOf(tDAO), 0);
+        assertEq(usdc.balanceOf(address(takasurePool)), (CONTRIBUTION_AMOUNT * (100 - 22)) / 100);
 
         vm.prank(child);
         vm.expectEmit(true, true, true, false, address(referralGateway));
@@ -356,9 +352,97 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(referralGateway.collectedFees(), collectedFees);
         assertEq(collectedFees, 5_500_000);
-        assertEq(referralGateway.parentRewards(ambassador, child), 0);
+        assertEq(referralGateway.parentRewards(member, child), 0);
         assertEq(parentReward, 110_000);
         assertEq(usdc.balanceOf(member), USDC_INITIAL_AMOUNT - CONTRIBUTION_AMOUNT + parentReward);
+        assertEq(referralGateway.childCounter(), 1);
+    }
+
+    function testPrePaymentParentNotMemberChildrenNotKYCedNoTdaoYet() public {
+        assertEq(referralGateway.collectedFees(), 0);
+        assertEq(referralGateway.childCounter(), 0);
+
+        vm.prank(child);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrePayment(notMember, child, CONTRIBUTION_AMOUNT);
+        referralGateway.prePaymentWithReferral(notMember, CONTRIBUTION_AMOUNT, tDAOName);
+
+        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (collectedFees * 1) / 100; // 5500000 * 1 / 100 = 55000
+
+        assertEq(referralGateway.collectedFees(), collectedFees);
+        assertEq(collectedFees, 5_500_000);
+        assertEq(referralGateway.parentRewards(notMember, child), parentReward);
+        assertEq(parentReward, 55_000);
+        assertEq(referralGateway.childCounter(), 1);
+    }
+
+    function testPrePaymentParentNotMemberChildrenKYCedNoTdaoYet() public kycChild {
+        assertEq(referralGateway.collectedFees(), 0);
+        assertEq(referralGateway.childCounter(), 0);
+        assertEq(usdc.balanceOf(notMember), 0);
+
+        vm.prank(child);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrePayment(notMember, child, CONTRIBUTION_AMOUNT);
+        referralGateway.prePaymentWithReferral(notMember, CONTRIBUTION_AMOUNT, tDAOName);
+
+        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (collectedFees * 1) / 100; // 5500000 * 1 / 100 = 55000
+
+        assertEq(referralGateway.collectedFees(), collectedFees);
+        assertEq(collectedFees, 5_500_000);
+        assertEq(referralGateway.parentRewards(notMember, child), 0);
+        assertEq(parentReward, 55_000);
+        assertEq(usdc.balanceOf(notMember), parentReward);
+        assertEq(referralGateway.childCounter(), 1);
+    }
+
+    function testPrePaymentParentNotMemberChildrenNotKYCedTdaoAddressAssigned()
+        public
+        assignTDAOAddress
+    {
+        assertEq(referralGateway.collectedFees(), 0);
+        assertEq(referralGateway.childCounter(), 0);
+
+        vm.prank(child);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrePayment(notMember, child, CONTRIBUTION_AMOUNT);
+        referralGateway.prePaymentWithReferral(notMember, CONTRIBUTION_AMOUNT, tDAOName);
+
+        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (collectedFees * 1) / 100; // 5500000 * 2 / 100 = 55000
+
+        assertEq(referralGateway.collectedFees(), collectedFees);
+        assertEq(collectedFees, 5_500_000);
+        assertEq(referralGateway.parentRewards(notMember, child), parentReward);
+        assertEq(parentReward, 55_000);
+        assertEq(referralGateway.childCounter(), 1);
+    }
+
+    function testPrePaymentParentNotMemberChildrenKYCedTdaoAddressAssigned()
+        public
+        kycChild
+        assignTDAOAddress
+    {
+        assertEq(referralGateway.collectedFees(), 0);
+        assertEq(referralGateway.childCounter(), 0);
+        assertEq(usdc.balanceOf(notMember), 0);
+        assertEq(usdc.balanceOf(address(takasurePool)), (CONTRIBUTION_AMOUNT * (100 - 22)) / 100);
+
+        vm.prank(child);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrePayment(notMember, child, CONTRIBUTION_AMOUNT);
+        referralGateway.prePaymentWithReferral(notMember, CONTRIBUTION_AMOUNT, tDAOName);
+
+        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (collectedFees * 1) / 100; // 5500000 * 1 / 100 = 55000
+
+        assertEq(referralGateway.collectedFees(), collectedFees);
+        assertEq(collectedFees, 5_500_000);
+        assertEq(referralGateway.parentRewards(notMember, child), 0);
+        assertEq(parentReward, 55_000);
+        assertEq(usdc.balanceOf(notMember), parentReward);
         assertEq(referralGateway.childCounter(), 1);
     }
 }
