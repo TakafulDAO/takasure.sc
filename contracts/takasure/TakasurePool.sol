@@ -148,7 +148,7 @@ contract TakasurePool is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        Member memory member = reserve.members[msg.sender];
+        Member memory member = reserve.members[newMember];
         if (member.memberState != MemberState.Inactive) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
@@ -157,7 +157,7 @@ contract TakasurePool is
         }
 
         // Fetch the BM from the oracle
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(msg.sender);
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(newMember);
 
         (
             uint256 normalizedContributionBeforeFee,
@@ -180,11 +180,11 @@ contract TakasurePool is
             normalizedContributionBeforeFee,
             contributionAfterFee,
             feeAmount,
-            msg.sender,
+            newMember,
             false
         );
 
-        emit TakasureEvents.OnMemberJoined(reserve.members[msg.sender].memberId, msg.sender);
+        emit TakasureEvents.OnMemberJoined(reserve.members[newMember].memberId, newMember);
     }
 
     /**

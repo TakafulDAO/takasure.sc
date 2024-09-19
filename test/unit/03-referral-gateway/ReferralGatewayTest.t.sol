@@ -42,6 +42,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     event OnNewAmbassadorProposal(address indexed proposedAmbassador);
     event OnNewAmbassador(address indexed ambassador);
     event OnPrePayment(address indexed parent, address indexed child, uint256 indexed contribution);
+    event OnMemberJoined(uint256 indexed memberId, address indexed member);
 
     function setUp() public {
         // Deployers
@@ -108,6 +109,26 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(takadao);
         referralGateway.assignTDaoAddress(tDAOName, address(takasurePool));
         assertEq(referralGateway.tDAOs(tDAOName), address(takasurePool));
+    }
+
+    function testSetNewRewardRatios() public {
+        uint8 newDefaultRatio = 2;
+        uint8 newMemberRatio = 5;
+        uint8 newAmbassadorRatio = 10;
+
+        assertNotEq(referralGateway.defaultRewardRatio(), newDefaultRatio);
+        assertNotEq(referralGateway.memberRewardRatio(), newMemberRatio);
+        assertNotEq(referralGateway.ambassadorRewardRatio(), newAmbassadorRatio);
+
+        vm.startPrank(takadao);
+        referralGateway.setNewDefaultRewardRatio(newDefaultRatio);
+        referralGateway.setNewMemberRewardRatio(newMemberRatio);
+        referralGateway.setNewAmbassadorRewardRatio(newAmbassadorRatio);
+        vm.stopPrank();
+
+        assertEq(referralGateway.defaultRewardRatio(), newDefaultRatio);
+        assertEq(referralGateway.memberRewardRatio(), newMemberRatio);
+        assertEq(referralGateway.ambassadorRewardRatio(), newAmbassadorRatio);
     }
 
     modifier assignTDAOAddress() {
@@ -444,5 +465,31 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(parentReward, 55_000);
         assertEq(usdc.balanceOf(notMember), parentReward);
         assertEq(referralGateway.childCounter(), 1);
+    }
+
+    modifier prepayment() {
+        vm.prank(child);
+        referralGateway.prePaymentWithReferral(ambassador, CONTRIBUTION_AMOUNT, tDAOName);
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                  JOIN
+    //////////////////////////////////////////////////////////////*/
+
+    function testJoinPool() public assignTDAOAddress approveAsAmbassador kycChild prepayment {
+        uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
+        uint256 takasurePoolInitialBalance = usdc.balanceOf(address(takasurePool));
+
+        vm.prank(child);
+        vm.expectEmit(true, true, false, false, address(takasurePool));
+        emit OnMemberJoined(2, child);
+        referralGateway.joinDao();
+
+        uint256 referralGatewayFinalBalance = usdc.balanceOf(address(referralGateway));
+        uint256 takasurePoolFinalBalance = usdc.balanceOf(address(takasurePool));
+
+        assert(referralGatewayFinalBalance < referralGatewayInitialBalance);
+        assert(takasurePoolFinalBalance > takasurePoolInitialBalance);
     }
 }
