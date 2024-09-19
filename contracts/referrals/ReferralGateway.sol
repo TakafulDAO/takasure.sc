@@ -160,8 +160,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
      * @dev The contribution must be between 25 and 250 USDC
      * @dev The parent reward ratio depends on the parent role
      */
-    // TODO: manage parent address as optional
     function prePayment(address parent, uint256 contribution, string calldata tDAOName) external {
+        // Initial checks
         if (!isPreJoinEnabled) {
             revert ReferralGateway__NotAllowedToPrePay();
         }
@@ -169,26 +169,9 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         if (contribution < MINIMUM_SERVICE_FEE || contribution > MAXIMUM_SERVICE_FEE) {
             revert ReferralGateway__ContributionOutOfRange();
         }
-        uint256 rewardRatio;
-        if (hasRole(AMBASSADOR, parent)) {
-            rewardRatio = ambassadorRewardRatio;
-        } else if (tDAOs[tDAOName] != address(0)) {
-            if (
-                ITakasurePool(tDAOs[tDAOName]).getMemberFromAddress(parent).memberState ==
-                MemberState.Active
-            ) {
-                rewardRatio = memberRewardRatio;
-            } else {
-                rewardRatio = defaultRewardRatio;
-            }
-        } else {
-            rewardRatio = defaultRewardRatio;
-        }
 
+        // Calculate the fee and create the new pre-paid member
         uint256 fee = (contribution * SERVICE_FEE) / 100;
-        uint256 parentReward = (fee * rewardRatio) / 100;
-
-        collectedFees += fee - parentReward;
 
         ++childCounter;
 
@@ -200,22 +183,53 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             contributionAfterFee: contribution - fee
         });
 
+        // Update the necessary mappings
         childs[childCounter] = msg.sender;
         prePaidMembers[msg.sender] = prePaidMember;
-        ++parentSlots[parent];
-        parentTiers[parent][msg.sender] = parentSlots[parent];
 
+        // Transfer the contribution to the contract
         usdc.safeTransferFrom(msg.sender, address(this), contribution);
 
+        // As the parent is optional, we need to check if it is not zero
         if (parent != address(0)) {
+            // First we need to check the correct reward ratio for the parent, based on the parent role
+            uint256 rewardRatio;
+            if (hasRole(AMBASSADOR, parent)) {
+                rewardRatio = ambassadorRewardRatio;
+            } else if (tDAOs[tDAOName] != address(0)) {
+                if (
+                    ITakasurePool(tDAOs[tDAOName]).getMemberFromAddress(parent).memberState ==
+                    MemberState.Active
+                ) {
+                    rewardRatio = memberRewardRatio;
+                } else {
+                    rewardRatio = defaultRewardRatio;
+                }
+            } else {
+                rewardRatio = defaultRewardRatio;
+            }
+
+            // Calculate the parent reward, the collected fees
+            uint256 parentReward = (fee * rewardRatio) / 100;
+            collectedFees += fee - parentReward;
+
+            // Update the parent slots and tiers
+            ++parentSlots[parent];
+            parentTiers[parent][msg.sender] = parentSlots[parent];
+
+            // If the child is already KYCed, we can transfer the parent reward
             if (isChildKYCed[msg.sender]) {
                 parentRewards[parent][msg.sender] = 0;
                 usdc.safeTransfer(parent, parentReward);
 
                 emit OnParentRewarded(parent, msg.sender, parentReward);
             } else {
+                // Otherwise, we store the parent reward in the parentRewards mapping
                 parentRewards[parent][msg.sender] = parentReward;
             }
+        } else {
+            // If the parent is zero, we store the fee in the collectedFees variable
+            collectedFees += fee;
         }
 
         emit OnPrePayment(parent, msg.sender, contribution);
@@ -228,6 +242,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
      * @dev The member must have a tDAO assigned
      */
     function joinDao() external {
+        // Initial checks
         PrePaidMember memory member = prePaidMembers[msg.sender];
         if (tDAOs[member.tDAOName] == address(0)) {
             revert ReferralGateway__tDAOAddressNotAssignedYet();
@@ -239,16 +254,21 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             revert ReferralGateway__NotAllowedToPrePay();
         }
 
+        // If the member has a parent, we need to check if the parent has a reward
         address parent = member.parent;
-        uint256 parentReward = parentRewards[parent][msg.sender];
 
-        if (parentReward > 0) {
-            parentRewards[parent][msg.sender] = 0;
-            usdc.safeTransfer(parent, parentReward);
+        if (parent != address(0)) {
+            uint256 parentReward = parentRewards[parent][msg.sender];
 
-            emit OnParentRewarded(parent, msg.sender, parentReward);
+            if (parentReward > 0) {
+                parentRewards[parent][msg.sender] = 0;
+                usdc.safeTransfer(parent, parentReward);
+
+                emit OnParentRewarded(parent, msg.sender, parentReward);
+            }
         }
 
+        // Finally, we join the member to the tDAO
         address tDAO = tDAOs[member.tDAOName];
 
         ITakasurePool(tDAO).joinByReferral(
@@ -266,13 +286,16 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
     function setKYCStatus(address child) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
+        // Initial checks
         PrePaidMember memory member = prePaidMembers[child];
         if (isChildKYCed[child]) {
             revert ReferralGateway__MemberAlreadyKYCed();
         }
 
+        // Update the KYC status
         isChildKYCed[child] = true;
 
+        // If the member has a parent, we need to check if the parent has a reward
         if (member.contributionBeforeFee > 0 && member.parent != address(0)) {
             address parent = member.parent;
             uint256 parentReward = parentRewards[parent][child];
