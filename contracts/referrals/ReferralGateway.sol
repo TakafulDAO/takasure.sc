@@ -106,16 +106,28 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         ambassadorRewardRatio = 5;
     }
 
+    /**
+     * @notice Propose self as ambassador
+     */
     function proposeAsAmbassador() external {
         _proposeAsAmbassador(msg.sender);
     }
 
+    /**
+     * @notice Propose an address as ambassador
+     * @param propossedAmbassador The address to propose as ambassador
+     */
     function proposeAsAmbassador(
         address propossedAmbassador
     ) external notZeroAddress(propossedAmbassador) {
         _proposeAsAmbassador(propossedAmbassador);
     }
 
+    /**
+     * @notice Approve an address as ambassador
+     * @param ambassador The address to approve as ambassador
+     * @dev Only the TAKADAO_OPERATOR can approve an ambassador
+     */
     function approveAsAmbassador(
         address ambassador
     ) external notZeroAddress(ambassador) onlyRole(TAKADAO_OPERATOR) {
@@ -128,11 +140,28 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         emit OnNewAmbassador(ambassador);
     }
 
-    function prePaymentWithReferral(
-        address parent,
-        uint256 contribution,
-        string calldata tDAOName
-    ) external {
+    /**
+     * @notice Assign a tDAO address to a tDAO name
+     * @param tDAOName The name of the tDAO
+     */
+    function assignTDaoAddress(
+        string calldata tDAOName,
+        address tDAOAddress
+    ) external notZeroAddress(tDAOAddress) onlyRole(TAKADAO_OPERATOR) {
+        tDAOs[tDAOName] = tDAOAddress;
+    }
+
+    /**
+     * @notice Pre pay for a membership
+     * @param parent The address of the parent
+     * @param contribution The amount to pay
+     * @param tDAOName The name of the tDAO
+     * @dev The parent address is optional
+     * @dev The contribution must be between 25 and 250 USDC
+     * @dev The parent reward ratio depends on the parent role
+     */
+    // TODO: manage parent address as optional
+    function prePayment(address parent, uint256 contribution, string calldata tDAOName) external {
         if (!isPreJoinEnabled) {
             revert ReferralGateway__NotAllowedToPrePay();
         }
@@ -192,13 +221,12 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         emit OnPrePayment(parent, msg.sender, contribution);
     }
 
-    function assignTDaoAddress(
-        string calldata tDAOName,
-        address tDAOAddress
-    ) external notZeroAddress(tDAOAddress) onlyRole(TAKADAO_OPERATOR) {
-        tDAOs[tDAOName] = tDAOAddress;
-    }
-
+    /**
+     * @notice Join a tDAO
+     * @dev The member must be KYCed
+     * @dev The member must have a parent
+     * @dev The member must have a tDAO assigned
+     */
     function joinDao() external {
         PrePaidMember memory member = prePaidMembers[msg.sender];
         if (tDAOs[member.tDAOName] == address(0)) {
@@ -232,6 +260,11 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         usdc.safeTransfer(tDAO, member.contributionAfterFee);
     }
 
+    /**
+     * @notice Set the KYC status of a member
+     * @param child The address of the member
+     * @dev Only the KYC_PROVIDER can set the KYC status
+     */
     function setKYCStatus(address child) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
         PrePaidMember memory member = prePaidMembers[child];
         if (isChildKYCed[child]) {
