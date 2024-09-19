@@ -26,6 +26,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     uint8 public constant SERVICE_FEE = 20;
     uint256 private constant MINIMUM_SERVICE_FEE = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_SERVICE_FEE = 250e6; // 250 USDC
+    uint256 private constant MAX_TIER = 4;
     uint8 public defaultRewardRatio;
     uint8 public memberRewardRatio;
     uint8 public ambassadorRewardRatio;
@@ -41,6 +42,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     mapping(address proposedAmbassador => bool) public proposedAmbassadors;
     mapping(address parent => mapping(address child => uint256 rewards)) public parentRewards;
+    mapping(address parent => uint8 tiersFilled) public parentSlots;
+    mapping(address parent => mapping(address child => uint8 tier)) public parentTiers;
     mapping(uint256 childCounter => address child) public childs;
     mapping(address child => PrePaidMember) public prePaidMembers;
     mapping(string tDAOName => address tDAO) public tDAOs;
@@ -170,6 +173,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
         childs[childCounter] = msg.sender;
         prePaidMembers[msg.sender] = prePaidMember;
+        ++parentSlots[parent];
+        parentTiers[parent][msg.sender] = parentSlots[parent];
 
         usdc.safeTransferFrom(msg.sender, address(this), contribution);
 
