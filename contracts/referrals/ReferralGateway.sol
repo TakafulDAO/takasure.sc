@@ -156,7 +156,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 fee = (contribution * SERVICE_FEE) / 100;
         uint256 parentReward = (fee * rewardRatio) / 100;
 
-        collectedFees += fee;
+        collectedFees += fee - parentReward;
 
         ++childCounter;
 
@@ -273,8 +273,9 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     }
 
     function withdrawFees() external onlyRole(TAKADAO_OPERATOR) {
-        usdc.safeTransfer(takadaoOperator, collectedFees);
+        uint256 _collectedFees = collectedFees;
         collectedFees = 0;
+        usdc.safeTransfer(takadaoOperator, _collectedFees);
     }
 
     function _proposeAsAmbassador(address _propossedAmbassador) internal {

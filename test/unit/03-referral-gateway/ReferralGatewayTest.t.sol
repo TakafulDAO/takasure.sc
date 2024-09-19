@@ -256,11 +256,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(ambassador, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePaymentWithReferral(ambassador, CONTRIBUTION_AMOUNT, tDAOName);
 
-        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
-        uint256 parentReward = (collectedFees * 5) / 100; // 5500000 * 5 / 100 = 275000
+        uint256 fees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (fees * 5) / 100; // 5500000 * 5 / 100 = 275000
+        uint256 collectedFees = fees - parentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 5_500_000);
+        assertEq(collectedFees, 5_225_000);
         assertEq(referralGateway.parentRewards(ambassador, child), parentReward);
         assertEq(parentReward, 275_000);
         assertEq(referralGateway.childCounter(), 1);
@@ -280,11 +281,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(ambassador, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePaymentWithReferral(ambassador, CONTRIBUTION_AMOUNT, tDAOName);
 
-        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
-        uint256 parentReward = (collectedFees * 5) / 100; // 5500000 * 5 / 100 = 275000
+        uint256 fees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (fees * 5) / 100; // 5500000 * 5 / 100 = 275000
+        uint256 collectedFees = fees - parentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 5_500_000);
+        assertEq(collectedFees, 5_225_000);
         assertEq(referralGateway.parentRewards(ambassador, child), 0);
         assertEq(parentReward, 275_000);
         assertEq(usdc.balanceOf(ambassador), parentReward);
@@ -300,11 +302,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(member, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePaymentWithReferral(member, CONTRIBUTION_AMOUNT, tDAOName);
 
-        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
-        uint256 parentReward = (collectedFees * 1) / 100; // 5500000 * 1 / 100 = 55000
+        uint256 fees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (fees * 1) / 100; // 5500000 * 1 / 100 = 55000
+        uint256 collectedFees = fees - parentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 5_500_000);
+        assertEq(collectedFees, 5_445_000);
         assertEq(referralGateway.parentRewards(member, child), parentReward);
         assertEq(parentReward, 55_000);
         assertEq(referralGateway.childCounter(), 1);
@@ -320,11 +323,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(member, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePaymentWithReferral(member, CONTRIBUTION_AMOUNT, tDAOName);
 
-        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
-        uint256 parentReward = (collectedFees * 1) / 100; // 5500000 * 1 / 100 = 55000
+        uint256 fees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (fees * 1) / 100; // 5500000 * 1 / 100 = 55000
+        uint256 collectedFees = fees - parentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 5_500_000);
+        assertEq(collectedFees, 5_445_000);
         assertEq(referralGateway.parentRewards(member, child), 0);
         assertEq(parentReward, 55_000);
         assertEq(usdc.balanceOf(member), USDC_INITIAL_AMOUNT - CONTRIBUTION_AMOUNT + parentReward);
@@ -343,11 +347,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(member, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePaymentWithReferral(member, CONTRIBUTION_AMOUNT, tDAOName);
 
-        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
-        uint256 parentReward = (collectedFees * 2) / 100; // 5500000 * 2 / 100 = 110000
+        uint256 fees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (fees * 2) / 100; // 5500000 * 2 / 100 = 110000
+        uint256 collectedFees = fees - parentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 5_500_000);
+        assertEq(collectedFees, 5_390_000);
         assertEq(referralGateway.parentRewards(member, child), parentReward);
         assertEq(parentReward, 110_000);
         assertEq(referralGateway.childCounter(), 1);
@@ -368,11 +373,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(member, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePaymentWithReferral(member, CONTRIBUTION_AMOUNT, tDAOName);
 
-        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
-        uint256 parentReward = (collectedFees * 2) / 100; // 5500000 * 2 / 100 = 110000
+        uint256 fees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (fees * 2) / 100; // 5500000 * 2 / 100 = 110000
+        uint256 collectedFees = fees - parentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 5_500_000);
+        assertEq(collectedFees, 5_390_000);
         assertEq(referralGateway.parentRewards(member, child), 0);
         assertEq(parentReward, 110_000);
         assertEq(usdc.balanceOf(member), USDC_INITIAL_AMOUNT - CONTRIBUTION_AMOUNT + parentReward);
@@ -388,11 +394,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(notMember, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePaymentWithReferral(notMember, CONTRIBUTION_AMOUNT, tDAOName);
 
-        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
-        uint256 parentReward = (collectedFees * 1) / 100; // 5500000 * 1 / 100 = 55000
+        uint256 fees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (fees * 1) / 100; // 5500000 * 1 / 100 = 55000
+        uint256 collectedFees = fees - parentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 5_500_000);
+        assertEq(collectedFees, 5_445_000);
         assertEq(referralGateway.parentRewards(notMember, child), parentReward);
         assertEq(parentReward, 55_000);
         assertEq(referralGateway.childCounter(), 1);
@@ -408,11 +415,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(notMember, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePaymentWithReferral(notMember, CONTRIBUTION_AMOUNT, tDAOName);
 
-        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
-        uint256 parentReward = (collectedFees * 1) / 100; // 5500000 * 1 / 100 = 55000
+        uint256 fees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (fees * 1) / 100; // 5500000 * 1 / 100 = 55000
+        uint256 collectedFees = fees - parentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 5_500_000);
+        assertEq(collectedFees, 5_445_000);
         assertEq(referralGateway.parentRewards(notMember, child), 0);
         assertEq(parentReward, 55_000);
         assertEq(usdc.balanceOf(notMember), parentReward);
@@ -431,11 +439,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(notMember, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePaymentWithReferral(notMember, CONTRIBUTION_AMOUNT, tDAOName);
 
-        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
-        uint256 parentReward = (collectedFees * 1) / 100; // 5500000 * 2 / 100 = 55000
+        uint256 fees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (fees * 1) / 100; // 5500000 * 2 / 100 = 55000
+        uint256 collectedFees = fees - parentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 5_500_000);
+        assertEq(collectedFees, 5_445_000);
         assertEq(referralGateway.parentRewards(notMember, child), parentReward);
         assertEq(parentReward, 55_000);
         assertEq(referralGateway.childCounter(), 1);
@@ -456,11 +465,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(notMember, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePaymentWithReferral(notMember, CONTRIBUTION_AMOUNT, tDAOName);
 
-        uint256 collectedFees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
-        uint256 parentReward = (collectedFees * 1) / 100; // 5500000 * 1 / 100 = 55000
+        uint256 fees = (CONTRIBUTION_AMOUNT * 22) / 100; // 25000000 * 22 / 100 = 5500000
+        uint256 parentReward = (fees * 1) / 100; // 5500000 * 1 / 100 = 55000
+        uint256 collectedFees = fees - parentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 5_500_000);
+        assertEq(collectedFees, 5_445_000);
         assertEq(referralGateway.parentRewards(notMember, child), 0);
         assertEq(parentReward, 55_000);
         assertEq(usdc.balanceOf(notMember), parentReward);
@@ -491,5 +501,25 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assert(referralGatewayFinalBalance < referralGatewayInitialBalance);
         assert(takasurePoolFinalBalance > takasurePoolInitialBalance);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                WITHDRAW
+    //////////////////////////////////////////////////////////////*/
+
+    function testWithdrawFees() public assignTDAOAddress approveAsAmbassador kycChild prepayment {
+        uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
+        uint256 collectedFees = referralGateway.collectedFees();
+        uint256 takadaoInitialBalance = usdc.balanceOf(address(takadao));
+
+        vm.prank(takadao);
+        referralGateway.withdrawFees();
+
+        uint256 referralGatewayFinalBalance = usdc.balanceOf(address(referralGateway));
+        uint256 takadaoFinalBalance = usdc.balanceOf(address(takadao));
+
+        assertEq(referralGatewayFinalBalance, referralGatewayInitialBalance - collectedFees);
+        assertEq(referralGateway.collectedFees(), 0);
+        assertEq(takadaoFinalBalance, takadaoInitialBalance + collectedFees);
     }
 }
