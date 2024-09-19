@@ -237,6 +237,14 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assert(referralGateway.isChildKYCed(child));
     }
 
+    function testMustRevertIfKycTwiceSameAddress() public {
+        vm.startPrank(kycProvider);
+        referralGateway.setKYCStatus(child);
+        vm.expectRevert(ReferralGateway.ReferralGateway__MemberAlreadyKYCed.selector);
+        referralGateway.setKYCStatus(child);
+        vm.stopPrank();
+    }
+
     modifier kycChild() {
         vm.prank(kycProvider);
         referralGateway.setKYCStatus(child);
@@ -486,6 +494,46 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     /*//////////////////////////////////////////////////////////////
                                   JOIN
     //////////////////////////////////////////////////////////////*/
+
+    function testMustRevertJoinPoolIfTheDaoHasNoAssignedAddressYet()
+        public
+        approveAsAmbassador
+        kycChild
+        prepayment
+    {
+        vm.prank(child);
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAOAddressNotAssignedYet.selector);
+        emit OnMemberJoined(2, child);
+        referralGateway.joinDao();
+    }
+
+    function testMustRevertJoinPoolIfTheChildIsNotKYC()
+        public
+        assignTDAOAddress
+        approveAsAmbassador
+        prepayment
+    {
+        vm.prank(child);
+        vm.expectRevert(ReferralGateway.ReferralGateway__NotKYCed.selector);
+        emit OnMemberJoined(2, child);
+        referralGateway.joinDao();
+    }
+
+    function testMustRevertJoinPoolIfTheChildIsNotAllowedToPreJoin()
+        public
+        assignTDAOAddress
+        approveAsAmbassador
+        kycChild
+        prepayment
+    {
+        vm.prank(takadao);
+        referralGateway.setPreJoinEnabled(false);
+
+        vm.prank(child);
+        vm.expectRevert(ReferralGateway.ReferralGateway__NotAllowedToPrePay.selector);
+        emit OnMemberJoined(2, child);
+        referralGateway.joinDao();
+    }
 
     function testJoinPool() public assignTDAOAddress approveAsAmbassador kycChild prepayment {
         uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
