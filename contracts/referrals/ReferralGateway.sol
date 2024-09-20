@@ -42,8 +42,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     mapping(address proposedAmbassador => bool) public proposedAmbassadors;
     mapping(address parent => mapping(address child => uint256 rewards)) public parentRewards;
-    mapping(address parent => uint8 tiersFilled) public parentSlots;
-    mapping(address parent => mapping(address child => uint8 tier)) public parentTiers;
     mapping(uint256 childCounter => address child) public childs;
     mapping(address child => PrePaidMember) public prePaidMembers;
     mapping(string tDAOName => address tDAO) public tDAOs;
@@ -213,9 +211,21 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             uint256 parentReward = (fee * rewardRatio) / 100;
             collectedFees += fee - parentReward;
 
-            // Update the parent slots and tiers
-            ++parentSlots[parent];
-            parentTiers[parent][msg.sender] = parentSlots[parent];
+            // We check if the parent is child of another parent up to 4 tiers back
+            address currentParentToCheck = parent;
+            for (uint8 i = 1; i <= MAX_TIER; ++i) {
+                if (prePaidMembers[currentParentToCheck].parent != address(0)) {
+                    // We calculate the grandParent reward
+                    address grandParent = prePaidMembers[currentParentToCheck].parent;
+                    uint256 grandParentReward = ((i + 1) * parentReward * rewardRatio) / 100;
+                    parentRewards[grandParent][currentParentToCheck] = 0;
+                    usdc.safeTransfer(grandParent, grandParentReward);
+                    emit OnParentRewarded(grandParent, msg.sender, grandParentReward);
+                    currentParentToCheck = grandParent;
+                } else {
+                    break;
+                }
+            }
 
             // If the child is already KYCed, we can transfer the parent reward
             if (isChildKYCed[msg.sender]) {
