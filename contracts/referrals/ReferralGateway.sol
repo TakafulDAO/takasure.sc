@@ -170,6 +170,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
         // Calculate the fee and create the new pre-paid member
         uint256 fee = (contribution * SERVICE_FEE) / 100;
+        uint256 paymentCollectedFees = fee;
 
         ++childCounter;
 
@@ -209,7 +210,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
             // Calculate the parent reward, the collected fees
             uint256 parentReward = (fee * rewardRatio) / 100;
-            collectedFees += fee - parentReward;
+            paymentCollectedFees -= parentReward;
 
             // We check if the parent is child of another parent up to 4 tiers back
             address currentParentToCheck = parent;
@@ -218,10 +219,15 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
                     // We calculate the grandParent reward
                     address grandParent = prePaidMembers[currentParentToCheck].parent;
                     uint256 grandParentReward = ((i + 1) * parentReward * rewardRatio) / 100;
+
+                    // Update the parentRewards mapping and transfer the reward
                     parentRewards[grandParent][currentParentToCheck] = 0;
                     usdc.safeTransfer(grandParent, grandParentReward);
                     emit OnParentRewarded(grandParent, msg.sender, grandParentReward);
+
+                    // Lastly, we update the currentParentToCheck variable and the paymentCollectedFees
                     currentParentToCheck = grandParent;
+                    paymentCollectedFees -= grandParentReward;
                 } else {
                     break;
                 }
@@ -237,11 +243,9 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
                 // Otherwise, we store the parent reward in the parentRewards mapping
                 parentRewards[parent][msg.sender] = parentReward;
             }
-        } else {
-            // If the parent is zero, we store the fee in the collectedFees variable
-            collectedFees += fee;
         }
 
+        collectedFees += paymentCollectedFees;
         emit OnPrePayment(parent, msg.sender, contribution);
     }
 
