@@ -218,7 +218,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
                 if (prePaidMembers[currentParentToCheck].parent != address(0)) {
                     // We calculate the grandParent reward
                     address grandParent = prePaidMembers[currentParentToCheck].parent;
-                    uint256 grandParentReward = ((i + 1) * parentReward * rewardRatio) / 100;
+                    uint256 grandParentReward = ((rewardRatio ** (i)) * parentReward) /
+                        (100 ** (i));
 
                     // Update the parentRewards mapping and transfer the reward
                     parentRewards[grandParent][currentParentToCheck] = 0;

@@ -570,4 +570,158 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.collectedFees(), 0);
         assertEq(takadaoFinalBalance, takadaoInitialBalance + collectedFees);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                              GRANDPARENTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testCompleteReferralTree() public assignTDAOAddress {
+        uint256 testContribution = 150e6; // 150 USDC
+        // Parents addresses
+        address parentTier1 = makeAddr("parentTier1");
+        address parentTier2 = makeAddr("parentTier2");
+        address parentTier3 = makeAddr("parentTier3");
+        address parentTier4 = makeAddr("parentTier4");
+
+        address[4] memory parents = [parentTier1, parentTier2, parentTier3, parentTier4];
+
+        for (uint i = 0; i < parents.length; i++) {
+            // Give USDC to parents
+            deal(address(usdc), parents[i], 2 * testContribution);
+            // Approve the contracts
+            vm.startPrank(parents[i]);
+            usdc.approve(address(takasurePool), 2 * testContribution);
+            usdc.approve(address(referralGateway), 2 * testContribution);
+            vm.stopPrank();
+
+            vm.prank(admin);
+            takasurePool.setKYCStatus(parents[i]);
+
+            // We simulate a request before the KYC
+            _successResponse(address(bmConsumerMock));
+
+            vm.prank(parents[i]);
+            takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5);
+        }
+
+        address childWithoutReferee = makeAddr("childWithoutReferee");
+
+        deal(address(usdc), childWithoutReferee, 2 * testContribution);
+        vm.prank(childWithoutReferee);
+        usdc.approve(address(referralGateway), 2 * testContribution);
+
+        // Now parent 1 refer parent 2, this refer parent 3, this refer parent 4 and this refer the child
+        vm.startPrank(takadao);
+        referralGateway.setKYCStatus(parentTier1);
+        referralGateway.setKYCStatus(parentTier2);
+        referralGateway.setKYCStatus(parentTier3);
+        referralGateway.setKYCStatus(parentTier4);
+        referralGateway.setKYCStatus(childWithoutReferee);
+        vm.stopPrank();
+
+        vm.prank(parentTier2);
+        referralGateway.prePayment(parentTier1, testContribution, tDAOName);
+
+        /*
+        - Contribution 150_000_000 USDC
+        - Fees 30_000_000 USDC
+        - Parent 1 reward 6_000_000 USDC
+        - Collected fees 24_000_000 USDC
+        */
+        uint256 expectedCollectedFees = 24_000_000;
+        uint256 expectedParentReward_1 = 6_000_000;
+
+        assertEq(referralGateway.collectedFees(), expectedCollectedFees);
+        assertEq(
+            usdc.balanceOf(parentTier1),
+            (2 * testContribution) - CONTRIBUTION_AMOUNT + expectedParentReward_1
+        );
+
+        vm.prank(parentTier3);
+        referralGateway.prePayment(parentTier2, 100_000_000, tDAOName);
+
+        /*
+        - Contribution 100_000_000 USDC
+        - Fees 20_000_000 USDC
+        - Parent 2 reward 4_000_000 USDC
+        - Parent 1 reward 800_000 USDC, Total 6_800_000 USDC
+        - Collected fees 15_200_000 USDC
+        - Total collected fees 39_200_000 USDC
+        */
+        expectedCollectedFees += 15_200_000;
+        expectedParentReward_1 = 6_800_000;
+        uint256 expectedParentReward_2 = 4_000_000;
+
+        assertEq(referralGateway.collectedFees(), expectedCollectedFees);
+        assertEq(
+            usdc.balanceOf(parentTier1),
+            (2 * testContribution) - CONTRIBUTION_AMOUNT + expectedParentReward_1
+        );
+        assertEq(
+            usdc.balanceOf(parentTier2),
+            testContribution - CONTRIBUTION_AMOUNT + expectedParentReward_2
+        );
+
+        vm.prank(parentTier4);
+        referralGateway.prePayment(parentTier3, 200_000_000, tDAOName);
+
+        /*
+        - Contribution 200_000_000 USDC
+        - Fees 40_000_000 USDC
+        - Parent 3 reward 8_000_000 USDC
+        - Parent 2 reward 1_600_000 USDC, Total 5_600_000 USDC
+        - Parent 1 reward 320_000 USDC, Total 7_120_000 USDC
+        - Collected fees 30_080_000 USDC
+        - Total collected fees 69_280_000 USDC
+        */
+        expectedCollectedFees += 30_080_000;
+        expectedParentReward_1 = 7_120_000;
+        expectedParentReward_2 = 5_600_000;
+        uint256 expectedParentReward_3 = 8_000_000;
+
+        assertEq(referralGateway.collectedFees(), expectedCollectedFees);
+        assertEq(
+            usdc.balanceOf(parentTier1),
+            (2 * testContribution) - CONTRIBUTION_AMOUNT + expectedParentReward_1
+        );
+        assertEq(
+            usdc.balanceOf(parentTier2),
+            testContribution - CONTRIBUTION_AMOUNT + expectedParentReward_2
+        );
+        assertEq(
+            usdc.balanceOf(parentTier3),
+            (2 * testContribution) - CONTRIBUTION_AMOUNT - 100_000_000 + expectedParentReward_3
+        );
+
+        vm.prank(childWithoutReferee);
+        referralGateway.prePayment(parentTier4, 200_000_000, tDAOName);
+
+        /*
+        - Contribution 200_000_000 USDC
+        - Fees 40_000_000 USDC
+        - Parent 4 reward 8_000_000 USDC
+        - Parent 3 reward 1_600_000 USDC, Total 9_600_000 USDC
+        - Parent 2 reward 320_000 USDC, Total 5_920_000 USDC
+        - Parent 1 reward 64_000 USDC, Total 7_184_000 USDC
+        - Collected fees 30_016_000 USDC
+        - Total collected fees 99_296_000 USDC
+        */
+        expectedCollectedFees += 30_016_000;
+        expectedParentReward_1 = 7_184_000;
+        expectedParentReward_2 = 5_920_000;
+        expectedParentReward_3 = 9_600_000;
+        uint256 expectedParentReward_4 = 8_000_000;
+
+        assertEq(referralGateway.collectedFees(), expectedCollectedFees);
+        assertEq(
+            usdc.balanceOf(parentTier1),
+            (2 * testContribution) - CONTRIBUTION_AMOUNT + expectedParentReward_1
+        );
+        assertEq(
+            usdc.balanceOf(parentTier2),
+            testContribution - CONTRIBUTION_AMOUNT + expectedParentReward_2
+        );
+        assertEq(usdc.balanceOf(parentTier3), 175_000_000 + expectedParentReward_3);
+        assertEq(usdc.balanceOf(parentTier4), 75_000_000 + expectedParentReward_4);
+    }
 }
