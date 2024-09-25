@@ -42,6 +42,7 @@ contract TakasurePool is
     bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 public constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
+    bytes32 public constant REFERRAL_GATEWAY = keccak256("REFERRAL_GATEWAY");
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
@@ -147,7 +148,7 @@ contract TakasurePool is
         address newMember,
         uint256 contributionBeforeFee,
         uint256 membershipDuration
-    ) external nonReentrant {
+    ) external nonReentrant onlyRole(REFERRAL_GATEWAY) {
         Member memory member = reserve.members[newMember];
         if (member.memberState != MemberState.Inactive) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
@@ -460,6 +461,10 @@ contract TakasurePool is
         if (!success) {
             revert TakasureErrors.TakasurePool__RevenueTransferFailed();
         }
+    }
+
+    function setNewReferralGateway(address newReferralGateway) external onlyDaoOrTakadao {
+        _grantRole(REFERRAL_GATEWAY, newReferralGateway);
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
