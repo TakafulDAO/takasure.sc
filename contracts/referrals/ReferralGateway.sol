@@ -27,7 +27,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     uint256 private constant MINIMUM_SERVICE_FEE = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_SERVICE_FEE = 250e6; // 250 USDC
     uint256 private constant MAX_TIER = 4;
-    uint8 public defaultRewardRatio;
     uint8 public memberRewardRatio;
     uint8 public ambassadorRewardRatio;
 
@@ -116,7 +115,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         // isPreJoinEnabled = true;
         usdc = IERC20(_usdcAddress);
 
-        defaultRewardRatio = 1;
         memberRewardRatio = 20;
         ambassadorRewardRatio = 5;
     }
@@ -251,11 +249,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
                     MemberState.Active
                 ) {
                     rewardRatio = memberRewardRatio;
-                } else {
-                    rewardRatio = defaultRewardRatio;
                 }
-            } else {
-                rewardRatio = defaultRewardRatio;
             }
 
             // Calculate the parent reward, the collected fees
@@ -392,12 +386,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint8 _newAmbassadorRewardRatio
     ) external onlyRole(TAKADAO_OPERATOR) {
         ambassadorRewardRatio = _newAmbassadorRewardRatio;
-    }
-
-    function setNewDefaultRewardRatio(
-        uint8 _newDefaultRewardRatio
-    ) external onlyRole(TAKADAO_OPERATOR) {
-        defaultRewardRatio = _newDefaultRewardRatio;
     }
 
     function withdrawFees() external onlyRole(TAKADAO_OPERATOR) {
