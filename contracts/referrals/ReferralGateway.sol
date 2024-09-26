@@ -24,6 +24,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     IERC20 private usdc;
 
     uint8 public constant SERVICE_FEE = 20;
+    uint256 public constant CONTRIBUTION_DISCOUNT = 5;
     uint256 private constant MINIMUM_SERVICE_FEE = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_SERVICE_FEE = 250e6; // 250 USDC
     uint256 private constant MAX_TIER = 4;
@@ -50,6 +51,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         address parent;
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
+        uint256 amountAfterDiscount;
     }
 
     struct Dao {
@@ -205,7 +207,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         }
 
         // Calculate the fee and create the new pre-paid member
-        uint256 fee = (contribution * SERVICE_FEE) / 100;
+        uint256 contributionAfterDiscount = (contribution * (100 - CONTRIBUTION_DISCOUNT)) / 100;
+        uint256 fee = (contributionAfterDiscount * SERVICE_FEE) / 100;
         uint256 paymentCollectedFees = fee;
 
         ++childCounter;
@@ -215,7 +218,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             child: msg.sender,
             parent: parent,
             contributionBeforeFee: contribution,
-            contributionAfterFee: contribution - fee
+            contributionAfterFee: contribution - fee,
+            amountAfterDiscount: contributionAfterDiscount
         });
 
         // Update the necessary mappings
@@ -223,7 +227,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         prePaidMembers[msg.sender] = prePaidMember;
 
         // Transfer the contribution to the contract
-        usdc.safeTransferFrom(msg.sender, address(this), contribution);
+        usdc.safeTransferFrom(msg.sender, address(this), contributionAfterDiscount);
 
         // As the parent is optional, we need to check if it is not zero
         if (parent != address(0)) {
@@ -319,6 +323,10 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             member.contributionAfterFee
         );
 
+        // Calculate the amount needed to compensate because of the discount
+        uint256 amountToCompensate = member.contributionAfterFee - member.amountAfterDiscount;
+
+        usdc.safeTransferFrom(address(this), msg.sender, amountToCompensate);
         usdc.safeTransfer(dao.daoAddress, member.contributionAfterFee);
     }
 
