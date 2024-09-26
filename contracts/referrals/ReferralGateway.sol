@@ -38,7 +38,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
 
-    mapping(address proposedAmbassador => bool) public proposedAmbassadors;
     mapping(address parent => mapping(address child => uint256 rewards)) public parentRewards;
     mapping(uint256 childCounter => address child) public childs;
     mapping(address child => PrePaidMember) public prePaidMembers;
@@ -73,7 +72,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     event OnChildKycVerified(address indexed child);
 
     error ReferralGateway__ZeroAddress();
-    error ReferralGateway__OnlyProposedAmbassadors();
     error ReferralGateway__ContributionOutOfRange();
     error ReferralGateway__MemberAlreadyKYCed();
     error ReferralGateway__NotAllowedToPrePay();
@@ -152,35 +150,14 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     }
 
     /**
-     * @notice Propose self as ambassador
-     */
-    function proposeAsAmbassador() external {
-        _proposeAsAmbassador(msg.sender);
-    }
-
-    /**
-     * @notice Propose an address as ambassador
-     * @param propossedAmbassador The address to propose as ambassador
-     */
-    function proposeAsAmbassador(
-        address propossedAmbassador
-    ) external notZeroAddress(propossedAmbassador) {
-        _proposeAsAmbassador(propossedAmbassador);
-    }
-
-    /**
-     * @notice Approve an address as ambassador
+     * @notice Register an ambassador
      * @param ambassador The address to approve as ambassador
      * @dev Only the TAKADAO_OPERATOR can approve an ambassador
      */
-    function approveAsAmbassador(
+    function registerAmbassador(
         address ambassador
     ) external notZeroAddress(ambassador) onlyRole(TAKADAO_OPERATOR) {
-        if (!proposedAmbassadors[ambassador]) {
-            revert ReferralGateway__OnlyProposedAmbassadors();
-        }
         _grantRole(AMBASSADOR, ambassador);
-        proposedAmbassadors[ambassador] = false;
 
         emit OnNewAmbassador(ambassador);
     }
@@ -396,12 +373,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     function getDaoData(string calldata tDaoName) external view returns (Dao memory) {
         return daoDatas[tDaoName];
-    }
-
-    function _proposeAsAmbassador(address _propossedAmbassador) internal {
-        proposedAmbassadors[_propossedAmbassador] = true;
-
-        emit OnNewAmbassadorProposal(_propossedAmbassador);
     }
 
     ///@dev required by the OZ UUPS module

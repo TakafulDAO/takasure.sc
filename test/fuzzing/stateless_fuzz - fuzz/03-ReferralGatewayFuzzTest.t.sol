@@ -25,7 +25,7 @@ contract ReferralGatewayFuzzTest is Test {
         referralGateway = ReferralGateway(address(proxy));
     }
 
-    function test_fuzz_onlyOwnerCanApproveAsAmbassador(
+    function test_fuzz_onlyOwnerCanRegisterAmbassadors(
         address notOwner,
         address ambassador
     ) public {
@@ -37,6 +37,6 @@ contract ReferralGatewayFuzzTest is Test {
 
         vm.prank(notOwner);
         vm.expectRevert();
-        referralGateway.approveAsAmbassador(ambassador);
+        referralGateway.registerAmbassador(ambassador);
     }
 }
