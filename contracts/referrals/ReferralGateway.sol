@@ -208,7 +208,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
         // Calculate the fee and create the new pre-paid member
         uint256 contributionAfterDiscount = (contribution * (100 - CONTRIBUTION_DISCOUNT)) / 100;
-        uint256 fee = (contributionAfterDiscount * SERVICE_FEE) / 100;
+        uint256 fee = (contribution * SERVICE_FEE) / 100;
         uint256 paymentCollectedFees = fee;
 
         ++childCounter;
@@ -222,7 +222,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             amountAfterDiscount: contributionAfterDiscount
         });
 
-        // Update the necessary mappings
+        // Update the necessary mappings and values
         childs[childCounter] = msg.sender;
         prePaidMembers[msg.sender] = prePaidMember;
 
@@ -278,6 +278,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         }
 
         collectedFees += paymentCollectedFees;
+        daoDatas[tDaoName].currentAmount += contribution;
         emit OnPrePayment(parent, msg.sender, contribution);
     }
 
