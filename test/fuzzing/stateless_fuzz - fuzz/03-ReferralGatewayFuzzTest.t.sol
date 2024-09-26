@@ -25,15 +25,6 @@ contract ReferralGatewayFuzzTest is Test {
         referralGateway = ReferralGateway(address(proxy));
     }
 
-    function test_fuzz_onlyOwnerCanEnablePreJoin(address notOwner) public {
-        // The input address must not be the same as the takasurePool address
-        vm.assume(notOwner != takadao);
-
-        vm.prank(notOwner);
-        vm.expectRevert();
-        referralGateway.setPreJoinEnabled(false);
-    }
-
     function test_fuzz_onlyOwnerCanApproveAsAmbassador(
         address notOwner,
         address ambassador
