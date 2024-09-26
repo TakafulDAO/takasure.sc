@@ -177,13 +177,13 @@ contract TakasurePool is
         });
 
         // And we pay the contribution
-        _memberPaymentFlow(
-            normalizedContributionBeforeFee,
-            contributionAfterFee,
-            feeAmount,
-            newMember,
-            false
-        );
+        _memberPaymentFlow({
+            _contributionBeforeFee: normalizedContributionBeforeFee,
+            _contributionAfterFee: contributionAfterFee,
+            _feeAmount: 0, // Was already paid in the referral flow
+            _memberWallet: newMember,
+            _payContribution: false // Was already paid in the referral flow
+        });
 
         emit TakasureEvents.OnMemberJoined(reserve.members[newMember].memberId, newMember);
     }

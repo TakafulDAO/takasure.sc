@@ -51,7 +51,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         address parent;
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
-        uint256 amountAfterDiscount;
     }
 
     struct Dao {
@@ -62,6 +61,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 launchDate; // in seconds
         uint256 objectiveAmount; // in USDC, six decimals
         uint256 currentAmount; // in USDC, six decimals
+        uint256 amountToCompensate; // in USDC, six decimals
     }
 
     uint256 public childCounter;
@@ -144,7 +144,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             daoAddress: address(0), // To be assigned when the tDAO is deployed
             launchDate: launchDate, // in seconds
             objectiveAmount: objectiveAmount,
-            currentAmount: 0
+            currentAmount: 0,
+            amountToCompensate: 0
         });
 
         // Update the necessary mappings
@@ -218,8 +219,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             child: msg.sender,
             parent: parent,
             contributionBeforeFee: contribution,
-            contributionAfterFee: contribution - fee,
-            amountAfterDiscount: contributionAfterDiscount
+            contributionAfterFee: contribution - fee
         });
 
         // Update the necessary mappings and values
@@ -324,10 +324,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             member.contributionAfterFee
         );
 
-        // Calculate the amount needed to compensate because of the discount
-        uint256 amountToCompensate = member.contributionAfterFee - member.amountAfterDiscount;
-
-        usdc.safeTransferFrom(address(this), msg.sender, amountToCompensate);
         usdc.safeTransfer(dao.daoAddress, member.contributionAfterFee);
     }
 
