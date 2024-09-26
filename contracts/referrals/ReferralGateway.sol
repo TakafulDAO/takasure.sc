@@ -27,16 +27,16 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     uint256 private constant MINIMUM_SERVICE_FEE = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_SERVICE_FEE = 250e6; // 250 USDC
     uint256 private constant MAX_TIER = 4;
-    uint8 public memberRewardRatio;
+    uint8 public cocRewardRatio;
     uint8 public ambassadorRewardRatio;
 
-    // bool public isPreJoinEnabled;
     uint256 public collectedFees;
     address private takadaoOperator;
 
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
+    bytes32 private constant COC = keccak256("COC");
 
     mapping(address parent => mapping(address child => uint256 rewards)) public parentRewards;
     mapping(uint256 childCounter => address child) public childs;
@@ -113,8 +113,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         // isPreJoinEnabled = true;
         usdc = IERC20(_usdcAddress);
 
-        memberRewardRatio = 20;
-        ambassadorRewardRatio = 5;
+        cocRewardRatio = 30;
+        ambassadorRewardRatio = 20;
     }
 
     /**
@@ -151,8 +151,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     /**
      * @notice Register an ambassador
-     * @param ambassador The address to approve as ambassador
-     * @dev Only the TAKADAO_OPERATOR can approve an ambassador
+     * @param ambassador The address to register as ambassador
+     * @dev Only the TAKADAO_OPERATOR can register an ambassador
      */
     function registerAmbassador(
         address ambassador
@@ -160,6 +160,17 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         _grantRole(AMBASSADOR, ambassador);
 
         emit OnNewAmbassador(ambassador);
+    }
+
+    /**
+     * @notice Register a COC
+     * @param coc The address to register as coc
+     * @dev Only the TAKADAO_OPERATOR can register an COC
+     */
+    function registerCOC(address coc) external notZeroAddress(coc) onlyRole(TAKADAO_OPERATOR) {
+        _grantRole(COC, coc);
+
+        emit OnNewAmbassador(coc);
     }
 
     /**
@@ -220,13 +231,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             uint256 rewardRatio;
             if (hasRole(AMBASSADOR, parent)) {
                 rewardRatio = ambassadorRewardRatio;
-            } else if (dao.daoAddress != address(0)) {
-                if (
-                    ITakasurePool(dao.daoAddress).getMemberFromAddress(parent).memberState ==
-                    MemberState.Active
-                ) {
-                    rewardRatio = memberRewardRatio;
-                }
+            } else if (hasRole(COC, parent)) {
+                rewardRatio = cocRewardRatio;
             }
 
             // Calculate the parent reward, the collected fees
@@ -353,10 +359,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
     }
 
-    function setNewMemberRewardRatio(
-        uint8 _newMemberRewardRatio
-    ) external onlyRole(TAKADAO_OPERATOR) {
-        memberRewardRatio = _newMemberRewardRatio;
+    function setNewCocRewardRatio(uint8 _newCocRewardRatio) external onlyRole(TAKADAO_OPERATOR) {
+        cocRewardRatio = _newCocRewardRatio;
     }
 
     function setNewAmbassadorRewardRatio(
