@@ -245,12 +245,17 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
             // We check if the parent is child of another parent up to 4 tiers back
             address currentParentToCheck = parent;
-            for (uint8 i = 1; i <= MAX_TIER; ++i) {
+            uint256 currentParentReward = parentReward;
+
+            // i = tier
+            for (uint8 i = 2; i <= MAX_TIER; ++i) {
                 if (prePaidMembers[currentParentToCheck].parent != address(0)) {
                     // We calculate the grandParent reward
                     address grandParent = prePaidMembers[currentParentToCheck].parent;
-                    uint256 grandParentReward = ((rewardRatio ** (i)) * parentReward) /
-                        (100 ** (i));
+                    // The new rewardRatio is increased by (5 * (tier - 1))%
+                    rewardRatio = rewardRatio + (5 * (i - 1));
+
+                    uint256 grandParentReward = (currentParentReward * rewardRatio) / 100;
 
                     // Update the parentRewards mapping and transfer the reward
                     parentRewards[grandParent][currentParentToCheck] = 0;
@@ -259,6 +264,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
                     // Lastly, we update the currentParentToCheck variable and the paymentCollectedFees
                     currentParentToCheck = grandParent;
+                    currentParentReward = grandParentReward;
                     paymentCollectedFees -= grandParentReward;
                 } else {
                     break;
