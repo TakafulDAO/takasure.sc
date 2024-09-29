@@ -233,7 +233,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         createDao
     {
         assertEq(referralGateway.collectedFees(), 0);
-        assertEq(referralGateway.childCounter(), 0);
 
         uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
 
@@ -249,7 +248,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(collectedFees, 4_000_000);
         assertEq(referralGateway.parentRewards(ambassador, child), expectedParentReward);
         assertEq(expectedParentReward, 1_000_000);
-        assertEq(referralGateway.childCounter(), 1);
     }
 
     function testPrePaymentParentAmbassadorChildrenKYCedNoTdaoYet()
@@ -259,7 +257,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         createDao
     {
         assertEq(referralGateway.collectedFees(), 0);
-        assertEq(referralGateway.childCounter(), 0);
         assertEq(usdc.balanceOf(ambassador), 0);
 
         uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
@@ -280,7 +277,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.parentRewards(ambassador, child), 0);
         assertEq(expectedParentReward, 1_000_000);
         assertEq(usdc.balanceOf(ambassador), expectedParentReward);
-        assertEq(referralGateway.childCounter(), 1);
     }
 
     modifier prepayment() {

@@ -44,7 +44,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     bytes32 private constant COC = keccak256("COC");
 
     mapping(address parent => mapping(address child => uint256 rewards)) public parentRewards;
-    mapping(uint256 childCounter => address child) public childs;
     mapping(address child => PrePaidMember) public prePaidMembers;
     mapping(string tDaoName => Dao daoData) private daoDatas;
     mapping(address child => bool) public isChildKYCed;
@@ -67,8 +66,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 currentAmount; // in USDC, six decimals
         uint256 amountToCompensate; // in USDC, six decimals
     }
-
-    uint256 public childCounter;
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewAmbassadorProposal(address indexed proposedAmbassador);
@@ -213,8 +210,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 fee = (contribution * SERVICE_FEE) / 100;
         uint256 paymentCollectedFees = fee;
 
-        ++childCounter;
-
         PrePaidMember memory prePaidMember = PrePaidMember({
             tDaoName: tDaoName,
             child: msg.sender,
@@ -224,7 +219,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         });
 
         // Update the necessary mappings and values
-        childs[childCounter] = msg.sender;
         prePaidMembers[msg.sender] = prePaidMember;
 
         // Transfer the contribution to the contract
