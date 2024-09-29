@@ -43,7 +43,10 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
     bytes32 private constant COC = keccak256("COC");
 
-    mapping(address parent => mapping(address child => uint256 rewards)) public parentRewards;
+    mapping(address parent => mapping(address child => uint256 rewards))
+        public parentRewardsByChild;
+    mapping(address parent => mapping(uint256 layer => uint256 rewards))
+        public parentRewardsByLayer;
     mapping(address child => PrePaidMember) public prePaidMembers;
     mapping(string tDaoName => Dao daoData) private daoDatas;
     mapping(address child => bool) public isChildKYCed;
@@ -243,13 +246,17 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
                         // Then if the current child is already KYCed, we transfer the parent reward
                         if (isChildKYCed[currentChildToCheck]) {
-                            parentRewards[childParent][currentChildToCheck] = 0;
+                            parentRewardsByChild[childParent][currentChildToCheck] = 0;
                             usdc.safeTransfer(childParent, currentParentReward);
                             emit OnParentRewarded(childParent, msg.sender, currentParentReward);
                         } else {
-                            // Otherwise, we store the parent reward in the parentRewards mapping
-                            parentRewards[childParent][currentChildToCheck] = currentParentReward;
+                            // Otherwise, we store the parent reward in the parentRewardsByChild mapping
+                            parentRewardsByChild[childParent][
+                                currentChildToCheck
+                            ] = currentParentReward;
                         }
+                        // And the reward to the parent layer
+                        parentRewardsByLayer[childParent][uint256(layer)] += currentParentReward;
                         // Lastly, we update the currentChildToCheck variable and the paymentCollectedFees
                         currentChildToCheck = childParent;
                         paymentCollectedFees -= currentParentReward;
@@ -292,10 +299,10 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         address parent = member.parent;
 
         if (parent != address(0)) {
-            uint256 parentReward = parentRewards[parent][newMember];
+            uint256 parentReward = parentRewardsByChild[parent][newMember];
 
             if (parentReward > 0) {
-                parentRewards[parent][newMember] = 0;
+                parentRewardsByChild[parent][newMember] = 0;
                 usdc.safeTransfer(parent, parentReward);
 
                 emit OnParentRewarded(parent, newMember, parentReward);
@@ -330,8 +337,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         // If the member has a parent, we need to check if the parent has a reward
         if (member.contributionBeforeFee > 0 && member.parent != address(0)) {
             address parent = member.parent;
-            uint256 parentReward = parentRewards[parent][child];
-            parentRewards[parent][child] = 0;
+            uint256 parentReward = parentRewardsByChild[parent][child];
+            parentRewardsByChild[parent][child] = 0;
 
             usdc.safeTransfer(parent, parentReward);
 
