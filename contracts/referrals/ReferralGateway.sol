@@ -274,13 +274,14 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     /**
      * @notice Join a tDAO
+     * @param newMember The address of the new member
      * @dev The member must be KYCed
      * @dev The member must have a parent
      * @dev The member must have a tDAO assigned
      */
-    function joinDao() external {
+    function joinDao(address newMember) external {
         // Initial checks
-        PrePaidMember memory member = prePaidMembers[msg.sender];
+        PrePaidMember memory member = prePaidMembers[newMember];
         Dao memory dao = daoDatas[member.tDaoName];
 
         if (dao.daoAddress == address(0)) {
@@ -297,19 +298,19 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         address parent = member.parent;
 
         if (parent != address(0)) {
-            uint256 parentReward = parentRewards[parent][msg.sender];
+            uint256 parentReward = parentRewards[parent][newMember];
 
             if (parentReward > 0) {
-                parentRewards[parent][msg.sender] = 0;
+                parentRewards[parent][newMember] = 0;
                 usdc.safeTransfer(parent, parentReward);
 
-                emit OnParentRewarded(parent, msg.sender, parentReward);
+                emit OnParentRewarded(parent, newMember, parentReward);
             }
         }
 
         // Finally, we join the member to the tDAO
         ITakasurePool(dao.daoAddress).joinByReferral(
-            msg.sender,
+            newMember,
             member.contributionBeforeFee,
             member.contributionAfterFee
         );

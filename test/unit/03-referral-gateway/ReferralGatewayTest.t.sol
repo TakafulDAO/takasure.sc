@@ -303,7 +303,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__tDAOAddressNotAssignedYet.selector);
         emit OnMemberJoined(2, child);
-        referralGateway.joinDao();
+        referralGateway.joinDao(child);
     }
 
     function testMustRevertJoinPoolIfTheChildIsNotKYC()
@@ -316,7 +316,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__NotKYCed.selector);
         emit OnMemberJoined(2, child);
-        referralGateway.joinDao();
+        referralGateway.joinDao(child);
     }
 
     function testMustRevertJoinPoolIfTheChildIsNotAllowedToPreJoin()
@@ -333,7 +333,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__NotAllowedToPrePay.selector);
         emit OnMemberJoined(2, child);
-        referralGateway.joinDao();
+        referralGateway.joinDao(child);
     }
 
     function testJoinPool()
@@ -347,10 +347,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
         uint256 takasurePoolInitialBalance = usdc.balanceOf(address(takasurePool));
 
-        vm.prank(child);
+        vm.prank(takadao);
         vm.expectEmit(true, true, false, false, address(takasurePool));
         emit OnMemberJoined(2, child);
-        referralGateway.joinDao();
+        referralGateway.joinDao(child);
 
         uint256 referralGatewayFinalBalance = usdc.balanceOf(address(referralGateway));
         uint256 takasurePoolFinalBalance = usdc.balanceOf(address(takasurePool));
@@ -404,7 +404,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             deal(address(usdc), parents[i], 10 * CONTRIBUTION_AMOUNT);
             // Approve the contracts
             vm.startPrank(parents[i]);
-            // usdc.approve(address(takasurePool),     10 * CONTRIBUTION_AMOUNT);
             usdc.approve(address(referralGateway), 10 * CONTRIBUTION_AMOUNT);
             vm.stopPrank();
         }
