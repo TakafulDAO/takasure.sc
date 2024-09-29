@@ -36,6 +36,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
+    uint256 public constant LAYER_ONE_REWARD_RATIO = 4; // Layer one reward ratio 4%
+    uint256 public constant LAYER_TWO_REWARD_RATIO = 1; // Layer two reward ratio 1%
+    uint256 public constant LAYER_THREE_REWARD_RATIO = 35; // Layer three reward ratio 0.35%
+    uint256 public constant LAYER_FOUR_REWARD_RATIO = 175; // Layer four reward ratio 0.175%
 
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
 
@@ -45,6 +49,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     event OnPrePayment(address indexed parent, address indexed child, uint256 indexed contribution);
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
     event OnNewDaoCreated(string indexed daoName);
+    event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
 
     function setUp() public {
         // Deployers
@@ -136,22 +141,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(daoAdmin);
         referralGateway.assignTDaoAddress(tDaoName, address(takasurePool));
         assertEq(referralGateway.getDaoData(tDaoName).daoAddress, address(takasurePool));
-    }
-
-    function testSetNewRewardRatios() public {
-        uint8 newCocRatio = 5;
-        uint8 newAmbassadorRatio = 10;
-
-        assertNotEq(referralGateway.cocRewardRatio(), newCocRatio);
-        assertNotEq(referralGateway.ambassadorRewardRatio(), newAmbassadorRatio);
-
-        vm.startPrank(takadao);
-        referralGateway.setNewCocRewardRatio(newCocRatio);
-        referralGateway.setNewAmbassadorRewardRatio(newAmbassadorRatio);
-        vm.stopPrank();
-
-        assertEq(referralGateway.cocRewardRatio(), newCocRatio);
-        assertEq(referralGateway.ambassadorRewardRatio(), newAmbassadorRatio);
     }
 
     modifier assignTDAOAddress() {
@@ -246,19 +235,20 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.collectedFees(), 0);
         assertEq(referralGateway.childCounter(), 0);
 
+        uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
+
         vm.prank(child);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrePayment(ambassador, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePayment(ambassador, CONTRIBUTION_AMOUNT, tDaoName);
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE()) / 100;
-        uint256 parentReward = (fees * referralGateway.ambassadorRewardRatio()) / 100;
-        uint256 collectedFees = fees - parentReward;
+        uint256 collectedFees = fees - expectedParentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
         assertEq(collectedFees, 4_000_000);
-        assertEq(referralGateway.parentRewards(ambassador, child), parentReward);
-        assertEq(parentReward, 1_000_000);
+        assertEq(referralGateway.parentRewards(ambassador, child), expectedParentReward);
+        assertEq(expectedParentReward, 1_000_000);
         assertEq(referralGateway.childCounter(), 1);
     }
 
@@ -272,20 +262,24 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.childCounter(), 0);
         assertEq(usdc.balanceOf(ambassador), 0);
 
+        uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
+
         vm.prank(child);
         vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(ambassador, child, expectedParentReward);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrePayment(ambassador, child, CONTRIBUTION_AMOUNT);
+
         referralGateway.prePayment(ambassador, CONTRIBUTION_AMOUNT, tDaoName);
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE()) / 100;
-        uint256 parentReward = (fees * referralGateway.ambassadorRewardRatio()) / 100;
-        uint256 collectedFees = fees - parentReward;
+        uint256 collectedFees = fees - expectedParentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        // assertEq(collectedFees, 4_000_000);
+        assertEq(collectedFees, 4_000_000);
         assertEq(referralGateway.parentRewards(ambassador, child), 0);
-        assertEq(parentReward, 1_000_000);
-        assertEq(usdc.balanceOf(ambassador), parentReward);
+        assertEq(expectedParentReward, 1_000_000);
+        assertEq(usdc.balanceOf(ambassador), expectedParentReward);
         assertEq(referralGateway.childCounter(), 1);
     }
 
@@ -396,153 +390,109 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                               GRANDPARENTS
     //////////////////////////////////////////////////////////////*/
 
-    // function testCompleteReferralTree() public createDao assignTDAOAddress {
-    //     uint256 testContribution = 150e6; // 150 USDC
-    //     // Parents addresses
-    //     address parentTier1 = makeAddr("parentTier1");
-    //     address parentTier2 = makeAddr("parentTier2");
-    //     address parentTier3 = makeAddr("parentTier3");
-    //     address parentTier4 = makeAddr("parentTier4");
+    function testCompleteReferralTree() public createDao assignTDAOAddress {
+        // Parents addresses
+        address parentTier1 = makeAddr("parentTier1");
+        address parentTier2 = makeAddr("parentTier2");
+        address parentTier3 = makeAddr("parentTier3");
+        address parentTier4 = makeAddr("parentTier4");
 
-    //     address[4] memory parents = [parentTier1, parentTier2, parentTier3, parentTier4];
+        address[4] memory parents = [parentTier1, parentTier2, parentTier3, parentTier4];
 
-    //     for (uint i = 0; i < parents.length; i++) {
-    //         // Give USDC to parents
-    //         deal(address(usdc), parents[i], 2 * testContribution);
-    //         // Approve the contracts
-    //         vm.startPrank(parents[i]);
-    //         usdc.approve(address(takasurePool), 2 * testContribution);
-    //         usdc.approve(address(referralGateway), 2 * testContribution);
-    //         vm.stopPrank();
+        for (uint i = 0; i < parents.length; i++) {
+            // Give USDC to parents
+            deal(address(usdc), parents[i], 10 * CONTRIBUTION_AMOUNT);
+            // Approve the contracts
+            vm.startPrank(parents[i]);
+            // usdc.approve(address(takasurePool),     10 * CONTRIBUTION_AMOUNT);
+            usdc.approve(address(referralGateway), 10 * CONTRIBUTION_AMOUNT);
+            vm.stopPrank();
+        }
 
-    //         vm.prank(admin);
-    //         takasurePool.setKYCStatus(parents[i]);
+        address childWithoutReferee = makeAddr("childWithoutReferee");
 
-    //         // We simulate a request before the KYC
-    //         _successResponse(address(bmConsumerMock));
+        deal(address(usdc), childWithoutReferee, 10 * CONTRIBUTION_AMOUNT);
+        vm.prank(childWithoutReferee);
+        usdc.approve(address(referralGateway), 10 * CONTRIBUTION_AMOUNT);
 
-    //         vm.prank(parents[i]);
-    //         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5);
-    //     }
+        // Now parent 1 refer parent 2, this refer parent 3, this refer parent 4 and this refer the child
+        vm.startPrank(takadao);
+        referralGateway.setKYCStatus(parentTier1);
+        referralGateway.setKYCStatus(parentTier2);
+        referralGateway.setKYCStatus(parentTier3);
+        referralGateway.setKYCStatus(parentTier4);
+        referralGateway.setKYCStatus(childWithoutReferee);
+        vm.stopPrank();
 
-    //     address childWithoutReferee = makeAddr("childWithoutReferee");
+        // Parent 2 prepay referred by parent 1
+        uint256 parentTier2Contribution = 5 * CONTRIBUTION_AMOUNT;
+        // The expected parent 1 reward ratio will be 4% of the parent 2 contribution
+        uint256 expectedParentOneReward = (parentTier2Contribution * LAYER_ONE_REWARD_RATIO) / 100;
+        vm.prank(parentTier2);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(parentTier1, parentTier2, expectedParentOneReward);
+        referralGateway.prePayment(parentTier1, parentTier2Contribution, tDaoName);
 
-    //     deal(address(usdc), childWithoutReferee, 2 * testContribution);
-    //     vm.prank(childWithoutReferee);
-    //     usdc.approve(address(referralGateway), 2 * testContribution);
+        // Parent 3 prepay referred by parent 2
+        uint256 parentTier3Contribution = 2 * CONTRIBUTION_AMOUNT;
+        // The expected parent 2 reward ratio will be 4% of the parent 2 contribution
+        uint256 expectedParentTwoReward = (parentTier3Contribution * LAYER_ONE_REWARD_RATIO) / 100;
+        // The expected parent 1 reward ratio will be 1% of the parent 2 contribution
+        expectedParentOneReward = (parentTier3Contribution * LAYER_TWO_REWARD_RATIO) / 100;
 
-    //     // Now parent 1 refer parent 2, this refer parent 3, this refer parent 4 and this refer the child
-    //     vm.startPrank(takadao);
-    //     referralGateway.setKYCStatus(parentTier1);
-    //     referralGateway.setKYCStatus(parentTier2);
-    //     referralGateway.setKYCStatus(parentTier3);
-    //     referralGateway.setKYCStatus(parentTier4);
-    //     referralGateway.setKYCStatus(childWithoutReferee);
-    //     vm.stopPrank();
+        vm.prank(parentTier3);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(parentTier2, parentTier3, expectedParentTwoReward);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(parentTier1, parentTier3, expectedParentOneReward);
+        referralGateway.prePayment(parentTier2, parentTier3Contribution, tDaoName);
 
-    //     vm.prank(parentTier2);
-    //     referralGateway.prePayment(parentTier1, testContribution, tDaoName);
+        // Parent 4 prepay referred by parent 3
+        uint256 parentTier4Contribution = 7 * CONTRIBUTION_AMOUNT;
+        // The expected parent 3 reward ratio will be 4% of the parent 4 contribution
+        uint256 expectedParentThreeReward = (parentTier4Contribution * LAYER_ONE_REWARD_RATIO) /
+            100;
+        // The expected parent 2 reward ratio will be 1% of the parent 4 contribution
+        expectedParentTwoReward = (parentTier4Contribution * LAYER_TWO_REWARD_RATIO) / 100;
+        // The expected parent 1 reward ratio will be 0.35% of the parent 4 contribution
+        expectedParentOneReward = (parentTier4Contribution * LAYER_THREE_REWARD_RATIO) / 10000;
 
-    //     /*
-    //     - Contribution 150_000_000 USDC
-    //     - Fees 30_000_000 USDC
-    //     - Parent 1 reward 6_000_000 USDC
-    //     - Collected fees 24_000_000 USDC
-    //     */
-    //     uint256 expectedCollectedFees = 24_000_000;
-    //     uint256 expectedParentReward_1 = 6_000_000;
+        vm.prank(parentTier4);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(parentTier3, parentTier4, expectedParentThreeReward);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(parentTier2, parentTier4, expectedParentTwoReward);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(parentTier1, parentTier4, expectedParentOneReward);
+        referralGateway.prePayment(parentTier3, parentTier4Contribution, tDaoName);
 
-    //     assertEq(referralGateway.collectedFees(), expectedCollectedFees);
-    //     assertEq(
-    //         usdc.balanceOf(parentTier1),
-    //         (2 * testContribution) - CONTRIBUTION_AMOUNT + expectedParentReward_1
-    //     );
+        // Parent 4 prepay referred by parent 3
+        uint256 childWithoutRefereeContribution = 4 * CONTRIBUTION_AMOUNT;
+        // The expected parent 4 reward ratio will be 4% of the child without referee contribution
+        uint256 expectedParentFourReward = (childWithoutRefereeContribution *
+            LAYER_ONE_REWARD_RATIO) / 100;
+        // The expected parent 3 reward ratio will be 1% of the child without referee
+        expectedParentThreeReward =
+            (childWithoutRefereeContribution * LAYER_TWO_REWARD_RATIO) /
+            100;
+        // The expected parent 2 reward ratio will be 0.35% of the child without referee contribution
+        expectedParentTwoReward =
+            (childWithoutRefereeContribution * LAYER_THREE_REWARD_RATIO) /
+            10000;
+        // The expected parent 1 reward ratio will be 0.175% of the child without referee contribution
+        expectedParentOneReward =
+            (childWithoutRefereeContribution * LAYER_FOUR_REWARD_RATIO) /
+            100000;
 
-    //     vm.prank(parentTier3);
-    //     referralGateway.prePayment(parentTier2, 100_000_000, tDaoName);
-
-    //     /*
-    //     - Contribution 100_000_000 USDC
-    //     - Fees 20_000_000 USDC
-    //     - Parent 2 reward 4_000_000 USDC
-    //     - Parent 1 reward 800_000 USDC, Total 6_800_000 USDC
-    //     - Collected fees 15_200_000 USDC
-    //     - Total collected fees 39_200_000 USDC
-    //     */
-    //     expectedCollectedFees += 15_200_000;
-    //     expectedParentReward_1 = 6_800_000;
-    //     uint256 expectedParentReward_2 = 4_000_000;
-
-    //     assertEq(referralGateway.collectedFees(), expectedCollectedFees);
-    //     assertEq(
-    //         usdc.balanceOf(parentTier1),
-    //         (2 * testContribution) - CONTRIBUTION_AMOUNT + expectedParentReward_1
-    //     );
-    //     assertEq(
-    //         usdc.balanceOf(parentTier2),
-    //         testContribution - CONTRIBUTION_AMOUNT + expectedParentReward_2
-    //     );
-
-    //     vm.prank(parentTier4);
-    //     referralGateway.prePayment(parentTier3, 200_000_000, tDaoName);
-
-    //     /*
-    //     - Contribution 200_000_000 USDC
-    //     - Fees 40_000_000 USDC
-    //     - Parent 3 reward 8_000_000 USDC
-    //     - Parent 2 reward 1_600_000 USDC, Total 5_600_000 USDC
-    //     - Parent 1 reward 320_000 USDC, Total 7_120_000 USDC
-    //     - Collected fees 30_080_000 USDC
-    //     - Total collected fees 69_280_000 USDC
-    //     */
-    //     expectedCollectedFees += 30_080_000;
-    //     expectedParentReward_1 = 7_120_000;
-    //     expectedParentReward_2 = 5_600_000;
-    //     uint256 expectedParentReward_3 = 8_000_000;
-
-    //     assertEq(referralGateway.collectedFees(), expectedCollectedFees);
-    //     assertEq(
-    //         usdc.balanceOf(parentTier1),
-    //         (2 * testContribution) - CONTRIBUTION_AMOUNT + expectedParentReward_1
-    //     );
-    //     assertEq(
-    //         usdc.balanceOf(parentTier2),
-    //         testContribution - CONTRIBUTION_AMOUNT + expectedParentReward_2
-    //     );
-    //     assertEq(
-    //         usdc.balanceOf(parentTier3),
-    //         (2 * testContribution) - CONTRIBUTION_AMOUNT - 100_000_000 + expectedParentReward_3
-    //     );
-
-    //     vm.prank(childWithoutReferee);
-    //     referralGateway.prePayment(parentTier4, 200_000_000, tDaoName);
-
-    //     /*
-    //     - Contribution 200_000_000 USDC
-    //     - Fees 40_000_000 USDC
-    //     - Parent 4 reward 8_000_000 USDC
-    //     - Parent 3 reward 1_600_000 USDC, Total 9_600_000 USDC
-    //     - Parent 2 reward 320_000 USDC, Total 5_920_000 USDC
-    //     - Parent 1 reward 64_000 USDC, Total 7_184_000 USDC
-    //     - Collected fees 30_016_000 USDC
-    //     - Total collected fees 99_296_000 USDC
-    //     */
-    //     expectedCollectedFees += 30_016_000;
-    //     expectedParentReward_1 = 7_184_000;
-    //     expectedParentReward_2 = 5_920_000;
-    //     expectedParentReward_3 = 9_600_000;
-    //     uint256 expectedParentReward_4 = 8_000_000;
-
-    //     assertEq(referralGateway.collectedFees(), expectedCollectedFees);
-    //     assertEq(
-    //         usdc.balanceOf(parentTier1),
-    //         (2 * testContribution) - CONTRIBUTION_AMOUNT + expectedParentReward_1
-    //     );
-    //     assertEq(
-    //         usdc.balanceOf(parentTier2),
-    //         testContribution - CONTRIBUTION_AMOUNT + expectedParentReward_2
-    //     );
-    //     assertEq(usdc.balanceOf(parentTier3), 175_000_000 + expectedParentReward_3);
-    //     assertEq(usdc.balanceOf(parentTier4), 75_000_000 + expectedParentReward_4);
-    // }
+        vm.prank(childWithoutReferee);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(parentTier4, childWithoutReferee, expectedParentFourReward);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(parentTier3, childWithoutReferee, expectedParentThreeReward);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(parentTier2, childWithoutReferee, expectedParentTwoReward);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnParentRewarded(parentTier1, childWithoutReferee, expectedParentOneReward);
+        referralGateway.prePayment(parentTier4, childWithoutRefereeContribution, tDaoName);
+    }
 }

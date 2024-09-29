@@ -27,9 +27,13 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     uint256 public constant CONTRIBUTION_DISCOUNT = 5;
     uint256 private constant MINIMUM_SERVICE_FEE = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_SERVICE_FEE = 250e6; // 250 USDC
+    // For the ambassadors reward ratio
     uint256 private constant MAX_TIER = 4;
-    uint8 public cocRewardRatio;
-    uint8 public ambassadorRewardRatio;
+    int256 private constant A = -3_125;
+    int256 private constant B = 30_500;
+    int256 private constant C = -99_625;
+    int256 private constant D = 112_250;
+    uint256 private constant DECIMAL_CORRECTION = 10_000;
 
     uint256 public collectedFees;
     address private takadaoOperator;
@@ -114,9 +118,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         takadaoOperator = _takadaoOperator;
         // isPreJoinEnabled = true;
         usdc = IERC20(_usdcAddress);
-
-        cocRewardRatio = 30;
-        ambassadorRewardRatio = 20;
     }
 
     /**
@@ -231,55 +232,38 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
         // As the parent is optional, we need to check if it is not zero
         if (parent != address(0)) {
-            // First we need to check the correct reward ratio for the parent, based on the parent role
-            uint256 rewardRatio;
-            if (hasRole(AMBASSADOR, parent)) {
-                rewardRatio = ambassadorRewardRatio;
-            } else if (hasRole(COC, parent)) {
-                rewardRatio = cocRewardRatio;
-            }
+            address currentChildToCheck = msg.sender;
+            unchecked {
+                // We loop through the parent chain up to 4 tiers back
+                for (uint256 i; i < MAX_TIER; ++i) {
+                    // We need to check child by child if it has a parent
+                    if (prePaidMembers[currentChildToCheck].parent != address(0)) {
+                        // If the current child has a parent, we calculate the parent reward
+                        // The first child is the caller of the function
+                        int256 layer = int256(i + 1);
+                        uint256 currentParentRewardRatio = _ambassadorRewardRatioByLayer(layer);
+                        uint256 currentParentReward = (contribution * currentParentRewardRatio) /
+                            (100 * DECIMAL_CORRECTION);
 
-            // Calculate the parent reward, the collected fees
-            uint256 parentReward = (fee * rewardRatio) / 100;
-            paymentCollectedFees -= parentReward;
+                        address childParent = prePaidMembers[currentChildToCheck].parent;
 
-            // We check if the parent is child of another parent up to 4 tiers back
-            address currentParentToCheck = parent;
-            uint256 currentParentReward = parentReward;
-
-            // i = tier
-            for (uint8 i = 2; i <= MAX_TIER; ++i) {
-                if (prePaidMembers[currentParentToCheck].parent != address(0)) {
-                    // We calculate the grandParent reward
-                    address grandParent = prePaidMembers[currentParentToCheck].parent;
-                    // The new rewardRatio is increased by (5 * (tier - 1))%
-                    rewardRatio = rewardRatio + (5 * (i - 1));
-
-                    uint256 grandParentReward = (currentParentReward * rewardRatio) / 100;
-
-                    // Update the parentRewards mapping and transfer the reward
-                    parentRewards[grandParent][currentParentToCheck] = 0;
-                    usdc.safeTransfer(grandParent, grandParentReward);
-                    emit OnParentRewarded(grandParent, msg.sender, grandParentReward);
-
-                    // Lastly, we update the currentParentToCheck variable and the paymentCollectedFees
-                    currentParentToCheck = grandParent;
-                    currentParentReward = grandParentReward;
-                    paymentCollectedFees -= grandParentReward;
-                } else {
-                    break;
+                        // Then if the current child is already KYCed, we transfer the parent reward
+                        if (isChildKYCed[currentChildToCheck]) {
+                            parentRewards[childParent][currentChildToCheck] = 0;
+                            usdc.safeTransfer(childParent, currentParentReward);
+                            emit OnParentRewarded(childParent, msg.sender, currentParentReward);
+                        } else {
+                            // Otherwise, we store the parent reward in the parentRewards mapping
+                            parentRewards[childParent][currentChildToCheck] = currentParentReward;
+                        }
+                        // Lastly, we update the currentChildToCheck variable and the paymentCollectedFees
+                        currentChildToCheck = childParent;
+                        paymentCollectedFees -= currentParentReward;
+                    } else {
+                        // Otherwise, we break the loop
+                        break;
+                    }
                 }
-            }
-
-            // If the child is already KYCed, we can transfer the parent reward
-            if (isChildKYCed[msg.sender]) {
-                parentRewards[parent][msg.sender] = 0;
-                usdc.safeTransfer(parent, parentReward);
-
-                emit OnParentRewarded(parent, msg.sender, parentReward);
-            } else {
-                // Otherwise, we store the parent reward in the parentRewards mapping
-                parentRewards[parent][msg.sender] = parentReward;
             }
         }
 
@@ -370,16 +354,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
     }
 
-    function setNewCocRewardRatio(uint8 _newCocRewardRatio) external onlyRole(TAKADAO_OPERATOR) {
-        cocRewardRatio = _newCocRewardRatio;
-    }
-
-    function setNewAmbassadorRewardRatio(
-        uint8 _newAmbassadorRewardRatio
-    ) external onlyRole(TAKADAO_OPERATOR) {
-        ambassadorRewardRatio = _newAmbassadorRewardRatio;
-    }
-
     function withdrawFees() external onlyRole(TAKADAO_OPERATOR) {
         uint256 _collectedFees = collectedFees;
         collectedFees = 0;
@@ -388,6 +362,25 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     function getDaoData(string calldata tDaoName) external view returns (Dao memory) {
         return daoDatas[tDaoName];
+    }
+
+    /**
+     * @notice This function calculates the ambassador reward ratio based on the layer
+     * @param _layer The layer of the ambassador
+     * @return ambassadorRewardRatio_ The ambassador reward ratio
+     * @dev Max Layer = 4
+     * @dev The formula is y = Ax^ + Bx^ 2 + Cx + D
+     *      y = reward ratio, x = layer, A = -3_125, B = 30_500, C = -99_625, D = 112_250
+     *      The original values are layer 1 = 4%, layer 2 = 1%, layer 3 = 0.35%, layer 4 = 0.175%
+     *      But this values where multiplied by 10_000 to avoid decimals in the formula so the values are
+     *      layer 1 = 40_000, layer 2 = 10_000, layer 3 = 3_500, layer 4 = 1_750
+     */
+    function _ambassadorRewardRatioByLayer(
+        int256 _layer
+    ) internal pure returns (uint256 ambassadorRewardRatio_) {
+        ambassadorRewardRatio_ = uint256(
+            (A * (_layer ** 3)) + (B * (_layer ** 2)) + (C * _layer) + D
+        );
     }
 
     ///@dev required by the OZ UUPS module
