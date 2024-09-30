@@ -167,14 +167,14 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     }
 
     /**
-     * @notice Register a COC
-     * @param coc The address to register as coc
+     * @notice Register a CoC
+     * @param CoC The address to register as coc
      * @dev Only the TAKADAO_OPERATOR can register an COC
      */
-    function registerCOC(address coc) external notZeroAddress(coc) onlyRole(TAKADAO_OPERATOR) {
-        _grantRole(COC, coc);
+    function registerCoC(address CoC) external notZeroAddress(CoC) onlyRole(TAKADAO_OPERATOR) {
+        _grantRole(COC, CoC);
 
-        emit OnNewAmbassador(coc);
+        emit OnNewAmbassador(CoC);
     }
 
     /**
