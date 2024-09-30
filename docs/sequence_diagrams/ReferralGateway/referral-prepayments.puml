@@ -17,28 +17,21 @@ else isPreJoinEnabled == true
         ReferralGateway -> ReferralGateway: Create PrePaidMember(tDaoName, child, parent, contribution)
         Prepayer -> ReferralGateway: Transfer contribution
 
-        alt parent != address(0)
-
-            loop until parent is address(0) or up to 4 levels
-
-                alt current child has parent
-                    ReferralGateway --> ReferralGateway: Calculate the reward based on layer
+        loop up to 4 levels
+            ReferralGateway --> ReferralGateway: Calculate the reward based on layer
                     
-                    alt current child is kyc
-                        ReferralGateway -> Parent: Transfer reward
-                        ReferralGateway --> ReferralGateway: Parent reward for child is set to 0
-                        ReferralGateway -> ReferralGateway: Emit event OnParentRewarded(parent, caller, reward)
+            alt current child is kyc
+                ReferralGateway -> Parent: Transfer reward
+                ReferralGateway --> ReferralGateway: Parent reward for child is set to 0
+                ReferralGateway -> ReferralGateway: Emit event OnParentRewarded(parent, caller, reward)
                     
-                    else current child is not kyc
-                        ReferralGateway --> ReferralGateway: Parent reward set to reward                   
-                    end
-
-                else current child has no parent
-                    ReferralGateway --> ReferralGateway: Break loop
-
-                end
+            else current child is not kyc
+                ReferralGateway --> ReferralGateway: Parent reward set to reward                   
             end
+
+        break When parent == address(0)
         end
+    end
         
         ReferralGateway -> ReferralGateway: Update collected fees, and dao metrics
         ReferralGateway -> ReferralGateway: Emit event OnPrePayment(parent, child, contribution)
