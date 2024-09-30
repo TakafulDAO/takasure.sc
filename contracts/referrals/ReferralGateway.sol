@@ -230,40 +230,38 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         // As the parent is optional, we need to check if it is not zero
         if (parent != address(0)) {
             address currentChildToCheck = msg.sender;
-            unchecked {
-                // We loop through the parent chain up to 4 tiers back
-                for (uint256 i; i < MAX_TIER; ++i) {
-                    // We need to check child by child if it has a parent
-                    if (prePaidMembers[currentChildToCheck].parent != address(0)) {
-                        // If the current child has a parent, we calculate the parent reward
-                        // The first child is the caller of the function
-                        int256 layer = int256(i + 1);
-                        uint256 currentParentRewardRatio = _ambassadorRewardRatioByLayer(layer);
-                        uint256 currentParentReward = (contribution * currentParentRewardRatio) /
-                            (100 * DECIMAL_CORRECTION);
+            // We loop through the parent chain up to 4 tiers back
+            for (uint256 i; i < MAX_TIER; ++i) {
+                // We need to check child by child if it has a parent
+                if (prePaidMembers[currentChildToCheck].parent != address(0)) {
+                    // If the current child has a parent, we calculate the parent reward
+                    // The first child is the caller of the function
+                    int256 layer = int256(i + 1);
+                    uint256 currentParentRewardRatio = _ambassadorRewardRatioByLayer(layer);
+                    uint256 currentParentReward = (contribution * currentParentRewardRatio) /
+                        (100 * DECIMAL_CORRECTION);
 
-                        address childParent = prePaidMembers[currentChildToCheck].parent;
+                    address childParent = prePaidMembers[currentChildToCheck].parent;
 
-                        // Then if the current child is already KYCed, we transfer the parent reward
-                        if (isChildKYCed[currentChildToCheck]) {
-                            parentRewardsByChild[childParent][currentChildToCheck] = 0;
-                            usdc.safeTransfer(childParent, currentParentReward);
-                            emit OnParentRewarded(childParent, msg.sender, currentParentReward);
-                        } else {
-                            // Otherwise, we store the parent reward in the parentRewardsByChild mapping
-                            parentRewardsByChild[childParent][
-                                currentChildToCheck
-                            ] = currentParentReward;
-                        }
-                        // And the reward to the parent layer
-                        parentRewardsByLayer[childParent][uint256(layer)] += currentParentReward;
-                        // Lastly, we update the currentChildToCheck variable and the paymentCollectedFees
-                        currentChildToCheck = childParent;
-                        paymentCollectedFees -= currentParentReward;
+                    // Then if the current child is already KYCed, we transfer the parent reward
+                    if (isChildKYCed[currentChildToCheck]) {
+                        parentRewardsByChild[childParent][currentChildToCheck] = 0;
+                        usdc.safeTransfer(childParent, currentParentReward);
+                        emit OnParentRewarded(childParent, msg.sender, currentParentReward);
                     } else {
-                        // Otherwise, we break the loop
-                        break;
+                        // Otherwise, we store the parent reward in the parentRewardsByChild mapping
+                        parentRewardsByChild[childParent][
+                            currentChildToCheck
+                        ] = currentParentReward;
                     }
+                    // And the reward to the parent layer
+                    parentRewardsByLayer[childParent][uint256(layer)] += currentParentReward;
+                    // Lastly, we update the currentChildToCheck variable and the paymentCollectedFees
+                    currentChildToCheck = childParent;
+                    paymentCollectedFees -= currentParentReward;
+                } else {
+                    // Otherwise, we break the loop
+                    break;
                 }
             }
         }
@@ -371,7 +369,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
      * @param _layer The layer of the ambassador
      * @return ambassadorRewardRatio_ The ambassador reward ratio
      * @dev Max Layer = 4
-     * @dev The formula is y = Ax^ + Bx^ 2 + Cx + D
+     * @dev The formula is y = Ax^3 + Bx^2 + Cx + D
      *      y = reward ratio, x = layer, A = -3_125, B = 30_500, C = -99_625, D = 112_250
      *      The original values are layer 1 = 4%, layer 2 = 1%, layer 3 = 0.35%, layer 4 = 0.175%
      *      But this values where multiplied by 10_000 to avoid decimals in the formula so the values are
@@ -380,9 +378,18 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     function _ambassadorRewardRatioByLayer(
         int256 _layer
     ) internal pure returns (uint256 ambassadorRewardRatio_) {
-        ambassadorRewardRatio_ = uint256(
-            (A * (_layer ** 3)) + (B * (_layer ** 2)) + (C * _layer) + D
-        );
+        // ambassadorRewardRatio_ = uint256(
+        //     (A * (_layer ** 3)) + (B * (_layer ** 2)) + (C * _layer) + D
+        // );
+        assembly {
+            let layerSquare := mul(_layer, _layer)
+            let layerCube := mul(_layer, layerSquare)
+
+            ambassadorRewardRatio_ := add(
+                add(add(mul(A, layerCube), mul(B, layerSquare)), mul(C, _layer)),
+                D
+            )
+        }
     }
 
     ///@dev required by the OZ UUPS module
