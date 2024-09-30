@@ -1,0 +1,30 @@
+@startuml Join Dao
+autonumber
+
+actor User
+
+User -> ReferralGateway: joinDao(newMember)
+
+alt if dao is address zero
+    ReferralGateway --> User: Revert
+else
+    alt if newMember is not KYC
+        ReferralGateway --> User: Revert
+    else
+        alt if pre join is disabled
+            ReferralGateway --> User: Revert
+        else
+            alt if newMember has a parent
+                ReferralGateway -> Parent: Transfer reward
+                ReferralGateway --> ReferralGateway: Parent reward for child is set to 0
+                ReferralGateway -> ReferralGateway: Emit event OnParentRewarded(parent, child, reward) 
+            end
+            ReferralGateway --> TDao: joinByReferral(newMember, contribution)
+            TDao -> TDao: Create Member
+            TDao -> TDao: Run all fud algorithms
+            ReferralGateway -> TDao: Transfer contribution
+        end
+    end
+end
+
+@enduml    
