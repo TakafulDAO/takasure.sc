@@ -7,8 +7,8 @@ import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
-import {HelperConfig} from "../HelperConfig.s.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {HelperConfig} from "deploy/HelperConfig.s.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
 contract DeployTakasureReserve is Script {
     function run()
@@ -28,8 +28,9 @@ contract DeployTakasureReserve is Script {
         vm.startBroadcast();
 
         // Deploy TakasureReserve
-        takasureReserve = Upgrades.deployUUPSProxy(
-            "TakasureReserve.sol",
+        address takasureReserveImplementation = address(new TakasureReserve());
+        takasureReserve = UnsafeUpgrades.deployUUPSProxy(
+            takasureReserveImplementation,
             abi.encodeCall(
                 TakasureReserve.initialize,
                 (
@@ -66,8 +67,9 @@ contract DeployTakasureReserve is Script {
         benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
 
         // Deploy JoinModule
-        joinModule = Upgrades.deployUUPSProxy(
-            "JoinModule.sol",
+        address joinModuleImplementation = address(new JoinModule());
+        joinModule = UnsafeUpgrades.deployUUPSProxy(
+            joinModuleImplementation,
             abi.encodeCall(JoinModule.initialize, (takasureReserve))
         );
 
@@ -75,8 +77,9 @@ contract DeployTakasureReserve is Script {
         TakasureReserve(takasureReserve).setNewJoinModuleContract(joinModule);
 
         // Deploy MembersModule
-        membersModule = Upgrades.deployUUPSProxy(
-            "MembersModule.sol",
+        address membersModuleImplementation = address(new MembersModule());
+        membersModule = UnsafeUpgrades.deployUUPSProxy(
+            membersModuleImplementation,
             abi.encodeCall(MembersModule.initialize, (takasureReserve))
         );
 
