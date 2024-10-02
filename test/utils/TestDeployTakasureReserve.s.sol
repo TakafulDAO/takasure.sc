@@ -13,9 +13,15 @@ import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 contract DeployTakasureReserve is Script {
     function run()
         external
-        returns (address takasureReserve, address joinModule, address membersModule)
+        returns (
+            address takasureReserve,
+            address joinModule,
+            address membersModule,
+            address contributionTokenAddress,
+            HelperConfig helperConfig
+        )
     {
-        HelperConfig helperConfig = new HelperConfig();
+        helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         string memory root = vm.projectRoot();
@@ -55,11 +61,6 @@ contract DeployTakasureReserve is Script {
             config.subscriptionId
         );
 
-        // Set BenefitMultiplierConsumer as an oracle in TakasurePool
-        TakasureReserve(takasureReserve).setNewBenefitMultiplierConsumerAddress(
-            address(benefitMultiplierConsumer)
-        );
-
         // Setting TakasurePool as a requester in BenefitMultiplierConsumer
         benefitMultiplierConsumer.setNewRequester(takasureReserve);
 
@@ -73,9 +74,6 @@ contract DeployTakasureReserve is Script {
             abi.encodeCall(JoinModule.initialize, (takasureReserve))
         );
 
-        // Set JoinModule as a module in TakasurePool
-        TakasureReserve(takasureReserve).setNewJoinModuleContract(joinModule);
-
         // Deploy MembersModule
         address membersModuleImplementation = address(new MembersModule());
         membersModule = UnsafeUpgrades.deployUUPSProxy(
@@ -83,9 +81,26 @@ contract DeployTakasureReserve is Script {
             abi.encodeCall(MembersModule.initialize, (takasureReserve))
         );
 
+        vm.stopBroadcast();
+
+        contributionTokenAddress = TakasureReserve(takasureReserve)
+            .getReserveValues()
+            .contributionToken;
+
+        return (takasureReserve, joinModule, membersModule, contributionTokenAddress, helperConfig);
+    }
+
+    function assignAddresses(
+        address takadao,
+        address takasureReserve,
+        address joinModule,
+        address membersModule
+    ) external {
+        vm.startPrank(takadao);
+        // Set JoinModule as a module in TakasurePool
+        TakasureReserve(takasureReserve).setNewJoinModuleContract(joinModule);
         // Set MembersModule as a module in TakasurePool
         TakasureReserve(takasureReserve).setNewMembersModuleContract(membersModule);
-
-        vm.stopBroadcast();
+        vm.stopPrank();
     }
 }
