@@ -209,7 +209,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         }
 
         // Calculate the fee and create the new pre-paid member
-        uint256 contributionAfterDiscount = (contribution * (100 - CONTRIBUTION_DISCOUNT)) / 100;
         uint256 fee = (contribution * SERVICE_FEE) / 100;
         uint256 paymentCollectedFees = fee;
 
@@ -224,11 +223,15 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         // Update the necessary mappings and values
         prePaidMembers[msg.sender] = prePaidMember;
 
-        // Transfer the contribution to the contract
-        usdc.safeTransferFrom(msg.sender, address(this), contributionAfterDiscount);
-
         // As the parent is optional, we need to check if it is not zero
         if (parent != address(0)) {
+            // The user gets a discount if he has a parent
+            uint256 contributionAfterDiscount = (contribution * (100 - CONTRIBUTION_DISCOUNT)) /
+                100;
+
+            // Transfer the contribution to the contract
+            usdc.safeTransferFrom(msg.sender, address(this), contributionAfterDiscount);
+
             address currentChildToCheck = msg.sender;
             // We loop through the parent chain up to 4 tiers back
             for (uint256 i; i < MAX_TIER; ++i) {
@@ -264,6 +267,9 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
                     break;
                 }
             }
+        } else {
+            // The user dont get a discount if there is no parent
+            usdc.safeTransferFrom(msg.sender, address(this), contribution);
         }
 
         collectedFees += paymentCollectedFees;
