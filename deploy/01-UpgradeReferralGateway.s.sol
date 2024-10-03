@@ -6,7 +6,7 @@ import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetCo
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
-contract UpgradeReferralGateway is Script {
+contract UpgradeReferralGateway is Script, GetContractAddress {
     function run() external returns (address) {
         address referralGatewayAddress = _getContractAddress(block.chainid, "ReferralGateway");
         address oldImplementation = Upgrades.getImplementationAddress(referralGatewayAddress);
