@@ -232,7 +232,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         registerAmbassador
         createDao
     {
-        assertEq(referralGateway.collectedFees(), 0);
+        assertEq(referralGateway.getDaoData(tDaoName).collectedFees, 0);
 
         uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
 
@@ -244,7 +244,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees - expectedParentReward;
 
-        assertEq(referralGateway.collectedFees(), collectedFees);
+        assertEq(referralGateway.getDaoData(tDaoName).collectedFees, collectedFees);
         assertEq(collectedFees, 4_500_000);
         assertEq(referralGateway.parentRewardsByChild(ambassador, child), expectedParentReward);
         assertEq(expectedParentReward, 1_000_000);
@@ -256,7 +256,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         kycChild
         createDao
     {
-        assertEq(referralGateway.collectedFees(), 0);
+        assertEq(referralGateway.getDaoData(tDaoName).collectedFees, 0);
         assertEq(usdc.balanceOf(ambassador), 0);
 
         uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
@@ -272,7 +272,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees - expectedParentReward;
 
-        assertEq(referralGateway.collectedFees(), collectedFees);
+        assertEq(referralGateway.getDaoData(tDaoName).collectedFees, collectedFees);
         assertEq(collectedFees, 4_500_000);
         assertEq(referralGateway.parentRewardsByChild(ambassador, child), 0);
         assertEq(expectedParentReward, 1_000_000);
@@ -368,17 +368,17 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         prepayment
     {
         uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
-        uint256 collectedFees = referralGateway.collectedFees();
+        uint256 collectedFees = referralGateway.getDaoData(tDaoName).collectedFees;
         uint256 takadaoInitialBalance = usdc.balanceOf(address(takadao));
 
         vm.prank(takadao);
-        referralGateway.withdrawFees();
+        referralGateway.withdrawFees(tDaoName);
 
         uint256 referralGatewayFinalBalance = usdc.balanceOf(address(referralGateway));
         uint256 takadaoFinalBalance = usdc.balanceOf(address(takadao));
 
         assertEq(referralGatewayFinalBalance, referralGatewayInitialBalance - collectedFees);
-        assertEq(referralGateway.collectedFees(), 0);
+        assertEq(referralGateway.getDaoData(tDaoName).collectedFees, 0);
         assertEq(takadaoFinalBalance, takadaoInitialBalance + collectedFees);
     }
 

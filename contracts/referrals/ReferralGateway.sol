@@ -35,7 +35,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     int256 private constant D = 112_250;
     uint256 private constant DECIMAL_CORRECTION = 10_000;
 
-    uint256 public collectedFees;
     address private takadaoOperator;
 
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
@@ -68,6 +67,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 objectiveAmount; // in USDC, six decimals
         uint256 currentAmount; // in USDC, six decimals
         uint256 amountToCompensate; // in USDC, six decimals
+        uint256 collectedFees; // in USDC, six decimals
     }
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
@@ -146,7 +146,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             launchDate: launchDate, // in seconds
             objectiveAmount: objectiveAmount,
             currentAmount: 0,
-            amountToCompensate: 0
+            amountToCompensate: 0,
+            collectedFees: 0
         });
 
         // Update the necessary mappings
@@ -274,7 +275,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             usdc.safeTransferFrom(msg.sender, address(this), contribution);
         }
 
-        collectedFees += paymentCollectedFees;
+        DAODatas[tDAOName].collectedFees += paymentCollectedFees;
         DAODatas[tDAOName].currentAmount += contribution;
         emit OnPrePayment(parent, msg.sender, contribution);
     }
@@ -362,9 +363,9 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
     }
 
-    function withdrawFees() external onlyRole(TAKADAO_OPERATOR) {
-        uint256 _collectedFees = collectedFees;
-        collectedFees = 0;
+    function withdrawFees(string calldata tDAOName) external onlyRole(TAKADAO_OPERATOR) {
+        uint256 _collectedFees = DAODatas[tDAOName].collectedFees;
+        DAODatas[tDAOName].collectedFees = 0;
         usdc.safeTransfer(takadaoOperator, _collectedFees);
     }
 
