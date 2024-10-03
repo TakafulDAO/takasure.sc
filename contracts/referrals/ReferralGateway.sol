@@ -12,12 +12,18 @@ import {ITakasurePool} from "contracts/interfaces/ITakasurePool.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.25;
 
-contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
+contract ReferralGateway is
+    Initializable,
+    UUPSUpgradeable,
+    AccessControlUpgradeable,
+    ReentrancyGuardTransientUpgradeable
+{
     using SafeERC20 for IERC20;
 
     IERC20 private usdc;
@@ -110,6 +116,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     ) external notZeroAddress(_takadaoOperator) notZeroAddress(_usdcAddress) initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
+        __ReentrancyGuardTransient_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _takadaoOperator);
         _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
         _grantRole(KYC_PROVIDER, _kycProvider);
@@ -294,7 +301,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
      * @dev The member must have a parent
      * @dev The member must have a tDAO assigned
      */
-    function joinDao(address newMember) external {
+    function joinDao(address newMember) external nonReentrant {
         // Initial checks
         PrepaidMember memory member = prepaidMembers[newMember];
         tDAO memory dao = DAODatas[member.tDAOName];
