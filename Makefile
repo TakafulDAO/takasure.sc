@@ -38,10 +38,12 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 deploy-referral:
 	@forge clean
 	@forge script deploy/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGateway.sol
 
 upgrade-referral:
 	@forge clean
 	@forge script deploy/01-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGateway.sol
 
 deploy-bm-consumer:
 	@forge script deploy/02-DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)
@@ -91,3 +93,6 @@ endif
 
 # Certora
 fv:; certoraRun ./certora/conf/ReserveMathLib.conf
+
+# Copy contracts/referrals/ReferralGateway.sol to contracts/v1_contracts/ReferralGatewayV1.sol
+file-check:; cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGateway.sol
