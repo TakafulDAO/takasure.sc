@@ -47,11 +47,11 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         public parentRewardsByChild;
     mapping(address parent => mapping(uint256 layer => uint256 rewards))
         public parentRewardsByLayer;
-    mapping(address child => PrePaidMember) public prePaidMembers;
+    mapping(address child => PrepaidMember) public prepaidMembers;
     mapping(string tDAOName => tDAO DAOData) private DAODatas;
     mapping(address child => bool) public isChildKYCed;
 
-    struct PrePaidMember {
+    struct PrepaidMember {
         string tDAOName;
         address child;
         address parent;
@@ -212,7 +212,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
         uint256 paymentCollectedFees = fee;
 
-        PrePaidMember memory prePaidMember = PrePaidMember({
+        PrepaidMember memory prepaidMember = PrepaidMember({
             tDAOName: tDAOName,
             child: msg.sender,
             parent: parent,
@@ -221,7 +221,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         });
 
         // Update the necessary mappings and values
-        prePaidMembers[msg.sender] = prePaidMember;
+        prepaidMembers[msg.sender] = prepaidMember;
 
         // As the parent is optional, we need to check if it is not zero
         if (parent != address(0)) {
@@ -236,7 +236,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             // We loop through the parent chain up to 4 tiers back
             for (uint256 i; i < MAX_TIER; ++i) {
                 // We need to check child by child if it has a parent
-                if (prePaidMembers[currentChildToCheck].parent != address(0)) {
+                if (prepaidMembers[currentChildToCheck].parent != address(0)) {
                     // If the current child has a parent, we calculate the parent reward
                     // The first child is the caller of the function
                     int256 layer = int256(i + 1);
@@ -244,7 +244,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
                     uint256 currentParentReward = (contribution * currentParentRewardRatio) /
                         (100 * DECIMAL_CORRECTION);
 
-                    address childParent = prePaidMembers[currentChildToCheck].parent;
+                    address childParent = prepaidMembers[currentChildToCheck].parent;
 
                     // Then if the current child is already KYCed, we transfer the parent reward
                     if (isChildKYCed[currentChildToCheck]) {
@@ -286,7 +286,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
      */
     function joinDao(address newMember) external {
         // Initial checks
-        PrePaidMember memory member = prePaidMembers[newMember];
+        PrepaidMember memory member = prepaidMembers[newMember];
         tDAO memory dao = DAODatas[member.tDAOName];
 
         if (dao.daoAddress == address(0)) {
@@ -330,7 +330,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
      */
     function setKYCStatus(address child) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
         // Initial checks
-        PrePaidMember memory member = prePaidMembers[child];
+        PrepaidMember memory member = prepaidMembers[child];
         if (isChildKYCed[child]) {
             revert ReferralGateway__MemberAlreadyKYCed();
         }
