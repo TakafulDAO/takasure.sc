@@ -18,6 +18,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.25;
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/ReferralGatewayV1.sol:ReferralGatewayV1
 contract ReferralGateway is
     Initializable,
     UUPSUpgradeable,
