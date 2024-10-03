@@ -4,7 +4,7 @@
  * @title ReferralGateway
  * @author Maikel Ordaz
  * @dev This contract will manage all the functionalities related to the referral system and pre-joins
- *      to the LifeDao protocol
+ *      to the LifeDAO protocol
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -48,21 +48,21 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     mapping(address parent => mapping(uint256 layer => uint256 rewards))
         public parentRewardsByLayer;
     mapping(address child => PrePaidMember) public prePaidMembers;
-    mapping(string tDaoName => Dao daoData) private daoDatas;
+    mapping(string tDAOName => tDAO DAOData) private DAODatas;
     mapping(address child => bool) public isChildKYCed;
 
     struct PrePaidMember {
-        string tDaoName;
+        string tDAOName;
         address child;
         address parent;
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
     }
 
-    struct Dao {
+    struct tDAO {
         string name;
         bool isPreJoinEnabled;
-        address prePaymentAdmin; // The one that can modify the dao settings
+        address prePaymentAdmin; // The one that can modify the DAO settings
         address daoAddress; // To be assigned when the tDAO is deployed
         uint256 launchDate; // in seconds
         uint256 objectiveAmount; // in USDC, six decimals
@@ -83,7 +83,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     error ReferralGateway__NotAllowedToPrePay();
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAOAddressNotAssignedYet();
-    error ReferralGateway__OnlyDaoAdmin();
+    error ReferralGateway__onlyDaoAdmin();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -92,9 +92,9 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         _;
     }
 
-    modifier onlyDaoAdmin(string calldata tDaoName) {
-        if (daoDatas[tDaoName].prePaymentAdmin != msg.sender) {
-            revert ReferralGateway__OnlyDaoAdmin();
+    modifier onlyDaoAdmin(string calldata tDAOName) {
+        if (DAODatas[tDAOName].prePaymentAdmin != msg.sender) {
+            revert ReferralGateway__onlyDaoAdmin();
         }
         _;
     }
@@ -121,25 +121,25 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     }
 
     /**
-     * @notice Create a new Dao
-     * @param daoName The name of the Dao
-     * @param _isPreJoinEnabled The pre-join status of the Dao
-     * @param launchDate The launch date of the Dao
-     * @param objectiveAmount The objective amount of the Dao
+     * @notice Create a new DAO
+     * @param DAOName The name of the DAO
+     * @param _isPreJoinEnabled The pre-join status of the DAO
+     * @param launchDate The launch date of the DAO
+     * @param objectiveAmount The objective amount of the DAO
      * @dev The launch date must be in seconds
-     * @dev The launch date can be 0, if the Dao is already launched or the launch date is not defined
+     * @dev The launch date can be 0, if the DAO is already launched or the launch date is not defined
      * @dev The objective amount must be in USDC, six decimals
-     * @dev The objective amount can be 0, if the Dao is already launched or the objective amount is not defined
+     * @dev The objective amount can be 0, if the DAO is already launched or the objective amount is not defined
      */
     function createDao(
-        string calldata daoName,
+        string calldata DAOName,
         bool _isPreJoinEnabled,
         uint256 launchDate,
         uint256 objectiveAmount
     ) external {
-        // Create the new Dao
-        Dao memory dao = Dao({
-            name: daoName, // To be used as a key
+        // Create the new DAO
+        tDAO memory dao = tDAO({
+            name: DAOName, // To be used as a key
             isPreJoinEnabled: _isPreJoinEnabled,
             prePaymentAdmin: msg.sender,
             daoAddress: address(0), // To be assigned when the tDAO is deployed
@@ -150,7 +150,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         });
 
         // Update the necessary mappings
-        daoDatas[dao.name] = dao;
+        DAODatas[dao.name] = dao;
     }
 
     /**
@@ -179,26 +179,26 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     /**
      * @notice Assign a tDAO address to a tDAO name
-     * @param tDaoName The name of the tDAO
+     * @param tDAOName The name of the tDAO
      */
     function assignTDaoAddress(
-        string calldata tDaoName,
-        address tDaoAddress
-    ) external notZeroAddress(tDaoAddress) onlyDaoAdmin(tDaoName) {
-        daoDatas[tDaoName].daoAddress = tDaoAddress;
+        string calldata tDAOName,
+        address tdaoAddress
+    ) external notZeroAddress(tdaoAddress) onlyDaoAdmin(tDAOName) {
+        DAODatas[tDAOName].daoAddress = tdaoAddress;
     }
 
     /**
      * @notice Pre pay for a membership
      * @param parent The address of the parent
      * @param contribution The amount to pay
-     * @param tDaoName The name of the tDAO
+     * @param tDAOName The name of the tDAO
      * @dev The parent address is optional
      * @dev The contribution must be between 25 and 250 USDC
      * @dev The parent reward ratio depends on the parent role
      */
-    function prePayment(address parent, uint256 contribution, string calldata tDaoName) external {
-        Dao memory dao = daoDatas[tDaoName];
+    function prePayment(address parent, uint256 contribution, string calldata tDAOName) external {
+        tDAO memory dao = DAODatas[tDAOName];
         // Initial checks
         if (!dao.isPreJoinEnabled) {
             revert ReferralGateway__NotAllowedToPrePay();
@@ -213,7 +213,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 paymentCollectedFees = fee;
 
         PrePaidMember memory prePaidMember = PrePaidMember({
-            tDaoName: tDaoName,
+            tDAOName: tDAOName,
             child: msg.sender,
             parent: parent,
             contributionBeforeFee: contribution,
@@ -273,7 +273,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         }
 
         collectedFees += paymentCollectedFees;
-        daoDatas[tDaoName].currentAmount += contribution;
+        DAODatas[tDAOName].currentAmount += contribution;
         emit OnPrePayment(parent, msg.sender, contribution);
     }
 
@@ -287,7 +287,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     function joinDao(address newMember) external {
         // Initial checks
         PrePaidMember memory member = prePaidMembers[newMember];
-        Dao memory dao = daoDatas[member.tDaoName];
+        tDAO memory dao = DAODatas[member.tDAOName];
 
         if (dao.daoAddress == address(0)) {
             revert ReferralGateway__tDAOAddressNotAssignedYet();
@@ -353,10 +353,10 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     }
 
     function setPreJoinEnabled(
-        string calldata tDaoName,
+        string calldata tDAOName,
         bool _isPreJoinEnabled
-    ) external onlyDaoAdmin(tDaoName) {
-        daoDatas[tDaoName].isPreJoinEnabled = _isPreJoinEnabled;
+    ) external onlyDaoAdmin(tDAOName) {
+        DAODatas[tDAOName].isPreJoinEnabled = _isPreJoinEnabled;
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
     }
 
@@ -366,8 +366,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         usdc.safeTransfer(takadaoOperator, _collectedFees);
     }
 
-    function getDaoData(string calldata tDaoName) external view returns (Dao memory) {
-        return daoDatas[tDaoName];
+    function getDaoData(string calldata tDAOName) external view returns (tDAO memory) {
+        return DAODatas[tDAOName];
     }
 
     /**
