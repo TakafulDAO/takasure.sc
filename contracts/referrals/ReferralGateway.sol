@@ -41,7 +41,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
-    bytes32 private constant COC = keccak256("COC");
+    bytes32 private constant COFOUNDER_OF_CHANGE = keccak256("COFOUNDER_OF_CHANGE");
 
     mapping(address parent => mapping(address child => uint256 rewards))
         public parentRewardsByChild;
@@ -71,8 +71,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     }
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
-    event OnNewAmbassadorProposal(address indexed proposedAmbassador);
     event OnNewAmbassador(address indexed ambassador);
+    event OnNewCofounderOfChange(address indexed cofounderOfChange);
     event OnPrePayment(address indexed parent, address indexed child, uint256 indexed contribution);
     event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
     event OnChildKycVerified(address indexed child);
@@ -167,14 +167,16 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
     }
 
     /**
-     * @notice Register a CoC
-     * @param CoC The address to register as coc
-     * @dev Only the TAKADAO_OPERATOR can register an COC
+     * @notice Register a Cofounder of Change
+     * @param cofounderOfChange The address to register as cofounderOfChange
+     * @dev Only the TAKADAO_OPERATOR can register an cofounderOfChange
      */
-    function registerCoC(address CoC) external notZeroAddress(CoC) onlyRole(TAKADAO_OPERATOR) {
-        _grantRole(COC, CoC);
+    function registerCofounderOfChange(
+        address cofounderOfChange
+    ) external notZeroAddress(cofounderOfChange) onlyRole(TAKADAO_OPERATOR) {
+        _grantRole(COFOUNDER_OF_CHANGE, cofounderOfChange);
 
-        emit OnNewAmbassador(CoC);
+        emit OnNewCofounderOfChange(cofounderOfChange);
     }
 
     /**
