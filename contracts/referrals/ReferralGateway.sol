@@ -69,7 +69,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         uint256 launchDate; // in seconds
         uint256 objectiveAmount; // in USDC, six decimals
         uint256 currentAmount; // in USDC, six decimals
-        uint256 amountToCompensate; // in USDC, six decimals
         uint256 collectedFees; // in USDC, six decimals
     }
 
@@ -149,7 +148,6 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             launchDate: launchDate, // in seconds
             objectiveAmount: objectiveAmount,
             currentAmount: 0,
-            amountToCompensate: 0,
             collectedFees: 0
         });
 
