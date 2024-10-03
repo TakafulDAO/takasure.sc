@@ -23,8 +23,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     IERC20 private usdc;
 
-    uint8 public constant SERVICE_FEE = 22;
-    uint256 public constant CONTRIBUTION_DISCOUNT = 5;
+    uint8 public constant SERVICE_FEE_RATIO = 22;
+    uint256 public constant CONTRIBUTION_DISCOUNT_RATIO = 5;
     uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
     // For the ambassadors reward ratio
@@ -209,7 +209,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         }
 
         // Calculate the fee and create the new pre-paid member
-        uint256 fee = (contribution * SERVICE_FEE) / 100;
+        uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
         uint256 paymentCollectedFees = fee;
 
         PrePaidMember memory prePaidMember = PrePaidMember({
@@ -226,8 +226,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         // As the parent is optional, we need to check if it is not zero
         if (parent != address(0)) {
             // The user gets a discount if he has a parent
-            uint256 contributionAfterDiscount = (contribution * (100 - CONTRIBUTION_DISCOUNT)) /
-                100;
+            uint256 contributionAfterDiscount = (contribution *
+                (100 - CONTRIBUTION_DISCOUNT_RATIO)) / 100;
 
             // Transfer the contribution to the contract
             usdc.safeTransferFrom(msg.sender, address(this), contributionAfterDiscount);

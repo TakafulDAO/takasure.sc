@@ -241,7 +241,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrePayment(ambassador, child, CONTRIBUTION_AMOUNT);
         referralGateway.prePayment(ambassador, CONTRIBUTION_AMOUNT, tDaoName);
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees - expectedParentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
@@ -269,7 +269,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         referralGateway.prePayment(ambassador, CONTRIBUTION_AMOUNT, tDaoName);
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees - expectedParentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
