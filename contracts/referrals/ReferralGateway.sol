@@ -25,8 +25,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     uint8 public constant SERVICE_FEE = 22;
     uint256 public constant CONTRIBUTION_DISCOUNT = 5;
-    uint256 private constant MINIMUM_SERVICE_FEE = 25e6; // 25 USDC
-    uint256 private constant MAXIMUM_SERVICE_FEE = 250e6; // 250 USDC
+    uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
+    uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
     // For the ambassadors reward ratio
     uint256 private constant MAX_TIER = 4;
     int256 private constant A = -3_125;
@@ -204,7 +204,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             revert ReferralGateway__NotAllowedToPrePay();
         }
 
-        if (contribution < MINIMUM_SERVICE_FEE || contribution > MAXIMUM_SERVICE_FEE) {
+        if (contribution < MINIMUM_CONTRIBUTION || contribution > MAXIMUM_CONTRIBUTION) {
             revert ReferralGateway__ContributionOutOfRange();
         }
 
