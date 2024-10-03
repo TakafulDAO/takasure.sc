@@ -245,7 +245,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 collectedFees = fees - expectedParentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 4_000_000);
+        assertEq(collectedFees, 4_500_000);
         assertEq(referralGateway.parentRewardsByChild(ambassador, child), expectedParentReward);
         assertEq(expectedParentReward, 1_000_000);
     }
@@ -273,7 +273,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 collectedFees = fees - expectedParentReward;
 
         assertEq(referralGateway.collectedFees(), collectedFees);
-        assertEq(collectedFees, 4_000_000);
+        assertEq(collectedFees, 4_500_000);
         assertEq(referralGateway.parentRewardsByChild(ambassador, child), 0);
         assertEq(expectedParentReward, 1_000_000);
         assertEq(usdc.balanceOf(ambassador), expectedParentReward);

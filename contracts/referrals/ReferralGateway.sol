@@ -23,7 +23,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
     IERC20 private usdc;
 
-    uint8 public constant SERVICE_FEE = 20;
+    uint8 public constant SERVICE_FEE = 22;
     uint256 public constant CONTRIBUTION_DISCOUNT = 5;
     uint256 private constant MINIMUM_SERVICE_FEE = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_SERVICE_FEE = 250e6; // 250 USDC
