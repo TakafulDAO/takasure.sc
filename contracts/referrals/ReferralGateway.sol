@@ -401,13 +401,11 @@ contract ReferralGateway is
     function _ambassadorRewardRatioByLayer(
         int256 _layer
     ) internal pure returns (uint256 ambassadorRewardRatio_) {
-        // ambassadorRewardRatio_ = uint256(
-        //     (A * (_layer ** 3)) + (B * (_layer ** 2)) + (C * _layer) + D
-        // );
         assembly {
-            let layerSquare := mul(_layer, _layer)
-            let layerCube := mul(_layer, layerSquare)
+            let layerSquare := mul(_layer, _layer) // x^2
+            let layerCube := mul(_layer, layerSquare) // x^3
 
+            // y = Ax^3 + Bx^2 + Cx + D
             ambassadorRewardRatio_ := add(
                 add(add(mul(A, layerCube), mul(B, layerSquare)), mul(C, _layer)),
                 D
