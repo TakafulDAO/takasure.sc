@@ -16,6 +16,8 @@ import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import {console2} from "forge-std/Test.sol";
+
 pragma solidity 0.8.25;
 
 contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
@@ -56,6 +58,7 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
         address parent;
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
+        uint256 actualFee;
     }
 
     struct tDAO {
@@ -213,27 +216,30 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
 
         // Calculate the fee and create the new pre-paid member
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
-        uint256 paymentCollectedFees = fee;
+        uint256 paymentCollectedFees;
 
         PrepaidMember memory prepaidMember = PrepaidMember({
             tDAOName: tDAOName,
             child: msg.sender,
             parent: parent,
-            contributionBeforeFee: contribution,
-            contributionAfterFee: contribution - fee
+            contributionBeforeFee: contribution, // Input value
+            contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the dao is deployed
+            actualFee: 0 // If has a parent, it is the fee - discount. Otherwise, it is the fee
         });
-
-        // Update the necessary mappings and values
-        prepaidMembers[msg.sender] = prepaidMember;
 
         // As the parent is optional, we need to check if it is not zero
         if (parent != address(0)) {
             // The user gets a discount if he has a parent
-            uint256 contributionAfterDiscount = (contribution *
-                (100 - CONTRIBUTION_DISCOUNT_RATIO)) / 100;
+            uint256 discount = (contribution * CONTRIBUTION_DISCOUNT_RATIO) / 100;
+            paymentCollectedFees = fee - discount;
 
-            // Transfer the contribution to the contract
-            usdc.safeTransferFrom(msg.sender, address(this), contributionAfterDiscount);
+            // We update the fee in the prepaidMember struct
+            prepaidMember.actualFee = paymentCollectedFees;
+            // Update the values for the prepaidMember
+            prepaidMembers[msg.sender] = prepaidMember;
+
+            // Transfer the contribution from input minus the discount
+            usdc.safeTransferFrom(msg.sender, address(this), contribution - discount);
 
             address currentChildToCheck = msg.sender;
             // We loop through the parent chain up to 4 tiers back
@@ -262,9 +268,8 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
                     }
                     // And the reward to the parent layer
                     parentRewardsByLayer[childParent][uint256(layer)] += currentParentReward;
-                    // Lastly, we update the currentChildToCheck variable and the paymentCollectedFees
+                    // Lastly, we update the currentChildToCheck variable
                     currentChildToCheck = childParent;
-                    paymentCollectedFees -= currentParentReward;
                 } else {
                     // Otherwise, we break the loop
                     break;
@@ -272,9 +277,16 @@ contract ReferralGateway is Initializable, UUPSUpgradeable, AccessControlUpgrade
             }
         } else {
             // The user dont get a discount if there is no parent
+            // We update the fee in the prepaidMember struct and transfer the contribution
+            paymentCollectedFees = fee;
+            prepaidMember.actualFee = fee;
+            // Update the values for the prepaidMember
+            prepaidMembers[msg.sender] = prepaidMember;
+
             usdc.safeTransferFrom(msg.sender, address(this), contribution);
         }
 
+        // Update the values for the DAO
         DAODatas[tDAOName].collectedFees += paymentCollectedFees;
         DAODatas[tDAOName].currentAmount += contribution;
         emit OnPrePayment(parent, msg.sender, contribution);

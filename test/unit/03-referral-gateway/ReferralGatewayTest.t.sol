@@ -40,6 +40,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     uint256 public constant LAYER_TWO_REWARD_RATIO = 1; // Layer two reward ratio 1%
     uint256 public constant LAYER_THREE_REWARD_RATIO = 35; // Layer three reward ratio 0.35%
     uint256 public constant LAYER_FOUR_REWARD_RATIO = 175; // Layer four reward ratio 0.175%
+    uint256 public constant DISCOUNT_RATIO = 5; // 5%
 
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
 
@@ -242,10 +243,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.prePayment(ambassador, CONTRIBUTION_AMOUNT, tDaoName);
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
-        uint256 collectedFees = fees - expectedParentReward;
+        uint256 collectedFees = fees - ((CONTRIBUTION_AMOUNT * DISCOUNT_RATIO) / 100);
 
         assertEq(referralGateway.getDaoData(tDaoName).collectedFees, collectedFees);
-        assertEq(collectedFees, 4_500_000);
+        assertEq(collectedFees, 4_250_000);
         assertEq(referralGateway.parentRewardsByChild(ambassador, child), expectedParentReward);
         assertEq(expectedParentReward, 1_000_000);
     }
@@ -270,10 +271,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.prePayment(ambassador, CONTRIBUTION_AMOUNT, tDaoName);
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
-        uint256 collectedFees = fees - expectedParentReward;
+        uint256 collectedFees = fees - ((CONTRIBUTION_AMOUNT * DISCOUNT_RATIO) / 100);
 
         assertEq(referralGateway.getDaoData(tDaoName).collectedFees, collectedFees);
-        assertEq(collectedFees, 4_500_000);
+        assertEq(collectedFees, 4_250_000);
         assertEq(referralGateway.parentRewardsByChild(ambassador, child), 0);
         assertEq(expectedParentReward, 1_000_000);
         assertEq(usdc.balanceOf(ambassador), expectedParentReward);
