@@ -35,20 +35,28 @@ snapshot :; forge snapshot
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
-deploy-all:
+deploy-referral:
 	@forge clean
-	@forge script deploy/04-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
-	
+	@forge script deploy/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
+
+upgrade-referral:
+	@forge clean
+	@forge script deploy/01-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
+
 deploy-bm-consumer:
-	@forge script deploy/01-DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)
+	@forge script deploy/02-DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)
 
 deploy-takasure:
 	@forge clean
-	@forge script deploy/02-DeployTakasure.s.sol:DeployTakasure $(NETWORK_ARGS)
+	@forge script deploy/03-DeployTakasure.s.sol:DeployTakasure $(NETWORK_ARGS)
 
 upgrade-takasure:
 	@forge clean
-	@forge script deploy/03-UpgradeTakasure.s.sol:UpgradeTakasure $(NETWORK_ARGS)
+	@forge script deploy/04-UpgradeTakasure.s.sol:UpgradeTakasure $(NETWORK_ARGS)
+
+deploy-all:
+	@forge clean
+	@forge script deploy/05-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
 
 # Interactions with BenefitMultiplierConsumer Contract
 # Add a new BM Requester
