@@ -12,11 +12,8 @@ import {ITakasurePool} from "contracts/interfaces/ITakasurePool.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-import {console2} from "forge-std/Test.sol";
 
 pragma solidity 0.8.25;
 
