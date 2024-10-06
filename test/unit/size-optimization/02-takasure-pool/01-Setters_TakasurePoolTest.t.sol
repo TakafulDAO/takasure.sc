@@ -25,6 +25,7 @@ contract Size_Setters_TakasureReserveTest is StdCheats, Test {
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
+    address kycService;
     address joinModuleAddress;
     address membersModuleAddress;
     IUSDC usdc;
@@ -50,13 +51,7 @@ contract Size_Setters_TakasureReserveTest is StdCheats, Test {
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
-
-        deployer.assignAddresses(
-            config.takadaoOperator,
-            takasureReserveProxy,
-            joinModuleAddress,
-            membersModuleAddress
-        );
+        kycService = config.kycProvider;
 
         mockDeployer = new DeployConsumerMocks();
         bmConsumerMock = mockDeployer.run();
@@ -75,7 +70,10 @@ contract Size_Setters_TakasureReserveTest is StdCheats, Test {
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerMock.setNewRequester(address(takasureReserve));
+        bmConsumerMock.setNewRequester(address(joinModuleAddress));
+
+        vm.prank(config.takadaoOperator);
+        joinModule.updateBmAddress();
     }
 
     /// @dev Test the owner can set a new service fee
@@ -141,14 +139,14 @@ contract Size_Setters_TakasureReserveTest is StdCheats, Test {
         assertEq(true, takasureReserve.getReserveValues().allowCustomDuration);
     }
 
-    // function testTakasureReserve_setKYCstatus() public {
-    //     assert(!takasureReserve.getMemberFromAddress(alice).isKYCVerified);
+    function testTakasureReserve_setKYCstatus() public {
+        assert(!takasureReserve.getMemberFromAddress(alice).isKYCVerified);
 
-    //     vm.prank(admin);
-    //     vm.expectEmit(true, false, false, false, address(joinModule));
-    //     emit TakasureEvents.OnMemberKycVerified(1, alice);
-    //     joinModule.setKYCStatus(alice);
+        vm.prank(kycService);
+        vm.expectEmit(true, false, false, false, address(joinModule));
+        emit TakasureEvents.OnMemberKycVerified(1, alice);
+        joinModule.setKYCStatus(alice);
 
-    //     assert(takasureReserve.getMemberFromAddress(alice).isKYCVerified);
-    // }
+        assert(takasureReserve.getMemberFromAddress(alice).isKYCVerified);
+    }
 }
