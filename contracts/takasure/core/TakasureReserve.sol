@@ -59,8 +59,11 @@ contract TakasureReserve is
     }
 
     modifier onlyDaoOrTakadao() {
-        if (!hasRole(TAKADAO_OPERATOR, msg.sender) && !hasRole(DAO_MULTISIG, msg.sender))
-            revert TakasureErrors.OnlyDaoOrTakadao();
+        if (
+            !hasRole(TAKADAO_OPERATOR, msg.sender) &&
+            !hasRole(DAO_MULTISIG, msg.sender) &&
+            !hasRole(DEFAULT_ADMIN_ROLE, msg.sender)
+        ) revert TakasureErrors.OnlyDaoOrTakadao();
         _;
     }
 
@@ -98,7 +101,7 @@ contract TakasureReserve is
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __Pausable_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, _daoOperator);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
         _grantRole(DAO_MULTISIG, _daoOperator);
         _grantRole(PAUSE_GUARDIAN, _pauseGuardian);

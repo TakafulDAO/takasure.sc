@@ -292,6 +292,10 @@ contract JoinModule is
         _refund(memberWallet);
     }
 
+    function updateBmAddress() external onlyRole(TAKADAO_OPERATOR) {
+        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
+    }
+
     function _getReserveAndMemberValuesHook(
         address _memberWallet
     ) internal view returns (NewReserve memory reserve_, Member memory member_) {

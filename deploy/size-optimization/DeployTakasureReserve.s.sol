@@ -59,20 +59,11 @@ contract DeployTakasureReserve is Script {
             address(benefitMultiplierConsumer)
         );
 
-        // Setting TakasurePool as a requester in BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setNewRequester(takasureReserve);
-
-        // Add new source code to BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
-
         // Deploy JoinModule
         joinModule = Upgrades.deployUUPSProxy(
             "JoinModule.sol",
             abi.encodeCall(JoinModule.initialize, (takasureReserve))
         );
-
-        // Set JoinModule as a module in TakasurePool
-        TakasureReserve(takasureReserve).setNewJoinModuleContract(joinModule);
 
         // Deploy MembersModule
         membersModule = Upgrades.deployUUPSProxy(
@@ -80,8 +71,22 @@ contract DeployTakasureReserve is Script {
             abi.encodeCall(MembersModule.initialize, (takasureReserve))
         );
 
+        // Setting JoinModule as a requester in BenefitMultiplierConsumer
+        benefitMultiplierConsumer.setNewRequester(joinModule);
+
+        // Add new source code to BenefitMultiplierConsumer
+        benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
+
+        // Set JoinModule as a module in TakasurePool
+        TakasureReserve(takasureReserve).setNewJoinModuleContract(joinModule);
+
         // Set MembersModule as a module in TakasurePool
         TakasureReserve(takasureReserve).setNewMembersModuleContract(membersModule);
+
+        // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
+        TakasureReserve(takasureReserve).grantRole(0x00, config.daoMultisig);
+        // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
+        TakasureReserve(takasureReserve).renounceRole(0x00, msg.sender);
 
         vm.stopBroadcast();
     }

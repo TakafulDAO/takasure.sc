@@ -31,7 +31,7 @@ contract DeployTakasureReserve is Script {
         );
         string memory bmFetchScript = vm.readFile(scriptPath);
 
-        vm.startBroadcast();
+        vm.startBroadcast(msg.sender);
 
         // Deploy TakasureReserve
         address takasureReserveImplementation = address(new TakasureReserve());
@@ -61,12 +61,6 @@ contract DeployTakasureReserve is Script {
             config.subscriptionId
         );
 
-        // Setting TakasurePool as a requester in BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setNewRequester(takasureReserve);
-
-        // Add new source code to BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
-
         // Deploy JoinModule
         address joinModuleImplementation = address(new JoinModule());
         joinModule = UnsafeUpgrades.deployUUPSProxy(
@@ -81,6 +75,22 @@ contract DeployTakasureReserve is Script {
             abi.encodeCall(MembersModule.initialize, (takasureReserve))
         );
 
+        // Setting JoinModule as a requester in BenefitMultiplierConsumer
+        benefitMultiplierConsumer.setNewRequester(joinModule);
+
+        // Add new source code to BenefitMultiplierConsumer
+        benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
+
+        // Set modules contracts in TakasureReserve
+        TakasureReserve(takasureReserve).setNewJoinModuleContract(joinModule);
+        // Set MembersModule as a module in TakasurePool
+        TakasureReserve(takasureReserve).setNewMembersModuleContract(membersModule);
+
+        // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
+        TakasureReserve(takasureReserve).grantRole(0x00, config.daoMultisig);
+        // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
+        TakasureReserve(takasureReserve).renounceRole(0x00, msg.sender);
+
         vm.stopBroadcast();
 
         contributionTokenAddress = TakasureReserve(takasureReserve)
@@ -88,19 +98,5 @@ contract DeployTakasureReserve is Script {
             .contributionToken;
 
         return (takasureReserve, joinModule, membersModule, contributionTokenAddress, helperConfig);
-    }
-
-    function assignAddresses(
-        address takadao,
-        address takasureReserve,
-        address joinModule,
-        address membersModule
-    ) external {
-        vm.startPrank(takadao);
-        // Set JoinModule as a module in TakasurePool
-        TakasureReserve(takasureReserve).setNewJoinModuleContract(joinModule);
-        // Set MembersModule as a module in TakasurePool
-        TakasureReserve(takasureReserve).setNewMembersModuleContract(membersModule);
-        vm.stopPrank();
     }
 }
