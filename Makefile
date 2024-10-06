@@ -93,6 +93,3 @@ endif
 
 # Certora
 fv:; certoraRun ./certora/conf/ReserveMathLib.conf
-
-# Copy contracts/referrals/ReferralGateway.sol to contracts/v1_contracts/ReferralGatewayV1.sol
-file-check:; cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGateway.sol
