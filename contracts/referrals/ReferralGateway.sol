@@ -27,7 +27,7 @@ contract ReferralGateway is
 {
     using SafeERC20 for IERC20;
 
-    IERC20 private usdc;
+    IERC20 public usdc;
 
     uint8 public constant SERVICE_FEE_RATIO = 22;
     uint256 public constant CONTRIBUTION_DISCOUNT_RATIO = 5;
@@ -376,6 +376,10 @@ contract ReferralGateway is
     ) external onlyDaoAdmin(tDAOName) {
         DAODatas[tDAOName].isPreJoinEnabled = _isPreJoinEnabled;
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
+    }
+
+    function setUsdcAddress(address _usdcAddress) external onlyRole(TAKADAO_OPERATOR) {
+        usdc = IERC20(_usdcAddress);
     }
 
     function withdrawFees(string calldata tDAOName) external onlyRole(TAKADAO_OPERATOR) {
