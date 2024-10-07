@@ -10,7 +10,7 @@ import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultip
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
-contract DeployTakasureReserve is Script {
+contract TestDeployTakasureReserve is Script {
     function run()
         external
         returns (

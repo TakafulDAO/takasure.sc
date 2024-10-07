@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.25;
 
-import {Test, console} from "forge-std/Test.sol";
-import {DeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {Test, console2} from "forge-std/Test.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
@@ -14,8 +14,8 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
-contract Size_Setters_TakasureReserveTest is StdCheats, Test {
-    DeployTakasureReserve deployer;
+contract Setters_TakasureReserveTest is StdCheats, Test {
+    TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
@@ -32,11 +32,9 @@ contract Size_Setters_TakasureReserveTest is StdCheats, Test {
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-    uint256 public constant BENEFIT_MULTIPLIER = 0;
-    uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new DeployTakasureReserve();
+        deployer = new TestDeployTakasureReserve();
         (
             takasureReserveProxy,
             joinModuleAddress,
