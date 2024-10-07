@@ -861,12 +861,13 @@ contract JoinModule is
         bool success;
         uint256 feeAmount = _contributionBeforeFee - _contributionAfterFee;
 
-        // Transfer the contribution to the pool
+        // Transfer the contribution to the reserve contract
         success = contributionToken.transferFrom(
             _memberWallet,
-            address(this),
+            address(takasureReserve),
             _contributionAfterFee
         );
+
         if (!success) {
             revert TakasureErrors.TakasurePool__ContributionTransferFailed();
         }
@@ -877,6 +878,7 @@ contract JoinModule is
             takasureReserve.feeClaimAddress(),
             feeAmount
         );
+
         if (!success) {
             revert TakasureErrors.TakasurePool__FeeTransferFailed();
         }
