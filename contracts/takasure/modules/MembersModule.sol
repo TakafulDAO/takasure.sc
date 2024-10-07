@@ -146,8 +146,6 @@ contract MembersModule is
         bool _payContribution,
         NewReserve memory _reserve
     ) internal returns (NewReserve memory) {
-        _getBenefitMultiplierFromOracle(_memberWallet);
-
         _reserve = _updateNewReserveValues(_contributionAfterFee, _contributionBeforeFee, _reserve);
 
         if (_payContribution) {
@@ -155,35 +153,6 @@ contract MembersModule is
         }
 
         return _reserve;
-    }
-
-    function _getBenefitMultiplierFromOracle(
-        address _member
-    ) internal returns (uint256 benefitMultiplier_) {
-        Member memory member = takasureReserve.getMemberFromAddress(_member);
-        string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
-
-        // First we check if there is already a request id for this member
-        bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);
-
-        if (requestId == 0) {
-            // If there is no request id, it means the member has no valid BM yet. So we make a new request
-            string[] memory args = new string[](1);
-            args[0] = memberAddressToString;
-            bmConsumer.sendRequest(args);
-        } else {
-            // If there is a request id, we check if it was successful
-            bool successRequest = bmConsumer.idToSuccessRequest(requestId);
-
-            if (successRequest) {
-                benefitMultiplier_ = bmConsumer.idToBenefitMultiplier(requestId);
-                member.benefitMultiplier = benefitMultiplier_;
-            } else {
-                // If failed we get the error and revert with it
-                bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
-                revert TakasureErrors.TakasurePool__BenefitMultiplierRequestFailed(errorResponse);
-            }
-        }
     }
 
     function _updateNewReserveValues(
