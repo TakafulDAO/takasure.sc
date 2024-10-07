@@ -9,8 +9,14 @@ import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {TSTokenSize} from "contracts/token/TSTokenSize.sol";
 
 contract TestDeployTakasureReserve is Script {
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+    bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
+    bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
+
     function run()
         external
         returns (
@@ -86,10 +92,23 @@ contract TestDeployTakasureReserve is Script {
         // Set MembersModule as a module in TakasurePool
         TakasureReserve(takasureReserve).setNewMembersModuleContract(membersModule);
 
+        TSTokenSize creditToken = TSTokenSize(
+            TakasureReserve(takasureReserve).getReserveValues().daoToken
+        );
+
         // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(takasureReserve).grantRole(0x00, config.daoMultisig);
+        // And the modules as burner and minters
+        creditToken.grantRole(MINTER_ROLE, joinModule);
+        creditToken.grantRole(MINTER_ROLE, membersModule);
+        creditToken.grantRole(BURNER_ROLE, joinModule);
+        creditToken.grantRole(BURNER_ROLE, membersModule);
+
         // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(takasureReserve).renounceRole(0x00, msg.sender);
+        // And the burner and minter admins
+        creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
+        creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
 
         vm.stopBroadcast();
 
