@@ -130,6 +130,7 @@ contract JoinModule is
                 _contributionAfterFee: contributionAfterFee,
                 _memberWallet: msg.sender,
                 _payContribution: true,
+                _sendToReserve: true,
                 _reserve: newReserve
             });
 
@@ -174,7 +175,13 @@ contract JoinModule is
             // The member will pay the contribution, but will remain inactive until the KYC is verified
             // This means the proformas wont be updated, the amounts wont be added to the reserves,
             // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-            _transferAmounts(contributionAfterFee, contributionBeforeFee, msg.sender, false);
+            _transferAmounts({
+                _contributionAfterFee: contributionAfterFee,
+                _contributionBeforeFee: contributionBeforeFee,
+                _memberWallet: msg.sender,
+                _mintTokens: false,
+                _sendToReserve: false
+            });
         }
 
         _setNewReserveAndMemberValuesHook(newReserve, newMember);
@@ -248,6 +255,7 @@ contract JoinModule is
                     _contributionAfterFee: contributionAfterFee,
                     _memberWallet: memberWallet,
                     _payContribution: false,
+                    _sendToReserve: false,
                     _reserve: newReserve
                 });
 
@@ -340,12 +348,12 @@ contract JoinModule is
 
         // Update the member values
         _member.isRefunded = true;
-
         // Transfer the amount to refund
         bool success = IERC20(_newReserve.contributionToken).transfer(
             _memberWallet,
             amountToRefund
         );
+
         if (!success) {
             revert TakasureErrors.TakasurePool__RefundFailed();
         }
@@ -487,6 +495,7 @@ contract JoinModule is
         uint256 _contributionAfterFee,
         address _memberWallet,
         bool _payContribution,
+        bool _sendToReserve,
         NewReserve memory _reserve
     ) internal returns (NewReserve memory) {
         _getBenefitMultiplierFromOracle(_memberWallet);
@@ -494,7 +503,13 @@ contract JoinModule is
         _reserve = _updateNewReserveValues(_contributionAfterFee, _contributionBeforeFee, _reserve);
 
         if (_payContribution) {
-            _transferAmounts(_contributionAfterFee, _contributionBeforeFee, _memberWallet, true);
+            _transferAmounts({
+                _contributionAfterFee: _contributionAfterFee,
+                _contributionBeforeFee: _contributionBeforeFee,
+                _memberWallet: _memberWallet,
+                _mintTokens: true,
+                _sendToReserve: _sendToReserve
+            });
         }
 
         return _reserve;
@@ -855,18 +870,28 @@ contract JoinModule is
         uint256 _contributionAfterFee,
         uint256 _contributionBeforeFee,
         address _memberWallet,
-        bool _mintTokens
+        bool _mintTokens,
+        bool _sendToReserve
     ) internal {
         IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
         bool success;
         uint256 feeAmount = _contributionBeforeFee - _contributionAfterFee;
 
-        // Transfer the contribution to the reserve contract
-        success = contributionToken.transferFrom(
-            _memberWallet,
-            address(takasureReserve),
-            _contributionAfterFee
-        );
+        if (_sendToReserve) {
+            // Transfer the contribution to the reserve
+            success = contributionToken.transferFrom(
+                _memberWallet,
+                address(takasureReserve),
+                _contributionAfterFee
+            );
+        } else {
+            // Store temporarily the contribution in this contract, this way will be available for refunds
+            success = contributionToken.transferFrom(
+                _memberWallet,
+                address(this),
+                _contributionAfterFee
+            );
+        }
 
         if (!success) {
             revert TakasureErrors.TakasurePool__ContributionTransferFailed();
