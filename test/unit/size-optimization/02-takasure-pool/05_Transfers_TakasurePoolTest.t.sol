@@ -14,7 +14,7 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, NewReserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract Size_Transfers_TakasurePoolTest is StdCheats, Test {
+contract Transfers_TakasurePoolTest is StdCheats, Test {
     TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;
