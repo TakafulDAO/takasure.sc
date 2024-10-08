@@ -16,7 +16,7 @@ import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Size_Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
+contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;
@@ -76,32 +76,26 @@ contract Size_Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         deal(address(usdc), frank, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
         vm.startPrank(bob);
-        usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
         vm.startPrank(charlie);
-        usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
         vm.startPrank(david);
-        usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
         vm.startPrank(erin);
-        usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
         vm.startPrank(frank);
-        usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
