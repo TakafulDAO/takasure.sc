@@ -8,7 +8,6 @@ import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
-import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
@@ -21,13 +20,11 @@ contract Setters_TakasureReserveTest is StdCheats, Test {
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
     JoinModule joinModule;
-    MembersModule membersModule;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address joinModuleAddress;
-    address membersModuleAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -38,13 +35,12 @@ contract Setters_TakasureReserveTest is StdCheats, Test {
         (
             takasureReserveProxy,
             joinModuleAddress,
-            membersModuleAddress,
+            ,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
         joinModule = JoinModule(joinModuleAddress);
-        membersModule = MembersModule(membersModuleAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 

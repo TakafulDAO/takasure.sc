@@ -8,7 +8,6 @@ import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
-import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {TSTokenSize} from "contracts/token/TSTokenSize.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -23,14 +22,12 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
     JoinModule joinModule;
-    MembersModule membersModule;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
     address joinModuleAddress;
-    address membersModuleAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -42,13 +39,12 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         (
             takasureReserveProxy,
             joinModuleAddress,
-            membersModuleAddress,
+            ,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
         joinModule = JoinModule(joinModuleAddress);
-        membersModule = MembersModule(membersModuleAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -67,7 +63,6 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(alice);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
-        usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
         vm.prank(admin);
