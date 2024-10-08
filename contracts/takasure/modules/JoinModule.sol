@@ -143,7 +143,7 @@ contract JoinModule is
                 }
                 // If is not KYC verified, and not refunded, it is a completele new member, we create it
                 newMember = _createNewMember({
-                    _currentMemberId: newReserve.memberIdCounter,
+                    _newMemberId: ++newReserve.memberIdCounter,
                     _allowCustomDuration: newReserve.allowCustomDuration,
                     _drr: newReserve.dynamicReserveRatio,
                     _benefitMultiplier: benefitMultiplier, // Fetch from oracle
@@ -213,7 +213,7 @@ contract JoinModule is
             // Flow 1 KYC -> Join
             // This means the user does not exist yet
             newMember = _createNewMember({
-                _currentMemberId: newReserve.memberIdCounter,
+                _newMemberId: ++newReserve.memberIdCounter,
                 _allowCustomDuration: newReserve.allowCustomDuration,
                 _drr: newReserve.dynamicReserveRatio,
                 _benefitMultiplier: benefitMultiplier,
@@ -386,7 +386,7 @@ contract JoinModule is
     }
 
     function _createNewMember(
-        uint256 _currentMemberId,
+        uint256 _newMemberId,
         bool _allowCustomDuration,
         uint256 _drr,
         uint256 _benefitMultiplier,
@@ -408,7 +408,7 @@ contract JoinModule is
         uint256 claimAddAmount = ((_contributionBeforeFee - _feeAmount) * (100 - _drr)) / 100;
 
         Member memory newMember = Member({
-            memberId: ++_currentMemberId,
+            memberId: _newMemberId,
             benefitMultiplier: _benefitMultiplier,
             membershipDuration: userMembershipDuration,
             membershipStartTime: block.timestamp,
@@ -914,14 +914,14 @@ contract JoinModule is
         }
     }
 
-    function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal {
+    function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal returns {
         // Mint needed DAO Tokens
         NewReserve memory _newReserve = takasureReserve.getReserveValues();
         Member memory member = takasureReserve.getMemberFromAddress(_memberWallet);
         uint256 mintAmount = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
         member.creditTokensBalance = mintAmount;
 
-        bool success = ITSToken(_newReserve.daoToken).mint(address(this), mintAmount);
+        bool success = ITSToken(_newReserve.daoToken).mint(address(takasureReserve), mintAmount);
         if (!success) {
             revert TakasureErrors.TakasurePool__MintFailed();
         }
