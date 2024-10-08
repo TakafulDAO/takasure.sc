@@ -3,26 +3,34 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {Member, MemberState, NewReserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
 contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
-    TestDeployTakasure deployer;
+    TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
-    TakasurePool takasurePool;
+    TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConnsumerMock;
-    address proxy;
+    BenefitMultiplierConsumerMock bmConsumerMock;
+    JoinModule joinModule;
+    MembersModule membersModule;
+    address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
+    address kycService;
+    address takadao;
+    address joinModuleAddress;
+    address membersModuleAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -31,30 +39,46 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+        deployer = new TestDeployTakasureReserve();
+        (
+            takasureReserveProxy,
+            joinModuleAddress,
+            membersModuleAddress,
+            contributionTokenAddress,
+            helperConfig
+        ) = deployer.run();
+
+        joinModule = JoinModule(joinModuleAddress);
+        membersModule = MembersModule(membersModuleAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
+        kycService = config.kycProvider;
+        takadao = config.takadaoOperator;
 
         mockDeployer = new DeployConsumerMocks();
-        bmConnsumerMock = mockDeployer.run();
+        bmConsumerMock = mockDeployer.run();
 
-        takasurePool = TakasurePool(address(proxy));
+        takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
-        vm.prank(alice);
-        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        vm.startPrank(alice);
+        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
+        vm.stopPrank();
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
+        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConnsumerMock.setNewRequester(address(takasurePool));
+        bmConsumerMock.setNewRequester(address(joinModuleAddress));
+
+        vm.prank(takadao);
+        joinModule.updateBmAddress();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -66,22 +90,24 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     // 2. Join the pool
 
     /// @dev Test contribution amount is transferred to the contract
-    function testTakasurePool_KycFlow1() public {
-        uint256 memberIdBeforeKyc = takasurePool.memberIdCounter();
+    function testJoinModule_KycFlow1() public {
+        NewReserve memory reserve = takasureReserve.getReserveValues();
+        uint256 memberIdBeforeKyc = reserve.memberIdCounter;
 
         vm.prank(admin);
 
-        vm.expectEmit(true, true, true, true, address(takasurePool));
+        vm.expectEmit(true, true, true, true, address(joinModule));
         emit TakasureEvents.OnMemberCreated(memberIdBeforeKyc + 1, alice, 0, 0, 0, 5 * YEAR, 1);
 
-        vm.expectEmit(true, false, false, false, address(takasurePool));
+        vm.expectEmit(true, false, false, false, address(joinModule));
         emit TakasureEvents.OnMemberKycVerified(memberIdBeforeKyc + 1, alice);
-        takasurePool.setKYCStatus(alice);
+        joinModule.setKYCStatus(alice);
 
-        uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
+        reserve = takasureReserve.getReserveValues();
+        uint256 memberIdAfterKyc = reserve.memberIdCounter;
 
         // member values only after KYC verification without joining the pool
-        Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);
+        Member memory testMemberAfterKyc = takasureReserve.getMemberFromAddress(alice);
 
         console2.log("Member values after KYC verification without joining the pool");
         console2.log("Member ID", testMemberAfterKyc.memberId);
@@ -104,12 +130,12 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         console2.log("=====================================");
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConnsumerMock));
+        _successResponse(address(bmConsumerMock));
 
         // Join the pool
         vm.prank(alice);
 
-        vm.expectEmit(true, true, true, true, address(takasurePool));
+        vm.expectEmit(true, true, true, true, address(joinModule));
         emit TakasureEvents.OnMemberUpdated(
             memberIdAfterKyc,
             alice,
@@ -120,14 +146,15 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
             1
         );
 
-        vm.expectEmit(true, true, false, false, address(takasurePool));
+        vm.expectEmit(true, true, false, false, address(joinModule));
         emit TakasureEvents.OnMemberJoined(memberIdAfterKyc, alice);
-        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
 
-        uint256 memberIdAfterJoin = takasurePool.memberIdCounter();
+        reserve = takasureReserve.getReserveValues();
+        uint256 memberIdAfterJoin = reserve.memberIdCounter;
 
         // member values only after joining the pool
-        Member memory testMemberAfterJoin = takasurePool.getMemberFromAddress(alice);
+        Member memory testMemberAfterJoin = takasureReserve.getMemberFromAddress(alice);
 
         console2.log("Member values after joining the pool and KYC verification");
         console2.log("Member ID", testMemberAfterJoin.memberId);
@@ -165,13 +192,14 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     // 2. Set KYC status to true
 
     /// @dev Test contribution amount is transferred to the contract
-    function testTakasurePool_KycFlow2() public {
-        uint256 memberIdBeforeJoin = takasurePool.memberIdCounter();
+    function testJoinModule_KycFlow2() public {
+        NewReserve memory reserve = takasureReserve.getReserveValues();
+        uint256 memberIdBeforeJoin = reserve.memberIdCounter;
 
         // Join the pool
         vm.prank(alice);
 
-        vm.expectEmit(true, true, true, true, address(takasurePool));
+        vm.expectEmit(true, true, true, true, address(joinModule));
         emit TakasureEvents.OnMemberCreated(
             memberIdBeforeJoin + 1,
             alice,
@@ -182,12 +210,13 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
             1
         );
 
-        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
 
-        uint256 memberIdAfterJoin = takasurePool.memberIdCounter();
+        reserve = takasureReserve.getReserveValues();
+        uint256 memberIdAfterJoin = reserve.memberIdCounter;
 
         // member values only after joining the pool
-        Member memory testMemberAfterJoin = takasurePool.getMemberFromAddress(alice);
+        Member memory testMemberAfterJoin = takasureReserve.getMemberFromAddress(alice);
 
         console2.log("Member values after joining the pool and before KYC verification");
         console2.log("Member ID", testMemberAfterJoin.memberId);
@@ -212,11 +241,11 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         assertEq(testMemberAfterJoin.isKYCVerified, false, "KYC Verification is not correct");
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConnsumerMock));
+        _successResponse(address(bmConsumerMock));
 
         // Set KYC status to true
         vm.prank(admin);
-        vm.expectEmit(true, true, true, true, address(takasurePool));
+        vm.expectEmit(true, true, true, true, address(joinModule));
         emit TakasureEvents.OnMemberUpdated(
             memberIdAfterJoin,
             alice,
@@ -227,17 +256,18 @@ contract KycFlow_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
             1
         );
 
-        vm.expectEmit(true, true, false, false, address(takasurePool));
+        vm.expectEmit(true, true, false, false, address(joinModule));
         emit TakasureEvents.OnMemberJoined(memberIdAfterJoin, alice);
 
-        vm.expectEmit(true, false, false, false, address(takasurePool));
+        vm.expectEmit(true, false, false, false, address(joinModule));
         emit TakasureEvents.OnMemberKycVerified(memberIdAfterJoin, alice);
-        takasurePool.setKYCStatus(alice);
+        joinModule.setKYCStatus(alice);
 
-        uint256 memberIdAfterKyc = takasurePool.memberIdCounter();
+        reserve = takasureReserve.getReserveValues();
+        uint256 memberIdAfterKyc = reserve.memberIdCounter;
 
         // member values only after KYC verification without joining the pool
-        Member memory testMemberAfterKyc = takasurePool.getMemberFromAddress(alice);
+        Member memory testMemberAfterKyc = takasureReserve.getMemberFromAddress(alice);
 
         console2.log("Member values after KYC verification and joining the pool");
         console2.log("Member ID", testMemberAfterKyc.memberId);
