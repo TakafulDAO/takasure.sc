@@ -914,7 +914,7 @@ contract JoinModule is
         }
     }
 
-    function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal returns {
+    function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal {
         // Mint needed DAO Tokens
         NewReserve memory _newReserve = takasureReserve.getReserveValues();
         Member memory member = takasureReserve.getMemberFromAddress(_memberWallet);
