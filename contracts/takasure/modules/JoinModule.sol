@@ -98,8 +98,7 @@ contract JoinModule is
             revert TakasureErrors.TakasurePool__ContributionOutOfRange();
         }
 
-        // Fetch the BM from the oracle
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(msg.sender);
+        uint256 mintAmount;
 
         (
             uint256 normalizedContributionBeforeFee,
@@ -112,7 +111,7 @@ contract JoinModule is
             // It means the user is already in the system, we just need to update the values
             newMember = _updateMember({
                 _drr: newReserve.dynamicReserveRatio,
-                _benefitMultiplier: benefitMultiplier, // Will be fetched from off-chain oracle
+                _benefitMultiplier: _getBenefitMultiplierFromOracle(msg.sender), // Will be fetched from off-chain oracle
                 _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
                 _membershipDuration: membershipDuration, // From the input
                 _feeAmount: feeAmount, // Calculated
@@ -125,7 +124,7 @@ contract JoinModule is
             });
 
             // And we pay the contribution
-            newReserve = _memberPaymentFlow({
+            (newReserve, mintAmount) = _memberPaymentFlow({
                 _contributionBeforeFee: normalizedContributionBeforeFee,
                 _contributionAfterFee: contributionAfterFee,
                 _memberWallet: msg.sender,
@@ -134,6 +133,7 @@ contract JoinModule is
                 _reserve: newReserve
             });
 
+            newMember.creditTokensBalance += mintAmount;
             emit TakasureEvents.OnMemberJoined(newMember.memberId, msg.sender);
         } else {
             if (!newMember.isRefunded) {
@@ -146,7 +146,7 @@ contract JoinModule is
                     _newMemberId: ++newReserve.memberIdCounter,
                     _allowCustomDuration: newReserve.allowCustomDuration,
                     _drr: newReserve.dynamicReserveRatio,
-                    _benefitMultiplier: benefitMultiplier, // Fetch from oracle
+                    _benefitMultiplier: _getBenefitMultiplierFromOracle(msg.sender), // Fetch from oracle
                     _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
                     _membershipDuration: membershipDuration, // From the input
                     _feeAmount: feeAmount, // Calculated
@@ -159,7 +159,7 @@ contract JoinModule is
                 // If is not KYC verified, but refunded, the member exist already, but was previously refunded
                 newMember = _updateMember({
                     _drr: newReserve.dynamicReserveRatio,
-                    _benefitMultiplier: benefitMultiplier,
+                    _benefitMultiplier: _getBenefitMultiplierFromOracle(msg.sender),
                     _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
                     _membershipDuration: membershipDuration, // From the input
                     _feeAmount: feeAmount, // Calculated
@@ -175,13 +175,15 @@ contract JoinModule is
             // The member will pay the contribution, but will remain inactive until the KYC is verified
             // This means the proformas wont be updated, the amounts wont be added to the reserves,
             // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-            _transferAmounts({
+            mintAmount = _transferAmounts({
                 _contributionAfterFee: contributionAfterFee,
                 _contributionBeforeFee: contributionBeforeFee,
                 _memberWallet: msg.sender,
                 _mintTokens: false,
                 _sendToReserve: false
             });
+
+            newMember.creditTokensBalance += mintAmount;
         }
 
         _setNewReserveAndMemberValuesHook(newReserve, newMember);
@@ -206,8 +208,7 @@ contract JoinModule is
             revert TakasureErrors.TakasurePool__MemberAlreadyKYCed();
         }
 
-        // Fetch the BM from the oracle
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
+        uint256 mintAmount;
 
         if (newMember.wallet == address(0)) {
             // Flow 1 KYC -> Join
@@ -216,7 +217,7 @@ contract JoinModule is
                 _newMemberId: ++newReserve.memberIdCounter,
                 _allowCustomDuration: newReserve.allowCustomDuration,
                 _drr: newReserve.dynamicReserveRatio,
-                _benefitMultiplier: benefitMultiplier,
+                _benefitMultiplier: _getBenefitMultiplierFromOracle(memberWallet),
                 _contributionBeforeFee: 0, // We dont know it yet
                 _membershipDuration: 0, // We dont know it yet
                 _feeAmount: 0, // We dont know it yet
@@ -236,7 +237,7 @@ contract JoinModule is
 
                 newMember = _updateMember({
                     _drr: newReserve.dynamicReserveRatio, // We take the current value
-                    _benefitMultiplier: benefitMultiplier, // We take the current value
+                    _benefitMultiplier: _getBenefitMultiplierFromOracle(memberWallet), // We take the current value
                     _contributionBeforeFee: normalizedContributionBeforeFee, // We take the current value
                     _membershipDuration: newMember.membershipDuration, // We take the current value
                     _feeAmount: feeAmount, // Calculated
@@ -250,7 +251,7 @@ contract JoinModule is
 
                 // Then the everyting needed will be updated, proformas, reserves, cash flow,
                 // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
-                newReserve = _memberPaymentFlow({
+                (newReserve, mintAmount) = _memberPaymentFlow({
                     _contributionBeforeFee: normalizedContributionBeforeFee,
                     _contributionAfterFee: contributionAfterFee,
                     _memberWallet: memberWallet,
@@ -259,13 +260,14 @@ contract JoinModule is
                     _reserve: newReserve
                 });
 
+                newMember.creditTokensBalance += mintAmount;
                 emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
             } else {
                 // Flow 4 Refund -> KYC
                 // This means the user exists, but was refunded, we reset the values
                 newMember = _updateMember({
                     _drr: newReserve.dynamicReserveRatio, // We take the current value
-                    _benefitMultiplier: benefitMultiplier, // As the B, does not change, we can avoid re-fetching
+                    _benefitMultiplier: _getBenefitMultiplierFromOracle(memberWallet), // As the B, does not change, we can avoid re-fetching
                     _contributionBeforeFee: 0, // Reset until the user pays the contribution
                     _membershipDuration: 0, // Reset until the user pays the contribution
                     _feeAmount: 0, // Reset until the user pays the contribution
@@ -497,13 +499,13 @@ contract JoinModule is
         bool _payContribution,
         bool _sendToReserve,
         NewReserve memory _reserve
-    ) internal returns (NewReserve memory) {
+    ) internal returns (NewReserve memory, uint256 mintAmount_) {
         _getBenefitMultiplierFromOracle(_memberWallet);
 
         _reserve = _updateNewReserveValues(_contributionAfterFee, _contributionBeforeFee, _reserve);
 
         if (_payContribution) {
-            _transferAmounts({
+            mintAmount_ = _transferAmounts({
                 _contributionAfterFee: _contributionAfterFee,
                 _contributionBeforeFee: _contributionBeforeFee,
                 _memberWallet: _memberWallet,
@@ -512,7 +514,7 @@ contract JoinModule is
             });
         }
 
-        return _reserve;
+        return (_reserve, mintAmount_);
     }
 
     function _updateNewReserveValues(
@@ -872,7 +874,7 @@ contract JoinModule is
         address _memberWallet,
         bool _mintTokens,
         bool _sendToReserve
-    ) internal {
+    ) internal returns (uint256 mintAmount_) {
         IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
         bool success;
         uint256 feeAmount = _contributionBeforeFee - _contributionAfterFee;
@@ -910,18 +912,16 @@ contract JoinModule is
 
         if (_mintTokens) {
             uint256 contributionBeforeFee = _contributionAfterFee + feeAmount;
-            _mintDaoTokens(contributionBeforeFee, _memberWallet);
+            mintAmount_ = _mintDaoTokens(contributionBeforeFee);
         }
     }
 
-    function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal {
+    function _mintDaoTokens(uint256 _contributionBeforeFee) internal returns (uint256 mintAmount_) {
         // Mint needed DAO Tokens
         NewReserve memory _newReserve = takasureReserve.getReserveValues();
-        Member memory member = takasureReserve.getMemberFromAddress(_memberWallet);
-        uint256 mintAmount = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-        member.creditTokensBalance = mintAmount;
+        mintAmount_ = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
-        bool success = ITSToken(_newReserve.daoToken).mint(address(takasureReserve), mintAmount);
+        bool success = ITSToken(_newReserve.daoToken).mint(address(takasureReserve), mintAmount_);
         if (!success) {
             revert TakasureErrors.TakasurePool__MintFailed();
         }
