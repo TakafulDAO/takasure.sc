@@ -33,10 +33,10 @@ contract TakasureReserve is
     address public kycProvider;
     address public feeClaimAddress;
     address public takadaoOperator;
-    address public pauseGuardian;
-    address public joinModuleContract;
-    address public memberModuleContract;
-    address public claimModuleContract;
+    address private pauseGuardian;
+    address private joinModuleContract;
+    address private memberModuleContract;
+    address private claimModuleContract;
 
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 private constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
