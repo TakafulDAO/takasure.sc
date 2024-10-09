@@ -6,7 +6,7 @@
  * @notice It includes the math functions to calculate reserve ratios and benefit multipliers
  */
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.27;
 
 import {Member} from "../types/TakasureTypes.sol";
 

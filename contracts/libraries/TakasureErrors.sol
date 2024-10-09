@@ -5,7 +5,7 @@
  * @author  Maikel Ordaz
  * @notice  This library is used to store the errors of the Takasure protocol
  */
-pragma solidity 0.8.25;
+pragma solidity 0.8.27;
 
 library TakasureErrors {
     error TakasurePool__ZeroAddress();
