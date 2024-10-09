@@ -3,33 +3,47 @@
 pragma solidity 0.8.25;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {TakasurePoolHandler} from "test/helpers/handlers/TakasurePoolHandler.t.sol";
+import {TakasureReserveHandler} from "test/helpers/handlers/TakasureReserveHandler.t.sol";
 
-contract TakasurePoolInvariantTest is StdInvariant, Test {
-    TestDeployTakasure deployer;
-    TakasurePool takasurePool;
-    address proxy;
-    TakasurePoolHandler handler;
+contract TakasureReserveInvariantTest is StdInvariant, Test {
+    TestDeployTakasureReserve deployer;
+    TakasureReserve takasureReserve;
+    JoinModule joinModule;
+    MembersModule membersModule;
+    TakasureReserveHandler handler;
+    address takasureReserveProxy;
+    address joinModuleAddress;
+    address membersModuleAddress;
     address contributionTokenAddress;
     IUSDC usdc;
     address public user = makeAddr("user");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
 
     function setUp() public {
-        deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        deployer = new TestDeployTakasureReserve();
+        (
+            takasureReserveProxy,
+            joinModuleAddress,
+            membersModuleAddress,
+            contributionTokenAddress,
 
-        takasurePool = TakasurePool(address(proxy));
+        ) = deployer.run();
+
+        takasureReserve = TakasureReserve(address(takasureReserveProxy));
+        joinModule = JoinModule(joinModuleAddress);
+        membersModule = MembersModule(membersModuleAddress);
         usdc = IUSDC(contributionTokenAddress);
 
-        handler = new TakasurePoolHandler(takasurePool);
+        handler = new TakasureReserveHandler(takasureReserve, joinModule, membersModule);
 
         bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = TakasurePoolHandler.joinPool.selector;
-        selectors[1] = TakasurePoolHandler.moveTime.selector;
+        selectors[0] = TakasureReserveHandler.joinPool.selector;
+        selectors[1] = TakasureReserveHandler.moveTime.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
