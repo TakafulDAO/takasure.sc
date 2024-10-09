@@ -8,14 +8,14 @@ import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {TakasureReserveHandler} from "test/helpers/handlers/TakasureReserveHandler.t.sol";
+import {TakasureProtocolHandler} from "test/helpers/handlers/TakasureProtocolHandler.t.sol";
 
 contract TakasureProtocolInvariantTest is StdInvariant, Test {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
     JoinModule joinModule;
     MembersModule membersModule;
-    TakasureReserveHandler handler;
+    TakasureProtocolHandler handler;
     address takasureReserveProxy;
     address joinModuleAddress;
     address membersModuleAddress;
@@ -39,11 +39,11 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
         membersModule = MembersModule(membersModuleAddress);
         usdc = IUSDC(contributionTokenAddress);
 
-        handler = new TakasureReserveHandler(takasureReserve, joinModule, membersModule);
+        handler = new TakasureProtocolHandler(takasureReserve, joinModule, membersModule);
 
         bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = TakasureReserveHandler.joinPool.selector;
-        selectors[1] = TakasureReserveHandler.moveTime.selector;
+        selectors[0] = TakasureProtocolHandler.joinPool.selector;
+        selectors[1] = TakasureProtocolHandler.moveTime.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
