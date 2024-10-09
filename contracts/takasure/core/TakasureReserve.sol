@@ -11,7 +11,7 @@
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {TSTokenSize} from "contracts/token/TSTokenSize.sol";
+import {TSToken} from "contracts/token/TSToken.sol";
 
 import {NewReserve, Member, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
@@ -102,7 +102,7 @@ contract TakasureReserve is
         feeClaimAddress = _feeClaimAddress;
         pauseGuardian = _pauseGuardian;
 
-        TSTokenSize daoToken = new TSTokenSize(_tokenAdmin, msg.sender, _tokenName, _tokenSymbol);
+        TSToken daoToken = new TSToken(_tokenAdmin, msg.sender, _tokenName, _tokenSymbol);
 
         cashFlowVars.monthReference = 1;
         cashFlowVars.dayReference = 1;

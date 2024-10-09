@@ -10,7 +10,7 @@ import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
 import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
-import {TSTokenSize} from "contracts/token/TSTokenSize.sol";
+import {TSToken} from "contracts/token/TSToken.sol";
 
 contract TestDeployTakasureReserve is Script {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -82,9 +82,7 @@ contract TestDeployTakasureReserve is Script {
         TakasureReserve(takasureReserve).setNewModuleContract(membersModule);
         TakasureReserve(takasureReserve).setNewModuleContract(revenueModule);
 
-        TSTokenSize creditToken = TSTokenSize(
-            TakasureReserve(takasureReserve).getReserveValues().daoToken
-        );
+        TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
 
         // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(takasureReserve).grantRole(0x00, config.daoMultisig);

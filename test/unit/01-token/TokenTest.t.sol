@@ -4,13 +4,13 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
-import {TSTokenSize} from "contracts/token/TSTokenSize.sol";
+import {TSToken} from "contracts/token/TSToken.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 
 contract TokenTest is Test {
     TestDeployTakasureReserve deployer;
-    TSTokenSize daoToken;
+    TSToken daoToken;
     TakasureReserve takasureReserve;
     JoinModule joinModule;
     address takasureReserveProxy;
@@ -32,7 +32,7 @@ contract TokenTest is Test {
 
         joinModule = JoinModule(joinModuleAddress);
 
-        daoToken = TSTokenSize(TakasureReserve(takasureReserveProxy).getReserveValues().daoToken);
+        daoToken = TSToken(TakasureReserve(takasureReserveProxy).getReserveValues().daoToken);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -99,19 +99,19 @@ contract TokenTest is Test {
 
     function testToken_mustRevertIfTryToMintToAddressZero() public {
         vm.prank(address(joinModule));
-        vm.expectRevert(TSTokenSize.Token__NotZeroAddress.selector);
+        vm.expectRevert(TSToken.Token__NotZeroAddress.selector);
         daoToken.mint(address(0), MINT_AMOUNT);
     }
 
     function testToken_mustRevertIfTryToMintZero() public {
         vm.prank(address(joinModule));
-        vm.expectRevert(TSTokenSize.Token__MustBeMoreThanZero.selector);
+        vm.expectRevert(TSToken.Token__MustBeMoreThanZero.selector);
         daoToken.mint(user, 0);
     }
 
     function testToken_mustRevertIfTryToBurnZero() public {
         vm.prank(address(joinModule));
-        vm.expectRevert(TSTokenSize.Token__MustBeMoreThanZero.selector);
+        vm.expectRevert(TSToken.Token__MustBeMoreThanZero.selector);
         daoToken.burn(0);
     }
 
@@ -120,7 +120,7 @@ contract TokenTest is Test {
         vm.prank(address(joinModule));
         vm.expectRevert(
             abi.encodeWithSelector(
-                TSTokenSize.Token__BurnAmountExceedsBalance.selector,
+                TSToken.Token__BurnAmountExceedsBalance.selector,
                 userBalance,
                 MINT_AMOUNT
             )

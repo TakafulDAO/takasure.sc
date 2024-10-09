@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {TSTokenSize} from "contracts/token/TSTokenSize.sol";
+import {TSToken} from "contracts/token/TSToken.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
@@ -104,9 +104,7 @@ contract DeployTakasureReserve is Script {
         // Set RevenueModule as a module in TakasurePool
         TakasureReserve(takasureReserve).setNewModuleContract(revenueModule);
 
-        TSTokenSize creditToken = TSTokenSize(
-            TakasureReserve(takasureReserve).getReserveValues().daoToken
-        );
+        TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
 
         // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(takasureReserve).grantRole(0x00, config.daoMultisig);

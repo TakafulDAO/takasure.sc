@@ -8,7 +8,6 @@ import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
-import {TSTokenSize} from "contracts/token/TSTokenSize.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, NewReserve} from "contracts/types/TakasureTypes.sol";
