@@ -89,7 +89,8 @@ contract TestDeployTakasureReserve is Script {
 
         // Set modules contracts in TakasureReserve
         TakasureReserve(takasureReserve).setNewJoinModuleContract(joinModule);
-        // Set MembersModule as a module in TakasurePool
+        // Set MembersModule as a module in         // Set modules contracts in TakasureReserve
+
         TakasureReserve(takasureReserve).setNewMembersModuleContract(membersModule);
 
         TSTokenSize creditToken = TSTokenSize(
