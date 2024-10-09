@@ -3,13 +3,30 @@
 pragma solidity 0.8.25;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {TSTokenSize} from "contracts/token/TSTokenSize.sol";
+import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
 import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
-contract DeployAll is Script {
-    function run() external returns (address proxy) {
+contract DeployTakasureReserve is Script {
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+    bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
+    bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
+
+    function run()
+        external
+        returns (
+            address takasureReserve,
+            address joinModule,
+            address membersModule,
+            address revenueModule
+        )
+    {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -22,11 +39,11 @@ contract DeployAll is Script {
 
         vm.startBroadcast();
 
-        // Deploy TakasurePool
-        proxy = Upgrades.deployUUPSProxy(
-            "TakasurePool.sol",
+        // Deploy TakasureReserve
+        takasureReserve = Upgrades.deployUUPSProxy(
+            "TakasureReserve.sol",
             abi.encodeCall(
-                TakasurePool.initialize,
+                TakasureReserve.initialize,
                 (
                     config.contributionToken,
                     config.feeClaimAddress,
@@ -49,17 +66,62 @@ contract DeployAll is Script {
             config.subscriptionId
         );
 
-        // Set BenefitMultiplierConsumer as an oracle in TakasurePool
-        TakasurePool(proxy).setNewBenefitMultiplierConsumer(address(benefitMultiplierConsumer));
+        // Deploy JoinModule
+        joinModule = Upgrades.deployUUPSProxy(
+            "JoinModule.sol",
+            abi.encodeCall(JoinModule.initialize, (takasureReserve))
+        );
 
-        // Setting TakasurePool as a requester in BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setNewRequester(proxy);
+        // Deploy MembersModule
+        membersModule = Upgrades.deployUUPSProxy(
+            "MembersModule.sol",
+            abi.encodeCall(MembersModule.initialize, (takasureReserve))
+        );
+
+        // Deploy RevemueModule
+        revenueModule = Upgrades.deployUUPSProxy(
+            "RevenueModule.sol",
+            abi.encodeCall(RevenueModule.initialize, (takasureReserve))
+        );
+
+        // Set BenefitMultiplierConsumer as an oracle in TakasurePool
+        TakasureReserve(takasureReserve).setNewBenefitMultiplierConsumerAddress(
+            address(benefitMultiplierConsumer)
+        );
 
         // Add new source code to BenefitMultiplierConsumer
         benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
 
-        vm.stopBroadcast();
+        // Setting JoinModule as a requester in BenefitMultiplierConsumer
+        benefitMultiplierConsumer.setNewRequester(joinModule);
 
-        return (proxy);
+        // Set JoinModule as a module in TakasurePool
+        TakasureReserve(takasureReserve).setNewModuleContract(joinModule);
+
+        // Set MembersModule as a module in TakasurePool
+        TakasureReserve(takasureReserve).setNewModuleContract(membersModule);
+
+        // Set RevenueModule as a module in TakasurePool
+        TakasureReserve(takasureReserve).setNewModuleContract(revenueModule);
+
+        TSTokenSize creditToken = TSTokenSize(
+            TakasureReserve(takasureReserve).getReserveValues().daoToken
+        );
+
+        // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
+        TakasureReserve(takasureReserve).grantRole(0x00, config.daoMultisig);
+        // And the modules as burner and minters
+        creditToken.grantRole(MINTER_ROLE, joinModule);
+        creditToken.grantRole(MINTER_ROLE, membersModule);
+        creditToken.grantRole(BURNER_ROLE, joinModule);
+        creditToken.grantRole(BURNER_ROLE, membersModule);
+
+        // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
+        TakasureReserve(takasureReserve).renounceRole(0x00, msg.sender);
+        // And the burner and minter admins
+        creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
+        creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
+
+        vm.stopBroadcast();
     }
 }
