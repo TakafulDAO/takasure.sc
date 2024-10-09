@@ -16,7 +16,7 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {NewReserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {NewReserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
