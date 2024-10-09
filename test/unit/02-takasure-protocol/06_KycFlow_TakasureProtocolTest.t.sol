@@ -41,6 +41,7 @@ contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             takasureReserveProxy,
             joinModuleAddress,
             ,
+            ,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();

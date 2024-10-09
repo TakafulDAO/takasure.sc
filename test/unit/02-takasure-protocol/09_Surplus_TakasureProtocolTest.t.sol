@@ -50,6 +50,7 @@ contract Refund_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             takasureReserveProxy,
             joinModuleAddress,
             membersModuleAddress,
+            ,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();

@@ -38,6 +38,7 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
             takasureReserveProxy,
             joinModuleAddress,
             ,
+            ,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();

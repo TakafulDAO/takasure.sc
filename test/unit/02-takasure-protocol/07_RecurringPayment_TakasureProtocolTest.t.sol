@@ -43,6 +43,7 @@ contract RecurringPayment_TakasureProtocolTest is StdCheats, Test, SimulateDonRe
             takasureReserveProxy,
             joinModuleAddress,
             membersModuleAddress,
+            ,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();

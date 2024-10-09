@@ -30,6 +30,7 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
             takasureReserveProxy,
             joinModuleAddress,
             membersModuleAddress,
+            ,
             contributionTokenAddress,
 
         ) = deployer.run();

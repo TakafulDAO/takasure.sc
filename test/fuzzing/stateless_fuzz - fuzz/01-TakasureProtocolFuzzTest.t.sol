@@ -37,6 +37,7 @@ contract TakasureProtocolFuzzTest is Test {
             takasureReserveProxy,
             joinModuleAddress,
             membersModuleAddress,
+            ,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
