@@ -341,12 +341,8 @@ contract TakasureReserve is
         if (_currentMonth < 13) {
             // Less than a complete year, iterate through every month passed
             // Return everything stored in the mappings until now
-            for (uint8 i = 1; i <= _currentMonth; ) {
+            for (uint8 i = 1; i <= _currentMonth; ++i) {
                 cash += monthToCashFlow[i];
-
-                unchecked {
-                    ++i;
-                }
             }
         } else {
             // More than a complete year has passed, iterate the last 11 completed months
@@ -354,13 +350,9 @@ contract TakasureReserve is
             uint16 monthBackCounter;
             uint16 monthsInYear = 12;
 
-            for (uint8 i; i < monthsInYear; ) {
+            for (uint8 i; i < monthsInYear; ++i) {
                 monthBackCounter = _currentMonth - i;
                 cash += monthToCashFlow[monthBackCounter];
-
-                unchecked {
-                    ++i;
-                }
             }
 
             // Iterate an extra month to complete the days that are left from the current month
@@ -368,11 +360,10 @@ contract TakasureReserve is
             uint8 dayBackCounter = 30;
             uint8 extraDaysToCheck = dayBackCounter - _currentDay;
 
-            for (uint8 i; i < extraDaysToCheck; ) {
+            for (uint8 i; i < extraDaysToCheck; ++i) {
                 cash += dayToCashFlow[extraMonthToCheck][dayBackCounter];
 
                 unchecked {
-                    ++i;
                     --dayBackCounter;
                 }
             }

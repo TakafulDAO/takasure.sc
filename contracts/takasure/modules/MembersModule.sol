@@ -348,12 +348,8 @@ contract MembersModule is
         if (_currentMonth < 13) {
             // Less than a complete year, iterate through every month passed
             // Return everything stored in the mappings until now
-            for (uint8 i = 1; i <= _currentMonth; ) {
+            for (uint8 i = 1; i <= _currentMonth; ++i) {
                 cash += takasureReserve.monthToCashFlow(i);
-
-                unchecked {
-                    ++i;
-                }
             }
         } else {
             // More than a complete year has passed, iterate the last 11 completed months
@@ -361,13 +357,9 @@ contract MembersModule is
             uint16 monthBackCounter;
             uint16 monthsInYear = 12;
 
-            for (uint8 i; i < monthsInYear; ) {
+            for (uint8 i; i < monthsInYear; ++i) {
                 monthBackCounter = _currentMonth - i;
                 cash += takasureReserve.monthToCashFlow(monthBackCounter);
-
-                unchecked {
-                    ++i;
-                }
             }
 
             // Iterate an extra month to complete the days that are left from the current month
@@ -375,11 +367,10 @@ contract MembersModule is
             uint8 dayBackCounter = 30;
             uint8 extraDaysToCheck = dayBackCounter - _currentDay;
 
-            for (uint8 i; i < extraDaysToCheck; ) {
+            for (uint8 i; i < extraDaysToCheck; ++i) {
                 cash += takasureReserve.dayToCashFlow(extraMonthToCheck, dayBackCounter);
 
                 unchecked {
-                    ++i;
                     --dayBackCounter;
                 }
             }
