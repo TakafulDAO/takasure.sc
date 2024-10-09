@@ -41,9 +41,7 @@ contract TakasureReserve is
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 private constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
-    bytes32 private constant JOIN_MODULE_CONTRACT = keccak256("JOIN_MODULE_CONTRACT");
-    bytes32 private constant MEMBERS_MODULE_CONTRACT = keccak256("MEMBERS_MODULE_CONTRACT");
-    bytes32 private constant CLAIM_MODULE_CONTRACT = keccak256("CLAIM_MODULE_CONTRACT");
+    bytes32 private constant MODULE_CONTRACT = keccak256("MODULE_CONTRACT");
 
     mapping(uint16 month => uint256 montCashFlow) public monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) public dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
@@ -64,15 +62,6 @@ contract TakasureReserve is
             !hasRole(DAO_MULTISIG, msg.sender) &&
             !hasRole(DEFAULT_ADMIN_ROLE, msg.sender)
         ) revert TakasureErrors.OnlyDaoOrTakadao();
-        _;
-    }
-
-    modifier onlyModuleContract() {
-        if (
-            !hasRole(JOIN_MODULE_CONTRACT, msg.sender) &&
-            !hasRole(MEMBERS_MODULE_CONTRACT, msg.sender) &&
-            !hasRole(CLAIM_MODULE_CONTRACT, msg.sender)
-        ) revert TakasureErrors.OnlyModuleContract();
         _;
     }
 
@@ -151,27 +140,27 @@ contract TakasureReserve is
 
     function setMemberValuesFromModule(
         Member memory newMember
-    ) external whenNotPaused onlyModuleContract {
+    ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
         members[newMember.wallet] = newMember;
         idToMemberWallet[newMember.memberId] = newMember.wallet;
     }
 
     function setReserveValuesFromModule(
         NewReserve memory newReserve
-    ) external whenNotPaused onlyModuleContract {
+    ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
         reserve = newReserve;
     }
 
     function setCashFlowValuesFromModule(
         CashFlowVars memory newCashFlowVars
-    ) external whenNotPaused onlyModuleContract {
+    ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
         cashFlowVars = newCashFlowVars;
     }
 
     function setMonthToCashFlowValuesFromModule(
         uint16 month,
         uint256 monthCashFlow
-    ) external whenNotPaused onlyModuleContract {
+    ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
         monthToCashFlow[month] = monthCashFlow;
     }
 
@@ -179,7 +168,7 @@ contract TakasureReserve is
         uint16 month,
         uint8 day,
         uint256 dayCashFlow
-    ) external whenNotPaused onlyModuleContract {
+    ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
         dayToCashFlow[month][day] = dayCashFlow;
     }
 
@@ -191,11 +180,10 @@ contract TakasureReserve is
         if (oldJoinModuleContract == newJoinModuleContract)
             revert TakasureErrors.TakasurePool__SameModuleContract();
 
-        if (oldJoinModuleContract != address(0))
-            revokeRole(JOIN_MODULE_CONTRACT, oldJoinModuleContract);
+        if (oldJoinModuleContract != address(0)) revokeRole(MODULE_CONTRACT, oldJoinModuleContract);
 
         joinModuleContract = newJoinModuleContract;
-        grantRole(JOIN_MODULE_CONTRACT, newJoinModuleContract);
+        grantRole(MODULE_CONTRACT, newJoinModuleContract);
     }
 
     function setNewMembersModuleContract(
@@ -207,10 +195,10 @@ contract TakasureReserve is
             revert TakasureErrors.TakasurePool__SameModuleContract();
 
         if (oldMemberModuleContract != address(0))
-            revokeRole(MEMBERS_MODULE_CONTRACT, oldMemberModuleContract);
+            revokeRole(MODULE_CONTRACT, oldMemberModuleContract);
 
         memberModuleContract = newMembersModuleContract;
-        grantRole(MEMBERS_MODULE_CONTRACT, newMembersModuleContract);
+        grantRole(MODULE_CONTRACT, newMembersModuleContract);
     }
 
     function setNewClaimModuleContract(
@@ -222,10 +210,10 @@ contract TakasureReserve is
             revert TakasureErrors.TakasurePool__SameModuleContract();
 
         if (oldClaimModuleContract != address(0))
-            revokeRole(CLAIM_MODULE_CONTRACT, oldClaimModuleContract);
+            revokeRole(MODULE_CONTRACT, oldClaimModuleContract);
 
         claimModuleContract = newClaimModuleContract;
-        grantRole(CLAIM_MODULE_CONTRACT, newClaimModuleContract);
+        grantRole(MODULE_CONTRACT, newClaimModuleContract);
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
