@@ -6,6 +6,7 @@ import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
 import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
@@ -23,6 +24,7 @@ contract TestDeployTakasureReserve is Script {
             address takasureReserve,
             address joinModule,
             address membersModule,
+            address revenueModule,
             address contributionTokenAddress,
             HelperConfig helperConfig
         )
@@ -67,19 +69,7 @@ contract TestDeployTakasureReserve is Script {
             config.subscriptionId
         );
 
-        // Deploy JoinModule
-        address joinModuleImplementation = address(new JoinModule());
-        joinModule = UnsafeUpgrades.deployUUPSProxy(
-            joinModuleImplementation,
-            abi.encodeCall(JoinModule.initialize, (takasureReserve))
-        );
-
-        // Deploy MembersModule
-        address membersModuleImplementation = address(new MembersModule());
-        membersModule = UnsafeUpgrades.deployUUPSProxy(
-            membersModuleImplementation,
-            abi.encodeCall(MembersModule.initialize, (takasureReserve))
-        );
+        (joinModule, membersModule, revenueModule) = _deployModules(takasureReserve);
 
         // Setting JoinModule as a requester in BenefitMultiplierConsumer
         benefitMultiplierConsumer.setNewRequester(joinModule);
@@ -88,10 +78,9 @@ contract TestDeployTakasureReserve is Script {
         benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
 
         // Set modules contracts in TakasureReserve
-        TakasureReserve(takasureReserve).setNewJoinModuleContract(joinModule);
-        // Set MembersModule as a module in         // Set modules contracts in TakasureReserve
-
-        TakasureReserve(takasureReserve).setNewMembersModuleContract(membersModule);
+        TakasureReserve(takasureReserve).setNewModuleContract(joinModule);
+        TakasureReserve(takasureReserve).setNewModuleContract(membersModule);
+        TakasureReserve(takasureReserve).setNewModuleContract(revenueModule);
 
         TSTokenSize creditToken = TSTokenSize(
             TakasureReserve(takasureReserve).getReserveValues().daoToken
@@ -117,6 +106,38 @@ contract TestDeployTakasureReserve is Script {
             .getReserveValues()
             .contributionToken;
 
-        return (takasureReserve, joinModule, membersModule, contributionTokenAddress, helperConfig);
+        return (
+            takasureReserve,
+            joinModule,
+            membersModule,
+            revenueModule,
+            contributionTokenAddress,
+            helperConfig
+        );
+    }
+
+    function _deployModules(
+        address _takasureReserve
+    ) internal returns (address joinModule, address membersModule, address revenueModule) {
+        // Deploy JoinModule
+        address joinModuleImplementation = address(new JoinModule());
+        joinModule = UnsafeUpgrades.deployUUPSProxy(
+            joinModuleImplementation,
+            abi.encodeCall(JoinModule.initialize, (_takasureReserve))
+        );
+
+        // Deploy MembersModule
+        address membersModuleImplementation = address(new MembersModule());
+        membersModule = UnsafeUpgrades.deployUUPSProxy(
+            membersModuleImplementation,
+            abi.encodeCall(MembersModule.initialize, (_takasureReserve))
+        );
+
+        // Deploy RevenueModule
+        address revenueModuleImplementation = address(new RevenueModule());
+        revenueModule = UnsafeUpgrades.deployUUPSProxy(
+            revenueModuleImplementation,
+            abi.encodeCall(RevenueModule.initialize, (_takasureReserve))
+        );
     }
 }

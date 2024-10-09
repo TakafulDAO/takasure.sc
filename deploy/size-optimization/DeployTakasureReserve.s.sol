@@ -6,6 +6,7 @@ import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
 import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
@@ -18,7 +19,12 @@ contract DeployTakasureReserve is Script {
 
     function run()
         external
-        returns (address takasureReserve, address joinModule, address membersModule)
+        returns (
+            address takasureReserve,
+            address joinModule,
+            address membersModule,
+            address revenueModule
+        )
     {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -71,6 +77,12 @@ contract DeployTakasureReserve is Script {
             abi.encodeCall(MembersModule.initialize, (takasureReserve))
         );
 
+        // Deploy RevemueModule
+        revenueModule = Upgrades.deployUUPSProxy(
+            "RevenueModule.sol",
+            abi.encodeCall(RevenueModule.initialize, (takasureReserve))
+        );
+
         // Set BenefitMultiplierConsumer as an oracle in TakasurePool
         TakasureReserve(takasureReserve).setNewBenefitMultiplierConsumerAddress(
             address(benefitMultiplierConsumer)
@@ -87,6 +99,9 @@ contract DeployTakasureReserve is Script {
 
         // Set MembersModule as a module in TakasurePool
         TakasureReserve(takasureReserve).setNewMembersModuleContract(membersModule);
+
+        // Set RevenueModule as a module in TakasurePool
+        TakasureReserve(takasureReserve).setNewRevenueModuleContract(revenueModule);
 
         TSTokenSize creditToken = TSTokenSize(
             TakasureReserve(takasureReserve).getReserveValues().daoToken
