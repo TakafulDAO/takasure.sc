@@ -3,10 +3,12 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
@@ -15,62 +17,83 @@ import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
 contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
-    TestDeployTakasure deployer;
+    TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
-    TakasurePool takasurePool;
+    TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConnsumerMock;
-    address proxy;
+    BenefitMultiplierConsumerMock bmConsumerMock;
+    JoinModule joinModule;
+    MembersModule membersModule;
+    address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
+    address kycService;
+    address takadao;
+    address joinModuleAddress;
+    address membersModuleAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-    uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+        deployer = new TestDeployTakasureReserve();
+        (
+            takasureReserveProxy,
+            joinModuleAddress,
+            membersModuleAddress,
+            contributionTokenAddress,
+            helperConfig
+        ) = deployer.run();
+
+        joinModule = JoinModule(joinModuleAddress);
+        membersModule = MembersModule(membersModuleAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
+        kycService = config.kycProvider;
+        takadao = config.takadaoOperator;
 
         mockDeployer = new DeployConsumerMocks();
-        bmConnsumerMock = mockDeployer.run();
+        bmConsumerMock = mockDeployer.run();
 
-        takasurePool = TakasurePool(proxy);
+        takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
+        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConnsumerMock.setNewRequester(address(takasurePool));
+        bmConsumerMock.setNewRequester(address(joinModuleAddress));
+
+        vm.prank(takadao);
+        joinModule.updateBmAddress();
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
-        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
+
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
 
         // We simulate a request before the KYC
-        _successResponse(address(bmConnsumerMock));
+        _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
-        takasurePool.setKYCStatus(alice);
+        joinModule.setKYCStatus(alice);
         vm.stopPrank;
     }
 
-    function testTakasurePool_recurringPaymentThrough5Years() public {
+    function testMembersModule_recurringPaymentThrough5Years() public {
         uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
 
         for (uint256 i = 0; i < 5; i++) {
-            Member memory testMember = takasurePool.getMemberFromAddress(alice);
+            Member memory testMember = takasureReserve.getMemberFromAddress(alice);
 
             uint256 lastYearStartDateBefore = testMember.lastPaidYearStartDate;
             uint256 totalContributionBeforePayment = testMember.totalContributions;
@@ -80,7 +103,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
             vm.roll(block.number + 1);
 
             vm.startPrank(alice);
-            vm.expectEmit(true, true, true, true, address(takasurePool));
+            vm.expectEmit(true, true, true, true, address(membersModule));
             emit TakasureEvents.OnRecurringPayment(
                 alice,
                 testMember.memberId,
@@ -88,10 +111,10 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
                 totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
-            takasurePool.recurringPayment();
+            membersModule.recurringPayment();
             vm.stopPrank;
 
-            testMember = takasurePool.getMemberFromAddress(alice);
+            testMember = takasureReserve.getMemberFromAddress(alice);
 
             uint256 lastYearStartDateAfter = testMember.lastPaidYearStartDate;
             uint256 totalContributionAfterPayment = testMember.totalContributions;
