@@ -12,7 +12,7 @@ import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract TakasureReserveFuzzTest is Test {
+contract TakasureProtocolFuzzTest is Test {
     TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;

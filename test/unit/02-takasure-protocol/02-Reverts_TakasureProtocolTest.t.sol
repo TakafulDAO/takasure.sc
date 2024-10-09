@@ -16,7 +16,7 @@ import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
+contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;

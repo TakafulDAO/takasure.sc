@@ -15,7 +15,7 @@ import {Member, MemberState, NewReserve} from "contracts/types/TakasureTypes.sol
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
+contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;

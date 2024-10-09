@@ -13,7 +13,7 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
-contract Setters_TakasureReserveTest is StdCheats, Test {
+contract Setters_TakasureProtocolTest is StdCheats, Test {
     TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;

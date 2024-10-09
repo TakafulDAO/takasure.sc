@@ -10,7 +10,7 @@ import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureReserveHandler} from "test/helpers/handlers/TakasureReserveHandler.t.sol";
 
-contract TakasureReserveInvariantTest is StdInvariant, Test {
+contract TakasureProtocolInvariantTest is StdInvariant, Test {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
     JoinModule joinModule;

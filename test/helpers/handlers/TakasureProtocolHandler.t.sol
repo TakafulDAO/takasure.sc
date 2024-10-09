@@ -9,7 +9,7 @@ import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {MemberState} from "contracts/types/TakasureTypes.sol";
 
-contract TakasureReserveHandler is Test {
+contract TakasureProtocolHandler is Test {
     TakasureReserve takasureReserve;
     JoinModule joinModule;
     MembersModule membersModule;
