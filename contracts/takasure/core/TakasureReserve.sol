@@ -14,6 +14,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {TSTokenSize} from "contracts/token/TSTokenSize.sol";
 
 import {NewReserve, Member, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 
@@ -309,6 +310,111 @@ contract TakasureReserve is
 
     function getCashFlowValues() external view returns (CashFlowVars memory) {
         return cashFlowVars;
+    }
+
+    /**
+     * @notice Get the cash flow for the last 12 months. From the time is called
+     * @return cash_ the cash flow for the last 12 months
+     */
+    function getCashLast12Months() external view returns (uint256 cash_) {
+        (uint16 monthFromCall, uint8 dayFromCall) = _monthAndDayFromCall();
+        cash_ = _cashLast12Months(monthFromCall, dayFromCall);
+    }
+
+    function _monthAndDayFromCall()
+        internal
+        view
+        returns (uint16 currentMonth_, uint8 currentDay_)
+    {
+        uint256 currentTimestamp = block.timestamp;
+        uint256 lastDayDepositTimestamp = cashFlowVars.dayDepositTimestamp;
+        uint256 lastMonthDepositTimestamp = cashFlowVars.monthDepositTimestamp;
+
+        // Calculate how many days and months have passed since the last deposit and the current timestamp
+        uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
+            currentTimestamp,
+            lastDayDepositTimestamp
+        );
+        uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
+            currentTimestamp,
+            lastMonthDepositTimestamp
+        );
+
+        if (monthsPassed == 0) {
+            // If  no months have passed, current month is the reference
+            currentMonth_ = cashFlowVars.monthReference;
+            if (daysPassed == 0) {
+                // If no days have passed, current day is the reference
+                currentDay_ = cashFlowVars.dayReference;
+            } else {
+                // If you are in a new day, calculate the days passed
+                currentDay_ = uint8(daysPassed) + cashFlowVars.dayReference;
+            }
+        } else {
+            // If you are in a new month, calculate the months passed
+            currentMonth_ = uint16(monthsPassed) + cashFlowVars.monthReference;
+            // Calculate the timestamp when this new month started
+            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp +
+                (monthsPassed * 30 days);
+            // And calculate the days passed in this new month using the new month timestamp
+            daysPassed = ReserveMathLib._calculateDaysPassed(
+                currentTimestamp,
+                timestampThisMonthStarted
+            );
+            // The current day is the days passed in this new month
+            uint8 initialDay = 1;
+            currentDay_ = uint8(daysPassed) + initialDay;
+        }
+    }
+
+    function _cashLast12Months(
+        uint16 _currentMonth,
+        uint8 _currentDay
+    ) internal view returns (uint256 cashLast12Months_) {
+        uint256 cash = 0;
+
+        // Then make the iterations, according the month and day this function is called
+        if (_currentMonth < 13) {
+            // Less than a complete year, iterate through every month passed
+            // Return everything stored in the mappings until now
+            for (uint8 i = 1; i <= _currentMonth; ) {
+                cash += monthToCashFlow[i];
+
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            // More than a complete year has passed, iterate the last 11 completed months
+            // This happens since month 13
+            uint16 monthBackCounter;
+            uint16 monthsInYear = 12;
+
+            for (uint8 i; i < monthsInYear; ) {
+                monthBackCounter = _currentMonth - i;
+                cash += monthToCashFlow[monthBackCounter];
+
+                unchecked {
+                    ++i;
+                }
+            }
+
+            // Iterate an extra month to complete the days that are left from the current month
+            uint16 extraMonthToCheck = _currentMonth - monthsInYear;
+            uint8 dayBackCounter = 30;
+            uint8 extraDaysToCheck = dayBackCounter - _currentDay;
+
+            for (uint8 i; i < extraDaysToCheck; ) {
+                cash += dayToCashFlow[extraMonthToCheck][dayBackCounter];
+
+                unchecked {
+                    ++i;
+                    --dayBackCounter;
+                }
+            }
+        }
+
+        cashLast12Months_ = cash;
     }
 
     ///@dev required by the OZ UUPS module
