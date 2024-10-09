@@ -33,6 +33,7 @@ contract TakasureReserve is
     address public kycProvider;
     address public feeClaimAddress;
     address public takadaoOperator;
+    address public daoMultisig;
     address private pauseGuardian;
     address private joinModuleContract;
     address private memberModuleContract;
@@ -96,6 +97,7 @@ contract TakasureReserve is
         _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
 
         takadaoOperator = _takadaoOperator;
+        daoMultisig = _daoOperator;
         kycProvider = _kycProvider;
         feeClaimAddress = _feeClaimAddress;
         pauseGuardian = _pauseGuardian;
@@ -172,48 +174,10 @@ contract TakasureReserve is
         dayToCashFlow[month][day] = dayCashFlow;
     }
 
-    function setNewJoinModuleContract(
-        address newJoinModuleContract
-    ) external onlyDaoOrTakadao notZeroAddress(newJoinModuleContract) {
-        address oldJoinModuleContract = joinModuleContract;
-
-        if (oldJoinModuleContract == newJoinModuleContract)
-            revert TakasureErrors.TakasurePool__SameModuleContract();
-
-        if (oldJoinModuleContract != address(0)) revokeRole(MODULE_CONTRACT, oldJoinModuleContract);
-
-        joinModuleContract = newJoinModuleContract;
-        grantRole(MODULE_CONTRACT, newJoinModuleContract);
-    }
-
-    function setNewMembersModuleContract(
-        address newMembersModuleContract
-    ) external onlyDaoOrTakadao notZeroAddress(newMembersModuleContract) {
-        address oldMemberModuleContract = memberModuleContract;
-
-        if (oldMemberModuleContract == newMembersModuleContract)
-            revert TakasureErrors.TakasurePool__SameModuleContract();
-
-        if (oldMemberModuleContract != address(0))
-            revokeRole(MODULE_CONTRACT, oldMemberModuleContract);
-
-        memberModuleContract = newMembersModuleContract;
-        grantRole(MODULE_CONTRACT, newMembersModuleContract);
-    }
-
-    function setNewClaimModuleContract(
-        address newClaimModuleContract
-    ) external onlyDaoOrTakadao notZeroAddress(newClaimModuleContract) {
-        address oldClaimModuleContract = claimModuleContract;
-
-        if (oldClaimModuleContract == newClaimModuleContract)
-            revert TakasureErrors.TakasurePool__SameModuleContract();
-
-        if (oldClaimModuleContract != address(0))
-            revokeRole(MODULE_CONTRACT, oldClaimModuleContract);
-
-        claimModuleContract = newClaimModuleContract;
-        grantRole(MODULE_CONTRACT, newClaimModuleContract);
+    function setNewModuleContract(
+        address newModuleContract
+    ) external onlyDaoOrTakadao notZeroAddress(newModuleContract) {
+        grantRole(MODULE_CONTRACT, newModuleContract);
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
