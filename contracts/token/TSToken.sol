@@ -28,9 +28,7 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     error Token__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
 
     modifier mustBeMoreThanZero(uint256 _amount) {
-        if (_amount <= 0) {
-            revert Token__MustBeMoreThanZero();
-        }
+        require(_amount > 0, Token__MustBeMoreThanZero());
         _;
     }
 
@@ -58,9 +56,7 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         address to,
         uint256 amountToMint
     ) external nonReentrant onlyRole(MINTER_ROLE) mustBeMoreThanZero(amountToMint) returns (bool) {
-        if (to == address(0)) {
-            revert Token__NotZeroAddress();
-        }
+        require(to != address(0), Token__NotZeroAddress());
         _mint(to, amountToMint);
         emit OnTokenMinted(to, amountToMint);
 
@@ -76,9 +72,8 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         uint256 amountToBurn
     ) public override nonReentrant onlyRole(BURNER_ROLE) mustBeMoreThanZero(amountToBurn) {
         uint256 balance = balanceOf(msg.sender);
-        if (amountToBurn > balance) {
-            revert Token__BurnAmountExceedsBalance(balance, amountToBurn);
-        }
+        require(amountToBurn <= balance, Token__BurnAmountExceedsBalance(balance, amountToBurn));
+
         emit OnTokenBurned(msg.sender, amountToBurn);
 
         super.burn(amountToBurn);

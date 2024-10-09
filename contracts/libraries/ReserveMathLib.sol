@@ -222,15 +222,13 @@ library ReserveMathLib {
         uint256 _finalDayTimestamp,
         uint256 _initialDayTimestamp
     ) internal pure returns (uint256 daysPassed_) {
-        if (_finalDayTimestamp < _initialDayTimestamp) {
-            revert WrongTimestamps();
+        require(_finalDayTimestamp >= _initialDayTimestamp, WrongTimestamps());
+
+        uint256 dayTimePassed = _finalDayTimestamp - _initialDayTimestamp;
+        if (dayTimePassed < 1 days) {
+            daysPassed_ = 0;
         } else {
-            uint256 dayTimePassed = _finalDayTimestamp - _initialDayTimestamp;
-            if (dayTimePassed < 1 days) {
-                daysPassed_ = 0;
-            } else {
-                daysPassed_ = dayTimePassed / 1 days;
-            }
+            daysPassed_ = dayTimePassed / 1 days;
         }
     }
 
@@ -244,16 +242,14 @@ library ReserveMathLib {
         uint256 _finalMonthTimestamp,
         uint256 _initialMonthTimestamp
     ) internal pure returns (uint256 monthsPassed_) {
-        if (_finalMonthTimestamp < _initialMonthTimestamp) {
-            revert WrongTimestamps();
+        require(_finalMonthTimestamp >= _initialMonthTimestamp, WrongTimestamps());
+
+        uint256 monthTimePassed = _finalMonthTimestamp - _initialMonthTimestamp;
+        uint256 month = 30 days;
+        if (monthTimePassed < month) {
+            monthsPassed_ = 0;
         } else {
-            uint256 monthTimePassed = _finalMonthTimestamp - _initialMonthTimestamp;
-            uint256 month = 30 days;
-            if (monthTimePassed < month) {
-                monthsPassed_ = 0;
-            } else {
-                monthsPassed_ = monthTimePassed / month;
-            }
+            monthsPassed_ = monthTimePassed / month;
         }
     }
 

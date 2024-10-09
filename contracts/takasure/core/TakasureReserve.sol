@@ -51,18 +51,17 @@ contract TakasureReserve is
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
     modifier notZeroAddress(address _address) {
-        if (_address == address(0)) {
-            revert TakasureErrors.TakasurePool__ZeroAddress();
-        }
+        require(_address != address(0), TakasureErrors.TakasurePool__ZeroAddress());
         _;
     }
 
     modifier onlyDaoOrTakadao() {
-        if (
-            !hasRole(TAKADAO_OPERATOR, msg.sender) &&
-            !hasRole(DAO_MULTISIG, msg.sender) &&
-            !hasRole(DEFAULT_ADMIN_ROLE, msg.sender)
-        ) revert TakasureErrors.OnlyDaoOrTakadao();
+        require(
+            hasRole(TAKADAO_OPERATOR, msg.sender) ||
+                hasRole(DAO_MULTISIG, msg.sender) ||
+                hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            TakasureErrors.OnlyDaoOrTakadao()
+        );
         _;
     }
 
@@ -181,9 +180,7 @@ contract TakasureReserve is
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
-        if (newServiceFee > 35) {
-            revert TakasureErrors.TakasurePool__WrongServiceFee();
-        }
+        require(newServiceFee <= 35, TakasureErrors.TakasurePool__WrongServiceFee());
         reserve.serviceFee = newServiceFee;
 
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
@@ -192,9 +189,11 @@ contract TakasureReserve is
     function setNewFundMarketExpendsShare(
         uint8 newFundMarketExpendsAddShare
     ) external onlyRole(DAO_MULTISIG) {
-        if (newFundMarketExpendsAddShare > 35) {
-            revert TakasureErrors.TakasurePool__WrongFundMarketExpendsShare();
-        }
+        require(
+            newFundMarketExpendsAddShare <= 35,
+            TakasureErrors.TakasurePool__WrongFundMarketExpendsShare()
+        );
+
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
         reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
 

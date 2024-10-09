@@ -40,9 +40,7 @@ contract MembersModule is
     uint256 private constant DAY = 1 days;
 
     modifier notZeroAddress(address _address) {
-        if (_address == address(0)) {
-            revert TakasureErrors.TakasurePool__ZeroAddress();
-        }
+        require(_address != address(0), TakasureErrors.TakasurePool__ZeroAddress());
         _;
     }
 
@@ -71,9 +69,11 @@ contract MembersModule is
             msg.sender
         );
 
-        if (newMember.memberState != MemberState.Active) {
-            revert TakasureErrors.TakasurePool__WrongMemberState();
-        }
+        require(
+            newMember.memberState == MemberState.Active,
+            TakasureErrors.TakasurePool__WrongMemberState()
+        );
+
         uint256 currentTimestamp = block.timestamp;
         uint256 membershipStartTime = newMember.membershipStartTime;
         uint256 membershipDuration = newMember.membershipDuration;
@@ -81,12 +81,11 @@ contract MembersModule is
         uint256 year = 365 days;
         uint256 gracePeriod = 30 days;
 
-        if (
-            currentTimestamp > lastPaidYearStartDate + year + gracePeriod ||
-            currentTimestamp > membershipStartTime + membershipDuration
-        ) {
-            revert TakasureErrors.TakasurePool__InvalidDate();
-        }
+        require(
+            currentTimestamp <= lastPaidYearStartDate + year + gracePeriod &&
+                currentTimestamp <= membershipStartTime + membershipDuration,
+            TakasureErrors.TakasurePool__InvalidDate()
+        );
 
         uint256 contributionBeforeFee = newMember.contribution;
         uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
@@ -438,9 +437,7 @@ contract MembersModule is
             address(this),
             _contributionAfterFee
         );
-        if (!success) {
-            revert TakasureErrors.TakasurePool__ContributionTransferFailed();
-        }
+        require(success, TakasureErrors.TakasurePool__ContributionTransferFailed());
 
         // Transfer the service fee to the fee claim address
         success = contributionToken.transferFrom(
@@ -448,9 +445,7 @@ contract MembersModule is
             takasureReserve.feeClaimAddress(),
             feeAmount
         );
-        if (!success) {
-            revert TakasureErrors.TakasurePool__FeeTransferFailed();
-        }
+        require(success, TakasureErrors.TakasurePool__FeeTransferFailed());
 
         if (_mintTokens) {
             uint256 contributionBeforeFee = _contributionAfterFee + feeAmount;
@@ -466,9 +461,7 @@ contract MembersModule is
         member.creditTokensBalance = mintAmount;
 
         bool success = ITSToken(_reserve.daoToken).mint(address(this), mintAmount);
-        if (!success) {
-            revert TakasureErrors.TakasurePool__MintFailed();
-        }
+        require(success, TakasureErrors.TakasurePool__MintFailed());
     }
 
     ///@dev required by the OZ UUPS module

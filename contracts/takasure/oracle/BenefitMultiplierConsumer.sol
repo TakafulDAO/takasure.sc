@@ -60,7 +60,7 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
     }
 
     function setNewRequester(address newRequester) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (newRequester == address(0)) revert OracleConsumer__NotAddressZero();
+        require(newRequester != address(0), OracleConsumer__NotAddressZero());
         if (requester != address(0)) _revokeRole(BM_REQUESTER_ROLE, requester);
         _grantRole(BM_REQUESTER_ROLE, newRequester);
         requester = newRequester;

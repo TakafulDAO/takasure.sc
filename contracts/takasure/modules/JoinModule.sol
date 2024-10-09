@@ -43,9 +43,7 @@ contract JoinModule is
     uint256 private constant DAY = 1 days;
 
     modifier notZeroAddress(address _address) {
-        if (_address == address(0)) {
-            revert TakasureErrors.TakasurePool__ZeroAddress();
-        }
+        require(_address != address(0), TakasureErrors.TakasurePool__ZeroAddress());
         _;
     }
 
@@ -88,15 +86,15 @@ contract JoinModule is
             msg.sender
         );
 
-        if (newMember.memberState != MemberState.Inactive) {
-            revert TakasureErrors.TakasurePool__WrongMemberState();
-        }
-        if (
-            contributionBeforeFee < reserve.minimumThreshold ||
-            contributionBeforeFee > reserve.maximumThreshold
-        ) {
-            revert TakasureErrors.TakasurePool__ContributionOutOfRange();
-        }
+        require(
+            newMember.memberState == MemberState.Inactive,
+            TakasureErrors.TakasurePool__WrongMemberState()
+        );
+        require(
+            contributionBeforeFee >= reserve.minimumThreshold &&
+                contributionBeforeFee <= reserve.maximumThreshold,
+            TakasureErrors.TakasurePool__ContributionOutOfRange()
+        );
 
         uint256 mintAmount;
 
@@ -138,9 +136,10 @@ contract JoinModule is
         } else {
             if (!newMember.isRefunded) {
                 // Flow 2 Join -> KYC
-                if (newMember.wallet != address(0)) {
-                    revert TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC();
-                }
+                require(
+                    newMember.wallet == address(0),
+                    TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC()
+                );
                 // If is not KYC verified, and not refunded, it is a completele new member, we create it
                 newMember = _createNewMember({
                     _newMemberId: ++reserve.memberIdCounter,
@@ -204,9 +203,7 @@ contract JoinModule is
             memberWallet
         );
 
-        if (newMember.isKYCVerified) {
-            revert TakasureErrors.TakasurePool__MemberAlreadyKYCed();
-        }
+        require(!newMember.isKYCVerified, TakasureErrors.TakasurePool__MemberAlreadyKYCed());
 
         uint256 mintAmount;
 
@@ -327,19 +324,18 @@ contract JoinModule is
         );
 
         // The member should not be KYCed neither already refunded
-        if (_member.isKYCVerified == true) {
-            revert TakasureErrors.TakasurePool__MemberAlreadyKYCed();
-        }
-        if (_member.isRefunded == true) {
-            revert TakasureErrors.TakasurePool__NothingToRefund();
-        }
+        require(!_member.isKYCVerified, TakasureErrors.TakasurePool__MemberAlreadyKYCed());
+        require(!_member.isRefunded, TakasureErrors.TakasurePool__NothingToRefund());
+
         uint256 currentTimestamp = block.timestamp;
         uint256 membershipStartTime = _member.membershipStartTime;
         // The member can refund after 14 days of the payment
         uint256 limitTimestamp = membershipStartTime + (14 days);
-        if (currentTimestamp < limitTimestamp) {
-            revert TakasureErrors.TakasurePool__TooEarlytoRefund();
-        }
+        require(
+            currentTimestamp >= limitTimestamp,
+            TakasureErrors.TakasurePool__TooEarlytoRefund()
+        );
+
         // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
         // when first KYC and then join the pool. So the previous check is enough
 
@@ -353,9 +349,7 @@ contract JoinModule is
         // Transfer the amount to refund
         bool success = IERC20(_reserve.contributionToken).transfer(_memberWallet, amountToRefund);
 
-        if (!success) {
-            revert TakasureErrors.TakasurePool__RefundFailed();
-        }
+        require(success, TakasureErrors.TakasurePool__RefundFailed());
 
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
 
@@ -883,9 +877,7 @@ contract JoinModule is
             );
         }
 
-        if (!success) {
-            revert TakasureErrors.TakasurePool__ContributionTransferFailed();
-        }
+        require(success, TakasureErrors.TakasurePool__ContributionTransferFailed());
 
         // Transfer the service fee to the fee claim address
         success = contributionToken.transferFrom(
@@ -894,9 +886,7 @@ contract JoinModule is
             feeAmount
         );
 
-        if (!success) {
-            revert TakasureErrors.TakasurePool__FeeTransferFailed();
-        }
+        require(success, TakasureErrors.TakasurePool__FeeTransferFailed());
 
         if (_mintTokens) {
             uint256 contributionBeforeFee = _contributionAfterFee + feeAmount;
@@ -910,9 +900,7 @@ contract JoinModule is
         mintAmount_ = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
         bool success = ITSToken(_reserve.daoToken).mint(address(takasureReserve), mintAmount_);
-        if (!success) {
-            revert TakasureErrors.TakasurePool__MintFailed();
-        }
+        require(success, TakasureErrors.TakasurePool__MintFailed());
     }
 
     ///@dev required by the OZ UUPS module
