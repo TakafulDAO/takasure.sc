@@ -10,7 +10,7 @@ import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, NewReserve} from "contracts/types/TakasureTypes.sol";
+import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
@@ -84,7 +84,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(admin);
         joinModule.setKYCStatus(alice);
 
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 initialReserveRatio = reserve.initialReserveRatio;
         uint256 initialClaimReserve = reserve.totalClaimReserve;
         uint256 initialFundReserve = reserve.totalFundReserve;
@@ -185,7 +185,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Each day 25USDC - fee = 20USDC will be deposited
         // 200USDC * 5 days = 1000USDC
 
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
 
         uint256 totalMembers = reserve.memberIdCounter;
         uint8 serviceFee = reserve.serviceFee;
@@ -253,7 +253,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         uint256 cash = takasureReserve.getCashLast12Months();
 
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
 
         uint256 totalMembers = reserve.memberIdCounter;
         uint8 serviceFee = reserve.serviceFee;

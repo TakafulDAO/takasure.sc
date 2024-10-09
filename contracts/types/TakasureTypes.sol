@@ -54,28 +54,6 @@ struct Member {
 }
 
 struct Reserve {
-    mapping(address member => Member) members;
-    uint256 dynamicReserveRatio; // Default 40%
-    uint256 benefitMultiplierAdjuster; // Default 100%
-    uint256 totalContributions; // Default 0
-    uint256 totalClaimReserve; // Default 0
-    uint256 totalFundReserve; // Default 0
-    uint256 totalFundCost; // Default 0
-    uint256 totalFundRevenues; // Default 0
-    uint256 proFormaFundReserve; // Used to update the dynamic reserve ratio
-    uint256 proFormaClaimReserve;
-    uint256 lossRatio; // Default 0
-    uint8 serviceFee; // Default 22%, max 100%
-    uint8 bmaFundReserveShare; // Default 70%
-    uint8 fundMarketExpendsAddShare; // Default 20%
-    uint8 riskMultiplier; // Default to 2%
-    bool isOptimizerEnabled; // Default true
-    uint256 ECRes; // Default 0
-    uint256 UCRes; // Default 0
-    uint256 surplus; // Default 0
-}
-
-struct NewReserve {
     uint8 serviceFee; // Default 22%, max 100%
     uint8 bmaFundReserveShare; // Default 70%
     uint8 fundMarketExpendsAddShare; // Default 20%

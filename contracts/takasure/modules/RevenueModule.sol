@@ -12,7 +12,7 @@ import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-import {NewReserve, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -22,7 +22,7 @@ pragma solidity 0.8.25;
 contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     ITakasureReserve private takasureReserve;
 
-    NewReserve private reserve;
+    Reserve private reserve;
 
     bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
 
@@ -53,7 +53,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
         if (revenueType == RevenueType.Contribution) {
             revert TakasureErrors.TakasurePool__WrongRevenueType();
         }
-        NewReserve memory reserveValues = takasureReserve.getReserveValues();
+        Reserve memory reserveValues = takasureReserve.getReserveValues();
 
         reserve.totalFundRevenues += newRevenue;
         _updateCashMappings(newRevenue);

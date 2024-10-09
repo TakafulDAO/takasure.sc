@@ -16,7 +16,7 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {NewReserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -67,7 +67,7 @@ contract MembersModule is
     }
 
     function recurringPayment() external nonReentrant {
-        (NewReserve memory newReserve, Member memory newMember) = _getReserveAndMemberValuesHook(
+        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             msg.sender
         );
 
@@ -89,7 +89,7 @@ contract MembersModule is
         }
 
         uint256 contributionBeforeFee = newMember.contribution;
-        uint256 feeAmount = (contributionBeforeFee * newReserve.serviceFee) / 100;
+        uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
         uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
 
         // Update the values
@@ -105,7 +105,7 @@ contract MembersModule is
             _contributionAfterFee: contributionAfterFee,
             _memberWallet: msg.sender,
             _payContribution: true,
-            _reserve: newReserve
+            _reserve: reserve
         });
 
         emit TakasureEvents.OnRecurringPayment(
@@ -116,21 +116,21 @@ contract MembersModule is
             newMember.totalServiceFee
         );
 
-        _setNewReserveAndMemberValuesHook(newReserve, newMember);
+        _setNewReserveAndMemberValuesHook(reserve, newMember);
     }
 
     function _getReserveAndMemberValuesHook(
         address _memberWallet
-    ) internal view returns (NewReserve memory reserve_, Member memory member_) {
+    ) internal view returns (Reserve memory reserve_, Member memory member_) {
         reserve_ = takasureReserve.getReserveValues();
         member_ = takasureReserve.getMemberFromAddress(_memberWallet);
     }
 
     function _setNewReserveAndMemberValuesHook(
-        NewReserve memory _newReserve,
+        Reserve memory _reserve,
         Member memory _newMember
     ) internal {
-        takasureReserve.setReserveValuesFromModule(_newReserve);
+        takasureReserve.setReserveValuesFromModule(_reserve);
         takasureReserve.setMemberValuesFromModule(_newMember);
     }
 
@@ -144,8 +144,8 @@ contract MembersModule is
         uint256 _contributionAfterFee,
         address _memberWallet,
         bool _payContribution,
-        NewReserve memory _reserve
-    ) internal returns (NewReserve memory) {
+        Reserve memory _reserve
+    ) internal returns (Reserve memory) {
         _reserve = _updateNewReserveValues(_contributionAfterFee, _contributionBeforeFee, _reserve);
 
         if (_payContribution) {
@@ -158,8 +158,8 @@ contract MembersModule is
     function _updateNewReserveValues(
         uint256 _contributionAfterFee,
         uint256 _contributionBeforeFee,
-        NewReserve memory _reserve
-    ) internal returns (NewReserve memory) {
+        Reserve memory _reserve
+    ) internal returns (Reserve memory) {
         (
             uint256 updatedProFormaFundReserve,
             uint256 updatedProFormaClaimReserve
@@ -197,7 +197,7 @@ contract MembersModule is
     function _updateProFormas(
         uint256 _contributionAfterFee,
         uint256 _contributionBeforeFee,
-        NewReserve memory _reserve
+        Reserve memory _reserve
     ) internal returns (uint256 updatedProFormaFundReserve_, uint256 updatedProFormaClaimReserve_) {
         updatedProFormaFundReserve_ = ReserveMathLib._updateProFormaFundReserve(
             _reserve.proFormaFundReserve,
@@ -220,7 +220,7 @@ contract MembersModule is
 
     function _updateReserveBalaces(
         uint256 _contributionAfterFee,
-        NewReserve memory _reserve
+        Reserve memory _reserve
     )
         internal
         returns (uint256 toFundReserve_, uint256 toClaimReserve_, uint256 marketExpenditure_)
@@ -390,7 +390,7 @@ contract MembersModule is
 
     function _updateDRR(
         uint256 _cash,
-        NewReserve memory _reserve
+        Reserve memory _reserve
     ) internal returns (uint256 updatedDynamicReserveRatio_) {
         updatedDynamicReserveRatio_ = ReserveMathLib._calculateDynamicReserveRatio(
             _reserve.initialReserveRatio,
@@ -404,7 +404,7 @@ contract MembersModule is
 
     function _updateBMA(
         uint256 _cash,
-        NewReserve memory _reserve
+        Reserve memory _reserve
     ) internal returns (uint256 updatedBMA_) {
         uint256 bmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
             _cash,
@@ -469,12 +469,12 @@ contract MembersModule is
 
     function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal {
         // Mint needed DAO Tokens
-        NewReserve memory _newReserve = takasureReserve.getReserveValues();
+        Reserve memory _reserve = takasureReserve.getReserveValues();
         Member memory member = takasureReserve.getMemberFromAddress(_memberWallet);
         uint256 mintAmount = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
         member.creditTokensBalance = mintAmount;
 
-        bool success = ITSToken(_newReserve.daoToken).mint(address(this), mintAmount);
+        bool success = ITSToken(_reserve.daoToken).mint(address(this), mintAmount);
         if (!success) {
             revert TakasureErrors.TakasurePool__MintFailed();
         }

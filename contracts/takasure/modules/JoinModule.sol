@@ -16,7 +16,7 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {NewReserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -84,7 +84,7 @@ contract JoinModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        (NewReserve memory newReserve, Member memory newMember) = _getReserveAndMemberValuesHook(
+        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             msg.sender
         );
 
@@ -92,8 +92,8 @@ contract JoinModule is
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         if (
-            contributionBeforeFee < newReserve.minimumThreshold ||
-            contributionBeforeFee > newReserve.maximumThreshold
+            contributionBeforeFee < reserve.minimumThreshold ||
+            contributionBeforeFee > reserve.maximumThreshold
         ) {
             revert TakasureErrors.TakasurePool__ContributionOutOfRange();
         }
@@ -104,13 +104,13 @@ contract JoinModule is
             uint256 normalizedContributionBeforeFee,
             uint256 feeAmount,
             uint256 contributionAfterFee
-        ) = _calculateAmountAndFees(contributionBeforeFee, newReserve.serviceFee);
+        ) = _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
 
         if (newMember.isKYCVerified) {
             // Flow 1 KYC -> Join
             // It means the user is already in the system, we just need to update the values
             newMember = _updateMember({
-                _drr: newReserve.dynamicReserveRatio,
+                _drr: reserve.dynamicReserveRatio,
                 _benefitMultiplier: _getBenefitMultiplierFromOracle(msg.sender), // Will be fetched from off-chain oracle
                 _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
                 _membershipDuration: membershipDuration, // From the input
@@ -119,18 +119,18 @@ contract JoinModule is
                 _memberState: MemberState.Active, // Active state as it is already KYCed and paid the contribution
                 _isKYCVerified: newMember.isKYCVerified, // The current state, does not change here
                 _isRefunded: false, // Reset to false as the user repays the contribution
-                _allowCustomDuration: newReserve.allowCustomDuration,
+                _allowCustomDuration: reserve.allowCustomDuration,
                 _member: newMember
             });
 
             // And we pay the contribution
-            (newReserve, mintAmount) = _memberPaymentFlow({
+            (reserve, mintAmount) = _memberPaymentFlow({
                 _contributionBeforeFee: normalizedContributionBeforeFee,
                 _contributionAfterFee: contributionAfterFee,
                 _memberWallet: msg.sender,
                 _payContribution: true,
                 _sendToReserve: true,
-                _reserve: newReserve
+                _reserve: reserve
             });
 
             newMember.creditTokensBalance += mintAmount;
@@ -143,9 +143,9 @@ contract JoinModule is
                 }
                 // If is not KYC verified, and not refunded, it is a completele new member, we create it
                 newMember = _createNewMember({
-                    _newMemberId: ++newReserve.memberIdCounter,
-                    _allowCustomDuration: newReserve.allowCustomDuration,
-                    _drr: newReserve.dynamicReserveRatio,
+                    _newMemberId: ++reserve.memberIdCounter,
+                    _allowCustomDuration: reserve.allowCustomDuration,
+                    _drr: reserve.dynamicReserveRatio,
                     _benefitMultiplier: _getBenefitMultiplierFromOracle(msg.sender), // Fetch from oracle
                     _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
                     _membershipDuration: membershipDuration, // From the input
@@ -158,7 +158,7 @@ contract JoinModule is
                 // Flow 3 Refund -> Join
                 // If is not KYC verified, but refunded, the member exist already, but was previously refunded
                 newMember = _updateMember({
-                    _drr: newReserve.dynamicReserveRatio,
+                    _drr: reserve.dynamicReserveRatio,
                     _benefitMultiplier: _getBenefitMultiplierFromOracle(msg.sender),
                     _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
                     _membershipDuration: membershipDuration, // From the input
@@ -167,7 +167,7 @@ contract JoinModule is
                     _memberState: MemberState.Inactive, // Set to inactive until the KYC is verified
                     _isKYCVerified: newMember.isKYCVerified, // The current state, in this case false
                     _isRefunded: false, // Reset to false as the user repays the contribution
-                    _allowCustomDuration: newReserve.allowCustomDuration,
+                    _allowCustomDuration: reserve.allowCustomDuration,
                     _member: newMember
                 });
             }
@@ -186,7 +186,7 @@ contract JoinModule is
             newMember.creditTokensBalance += mintAmount;
         }
 
-        _setNewReserveAndMemberValuesHook(newReserve, newMember);
+        _setNewReserveAndMemberValuesHook(reserve, newMember);
     }
 
     /**
@@ -200,7 +200,7 @@ contract JoinModule is
     function setKYCStatus(
         address memberWallet
     ) external notZeroAddress(memberWallet) onlyRole(KYC_PROVIDER) {
-        (NewReserve memory newReserve, Member memory newMember) = _getReserveAndMemberValuesHook(
+        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             memberWallet
         );
 
@@ -214,9 +214,9 @@ contract JoinModule is
             // Flow 1 KYC -> Join
             // This means the user does not exist yet
             newMember = _createNewMember({
-                _newMemberId: ++newReserve.memberIdCounter,
-                _allowCustomDuration: newReserve.allowCustomDuration,
-                _drr: newReserve.dynamicReserveRatio,
+                _newMemberId: ++reserve.memberIdCounter,
+                _allowCustomDuration: reserve.allowCustomDuration,
+                _drr: reserve.dynamicReserveRatio,
                 _benefitMultiplier: _getBenefitMultiplierFromOracle(memberWallet),
                 _contributionBeforeFee: 0, // We dont know it yet
                 _membershipDuration: 0, // We dont know it yet
@@ -233,10 +233,10 @@ contract JoinModule is
                     uint256 normalizedContributionBeforeFee,
                     uint256 feeAmount,
                     uint256 contributionAfterFee
-                ) = _calculateAmountAndFees(newMember.contribution, newReserve.serviceFee);
+                ) = _calculateAmountAndFees(newMember.contribution, reserve.serviceFee);
 
                 newMember = _updateMember({
-                    _drr: newReserve.dynamicReserveRatio, // We take the current value
+                    _drr: reserve.dynamicReserveRatio, // We take the current value
                     _benefitMultiplier: _getBenefitMultiplierFromOracle(memberWallet), // We take the current value
                     _contributionBeforeFee: normalizedContributionBeforeFee, // We take the current value
                     _membershipDuration: newMember.membershipDuration, // We take the current value
@@ -245,19 +245,19 @@ contract JoinModule is
                     _memberState: MemberState.Active, // Active state as the user is already paid the contribution and KYCed
                     _isKYCVerified: true, // Set to true with this call
                     _isRefunded: false, // Remains false as the user is not refunded
-                    _allowCustomDuration: newReserve.allowCustomDuration,
+                    _allowCustomDuration: reserve.allowCustomDuration,
                     _member: newMember
                 });
 
                 // Then the everyting needed will be updated, proformas, reserves, cash flow,
                 // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
-                (newReserve, mintAmount) = _memberPaymentFlow({
+                (reserve, mintAmount) = _memberPaymentFlow({
                     _contributionBeforeFee: normalizedContributionBeforeFee,
                     _contributionAfterFee: contributionAfterFee,
                     _memberWallet: memberWallet,
                     _payContribution: false,
                     _sendToReserve: false,
-                    _reserve: newReserve
+                    _reserve: reserve
                 });
 
                 newMember.creditTokensBalance += mintAmount;
@@ -266,7 +266,7 @@ contract JoinModule is
                 // Flow 4 Refund -> KYC
                 // This means the user exists, but was refunded, we reset the values
                 newMember = _updateMember({
-                    _drr: newReserve.dynamicReserveRatio, // We take the current value
+                    _drr: reserve.dynamicReserveRatio, // We take the current value
                     _benefitMultiplier: _getBenefitMultiplierFromOracle(memberWallet), // As the B, does not change, we can avoid re-fetching
                     _contributionBeforeFee: 0, // Reset until the user pays the contribution
                     _membershipDuration: 0, // Reset until the user pays the contribution
@@ -275,14 +275,14 @@ contract JoinModule is
                     _memberState: MemberState.Inactive, // Set to inactive until the contribution is paid
                     _isKYCVerified: true, // Set to true with this call
                     _isRefunded: true, // Remains true until the user pays the contribution
-                    _allowCustomDuration: newReserve.allowCustomDuration,
+                    _allowCustomDuration: reserve.allowCustomDuration,
                     _member: newMember
                 });
             }
         }
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
 
-        _setNewReserveAndMemberValuesHook(newReserve, newMember);
+        _setNewReserveAndMemberValuesHook(reserve, newMember);
     }
 
     /**
@@ -308,21 +308,21 @@ contract JoinModule is
 
     function _getReserveAndMemberValuesHook(
         address _memberWallet
-    ) internal view returns (NewReserve memory reserve_, Member memory member_) {
+    ) internal view returns (Reserve memory reserve_, Member memory member_) {
         reserve_ = takasureReserve.getReserveValues();
         member_ = takasureReserve.getMemberFromAddress(_memberWallet);
     }
 
     function _setNewReserveAndMemberValuesHook(
-        NewReserve memory _newReserve,
+        Reserve memory _reserve,
         Member memory _newMember
     ) internal {
-        takasureReserve.setReserveValuesFromModule(_newReserve);
+        takasureReserve.setReserveValuesFromModule(_reserve);
         takasureReserve.setMemberValuesFromModule(_newMember);
     }
 
     function _refund(address _memberWallet) internal {
-        (NewReserve memory _newReserve, Member memory _member) = _getReserveAndMemberValuesHook(
+        (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
             _memberWallet
         );
 
@@ -351,10 +351,7 @@ contract JoinModule is
         // Update the member values
         _member.isRefunded = true;
         // Transfer the amount to refund
-        bool success = IERC20(_newReserve.contributionToken).transfer(
-            _memberWallet,
-            amountToRefund
-        );
+        bool success = IERC20(_reserve.contributionToken).transfer(_memberWallet, amountToRefund);
 
         if (!success) {
             revert TakasureErrors.TakasurePool__RefundFailed();
@@ -498,8 +495,8 @@ contract JoinModule is
         address _memberWallet,
         bool _payContribution,
         bool _sendToReserve,
-        NewReserve memory _reserve
-    ) internal returns (NewReserve memory, uint256 mintAmount_) {
+        Reserve memory _reserve
+    ) internal returns (Reserve memory, uint256 mintAmount_) {
         _getBenefitMultiplierFromOracle(_memberWallet);
 
         _reserve = _updateNewReserveValues(_contributionAfterFee, _contributionBeforeFee, _reserve);
@@ -520,8 +517,8 @@ contract JoinModule is
     function _updateNewReserveValues(
         uint256 _contributionAfterFee,
         uint256 _contributionBeforeFee,
-        NewReserve memory _reserve
-    ) internal returns (NewReserve memory) {
+        Reserve memory _reserve
+    ) internal returns (Reserve memory) {
         (
             uint256 updatedProFormaFundReserve,
             uint256 updatedProFormaClaimReserve
@@ -588,7 +585,7 @@ contract JoinModule is
     function _updateProFormas(
         uint256 _contributionAfterFee,
         uint256 _contributionBeforeFee,
-        NewReserve memory _reserve
+        Reserve memory _reserve
     ) internal returns (uint256 updatedProFormaFundReserve_, uint256 updatedProFormaClaimReserve_) {
         updatedProFormaFundReserve_ = ReserveMathLib._updateProFormaFundReserve(
             _reserve.proFormaFundReserve,
@@ -611,7 +608,7 @@ contract JoinModule is
 
     function _updateReserveBalaces(
         uint256 _contributionAfterFee,
-        NewReserve memory _reserve
+        Reserve memory _reserve
     )
         internal
         returns (uint256 toFundReserve_, uint256 toClaimReserve_, uint256 marketExpenditure_)
@@ -835,7 +832,7 @@ contract JoinModule is
 
     function _updateDRR(
         uint256 _cash,
-        NewReserve memory _reserve
+        Reserve memory _reserve
     ) internal returns (uint256 updatedDynamicReserveRatio_) {
         updatedDynamicReserveRatio_ = ReserveMathLib._calculateDynamicReserveRatio(
             _reserve.initialReserveRatio,
@@ -849,7 +846,7 @@ contract JoinModule is
 
     function _updateBMA(
         uint256 _cash,
-        NewReserve memory _reserve
+        Reserve memory _reserve
     ) internal returns (uint256 updatedBMA_) {
         uint256 bmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
             _cash,
@@ -918,10 +915,10 @@ contract JoinModule is
 
     function _mintDaoTokens(uint256 _contributionBeforeFee) internal returns (uint256 mintAmount_) {
         // Mint needed DAO Tokens
-        NewReserve memory _newReserve = takasureReserve.getReserveValues();
+        Reserve memory _reserve = takasureReserve.getReserveValues();
         mintAmount_ = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
-        bool success = ITSToken(_newReserve.daoToken).mint(address(takasureReserve), mintAmount_);
+        bool success = ITSToken(_reserve.daoToken).mint(address(takasureReserve), mintAmount_);
         if (!success) {
             revert TakasureErrors.TakasurePool__MintFailed();
         }

@@ -10,7 +10,7 @@ import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, NewReserve} from "contracts/types/TakasureTypes.sol";
+import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
@@ -87,7 +87,7 @@ contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev Test contribution amount is transferred to the contract
     function testJoinModule_KycFlow1() public {
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 memberIdBeforeKyc = reserve.memberIdCounter;
 
         vm.prank(admin);
@@ -189,7 +189,7 @@ contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev Test contribution amount is transferred to the contract
     function testJoinModule_KycFlow2() public {
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 memberIdBeforeJoin = reserve.memberIdCounter;
 
         // Join the pool

@@ -13,7 +13,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
-import {NewReserve, Member, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -26,7 +26,7 @@ contract TakasureReserve is
     AccessControlUpgradeable,
     PausableUpgradeable
 {
-    NewReserve private reserve;
+    Reserve private reserve;
     CashFlowVars private cashFlowVars;
 
     address public bmConsumer;
@@ -148,7 +148,7 @@ contract TakasureReserve is
     }
 
     function setReserveValuesFromModule(
-        NewReserve memory newReserve
+        Reserve memory newReserve
     ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
         reserve = newReserve;
     }
@@ -260,7 +260,7 @@ contract TakasureReserve is
         _revokeRole(PAUSE_GUARDIAN, oldPauseGuardian);
     }
 
-    function getReserveValues() external view returns (NewReserve memory) {
+    function getReserveValues() external view returns (Reserve memory) {
         return reserve;
     }
 

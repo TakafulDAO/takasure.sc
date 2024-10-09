@@ -11,7 +11,7 @@ import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, NewReserve} from "contracts/types/TakasureTypes.sol";
+import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
@@ -101,7 +101,7 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     //     // Alice joins in day 1
     //     _join(alice, 1);
 
-    //     NewReserve memory reserve = takasureReserve.getReserveValues();
+    //     Reserve memory reserve = takasureReserve.getReserveValues();
     //     uint256 ECRes = reserve.ECRes;
     //     uint256 UCRes = reserve.UCRes;
     //     uint256 surplus = reserve.surplus;

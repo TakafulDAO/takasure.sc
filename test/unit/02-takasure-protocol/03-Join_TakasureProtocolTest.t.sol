@@ -11,7 +11,7 @@ import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, NewReserve} from "contracts/types/TakasureTypes.sol";
+import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
@@ -218,7 +218,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(admin);
         joinModule.setKYCStatus(bob);
 
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
 
         uint256 initialProFormaFundReserve = reserve.proFormaFundReserve;
         uint256 initialProFormaClaimReserve = reserve.proFormaClaimReserve;
@@ -240,7 +240,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     /// @dev New DRR is calculated when a member joins
     function testTakasureReserve_drrCalculatedOnMemberJoined() public {
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 currentDRR = reserve.dynamicReserveRatio;
         uint256 initialDRR = reserve.initialReserveRatio;
 
@@ -279,7 +279,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     /// @dev New BMA is calculated when a member joins
     function testTakasureReserve_bmaCalculatedOnMemberJoined() public {
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 initialBMA = reserve.benefitMultiplierAdjuster;
 
         vm.startPrank(admin);
@@ -318,7 +318,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     /// @dev Test the tokens minted are staked in the pool
     function testTakasureReserve_tokensMinted() public {
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
         address creditToken = reserve.daoToken;
         TSToken creditTokenInstance = TSToken(creditToken);
 

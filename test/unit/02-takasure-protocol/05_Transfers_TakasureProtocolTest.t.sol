@@ -10,7 +10,7 @@ import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, NewReserve} from "contracts/types/TakasureTypes.sol";
+import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract Transfers_TakasureProtocolTest is StdCheats, Test {
@@ -98,7 +98,7 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
         uint256 takasureReserveBalanceBefore = usdc.balanceOf(address(takasureReserve));
         uint256 joinModuleBalanceBefore = usdc.balanceOf(address(joinModule));
 
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
         uint8 serviceFee = reserve.serviceFee;
 
         vm.prank(alice);
@@ -116,7 +116,7 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
 
     /// @dev Test service fee is transferred when the member joins the pool
     function testTakasureReserve_serviceFeeAmountTransferedWhenJoinsPool() public {
-        NewReserve memory reserve = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
         uint8 serviceFee = reserve.serviceFee;
         address serviceFeeReceiver = takasureReserve.feeClaimAddress();
         uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
