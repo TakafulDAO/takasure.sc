@@ -22,7 +22,7 @@ import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-pragma solidity 0.8.27;
+pragma solidity 0.8.28;
 
 contract JoinModule is
     Initializable,

@@ -8,7 +8,7 @@
  * @dev Minting and burning of the this utility token based on new members' admission into the pool, and members
  *      leaving due to inactivity or claims.
  */
-pragma solidity 0.8.27;
+pragma solidity 0.8.28;
 
 import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";

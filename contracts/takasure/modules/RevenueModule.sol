@@ -17,7 +17,7 @@ import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 
-pragma solidity 0.8.27;
+pragma solidity 0.8.28;
 
 contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     ITakasureReserve private takasureReserve;

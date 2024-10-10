@@ -11,7 +11,7 @@ import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/Fu
 
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 
-pragma solidity 0.8.27;
+pragma solidity 0.8.28;
 
 contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
     using FunctionsRequest for FunctionsRequest.Request;

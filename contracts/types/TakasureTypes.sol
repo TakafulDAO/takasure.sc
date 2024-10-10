@@ -2,7 +2,7 @@
 
 import {TSToken} from "contracts/token/TSToken.sol";
 
-pragma solidity 0.8.27;
+pragma solidity 0.8.28;
 
 enum MemberState {
     Inactive,
