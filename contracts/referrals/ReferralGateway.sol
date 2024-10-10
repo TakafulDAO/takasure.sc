@@ -198,6 +198,19 @@ contract ReferralGateway is
     }
 
     /**
+     * @notice Assign a launch date to a tDAO
+     * @param tDAOName The name of the tDAO
+     * @param launchDate The launch date of the tDAO
+     * @dev The launch date must be in seconds
+     */
+    function assignTDaoLaunchDate(
+        string calldata tDAOName,
+        uint256 launchDate
+    ) external onlyDaoAdmin(tDAOName) {
+        DAODatas[tDAOName].launchDate = launchDate;
+    }
+
+    /**
      * @notice Pre pay for a membership
      * @param parent The address of the parent
      * @param contribution The amount to pay
