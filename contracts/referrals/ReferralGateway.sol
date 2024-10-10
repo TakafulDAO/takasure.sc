@@ -41,9 +41,9 @@ contract ReferralGateway is
     int256 private constant D = 112_250;
     uint256 private constant DECIMAL_CORRECTION = 10_000;
 
-    address private takadaoOperator;
+    address private operator;
 
-    bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
+    bytes32 private constant OPERATOR = keccak256("OPERATOR");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
     bytes32 private constant COFOUNDER_OF_CHANGE = keccak256("COFOUNDER_OF_CHANGE");
@@ -111,18 +111,18 @@ contract ReferralGateway is
     }
 
     function initialize(
-        address _takadaoOperator,
+        address _operator,
         address _kycProvider,
         address _usdcAddress
-    ) external notZeroAddress(_takadaoOperator) notZeroAddress(_usdcAddress) initializer {
+    ) external notZeroAddress(_operator) notZeroAddress(_usdcAddress) initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __ReentrancyGuardTransient_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, _takadaoOperator);
-        _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
+        _grantRole(DEFAULT_ADMIN_ROLE, _operator);
+        _grantRole(OPERATOR, _operator);
         _grantRole(KYC_PROVIDER, _kycProvider);
 
-        takadaoOperator = _takadaoOperator;
+        operator = _operator;
         // isPreJoinEnabled = true;
         usdc = IERC20(_usdcAddress);
     }
@@ -163,11 +163,11 @@ contract ReferralGateway is
     /**
      * @notice Register an ambassador
      * @param ambassador The address to register as ambassador
-     * @dev Only the TAKADAO_OPERATOR can register an ambassador
+     * @dev Only the OPERATOR can register an ambassador
      */
     function registerAmbassador(
         address ambassador
-    ) external notZeroAddress(ambassador) onlyRole(TAKADAO_OPERATOR) {
+    ) external notZeroAddress(ambassador) onlyRole(OPERATOR) {
         _grantRole(AMBASSADOR, ambassador);
 
         emit OnNewAmbassador(ambassador);
@@ -176,11 +176,11 @@ contract ReferralGateway is
     /**
      * @notice Register a Cofounder of Change
      * @param cofounderOfChange The address to register as cofounderOfChange
-     * @dev Only the TAKADAO_OPERATOR can register an cofounderOfChange
+     * @dev Only the OPERATOR can register an cofounderOfChange
      */
     function registerCofounderOfChange(
         address cofounderOfChange
-    ) external notZeroAddress(cofounderOfChange) onlyRole(TAKADAO_OPERATOR) {
+    ) external notZeroAddress(cofounderOfChange) onlyRole(OPERATOR) {
         _grantRole(COFOUNDER_OF_CHANGE, cofounderOfChange);
 
         emit OnNewCofounderOfChange(cofounderOfChange);
@@ -378,14 +378,14 @@ contract ReferralGateway is
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
     }
 
-    function setUsdcAddress(address _usdcAddress) external onlyRole(TAKADAO_OPERATOR) {
+    function setUsdcAddress(address _usdcAddress) external onlyRole(OPERATOR) {
         usdc = IERC20(_usdcAddress);
     }
 
-    function withdrawFees(string calldata tDAOName) external onlyRole(TAKADAO_OPERATOR) {
+    function withdrawFees(string calldata tDAOName) external onlyRole(OPERATOR) {
         uint256 _collectedFees = DAODatas[tDAOName].collectedFees;
         DAODatas[tDAOName].collectedFees = 0;
-        usdc.safeTransfer(takadaoOperator, _collectedFees);
+        usdc.safeTransfer(operator, _collectedFees);
     }
 
     function getDaoData(string calldata tDAOName) external view returns (tDAO memory) {
@@ -419,7 +419,5 @@ contract ReferralGateway is
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(TAKADAO_OPERATOR) {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
 }
