@@ -20,15 +20,6 @@ optimizer = true
 optimizer_runs = 100000
 evm_version = 'cancun'
 
-remappings = [
-    '@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/',
-    '@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/',
-    'openzeppelin-foundry-upgrades/src/=lib/openzeppelin-foundry-upgrades/src/',
-    '@chainlink/=lib/chainlink-brownie-contracts/',
-    'foundry-devops/=lib/foundry-devops/',
-    'forge-std/=lib/forge-std/src/',
-]
-
 [fuzz]
 runs = 256
 seed = "0x2"
