@@ -34,7 +34,7 @@ contract ReferralGateway is
     uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
     // For the ambassadors reward ratio
-    uint256 private constant MAX_TIER = 4;
+    int256 private constant MAX_TIER = 4;
     int256 private constant A = -3_125;
     int256 private constant B = 30_500;
     int256 private constant C = -99_625;
@@ -246,12 +246,12 @@ contract ReferralGateway is
 
             address currentChildToCheck = msg.sender;
             // We loop through the parent chain up to 4 tiers back
-            for (uint256 i; i < MAX_TIER; ++i) {
+            for (int256 i; i < MAX_TIER; ++i) {
                 // We need to check child by child if it has a parent
                 if (prepaidMembers[currentChildToCheck].parent != address(0)) {
                     // If the current child has a parent, we calculate the parent reward
                     // The first child is the caller of the function
-                    int256 layer = int256(i + 1);
+                    int256 layer = i + 1;
                     uint256 currentParentRewardRatio = _ambassadorRewardRatioByLayer(layer);
                     uint256 currentParentReward = (contribution * currentParentRewardRatio) /
                         (100 * DECIMAL_CORRECTION);
