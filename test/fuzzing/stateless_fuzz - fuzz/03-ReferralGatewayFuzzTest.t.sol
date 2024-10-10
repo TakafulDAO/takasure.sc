@@ -25,18 +25,15 @@ contract ReferralGatewayFuzzTest is Test {
         referralGateway = ReferralGateway(address(proxy));
     }
 
-    function test_fuzz_onlyOwnerCanRegisterAmbassadors(
-        address notOwner,
-        address ambassador
-    ) public {
+    function test_fuzz_onlyOwnerCanRegisterReferrals(address notOwner, address referral) public {
         // The input address must not be the same as the takasurePool address
         vm.assume(notOwner != takadao);
-        vm.assume(ambassador != takadao);
-        vm.assume(ambassador != notOwner);
-        vm.assume(ambassador != address(0));
+        vm.assume(referral != takadao);
+        vm.assume(referral != notOwner);
+        vm.assume(referral != address(0));
 
         vm.prank(notOwner);
         vm.expectRevert();
-        referralGateway.registerAmbassador(ambassador);
+        referralGateway.registerReferral(referral);
     }
 }

@@ -33,7 +33,7 @@ contract ReferralGateway is
     uint256 public constant CONTRIBUTION_DISCOUNT_RATIO = 5;
     uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
-    // For the ambassadors reward ratio
+    // For the referrals reward ratio
     int256 private constant MAX_TIER = 4;
     int256 private constant A = -3_125;
     int256 private constant B = 30_500;
@@ -45,7 +45,7 @@ contract ReferralGateway is
 
     bytes32 private constant OPERATOR = keccak256("OPERATOR");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-    bytes32 private constant AMBASSADOR = keccak256("AMBASSADOR");
+    bytes32 private constant REFERRAL = keccak256("REFERRAL");
     bytes32 private constant COFOUNDER_OF_CHANGE = keccak256("COFOUNDER_OF_CHANGE");
 
     mapping(address parent => mapping(address child => uint256 rewards))
@@ -77,7 +77,7 @@ contract ReferralGateway is
     }
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
-    event OnNewAmbassador(address indexed ambassador);
+    event OnNewReferral(address indexed referral);
     event OnNewCofounderOfChange(address indexed cofounderOfChange);
     event OnPrePayment(address indexed parent, address indexed child, uint256 indexed contribution);
     event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
@@ -161,16 +161,16 @@ contract ReferralGateway is
     }
 
     /**
-     * @notice Register an ambassador
-     * @param ambassador The address to register as ambassador
-     * @dev Only the OPERATOR can register an ambassador
+     * @notice Register an referral
+     * @param referral The address to register as referral
+     * @dev Only the OPERATOR can register an referral
      */
-    function registerAmbassador(
-        address ambassador
-    ) external notZeroAddress(ambassador) onlyRole(OPERATOR) {
-        _grantRole(AMBASSADOR, ambassador);
+    function registerReferral(
+        address referral
+    ) external notZeroAddress(referral) onlyRole(OPERATOR) {
+        _grantRole(REFERRAL, referral);
 
-        emit OnNewAmbassador(ambassador);
+        emit OnNewReferral(referral);
     }
 
     /**
@@ -265,7 +265,7 @@ contract ReferralGateway is
                     // If the current child has a parent, we calculate the parent reward
                     // The first child is the caller of the function
                     int256 layer = i + 1;
-                    uint256 currentParentRewardRatio = _ambassadorRewardRatioByLayer(layer);
+                    uint256 currentParentRewardRatio = _referralRewardRatioByLayer(layer);
                     uint256 currentParentReward = (contribution * currentParentRewardRatio) /
                         (100 * DECIMAL_CORRECTION);
 
@@ -406,9 +406,9 @@ contract ReferralGateway is
     }
 
     /**
-     * @notice This function calculates the ambassador reward ratio based on the layer
-     * @param _layer The layer of the ambassador
-     * @return ambassadorRewardRatio_ The ambassador reward ratio
+     * @notice This function calculates the referral reward ratio based on the layer
+     * @param _layer The layer of the referral
+     * @return referralRewardRatio_ The referral reward ratio
      * @dev Max Layer = 4
      * @dev The formula is y = Ax^3 + Bx^2 + Cx + D
      *      y = reward ratio, x = layer, A = -3_125, B = 30_500, C = -99_625, D = 112_250
@@ -416,15 +416,15 @@ contract ReferralGateway is
      *      But this values where multiplied by 10_000 to avoid decimals in the formula so the values are
      *      layer 1 = 40_000, layer 2 = 10_000, layer 3 = 3_500, layer 4 = 1_750
      */
-    function _ambassadorRewardRatioByLayer(
+    function _referralRewardRatioByLayer(
         int256 _layer
-    ) internal pure returns (uint256 ambassadorRewardRatio_) {
+    ) internal pure returns (uint256 referralRewardRatio_) {
         assembly {
             let layerSquare := mul(_layer, _layer) // x^2
             let layerCube := mul(_layer, layerSquare) // x^3
 
             // y = Ax^3 + Bx^2 + Cx + D
-            ambassadorRewardRatio_ := add(
+            referralRewardRatio_ := add(
                 add(add(mul(A, layerCube), mul(B, layerSquare)), mul(C, _layer)),
                 D
             )
