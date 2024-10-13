@@ -81,8 +81,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev Test fund and claim reserves are calculated correctly
     function testTakasureReserve_fundAndClaimReserves() public {
-        vm.prank(admin);
-        joinModule.setKYCStatus(alice);
+        vm.prank(alice);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 initialReserveRatio = reserve.initialReserveRatio;
@@ -94,8 +94,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.prank(admin);
+        joinModule.setKYCStatus(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 finalClaimReserve = reserve.totalClaimReserve;
