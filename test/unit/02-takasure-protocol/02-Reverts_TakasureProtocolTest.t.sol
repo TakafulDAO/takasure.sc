@@ -36,8 +36,6 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     address public bob = makeAddr("bob");
     address public charlie = makeAddr("charlie");
     address public david = makeAddr("david");
-    address public erin = makeAddr("erin");
-    address public frank = makeAddr("frank");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
@@ -73,8 +71,6 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         deal(address(usdc), bob, USDC_INITIAL_AMOUNT);
         deal(address(usdc), charlie, USDC_INITIAL_AMOUNT);
         deal(address(usdc), david, USDC_INITIAL_AMOUNT);
-        deal(address(usdc), erin, USDC_INITIAL_AMOUNT);
-        deal(address(usdc), frank, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
@@ -89,14 +85,6 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
         vm.startPrank(david);
-        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
-        usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
-        vm.stopPrank();
-        vm.startPrank(erin);
-        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
-        usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
-        vm.stopPrank();
-        vm.startPrank(frank);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
@@ -185,20 +173,20 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev If it is an active member, can not join again
     function testJoinModule_activeMembersShouldNotJoinAgain() public {
-        vm.prank(admin);
-        joinModule.setKYCStatus(alice);
+        vm.prank(alice);
+        // Alice joins the pool
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.startPrank(alice);
-        // Alice joins the pool
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.prank(admin);
+        joinModule.setKYCStatus(alice);
 
+        vm.prank(alice);
         // And tries to join again but fails
         vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
-        vm.stopPrank();
     }
 
     /// @dev `setKYCStatus` must revert if the member is address zero
@@ -211,6 +199,12 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev `setKYCStatus` must revert if the member is already KYC verified
     function testJoinModule_setKYCStatusMustRevertIfMemberIsAlreadyKYCVerified() public {
+        vm.prank(alice);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerMock));
+
         vm.startPrank(admin);
         joinModule.setKYCStatus(alice);
 
@@ -230,16 +224,16 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev `recurringPayment` must revert if the date is invalid, a year has passed and the member has not paid
     function testMembersModule_recurringPaymentMustRevertIfDateIsInvalidNotPaidInTime() public {
-        vm.prank(admin);
-        joinModule.setKYCStatus(alice);
+        vm.startPrank(alice);
+        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.startPrank(alice);
-        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.stopPrank;
+        vm.prank(admin);
+        joinModule.setKYCStatus(alice);
 
         vm.warp(block.timestamp + 396 days);
         vm.roll(block.number + 1);
@@ -247,21 +241,21 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(alice);
         vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
         membersModule.recurringPayment();
-        vm.stopPrank;
+        vm.stopPrank();
     }
 
     /// @dev `recurringPayment` must revert if the date is invalid, the membership expired
     function testMembersModule_recurringPaymentMustRevertIfDateIsInvalidMembershipExpired() public {
-        vm.prank(admin);
-        joinModule.setKYCStatus(alice);
+        vm.startPrank(alice);
+        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.startPrank(alice);
-        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.stopPrank;
+        vm.prank(admin);
+        joinModule.setKYCStatus(alice);
 
         for (uint256 i = 0; i < 5; i++) {
             vm.warp(block.timestamp + YEAR);
@@ -269,7 +263,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
             vm.startPrank(alice);
             membersModule.recurringPayment();
-            vm.stopPrank;
+            vm.stopPrank();
         }
 
         vm.warp(block.timestamp + YEAR);
@@ -282,6 +276,12 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev can not refund someone already KYC verified
     function testJoinModule_refundRevertIfMemberIsKyc() public {
+        vm.prank(alice);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerMock));
+
         vm.prank(admin);
         joinModule.setKYCStatus(alice);
 
@@ -339,38 +339,50 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     function testJoinModule_revertIfTryToJoinTwice() public {
-        // First check kyc alice -> alice join -> alice join again must revert
-        vm.prank(admin);
-        joinModule.setKYCStatus(alice);
+        // First check alice join -> kyc alice -> alice join again must revert
+        vm.prank(alice);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.startPrank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.stopPrank();
-
-        // Second check bob join -> kyc bob -> bob join again must revert
-        vm.prank(bob);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-
         vm.prank(admin);
-        joinModule.setKYCStatus(bob);
+        joinModule.setKYCStatus(alice);
 
-        vm.prank(bob);
+        vm.prank(alice);
         vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
 
-        // Third check charlie join -> charlie join again must revert
-        vm.startPrank(charlie);
+        // Second check bob join -> bob join again must revert
+        vm.startPrank(bob);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.expectRevert(TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC.selector);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
-        // Fourth check david join -> 14 days passes -> refund david -> kyc david -> david join -> david join again must revert
+        // Third check charlie join -> 14 days passes -> refund charlie -> charlie join -> kyc charlie -> charlie join again must revert
+        vm.prank(charlie);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerMock));
+
+        vm.warp(block.timestamp + 15 days);
+        vm.roll(block.number + 1);
+
+        joinModule.refund(charlie);
+
+        vm.prank(charlie);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        vm.prank(admin);
+        joinModule.setKYCStatus(charlie);
+
+        vm.prank(charlie);
+        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        // Fourth check david join -> 14 days passes -> refund david -> david join -> david join again must revert
         vm.prank(david);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
 
@@ -379,44 +391,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         joinModule.refund(david);
 
-        vm.prank(admin);
-        joinModule.setKYCStatus(david);
-
         vm.startPrank(david);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.stopPrank();
-
-        // Fifth check erin join -> 14 days passes -> refund erin -> erin join -> kyc erin -> erin join again must revert
-        vm.prank(erin);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-
-        vm.warp(block.timestamp + 15 days);
-        vm.roll(block.number + 1);
-
-        joinModule.refund(erin);
-
-        vm.prank(erin);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-
-        vm.prank(admin);
-        joinModule.setKYCStatus(erin);
-
-        vm.prank(erin);
-        vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-
-        // Sixth check frank join -> 14 days passes -> refund frank -> frank join -> frank join again must revert
-        vm.prank(frank);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-
-        vm.warp(block.timestamp + 15 days);
-        vm.roll(block.number + 1);
-
-        joinModule.refund(frank);
-
-        vm.startPrank(frank);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.expectRevert(TakasureErrors.TakasurePool__AlreadyJoinedPendingForKYC.selector);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
