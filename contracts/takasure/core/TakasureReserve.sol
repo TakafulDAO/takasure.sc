@@ -7,13 +7,14 @@
  * @dev Modules will be able to interact with this contract to update the reserve values and the members data
  * @dev Upgradeable contract with UUPS pattern
  */
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
-import {Reserve, Member, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -38,6 +39,8 @@ contract TakasureReserve is
     address private joinModuleContract;
     address private memberModuleContract;
     address private claimModuleContract;
+
+    uint256 private RPOOL; // todo: define this value
 
     bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 private constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
@@ -369,6 +372,94 @@ contract TakasureReserve is
         }
 
         cashLast12Months_ = cash;
+    }
+
+    /**
+     * @notice Calculate the total earned and unearned contribution reserves for all active members
+     * @dev It does not count the recently added member
+     * @dev It updates the total earned and unearned contribution reserves every time it is called
+     * @dev Members in the grace period are not considered
+     * @return totalECRes_ the total earned contribution reserve. Six decimals
+     * @return totalUCRes_ the total unearned contribution reserve. Six decimals
+     */
+    // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
+    function _totalECResAndUCResUnboundedLoop()
+        internal
+        returns (uint256 totalECRes_, uint256 totalUCRes_)
+    {
+        Reserve memory currentReserve = reserve;
+        uint256 newECRes;
+        // We check for every member except the recently added
+        for (uint256 i = 1; i <= currentReserve.memberIdCounter - 1; ++i) {
+            address memberWallet = idToMemberWallet[i];
+            Member storage memberToCheck = members[memberWallet];
+            if (memberToCheck.memberState == MemberState.Active) {
+                (uint256 memberEcr, uint256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
+                    memberToCheck
+                );
+
+                newECRes += memberEcr;
+                totalUCRes_ += memberUcr;
+            }
+        }
+
+        reserve.ECRes = newECRes;
+        reserve.UCRes = totalUCRes_;
+
+        totalECRes_ = reserve.ECRes;
+    }
+
+    /**
+     * @notice Surplus to be distributed among the members
+     * @return surplus_ in six decimals
+     */
+    function _calculateSurplus() internal returns (uint256 surplus_) {
+        (uint256 totalECRes, uint256 totalUCRes) = _totalECResAndUCResUnboundedLoop();
+        uint256 UCRisk;
+
+        UCRisk = (totalUCRes * reserve.riskMultiplier) / 100;
+
+        // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
+        surplus_ = uint256(
+            ReserveMathLib._maxInt(
+                0,
+                (int256(totalECRes) -
+                    ReserveMathLib._maxInt(
+                        0,
+                        (int256(UCRisk) - int256(totalUCRes) - int256(RPOOL))
+                    ))
+            )
+        );
+
+        reserve.surplus = surplus_;
+
+        emit TakasureEvents.OnFundSurplusUpdated(surplus_);
+    }
+
+    /**
+     * @notice Calculate the surplus for a member
+     */
+    function _memberSurplus(address memberWallet) internal {
+        uint256 totalSurplus = _calculateSurplus();
+        uint256 userCreditTokensBalance = members[memberWallet].creditTokensBalance;
+        address daoToken = reserve.daoToken;
+        uint256 totalCreditTokens = IERC20(daoToken).balanceOf(address(this));
+        uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
+        members[memberWallet].memberSurplus = userSurplus;
+        emit TakasureEvents.OnMemberSurplusUpdated(members[memberWallet].memberId, userSurplus);
+    }
+
+    /**
+     * @notice Calculate the surplus for a member
+     */
+    function memberSurplus(address memberWallet) external onlyRole(MODULE_CONTRACT) {
+        uint256 totalSurplus = _calculateSurplus();
+        uint256 userCreditTokensBalance = members[memberWallet].creditTokensBalance;
+        address daoToken = reserve.daoToken;
+        uint256 totalCreditTokens = IERC20(daoToken).balanceOf(address(this));
+        uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
+        members[memberWallet].memberSurplus = userSurplus;
+        emit TakasureEvents.OnMemberSurplusUpdated(members[memberWallet].memberId, userSurplus);
     }
 
     ///@dev required by the OZ UUPS module

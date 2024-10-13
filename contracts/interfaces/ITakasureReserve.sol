@@ -14,6 +14,7 @@ interface ITakasureReserve {
     function dayToCashFlow(uint16 month, uint8 day) external view returns (uint256 dayCashFlow);
 
     function setMemberValuesFromModule(Member memory newMember) external;
+    function memberSurplus(address memberWallet) external;
     function setReserveValuesFromModule(Reserve memory reserve) external;
     function setCashFlowValuesFromModule(CashFlowVars memory newCashFlowVars) external;
     function setMonthToCashFlowValuesFromModule(uint16 month, uint256 monthCashFlow) external;
