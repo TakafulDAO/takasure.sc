@@ -39,6 +39,8 @@ contract MembersModule is
     uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
     uint256 private constant DAY = 1 days;
 
+    uint256 private transient mintedTokens;
+
     modifier notZeroAddress(address _address) {
         require(_address != address(0), TakasureErrors.TakasureProtocol__ZeroAddress());
         _;
@@ -80,7 +82,6 @@ contract MembersModule is
         uint256 lastPaidYearStartDate = newMember.lastPaidYearStartDate;
         uint256 year = 365 days;
         uint256 gracePeriod = 30 days;
-        uint256 mintAmount;
 
         require(
             currentTimestamp <= lastPaidYearStartDate + year + gracePeriod &&
@@ -100,14 +101,14 @@ contract MembersModule is
         newMember.lastUcr = 0;
 
         // And we pay the contribution
-        (reserve, mintAmount) = _memberPaymentFlow({
+        reserve = _memberPaymentFlow({
             _contributionBeforeFee: contributionBeforeFee,
             _contributionAfterFee: contributionAfterFee,
             _memberWallet: msg.sender,
             _reserve: reserve
         });
 
-        newMember.creditTokensBalance += mintAmount;
+        newMember.creditTokensBalance += mintedTokens;
 
         emit TakasureEvents.OnRecurringPayment(
             msg.sender,
@@ -143,7 +144,7 @@ contract MembersModule is
         uint256 _contributionAfterFee,
         address _memberWallet,
         Reserve memory _reserve
-    ) internal returns (Reserve memory, uint256 mintAmount_) {
+    ) internal returns (Reserve memory) {
         _reserve = _updateNewReserveValues(_contributionAfterFee, _contributionBeforeFee, _reserve);
 
         bool success = IERC20(_reserve.contributionToken).transferFrom(
@@ -154,9 +155,9 @@ contract MembersModule is
         require(success, TakasureErrors.Module__ContributionTransferFailed());
 
         // Mint the DAO Tokens
-        mintAmount_ = _mintDaoTokens(_contributionBeforeFee);
+        _mintDaoTokens(_contributionBeforeFee);
 
-        return (_reserve, mintAmount_);
+        return _reserve;
     }
 
     function _updateNewReserveValues(
@@ -426,12 +427,12 @@ contract MembersModule is
         emit TakasureEvents.OnNewLossRatio(lossRatio_);
     }
 
-    function _mintDaoTokens(uint256 _contributionBeforeFee) internal returns (uint256 mintAmount_) {
+    function _mintDaoTokens(uint256 _contributionBeforeFee) internal  {
         // Mint needed DAO Tokens
         Reserve memory _reserve = takasureReserve.getReserveValues();
-        mintAmount_ = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+        mintedTokens = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
-        bool success = ITSToken(_reserve.daoToken).mint(address(this), mintAmount_);
+        bool success = ITSToken(_reserve.daoToken).mint(address(this), mintedTokens);
         require(success, TakasureErrors.Module__MintFailed());
     }
 

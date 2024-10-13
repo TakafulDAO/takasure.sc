@@ -42,6 +42,8 @@ contract JoinModule is
     uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
     uint256 private constant DAY = 1 days;
 
+    uint256 private transient mintedTokens;
+
     modifier notZeroAddress(address _address) {
         require(_address != address(0), TakasureErrors.TakasureProtocol__ZeroAddress());
         _;
@@ -174,8 +176,6 @@ contract JoinModule is
         );
         require(newMember.contribution > 0, TakasureErrors.JoinModule__NoContribution());
 
-        uint256 mintAmount;
-
         // This means the user exists and payed contribution but is not KYCed yet, we update the values
         (, , uint256 contributionAfterFee) = _calculateAmountAndFees(
             newMember.contribution,
@@ -200,14 +200,14 @@ contract JoinModule is
 
         // Then the everyting needed will be updated, proformas, reserves, cash flow,
         // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
-        (reserve, mintAmount) = _memberPaymentFlow({
+        reserve = _memberPaymentFlow({
             _contributionBeforeFee: newMember.contribution,
             _contributionAfterFee: contributionAfterFee,
             _memberWallet: memberWallet,
             _reserve: reserve
         });
 
-        newMember.creditTokensBalance += mintAmount;
+        newMember.creditTokensBalance += mintedTokens;
 
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
         emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
@@ -417,7 +417,7 @@ contract JoinModule is
         uint256 _contributionAfterFee,
         address _memberWallet,
         Reserve memory _reserve
-    ) internal returns (Reserve memory, uint256 mintAmount_) {
+    ) internal returns (Reserve memory) {
         _getBenefitMultiplierFromOracle(_memberWallet);
 
         _reserve = _updateNewReserveValues(_contributionAfterFee, _contributionBeforeFee, _reserve);
@@ -430,9 +430,9 @@ contract JoinModule is
         require(success, TakasureErrors.Module__ContributionTransferFailed());
 
         // Mint the DAO Tokens
-        mintAmount_ = _mintDaoTokens(_contributionBeforeFee);
+        _mintDaoTokens(_contributionBeforeFee);
 
-        return (_reserve, mintAmount_);
+        return _reserve;
     }
 
     function _updateNewReserveValues(
@@ -805,12 +805,12 @@ contract JoinModule is
         require(success, TakasureErrors.Module__FeeTransferFailed());
     }
 
-    function _mintDaoTokens(uint256 _contributionBeforeFee) internal returns (uint256 mintAmount_) {
+    function _mintDaoTokens(uint256 _contributionBeforeFee) internal  {
         // Mint needed DAO Tokens
         Reserve memory _reserve = takasureReserve.getReserveValues();
-        mintAmount_ = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+        mintedTokens = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
-        bool success = ITSToken(_reserve.daoToken).mint(address(takasureReserve), mintAmount_);
+        bool success = ITSToken(_reserve.daoToken).mint(address(takasureReserve), mintedTokens);
         require(success, TakasureErrors.Module__MintFailed());
     }
 
