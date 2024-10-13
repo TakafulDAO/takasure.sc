@@ -430,9 +430,9 @@ contract JoinModule is
         require(success, TakasureErrors.Module__ContributionTransferFailed());
 
         // Mint the DAO Tokens
-        uint256 mintAmount = _mintDaoTokens(_contributionBeforeFee);
+        mintAmount_ = _mintDaoTokens(_contributionBeforeFee);
 
-        return (_reserve, mintAmount);
+        return (_reserve, mintAmount_);
     }
 
     function _updateNewReserveValues(
