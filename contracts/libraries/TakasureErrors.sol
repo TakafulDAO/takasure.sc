@@ -29,4 +29,5 @@ library TakasureErrors {
     error OnlyDaoOrTakadao();
     error TakasurePool__SameModuleContract();
     error OnlyModuleContract();
+    error TakasurePool__NoContribution();
 }

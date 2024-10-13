@@ -168,6 +168,11 @@ contract JoinModule is
         );
 
         require(!newMember.isKYCVerified, TakasureErrors.TakasurePool__MemberAlreadyKYCed());
+        require(
+            newMember.memberState == MemberState.Inactive,
+            TakasureErrors.TakasurePool__WrongMemberState()
+        );
+        require(newMember.contribution > 0, TakasureErrors.TakasurePool__NoContribution());
 
         uint256 mintAmount;
 
