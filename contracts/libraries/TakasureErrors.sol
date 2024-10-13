@@ -15,8 +15,6 @@ library TakasureErrors {
     error TakasureReserve__WrongServiceFee();
     error TakasureReserve__WrongFundMarketExpendsShare();
     // Modules Errors
-    error Module__ContributionTransferFailed();
-    error Module__FeeTransferFailed();
     error Module__MintFailed();
     error Module__WrongMemberState();
     // Exclusive JoinModule Errors
@@ -26,11 +24,9 @@ library TakasureErrors {
     error JoinModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error JoinModule__MemberAlreadyKYCed();
     error JoinModule__NothingToRefund();
-    error JoinModule__RefundFailed();
     error JoinModule__TooEarlytoRefund();
     // Exclusive MembersModule Errors
     error MembersModule__InvalidDate();
     // Exclusive RevenueModule Errors
     error RevenueModule__WrongRevenueType();
-    error RevenueModule__RevenueTransferFailed();
 }

@@ -21,6 +21,7 @@ import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
 
@@ -30,6 +31,8 @@ contract JoinModule is
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable
 {
+    using SafeERC20 for IERC20;
+    
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
 
@@ -278,9 +281,7 @@ contract JoinModule is
         // Update the member values
         _member.isRefunded = true;
         // Transfer the amount to refund
-        bool success = IERC20(_reserve.contributionToken).transfer(_memberWallet, amountToRefund);
-
-        require(success, TakasureErrors.JoinModule__RefundFailed());
+       IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
 
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
 
@@ -424,11 +425,10 @@ contract JoinModule is
         _reserve = _updateNewReserveValues(_contributionAfterFee, _contributionBeforeFee, _reserve);
 
         // Transfer the contribution to the reserves
-        bool success = IERC20(_reserve.contributionToken).transfer(
+         IERC20(_reserve.contributionToken).safeTransfer(
             address(takasureReserve),
             _contributionAfterFee
         );
-        require(success, TakasureErrors.Module__ContributionTransferFailed());
 
         // Mint the DAO Tokens
         _mintDaoTokens(_contributionBeforeFee);
@@ -784,26 +784,21 @@ contract JoinModule is
         address _memberWallet
     ) internal {
         IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
-        bool success;
         uint256 feeAmount = _contributionBeforeFee - _contributionAfterFee;
 
         // Store temporarily the contribution in this contract, this way will be available for refunds
-        success = contributionToken.transferFrom(
+       contributionToken.safeTransferFrom(
             _memberWallet,
             address(this),
             _contributionAfterFee
         );
 
-        require(success, TakasureErrors.Module__ContributionTransferFailed());
-
         // Transfer the service fee to the fee claim address
-        success = contributionToken.transferFrom(
+        contributionToken.safeTransferFrom(
             _memberWallet,
             takasureReserve.feeClaimAddress(),
             feeAmount
         );
-
-        require(success, TakasureErrors.Module__FeeTransferFailed());
     }
 
     function _mintDaoTokens(uint256 _contributionBeforeFee) internal  {

@@ -16,10 +16,13 @@ import {Reserve, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
 
 contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
+    using SafeERC20 for IERC20;
+
     ITakasureReserve private takasureReserve;
 
     Reserve private reserve;
@@ -63,12 +66,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
 
         address contributionToken = reserve.contributionToken;
 
-        bool success = IERC20(contributionToken).transferFrom(
-            msg.sender,
-            address(this),
-            newRevenue
-        );
-        require(success, TakasureErrors.RevenueModule__RevenueTransferFailed());
+        IERC20(contributionToken).safeTransferFrom(msg.sender, address(this), newRevenue);
 
         takasureReserve.setReserveValuesFromModule(reserveValues);
 

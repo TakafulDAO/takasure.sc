@@ -21,6 +21,7 @@ import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
 
@@ -30,6 +31,8 @@ contract MembersModule is
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable
 {
+    using SafeERC20 for IERC20;
+
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
 
@@ -148,12 +151,11 @@ contract MembersModule is
     ) internal returns (Reserve memory) {
         _reserve = _updateNewReserveValues(_contributionAfterFee, _contributionBeforeFee, _reserve);
 
-        bool success = IERC20(_reserve.contributionToken).transferFrom(
+         IERC20(_reserve.contributionToken).safeTransferFrom(
             _memberWallet,
             address(takasureReserve),
             _contributionAfterFee
         );
-        require(success, TakasureErrors.Module__ContributionTransferFailed());
 
         // Mint the DAO Tokens
         _mintDaoTokens(_contributionBeforeFee);
