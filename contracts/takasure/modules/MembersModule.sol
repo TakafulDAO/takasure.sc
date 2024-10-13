@@ -119,6 +119,7 @@ contract MembersModule is
         );
 
         _setNewReserveAndMemberValuesHook(reserve, newMember);
+        takasureReserve.memberSurplus(newMember);
     }
 
     function _getReserveAndMemberValuesHook(

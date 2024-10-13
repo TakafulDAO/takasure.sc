@@ -213,6 +213,7 @@ contract JoinModule is
         emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
 
         _setNewReserveAndMemberValuesHook(reserve, newMember);
+        takasureReserve.memberSurplus(newMember);
     }
 
     /**

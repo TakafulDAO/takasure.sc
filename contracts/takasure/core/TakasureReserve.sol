@@ -439,27 +439,18 @@ contract TakasureReserve is
     /**
      * @notice Calculate the surplus for a member
      */
-    function _memberSurplus(address memberWallet) internal {
+    function memberSurplus(Member memory newMemberValues) external onlyRole(MODULE_CONTRACT) {
         uint256 totalSurplus = _calculateSurplus();
-        uint256 userCreditTokensBalance = members[memberWallet].creditTokensBalance;
+        uint256 userCreditTokensBalance = newMemberValues.creditTokensBalance;
         address daoToken = reserve.daoToken;
-        uint256 totalCreditTokens = IERC20(daoToken).balanceOf(address(this));
+        uint256 totalCreditTokens = IERC20(daoToken).balanceOf(address(this)) +
+            userCreditTokensBalance;
         uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
-        members[memberWallet].memberSurplus = userSurplus;
-        emit TakasureEvents.OnMemberSurplusUpdated(members[memberWallet].memberId, userSurplus);
-    }
-
-    /**
-     * @notice Calculate the surplus for a member
-     */
-    function memberSurplus(address memberWallet) external onlyRole(MODULE_CONTRACT) {
-        uint256 totalSurplus = _calculateSurplus();
-        uint256 userCreditTokensBalance = members[memberWallet].creditTokensBalance;
-        address daoToken = reserve.daoToken;
-        uint256 totalCreditTokens = IERC20(daoToken).balanceOf(address(this));
-        uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
-        members[memberWallet].memberSurplus = userSurplus;
-        emit TakasureEvents.OnMemberSurplusUpdated(members[memberWallet].memberId, userSurplus);
+        members[newMemberValues.wallet].memberSurplus = userSurplus;
+        emit TakasureEvents.OnMemberSurplusUpdated(
+            members[newMemberValues.wallet].memberId,
+            userSurplus
+        );
     }
 
     ///@dev required by the OZ UUPS module
