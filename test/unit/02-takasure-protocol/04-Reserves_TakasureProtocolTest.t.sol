@@ -130,8 +130,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             vm.prank(lotOfUsers[i]);
             usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
 
-            vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            vm.prank(lotOfUsers[i]);
+            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
         // Each day 10 users will join with the contribution amount
 
@@ -140,8 +140,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // First day
         for (uint256 i; i < 10; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -149,8 +149,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // Second day
         for (uint256 i = 10; i < 20; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -158,8 +158,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // Third day
         for (uint256 i = 20; i < 30; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -167,8 +167,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // Fourth day
         for (uint256 i = 30; i < 40; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -176,8 +176,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // Fifth day
         for (uint256 i = 40; i < 50; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         uint256 cash = takasureReserve.getCashLast12Months();
@@ -204,8 +204,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             vm.prank(lotOfUsers[i]);
             usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
 
-            vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            vm.prank(lotOfUsers[i]);
+            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         // We simulate a request before the KYC
@@ -217,8 +217,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // 25USDC - fee = 20USDC
         // 20 * 30 = 600USDC
         for (uint256 i; i < 30; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 31 days);
@@ -227,8 +227,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Second 10 people joins
         // 20 * 10 = 200USDC + 600USDC = 800USDC
         for (uint256 i = 30; i < 40; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 31 days);
@@ -237,8 +237,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Third month first day 15 people joins
         // 20 * 15 = 300USDC + 800USDC = 1100USDC
         for (uint256 i = 40; i < 55; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -247,8 +247,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Third month second day 23 people joins
         // 20 * 23 = 460USDC + 1100USDC = 1560USDC
         for (uint256 i = 55; i < 78; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         uint256 cash = takasureReserve.getCashLast12Months();
@@ -273,8 +273,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             vm.prank(lotOfUsers[i]);
             usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
 
-            vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            vm.prank(lotOfUsers[i]);
+            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         // We simulate a request before the KYC
@@ -282,16 +282,16 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // Months 1, 2 and 3, one new member joins daily
         for (uint256 i; i < 90; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
             vm.warp(block.timestamp + 1 days);
             vm.roll(block.number + 1);
         }
 
         // Months 4 to 12, 10 new members join monthly
         for (uint256 i = 90; i < 180; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
 
             // End of the month
             if (
@@ -319,8 +319,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // Thirteenth month 10 people joins
         for (uint256 i = 180; i < 190; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         // Month 1 take 29 days => Total 580USDC
@@ -342,8 +342,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // Fourteenth month 10 people joins
         for (uint256 i = 190; i < 200; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
         }
 
         // Month 1 should not count
@@ -366,8 +366,8 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // Last 2 days 2 people joins
         for (uint256 i = 200; i < 202; i++) {
-            vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            joinModule.setKYCStatus(lotOfUsers[i]);
 
             vm.warp(block.timestamp + 1 days);
             vm.roll(block.number + 1);
