@@ -135,20 +135,40 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         assertEq(memberIdCounterAfterBob, memberIdCounterAfterAlice + 1);
     }
 
-    modifier aliceKYCAndJoin() {
-        vm.prank(admin);
-        joinModule.setKYCStatus(alice);
+    function testJoinModule_setKYCStatus() public {
+        vm.prank(alice);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
+        Member memory member = takasureReserve.getMemberFromAddress(alice);
+
+        assert(!member.isKYCVerified);
+
+        vm.prank(admin);
+        joinModule.setKYCStatus(alice);
+
+        member = takasureReserve.getMemberFromAddress(alice);
+
+        assert(member.isKYCVerified);
+    }
+
+    modifier aliceJoinAndKYC() {
         vm.prank(alice);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerMock));
+
+        vm.prank(admin);
+        joinModule.setKYCStatus(alice);
+
         _;
     }
 
     /// @dev Test the membership duration is 5 years if allowCustomDuration is false
-    function testTakasureReserve_defaultMembershipDuration() public aliceKYCAndJoin {
+    function testTakasureReserve_defaultMembershipDuration() public aliceJoinAndKYC {
         Member memory member = takasureReserve.getMemberFromAddress(alice);
 
         assertEq(member.membershipDuration, 5 * YEAR);
@@ -184,20 +204,20 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         assertEq(uint8(testMember.memberState), 0);
     }
 
-    modifier bobKYCAndJoin() {
-        vm.prank(admin);
-        joinModule.setKYCStatus(bob);
+    modifier bobJoinAndKYC() {
+        vm.prank(bob);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.prank(bob);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.prank(admin);
+        joinModule.setKYCStatus(bob);
         _;
     }
 
     /// @dev More than one can join
-    function testTakasureReserve_moreThanOneJoin() public aliceKYCAndJoin bobKYCAndJoin {
+    function testTakasureReserve_moreThanOneJoin() public aliceJoinAndKYC bobJoinAndKYC {
         Member memory aliceMember = takasureReserve.getMemberFromAddress(alice);
         Member memory bobMember = takasureReserve.getMemberFromAddress(bob);
 
@@ -214,17 +234,17 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
                     JOIN POOL::UPDATE BOTH PRO FORMAS
     //////////////////////////////////////////////////////////////*/
     /// @dev Pro formas updated when a member joins
-    function testTakasureReserve_proFormasUpdatedOnMemberJoined() public aliceKYCAndJoin {
-        vm.prank(admin);
-        joinModule.setKYCStatus(bob);
+    function testTakasureReserve_proFormasUpdatedOnMemberJoined() public aliceJoinAndKYC {
+        vm.prank(bob);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         Reserve memory reserve = takasureReserve.getReserveValues();
 
         uint256 initialProFormaFundReserve = reserve.proFormaFundReserve;
         uint256 initialProFormaClaimReserve = reserve.proFormaClaimReserve;
 
-        vm.prank(bob);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.prank(admin);
+        joinModule.setKYCStatus(bob);
 
         reserve = takasureReserve.getReserveValues();
 
@@ -244,24 +264,26 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         uint256 currentDRR = reserve.dynamicReserveRatio;
         uint256 initialDRR = reserve.initialReserveRatio;
 
-        vm.startPrank(admin);
-
-        joinModule.setKYCStatus(alice);
-        joinModule.setKYCStatus(bob);
-
-        vm.stopPrank();
+        vm.prank(alice);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.prank(admin);
+        joinModule.setKYCStatus(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 aliceDRR = reserve.dynamicReserveRatio;
 
         vm.prank(bob);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerMock));
+
+        vm.prank(admin);
+        joinModule.setKYCStatus(bob);
 
         reserve = takasureReserve.getReserveValues();
         uint256 bobDRR = reserve.dynamicReserveRatio;
@@ -282,24 +304,26 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 initialBMA = reserve.benefitMultiplierAdjuster;
 
-        vm.startPrank(admin);
-
-        joinModule.setKYCStatus(alice);
-        joinModule.setKYCStatus(bob);
-
-        vm.stopPrank();
+        vm.prank(alice);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.prank(admin);
+        joinModule.setKYCStatus(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 aliceBMA = reserve.benefitMultiplierAdjuster;
 
         vm.prank(bob);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerMock));
+
+        vm.prank(admin);
+        joinModule.setKYCStatus(bob);
 
         reserve = takasureReserve.getReserveValues();
         uint256 bobBMA = reserve.benefitMultiplierAdjuster;
