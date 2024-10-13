@@ -79,18 +79,18 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Test contribution amount is not transferred to the contract if only the KYC is done
-    function testTakasureReserve_contributionAmountNotTransferToContractWhenOnlyKyc() public {
+    function testTakasureReserve_contributionAmountNotTransferToContractWhenKycMissing() public {
         uint256 takasureReserveBalanceBefore = usdc.balanceOf(address(takasureReserve));
         uint256 joinModuleBalanceBefore = usdc.balanceOf(address(joinModule));
 
-        vm.prank(admin);
-        joinModule.setKYCStatus(alice);
+        vm.prank(alice);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 takasureReserveBalanceAfter = usdc.balanceOf(address(takasureReserve));
         uint256 joinModuleBalanceAfter = usdc.balanceOf(address(joinModule));
 
         assertEq(takasureReserveBalanceAfter, takasureReserveBalanceBefore);
-        assertEq(joinModuleBalanceAfter, joinModuleBalanceBefore);
+        assert(joinModuleBalanceAfter > joinModuleBalanceBefore);
     }
 
     /// @dev Test contribution amount is transferred to the contract when joins the pool
