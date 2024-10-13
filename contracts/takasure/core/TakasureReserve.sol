@@ -51,7 +51,7 @@ contract TakasureReserve is
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
     modifier notZeroAddress(address _address) {
-        require(_address != address(0), TakasureErrors.TakasurePool__ZeroAddress());
+        require(_address != address(0), TakasureErrors.TakasureProtocol__ZeroAddress());
         _;
     }
 
@@ -60,7 +60,7 @@ contract TakasureReserve is
             hasRole(TAKADAO_OPERATOR, msg.sender) ||
                 hasRole(DAO_MULTISIG, msg.sender) ||
                 hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
-            TakasureErrors.OnlyDaoOrTakadao()
+            TakasureErrors.TakasureReserve__OnlyDaoOrTakadao()
         );
         _;
     }
@@ -180,7 +180,7 @@ contract TakasureReserve is
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
-        require(newServiceFee <= 35, TakasureErrors.TakasurePool__WrongServiceFee());
+        require(newServiceFee <= 35, TakasureErrors.TakasureReserve__WrongServiceFee());
         reserve.serviceFee = newServiceFee;
 
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
@@ -191,7 +191,7 @@ contract TakasureReserve is
     ) external onlyRole(DAO_MULTISIG) {
         require(
             newFundMarketExpendsAddShare <= 35,
-            TakasureErrors.TakasurePool__WrongFundMarketExpendsShare()
+            TakasureErrors.TakasureReserve__WrongFundMarketExpendsShare()
         );
 
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;

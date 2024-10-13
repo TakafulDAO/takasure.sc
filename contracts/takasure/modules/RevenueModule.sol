@@ -52,7 +52,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
     ) external onlyRole(DAO_MULTISIG) {
         require(
             revenueType != RevenueType.Contribution,
-            TakasureErrors.TakasurePool__WrongRevenueType()
+            TakasureErrors.RevenueModule__WrongRevenueType()
         );
 
         Reserve memory reserveValues = takasureReserve.getReserveValues();
@@ -68,7 +68,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
             address(this),
             newRevenue
         );
-        require(success, TakasureErrors.TakasurePool__RevenueTransferFailed());
+        require(success, TakasureErrors.RevenueModule__RevenueTransferFailed());
 
         takasureReserve.setReserveValuesFromModule(reserveValues);
 

@@ -8,26 +8,29 @@
 pragma solidity 0.8.28;
 
 library TakasureErrors {
-    error TakasurePool__ZeroAddress();
-    error TakasurePool__ContributionOutOfRange();
-    error TakasurePool__ContributionTransferFailed();
-    error TakasurePool__FeeTransferFailed();
-    error TakasurePool__MintFailed();
-    error TakasurePool__WrongServiceFee();
-    error TakasurePool__MemberAlreadyKYCed();
-    error TakasurePool__WrongMemberState();
-    error TakasurePool__InvalidDate();
-    error TakasurePool__NothingToRefund();
-    error TakasurePool__RefundFailed();
-    error TakasurePool__TooEarlytoRefund();
-    error TakasurePool__BenefitMultiplierRequestFailed(bytes errorResponse);
-    error TakasurePool__WrongFundMarketExpendsShare();
-    error TakasurePool__WrongRevenueType();
-    error TakasurePool__RevenueApprovalFailed();
-    error TakasurePool__RevenueTransferFailed();
-    error TakasurePool__AlreadyJoinedPendingForKYC();
-    error OnlyDaoOrTakadao();
-    error TakasurePool__SameModuleContract();
-    error OnlyModuleContract();
-    error TakasurePool__NoContribution();
+    // Global Errors
+    error TakasureProtocol__ZeroAddress();
+    // Exclusive Takasurereserve Errors
+    error TakasureReserve__OnlyDaoOrTakadao();
+    error TakasureReserve__WrongServiceFee();
+    error TakasureReserve__WrongFundMarketExpendsShare();
+    // Modules Errors
+    error Module__ContributionTransferFailed();
+    error Module__FeeTransferFailed();
+    error Module__MintFailed();
+    error Module__WrongMemberState();
+    // Exclusive JoinModule Errors
+    error JoinModule__NoContribution();
+    error JoinModule__ContributionOutOfRange();
+    error JoinModule__AlreadyJoinedPendingForKYC();
+    error JoinModule__BenefitMultiplierRequestFailed(bytes errorResponse);
+    error JoinModule__MemberAlreadyKYCed();
+    error JoinModule__NothingToRefund();
+    error JoinModule__RefundFailed();
+    error JoinModule__TooEarlytoRefund();
+    // Exclusive MembersModule Errors
+    error MembersModule__InvalidDate();
+    // Exclusive RevenueModule Errors
+    error RevenueModule__WrongRevenueType();
+    error RevenueModule__RevenueTransferFailed();
 }

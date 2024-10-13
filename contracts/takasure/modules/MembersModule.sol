@@ -40,7 +40,7 @@ contract MembersModule is
     uint256 private constant DAY = 1 days;
 
     modifier notZeroAddress(address _address) {
-        require(_address != address(0), TakasureErrors.TakasurePool__ZeroAddress());
+        require(_address != address(0), TakasureErrors.TakasureProtocol__ZeroAddress());
         _;
     }
 
@@ -71,7 +71,7 @@ contract MembersModule is
 
         require(
             newMember.memberState == MemberState.Active,
-            TakasureErrors.TakasurePool__WrongMemberState()
+            TakasureErrors.Module__WrongMemberState()
         );
 
         uint256 currentTimestamp = block.timestamp;
@@ -84,7 +84,7 @@ contract MembersModule is
         require(
             currentTimestamp <= lastPaidYearStartDate + year + gracePeriod &&
                 currentTimestamp <= membershipStartTime + membershipDuration,
-            TakasureErrors.TakasurePool__InvalidDate()
+            TakasureErrors.MembersModule__InvalidDate()
         );
 
         uint256 contributionBeforeFee = newMember.contribution;
@@ -437,7 +437,7 @@ contract MembersModule is
             address(this),
             _contributionAfterFee
         );
-        require(success, TakasureErrors.TakasurePool__ContributionTransferFailed());
+        require(success, TakasureErrors.Module__ContributionTransferFailed());
 
         // Transfer the service fee to the fee claim address
         success = contributionToken.transferFrom(
@@ -445,7 +445,7 @@ contract MembersModule is
             takasureReserve.feeClaimAddress(),
             feeAmount
         );
-        require(success, TakasureErrors.TakasurePool__FeeTransferFailed());
+        require(success, TakasureErrors.Module__FeeTransferFailed());
 
         if (_mintTokens) {
             uint256 contributionBeforeFee = _contributionAfterFee + feeAmount;
@@ -461,7 +461,7 @@ contract MembersModule is
         member.creditTokensBalance = mintAmount;
 
         bool success = ITSToken(_reserve.daoToken).mint(address(this), mintAmount);
-        require(success, TakasureErrors.TakasurePool__MintFailed());
+        require(success, TakasureErrors.Module__MintFailed());
     }
 
     ///@dev required by the OZ UUPS module
