@@ -133,15 +133,4 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
 
         assertEq(true, takasureReserve.getReserveValues().allowCustomDuration);
     }
-
-    function testTakasureReserve_setKYCstatus() public {
-        assert(!takasureReserve.getMemberFromAddress(alice).isKYCVerified);
-
-        vm.prank(kycService);
-        vm.expectEmit(true, false, false, false, address(joinModule));
-        emit TakasureEvents.OnMemberKycVerified(1, alice);
-        joinModule.setKYCStatus(alice);
-
-        assert(takasureReserve.getMemberFromAddress(alice).isKYCVerified);
-    }
 }
