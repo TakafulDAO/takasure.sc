@@ -18,6 +18,7 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 
 import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
+import {ReserveAndMemberValues} from "contracts/libraries/ReserveAndMemberValues.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -70,8 +71,8 @@ contract MembersModule is
     }
 
     function recurringPayment() external nonReentrant {
-        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
-            msg.sender
+        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues._getReserveAndMemberValuesHook(
+            takasureReserve, msg.sender
         );
 
         require(
@@ -104,7 +105,7 @@ contract MembersModule is
         newMember.lastUcr = 0;
 
         // And we pay the contribution
-        reserve = _memberPaymentFlow({
+        reserve = _memberRecurringPaymentFlow({
             _contributionBeforeFee: contributionBeforeFee,
             _contributionAfterFee: contributionAfterFee,
             _memberWallet: msg.sender,
@@ -121,29 +122,15 @@ contract MembersModule is
             newMember.totalServiceFee
         );
 
-        _setNewReserveAndMemberValuesHook(reserve, newMember);
+        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
         takasureReserve.memberSurplus(newMember);
-    }
-
-    function _getReserveAndMemberValuesHook(
-        address _memberWallet
-    ) internal view returns (Reserve memory reserve_, Member memory member_) {
-        reserve_ = takasureReserve.getReserveValues();
-        member_ = takasureReserve.getMemberFromAddress(_memberWallet);
-    }
-
-    function _setNewReserveAndMemberValuesHook(
-        Reserve memory _reserve,
-        Member memory _newMember
-    ) internal {
-        takasureReserve.setReserveValuesFromModule(_reserve);
-        takasureReserve.setMemberValuesFromModule(_newMember);
     }
 
     /**
      * @notice This function will update all the variables needed when a member pays the contribution
+     * @dev It transfer the contribution from the module to the reserves
      */
-    function _memberPaymentFlow(
+    function _memberRecurringPaymentFlow(
         uint256 _contributionBeforeFee,
         uint256 _contributionAfterFee,
         address _memberWallet,

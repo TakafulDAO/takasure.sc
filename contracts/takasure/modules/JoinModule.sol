@@ -18,6 +18,7 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
+import {ReserveAndMemberValues} from "contracts/libraries/ReserveAndMemberValues.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -87,8 +88,8 @@ contract JoinModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
-            msg.sender
+        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues._getReserveAndMemberValuesHook(
+            takasureReserve, msg.sender
         );
 
         require(
@@ -154,7 +155,7 @@ contract JoinModule is
             _memberWallet: msg.sender
         });
 
-        _setNewReserveAndMemberValuesHook(reserve, newMember);
+        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
     }
 
     /**
@@ -168,8 +169,8 @@ contract JoinModule is
     function setKYCStatus(
         address memberWallet
     ) external notZeroAddress(memberWallet) onlyRole(KYC_PROVIDER) {
-        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
-            memberWallet
+        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues._getReserveAndMemberValuesHook(
+            takasureReserve, memberWallet
         );
 
         require(!newMember.isKYCVerified, TakasureErrors.JoinModule__MemberAlreadyKYCed());
@@ -215,7 +216,7 @@ contract JoinModule is
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
         emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
 
-        _setNewReserveAndMemberValuesHook(reserve, newMember);
+        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
         takasureReserve.memberSurplus(newMember);
     }
 
@@ -240,24 +241,9 @@ contract JoinModule is
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
-    function _getReserveAndMemberValuesHook(
-        address _memberWallet
-    ) internal view returns (Reserve memory reserve_, Member memory member_) {
-        reserve_ = takasureReserve.getReserveValues();
-        member_ = takasureReserve.getMemberFromAddress(_memberWallet);
-    }
-
-    function _setNewReserveAndMemberValuesHook(
-        Reserve memory _reserve,
-        Member memory _newMember
-    ) internal {
-        takasureReserve.setReserveValuesFromModule(_reserve);
-        takasureReserve.setMemberValuesFromModule(_newMember);
-    }
-
     function _refund(address _memberWallet) internal {
-        (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
-            _memberWallet
+        (Reserve memory _reserve, Member memory _member) = ReserveAndMemberValues._getReserveAndMemberValuesHook(
+            takasureReserve, _memberWallet
         );
 
         // The member should not be KYCed neither already refunded
