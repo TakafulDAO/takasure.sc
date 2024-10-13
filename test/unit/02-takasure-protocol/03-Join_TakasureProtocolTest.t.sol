@@ -351,14 +351,14 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         );
         uint256 aliceCreditTokenBalanceBefore = creditTokenInstance.balanceOf(alice);
 
-        vm.prank(admin);
-        joinModule.setKYCStatus(alice);
+        vm.prank(alice);
+        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.prank(admin);
+        joinModule.setKYCStatus(alice);
 
         uint256 contractCreditTokenBalanceAfter = creditTokenInstance.balanceOf(
             address(takasureReserve)
