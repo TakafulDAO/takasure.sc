@@ -80,6 +80,7 @@ contract MembersModule is
         uint256 lastPaidYearStartDate = newMember.lastPaidYearStartDate;
         uint256 year = 365 days;
         uint256 gracePeriod = 30 days;
+        uint256 mintAmount;
 
         require(
             currentTimestamp <= lastPaidYearStartDate + year + gracePeriod &&
@@ -99,13 +100,14 @@ contract MembersModule is
         newMember.lastUcr = 0;
 
         // And we pay the contribution
-        _memberPaymentFlow({
+        (reserve, mintAmount) = _memberPaymentFlow({
             _contributionBeforeFee: contributionBeforeFee,
             _contributionAfterFee: contributionAfterFee,
             _memberWallet: msg.sender,
-            _payContribution: true,
             _reserve: reserve
         });
+
+        newMember.creditTokensBalance += mintAmount;
 
         emit TakasureEvents.OnRecurringPayment(
             msg.sender,
@@ -135,23 +137,26 @@ contract MembersModule is
 
     /**
      * @notice This function will update all the variables needed when a member pays the contribution
-     * @param _payContribution true -> the contribution will be paid and the credit tokens will be minted
-     *                                      false -> no need to pay the contribution as it is already payed
      */
     function _memberPaymentFlow(
         uint256 _contributionBeforeFee,
         uint256 _contributionAfterFee,
         address _memberWallet,
-        bool _payContribution,
         Reserve memory _reserve
-    ) internal returns (Reserve memory) {
+    ) internal returns (Reserve memory, uint256 mintAmount_) {
         _reserve = _updateNewReserveValues(_contributionAfterFee, _contributionBeforeFee, _reserve);
 
-        if (_payContribution) {
-            _transferAmounts(_contributionAfterFee, _contributionBeforeFee, _memberWallet, true);
-        }
+        bool success = IERC20(_reserve.contributionToken).transferFrom(
+            _memberWallet,
+            address(takasureReserve),
+            _contributionAfterFee
+        );
+        require(success, TakasureErrors.Module__ContributionTransferFailed());
 
-        return _reserve;
+        // Mint the DAO Tokens
+        mintAmount_ = _mintDaoTokens(_contributionBeforeFee);
+
+        return (_reserve, mintAmount_);
     }
 
     function _updateNewReserveValues(
@@ -421,46 +426,12 @@ contract MembersModule is
         emit TakasureEvents.OnNewLossRatio(lossRatio_);
     }
 
-    function _transferAmounts(
-        uint256 _contributionAfterFee,
-        uint256 _contributionBeforeFee,
-        address _memberWallet,
-        bool _mintTokens
-    ) internal {
-        IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
-        bool success;
-        uint256 feeAmount = _contributionBeforeFee - _contributionAfterFee;
-
-        // Transfer the contribution to the pool
-        success = contributionToken.transferFrom(
-            _memberWallet,
-            address(this),
-            _contributionAfterFee
-        );
-        require(success, TakasureErrors.Module__ContributionTransferFailed());
-
-        // Transfer the service fee to the fee claim address
-        success = contributionToken.transferFrom(
-            _memberWallet,
-            takasureReserve.feeClaimAddress(),
-            feeAmount
-        );
-        require(success, TakasureErrors.Module__FeeTransferFailed());
-
-        if (_mintTokens) {
-            uint256 contributionBeforeFee = _contributionAfterFee + feeAmount;
-            _mintDaoTokens(contributionBeforeFee, _memberWallet);
-        }
-    }
-
-    function _mintDaoTokens(uint256 _contributionBeforeFee, address _memberWallet) internal {
+    function _mintDaoTokens(uint256 _contributionBeforeFee) internal returns (uint256 mintAmount_) {
         // Mint needed DAO Tokens
         Reserve memory _reserve = takasureReserve.getReserveValues();
-        Member memory member = takasureReserve.getMemberFromAddress(_memberWallet);
-        uint256 mintAmount = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-        member.creditTokensBalance = mintAmount;
+        mintAmount_ = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
-        bool success = ITSToken(_reserve.daoToken).mint(address(this), mintAmount);
+        bool success = ITSToken(_reserve.daoToken).mint(address(this), mintAmount_);
         require(success, TakasureErrors.Module__MintFailed());
     }
 
