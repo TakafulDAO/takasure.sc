@@ -9,7 +9,7 @@ import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 
 import {Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
-import {CommonConstants} from "contracts/libraries/CommonConstants.sol";
+import {ModuleConstants} from "contracts/libraries/ModuleConstants.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -296,7 +296,7 @@ library PaymentAlgorithms {
     ) internal returns (uint256 mintedTokens_) {
         // Mint needed DAO Tokens
         Reserve memory _reserve = _takasureReserve.getReserveValues();
-        mintedTokens_ = _contributionBeforeFee * CommonConstants.DECIMALS_PRECISION; // 6 decimals to 18 decimals
+        mintedTokens_ = _contributionBeforeFee * ModuleConstants.DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
         bool success = ITSToken(_reserve.daoToken).mint(address(_takasureReserve), mintedTokens_);
         require(success, TakasureErrors.Module__MintFailed());

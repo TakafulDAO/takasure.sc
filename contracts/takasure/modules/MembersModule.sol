@@ -17,7 +17,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
-import {CommonConstants} from "contracts/libraries/CommonConstants.sol";
+import {ModuleConstants} from "contracts/libraries/ModuleConstants.sol";
 import {PaymentAlgorithms} from "contracts/libraries/PaymentAlgorithms.sol";
 import {ReserveAndMemberValues} from "contracts/libraries/ReserveAndMemberValues.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
@@ -62,7 +62,7 @@ contract MembersModule is
         address takadaoOperator = takasureReserve.takadaoOperator();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(CommonConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
     }
 
     function recurringPayment() external nonReentrant {
@@ -156,5 +156,5 @@ contract MembersModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(CommonConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
 }

@@ -15,7 +15,6 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {TSToken} from "contracts/token/TSToken.sol";
 
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
-import {CommonConstants} from "contracts/libraries/CommonConstants.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -43,6 +42,8 @@ contract TakasureReserve is
 
     uint256 private RPOOL; // todo: define this value
 
+    bytes32 internal constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
+    bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
     bytes32 private constant MODULE_CONTRACT = keccak256("MODULE_CONTRACT");
 
@@ -59,8 +60,8 @@ contract TakasureReserve is
 
     modifier onlyDaoOrTakadao() {
         require(
-            hasRole(CommonConstants.TAKADAO_OPERATOR, msg.sender) ||
-                hasRole(CommonConstants.DAO_MULTISIG, msg.sender) ||
+            hasRole(TAKADAO_OPERATOR, msg.sender) ||
+                hasRole(DAO_MULTISIG, msg.sender) ||
                 hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
             TakasureErrors.TakasureReserve__OnlyDaoOrTakadao()
         );
@@ -93,8 +94,8 @@ contract TakasureReserve is
         __AccessControl_init();
         __Pausable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(CommonConstants.TAKADAO_OPERATOR, _takadaoOperator);
-        _grantRole(CommonConstants.DAO_MULTISIG, _daoOperator);
+        _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
+        _grantRole(DAO_MULTISIG, _daoOperator);
         _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
 
         takadaoOperator = _takadaoOperator;
@@ -181,9 +182,7 @@ contract TakasureReserve is
         grantRole(MODULE_CONTRACT, newModuleContract);
     }
 
-    function setNewServiceFee(
-        uint8 newServiceFee
-    ) external onlyRole(CommonConstants.TAKADAO_OPERATOR) {
+    function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
         require(newServiceFee <= 35, TakasureErrors.TakasureReserve__WrongServiceFee());
         reserve.serviceFee = newServiceFee;
 
@@ -192,7 +191,7 @@ contract TakasureReserve is
 
     function setNewFundMarketExpendsShare(
         uint8 newFundMarketExpendsAddShare
-    ) external onlyRole(CommonConstants.DAO_MULTISIG) {
+    ) external onlyRole(DAO_MULTISIG) {
         require(
             newFundMarketExpendsAddShare <= 35,
             TakasureErrors.TakasureReserve__WrongFundMarketExpendsShare()
@@ -207,25 +206,19 @@ contract TakasureReserve is
         );
     }
 
-    function setAllowCustomDuration(
-        bool _allowCustomDuration
-    ) external onlyRole(CommonConstants.DAO_MULTISIG) {
+    function setAllowCustomDuration(bool _allowCustomDuration) external onlyRole(DAO_MULTISIG) {
         reserve.allowCustomDuration = _allowCustomDuration;
 
         emit TakasureEvents.OnAllowCustomDuration(_allowCustomDuration);
     }
 
-    function setNewMinimumThreshold(
-        uint256 newMinimumThreshold
-    ) external onlyRole(CommonConstants.DAO_MULTISIG) {
+    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyRole(DAO_MULTISIG) {
         reserve.minimumThreshold = newMinimumThreshold;
 
         emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
     }
 
-    function setNewMaximumThreshold(
-        uint256 newMaximumThreshold
-    ) external onlyRole(CommonConstants.DAO_MULTISIG) {
+    function setNewMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(DAO_MULTISIG) {
         reserve.maximumThreshold = newMaximumThreshold;
 
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
@@ -233,13 +226,13 @@ contract TakasureReserve is
 
     function setNewContributionToken(
         address newContributionToken
-    ) external onlyRole(CommonConstants.DAO_MULTISIG) notZeroAddress(newContributionToken) {
+    ) external onlyRole(DAO_MULTISIG) notZeroAddress(newContributionToken) {
         reserve.contributionToken = newContributionToken;
     }
 
     function setNewFeeClaimAddress(
         address newFeeClaimAddress
-    ) external onlyRole(CommonConstants.TAKADAO_OPERATOR) notZeroAddress(newFeeClaimAddress) {
+    ) external onlyRole(TAKADAO_OPERATOR) notZeroAddress(newFeeClaimAddress) {
         feeClaimAddress = newFeeClaimAddress;
     }
 
@@ -257,7 +250,7 @@ contract TakasureReserve is
 
     function setNewKycProviderAddress(
         address newKycProviderAddress
-    ) external onlyRole(CommonConstants.DAO_MULTISIG) {
+    ) external onlyRole(DAO_MULTISIG) {
         kycProvider = newKycProviderAddress;
     }
 
@@ -463,5 +456,5 @@ contract TakasureReserve is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(CommonConstants.DAO_MULTISIG) {}
+    ) internal override onlyRole(DAO_MULTISIG) {}
 }

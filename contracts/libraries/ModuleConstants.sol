@@ -1,10 +1,10 @@
 //SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-/// @title CommonConstants
+/// @title ModuleConstants
 /// @notice Common constants used in the protocol
 /// @dev Constants are gas efficient alternatives to their literal values
-library CommonConstants {
+library ModuleConstants {
     bytes32 internal constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 internal constant KYC_PROVIDER = keccak256("KYC_PROVIDER");

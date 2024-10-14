@@ -13,7 +13,7 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import {Reserve, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
-import {CommonConstants} from "contracts/libraries/CommonConstants.sol";
+import {ModuleConstants} from "contracts/libraries/ModuleConstants.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -37,8 +37,8 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
         address daoMultisig = takasureReserve.daoMultisig();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(CommonConstants.TAKADAO_OPERATOR, takadaoOperator);
-        _grantRole(CommonConstants.DAO_MULTISIG, daoMultisig);
+        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(ModuleConstants.DAO_MULTISIG, daoMultisig);
     }
 
     /**
@@ -49,7 +49,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
     function depositRevenue(
         uint256 newRevenue,
         RevenueType revenueType
-    ) external onlyRole(CommonConstants.DAO_MULTISIG) {
+    ) external onlyRole(ModuleConstants.DAO_MULTISIG) {
         require(
             revenueType != RevenueType.Contribution,
             TakasureErrors.RevenueModule__WrongRevenueType()
@@ -121,7 +121,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
                     );
                 } else {
                     // If it is a new day, update the day deposit timestamp and the new day reference
-                    cashFlowVars.dayDepositTimestamp += daysPassed * CommonConstants.DAY;
+                    cashFlowVars.dayDepositTimestamp += daysPassed * ModuleConstants.DAY;
                     cashFlowVars.dayReference += uint8(daysPassed);
 
                     // Update the mapping for the new day
@@ -134,7 +134,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
             } else {
                 // If it is a new month, update the month deposit timestamp and the day deposit timestamp
                 // both should be the same as it is a new month
-                cashFlowVars.monthDepositTimestamp += monthsPassed * CommonConstants.MONTH;
+                cashFlowVars.monthDepositTimestamp += monthsPassed * ModuleConstants.MONTH;
                 cashFlowVars.dayDepositTimestamp = cashFlowVars.monthDepositTimestamp;
                 // Update the month reference to the corresponding month
                 cashFlowVars.monthReference += uint16(monthsPassed);
@@ -168,5 +168,5 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(CommonConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
 }
