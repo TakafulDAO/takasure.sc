@@ -35,7 +35,7 @@ contract JoinModule is
     ReentrancyGuardTransientUpgradeable
 {
     using SafeERC20 for IERC20;
-    
+
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
 
@@ -84,9 +84,8 @@ contract JoinModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues._getReserveAndMemberValuesHook(
-            takasureReserve, msg.sender
-        );
+        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
+            ._getReserveAndMemberValuesHook(takasureReserve, msg.sender);
 
         require(
             newMember.memberState == MemberState.Inactive,
@@ -151,7 +150,11 @@ contract JoinModule is
             _memberWallet: msg.sender
         });
 
-        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
+        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(
+            takasureReserve,
+            reserve,
+            newMember
+        );
     }
 
     /**
@@ -165,9 +168,8 @@ contract JoinModule is
     function setKYCStatus(
         address memberWallet
     ) external notZeroAddress(memberWallet) onlyRole(CommonConstants.KYC_PROVIDER) {
-        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues._getReserveAndMemberValuesHook(
-            takasureReserve, memberWallet
-        );
+        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
+            ._getReserveAndMemberValuesHook(takasureReserve, memberWallet);
 
         require(!newMember.isKYCVerified, TakasureErrors.JoinModule__MemberAlreadyKYCed());
         require(
@@ -212,7 +214,11 @@ contract JoinModule is
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
         emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
 
-        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
+        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(
+            takasureReserve,
+            reserve,
+            newMember
+        );
         takasureReserve.memberSurplus(newMember);
     }
 
@@ -238,9 +244,8 @@ contract JoinModule is
     }
 
     function _refund(address _memberWallet) internal {
-        (Reserve memory _reserve, Member memory _member) = ReserveAndMemberValues._getReserveAndMemberValuesHook(
-            takasureReserve, _memberWallet
-        );
+        (Reserve memory _reserve, Member memory _member) = ReserveAndMemberValues
+            ._getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
 
         // The member should not be KYCed neither already refunded
         require(!_member.isKYCVerified, TakasureErrors.JoinModule__MemberAlreadyKYCed());
@@ -263,7 +268,7 @@ contract JoinModule is
         // Update the member values
         _member.isRefunded = true;
         // Transfer the amount to refund
-       IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
+        IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
 
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
 
@@ -404,10 +409,15 @@ contract JoinModule is
     ) internal returns (Reserve memory) {
         _getBenefitMultiplierFromOracle(_memberWallet);
 
-        _reserve = PaymentAlgorithms._updateNewReserveValues(takasureReserve, _contributionAfterFee, _contributionBeforeFee, _reserve);
+        _reserve = PaymentAlgorithms._updateNewReserveValues(
+            takasureReserve,
+            _contributionAfterFee,
+            _contributionBeforeFee,
+            _reserve
+        );
 
         // Transfer the contribution to the reserves
-         IERC20(_reserve.contributionToken).safeTransfer(
+        IERC20(_reserve.contributionToken).safeTransfer(
             address(takasureReserve),
             _contributionAfterFee
         );
@@ -481,7 +491,8 @@ contract JoinModule is
             // If you are in a new month, calculate the months passed
             currentMonth_ = uint16(monthsPassed) + cashFlowVars.monthReference;
             // Calculate the timestamp when this new month started
-            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp + (monthsPassed * CommonConstants.MONTH);
+            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp +
+                (monthsPassed * CommonConstants.MONTH);
             // And calculate the days passed in this new month using the new month timestamp
             daysPassed = ReserveMathLib._calculateDaysPassed(
                 currentTimestamp,
@@ -502,11 +513,7 @@ contract JoinModule is
         uint256 feeAmount = _contributionBeforeFee - _contributionAfterFee;
 
         // Store temporarily the contribution in this contract, this way will be available for refunds
-       contributionToken.safeTransferFrom(
-            _memberWallet,
-            address(this),
-            _contributionAfterFee
-        );
+        contributionToken.safeTransferFrom(_memberWallet, address(this), _contributionAfterFee);
 
         // Transfer the service fee to the fee claim address
         contributionToken.safeTransferFrom(

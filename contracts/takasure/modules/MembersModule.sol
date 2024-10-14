@@ -66,9 +66,8 @@ contract MembersModule is
     }
 
     function recurringPayment() external nonReentrant {
-        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues._getReserveAndMemberValuesHook(
-            takasureReserve, msg.sender
-        );
+        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
+            ._getReserveAndMemberValuesHook(takasureReserve, msg.sender);
 
         require(
             newMember.memberState == MemberState.Active,
@@ -117,7 +116,11 @@ contract MembersModule is
             newMember.totalServiceFee
         );
 
-        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
+        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(
+            takasureReserve,
+            reserve,
+            newMember
+        );
         takasureReserve.memberSurplus(newMember);
     }
 
@@ -131,9 +134,14 @@ contract MembersModule is
         address _memberWallet,
         Reserve memory _reserve
     ) internal returns (Reserve memory) {
-        _reserve = PaymentAlgorithms._updateNewReserveValues(takasureReserve, _contributionAfterFee, _contributionBeforeFee, _reserve);
+        _reserve = PaymentAlgorithms._updateNewReserveValues(
+            takasureReserve,
+            _contributionAfterFee,
+            _contributionBeforeFee,
+            _reserve
+        );
 
-         IERC20(_reserve.contributionToken).safeTransferFrom(
+        IERC20(_reserve.contributionToken).safeTransferFrom(
             _memberWallet,
             address(takasureReserve),
             _contributionAfterFee
