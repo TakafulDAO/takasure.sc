@@ -13,6 +13,7 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import {Reserve, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {CommonConstants} from "contracts/libraries/CommonConstants.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
@@ -27,11 +28,6 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
 
     Reserve private reserve;
 
-    bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
-
-    uint256 private constant MONTH = 30 days;
-    uint256 private constant DAY = 1 days;
-
     function initialize(address _takasureReserveAddress) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -41,7 +37,8 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
         address daoMultisig = takasureReserve.daoMultisig();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(DAO_MULTISIG, daoMultisig);
+        _grantRole(CommonConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(CommonConstants.DAO_MULTISIG, daoMultisig);
     }
 
     /**
@@ -52,7 +49,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
     function depositRevenue(
         uint256 newRevenue,
         RevenueType revenueType
-    ) external onlyRole(DAO_MULTISIG) {
+    ) external onlyRole(CommonConstants.DAO_MULTISIG) {
         require(
             revenueType != RevenueType.Contribution,
             TakasureErrors.RevenueModule__WrongRevenueType()
@@ -124,7 +121,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
                     );
                 } else {
                     // If it is a new day, update the day deposit timestamp and the new day reference
-                    cashFlowVars.dayDepositTimestamp += daysPassed * DAY;
+                    cashFlowVars.dayDepositTimestamp += daysPassed * CommonConstants.DAY;
                     cashFlowVars.dayReference += uint8(daysPassed);
 
                     // Update the mapping for the new day
@@ -137,7 +134,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
             } else {
                 // If it is a new month, update the month deposit timestamp and the day deposit timestamp
                 // both should be the same as it is a new month
-                cashFlowVars.monthDepositTimestamp += monthsPassed * MONTH;
+                cashFlowVars.monthDepositTimestamp += monthsPassed * CommonConstants.MONTH;
                 cashFlowVars.dayDepositTimestamp = cashFlowVars.monthDepositTimestamp;
                 // Update the month reference to the corresponding month
                 cashFlowVars.monthReference += uint16(monthsPassed);
@@ -171,5 +168,5 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(DAO_MULTISIG) {}
+    ) internal override onlyRole(CommonConstants.TAKADAO_OPERATOR) {}
 }

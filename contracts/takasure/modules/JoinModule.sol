@@ -17,6 +17,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {CommonConstants} from "contracts/libraries/CommonConstants.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {PaymentAlgorithms} from "contracts/libraries/PaymentAlgorithms.sol";
 import {ReserveAndMemberValues} from "contracts/libraries/ReserveAndMemberValues.sol";
@@ -38,14 +39,8 @@ contract JoinModule is
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
 
-    bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
-    bytes32 private constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-
-    uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
     uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
-    uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
-    uint256 private constant DAY = 1 days;
 
     uint256 private transient mintedTokens;
 
@@ -69,8 +64,8 @@ contract JoinModule is
         address takadaoOperator = takasureReserve.takadaoOperator();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(TAKADAO_OPERATOR, takadaoOperator);
-        _grantRole(KYC_PROVIDER, takasureReserve.kycProvider());
+        _grantRole(CommonConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(CommonConstants.KYC_PROVIDER, takasureReserve.kycProvider());
     }
 
     /**
@@ -169,7 +164,7 @@ contract JoinModule is
      */
     function setKYCStatus(
         address memberWallet
-    ) external notZeroAddress(memberWallet) onlyRole(KYC_PROVIDER) {
+    ) external notZeroAddress(memberWallet) onlyRole(CommonConstants.KYC_PROVIDER) {
         (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues._getReserveAndMemberValuesHook(
             takasureReserve, memberWallet
         );
@@ -238,7 +233,7 @@ contract JoinModule is
         _refund(memberWallet);
     }
 
-    function updateBmAddress() external onlyRole(TAKADAO_OPERATOR) {
+    function updateBmAddress() external onlyRole(CommonConstants.TAKADAO_OPERATOR) {
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
@@ -486,7 +481,7 @@ contract JoinModule is
             // If you are in a new month, calculate the months passed
             currentMonth_ = uint16(monthsPassed) + cashFlowVars.monthReference;
             // Calculate the timestamp when this new month started
-            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp + (monthsPassed * MONTH);
+            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp + (monthsPassed * CommonConstants.MONTH);
             // And calculate the days passed in this new month using the new month timestamp
             daysPassed = ReserveMathLib._calculateDaysPassed(
                 currentTimestamp,
@@ -524,7 +519,7 @@ contract JoinModule is
     function _mintDaoTokens(uint256 _contributionBeforeFee) internal  {
         // Mint needed DAO Tokens
         Reserve memory _reserve = takasureReserve.getReserveValues();
-        mintedTokens = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
+        mintedTokens = _contributionBeforeFee * CommonConstants.DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
         bool success = ITSToken(_reserve.daoToken).mint(address(takasureReserve), mintedTokens);
         require(success, TakasureErrors.Module__MintFailed());
@@ -533,5 +528,5 @@ contract JoinModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(CommonConstants.TAKADAO_OPERATOR) {}
 }

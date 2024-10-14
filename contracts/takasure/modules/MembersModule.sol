@@ -17,6 +17,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {CommonConstants} from "contracts/libraries/CommonConstants.sol";
 import {PaymentAlgorithms} from "contracts/libraries/PaymentAlgorithms.sol";
 import {ReserveAndMemberValues} from "contracts/libraries/ReserveAndMemberValues.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
@@ -37,11 +38,8 @@ contract MembersModule is
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
 
-    bytes32 public constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
-    uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
-    uint256 private constant DAY = 1 days;
 
     uint256 private transient mintedTokens;
 
@@ -67,7 +65,7 @@ contract MembersModule is
         address takadaoOperator = takasureReserve.takadaoOperator();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(CommonConstants.TAKADAO_OPERATOR, takadaoOperator);
     }
 
     function recurringPayment() external nonReentrant {
@@ -162,5 +160,5 @@ contract MembersModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(CommonConstants.TAKADAO_OPERATOR) {}
 }
