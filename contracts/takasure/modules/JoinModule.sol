@@ -44,6 +44,9 @@ contract JoinModule is
     uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
 
     uint256 private transient mintedTokens;
+    uint256 private transient normalizedContributionBeforeFee;
+    uint256 private transient feeAmount;
+    uint256 private transient contributionAfterFee;
 
     error JoinModule__NoContribution();
     error JoinModule__ContributionOutOfRange();
@@ -106,11 +109,7 @@ contract JoinModule is
             JoinModule__ContributionOutOfRange()
         );
 
-        (
-            uint256 normalizedContributionBeforeFee,
-            uint256 feeAmount,
-            uint256 contributionAfterFee
-        ) = _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
+       _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(msg.sender);
 
@@ -126,9 +125,7 @@ contract JoinModule is
                 _allowCustomDuration: reserve.allowCustomDuration,
                 _drr: reserve.dynamicReserveRatio,
                 _benefitMultiplier: benefitMultiplier, // Fetch from oracle
-                _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
                 _membershipDuration: membershipDuration, // From the input
-                _feeAmount: feeAmount, // Calculated
                 _isKYCVerified: newMember.isKYCVerified, // The current state, in this case false
                 _memberWallet: msg.sender, // The member wallet
                 _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
@@ -139,9 +136,7 @@ contract JoinModule is
             newMember = _updateMember({
                 _drr: reserve.dynamicReserveRatio,
                 _benefitMultiplier: benefitMultiplier,
-                _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
                 _membershipDuration: membershipDuration, // From the input
-                _feeAmount: feeAmount, // Calculated
                 _memberWallet: msg.sender, // The member wallet
                 _memberState: MemberState.Inactive, // Set to inactive until the KYC is verified
                 _isKYCVerified: newMember.isKYCVerified, // The current state, in this case false
@@ -154,8 +149,6 @@ contract JoinModule is
         // This means the proformas wont be updated, the amounts wont be added to the reserves,
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
         _transferContributionToModule({
-            _contributionAfterFee: contributionAfterFee,
-            _contributionBeforeFee: contributionBeforeFee,
             _memberWallet: msg.sender
         });
 
@@ -188,7 +181,7 @@ contract JoinModule is
         require(newMember.contribution > 0, JoinModule__NoContribution());
 
         // This means the user exists and payed contribution but is not KYCed yet, we update the values
-        (, , uint256 contributionAfterFee) = _calculateAmountAndFees(
+        _calculateAmountAndFees(
             newMember.contribution,
             reserve.serviceFee
         );
@@ -198,9 +191,7 @@ contract JoinModule is
         newMember = _updateMember({
             _drr: reserve.dynamicReserveRatio, // We take the current value
             _benefitMultiplier: benefitMultiplier, // We take the current value
-            _contributionBeforeFee: newMember.contribution, // We take the current value
             _membershipDuration: newMember.membershipDuration, // We take the current value
-            _feeAmount: newMember.totalServiceFee, // Calculated
             _memberWallet: memberWallet, // The member wallet
             _memberState: MemberState.Active, // Active state as the user is already paid the contribution and KYCed
             _isKYCVerified: true, // Set to true with this call
@@ -289,21 +280,15 @@ contract JoinModule is
         uint256 _fee
     )
         internal
-        pure
-        returns (
-            uint256 normalizedContributionBeforeFee_,
-            uint256 feeAmount_,
-            uint256 contributionAfterFee_
-        )
     {
         // Then we pay the contribution
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        normalizedContributionBeforeFee_ =
+        normalizedContributionBeforeFee =
             (_contributionBeforeFee / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
-        feeAmount_ = (normalizedContributionBeforeFee_ * _fee) / 100;
-        contributionAfterFee_ = normalizedContributionBeforeFee_ - feeAmount_;
+        feeAmount = (normalizedContributionBeforeFee * _fee) / 100;
+        contributionAfterFee = normalizedContributionBeforeFee - feeAmount;
     }
 
     function _createNewMember(
@@ -311,9 +296,7 @@ contract JoinModule is
         bool _allowCustomDuration,
         uint256 _drr,
         uint256 _benefitMultiplier,
-        uint256 _contributionBeforeFee,
         uint256 _membershipDuration,
-        uint256 _feeAmount,
         bool _isKYCVerified,
         address _memberWallet,
         MemberState _memberState
@@ -326,7 +309,7 @@ contract JoinModule is
             userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
         }
 
-        uint256 claimAddAmount = ((_contributionBeforeFee - _feeAmount) * (100 - _drr)) / 100;
+        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) / 100;
 
         Member memory newMember = Member({
             memberId: _newMemberId,
@@ -334,10 +317,10 @@ contract JoinModule is
             membershipDuration: userMembershipDuration,
             membershipStartTime: block.timestamp,
             lastPaidYearStartDate: block.timestamp,
-            contribution: _contributionBeforeFee,
+            contribution: normalizedContributionBeforeFee,
             claimAddAmount: claimAddAmount,
-            totalContributions: _contributionBeforeFee,
-            totalServiceFee: _feeAmount,
+            totalContributions: normalizedContributionBeforeFee,
+            totalServiceFee: feeAmount,
             creditTokensBalance: 0,
             wallet: _memberWallet,
             memberState: _memberState,
@@ -352,8 +335,8 @@ contract JoinModule is
             newMember.memberId,
             _memberWallet,
             _benefitMultiplier,
-            _contributionBeforeFee,
-            _feeAmount,
+            normalizedContributionBeforeFee,
+            feeAmount,
             userMembershipDuration,
             block.timestamp
         );
@@ -364,9 +347,7 @@ contract JoinModule is
     function _updateMember(
         uint256 _drr,
         uint256 _benefitMultiplier,
-        uint256 _contributionBeforeFee,
         uint256 _membershipDuration,
-        uint256 _feeAmount,
         address _memberWallet,
         MemberState _memberState,
         bool _isKYCVerified,
@@ -375,7 +356,7 @@ contract JoinModule is
         Member memory _member
     ) internal returns (Member memory) {
         uint256 userMembershipDuration;
-        uint256 claimAddAmount = ((_contributionBeforeFee - _feeAmount) * (100 - _drr)) / 100;
+        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) / 100;
 
         if (_allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
@@ -386,9 +367,9 @@ contract JoinModule is
         _member.benefitMultiplier = _benefitMultiplier;
         _member.membershipDuration = userMembershipDuration;
         _member.membershipStartTime = block.timestamp;
-        _member.contribution = _contributionBeforeFee;
+        _member.contribution = normalizedContributionBeforeFee;
         _member.claimAddAmount = claimAddAmount;
-        _member.totalServiceFee = _feeAmount;
+        _member.totalServiceFee = feeAmount;
         _member.memberState = _memberState;
         _member.isKYCVerified = _isKYCVerified;
         _member.isRefunded = _isRefunded;
@@ -397,8 +378,8 @@ contract JoinModule is
             _member.memberId,
             _memberWallet,
             _benefitMultiplier,
-            _contributionBeforeFee,
-            _feeAmount,
+            normalizedContributionBeforeFee,
+            feeAmount,
             userMembershipDuration,
             block.timestamp
         );
@@ -514,15 +495,12 @@ contract JoinModule is
     }
 
     function _transferContributionToModule(
-        uint256 _contributionAfterFee,
-        uint256 _contributionBeforeFee,
         address _memberWallet
     ) internal {
         IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
-        uint256 feeAmount = _contributionBeforeFee - _contributionAfterFee;
 
         // Store temporarily the contribution in this contract, this way will be available for refunds
-        contributionToken.safeTransferFrom(_memberWallet, address(this), _contributionAfterFee);
+        contributionToken.safeTransferFrom(_memberWallet, address(this), contributionAfterFee);
 
         // Transfer the service fee to the fee claim address
         contributionToken.safeTransferFrom(
