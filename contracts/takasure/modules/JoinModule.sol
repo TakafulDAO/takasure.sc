@@ -413,7 +413,7 @@ contract JoinModule is
         );
 
         // Mint the DAO Tokens
-        _mintDaoTokens(_contributionBeforeFee);
+        mintedTokens = PaymentAlgorithms._mintDaoTokens(takasureReserve, _contributionBeforeFee);
 
         return _reserve;
     }
@@ -514,15 +514,6 @@ contract JoinModule is
             takasureReserve.feeClaimAddress(),
             feeAmount
         );
-    }
-
-    function _mintDaoTokens(uint256 _contributionBeforeFee) internal  {
-        // Mint needed DAO Tokens
-        Reserve memory _reserve = takasureReserve.getReserveValues();
-        mintedTokens = _contributionBeforeFee * CommonConstants.DECIMALS_PRECISION; // 6 decimals to 18 decimals
-
-        bool success = ITSToken(_reserve.daoToken).mint(address(takasureReserve), mintedTokens);
-        require(success, TakasureErrors.Module__MintFailed());
     }
 
     ///@dev required by the OZ UUPS module

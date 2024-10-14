@@ -6,10 +6,13 @@
  * @notice It help to calculate the needed algorithms on the payment process
  */
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 
 import {Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {CommonConstants} from "contracts/libraries/CommonConstants.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
+import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 
 pragma solidity 0.8.28;
 
@@ -285,5 +288,17 @@ library PaymentAlgorithms {
         );
 
         emit TakasureEvents.OnNewBenefitMultiplierAdjuster(updatedBMA_);
+    }
+
+    function _mintDaoTokens(
+        ITakasureReserve _takasureReserve,
+        uint256 _contributionBeforeFee
+    ) internal returns (uint256 mintedTokens_) {
+        // Mint needed DAO Tokens
+        Reserve memory _reserve = _takasureReserve.getReserveValues();
+        mintedTokens_ = _contributionBeforeFee * CommonConstants.DECIMALS_PRECISION; // 6 decimals to 18 decimals
+
+        bool success = ITSToken(_reserve.daoToken).mint(address(_takasureReserve), mintedTokens_);
+        require(success, TakasureErrors.Module__MintFailed());
     }
 }

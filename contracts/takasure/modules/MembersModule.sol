@@ -38,9 +38,6 @@ contract MembersModule is
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
 
-
-    uint256 private constant DECIMALS_PRECISION = 1e12;
-
     uint256 private transient mintedTokens;
 
     modifier notZeroAddress(address _address) {
@@ -143,18 +140,9 @@ contract MembersModule is
         );
 
         // Mint the DAO Tokens
-        _mintDaoTokens(_contributionBeforeFee);
+        mintedTokens = PaymentAlgorithms._mintDaoTokens(takasureReserve, _contributionBeforeFee);
 
         return _reserve;
-    }
-
-    function _mintDaoTokens(uint256 _contributionBeforeFee) internal  {
-        // Mint needed DAO Tokens
-        Reserve memory _reserve = takasureReserve.getReserveValues();
-        mintedTokens = _contributionBeforeFee * DECIMALS_PRECISION; // 6 decimals to 18 decimals
-
-        bool success = ITSToken(_reserve.daoToken).mint(address(this), mintedTokens);
-        require(success, TakasureErrors.Module__MintFailed());
     }
 
     ///@dev required by the OZ UUPS module
