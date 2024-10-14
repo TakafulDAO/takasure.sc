@@ -21,7 +21,8 @@ import {ModuleConstants} from "contracts/libraries/ModuleConstants.sol";
 import {PaymentAlgorithms} from "contracts/libraries/PaymentAlgorithms.sol";
 import {ReserveAndMemberValues} from "contracts/libraries/ReserveAndMemberValues.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
-import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
+import {GlobalErrors} from "contracts/libraries/GlobalErrors.sol";
+import {ModuleErrors} from "contracts/libraries/ModuleErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -40,8 +41,10 @@ contract MembersModule is
 
     uint256 private transient mintedTokens;
 
+    error MembersModule__InvalidDate();
+
     modifier notZeroAddress(address _address) {
-        require(_address != address(0), TakasureErrors.TakasureProtocol__ZeroAddress());
+        require(_address != address(0), GlobalErrors.TakasureProtocol__ZeroAddress());
         _;
     }
 
@@ -71,7 +74,7 @@ contract MembersModule is
 
         require(
             newMember.memberState == MemberState.Active,
-            TakasureErrors.Module__WrongMemberState()
+            ModuleErrors.Module__WrongMemberState()
         );
 
         uint256 currentTimestamp = block.timestamp;
@@ -84,7 +87,7 @@ contract MembersModule is
         require(
             currentTimestamp <= lastPaidYearStartDate + year + gracePeriod &&
                 currentTimestamp <= membershipStartTime + membershipDuration,
-            TakasureErrors.MembersModule__InvalidDate()
+            MembersModule__InvalidDate()
         );
 
         uint256 contributionBeforeFee = newMember.contribution;

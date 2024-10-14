@@ -16,7 +16,6 @@ import {Reserve, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.
 import {ModuleConstants} from "contracts/libraries/ModuleConstants.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
-import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
@@ -27,6 +26,8 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
     ITakasureReserve private takasureReserve;
 
     Reserve private reserve;
+
+    error RevenueModule__WrongRevenueType();
 
     function initialize(address _takasureReserveAddress) external initializer {
         __UUPSUpgradeable_init();
@@ -50,10 +51,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
         uint256 newRevenue,
         RevenueType revenueType
     ) external onlyRole(ModuleConstants.DAO_MULTISIG) {
-        require(
-            revenueType != RevenueType.Contribution,
-            TakasureErrors.RevenueModule__WrongRevenueType()
-        );
+        require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
         Reserve memory reserveValues = takasureReserve.getReserveValues();
 

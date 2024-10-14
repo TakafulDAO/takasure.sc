@@ -12,7 +12,8 @@ import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
+import {ModuleErrors} from "contracts/libraries/ModuleErrors.sol";
+import {GlobalErrors} from "contracts/libraries/GlobalErrors.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
@@ -114,7 +115,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     function testTakasureReserve_setNewServiceFeeMustRevertIfHigherThan35() public {
         uint8 newServiceFee = 36;
         vm.prank(admin);
-        vm.expectRevert(TakasureErrors.TakasureReserve__WrongServiceFee.selector);
+        vm.expectRevert(TakasureReserve.TakasureReserve__WrongServiceFee.selector);
         takasureReserve.setNewServiceFee(newServiceFee);
     }
 
@@ -138,7 +139,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     /// @dev `setNewContributionToken` must revert if the address is zero
     function testTakasureReserve_setNewContributionTokenMustRevertIfAddressZero() public {
         vm.prank(admin);
-        vm.expectRevert(TakasureErrors.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(GlobalErrors.TakasureProtocol__ZeroAddress.selector);
         takasureReserve.setNewContributionToken(address(0));
     }
 
@@ -152,7 +153,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     /// @dev `setNewFeeClaimAddress` must revert if the address is zero
     function testTakasureReserve_setNewFeeClaimAddressMustRevertIfAddressZero() public {
         vm.prank(admin);
-        vm.expectRevert(TakasureErrors.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(GlobalErrors.TakasureProtocol__ZeroAddress.selector);
         takasureReserve.setNewFeeClaimAddress(address(0));
     }
 
@@ -167,7 +168,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     function testJoinModule_joinPoolMustRevertIfDepositLessThanMinimum() public {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(alice);
-        vm.expectRevert(TakasureErrors.JoinModule__ContributionOutOfRange.selector);
+        vm.expectRevert(JoinModule.JoinModule__ContributionOutOfRange.selector);
         joinModule.joinPool(wrongContribution, (5 * YEAR));
     }
 
@@ -185,7 +186,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         vm.prank(alice);
         // And tries to join again but fails
-        vm.expectRevert(TakasureErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
     }
 
@@ -193,7 +194,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     function testJoinModule_setKYCStatusMustRevertIfMemberIsAddressZero() public {
         vm.prank(admin);
 
-        vm.expectRevert(TakasureErrors.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(GlobalErrors.TakasureProtocol__ZeroAddress.selector);
         joinModule.setKYCStatus(address(0));
     }
 
@@ -209,7 +210,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         joinModule.setKYCStatus(alice);
 
         // And tries to join again but fails
-        vm.expectRevert(TakasureErrors.JoinModule__MemberAlreadyKYCed.selector);
+        vm.expectRevert(JoinModule.JoinModule__MemberAlreadyKYCed.selector);
         joinModule.setKYCStatus(alice);
 
         vm.stopPrank();
@@ -218,7 +219,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     /// @dev `recurringPayment` must revert if the member is invalid
     function testMembersModule_recurringPaymentMustRevertIfMemberIsInvalid() public {
         vm.prank(alice);
-        vm.expectRevert(TakasureErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
         membersModule.recurringPayment();
     }
 
@@ -239,7 +240,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         vm.roll(block.number + 1);
 
         vm.startPrank(alice);
-        vm.expectRevert(TakasureErrors.MembersModule__InvalidDate.selector);
+        vm.expectRevert(MembersModule.MembersModule__InvalidDate.selector);
         membersModule.recurringPayment();
         vm.stopPrank();
     }
@@ -270,7 +271,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         vm.roll(block.number + 1);
 
         vm.startPrank(alice);
-        vm.expectRevert(TakasureErrors.MembersModule__InvalidDate.selector);
+        vm.expectRevert(MembersModule.MembersModule__InvalidDate.selector);
         membersModule.recurringPayment();
     }
 
@@ -286,7 +287,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         joinModule.setKYCStatus(alice);
 
         vm.prank(alice);
-        vm.expectRevert(TakasureErrors.JoinModule__MemberAlreadyKYCed.selector);
+        vm.expectRevert(JoinModule.JoinModule__MemberAlreadyKYCed.selector);
         joinModule.refund();
     }
 
@@ -303,7 +304,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         joinModule.refund();
 
         // Try to refund again
-        vm.expectRevert(TakasureErrors.JoinModule__NothingToRefund.selector);
+        vm.expectRevert(JoinModule.JoinModule__NothingToRefund.selector);
         joinModule.refund();
         vm.stopPrank();
     }
@@ -317,7 +318,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // Try to refund
         vm.startPrank(alice);
-        vm.expectRevert(TakasureErrors.JoinModule__TooEarlytoRefund.selector);
+        vm.expectRevert(JoinModule.JoinModule__TooEarlytoRefund.selector);
         joinModule.refund();
         vm.stopPrank();
     }
@@ -350,13 +351,13 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         joinModule.setKYCStatus(alice);
 
         vm.prank(alice);
-        vm.expectRevert(TakasureErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // Second check bob join -> bob join again must revert
         vm.startPrank(bob);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.expectRevert(TakasureErrors.JoinModule__AlreadyJoinedPendingForKYC.selector);
+        vm.expectRevert(JoinModule.JoinModule__AlreadyJoinedPendingForKYC.selector);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
@@ -379,7 +380,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         joinModule.setKYCStatus(charlie);
 
         vm.prank(charlie);
-        vm.expectRevert(TakasureErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // Fourth check david join -> 14 days passes -> refund david -> david join -> david join again must revert
@@ -393,7 +394,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(david);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.expectRevert(TakasureErrors.JoinModule__AlreadyJoinedPendingForKYC.selector);
+        vm.expectRevert(JoinModule.JoinModule__AlreadyJoinedPendingForKYC.selector);
         joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
     }

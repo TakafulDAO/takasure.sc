@@ -17,7 +17,7 @@ import {TSToken} from "contracts/token/TSToken.sol";
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
-import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
+import {GlobalErrors} from "contracts/libraries/GlobalErrors.sol";
 
 pragma solidity 0.8.28;
 
@@ -53,8 +53,12 @@ contract TakasureReserve is
     mapping(address member => Member) private members;
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
+    error TakasureReserve__OnlyDaoOrTakadao();
+    error TakasureReserve__WrongServiceFee();
+    error TakasureReserve__WrongFundMarketExpendsShare();
+
     modifier notZeroAddress(address _address) {
-        require(_address != address(0), TakasureErrors.TakasureProtocol__ZeroAddress());
+        require(_address != address(0), GlobalErrors.TakasureProtocol__ZeroAddress());
         _;
     }
 
@@ -63,7 +67,7 @@ contract TakasureReserve is
             hasRole(TAKADAO_OPERATOR, msg.sender) ||
                 hasRole(DAO_MULTISIG, msg.sender) ||
                 hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
-            TakasureErrors.TakasureReserve__OnlyDaoOrTakadao()
+            TakasureReserve__OnlyDaoOrTakadao()
         );
         _;
     }
@@ -183,7 +187,7 @@ contract TakasureReserve is
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
-        require(newServiceFee <= 35, TakasureErrors.TakasureReserve__WrongServiceFee());
+        require(newServiceFee <= 35, TakasureReserve__WrongServiceFee());
         reserve.serviceFee = newServiceFee;
 
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
@@ -192,10 +196,7 @@ contract TakasureReserve is
     function setNewFundMarketExpendsShare(
         uint8 newFundMarketExpendsAddShare
     ) external onlyRole(DAO_MULTISIG) {
-        require(
-            newFundMarketExpendsAddShare <= 35,
-            TakasureErrors.TakasureReserve__WrongFundMarketExpendsShare()
-        );
+        require(newFundMarketExpendsAddShare <= 35, TakasureReserve__WrongFundMarketExpendsShare());
 
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
         reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;

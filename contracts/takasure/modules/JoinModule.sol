@@ -22,7 +22,8 @@ import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {PaymentAlgorithms} from "contracts/libraries/PaymentAlgorithms.sol";
 import {ReserveAndMemberValues} from "contracts/libraries/ReserveAndMemberValues.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
-import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
+import {GlobalErrors} from "contracts/libraries/GlobalErrors.sol";
+import {ModuleErrors} from "contracts/libraries/ModuleErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -44,8 +45,16 @@ contract JoinModule is
 
     uint256 private transient mintedTokens;
 
+    error JoinModule__NoContribution();
+    error JoinModule__ContributionOutOfRange();
+    error JoinModule__AlreadyJoinedPendingForKYC();
+    error JoinModule__BenefitMultiplierRequestFailed(bytes errorResponse);
+    error JoinModule__MemberAlreadyKYCed();
+    error JoinModule__NothingToRefund();
+    error JoinModule__TooEarlytoRefund();
+
     modifier notZeroAddress(address _address) {
-        require(_address != address(0), TakasureErrors.TakasureProtocol__ZeroAddress());
+        require(_address != address(0), GlobalErrors.TakasureProtocol__ZeroAddress());
         _;
     }
 
@@ -89,12 +98,12 @@ contract JoinModule is
 
         require(
             newMember.memberState == MemberState.Inactive,
-            TakasureErrors.Module__WrongMemberState()
+            ModuleErrors.Module__WrongMemberState()
         );
         require(
             contributionBeforeFee >= reserve.minimumThreshold &&
                 contributionBeforeFee <= reserve.maximumThreshold,
-            TakasureErrors.JoinModule__ContributionOutOfRange()
+            JoinModule__ContributionOutOfRange()
         );
 
         (
@@ -109,7 +118,7 @@ contract JoinModule is
             // Flow 1: Join -> KYC
             require(
                 newMember.wallet == address(0),
-                TakasureErrors.JoinModule__AlreadyJoinedPendingForKYC()
+                JoinModule__AlreadyJoinedPendingForKYC()
             );
             // If is not refunded, it is a completele new member, we create it
             newMember = _createNewMember({
@@ -171,12 +180,12 @@ contract JoinModule is
         (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
             ._getReserveAndMemberValuesHook(takasureReserve, memberWallet);
 
-        require(!newMember.isKYCVerified, TakasureErrors.JoinModule__MemberAlreadyKYCed());
+        require(!newMember.isKYCVerified, JoinModule__MemberAlreadyKYCed());
         require(
             newMember.memberState == MemberState.Inactive,
-            TakasureErrors.Module__WrongMemberState()
+            ModuleErrors.Module__WrongMemberState()
         );
-        require(newMember.contribution > 0, TakasureErrors.JoinModule__NoContribution());
+        require(newMember.contribution > 0, JoinModule__NoContribution());
 
         // This means the user exists and payed contribution but is not KYCed yet, we update the values
         (, , uint256 contributionAfterFee) = _calculateAmountAndFees(
@@ -248,14 +257,14 @@ contract JoinModule is
             ._getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
 
         // The member should not be KYCed neither already refunded
-        require(!_member.isKYCVerified, TakasureErrors.JoinModule__MemberAlreadyKYCed());
-        require(!_member.isRefunded, TakasureErrors.JoinModule__NothingToRefund());
+        require(!_member.isKYCVerified, JoinModule__MemberAlreadyKYCed());
+        require(!_member.isRefunded, JoinModule__NothingToRefund());
 
         uint256 currentTimestamp = block.timestamp;
         uint256 membershipStartTime = _member.membershipStartTime;
         // The member can refund after 14 days of the payment
         uint256 limitTimestamp = membershipStartTime + (14 days);
-        require(currentTimestamp >= limitTimestamp, TakasureErrors.JoinModule__TooEarlytoRefund());
+        require(currentTimestamp >= limitTimestamp, JoinModule__TooEarlytoRefund());
 
         // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
         // when first KYC and then join the pool. So the previous check is enough
@@ -452,7 +461,7 @@ contract JoinModule is
             } else {
                 // If failed we get the error and revert with it
                 bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
-                revert TakasureErrors.JoinModule__BenefitMultiplierRequestFailed(errorResponse);
+                revert JoinModule__BenefitMultiplierRequestFailed(errorResponse);
             }
         }
     }
