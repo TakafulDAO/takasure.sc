@@ -380,4 +380,16 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         assertEq(member.creditTokensBalance, contractCreditTokenBalanceAfter);
     }
+
+    function testGasBenchMark_joinPoolThroughUserRouter() public {
+        // Gas used: 505546
+        vm.prank(alice);
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+    }
+
+    function testGasBenchMark_joinPoolThroughJoinModule() public {
+        // Gas used: 495580
+        vm.prank(alice);
+        joinModule.joinPool(alice, CONTRIBUTION_AMOUNT, (5 * YEAR));
+    }
 }
