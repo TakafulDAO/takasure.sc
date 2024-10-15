@@ -343,15 +343,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     {
         uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
         uint256 takasurePoolInitialBalance = usdc.balanceOf(address(takasurePool));
-
         vm.prank(takadao);
         vm.expectEmit(true, true, false, false, address(takasurePool));
         emit OnMemberJoined(2, child);
         referralGateway.joinDao(child);
-
         uint256 referralGatewayFinalBalance = usdc.balanceOf(address(referralGateway));
         uint256 takasurePoolFinalBalance = usdc.balanceOf(address(takasurePool));
-
         assert(referralGatewayFinalBalance < referralGatewayInitialBalance);
         assert(takasurePoolFinalBalance > takasurePoolInitialBalance);
     }

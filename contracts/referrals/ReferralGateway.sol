@@ -63,6 +63,7 @@ contract ReferralGateway is
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
         uint256 actualFee;
+        uint256 discount;
     }
 
     struct tDAO {
@@ -232,7 +233,7 @@ contract ReferralGateway is
 
         // Calculate the fee and create the new pre-paid member
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
-        uint256 paymentCollectedFees;
+        uint256 discount = (contribution * CONTRIBUTION_DISCOUNT_RATIO) / 100;
 
         PrepaidMember memory prepaidMember = PrepaidMember({
             tDAOName: tDAOName,
@@ -240,23 +241,17 @@ contract ReferralGateway is
             parent: parent,
             contributionBeforeFee: contribution, // Input value
             contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the dao is deployed
-            actualFee: 0 // If has a parent, it is the fee - discount. Otherwise, it is the fee
+            actualFee: fee - discount, // The fee minus the discount
+            discount: discount // If has a parent, it is the discount. Otherwise, it is 0
         });
+
+        prepaidMembers[msg.sender] = prepaidMember;
+
+        // We transfer the contribution to the contract, this way we have funds to pay the parent rewards
+        usdc.safeTransferFrom(msg.sender, address(this), contribution - discount);
 
         // As the parent is optional, we need to check if it is not zero
         if (parent != address(0)) {
-            // The user gets a discount if he has a parent
-            uint256 discount = (contribution * CONTRIBUTION_DISCOUNT_RATIO) / 100;
-            paymentCollectedFees = fee - discount;
-
-            // We update the fee in the prepaidMember struct
-            prepaidMember.actualFee = paymentCollectedFees;
-            // Update the values for the prepaidMember
-            prepaidMembers[msg.sender] = prepaidMember;
-
-            // Transfer the contribution from input minus the discount
-            usdc.safeTransferFrom(msg.sender, address(this), contribution - discount);
-
             address currentChildToCheck = msg.sender;
             // We loop through the parent chain up to 4 tiers back
             for (int256 i; i < MAX_TIER; ++i) {
@@ -291,20 +286,12 @@ contract ReferralGateway is
                     break;
                 }
             }
-        } else {
-            // The user dont get a discount if there is no parent
-            // We update the fee in the prepaidMember struct and transfer the contribution
-            paymentCollectedFees = fee;
-            prepaidMember.actualFee = fee;
-            // Update the values for the prepaidMember
-            prepaidMembers[msg.sender] = prepaidMember;
-
-            usdc.safeTransferFrom(msg.sender, address(this), contribution);
         }
 
         // Update the values for the DAO
-        DAODatas[tDAOName].collectedFees += paymentCollectedFees;
+        DAODatas[tDAOName].collectedFees += fee - discount;
         DAODatas[tDAOName].currentAmount += contribution;
+
         emit OnPrePayment(parent, msg.sender, contribution);
     }
 
