@@ -333,15 +333,19 @@ contract ReferralGateway is
         // If the member has a parent, we need to check if the parent has a reward
         address parent = member.parent;
 
-        if (parent != address(0)) {
+        for (uint256 i; i < uint256(MAX_TIER); ++i) {
+            if (parent == address(0)) {
+                break;
+            }
             uint256 parentReward = parentRewardsByChild[parent][newMember];
-
             if (parentReward > 0) {
                 parentRewardsByChild[parent][newMember] = 0;
                 usdc.safeTransfer(parent, parentReward);
 
                 emit OnParentRewarded(parent, newMember, parentReward);
             }
+            // We update the parent address to check the next parent
+            parent = prepaidMembers[parent].parent;
         }
 
         // Finally, we join the member to the tDAO
