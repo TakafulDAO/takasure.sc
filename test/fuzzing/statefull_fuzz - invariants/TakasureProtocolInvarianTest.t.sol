@@ -1,35 +1,60 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {TakasurePoolHandler} from "test/helpers/handlers/TakasurePoolHandler.t.sol";
+import {TakasureProtocolHandler} from "test/helpers/handlers/TakasureProtocolHandler.t.sol";
 
-contract TakasurePoolInvariantTest is StdInvariant, Test {
-    TestDeployTakasure deployer;
-    TakasurePool takasurePool;
-    address proxy;
-    TakasurePoolHandler handler;
+contract TakasureProtocolInvariantTest is StdInvariant, Test {
+    TestDeployTakasureReserve deployer;
+    TakasureReserve takasureReserve;
+    JoinModule joinModule;
+    MembersModule membersModule;
+    TakasureProtocolHandler handler;
+    UserRouter userRouter;
+    address takasureReserveProxy;
+    address joinModuleAddress;
+    address membersModuleAddress;
     address contributionTokenAddress;
+    address userRouterAddress;
     IUSDC usdc;
     address public user = makeAddr("user");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
 
     function setUp() public {
-        deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        deployer = new TestDeployTakasureReserve();
+        (
+            takasureReserveProxy,
+            joinModuleAddress,
+            membersModuleAddress,
+            ,
+            userRouterAddress,
+            contributionTokenAddress,
 
-        takasurePool = TakasurePool(address(proxy));
+        ) = deployer.run();
+
+        takasureReserve = TakasureReserve(address(takasureReserveProxy));
+        joinModule = JoinModule(joinModuleAddress);
+        membersModule = MembersModule(membersModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
         usdc = IUSDC(contributionTokenAddress);
 
-        handler = new TakasurePoolHandler(takasurePool);
+        handler = new TakasureProtocolHandler(
+            takasureReserve,
+            joinModule,
+            membersModule,
+            userRouter
+        );
 
         bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = TakasurePoolHandler.joinPool.selector;
-        selectors[1] = TakasurePoolHandler.moveTime.selector;
+        selectors[0] = TakasureProtocolHandler.joinPool.selector;
+        selectors[1] = TakasureProtocolHandler.moveTime.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));

@@ -7,7 +7,7 @@
  */
 import {RevenueType} from "contracts/types/TakasureTypes.sol";
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 library TakasureEvents {
     event OnMemberCreated(
@@ -79,4 +79,5 @@ library TakasureEvents {
     );
     event OnFundSurplusUpdated(uint256 indexed surplus);
     event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
+    event OnAllowCustomDuration(bool allowCustomDuration);
 }

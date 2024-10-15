@@ -37,7 +37,7 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 
 deploy-all:
 	@forge clean
-	@forge script deploy/04-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
+	@forge script deploy/04-DeployAll.s.sol:DeployTakasureReserve $(NETWORK_ARGS)
 	
 deploy-bm-consumer:
 	@forge script deploy/01-DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)

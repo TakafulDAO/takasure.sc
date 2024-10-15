@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
 contract DeployTakasure is Script {
-
     function run() external returns (address proxy) {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -28,9 +27,9 @@ contract DeployTakasure is Script {
 
         // Deploy TakasurePool
         proxy = Upgrades.deployUUPSProxy(
-            "TakasurePool.sol",
+            "TakasureReserve.sol",
             abi.encodeCall(
-                TakasurePool.initialize,
+                TakasureReserve.initialize,
                 (
                     config.contributionToken,
                     config.feeClaimAddress,

@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 
 contract TokenTest is Test {
-    TestDeployTakasure deployer;
+    TestDeployTakasureReserve deployer;
     TSToken daoToken;
-    TakasurePool takasurePool;
-    address proxy;
+    TakasureReserve takasureReserve;
+    JoinModule joinModule;
+    address takasureReserveProxy;
+    address joinModuleAddress;
 
     address public admin = makeAddr("admin");
     address public user = makeAddr("user");
@@ -22,10 +25,14 @@ contract TokenTest is Test {
     event OnTokenBurned(address indexed from, uint256 indexed amount);
 
     function setUp() public {
-        deployer = new TestDeployTakasure();
-        (daoToken, proxy, , ) = deployer.run();
+        // deployer = new TestDeployTakasure();
+        // (daoToken, proxy, , ) = deployer.run();
+        deployer = new TestDeployTakasureReserve();
+        (takasureReserveProxy, joinModuleAddress, , , , , ) = deployer.run();
 
-        takasurePool = TakasurePool(address(proxy));
+        joinModule = JoinModule(joinModuleAddress);
+
+        daoToken = TSToken(TakasureReserve(takasureReserveProxy).getReserveValues().daoToken);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -36,7 +43,7 @@ contract TokenTest is Test {
         // Get users balance from the mapping and the balanceOf function to check if they match up
         uint256 userBalanceBefore = daoToken.balanceOf(user);
 
-        vm.prank(address(takasurePool));
+        vm.prank(address(joinModule));
 
         // Event should be emitted
         vm.expectEmit(true, true, false, false, address(daoToken));
@@ -59,15 +66,15 @@ contract TokenTest is Test {
         uint256 burnAmount = MINT_AMOUNT / 2;
 
         // Mint some tokens to the user
-        vm.startPrank(address(takasurePool));
-        daoToken.mint(address(takasurePool), MINT_AMOUNT);
-        uint256 balanceBefore = daoToken.balanceOf(address(takasurePool));
+        vm.startPrank(address(joinModule));
+        daoToken.mint(address(joinModule), MINT_AMOUNT);
+        uint256 balanceBefore = daoToken.balanceOf(address(joinModule));
 
         // Expect to emit the event
         vm.expectEmit(true, true, false, false, address(daoToken));
-        emit OnTokenBurned(address(takasurePool), burnAmount);
+        emit OnTokenBurned(address(joinModule), burnAmount);
         daoToken.burn(burnAmount);
-        uint256 balanceAfter = daoToken.balanceOf(address(takasurePool));
+        uint256 balanceAfter = daoToken.balanceOf(address(joinModule));
         vm.stopPrank();
         assert(balanceBefore > balanceAfter);
     }
@@ -75,12 +82,12 @@ contract TokenTest is Test {
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
-    function testToken_TakasurePoolIsMinterAndBurner() public view {
+    function testToken_JoinModuleIsMinterAndBurner() public view {
         bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
         bytes32 BURNER_ROLE = keccak256("BURNER_ROLE");
 
-        bool isMinter = daoToken.hasRole(MINTER_ROLE, address(takasurePool));
-        bool isBurner = daoToken.hasRole(BURNER_ROLE, address(takasurePool));
+        bool isMinter = daoToken.hasRole(MINTER_ROLE, address(joinModule));
+        bool isBurner = daoToken.hasRole(BURNER_ROLE, address(joinModule));
 
         assert(isMinter);
         assert(isBurner);
@@ -91,26 +98,26 @@ contract TokenTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testToken_mustRevertIfTryToMintToAddressZero() public {
-        vm.prank(address(takasurePool));
+        vm.prank(address(joinModule));
         vm.expectRevert(TSToken.Token__NotZeroAddress.selector);
         daoToken.mint(address(0), MINT_AMOUNT);
     }
 
     function testToken_mustRevertIfTryToMintZero() public {
-        vm.prank(address(takasurePool));
+        vm.prank(address(joinModule));
         vm.expectRevert(TSToken.Token__MustBeMoreThanZero.selector);
         daoToken.mint(user, 0);
     }
 
     function testToken_mustRevertIfTryToBurnZero() public {
-        vm.prank(address(takasurePool));
+        vm.prank(address(joinModule));
         vm.expectRevert(TSToken.Token__MustBeMoreThanZero.selector);
         daoToken.burn(0);
     }
 
     function testToken_mustRevertIfTryToBurnMoreThanBalance() public {
         uint256 userBalance = daoToken.balanceOf(user);
-        vm.prank(address(takasurePool));
+        vm.prank(address(joinModule));
         vm.expectRevert(
             abi.encodeWithSelector(
                 TSToken.Token__BurnAmountExceedsBalance.selector,
