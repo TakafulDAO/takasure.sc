@@ -84,6 +84,7 @@ contract JoinModule is
      * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
      *         member will be active.
+     * @param mebersWallet address of the member
      * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
      * @dev it reverts if the contribution is less than the minimum threshold defaultes to `minimumThreshold`
@@ -93,11 +94,12 @@ contract JoinModule is
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
     function joinPool(
+        address mebersWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
         (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
-            ._getReserveAndMemberValuesHook(takasureReserve, msg.sender);
+            ._getReserveAndMemberValuesHook(takasureReserve, mebersWallet);
 
         require(
             newMember.memberState == MemberState.Inactive,
@@ -111,7 +113,7 @@ contract JoinModule is
 
        _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
 
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(msg.sender);
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(mebersWallet);
 
         if (!newMember.isRefunded) {
             // Flow 1: Join -> KYC
@@ -127,7 +129,7 @@ contract JoinModule is
                 _benefitMultiplier: benefitMultiplier, // Fetch from oracle
                 _membershipDuration: membershipDuration, // From the input
                 _isKYCVerified: newMember.isKYCVerified, // The current state, in this case false
-                _memberWallet: msg.sender, // The member wallet
+                _memberWallet: mebersWallet, // The member wallet
                 _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
             });
         } else {
@@ -137,7 +139,7 @@ contract JoinModule is
                 _drr: reserve.dynamicReserveRatio,
                 _benefitMultiplier: benefitMultiplier,
                 _membershipDuration: membershipDuration, // From the input
-                _memberWallet: msg.sender, // The member wallet
+                _memberWallet: mebersWallet, // The member wallet
                 _memberState: MemberState.Inactive, // Set to inactive until the KYC is verified
                 _isKYCVerified: newMember.isKYCVerified, // The current state, in this case false
                 _isRefunded: false, // Reset to false as the user repays the contribution
@@ -149,7 +151,7 @@ contract JoinModule is
         // This means the proformas wont be updated, the amounts wont be added to the reserves,
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
         _transferContributionToModule({
-            _memberWallet: msg.sender
+            _memberWallet: mebersWallet
         });
 
         ReserveAndMemberValues._setNewReserveAndMemberValuesHook(

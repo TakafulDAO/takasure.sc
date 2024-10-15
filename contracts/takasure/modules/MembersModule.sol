@@ -68,9 +68,9 @@ contract MembersModule is
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
     }
 
-    function recurringPayment() external nonReentrant {
+    function recurringPayment(address memberWallet) external nonReentrant {
         (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
-            ._getReserveAndMemberValuesHook(takasureReserve, msg.sender);
+            ._getReserveAndMemberValuesHook(takasureReserve, memberWallet);
 
         require(
             newMember.memberState == MemberState.Active,
@@ -105,14 +105,14 @@ contract MembersModule is
         reserve = _memberRecurringPaymentFlow({
             _contributionBeforeFee: contributionBeforeFee,
             _contributionAfterFee: contributionAfterFee,
-            _memberWallet: msg.sender,
+            _memberWallet: memberWallet,
             _reserve: reserve
         });
 
         newMember.creditTokensBalance += mintedTokens;
 
         emit TakasureEvents.OnRecurringPayment(
-            msg.sender,
+            memberWallet,
             newMember.memberId,
             newMember.lastPaidYearStartDate,
             newMember.totalContributions,
