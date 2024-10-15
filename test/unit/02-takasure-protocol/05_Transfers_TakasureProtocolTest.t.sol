@@ -8,6 +8,7 @@ import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
@@ -20,12 +21,14 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
     JoinModule joinModule;
+    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
     address joinModuleAddress;
+    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -39,11 +42,13 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
             joinModuleAddress,
             ,
             ,
+            userRouterAddress,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
         joinModule = JoinModule(joinModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -84,7 +89,7 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
         uint256 joinModuleBalanceBefore = usdc.balanceOf(address(joinModule));
 
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 takasureReserveBalanceAfter = usdc.balanceOf(address(takasureReserve));
         uint256 joinModuleBalanceAfter = usdc.balanceOf(address(joinModule));
@@ -102,7 +107,7 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
         uint8 serviceFee = reserve.serviceFee;
 
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 takasureReserveBalanceAfter = usdc.balanceOf(address(takasureReserve));
         uint256 joinModuleBalanceAfter = usdc.balanceOf(address(joinModule));
@@ -122,7 +127,7 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
         uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
 
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
 

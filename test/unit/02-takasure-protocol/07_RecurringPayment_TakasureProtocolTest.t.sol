@@ -9,6 +9,7 @@ import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
@@ -24,6 +25,7 @@ contract RecurringPayment_TakasureProtocolTest is StdCheats, Test, SimulateDonRe
     BenefitMultiplierConsumerMock bmConsumerMock;
     JoinModule joinModule;
     MembersModule membersModule;
+    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
@@ -31,6 +33,7 @@ contract RecurringPayment_TakasureProtocolTest is StdCheats, Test, SimulateDonRe
     address takadao;
     address joinModuleAddress;
     address membersModuleAddress;
+    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
@@ -44,12 +47,14 @@ contract RecurringPayment_TakasureProtocolTest is StdCheats, Test, SimulateDonRe
             joinModuleAddress,
             membersModuleAddress,
             ,
+            userRouterAddress,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
         joinModule = JoinModule(joinModuleAddress);
         membersModule = MembersModule(membersModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -79,7 +84,7 @@ contract RecurringPayment_TakasureProtocolTest is StdCheats, Test, SimulateDonRe
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
 
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
 
         // We simulate a request before the KYC
@@ -112,7 +117,7 @@ contract RecurringPayment_TakasureProtocolTest is StdCheats, Test, SimulateDonRe
                 totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
-            membersModule.recurringPayment();
+            userRouter.recurringPayment();
             vm.stopPrank;
 
             testMember = takasureReserve.getMemberFromAddress(alice);

@@ -7,16 +7,25 @@ import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
 import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
 contract TestDeployTakasureReserve is Script {
+    BenefitMultiplierConsumer benefitMultiplierConsumer;
+
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
     bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
+
+    address takasureReserveImplementation;
+    address userRouterImplementation;
+
+    string root;
+    string scriptPath;
 
     function run()
         external
@@ -25,6 +34,7 @@ contract TestDeployTakasureReserve is Script {
             address joinModule,
             address membersModule,
             address revenueModule,
+            address router,
             address contributionTokenAddress,
             HelperConfig helperConfig
         )
@@ -32,17 +42,14 @@ contract TestDeployTakasureReserve is Script {
         helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        string memory root = vm.projectRoot();
-        string memory scriptPath = string.concat(
-            root,
-            "/scripts/chainlink-functions/bmFetchCode.js"
-        );
+        root = vm.projectRoot();
+        scriptPath = string.concat(root, "/scripts/chainlink-functions/bmFetchCode.js");
         string memory bmFetchScript = vm.readFile(scriptPath);
 
         vm.startBroadcast(msg.sender);
 
         // Deploy TakasureReserve
-        address takasureReserveImplementation = address(new TakasureReserve());
+        takasureReserveImplementation = address(new TakasureReserve());
         takasureReserve = UnsafeUpgrades.deployUUPSProxy(
             takasureReserveImplementation,
             abi.encodeCall(
@@ -62,7 +69,7 @@ contract TestDeployTakasureReserve is Script {
         );
 
         // Deploy BenefitMultiplierConsumer
-        BenefitMultiplierConsumer benefitMultiplierConsumer = new BenefitMultiplierConsumer(
+        benefitMultiplierConsumer = new BenefitMultiplierConsumer(
             config.functionsRouter,
             config.donId,
             config.gasLimit,
@@ -71,32 +78,25 @@ contract TestDeployTakasureReserve is Script {
 
         (joinModule, membersModule, revenueModule) = _deployModules(takasureReserve);
 
-        // Setting JoinModule as a requester in BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setNewRequester(joinModule);
+        // Deploy router
+        userRouterImplementation = address(new UserRouter());
+        router = UnsafeUpgrades.deployUUPSProxy(
+            userRouterImplementation,
+            abi.encodeCall(UserRouter.initialize, (takasureReserve, joinModule, membersModule))
+        );
 
-        // Add new source code to BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
-
-        // Set modules contracts in TakasureReserve
-        TakasureReserve(takasureReserve).setNewModuleContract(joinModule);
-        TakasureReserve(takasureReserve).setNewModuleContract(membersModule);
-        TakasureReserve(takasureReserve).setNewModuleContract(revenueModule);
+        _setContracts(
+            benefitMultiplierConsumer,
+            bmFetchScript,
+            joinModule,
+            membersModule,
+            revenueModule,
+            takasureReserve
+        );
 
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
 
-        // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
-        TakasureReserve(takasureReserve).grantRole(0x00, config.daoMultisig);
-        // And the modules as burner and minters
-        creditToken.grantRole(MINTER_ROLE, joinModule);
-        creditToken.grantRole(MINTER_ROLE, membersModule);
-        creditToken.grantRole(BURNER_ROLE, joinModule);
-        creditToken.grantRole(BURNER_ROLE, membersModule);
-
-        // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
-        TakasureReserve(takasureReserve).renounceRole(0x00, msg.sender);
-        // And the burner and minter admins
-        creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
-        creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
+        _assignRoles(takasureReserve, config.daoMultisig, creditToken, joinModule, membersModule);
 
         vm.stopBroadcast();
 
@@ -109,6 +109,7 @@ contract TestDeployTakasureReserve is Script {
             joinModule,
             membersModule,
             revenueModule,
+            router,
             contributionTokenAddress,
             helperConfig
         );
@@ -137,5 +138,47 @@ contract TestDeployTakasureReserve is Script {
             revenueModuleImplementation,
             abi.encodeCall(RevenueModule.initialize, (_takasureReserve))
         );
+    }
+
+    function _setContracts(
+        BenefitMultiplierConsumer _benefitMultiplierConsumer,
+        string memory _bmFetchScript,
+        address _joinModule,
+        address _membersModule,
+        address _revenueModule,
+        address _takasureReserve
+    ) internal {
+        // Setting JoinModule as a requester in BenefitMultiplierConsumer
+        _benefitMultiplierConsumer.setNewRequester(_joinModule);
+
+        // Add new source code to BenefitMultiplierConsumer
+        _benefitMultiplierConsumer.setBMSourceRequestCode(_bmFetchScript);
+
+        // Set modules contracts in TakasureReserve
+        TakasureReserve(_takasureReserve).setNewModuleContract(_joinModule);
+        TakasureReserve(_takasureReserve).setNewModuleContract(_membersModule);
+        TakasureReserve(_takasureReserve).setNewModuleContract(_revenueModule);
+    }
+
+    function _assignRoles(
+        address _takasureReserve,
+        address _daoMultisig,
+        TSToken _creditToken,
+        address _joinModule,
+        address _membersModule
+    ) internal {
+        // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
+        TakasureReserve(_takasureReserve).grantRole(0x00, _daoMultisig);
+        // And the modules as burner and minters
+        _creditToken.grantRole(MINTER_ROLE, _joinModule);
+        _creditToken.grantRole(MINTER_ROLE, _membersModule);
+        _creditToken.grantRole(BURNER_ROLE, _joinModule);
+        _creditToken.grantRole(BURNER_ROLE, _membersModule);
+
+        // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
+        TakasureReserve(_takasureReserve).renounceRole(0x00, msg.sender);
+        // And the burner and minter admins
+        _creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
+        _creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
     }
 }

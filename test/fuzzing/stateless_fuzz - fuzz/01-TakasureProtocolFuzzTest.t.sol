@@ -9,6 +9,7 @@ import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
@@ -19,12 +20,14 @@ contract TakasureProtocolFuzzTest is Test {
     HelperConfig helperConfig;
     JoinModule joinModule;
     MembersModule membersModule;
+    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address daoMultisig;
     address takadao;
     address joinModuleAddress;
     address membersModuleAddress;
+    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -38,12 +41,14 @@ contract TakasureProtocolFuzzTest is Test {
             joinModuleAddress,
             membersModuleAddress,
             ,
+            userRouterAddress,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
         joinModule = JoinModule(joinModuleAddress);
         membersModule = MembersModule(membersModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -78,7 +83,7 @@ contract TakasureProtocolFuzzTest is Test {
         vm.assume(notOwner != daoMultisig);
 
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         vm.prank(notOwner);
         vm.expectRevert();

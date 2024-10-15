@@ -9,6 +9,7 @@ import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
@@ -24,6 +25,7 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     BenefitMultiplierConsumerMock bmConsumerMock;
     JoinModule joinModule;
     MembersModule membersModule;
+    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
@@ -31,6 +33,7 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     address takadao;
     address joinModuleAddress;
     address membersModuleAddress;
+    address userRouterAddress;
     IUSDC usdc;
     uint256 public constant USDC_INITIAL_AMOUNT = 500e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
@@ -51,12 +54,14 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             joinModuleAddress,
             membersModuleAddress,
             ,
+            userRouterAddress,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
         joinModule = JoinModule(joinModuleAddress);
         membersModule = MembersModule(membersModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -230,7 +235,7 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     function _join(address user, uint256 timesContributionAmount) internal {
         vm.startPrank(user);
-        joinModule.joinPool(timesContributionAmount * CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(timesContributionAmount * CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         // We simulate a request before the KYC

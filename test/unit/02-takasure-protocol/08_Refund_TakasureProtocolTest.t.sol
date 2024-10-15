@@ -9,6 +9,7 @@ import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
@@ -24,6 +25,7 @@ contract Refund_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     BenefitMultiplierConsumerMock bmConsumerMock;
     JoinModule joinModule;
     MembersModule membersModule;
+    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
@@ -31,6 +33,7 @@ contract Refund_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     address takadao;
     address joinModuleAddress;
     address membersModuleAddress;
+    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
@@ -45,12 +48,14 @@ contract Refund_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             joinModuleAddress,
             membersModuleAddress,
             ,
+            userRouterAddress,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
         joinModule = JoinModule(joinModuleAddress);
         membersModule = MembersModule(membersModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -81,7 +86,7 @@ contract Refund_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
 
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank;
 
         vm.startPrank(bob);
@@ -133,11 +138,11 @@ contract Refund_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         Member memory aliceAfterRefund = takasureReserve.getMemberFromAddress(alice);
 
         vm.startPrank(bob);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         Member memory aliceAfterSecondJoin = takasureReserve.getMemberFromAddress(alice);

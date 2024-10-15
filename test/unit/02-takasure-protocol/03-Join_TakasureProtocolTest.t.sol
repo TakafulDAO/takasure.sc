@@ -8,6 +8,7 @@ import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -22,12 +23,14 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
     JoinModule joinModule;
+    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
     address joinModuleAddress;
+    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
@@ -43,11 +46,13 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             joinModuleAddress,
             ,
             ,
+            userRouterAddress,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
         joinModule = JoinModule(joinModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -95,7 +100,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(alice);
 
         usdc.approve(address(joinModule), contributionAmount);
-        joinModule.joinPool(contributionAmount, (5 * YEAR));
+        userRouter.joinPool(contributionAmount, (5 * YEAR));
 
         vm.stopPrank();
 
@@ -122,12 +127,12 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         uint256 memberIdCounterBeforeAlice = takasureReserve.getReserveValues().memberIdCounter;
 
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 memberIdCounterAfterAlice = takasureReserve.getReserveValues().memberIdCounter;
 
         vm.prank(bob);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 memberIdCounterAfterBob = takasureReserve.getReserveValues().memberIdCounter;
 
@@ -137,7 +142,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     function testJoinModule_setKYCStatus() public {
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -156,7 +161,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     modifier aliceJoinAndKYC() {
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -180,7 +185,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         takasureReserve.setAllowCustomDuration(true);
 
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, YEAR);
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, YEAR);
 
         Member memory member = takasureReserve.getMemberFromAddress(alice);
 
@@ -190,7 +195,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     /// @dev Test the member is created
     function testTakasureReserve_newMember() public {
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 memberId = takasureReserve.getReserveValues().memberIdCounter;
 
@@ -206,7 +211,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
     modifier bobJoinAndKYC() {
         vm.prank(bob);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -236,7 +241,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     /// @dev Pro formas updated when a member joins
     function testTakasureReserve_proFormasUpdatedOnMemberJoined() public aliceJoinAndKYC {
         vm.prank(bob);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         Reserve memory reserve = takasureReserve.getReserveValues();
 
@@ -265,7 +270,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         uint256 initialDRR = reserve.initialReserveRatio;
 
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -277,7 +282,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         uint256 aliceDRR = reserve.dynamicReserveRatio;
 
         vm.prank(bob);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -305,7 +310,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         uint256 initialBMA = reserve.benefitMultiplierAdjuster;
 
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -317,7 +322,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         uint256 aliceBMA = reserve.benefitMultiplierAdjuster;
 
         vm.prank(bob);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -352,7 +357,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         uint256 aliceCreditTokenBalanceBefore = creditTokenInstance.balanceOf(alice);
 
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));

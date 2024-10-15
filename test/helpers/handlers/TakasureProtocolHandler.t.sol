@@ -6,6 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {MemberState} from "contracts/types/TakasureTypes.sol";
 
@@ -13,6 +14,7 @@ contract TakasureProtocolHandler is Test {
     TakasureReserve takasureReserve;
     JoinModule joinModule;
     MembersModule membersModule;
+    UserRouter userRouter;
     ERC20 usdc;
 
     uint256 constant MIN_DEPOSIT = 25e6; // 25 USDC
@@ -22,11 +24,13 @@ contract TakasureProtocolHandler is Test {
     constructor(
         TakasureReserve _takasureReserve,
         JoinModule _joinModule,
-        MembersModule _membersModule
+        MembersModule _membersModule,
+        UserRouter _userRouter
     ) {
         takasureReserve = _takasureReserve;
         joinModule = _joinModule;
         membersModule = _membersModule;
+        userRouter = _userRouter;
         usdc = ERC20(address(takasureReserve.getReserveValues().contributionToken));
     }
 
@@ -53,7 +57,7 @@ contract TakasureProtocolHandler is Test {
         vm.startPrank(msg.sender);
         usdc.approve(address(joinModule), contributionAmount);
 
-        joinModule.joinPool(contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
+        userRouter.joinPool(contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
         vm.stopPrank();
     }
 

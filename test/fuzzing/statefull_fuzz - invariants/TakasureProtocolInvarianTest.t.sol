@@ -7,6 +7,7 @@ import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
 import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureProtocolHandler} from "test/helpers/handlers/TakasureProtocolHandler.t.sol";
 
@@ -16,10 +17,12 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
     JoinModule joinModule;
     MembersModule membersModule;
     TakasureProtocolHandler handler;
+    UserRouter userRouter;
     address takasureReserveProxy;
     address joinModuleAddress;
     address membersModuleAddress;
     address contributionTokenAddress;
+    address userRouterAddress;
     IUSDC usdc;
     address public user = makeAddr("user");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -31,6 +34,7 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
             joinModuleAddress,
             membersModuleAddress,
             ,
+            userRouterAddress,
             contributionTokenAddress,
 
         ) = deployer.run();
@@ -38,9 +42,15 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
         takasureReserve = TakasureReserve(address(takasureReserveProxy));
         joinModule = JoinModule(joinModuleAddress);
         membersModule = MembersModule(membersModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
         usdc = IUSDC(contributionTokenAddress);
 
-        handler = new TakasureProtocolHandler(takasureReserve, joinModule, membersModule);
+        handler = new TakasureProtocolHandler(
+            takasureReserve,
+            joinModule,
+            membersModule,
+            userRouter
+        );
 
         bytes4[] memory selectors = new bytes4[](2);
         selectors[0] = TakasureProtocolHandler.joinPool.selector;

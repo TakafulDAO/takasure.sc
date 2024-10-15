@@ -8,6 +8,7 @@ import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
@@ -21,12 +22,14 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
     JoinModule joinModule;
+    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
     address joinModuleAddress;
+    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -40,11 +43,13 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             joinModuleAddress,
             ,
             ,
+            userRouterAddress,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
         joinModule = JoinModule(joinModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -82,7 +87,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     /// @dev Test fund and claim reserves are calculated correctly
     function testTakasureReserve_fundAndClaimReserves() public {
         vm.prank(alice);
-        joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 initialReserveRatio = reserve.initialReserveRatio;
@@ -131,7 +136,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
 
             vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
         // Each day 10 users will join with the contribution amount
 
@@ -205,7 +210,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
 
             vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         // We simulate a request before the KYC
@@ -274,7 +279,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
 
             vm.prank(lotOfUsers[i]);
-            joinModule.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         // We simulate a request before the KYC
