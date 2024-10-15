@@ -400,6 +400,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             vm.startPrank(parents[i]);
             usdc.approve(address(referralGateway), 10 * CONTRIBUTION_AMOUNT);
             vm.stopPrank();
+
+            // Assign the REFERRAL role
+            vm.prank(takadao);
+            referralGateway.registerReferral(parents[i]);
         }
 
         address childWithoutReferee = makeAddr("childWithoutReferee");
@@ -503,6 +507,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             vm.startPrank(parents[i]);
             usdc.approve(address(referralGateway), 10 * CONTRIBUTION_AMOUNT);
             vm.stopPrank();
+
+            // Assign the REFERRAL role
+            vm.prank(takadao);
+            referralGateway.registerReferral(parents[i]);
         }
         address childWithoutReferee = makeAddr("childWithoutReferee");
         deal(address(usdc), childWithoutReferee, 10 * CONTRIBUTION_AMOUNT);

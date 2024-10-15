@@ -251,7 +251,7 @@ contract ReferralGateway is
         usdc.safeTransferFrom(msg.sender, address(this), contribution - discount);
 
         // As the parent is optional, we need to check if it is not zero
-        if (parent != address(0)) {
+        if (parent != address(0) && hasRole(REFERRAL, parent)) {
             address currentChildToCheck = msg.sender;
             // We loop through the parent chain up to 4 tiers back
             for (int256 i; i < MAX_TIER; ++i) {
