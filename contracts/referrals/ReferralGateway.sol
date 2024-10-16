@@ -91,6 +91,7 @@ contract ReferralGateway is
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAOAddressNotAssignedYet();
     error ReferralGateway__onlyDaoAdmin();
+    error ReferralGateway__HasNotPaid();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) {
@@ -159,19 +160,6 @@ contract ReferralGateway is
 
         // Update the necessary mappings
         DAODatas[dao.name] = dao;
-    }
-
-    /**
-     * @notice Register an referral
-     * @param referral The address to register as referral
-     * @dev Only the OPERATOR can register an referral
-     */
-    function registerReferral(
-        address referral
-    ) external notZeroAddress(referral) onlyRole(OPERATOR) {
-        _grantRole(REFERRAL, referral);
-
-        emit OnNewReferral(referral);
     }
 
     /**
@@ -250,41 +238,27 @@ contract ReferralGateway is
         // We transfer the contribution to the contract, this way we have funds to pay the parent rewards
         usdc.safeTransferFrom(msg.sender, address(this), contribution - discount);
 
-        // As the parent is optional, we need to check if it is not zero
-        if (parent != address(0) && hasRole(REFERRAL, parent)) {
-            address currentChildToCheck = msg.sender;
-            // We loop through the parent chain up to 4 tiers back
-            for (int256 i; i < MAX_TIER; ++i) {
-                // We need to check child by child if it has a parent
-                if (prepaidMembers[currentChildToCheck].parent != address(0)) {
-                    // If the current child has a parent, we calculate the parent reward
-                    // The first child is the caller of the function
-                    int256 layer = i + 1;
-                    uint256 currentParentRewardRatio = _referralRewardRatioByLayer(layer);
-                    uint256 currentParentReward = (contribution * currentParentRewardRatio) /
-                        (100 * DECIMAL_CORRECTION);
+        address currentChildToCheck = msg.sender;
+        for (int256 i; i < MAX_TIER; ++i) {
+            // We check if the current child has a parent and if the parent has the REFERRAL role
+            if (
+                prepaidMembers[currentChildToCheck].parent != address(0) &&
+                hasRole(REFERRAL, prepaidMembers[currentChildToCheck].parent)
+            ) {
+                int256 layer = i + 1;
+                uint256 currentParentRewardRatio = _referralRewardRatioByLayer(layer);
+                uint256 currentParentReward = (contribution * currentParentRewardRatio) /
+                    (100 * DECIMAL_CORRECTION);
+                address childParent = prepaidMembers[currentChildToCheck].parent;
+                // And we store the parent reward and the reward to the parent layer
+                parentRewardsByChild[childParent][msg.sender] = currentParentReward;
+                parentRewardsByLayer[childParent][uint256(layer)] += currentParentReward;
 
-                    address childParent = prepaidMembers[currentChildToCheck].parent;
-
-                    // Then if the current child is already KYCed, we transfer the parent reward
-                    if (isChildKYCed[currentChildToCheck]) {
-                        parentRewardsByChild[childParent][currentChildToCheck] = 0;
-                        usdc.safeTransfer(childParent, currentParentReward);
-                        emit OnParentRewarded(childParent, msg.sender, currentParentReward);
-                    } else {
-                        // Otherwise, we store the parent reward in the parentRewardsByChild mapping
-                        parentRewardsByChild[childParent][
-                            currentChildToCheck
-                        ] = currentParentReward;
-                    }
-                    // And the reward to the parent layer
-                    parentRewardsByLayer[childParent][uint256(layer)] += currentParentReward;
-                    // Lastly, we update the currentChildToCheck variable
-                    currentChildToCheck = childParent;
-                } else {
-                    // Otherwise, we break the loop
-                    break;
-                }
+                // Lastly, we update the currentChildToCheck variable
+                currentChildToCheck = childParent;
+            } else {
+                // Otherwise, we break the loop
+                break;
             }
         }
 
@@ -293,6 +267,47 @@ contract ReferralGateway is
         DAODatas[tDAOName].currentAmount += contribution;
 
         emit OnPrePayment(parent, msg.sender, contribution);
+    }
+
+    /**
+     * @notice Set the KYC status of a member
+     * @param child The address of the member
+     * @dev Only the KYC_PROVIDER can set the KYC status
+     */
+    function setKYCStatus(address child) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
+        // Initial checks
+        PrepaidMember memory member = prepaidMembers[child];
+        // Can not KYC a member that is already KYCed
+        if (isChildKYCed[child]) {
+            revert ReferralGateway__MemberAlreadyKYCed();
+        }
+        // The member must have already pre-paid
+        if (member.contributionBeforeFee == 0) {
+            revert ReferralGateway__HasNotPaid();
+        }
+
+        // Update the KYC status
+        isChildKYCed[child] = true;
+        _grantRole(REFERRAL, child);
+
+        address parent = member.parent;
+
+        for (uint256 i; i < uint256(MAX_TIER); ++i) {
+            if (parent == address(0)) {
+                break;
+            }
+            uint256 parentReward = parentRewardsByChild[parent][child];
+
+            parentRewardsByChild[parent][child] = 0;
+            usdc.safeTransfer(parent, parentReward);
+
+            emit OnParentRewarded(parent, child, parentReward);
+
+            // We update the parent address to check the next parent
+            parent = prepaidMembers[parent].parent;
+        }
+
+        emit OnChildKycVerified(child);
     }
 
     /**
@@ -313,27 +328,6 @@ contract ReferralGateway is
         if (!isChildKYCed[member.child]) {
             revert ReferralGateway__NotKYCed();
         }
-        if (!dao.isPreJoinEnabled) {
-            revert ReferralGateway__NotAllowedToPrePay();
-        }
-
-        // If the member has a parent, we need to check if the parent has a reward
-        address parent = member.parent;
-
-        for (uint256 i; i < uint256(MAX_TIER); ++i) {
-            if (parent == address(0)) {
-                break;
-            }
-            uint256 parentReward = parentRewardsByChild[parent][newMember];
-            if (parentReward > 0) {
-                parentRewardsByChild[parent][newMember] = 0;
-                usdc.safeTransfer(parent, parentReward);
-
-                emit OnParentRewarded(parent, newMember, parentReward);
-            }
-            // We update the parent address to check the next parent
-            parent = prepaidMembers[parent].parent;
-        }
 
         // Finally, we join the member to the tDAO
         ITakasurePool(dao.daoAddress).joinByReferral(
@@ -343,35 +337,6 @@ contract ReferralGateway is
         );
 
         usdc.safeTransfer(dao.daoAddress, member.contributionAfterFee);
-    }
-
-    /**
-     * @notice Set the KYC status of a member
-     * @param child The address of the member
-     * @dev Only the KYC_PROVIDER can set the KYC status
-     */
-    function setKYCStatus(address child) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
-        // Initial checks
-        PrepaidMember memory member = prepaidMembers[child];
-        if (isChildKYCed[child]) {
-            revert ReferralGateway__MemberAlreadyKYCed();
-        }
-
-        // Update the KYC status
-        isChildKYCed[child] = true;
-
-        // If the member has a parent, we need to check if the parent has a reward
-        if (member.contributionBeforeFee > 0 && member.parent != address(0)) {
-            address parent = member.parent;
-            uint256 parentReward = parentRewardsByChild[parent][child];
-            parentRewardsByChild[parent][child] = 0;
-
-            usdc.safeTransfer(parent, parentReward);
-
-            emit OnParentRewarded(parent, child, parentReward);
-        }
-
-        emit OnChildKycVerified(child);
     }
 
     function setPreJoinEnabled(
