@@ -45,7 +45,6 @@ contract ReferralGateway is
 
     bytes32 private constant OPERATOR = keccak256("OPERATOR");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-    bytes32 private constant REFERRAL = keccak256("REFERRAL");
     bytes32 private constant COFOUNDER_OF_CHANGE = keccak256("COFOUNDER_OF_CHANGE");
 
     mapping(address parent => mapping(address child => uint256 rewards))
@@ -240,10 +239,10 @@ contract ReferralGateway is
 
         address currentChildToCheck = msg.sender;
         for (int256 i; i < MAX_TIER; ++i) {
-            // We check if the current child has a parent and if the parent has the REFERRAL role
+            // We check if the current child has a parent and if the parent is already KYCed
             if (
                 prepaidMembers[currentChildToCheck].parent != address(0) &&
-                hasRole(REFERRAL, prepaidMembers[currentChildToCheck].parent)
+                isChildKYCed[prepaidMembers[currentChildToCheck].parent]
             ) {
                 int256 layer = i + 1;
                 uint256 currentParentRewardRatio = _referralRewardRatioByLayer(layer);
@@ -288,7 +287,6 @@ contract ReferralGateway is
 
         // Update the KYC status
         isChildKYCed[child] = true;
-        _grantRole(REFERRAL, child);
 
         address parent = member.parent;
 
