@@ -93,16 +93,13 @@ contract ReferralGateway is
     error ReferralGateway__HasNotPaid();
 
     modifier notZeroAddress(address _address) {
-        if (_address == address(0)) {
-            revert ReferralGateway__ZeroAddress();
-        }
+        if (_address == address(0)) revert ReferralGateway__ZeroAddress();
         _;
     }
 
     modifier onlyDaoAdmin(string calldata tDAOName) {
-        if (DAODatas[tDAOName].prePaymentAdmin != msg.sender) {
+        if (DAODatas[tDAOName].prePaymentAdmin != msg.sender)
             revert ReferralGateway__onlyDaoAdmin();
-        }
         _;
     }
 
@@ -210,13 +207,10 @@ contract ReferralGateway is
     function prePayment(uint256 contribution, string calldata tDAOName, address parent) external {
         tDAO memory dao = DAODatas[tDAOName];
         // Initial checks
-        if (!dao.isPreJoinEnabled) {
-            revert ReferralGateway__NotAllowedToPrePay();
-        }
+        if (!dao.isPreJoinEnabled) revert ReferralGateway__NotAllowedToPrePay();
 
-        if (contribution < MINIMUM_CONTRIBUTION || contribution > MAXIMUM_CONTRIBUTION) {
+        if (contribution < MINIMUM_CONTRIBUTION || contribution > MAXIMUM_CONTRIBUTION)
             revert ReferralGateway__ContributionOutOfRange();
-        }
 
         // Calculate the fee and create the new pre-paid member
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
@@ -241,24 +235,22 @@ contract ReferralGateway is
         for (int256 i; i < MAX_TIER; ++i) {
             // We check if the current child has a parent and if the parent is already KYCed
             if (
-                prepaidMembers[currentChildToCheck].parent != address(0) &&
-                isChildKYCed[prepaidMembers[currentChildToCheck].parent]
+                prepaidMembers[currentChildToCheck].parent == address(0) ||
+                !isChildKYCed[prepaidMembers[currentChildToCheck].parent]
             ) {
-                int256 layer = i + 1;
-                uint256 currentParentRewardRatio = _referralRewardRatioByLayer(layer);
-                uint256 currentParentReward = (contribution * currentParentRewardRatio) /
-                    (100 * DECIMAL_CORRECTION);
-                address childParent = prepaidMembers[currentChildToCheck].parent;
-                // And we store the parent reward and the reward to the parent layer
-                parentRewardsByChild[childParent][msg.sender] = currentParentReward;
-                parentRewardsByLayer[childParent][uint256(layer)] += currentParentReward;
-
-                // Lastly, we update the currentChildToCheck variable
-                currentChildToCheck = childParent;
-            } else {
-                // Otherwise, we break the loop
                 break;
             }
+            int256 layer = i + 1;
+            uint256 currentParentRewardRatio = _referralRewardRatioByLayer(layer);
+            uint256 currentParentReward = (contribution * currentParentRewardRatio) /
+                (100 * DECIMAL_CORRECTION);
+            address childParent = prepaidMembers[currentChildToCheck].parent;
+            // And we store the parent reward and the reward to the parent layer
+            parentRewardsByChild[childParent][msg.sender] = currentParentReward;
+            parentRewardsByLayer[childParent][uint256(layer)] += currentParentReward;
+
+            // Lastly, we update the currentChildToCheck variable
+            currentChildToCheck = childParent;
         }
 
         // Update the values for the DAO
@@ -277,13 +269,10 @@ contract ReferralGateway is
         // Initial checks
         PrepaidMember memory member = prepaidMembers[child];
         // Can not KYC a member that is already KYCed
-        if (isChildKYCed[child]) {
-            revert ReferralGateway__MemberAlreadyKYCed();
-        }
+        if (isChildKYCed[child]) revert ReferralGateway__MemberAlreadyKYCed();
+
         // The member must have already pre-paid
-        if (member.contributionBeforeFee == 0) {
-            revert ReferralGateway__HasNotPaid();
-        }
+        if (member.contributionBeforeFee == 0) revert ReferralGateway__HasNotPaid();
 
         // Update the KYC status
         isChildKYCed[child] = true;
@@ -291,9 +280,8 @@ contract ReferralGateway is
         address parent = member.parent;
 
         for (uint256 i; i < uint256(MAX_TIER); ++i) {
-            if (parent == address(0)) {
-                break;
-            }
+            if (parent == address(0)) break;
+
             uint256 parentReward = parentRewardsByChild[parent][child];
 
             parentRewardsByChild[parent][child] = 0;
@@ -320,12 +308,9 @@ contract ReferralGateway is
         PrepaidMember memory member = prepaidMembers[newMember];
         tDAO memory dao = DAODatas[member.tDAOName];
 
-        if (dao.daoAddress == address(0)) {
-            revert ReferralGateway__tDAOAddressNotAssignedYet();
-        }
-        if (!isChildKYCed[member.child]) {
-            revert ReferralGateway__NotKYCed();
-        }
+        if (dao.daoAddress == address(0)) revert ReferralGateway__tDAOAddressNotAssignedYet();
+
+        if (!isChildKYCed[member.child]) revert ReferralGateway__NotKYCed();
 
         // Finally, we join the member to the tDAO
         ITakasurePool(dao.daoAddress).joinByReferral(
