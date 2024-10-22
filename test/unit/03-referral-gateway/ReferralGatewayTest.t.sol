@@ -40,7 +40,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     uint256 public constant LAYER_TWO_REWARD_RATIO = 1; // Layer two reward ratio 1%
     uint256 public constant LAYER_THREE_REWARD_RATIO = 35; // Layer three reward ratio 0.35%
     uint256 public constant LAYER_FOUR_REWARD_RATIO = 175; // Layer four reward ratio 0.175%
-    uint256 public constant DISCOUNT_RATIO = 5; // 5%
+    uint256 public constant DISCOUNT_RATIO = 10; // 10%
 
     bytes32 private constant REFERRAL = keccak256("REFERRAL");
 
@@ -192,7 +192,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 collectedFees = fees - ((CONTRIBUTION_AMOUNT * DISCOUNT_RATIO) / 100);
 
         assertEq(referralGateway.getDaoData(tDaoName).collectedFees, collectedFees);
-        assertEq(collectedFees, 4_250_000);
+        assertEq(collectedFees, 3_000_000);
     }
 
     function testPrePaymentParentIsNotMember() public createDao {
@@ -209,7 +209,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 collectedFees = fees - ((CONTRIBUTION_AMOUNT * DISCOUNT_RATIO) / 100);
 
         assertEq(referralGateway.getDaoData(tDaoName).collectedFees, collectedFees);
-        assertEq(collectedFees, 4_250_000);
+        assertEq(collectedFees, 3_000_000);
         assertEq(referralGateway.parentRewardsByChild(referral, child), expectedParentReward);
     }
 
@@ -251,7 +251,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     function testPrePaymentParentIsMember() public createDao referralPrepays kycReferral {
         // Already collected fees with the modifiers logic
         uint256 alreadyCollectedFees = referralGateway.getDaoData(tDaoName).collectedFees;
-        assertEq(alreadyCollectedFees, 4_250_000);
+        assertEq(alreadyCollectedFees, 3_000_000);
 
         uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
 
@@ -263,7 +263,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees - ((CONTRIBUTION_AMOUNT * DISCOUNT_RATIO) / 100);
 
-        assertEq(collectedFees, 4_250_000);
+        assertEq(collectedFees, 3_000_000);
         assertEq(
             referralGateway.getDaoData(tDaoName).collectedFees,
             collectedFees + alreadyCollectedFees
