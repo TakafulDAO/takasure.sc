@@ -352,19 +352,29 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referredPrepays
         referredIsKyc
     {
+        address rePool = makeAddr("rePool");
         uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
         uint256 collectedFees = referralGateway.getDaoData(tDaoName).collectedFees;
+        uint256 operatorFees = referralGateway.getDaoData(tDaoName).feeToOperator;
+        uint256 rePoolFees = referralGateway.getDaoData(tDaoName).feeToRepool;
         uint256 takadaoInitialBalance = usdc.balanceOf(address(takadao));
+        uint256 rePoolInitialBalance = usdc.balanceOf(rePool);
 
-        vm.prank(takadao);
+        vm.prank(referralGateway.getDaoData(tDaoName).prePaymentAdmin);
+        referralGateway.assignRePoolAddress(tDaoName, rePool);
+
+        vm.startPrank(takadao);
         referralGateway.withdrawFees(tDaoName);
+        vm.stopPrank();
 
         uint256 referralGatewayFinalBalance = usdc.balanceOf(address(referralGateway));
         uint256 takadaoFinalBalance = usdc.balanceOf(address(takadao));
+        uint256 rePoolFinalBalance = usdc.balanceOf(rePool);
 
         assertEq(referralGatewayFinalBalance, referralGatewayInitialBalance - collectedFees);
         assertEq(referralGateway.getDaoData(tDaoName).collectedFees, 0);
-        assertEq(takadaoFinalBalance, takadaoInitialBalance + collectedFees);
+        assertEq(takadaoFinalBalance, takadaoInitialBalance + operatorFees);
+        assertEq(rePoolFinalBalance, rePoolInitialBalance + rePoolFees);
     }
 
     /*//////////////////////////////////////////////////////////////

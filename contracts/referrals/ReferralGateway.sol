@@ -35,6 +35,7 @@ contract ReferralGateway is
     uint8 public constant SERVICE_FEE_RATIO = 22;
     uint256 public constant CONTRIBUTION_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
     uint256 public constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
+    uint256 public constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
     uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
     // For the referrals reward ratio
@@ -74,10 +75,13 @@ contract ReferralGateway is
         bool isPreJoinEnabled;
         address prePaymentAdmin; // The one that can modify the DAO settings
         address daoAddress; // To be assigned when the tDAO is deployed
+        address rePoolAddress; // To be assigned when the tDAO is deployed
         uint256 launchDate; // in seconds
         uint256 objectiveAmount; // in USDC, six decimals
         uint256 currentAmount; // in USDC, six decimals
         uint256 collectedFees; // in USDC, six decimals
+        uint256 feeToRepool; // in USDC, six decimals
+        uint256 feeToOperator; // in USDC, six decimals
     }
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
@@ -160,10 +164,13 @@ contract ReferralGateway is
             isPreJoinEnabled: _isPreJoinEnabled,
             prePaymentAdmin: msg.sender,
             daoAddress: address(0), // To be assigned when the tDAO is deployed
+            rePoolAddress: address(0), // To be assigned when the tDAO is deployed
             launchDate: launchDate, // in seconds
             objectiveAmount: objectiveAmount,
             currentAmount: 0,
-            collectedFees: 0
+            collectedFees: 0,
+            feeToRepool: 0,
+            feeToOperator: 0
         });
 
         // Update the necessary mappings
@@ -192,6 +199,17 @@ contract ReferralGateway is
         address tdaoAddress
     ) external notZeroAddress(tdaoAddress) onlyDaoAdmin(tDAOName) {
         DAODatas[tDAOName].daoAddress = tdaoAddress;
+    }
+
+    /**
+     * @notice Assign a rePool address to a tDAO name
+     * @param tDAOName The name of the tDAO
+     */
+    function assignRePoolAddress(
+        string calldata tDAOName,
+        address rePoolAddress
+    ) external notZeroAddress(rePoolAddress) onlyDaoAdmin(tDAOName) {
+        DAODatas[tDAOName].rePoolAddress = rePoolAddress;
     }
 
     /**
@@ -224,6 +242,7 @@ contract ReferralGateway is
             revert ReferralGateway__ContributionOutOfRange();
         // Calculate the fee and create the new pre-paid member
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
+        uint256 rePoolFee = (contribution * REPOOL_FEE_RATIO) / 100;
         uint256 discount = (contribution * CONTRIBUTION_DISCOUNT_RATIO) / 100;
         uint256 amountToTransfer = contribution - discount;
 
@@ -260,13 +279,12 @@ contract ReferralGateway is
                 ) {
                     break;
                 }
-                int256 layer = i + 1;
-                uint256 currentParentReward = (contribution * _referralRewardRatioByLayer(layer)) /
+                uint256 currentParentReward = (contribution * _referralRewardRatioByLayer(i + 1)) /
                     (100 * DECIMAL_CORRECTION);
                 address currentChildParent = prepaidMembers[currentChildToCheck].parent;
                 // And we store the parent reward and the reward to the parent layer
                 parentRewardsByChild[currentChildParent][msg.sender] = currentParentReward;
-                parentRewardsByLayer[currentChildParent][uint256(layer)] += currentParentReward;
+                parentRewardsByLayer[currentChildParent][uint256(i + 1)] += currentParentReward;
                 // This rewards are taken from the fee
                 fee -= currentParentReward;
                 // Lastly, we update the currentChildToCheck variable
@@ -282,6 +300,8 @@ contract ReferralGateway is
 
         // Update the values for the DAO
         DAODatas[tDAOName].collectedFees += fee;
+        DAODatas[tDAOName].feeToRepool += rePoolFee;
+        DAODatas[tDAOName].feeToOperator += fee - rePoolFee;
         DAODatas[tDAOName].currentAmount += amountToTransfer;
 
         // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
@@ -377,9 +397,21 @@ contract ReferralGateway is
     }
 
     function withdrawFees(string calldata tDAOName) external onlyRole(OPERATOR) {
-        uint256 _collectedFees = DAODatas[tDAOName].collectedFees;
-        DAODatas[tDAOName].collectedFees = 0;
-        usdc.safeTransfer(operator, _collectedFees);
+        uint256 _feeToOperator = DAODatas[tDAOName].feeToOperator;
+        uint256 _feeToRepool = DAODatas[tDAOName].feeToRepool;
+        if (_feeToOperator > 0) {
+            DAODatas[tDAOName].collectedFees -= _feeToOperator;
+            DAODatas[tDAOName].feeToOperator = 0;
+            usdc.safeTransfer(operator, _feeToOperator);
+        }
+        if (_feeToRepool > 0) {
+            address _rePoolAddress = DAODatas[tDAOName].rePoolAddress;
+            if (_rePoolAddress != address(0)) {
+                DAODatas[tDAOName].collectedFees -= _feeToRepool;
+                DAODatas[tDAOName].feeToRepool = 0;
+                usdc.safeTransfer(_rePoolAddress, _feeToRepool);
+            }
+        }
     }
 
     function getDaoData(string calldata tDAOName) external view returns (tDAO memory) {
