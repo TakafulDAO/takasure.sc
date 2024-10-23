@@ -229,9 +229,6 @@ contract ReferralGateway is
 
         prepaidMembers[msg.sender] = prepaidMember;
 
-        // We transfer the contribution to the contract, this way we have funds to pay the parent rewards
-        usdc.safeTransferFrom(msg.sender, address(this), contribution - discount);
-
         address currentChildToCheck = msg.sender;
         for (int256 i; i < MAX_TIER; ++i) {
             // We check if the current child has a parent and if the parent is already KYCed
@@ -253,6 +250,9 @@ contract ReferralGateway is
             // Lastly, we update the currentChildToCheck variable
             currentChildToCheck = childParent;
         }
+
+        // We transfer the contribution to the contract, this way we have funds to pay the parent rewards
+        usdc.safeTransferFrom(msg.sender, address(this), contribution - discount);
 
         // Update the values for the DAO
         DAODatas[tDAOName].collectedFees += fee - discount;
