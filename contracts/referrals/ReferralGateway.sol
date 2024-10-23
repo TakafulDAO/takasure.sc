@@ -73,7 +73,7 @@ contract ReferralGateway is
     struct tDAO {
         string name;
         bool isPreJoinEnabled;
-        address prePaymentAdmin; // The one that can modify the DAO settings
+        address prepaymentAdmin; // The one that can modify the DAO settings
         address DAOAddress; // To be assigned when the tDAO is deployed
         address rePoolAddress; // To be assigned when the tDAO is deployed
         uint256 launchDate; // in seconds
@@ -87,7 +87,7 @@ contract ReferralGateway is
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewReferral(address indexed referral);
     event OnNewCofounderOfChange(address indexed cofounderOfChange);
-    event OnPrePayment(address indexed parent, address indexed child, uint256 indexed contribution);
+    event Onprepayment(address indexed parent, address indexed child, uint256 indexed contribution);
     event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
     event OnChildKycVerified(address indexed child);
     event OnBenefitMultiplierConsumerChanged(
@@ -111,7 +111,7 @@ contract ReferralGateway is
     }
 
     modifier onlyDAOAdmin(string calldata tDAOName) {
-        if (nameToDAOData[tDAOName].prePaymentAdmin != msg.sender)
+        if (nameToDAOData[tDAOName].prepaymentAdmin != msg.sender)
             revert ReferralGateway__onlyDAOAdmin();
         _;
     }
@@ -162,7 +162,7 @@ contract ReferralGateway is
         tDAO memory DAO = tDAO({
             name: DAOName, // To be used as a key
             isPreJoinEnabled: _isPreJoinEnabled,
-            prePaymentAdmin: msg.sender,
+            prepaymentAdmin: msg.sender,
             DAOAddress: address(0), // To be assigned when the tDAO is deployed
             rePoolAddress: address(0), // To be assigned when the tDAO is deployed
             launchDate: launchDate, // in seconds
@@ -234,7 +234,7 @@ contract ReferralGateway is
      * @dev The contribution must be between 25 and 250 USDC
      * @dev The parent reward ratio depends on the parent role
      */
-    function prePayment(uint256 contribution, string calldata tDAOName, address parent) external {
+    function prepayment(uint256 contribution, string calldata tDAOName, address parent) external {
         tDAO memory DAO = nameToDAOData[tDAOName];
         // Initial checks
         if (!DAO.isPreJoinEnabled) revert ReferralGateway__NotAllowedToPrePay();
@@ -307,7 +307,7 @@ contract ReferralGateway is
         // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
         _getBenefitMultiplierFromOracle(msg.sender);
 
-        emit OnPrePayment(parent, msg.sender, contribution);
+        emit Onprepayment(parent, msg.sender, contribution);
     }
 
     /**

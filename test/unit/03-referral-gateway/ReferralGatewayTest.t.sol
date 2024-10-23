@@ -46,7 +46,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewReferralProposal(address indexed proposedReferral);
     event OnNewReferral(address indexed referral);
-    event OnPrePayment(address indexed parent, address indexed child, uint256 indexed contribution);
+    event Onprepayment(address indexed parent, address indexed child, uint256 indexed contribution);
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
     event OnNewDaoCreated(string indexed daoName);
     event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
@@ -112,7 +112,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(referralGateway.getDAOData(tDaoName).name, tDaoName);
         assertEq(referralGateway.getDAOData(tDaoName).isPreJoinEnabled, true);
-        assertEq(referralGateway.getDAOData(tDaoName).prePaymentAdmin, daoAdmin);
+        assertEq(referralGateway.getDAOData(tDaoName).prepaymentAdmin, daoAdmin);
         assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(0));
         assertEq(referralGateway.getDAOData(tDaoName).launchDate, 0);
         assertEq(referralGateway.getDAOData(tDaoName).objectiveAmount, 100e6);
@@ -156,22 +156,22 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
 
-    function testMustRevertIfPrePaymentIsDisabled() public createDao {
+    function testMustRevertIfprepaymentIsDisabled() public createDao {
         vm.prank(daoAdmin);
         referralGateway.setPreJoinEnabled(tDaoName, false);
 
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__NotAllowedToPrePay.selector);
-        referralGateway.prePayment(25e6, tDaoName, referral);
+        referralGateway.prepayment(25e6, tDaoName, referral);
     }
 
-    function testMustRevertIfPrePaymentContributionIsOutOfRange() public createDao {
+    function testMustRevertIfprepaymentContributionIsOutOfRange() public createDao {
         vm.startPrank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__ContributionOutOfRange.selector);
-        referralGateway.prePayment(20e6, tDaoName, referral);
+        referralGateway.prepayment(20e6, tDaoName, referral);
 
         vm.expectRevert(ReferralGateway.ReferralGateway__ContributionOutOfRange.selector);
-        referralGateway.prePayment(300e6, tDaoName, referral);
+        referralGateway.prepayment(300e6, tDaoName, referral);
         vm.stopPrank();
     }
 
@@ -179,13 +179,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                      PREPAYS WITHOUT VALID REFERRAL
     //////////////////////////////////////////////////////////////*/
 
-    function testPrePaymentWithoutParent() public createDao {
+    function testprepaymentWithoutParent() public createDao {
         assertEq(referralGateway.getDAOData(tDaoName).collectedFees, 0);
 
         vm.prank(child);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrePayment(address(0), child, CONTRIBUTION_AMOUNT);
-        referralGateway.prePayment(CONTRIBUTION_AMOUNT, tDaoName, address(0));
+        emit Onprepayment(address(0), child, CONTRIBUTION_AMOUNT);
+        referralGateway.prepayment(CONTRIBUTION_AMOUNT, tDaoName, address(0));
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees -
@@ -195,15 +195,15 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(collectedFees, 3_000_000);
     }
 
-    function testPrePaymentParentIsNotMember() public createDao {
+    function testprepaymentParentIsNotMember() public createDao {
         assertEq(referralGateway.getDAOData(tDaoName).collectedFees, 0);
 
         uint256 expectedParentReward = 0; // Because the parent is not a member yet
 
         vm.prank(child);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrePayment(referral, child, CONTRIBUTION_AMOUNT);
-        referralGateway.prePayment(CONTRIBUTION_AMOUNT, tDaoName, referral);
+        emit Onprepayment(referral, child, CONTRIBUTION_AMOUNT);
+        referralGateway.prepayment(CONTRIBUTION_AMOUNT, tDaoName, referral);
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees -
@@ -216,7 +216,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
     modifier referralPrepays() {
         vm.prank(referral);
-        referralGateway.prePayment(CONTRIBUTION_AMOUNT, tDaoName, address(0));
+        referralGateway.prepayment(CONTRIBUTION_AMOUNT, tDaoName, address(0));
         _;
     }
 
@@ -249,7 +249,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                       PREPAYS WITH VALID REFERRAL
     //////////////////////////////////////////////////////////////*/
 
-    function testPrePaymentParentIsMember() public createDao referralPrepays kycReferral {
+    function testprepaymentParentIsMember() public createDao referralPrepays kycReferral {
         // Already collected fees with the modifiers logic
         uint256 alreadyCollectedFees = referralGateway.getDAOData(tDaoName).collectedFees;
         assertEq(alreadyCollectedFees, 3_000_000);
@@ -258,8 +258,8 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         vm.prank(child);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrePayment(referral, child, CONTRIBUTION_AMOUNT);
-        referralGateway.prePayment(CONTRIBUTION_AMOUNT, tDaoName, referral);
+        emit Onprepayment(referral, child, CONTRIBUTION_AMOUNT);
+        referralGateway.prepayment(CONTRIBUTION_AMOUNT, tDaoName, referral);
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees -
@@ -276,7 +276,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
     modifier referredPrepays() {
         vm.prank(child);
-        referralGateway.prePayment(CONTRIBUTION_AMOUNT, tDaoName, referral);
+        referralGateway.prepayment(CONTRIBUTION_AMOUNT, tDaoName, referral);
 
         _;
     }
@@ -360,7 +360,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 takadaoInitialBalance = usdc.balanceOf(address(takadao));
         uint256 rePoolInitialBalance = usdc.balanceOf(rePool);
 
-        vm.prank(referralGateway.getDAOData(tDaoName).prePaymentAdmin);
+        vm.prank(referralGateway.getDAOData(tDaoName).prepaymentAdmin);
         referralGateway.assignRePoolAddress(tDaoName, rePool);
 
         vm.startPrank(takadao);
@@ -407,7 +407,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         // First Parent 1 becomes a member without a referral
         vm.prank(parentTier1);
-        referralGateway.prePayment(CONTRIBUTION_AMOUNT, tDaoName, address(0));
+        referralGateway.prepayment(CONTRIBUTION_AMOUNT, tDaoName, address(0));
         vm.prank(takadao);
         referralGateway.setKYCStatus(parentTier1);
 
@@ -415,7 +415,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 parentTier2Contribution = 5 * CONTRIBUTION_AMOUNT;
 
         vm.prank(parentTier2);
-        referralGateway.prePayment(parentTier2Contribution, tDaoName, parentTier1);
+        referralGateway.prepayment(parentTier2Contribution, tDaoName, parentTier1);
 
         // The expected parent 1 reward ratio will be 4% of the parent 2 contribution
         uint256 expectedParentOneReward = (parentTier2Contribution * LAYER_ONE_REWARD_RATIO) / 100;
@@ -429,7 +429,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 parentTier3Contribution = 2 * CONTRIBUTION_AMOUNT;
 
         vm.prank(parentTier3);
-        referralGateway.prePayment(parentTier3Contribution, tDaoName, parentTier2);
+        referralGateway.prepayment(parentTier3Contribution, tDaoName, parentTier2);
 
         // The expected parent 2 reward ratio will be 4% of the parent 2 contribution
         uint256 expectedParentTwoReward = (parentTier3Contribution * LAYER_ONE_REWARD_RATIO) / 100;
@@ -447,7 +447,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 parentTier4Contribution = 7 * CONTRIBUTION_AMOUNT;
 
         vm.prank(parentTier4);
-        referralGateway.prePayment(parentTier4Contribution, tDaoName, parentTier3);
+        referralGateway.prepayment(parentTier4Contribution, tDaoName, parentTier3);
 
         // The expected parent 3 reward ratio will be 4% of the parent 4 contribution
         uint256 expectedParentThreeReward = (parentTier4Contribution * LAYER_ONE_REWARD_RATIO) /
@@ -470,7 +470,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 childWithoutRefereeContribution = 4 * CONTRIBUTION_AMOUNT;
 
         vm.prank(childWithoutReferee);
-        referralGateway.prePayment(childWithoutRefereeContribution, tDaoName, parentTier4);
+        referralGateway.prepayment(childWithoutRefereeContribution, tDaoName, parentTier4);
 
         // The expected parent 4 reward ratio will be 4% of the child without referee contribution
         uint256 expectedParentFourReward = (childWithoutRefereeContribution *
@@ -523,7 +523,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         // First Parent 1 becomes a member without a referral
         vm.prank(parentTier1);
-        referralGateway.prePayment(CONTRIBUTION_AMOUNT, tDaoName, address(0));
+        referralGateway.prepayment(CONTRIBUTION_AMOUNT, tDaoName, address(0));
         vm.prank(takadao);
         referralGateway.setKYCStatus(parentTier1);
 
@@ -533,7 +533,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 parentTier2Contribution = 5 * CONTRIBUTION_AMOUNT;
 
         vm.prank(parentTier2);
-        referralGateway.prePayment(parentTier2Contribution, tDaoName, parentTier1);
+        referralGateway.prepayment(parentTier2Contribution, tDaoName, parentTier1);
 
         // The expected parent 1 reward ratio will be 4% of the parent 2 contribution
         uint256 expectedParentOneReward = (parentTier2Contribution * LAYER_ONE_REWARD_RATIO) / 100;
@@ -558,7 +558,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         expectedParentOneReward = (parentTier3Contribution * LAYER_TWO_REWARD_RATIO) / 100;
 
         vm.prank(parentTier3);
-        referralGateway.prePayment(parentTier3Contribution, tDaoName, parentTier2);
+        referralGateway.prepayment(parentTier3Contribution, tDaoName, parentTier2);
 
         assertEq(
             referralGateway.parentRewardsByChild(parentTier2, parentTier3),
@@ -583,7 +583,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         expectedParentOneReward = (parentTier4Contribution * LAYER_THREE_REWARD_RATIO) / 10000;
 
         vm.prank(parentTier4);
-        referralGateway.prePayment(parentTier4Contribution, tDaoName, parentTier3);
+        referralGateway.prepayment(parentTier4Contribution, tDaoName, parentTier3);
 
         assertEq(
             referralGateway.parentRewardsByChild(parentTier3, parentTier4),
@@ -609,7 +609,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         expectedParentOneReward = (CONTRIBUTION_AMOUNT * LAYER_FOUR_REWARD_RATIO) / 100000;
 
         vm.prank(childWithoutReferee);
-        referralGateway.prePayment(CONTRIBUTION_AMOUNT, tDaoName, parentTier4);
+        referralGateway.prepayment(CONTRIBUTION_AMOUNT, tDaoName, parentTier4);
 
         assertEq(
             referralGateway.parentRewardsByChild(parentTier4, childWithoutReferee),
