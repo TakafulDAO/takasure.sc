@@ -74,7 +74,7 @@ contract ReferralGateway is
         string name;
         bool isPreJoinEnabled;
         address prePaymentAdmin; // The one that can modify the DAO settings
-        address daoAddress; // To be assigned when the tDAO is deployed
+        address DAOAddress; // To be assigned when the tDAO is deployed
         address rePoolAddress; // To be assigned when the tDAO is deployed
         uint256 launchDate; // in seconds
         uint256 objectiveAmount; // in USDC, six decimals
@@ -101,7 +101,7 @@ contract ReferralGateway is
     error ReferralGateway__NotAllowedToPrePay();
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAOAddressNotAssignedYet();
-    error ReferralGateway__onlyDaoAdmin();
+    error ReferralGateway__onlyDAOAdmin();
     error ReferralGateway__HasNotPaid();
     error ReferralGateway__BenefitMultiplierRequestFailed(bytes errorResponse);
 
@@ -110,9 +110,9 @@ contract ReferralGateway is
         _;
     }
 
-    modifier onlyDaoAdmin(string calldata tDAOName) {
+    modifier onlyDAOAdmin(string calldata tDAOName) {
         if (DAODatas[tDAOName].prePaymentAdmin != msg.sender)
-            revert ReferralGateway__onlyDaoAdmin();
+            revert ReferralGateway__onlyDAOAdmin();
         _;
     }
 
@@ -152,18 +152,18 @@ contract ReferralGateway is
      * @dev The objective amount must be in USDC, six decimals
      * @dev The objective amount can be 0, if the DAO is already launched or the objective amount is not defined
      */
-    function createDao(
+    function createDAO(
         string calldata DAOName,
         bool _isPreJoinEnabled,
         uint256 launchDate,
         uint256 objectiveAmount
     ) external {
         // Create the new DAO
-        tDAO memory dao = tDAO({
+        tDAO memory DAO = tDAO({
             name: DAOName, // To be used as a key
             isPreJoinEnabled: _isPreJoinEnabled,
             prePaymentAdmin: msg.sender,
-            daoAddress: address(0), // To be assigned when the tDAO is deployed
+            DAOAddress: address(0), // To be assigned when the tDAO is deployed
             rePoolAddress: address(0), // To be assigned when the tDAO is deployed
             launchDate: launchDate, // in seconds
             objectiveAmount: objectiveAmount,
@@ -174,7 +174,7 @@ contract ReferralGateway is
         });
 
         // Update the necessary mappings
-        DAODatas[dao.name] = dao;
+        DAODatas[DAO.name] = DAO;
     }
 
     /**
@@ -194,11 +194,11 @@ contract ReferralGateway is
      * @notice Assign a tDAO address to a tDAO name
      * @param tDAOName The name of the tDAO
      */
-    function assignTDaoAddress(
+    function assignTDAOAddress(
         string calldata tDAOName,
-        address tdaoAddress
-    ) external notZeroAddress(tdaoAddress) onlyDaoAdmin(tDAOName) {
-        DAODatas[tDAOName].daoAddress = tdaoAddress;
+        address tDAOAddress
+    ) external notZeroAddress(tDAOAddress) onlyDAOAdmin(tDAOName) {
+        DAODatas[tDAOName].DAOAddress = tDAOAddress;
     }
 
     /**
@@ -208,7 +208,7 @@ contract ReferralGateway is
     function assignRePoolAddress(
         string calldata tDAOName,
         address rePoolAddress
-    ) external notZeroAddress(rePoolAddress) onlyDaoAdmin(tDAOName) {
+    ) external notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName) {
         DAODatas[tDAOName].rePoolAddress = rePoolAddress;
     }
 
@@ -218,10 +218,10 @@ contract ReferralGateway is
      * @param launchDate The launch date of the tDAO
      * @dev The launch date must be in seconds
      */
-    function assignTDaoLaunchDate(
+    function assignTDAOLaunchDate(
         string calldata tDAOName,
         uint256 launchDate
-    ) external onlyDaoAdmin(tDAOName) {
+    ) external onlyDAOAdmin(tDAOName) {
         DAODatas[tDAOName].launchDate = launchDate;
     }
 
@@ -235,9 +235,9 @@ contract ReferralGateway is
      * @dev The parent reward ratio depends on the parent role
      */
     function prePayment(uint256 contribution, string calldata tDAOName, address parent) external {
-        tDAO memory dao = DAODatas[tDAOName];
+        tDAO memory DAO = DAODatas[tDAOName];
         // Initial checks
-        if (!dao.isPreJoinEnabled) revert ReferralGateway__NotAllowedToPrePay();
+        if (!DAO.isPreJoinEnabled) revert ReferralGateway__NotAllowedToPrePay();
         if (contribution < MINIMUM_CONTRIBUTION || contribution > MAXIMUM_CONTRIBUTION)
             revert ReferralGateway__ContributionOutOfRange();
         // Calculate the fee and create the new pre-paid member
@@ -253,8 +253,8 @@ contract ReferralGateway is
             tDAOName: tDAOName,
             child: msg.sender,
             parent: parent,
-            contributionBeforeFee: contribution, // Input value, we need it like this for the actual join when the dao is deployed
-            contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the dao is deployed
+            contributionBeforeFee: contribution, // Input value, we need it like this for the actual join when the DAO is deployed
+            contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the DAO is deployed
             actualFee: fee, // For now only the fee - discount
             discount: discount // For now only the discount. 10% of the contribution for every pre-payment
         });
@@ -353,29 +353,29 @@ contract ReferralGateway is
      * @dev The member must have a parent
      * @dev The member must have a tDAO assigned
      */
-    function joinDao(address newMember) external nonReentrant {
+    function joinDAO(address newMember) external nonReentrant {
         // Initial checks
         PrepaidMember memory member = prepaidMembers[newMember];
-        tDAO memory dao = DAODatas[member.tDAOName];
+        tDAO memory DAO = DAODatas[member.tDAOName];
 
-        if (dao.daoAddress == address(0)) revert ReferralGateway__tDAOAddressNotAssignedYet();
+        if (DAO.DAOAddress == address(0)) revert ReferralGateway__tDAOAddressNotAssignedYet();
 
         if (!isChildKYCed[member.child]) revert ReferralGateway__NotKYCed();
 
         // Finally, we join the member to the tDAO
-        ITakasurePool(dao.daoAddress).joinByReferral(
+        ITakasurePool(DAO.DAOAddress).joinByReferral(
             newMember,
             member.contributionBeforeFee,
             member.contributionAfterFee
         );
 
-        usdc.safeTransfer(dao.daoAddress, member.contributionAfterFee);
+        usdc.safeTransfer(DAO.DAOAddress, member.contributionAfterFee);
     }
 
     function setPreJoinEnabled(
         string calldata tDAOName,
         bool _isPreJoinEnabled
-    ) external onlyDaoAdmin(tDAOName) {
+    ) external onlyDAOAdmin(tDAOName) {
         DAODatas[tDAOName].isPreJoinEnabled = _isPreJoinEnabled;
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
     }
@@ -414,7 +414,7 @@ contract ReferralGateway is
         }
     }
 
-    function getDaoData(string calldata tDAOName) external view returns (tDAO memory) {
+    function getDAOData(string calldata tDAOName) external view returns (tDAO memory) {
         return DAODatas[tDAOName];
     }
 

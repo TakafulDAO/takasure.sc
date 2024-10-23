@@ -108,20 +108,20 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(daoAdmin);
         // vm.expectEmit(true, false, false, false, address(takasurePool));
         // emit OnNewDaoCreated(tDaoName);
-        referralGateway.createDao(tDaoName, true, 0, 100e6);
+        referralGateway.createDAO(tDaoName, true, 0, 100e6);
 
-        assertEq(referralGateway.getDaoData(tDaoName).name, tDaoName);
-        assertEq(referralGateway.getDaoData(tDaoName).isPreJoinEnabled, true);
-        assertEq(referralGateway.getDaoData(tDaoName).prePaymentAdmin, daoAdmin);
-        assertEq(referralGateway.getDaoData(tDaoName).daoAddress, address(0));
-        assertEq(referralGateway.getDaoData(tDaoName).launchDate, 0);
-        assertEq(referralGateway.getDaoData(tDaoName).objectiveAmount, 100e6);
-        assertEq(referralGateway.getDaoData(tDaoName).currentAmount, 0);
+        assertEq(referralGateway.getDAOData(tDaoName).name, tDaoName);
+        assertEq(referralGateway.getDAOData(tDaoName).isPreJoinEnabled, true);
+        assertEq(referralGateway.getDAOData(tDaoName).prePaymentAdmin, daoAdmin);
+        assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(0));
+        assertEq(referralGateway.getDAOData(tDaoName).launchDate, 0);
+        assertEq(referralGateway.getDAOData(tDaoName).objectiveAmount, 100e6);
+        assertEq(referralGateway.getDAOData(tDaoName).currentAmount, 0);
     }
 
     modifier createDao() {
         vm.prank(daoAdmin);
-        referralGateway.createDao(tDaoName, true, 1743479999, 1e12);
+        referralGateway.createDAO(tDaoName, true, 1743479999, 1e12);
         _;
     }
 
@@ -129,26 +129,26 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
     function testSetIsPreJoinEnabled() public createDao {
-        assert(referralGateway.getDaoData(tDaoName).isPreJoinEnabled);
+        assert(referralGateway.getDAOData(tDaoName).isPreJoinEnabled);
 
         vm.prank(daoAdmin);
         vm.expectEmit(true, false, false, false, address(referralGateway));
         emit OnPreJoinEnabledChanged(false);
         referralGateway.setPreJoinEnabled(tDaoName, false);
 
-        assert(!referralGateway.getDaoData(tDaoName).isPreJoinEnabled);
+        assert(!referralGateway.getDAOData(tDaoName).isPreJoinEnabled);
     }
 
     function testAssignTDAOAddress() public createDao {
-        assertEq(referralGateway.getDaoData(tDaoName).daoAddress, address(0));
+        assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(0));
         vm.prank(daoAdmin);
-        referralGateway.assignTDaoAddress(tDaoName, address(takasurePool));
-        assertEq(referralGateway.getDaoData(tDaoName).daoAddress, address(takasurePool));
+        referralGateway.assignTDAOAddress(tDaoName, address(takasurePool));
+        assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(takasurePool));
     }
 
     modifier assignTDAOAddress() {
         vm.prank(daoAdmin);
-        referralGateway.assignTDaoAddress(tDaoName, address(takasurePool));
+        referralGateway.assignTDAOAddress(tDaoName, address(takasurePool));
         _;
     }
 
@@ -180,7 +180,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
 
     function testPrePaymentWithoutParent() public createDao {
-        assertEq(referralGateway.getDaoData(tDaoName).collectedFees, 0);
+        assertEq(referralGateway.getDAOData(tDaoName).collectedFees, 0);
 
         vm.prank(child);
         vm.expectEmit(true, true, true, false, address(referralGateway));
@@ -191,12 +191,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 collectedFees = fees -
             ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_DISCOUNT_RATIO()) / 100);
 
-        assertEq(referralGateway.getDaoData(tDaoName).collectedFees, collectedFees);
+        assertEq(referralGateway.getDAOData(tDaoName).collectedFees, collectedFees);
         assertEq(collectedFees, 3_000_000);
     }
 
     function testPrePaymentParentIsNotMember() public createDao {
-        assertEq(referralGateway.getDaoData(tDaoName).collectedFees, 0);
+        assertEq(referralGateway.getDAOData(tDaoName).collectedFees, 0);
 
         uint256 expectedParentReward = 0; // Because the parent is not a member yet
 
@@ -209,7 +209,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 collectedFees = fees -
             ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_DISCOUNT_RATIO()) / 100);
 
-        assertEq(referralGateway.getDaoData(tDaoName).collectedFees, collectedFees);
+        assertEq(referralGateway.getDAOData(tDaoName).collectedFees, collectedFees);
         assertEq(collectedFees, 3_000_000);
         assertEq(referralGateway.parentRewardsByChild(referral, child), expectedParentReward);
     }
@@ -251,7 +251,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
     function testPrePaymentParentIsMember() public createDao referralPrepays kycReferral {
         // Already collected fees with the modifiers logic
-        uint256 alreadyCollectedFees = referralGateway.getDaoData(tDaoName).collectedFees;
+        uint256 alreadyCollectedFees = referralGateway.getDAOData(tDaoName).collectedFees;
         assertEq(alreadyCollectedFees, 3_000_000);
 
         uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
@@ -267,7 +267,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(collectedFees, 3_000_000);
         assertEq(
-            referralGateway.getDaoData(tDaoName).collectedFees,
+            referralGateway.getDAOData(tDaoName).collectedFees,
             collectedFees + alreadyCollectedFees - expectedParentReward
         );
         assertEq(referralGateway.parentRewardsByChild(referral, child), expectedParentReward);
@@ -301,7 +301,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__tDAOAddressNotAssignedYet.selector);
         emit OnMemberJoined(2, child);
-        referralGateway.joinDao(child);
+        referralGateway.joinDAO(child);
     }
 
     function testMustRevertJoinPoolIfTheChildIsNotKYC()
@@ -315,7 +315,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__NotKYCed.selector);
         emit OnMemberJoined(2, child);
-        referralGateway.joinDao(child);
+        referralGateway.joinDAO(child);
     }
 
     function testJoinPool()
@@ -332,7 +332,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(child);
         vm.expectEmit(true, true, false, false, address(takasurePool));
         emit OnMemberJoined(2, child);
-        referralGateway.joinDao(child);
+        referralGateway.joinDAO(child);
         uint256 referralGatewayFinalBalance = usdc.balanceOf(address(referralGateway));
         uint256 takasurePoolFinalBalance = usdc.balanceOf(address(takasurePool));
         assert(referralGatewayFinalBalance < referralGatewayInitialBalance);
@@ -354,13 +354,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     {
         address rePool = makeAddr("rePool");
         uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
-        uint256 collectedFees = referralGateway.getDaoData(tDaoName).collectedFees;
-        uint256 operatorFees = referralGateway.getDaoData(tDaoName).feeToOperator;
-        uint256 rePoolFees = referralGateway.getDaoData(tDaoName).feeToRepool;
+        uint256 collectedFees = referralGateway.getDAOData(tDaoName).collectedFees;
+        uint256 operatorFees = referralGateway.getDAOData(tDaoName).feeToOperator;
+        uint256 rePoolFees = referralGateway.getDAOData(tDaoName).feeToRepool;
         uint256 takadaoInitialBalance = usdc.balanceOf(address(takadao));
         uint256 rePoolInitialBalance = usdc.balanceOf(rePool);
 
-        vm.prank(referralGateway.getDaoData(tDaoName).prePaymentAdmin);
+        vm.prank(referralGateway.getDAOData(tDaoName).prePaymentAdmin);
         referralGateway.assignRePoolAddress(tDaoName, rePool);
 
         vm.startPrank(takadao);
@@ -372,7 +372,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 rePoolFinalBalance = usdc.balanceOf(rePool);
 
         assertEq(referralGatewayFinalBalance, referralGatewayInitialBalance - collectedFees);
-        assertEq(referralGateway.getDaoData(tDaoName).collectedFees, 0);
+        assertEq(referralGateway.getDAOData(tDaoName).collectedFees, 0);
         assertEq(takadaoFinalBalance, takadaoInitialBalance + operatorFees);
         assertEq(rePoolFinalBalance, rePoolInitialBalance + rePoolFees);
     }
