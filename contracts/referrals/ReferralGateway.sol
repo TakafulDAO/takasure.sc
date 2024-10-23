@@ -30,7 +30,8 @@ contract ReferralGateway is
     IERC20 public usdc;
 
     uint8 public constant SERVICE_FEE_RATIO = 22;
-    uint256 public constant CONTRIBUTION_DISCOUNT_RATIO = 10;
+    uint256 public constant CONTRIBUTION_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
+    uint256 public constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
     // For the referrals reward ratio
