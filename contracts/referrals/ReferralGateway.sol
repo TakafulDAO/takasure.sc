@@ -137,7 +137,6 @@ contract ReferralGateway is
         bmConsumer = IBenefitMultiplierConsumer(_benefitMultiplierConsumer);
 
         operator = _operator;
-        // isPreJoinEnabled = true;
         usdc = IERC20(_usdcAddress);
     }
 
