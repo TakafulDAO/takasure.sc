@@ -268,7 +268,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(collectedFees, 3_000_000);
         assertEq(
             referralGateway.getDaoData(tDaoName).collectedFees,
-            collectedFees + alreadyCollectedFees
+            collectedFees + alreadyCollectedFees - expectedParentReward
         );
         assertEq(referralGateway.parentRewardsByChild(referral, child), expectedParentReward);
         assertEq(expectedParentReward, 1_000_000);

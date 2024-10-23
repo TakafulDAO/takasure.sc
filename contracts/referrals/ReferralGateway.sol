@@ -62,7 +62,7 @@ contract ReferralGateway is
         address parent;
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
-        uint256 actualFee;
+        uint256 actualFee; // Fee received in the contract
         uint256 discount;
     }
 
@@ -209,54 +209,69 @@ contract ReferralGateway is
         tDAO memory dao = DAODatas[tDAOName];
         // Initial checks
         if (!dao.isPreJoinEnabled) revert ReferralGateway__NotAllowedToPrePay();
-
         if (contribution < MINIMUM_CONTRIBUTION || contribution > MAXIMUM_CONTRIBUTION)
             revert ReferralGateway__ContributionOutOfRange();
-
         // Calculate the fee and create the new pre-paid member
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
         uint256 discount = (contribution * CONTRIBUTION_DISCOUNT_RATIO) / 100;
+        uint256 amountToTransfer = contribution - discount;
+
+        // The discount is deducted from the fee
+        fee -= discount;
 
         PrepaidMember memory prepaidMember = PrepaidMember({
             tDAOName: tDAOName,
             child: msg.sender,
             parent: parent,
-            contributionBeforeFee: contribution, // Input value
+            contributionBeforeFee: contribution, // Input value, we need it like this for the actual join when the dao is deployed
             contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the dao is deployed
-            actualFee: fee - discount, // The fee minus the discount
-            discount: discount // If has a parent, it is the discount. Otherwise, it is 0
+            actualFee: fee, // For now only the fee - discount
+            discount: discount // For now only the discount. 10% of the contribution for every pre-payment
         });
 
+        // We store the new member
         prepaidMembers[msg.sender] = prepaidMember;
 
-        address currentChildToCheck = msg.sender;
-        for (int256 i; i < MAX_TIER; ++i) {
-            // We check if the current child has a parent and if the parent is already KYCed
-            if (
-                prepaidMembers[currentChildToCheck].parent == address(0) ||
-                !isChildKYCed[prepaidMembers[currentChildToCheck].parent]
-            ) {
-                break;
-            }
-            int256 layer = i + 1;
-            uint256 currentParentRewardRatio = _referralRewardRatioByLayer(layer);
-            uint256 currentParentReward = (contribution * currentParentRewardRatio) /
-                (100 * DECIMAL_CORRECTION);
-            address childParent = prepaidMembers[currentChildToCheck].parent;
-            // And we store the parent reward and the reward to the parent layer
-            parentRewardsByChild[childParent][msg.sender] = currentParentReward;
-            parentRewardsByLayer[childParent][uint256(layer)] += currentParentReward;
+        // We check if the parent is valid
+        if (parent != address(0) && isChildKYCed[parent]) {
+            // We give an extra discount to the contribution
+            uint256 referralDiscount = (contribution * REFERRAL_DISCOUNT_RATIO) / 100;
 
-            // Lastly, we update the currentChildToCheck variable
-            currentChildToCheck = childParent;
+            // This discount is not deducted from the fee
+            prepaidMembers[msg.sender].discount += referralDiscount;
+            amountToTransfer -= referralDiscount;
+
+            address currentChildToCheck = msg.sender;
+            for (int256 i; i < MAX_TIER; ++i) {
+                if (
+                    prepaidMembers[currentChildToCheck].parent == address(0) ||
+                    !isChildKYCed[prepaidMembers[currentChildToCheck].parent]
+                ) {
+                    break;
+                }
+                int256 layer = i + 1;
+                uint256 currentParentReward = (contribution * _referralRewardRatioByLayer(layer)) /
+                    (100 * DECIMAL_CORRECTION);
+                address currentChildParent = prepaidMembers[currentChildToCheck].parent;
+                // And we store the parent reward and the reward to the parent layer
+                parentRewardsByChild[currentChildParent][msg.sender] = currentParentReward;
+                parentRewardsByLayer[currentChildParent][uint256(layer)] += currentParentReward;
+                // This rewards are taken from the fee
+                fee -= currentParentReward;
+                // Lastly, we update the currentChildToCheck variable
+                currentChildToCheck = currentChildParent;
+            }
         }
 
         // We transfer the contribution to the contract, this way we have funds to pay the parent rewards
-        usdc.safeTransferFrom(msg.sender, address(this), contribution - discount);
+        usdc.safeTransferFrom(msg.sender, address(this), amountToTransfer);
+
+        // We update the fee for the member
+        prepaidMembers[msg.sender].actualFee = fee;
 
         // Update the values for the DAO
-        DAODatas[tDAOName].collectedFees += fee - discount;
-        DAODatas[tDAOName].currentAmount += contribution;
+        DAODatas[tDAOName].collectedFees += fee;
+        DAODatas[tDAOName].currentAmount += amountToTransfer;
 
         emit OnPrePayment(parent, msg.sender, contribution);
     }
