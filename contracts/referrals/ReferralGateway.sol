@@ -57,7 +57,7 @@ contract ReferralGateway is
     mapping(address parent => mapping(uint256 layer => uint256 rewards))
         public parentRewardsByLayer;
     mapping(address child => PrepaidMember) public prepaidMembers;
-    mapping(string tDAOName => tDAO DAOData) private DAODatas;
+    mapping(string tDAOName => tDAO DAOData) private nameToDAOData;
     mapping(address child => bool) public isChildKYCed;
 
     struct PrepaidMember {
@@ -111,7 +111,7 @@ contract ReferralGateway is
     }
 
     modifier onlyDAOAdmin(string calldata tDAOName) {
-        if (DAODatas[tDAOName].prePaymentAdmin != msg.sender)
+        if (nameToDAOData[tDAOName].prePaymentAdmin != msg.sender)
             revert ReferralGateway__onlyDAOAdmin();
         _;
     }
@@ -174,7 +174,7 @@ contract ReferralGateway is
         });
 
         // Update the necessary mappings
-        DAODatas[DAO.name] = DAO;
+        nameToDAOData[DAO.name] = DAO;
     }
 
     /**
@@ -198,7 +198,7 @@ contract ReferralGateway is
         string calldata tDAOName,
         address tDAOAddress
     ) external notZeroAddress(tDAOAddress) onlyDAOAdmin(tDAOName) {
-        DAODatas[tDAOName].DAOAddress = tDAOAddress;
+        nameToDAOData[tDAOName].DAOAddress = tDAOAddress;
     }
 
     /**
@@ -209,7 +209,7 @@ contract ReferralGateway is
         string calldata tDAOName,
         address rePoolAddress
     ) external notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName) {
-        DAODatas[tDAOName].rePoolAddress = rePoolAddress;
+        nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
     }
 
     /**
@@ -222,7 +222,7 @@ contract ReferralGateway is
         string calldata tDAOName,
         uint256 launchDate
     ) external onlyDAOAdmin(tDAOName) {
-        DAODatas[tDAOName].launchDate = launchDate;
+        nameToDAOData[tDAOName].launchDate = launchDate;
     }
 
     /**
@@ -235,7 +235,7 @@ contract ReferralGateway is
      * @dev The parent reward ratio depends on the parent role
      */
     function prePayment(uint256 contribution, string calldata tDAOName, address parent) external {
-        tDAO memory DAO = DAODatas[tDAOName];
+        tDAO memory DAO = nameToDAOData[tDAOName];
         // Initial checks
         if (!DAO.isPreJoinEnabled) revert ReferralGateway__NotAllowedToPrePay();
         if (contribution < MINIMUM_CONTRIBUTION || contribution > MAXIMUM_CONTRIBUTION)
@@ -299,10 +299,10 @@ contract ReferralGateway is
         prepaidMembers[msg.sender].actualFee = fee;
 
         // Update the values for the DAO
-        DAODatas[tDAOName].collectedFees += fee;
-        DAODatas[tDAOName].feeToRepool += rePoolFee;
-        DAODatas[tDAOName].feeToOperator += fee - rePoolFee;
-        DAODatas[tDAOName].currentAmount += amountToTransfer;
+        nameToDAOData[tDAOName].collectedFees += fee;
+        nameToDAOData[tDAOName].feeToRepool += rePoolFee;
+        nameToDAOData[tDAOName].feeToOperator += fee - rePoolFee;
+        nameToDAOData[tDAOName].currentAmount += amountToTransfer;
 
         // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
         _getBenefitMultiplierFromOracle(msg.sender);
@@ -356,7 +356,7 @@ contract ReferralGateway is
     function joinDAO(address newMember) external nonReentrant {
         // Initial checks
         PrepaidMember memory member = prepaidMembers[newMember];
-        tDAO memory DAO = DAODatas[member.tDAOName];
+        tDAO memory DAO = nameToDAOData[member.tDAOName];
 
         if (DAO.DAOAddress == address(0)) revert ReferralGateway__tDAOAddressNotAssignedYet();
 
@@ -376,7 +376,7 @@ contract ReferralGateway is
         string calldata tDAOName,
         bool _isPreJoinEnabled
     ) external onlyDAOAdmin(tDAOName) {
-        DAODatas[tDAOName].isPreJoinEnabled = _isPreJoinEnabled;
+        nameToDAOData[tDAOName].isPreJoinEnabled = _isPreJoinEnabled;
         emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
     }
 
@@ -397,25 +397,25 @@ contract ReferralGateway is
     }
 
     function withdrawFees(string calldata tDAOName) external onlyRole(OPERATOR) {
-        uint256 _feeToOperator = DAODatas[tDAOName].feeToOperator;
-        uint256 _feeToRepool = DAODatas[tDAOName].feeToRepool;
+        uint256 _feeToOperator = nameToDAOData[tDAOName].feeToOperator;
+        uint256 _feeToRepool = nameToDAOData[tDAOName].feeToRepool;
         if (_feeToOperator > 0) {
-            DAODatas[tDAOName].collectedFees -= _feeToOperator;
-            DAODatas[tDAOName].feeToOperator = 0;
+            nameToDAOData[tDAOName].collectedFees -= _feeToOperator;
+            nameToDAOData[tDAOName].feeToOperator = 0;
             usdc.safeTransfer(operator, _feeToOperator);
         }
         if (_feeToRepool > 0) {
-            address _rePoolAddress = DAODatas[tDAOName].rePoolAddress;
+            address _rePoolAddress = nameToDAOData[tDAOName].rePoolAddress;
             if (_rePoolAddress != address(0)) {
-                DAODatas[tDAOName].collectedFees -= _feeToRepool;
-                DAODatas[tDAOName].feeToRepool = 0;
+                nameToDAOData[tDAOName].collectedFees -= _feeToRepool;
+                nameToDAOData[tDAOName].feeToRepool = 0;
                 usdc.safeTransfer(_rePoolAddress, _feeToRepool);
             }
         }
     }
 
     function getDAOData(string calldata tDAOName) external view returns (tDAO memory) {
-        return DAODatas[tDAOName];
+        return nameToDAOData[tDAOName];
     }
 
     /**
