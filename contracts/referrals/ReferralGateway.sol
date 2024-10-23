@@ -30,7 +30,8 @@ contract ReferralGateway is
     using SafeERC20 for IERC20;
 
     IERC20 public usdc;
-    IBenefitMultiplierConsumer private bmConsumer;
+
+    address private operator;
 
     uint8 public constant SERVICE_FEE_RATIO = 22;
     uint256 public constant CONTRIBUTION_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
@@ -46,8 +47,6 @@ contract ReferralGateway is
     int256 private constant D = 112_250;
     uint256 private constant DECIMAL_CORRECTION = 10_000;
 
-    address private operator;
-
     bytes32 private constant OPERATOR = keccak256("OPERATOR");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 private constant COFOUNDER_OF_CHANGE = keccak256("COFOUNDER_OF_CHANGE");
@@ -59,6 +58,8 @@ contract ReferralGateway is
     mapping(address child => PrepaidMember) public prepaidMembers;
     mapping(string tDAOName => tDAO DAOData) private nameToDAOData;
     mapping(address child => bool) public isChildKYCed;
+
+    IBenefitMultiplierConsumer private bmConsumer;
 
     struct PrepaidMember {
         string tDAOName;
@@ -75,13 +76,13 @@ contract ReferralGateway is
         bool isPreJoinEnabled;
         address prepaymentAdmin; // The one that can modify the DAO settings
         address DAOAddress; // To be assigned when the tDAO is deployed
-        address rePoolAddress; // To be assigned when the tDAO is deployed
         uint256 launchDate; // in seconds
         uint256 objectiveAmount; // in USDC, six decimals
         uint256 currentAmount; // in USDC, six decimals
         uint256 collectedFees; // in USDC, six decimals
-        uint256 feeToRepool; // in USDC, six decimals
         uint256 feeToOperator; // in USDC, six decimals
+        address rePoolAddress; // To be assigned when the tDAO is deployed
+        uint256 feeToRepool; // in USDC, six decimals
     }
 
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
