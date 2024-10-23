@@ -7,9 +7,6 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 
 contract DeployConsumerMocks is Script {
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
-
     function run() external returns (BenefitMultiplierConsumerMock) {
         HelperConfig helperConfig = new HelperConfig();
 
@@ -17,7 +14,7 @@ contract DeployConsumerMocks is Script {
 
         vm.startBroadcast();
 
-        BenefitMultiplierConsumerMock bmConnsumerMock = new BenefitMultiplierConsumerMock(
+        BenefitMultiplierConsumerMock bmConsumerMock = new BenefitMultiplierConsumerMock(
             config.functionsRouter,
             config.donId,
             config.gasLimit,
@@ -26,6 +23,6 @@ contract DeployConsumerMocks is Script {
 
         vm.stopBroadcast();
 
-        return (bmConnsumerMock);
+        return (bmConsumerMock);
     }
 }

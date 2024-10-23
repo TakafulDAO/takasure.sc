@@ -9,12 +9,14 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasurePool} from "contracts/interfaces/ITakasurePool.sol";
+import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.25;
 
@@ -28,6 +30,7 @@ contract ReferralGateway is
     using SafeERC20 for IERC20;
 
     IERC20 public usdc;
+    IBenefitMultiplierConsumer private bmConsumer;
 
     uint8 public constant SERVICE_FEE_RATIO = 22;
     uint256 public constant CONTRIBUTION_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
@@ -83,6 +86,10 @@ contract ReferralGateway is
     event OnPrePayment(address indexed parent, address indexed child, uint256 indexed contribution);
     event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
     event OnChildKycVerified(address indexed child);
+    event OnBenefitMultiplierConsumerChanged(
+        address indexed newBenefitMultiplierConsumer,
+        address indexed oldBenefitMultiplierConsumer
+    );
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__ContributionOutOfRange();
@@ -92,6 +99,7 @@ contract ReferralGateway is
     error ReferralGateway__tDAOAddressNotAssignedYet();
     error ReferralGateway__onlyDaoAdmin();
     error ReferralGateway__HasNotPaid();
+    error ReferralGateway__BenefitMultiplierRequestFailed(bytes errorResponse);
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) revert ReferralGateway__ZeroAddress();
@@ -112,7 +120,8 @@ contract ReferralGateway is
     function initialize(
         address _operator,
         address _kycProvider,
-        address _usdcAddress
+        address _usdcAddress,
+        address _benefitMultiplierConsumer
     ) external notZeroAddress(_operator) notZeroAddress(_usdcAddress) initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -120,6 +129,8 @@ contract ReferralGateway is
         _grantRole(DEFAULT_ADMIN_ROLE, _operator);
         _grantRole(OPERATOR, _operator);
         _grantRole(KYC_PROVIDER, _kycProvider);
+
+        bmConsumer = IBenefitMultiplierConsumer(_benefitMultiplierConsumer);
 
         operator = _operator;
         // isPreJoinEnabled = true;
@@ -273,6 +284,9 @@ contract ReferralGateway is
         DAODatas[tDAOName].collectedFees += fee;
         DAODatas[tDAOName].currentAmount += amountToTransfer;
 
+        // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
+        _getBenefitMultiplierFromOracle(msg.sender);
+
         emit OnPrePayment(parent, msg.sender, contribution);
     }
 
@@ -350,6 +364,18 @@ contract ReferralGateway is
         usdc = IERC20(_usdcAddress);
     }
 
+    function setNewBenefitMultiplierConsumer(
+        address newBenefitMultiplierConsumer
+    ) external onlyRole(OPERATOR) notZeroAddress(newBenefitMultiplierConsumer) {
+        address oldBenefitMultiplierConsumer = address(bmConsumer);
+        bmConsumer = IBenefitMultiplierConsumer(newBenefitMultiplierConsumer);
+
+        emit OnBenefitMultiplierConsumerChanged(
+            newBenefitMultiplierConsumer,
+            oldBenefitMultiplierConsumer
+        );
+    }
+
     function withdrawFees(string calldata tDAOName) external onlyRole(OPERATOR) {
         uint256 _collectedFees = DAODatas[tDAOName].collectedFees;
         DAODatas[tDAOName].collectedFees = 0;
@@ -384,6 +410,13 @@ contract ReferralGateway is
                 D
             )
         }
+    }
+
+    function _getBenefitMultiplierFromOracle(address _member) internal {
+        string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
+        string[] memory args = new string[](1);
+        args[0] = memberAddressToString;
+        bmConsumer.sendRequest(args);
     }
 
     ///@dev required by the OZ UUPS module
