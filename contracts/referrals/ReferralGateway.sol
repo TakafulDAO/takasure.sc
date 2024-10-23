@@ -234,7 +234,7 @@ contract ReferralGateway is
      * @dev The contribution must be between 25 and 250 USDC
      * @dev The parent reward ratio depends on the parent role
      */
-    function prepayment(uint256 contribution, string calldata tDAOName, address parent) external {
+    function prepay(uint256 contribution, string calldata tDAOName, address parent) external {
         tDAO memory DAO = nameToDAOData[tDAOName];
         // Initial checks
         if (!DAO.isPreJoinEnabled) revert ReferralGateway__NotAllowedToPrePay();
