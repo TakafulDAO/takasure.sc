@@ -1,5 +1,5 @@
 {
-    "address": "0x0271Dc87580153Ded8dF8593d51c0e2510C3A3E6",
+    "address": "0x6F297fFc2390E78559EaaDd83ddA59DA6CaB0b31",
     "abi": [
         { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
         {
@@ -25,6 +25,20 @@
         },
         {
             "type": "function",
+            "name": "REFERRAL_DISCOUNT_RATIO",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "REPOOL_FEE_RATIO",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "SERVICE_FEE_RATIO",
             "inputs": [],
             "outputs": [{ "name": "", "type": "uint8", "internalType": "uint8" }],
@@ -39,17 +53,37 @@
         },
         {
             "type": "function",
-            "name": "assignTDaoAddress",
+            "name": "assignRePoolAddress",
             "inputs": [
                 { "name": "tDAOName", "type": "string", "internalType": "string" },
-                { "name": "tdaoAddress", "type": "address", "internalType": "address" }
+                { "name": "rePoolAddress", "type": "address", "internalType": "address" }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
         {
             "type": "function",
-            "name": "createDao",
+            "name": "assignTDAOAddress",
+            "inputs": [
+                { "name": "tDAOName", "type": "string", "internalType": "string" },
+                { "name": "tDAOAddress", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "assignTDAOLaunchDate",
+            "inputs": [
+                { "name": "tDAOName", "type": "string", "internalType": "string" },
+                { "name": "launchDate", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "createDAO",
             "inputs": [
                 { "name": "DAOName", "type": "string", "internalType": "string" },
                 { "name": "_isPreJoinEnabled", "type": "bool", "internalType": "bool" },
@@ -61,7 +95,7 @@
         },
         {
             "type": "function",
-            "name": "getDaoData",
+            "name": "getDAOData",
             "inputs": [{ "name": "tDAOName", "type": "string", "internalType": "string" }],
             "outputs": [
                 {
@@ -71,12 +105,15 @@
                     "components": [
                         { "name": "name", "type": "string", "internalType": "string" },
                         { "name": "isPreJoinEnabled", "type": "bool", "internalType": "bool" },
-                        { "name": "prePaymentAdmin", "type": "address", "internalType": "address" },
-                        { "name": "daoAddress", "type": "address", "internalType": "address" },
+                        { "name": "prepaymentAdmin", "type": "address", "internalType": "address" },
+                        { "name": "DAOAddress", "type": "address", "internalType": "address" },
                         { "name": "launchDate", "type": "uint256", "internalType": "uint256" },
                         { "name": "objectiveAmount", "type": "uint256", "internalType": "uint256" },
                         { "name": "currentAmount", "type": "uint256", "internalType": "uint256" },
-                        { "name": "collectedFees", "type": "uint256", "internalType": "uint256" }
+                        { "name": "collectedFees", "type": "uint256", "internalType": "uint256" },
+                        { "name": "feeToOperator", "type": "uint256", "internalType": "uint256" },
+                        { "name": "rePoolAddress", "type": "address", "internalType": "address" },
+                        { "name": "feeToRepool", "type": "uint256", "internalType": "uint256" }
                     ]
                 }
             ],
@@ -113,9 +150,14 @@
             "type": "function",
             "name": "initialize",
             "inputs": [
-                { "name": "_takadaoOperator", "type": "address", "internalType": "address" },
+                { "name": "_operator", "type": "address", "internalType": "address" },
                 { "name": "_kycProvider", "type": "address", "internalType": "address" },
-                { "name": "_usdcAddress", "type": "address", "internalType": "address" }
+                { "name": "_usdcAddress", "type": "address", "internalType": "address" },
+                {
+                    "name": "_benefitMultiplierConsumer",
+                    "type": "address",
+                    "internalType": "address"
+                }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
@@ -129,7 +171,7 @@
         },
         {
             "type": "function",
-            "name": "joinDao",
+            "name": "joinDAO",
             "inputs": [{ "name": "newMember", "type": "address", "internalType": "address" }],
             "outputs": [],
             "stateMutability": "nonpayable"
@@ -156,17 +198,6 @@
         },
         {
             "type": "function",
-            "name": "prePayment",
-            "inputs": [
-                { "name": "parent", "type": "address", "internalType": "address" },
-                { "name": "contribution", "type": "uint256", "internalType": "uint256" },
-                { "name": "tDAOName", "type": "string", "internalType": "string" }
-            ],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
             "name": "prepaidMembers",
             "inputs": [{ "name": "child", "type": "address", "internalType": "address" }],
             "outputs": [
@@ -175,9 +206,21 @@
                 { "name": "parent", "type": "address", "internalType": "address" },
                 { "name": "contributionBeforeFee", "type": "uint256", "internalType": "uint256" },
                 { "name": "contributionAfterFee", "type": "uint256", "internalType": "uint256" },
-                { "name": "actualFee", "type": "uint256", "internalType": "uint256" }
+                { "name": "actualFee", "type": "uint256", "internalType": "uint256" },
+                { "name": "discount", "type": "uint256", "internalType": "uint256" }
             ],
             "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "prepay",
+            "inputs": [
+                { "name": "contribution", "type": "uint256", "internalType": "uint256" },
+                { "name": "tDAOName", "type": "string", "internalType": "string" },
+                { "name": "parent", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
         },
         {
             "type": "function",
@@ -185,13 +228,6 @@
             "inputs": [],
             "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
             "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "registerAmbassador",
-            "inputs": [{ "name": "ambassador", "type": "address", "internalType": "address" }],
-            "outputs": [],
-            "stateMutability": "nonpayable"
         },
         {
             "type": "function",
@@ -231,11 +267,31 @@
         },
         {
             "type": "function",
+            "name": "setNewBenefitMultiplierConsumer",
+            "inputs": [
+                {
+                    "name": "newBenefitMultiplierConsumer",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "setPreJoinEnabled",
             "inputs": [
                 { "name": "tDAOName", "type": "string", "internalType": "string" },
                 { "name": "_isPreJoinEnabled", "type": "bool", "internalType": "bool" }
             ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setUsdcAddress",
+            "inputs": [{ "name": "_usdcAddress", "type": "address", "internalType": "address" }],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -258,6 +314,13 @@
         },
         {
             "type": "function",
+            "name": "usdc",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "contract IERC20" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "withdrawFees",
             "inputs": [{ "name": "tDAOName", "type": "string", "internalType": "string" }],
             "outputs": [],
@@ -273,18 +336,16 @@
         },
         {
             "type": "event",
-            "name": "OnChildKycVerified",
-            "inputs": [
-                { "name": "child", "type": "address", "indexed": true, "internalType": "address" }
-            ],
-            "anonymous": false
-        },
-        {
-            "type": "event",
-            "name": "OnNewAmbassador",
+            "name": "OnBenefitMultiplierConsumerChanged",
             "inputs": [
                 {
-                    "name": "ambassador",
+                    "name": "newBenefitMultiplierConsumer",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "oldBenefitMultiplierConsumer",
                     "type": "address",
                     "indexed": true,
                     "internalType": "address"
@@ -294,10 +355,31 @@
         },
         {
             "type": "event",
+            "name": "OnChildKycVerified",
+            "inputs": [
+                { "name": "child", "type": "address", "indexed": true, "internalType": "address" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
             "name": "OnNewCofounderOfChange",
             "inputs": [
                 {
                     "name": "cofounderOfChange",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewReferral",
+            "inputs": [
+                {
+                    "name": "referral",
                     "type": "address",
                     "indexed": true,
                     "internalType": "address"
@@ -330,7 +412,7 @@
         },
         {
             "type": "event",
-            "name": "OnPrePayment",
+            "name": "Onprepayment",
             "inputs": [
                 { "name": "parent", "type": "address", "indexed": true, "internalType": "address" },
                 { "name": "child", "type": "address", "indexed": true, "internalType": "address" },
@@ -430,17 +512,31 @@
         { "type": "error", "name": "InvalidInitialization", "inputs": [] },
         { "type": "error", "name": "NotInitializing", "inputs": [] },
         { "type": "error", "name": "ReentrancyGuardReentrantCall", "inputs": [] },
+        {
+            "type": "error",
+            "name": "ReferralGateway__BenefitMultiplierRequestFailed",
+            "inputs": [{ "name": "errorResponse", "type": "bytes", "internalType": "bytes" }]
+        },
         { "type": "error", "name": "ReferralGateway__ContributionOutOfRange", "inputs": [] },
+        { "type": "error", "name": "ReferralGateway__HasNotPaid", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__MemberAlreadyKYCed", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__NotAllowedToPrePay", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__NotKYCed", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__ZeroAddress", "inputs": [] },
-        { "type": "error", "name": "ReferralGateway__onlyDaoAdmin", "inputs": [] },
+        { "type": "error", "name": "ReferralGateway__onlyDAOAdmin", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__tDAOAddressNotAssignedYet", "inputs": [] },
         {
             "type": "error",
             "name": "SafeERC20FailedOperation",
             "inputs": [{ "name": "token", "type": "address", "internalType": "address" }]
+        },
+        {
+            "type": "error",
+            "name": "StringsInsufficientHexLength",
+            "inputs": [
+                { "name": "value", "type": "uint256", "internalType": "uint256" },
+                { "name": "length", "type": "uint256", "internalType": "uint256" }
+            ]
         },
         { "type": "error", "name": "UUPSUnauthorizedCallContext", "inputs": [] },
         {

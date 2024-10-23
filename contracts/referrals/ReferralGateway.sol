@@ -30,6 +30,7 @@ contract ReferralGateway is
     using SafeERC20 for IERC20;
 
     IERC20 public usdc;
+    IBenefitMultiplierConsumer private bmConsumer;
 
     address private operator;
 
@@ -58,8 +59,6 @@ contract ReferralGateway is
     mapping(address child => PrepaidMember) public prepaidMembers;
     mapping(string tDAOName => tDAO DAOData) private nameToDAOData;
     mapping(address child => bool) public isChildKYCed;
-
-    IBenefitMultiplierConsumer private bmConsumer;
 
     struct PrepaidMember {
         string tDAOName;

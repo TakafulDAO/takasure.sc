@@ -3,6 +3,7 @@
 pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
+import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
@@ -14,12 +15,24 @@ contract DeployReferralGateway is Script {
 
         vm.startBroadcast();
 
+        BenefitMultiplierConsumer bmConsumer = new BenefitMultiplierConsumer(
+            config.functionsRouter,
+            config.donId,
+            config.gasLimit,
+            config.subscriptionId
+        );
+
         // Deploy TakasurePool
         proxy = Upgrades.deployUUPSProxy(
             "ReferralGateway.sol",
             abi.encodeCall(
                 ReferralGateway.initialize,
-                (config.takadaoOperator, config.kycProvider, config.contributionToken)
+                (
+                    config.takadaoOperator,
+                    config.kycProvider,
+                    config.contributionToken,
+                    address(bmConsumer)
+                )
             )
         );
 
