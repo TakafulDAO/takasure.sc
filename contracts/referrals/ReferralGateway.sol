@@ -62,7 +62,7 @@ contract ReferralGateway is
 
     struct PrepaidMember {
         string tDAOName;
-        address child;
+        address member;
         address parent;
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
@@ -250,7 +250,7 @@ contract ReferralGateway is
 
         PrepaidMember memory prepaidMember = PrepaidMember({
             tDAOName: tDAOName,
-            child: msg.sender,
+            member: msg.sender,
             parent: parent,
             contributionBeforeFee: contribution, // Input value, we need it like this for the actual join when the DAO is deployed
             contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the DAO is deployed
@@ -354,21 +354,21 @@ contract ReferralGateway is
      */
     function joinDAO(address newMember) external nonReentrant {
         // Initial checks
-        PrepaidMember memory member = prepaidMembers[newMember];
-        tDAO memory DAO = nameToDAOData[member.tDAOName];
+        PrepaidMember memory prepaidMember = prepaidMembers[newMember];
+        tDAO memory DAO = nameToDAOData[prepaidMember.tDAOName];
 
         if (DAO.DAOAddress == address(0)) revert ReferralGateway__tDAOAddressNotAssignedYet();
 
-        if (!isChildKYCed[member.child]) revert ReferralGateway__NotKYCed();
+        if (!isChildKYCed[prepaidMember.member]) revert ReferralGateway__NotKYCed();
 
-        // Finally, we join the member to the tDAO
+        // Finally, we join the prepaidMember to the tDAO
         ITakasurePool(DAO.DAOAddress).joinByReferral(
             newMember,
-            member.contributionBeforeFee,
-            member.contributionAfterFee
+            prepaidMember.contributionBeforeFee,
+            prepaidMember.contributionAfterFee
         );
 
-        usdc.safeTransfer(DAO.DAOAddress, member.contributionAfterFee);
+        usdc.safeTransfer(DAO.DAOAddress, prepaidMember.contributionAfterFee);
     }
 
     function setPreJoinEnabled(
