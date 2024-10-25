@@ -87,7 +87,7 @@ contract ReferralGateway is
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewReferral(address indexed referral);
     event OnNewCofounderOfChange(address indexed cofounderOfChange);
-    event Onprepayment(address indexed parent, address indexed child, uint256 indexed contribution);
+    event OnPrepayment(address indexed parent, address indexed child, uint256 indexed contribution);
     event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
     event OnChildKycVerified(address indexed child);
     event OnBenefitMultiplierConsumerChanged(
@@ -306,7 +306,7 @@ contract ReferralGateway is
         // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
         _getBenefitMultiplierFromOracle(msg.sender);
 
-        emit Onprepayment(parent, msg.sender, contribution);
+        emit OnPrepayment(parent, msg.sender, contribution);
     }
 
     /**

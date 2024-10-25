@@ -46,7 +46,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewReferralProposal(address indexed proposedReferral);
     event OnNewReferral(address indexed referral);
-    event Onprepayment(address indexed parent, address indexed child, uint256 indexed contribution);
+    event OnPrepayment(address indexed parent, address indexed child, uint256 indexed contribution);
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
     event OnNewDaoCreated(string indexed daoName);
     event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
@@ -184,7 +184,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         vm.prank(child);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit Onprepayment(address(0), child, CONTRIBUTION_AMOUNT);
+        emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT);
         referralGateway.prepay(CONTRIBUTION_AMOUNT, tDaoName, address(0));
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
@@ -202,7 +202,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         vm.prank(child);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit Onprepayment(referral, child, CONTRIBUTION_AMOUNT);
+        emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT);
         referralGateway.prepay(CONTRIBUTION_AMOUNT, tDaoName, referral);
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
@@ -258,7 +258,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         vm.prank(child);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit Onprepayment(referral, child, CONTRIBUTION_AMOUNT);
+        emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT);
         referralGateway.prepay(CONTRIBUTION_AMOUNT, tDaoName, referral);
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
