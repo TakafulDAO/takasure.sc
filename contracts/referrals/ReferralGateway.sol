@@ -101,7 +101,7 @@ contract ReferralGateway is
     error ReferralGateway__MemberAlreadyKYCed();
     error ReferralGateway__NotAllowedToPrePay();
     error ReferralGateway__NotKYCed();
-    error ReferralGateway__tDAOAddressNotAssignedYet();
+    error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__onlyDAOAdmin();
     error ReferralGateway__HasNotPaid();
     error ReferralGateway__BenefitMultiplierRequestFailed(bytes errorResponse);
@@ -358,11 +358,11 @@ contract ReferralGateway is
     function joinDAO(address newMember) external nonReentrant {
         // Initial checks
         PrepaidMember memory prepaidMember = prepaidMembers[newMember];
-        tDAO memory DAO = nameToDAOData[prepaidMember.tDAOName];
-
-        if (DAO.DAOAddress == address(0)) revert ReferralGateway__tDAOAddressNotAssignedYet();
-
         if (!isMemberKYCed[prepaidMember.member]) revert ReferralGateway__NotKYCed();
+
+        tDAO memory DAO = nameToDAOData[prepaidMember.tDAOName];
+        if (DAO.DAOAddress == address(0) || DAO.launchDate > block.timestamp)
+            revert ReferralGateway__tDAONotReadyYet();
 
         // Finally, we join the prepaidMember to the tDAO
         ITakasurePool(DAO.DAOAddress).joinByReferral(

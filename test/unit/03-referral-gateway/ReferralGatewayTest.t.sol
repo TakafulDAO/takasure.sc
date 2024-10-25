@@ -296,12 +296,11 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         createDao
         referralPrepays
         kycReferral
-        referredPrepays
     {
-        vm.prank(child);
-        vm.expectRevert(ReferralGateway.ReferralGateway__tDAOAddressNotAssignedYet.selector);
-        emit OnMemberJoined(2, child);
-        referralGateway.joinDAO(child);
+        vm.prank(referral);
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        emit OnMemberJoined(2, referral);
+        referralGateway.joinDAO(referral);
     }
 
     function testMustRevertJoinPoolIfTheChildIsNotKYC()
@@ -329,6 +328,11 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     {
         uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
         uint256 takasurePoolInitialBalance = usdc.balanceOf(address(takasurePool));
+        uint256 launchDate = referralGateway.getDAOData(tDaoName).launchDate;
+
+        vm.warp(launchDate + 1);
+        vm.roll(block.number + 1);
+
         vm.prank(child);
         vm.expectEmit(true, true, false, false, address(takasurePool));
         emit OnMemberJoined(2, child);
