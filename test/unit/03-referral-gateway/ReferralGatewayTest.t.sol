@@ -189,7 +189,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_DISCOUNT_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100);
 
         assertEq(referralGateway.getDAOData(tDaoName).collectedFees, collectedFees);
         assertEq(collectedFees, 3_000_000);
@@ -207,7 +207,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_DISCOUNT_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100);
 
         assertEq(referralGateway.getDAOData(tDaoName).collectedFees, collectedFees);
         assertEq(collectedFees, 3_000_000);
@@ -263,7 +263,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_DISCOUNT_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100);
 
         assertEq(collectedFees, 3_000_000);
         assertEq(

@@ -35,7 +35,7 @@ contract ReferralGateway is
     address private operator;
 
     uint8 public constant SERVICE_FEE_RATIO = 22;
-    uint256 public constant CONTRIBUTION_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
+    uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
     uint256 public constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 public constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
     uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
@@ -242,7 +242,7 @@ contract ReferralGateway is
         // Calculate the fee and create the new pre-paid member
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
         uint256 rePoolFee = (contribution * REPOOL_FEE_RATIO) / 100;
-        uint256 discount = (contribution * CONTRIBUTION_DISCOUNT_RATIO) / 100;
+        uint256 discount = (contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
         uint256 amountToTransfer = contribution - discount;
 
         // The discount is deducted from the fee
