@@ -285,56 +285,6 @@ contract ReferralGateway is
         emit OnPrepayment(parent, msg.sender, contribution);
     }
 
-    function _referralDiscountsAndRewards(
-        uint256 _contribution,
-        uint256 _fee
-    ) internal returns (uint256 referralDiscount_, uint256 fee_) {
-        // We give an extra discount to the contribution
-        referralDiscount_ = (_contribution * REFERRAL_DISCOUNT_RATIO) / 100;
-
-        address currentChildToCheck = msg.sender;
-        for (int256 i; i < MAX_TIER; ++i) {
-            if (
-                prepaidMembers[currentChildToCheck].parent == address(0) ||
-                !isMemberKYCed[prepaidMembers[currentChildToCheck].parent]
-            ) {
-                break;
-            }
-            uint256 currentParentReward = (_contribution * _referralRewardRatioByLayer(i + 1)) /
-                (100 * DECIMAL_CORRECTION);
-            address currentChildParent = prepaidMembers[currentChildToCheck].parent;
-            // And we store the parent reward and the reward to the parent layer
-            parentRewardsByChild[currentChildParent][msg.sender] = currentParentReward;
-            parentRewardsByLayer[currentChildParent][uint256(i + 1)] += currentParentReward;
-            // This rewards are taken from the fee
-            fee_ = _fee - currentParentReward;
-            // Lastly, we update the currentChildToCheck variable
-            currentChildToCheck = currentChildParent;
-        }
-    }
-
-    function _preJoin(
-        uint256 _contribution,
-        uint256 _fee,
-        string calldata _tDAOName,
-        address _parent
-    ) internal view returns (uint256 fee_, uint256 discount_, PrepaidMember memory prepayer_) {
-        discount_ = (_contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
-
-        // The discount is deducted from the fee
-        fee_ = _fee - discount_;
-
-        prepayer_ = PrepaidMember({
-            tDAOName: _tDAOName,
-            member: msg.sender,
-            parent: _parent,
-            contributionBeforeFee: _contribution, // Input value, we need it like this for the actual join when the DAO is deployed
-            contributionAfterFee: _contribution - _fee, // Without discount, we need it like this for the actual join when the DAO is deployed
-            actualFee: _fee, // For now only the fee - discount
-            discount: discount_ // For now only the discount. 10% of the contribution for every pre-payment
-        });
-    }
-
     /**
      * @notice Set the KYC status of a member
      * @param child The address of the member
@@ -441,6 +391,56 @@ contract ReferralGateway is
 
     function getDAOData(string calldata tDAOName) external view returns (tDAO memory) {
         return nameToDAOData[tDAOName];
+    }
+
+    function _preJoin(
+        uint256 _contribution,
+        uint256 _fee,
+        string calldata _tDAOName,
+        address _parent
+    ) internal view returns (uint256 fee_, uint256 discount_, PrepaidMember memory prepayer_) {
+        discount_ = (_contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
+
+        // The discount is deducted from the fee
+        fee_ = _fee - discount_;
+
+        prepayer_ = PrepaidMember({
+            tDAOName: _tDAOName,
+            member: msg.sender,
+            parent: _parent,
+            contributionBeforeFee: _contribution, // Input value, we need it like this for the actual join when the DAO is deployed
+            contributionAfterFee: _contribution - _fee, // Without discount, we need it like this for the actual join when the DAO is deployed
+            actualFee: _fee, // For now only the fee - discount
+            discount: discount_ // For now only the discount. 10% of the contribution for every pre-payment
+        });
+    }
+
+    function _referralDiscountsAndRewards(
+        uint256 _contribution,
+        uint256 _fee
+    ) internal returns (uint256 referralDiscount_, uint256 fee_) {
+        // We give an extra discount to the contribution
+        referralDiscount_ = (_contribution * REFERRAL_DISCOUNT_RATIO) / 100;
+
+        address currentChildToCheck = msg.sender;
+        for (int256 i; i < MAX_TIER; ++i) {
+            if (
+                prepaidMembers[currentChildToCheck].parent == address(0) ||
+                !isMemberKYCed[prepaidMembers[currentChildToCheck].parent]
+            ) {
+                break;
+            }
+            uint256 currentParentReward = (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+            address currentChildParent = prepaidMembers[currentChildToCheck].parent;
+            // And we store the parent reward and the reward to the parent layer
+            parentRewardsByChild[currentChildParent][msg.sender] = currentParentReward;
+            parentRewardsByLayer[currentChildParent][uint256(i + 1)] += currentParentReward;
+            // This rewards are taken from the fee
+            fee_ = _fee - currentParentReward;
+            // Lastly, we update the currentChildToCheck variable
+            currentChildToCheck = currentChildParent;
+        }
     }
 
     /**
