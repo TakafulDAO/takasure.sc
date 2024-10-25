@@ -18,6 +18,8 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
+import {console2} from "forge-std/Test.sol";
+
 pragma solidity 0.8.25;
 
 /// @custom:oz-upgrades-from contracts/version_previous_contracts/ReferralGatewayV1.sol:ReferralGatewayV1
@@ -237,7 +239,6 @@ contract ReferralGateway is
     function prepay(uint256 contribution, string calldata tDAOName, address parent) external {
         tDAO memory DAO = nameToDAOData[tDAOName];
         // Initial checks
-        if (!DAO.isPreJoinEnabled) revert ReferralGateway__NotAllowedToPrePay();
         if (prepaidMembers[msg.sender].contributionBeforeFee != 0)
             revert ReferralGateway__AlreadyMember();
         if (contribution < MINIMUM_CONTRIBUTION || contribution > MAXIMUM_CONTRIBUTION)
@@ -245,53 +246,25 @@ contract ReferralGateway is
         // Calculate the fee and create the new pre-paid member
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
         uint256 rePoolFee = (contribution * REPOOL_FEE_RATIO) / 100;
-        uint256 discount = (contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
+        uint256 discount;
+        PrepaidMember memory prepaidMember;
+
+        if (DAO.isPreJoinEnabled) {
+            (fee, discount, prepaidMember) = _preJoin(contribution, fee, tDAOName, parent);
+        }
+
         uint256 amountToTransfer = contribution - discount;
-
-        // The discount is deducted from the fee
-        fee -= discount;
-
-        PrepaidMember memory prepaidMember = PrepaidMember({
-            tDAOName: tDAOName,
-            member: msg.sender,
-            parent: parent,
-            contributionBeforeFee: contribution, // Input value, we need it like this for the actual join when the DAO is deployed
-            contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the DAO is deployed
-            actualFee: fee, // For now only the fee - discount
-            discount: discount // For now only the discount. 10% of the contribution for every pre-payment
-        });
 
         // We store the new member
         prepaidMembers[msg.sender] = prepaidMember;
 
         // We check if the parent is valid
         if (parent != address(0) && isMemberKYCed[parent]) {
-            // We give an extra discount to the contribution
-            uint256 referralDiscount = (contribution * REFERRAL_DISCOUNT_RATIO) / 100;
+            uint256 referralDiscount;
+            (referralDiscount, fee) = _referralDiscountsAndRewards(contribution, fee);
 
-            // This discount is not deducted from the fee
             prepaidMembers[msg.sender].discount += referralDiscount;
             amountToTransfer -= referralDiscount;
-
-            address currentChildToCheck = msg.sender;
-            for (int256 i; i < MAX_TIER; ++i) {
-                if (
-                    prepaidMembers[currentChildToCheck].parent == address(0) ||
-                    !isMemberKYCed[prepaidMembers[currentChildToCheck].parent]
-                ) {
-                    break;
-                }
-                uint256 currentParentReward = (contribution * _referralRewardRatioByLayer(i + 1)) /
-                    (100 * DECIMAL_CORRECTION);
-                address currentChildParent = prepaidMembers[currentChildToCheck].parent;
-                // And we store the parent reward and the reward to the parent layer
-                parentRewardsByChild[currentChildParent][msg.sender] = currentParentReward;
-                parentRewardsByLayer[currentChildParent][uint256(i + 1)] += currentParentReward;
-                // This rewards are taken from the fee
-                fee -= currentParentReward;
-                // Lastly, we update the currentChildToCheck variable
-                currentChildToCheck = currentChildParent;
-            }
         }
 
         // We transfer the contribution to the contract, this way we have funds to pay the parent rewards
@@ -310,6 +283,56 @@ contract ReferralGateway is
         _getBenefitMultiplierFromOracle(msg.sender);
 
         emit OnPrepayment(parent, msg.sender, contribution);
+    }
+
+    function _referralDiscountsAndRewards(
+        uint256 _contribution,
+        uint256 _fee
+    ) internal returns (uint256 referralDiscount_, uint256 fee_) {
+        // We give an extra discount to the contribution
+        referralDiscount_ = (_contribution * REFERRAL_DISCOUNT_RATIO) / 100;
+
+        address currentChildToCheck = msg.sender;
+        for (int256 i; i < MAX_TIER; ++i) {
+            if (
+                prepaidMembers[currentChildToCheck].parent == address(0) ||
+                !isMemberKYCed[prepaidMembers[currentChildToCheck].parent]
+            ) {
+                break;
+            }
+            uint256 currentParentReward = (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+            address currentChildParent = prepaidMembers[currentChildToCheck].parent;
+            // And we store the parent reward and the reward to the parent layer
+            parentRewardsByChild[currentChildParent][msg.sender] = currentParentReward;
+            parentRewardsByLayer[currentChildParent][uint256(i + 1)] += currentParentReward;
+            // This rewards are taken from the fee
+            fee_ = _fee - currentParentReward;
+            // Lastly, we update the currentChildToCheck variable
+            currentChildToCheck = currentChildParent;
+        }
+    }
+
+    function _preJoin(
+        uint256 _contribution,
+        uint256 _fee,
+        string calldata _tDAOName,
+        address _parent
+    ) internal view returns (uint256 fee_, uint256 discount_, PrepaidMember memory prepayer_) {
+        discount_ = (_contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
+
+        // The discount is deducted from the fee
+        fee_ = _fee - discount_;
+
+        prepayer_ = PrepaidMember({
+            tDAOName: _tDAOName,
+            member: msg.sender,
+            parent: _parent,
+            contributionBeforeFee: _contribution, // Input value, we need it like this for the actual join when the DAO is deployed
+            contributionAfterFee: _contribution - _fee, // Without discount, we need it like this for the actual join when the DAO is deployed
+            actualFee: _fee, // For now only the fee - discount
+            discount: discount_ // For now only the discount. 10% of the contribution for every pre-payment
+        });
     }
 
     /**
