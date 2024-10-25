@@ -225,10 +225,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
 
     function testKycAnAddress() public createDao referralPrepays {
-        assert(!referralGateway.isChildKYCed(referral));
+        assert(!referralGateway.isMemberKYCed(referral));
         vm.prank(kycProvider);
         referralGateway.setKYCStatus(referral);
-        assert(referralGateway.isChildKYCed(referral));
+        assert(referralGateway.isMemberKYCed(referral));
     }
 
     function testMustRevertIfKycTwiceSameAddress() public createDao referralPrepays {
