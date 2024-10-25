@@ -156,6 +156,15 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
 
+    function testMustRevertIfprepaymentIsDisabled() public createDao {
+        vm.prank(daoAdmin);
+        referralGateway.setPreJoinEnabled(tDaoName, false);
+
+        vm.prank(child);
+        vm.expectRevert(ReferralGateway.ReferralGateway__NotAllowedToPrePay.selector);
+        referralGateway.prepay(25e6, tDaoName, referral);
+    }
+
     function testMustRevertIfprepaymentContributionIsOutOfRange() public createDao {
         vm.startPrank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__ContributionOutOfRange.selector);

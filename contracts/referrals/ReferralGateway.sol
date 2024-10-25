@@ -239,6 +239,7 @@ contract ReferralGateway is
     function prepay(uint256 contribution, string calldata tDAOName, address parent) external {
         tDAO memory DAO = nameToDAOData[tDAOName];
         // Initial checks
+        if (!DAO.isPreJoinEnabled) revert ReferralGateway__NotAllowedToPrePay();
         if (prepaidMembers[msg.sender].contributionBeforeFee != 0)
             revert ReferralGateway__AlreadyMember();
         if (contribution < MINIMUM_CONTRIBUTION || contribution > MAXIMUM_CONTRIBUTION)
@@ -249,9 +250,7 @@ contract ReferralGateway is
         uint256 discount;
         PrepaidMember memory prepaidMember;
 
-        if (DAO.isPreJoinEnabled) {
-            (fee, discount, prepaidMember) = _preJoin(contribution, fee, tDAOName, parent);
-        }
+        (fee, discount, prepaidMember) = _preJoin(contribution, fee, tDAOName, parent);
 
         uint256 amountToTransfer = contribution - discount;
 
