@@ -3,9 +3,7 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployReferralGateway} from "test/utils/TestDeployReferralGateway.s.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
-import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
@@ -14,9 +12,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
 contract ReferralGatewayTest is Test, SimulateDonResponse {
-    TestDeployReferralGateway deployer;
-    TestDeployTakasure daoDeployer;
-    DeployConsumerMocks mockDeployer;
+    TestDeployTakasure deployer;
     ReferralGateway referralGateway;
     TakasurePool takasurePool;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -52,15 +48,11 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
 
     function setUp() public {
-        // Deployers
-        deployer = new TestDeployReferralGateway();
-        daoDeployer = new TestDeployTakasure();
-        mockDeployer = new DeployConsumerMocks();
-
+        // Deployer
+        deployer = new TestDeployTakasure();
         // Deploy contracts
-        (, proxy, usdcAddress, kycProvider, helperConfig) = deployer.run();
-        (, daoProxy, , ) = daoDeployer.run();
-        bmConsumerMock = mockDeployer.run();
+        (, bmConsumerMock, daoProxy, proxy, usdcAddress, kycProvider, helperConfig) = deployer
+            .run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -76,6 +68,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.startPrank(admin);
         takasurePool.setNewContributionToken(address(usdc));
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerMock));
+
         takasurePool.setNewReferralGateway(address(referralGateway));
         vm.stopPrank();
         vm.prank(msg.sender);

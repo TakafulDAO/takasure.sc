@@ -19,7 +19,7 @@ contract Getters_TakasurePoolTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        (, , proxy, , contributionTokenAddress, , ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
