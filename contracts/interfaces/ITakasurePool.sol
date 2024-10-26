@@ -3,7 +3,7 @@
 pragma solidity 0.8.25;
 
 interface ITakasurePool {
-    function joinByReferral(
+    function prejoins(
         address newMember,
         uint256 contributionBeforeFee,
         uint256 membershipDuration

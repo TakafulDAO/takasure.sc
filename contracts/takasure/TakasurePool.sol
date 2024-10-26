@@ -144,7 +144,7 @@ contract TakasurePool is
         );
     }
 
-    function joinByReferral(
+    function prejoins(
         address newMember,
         uint256 contributionBeforeFee,
         uint256 membershipDuration

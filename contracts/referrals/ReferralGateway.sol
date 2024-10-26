@@ -337,7 +337,7 @@ contract ReferralGateway is
             revert ReferralGateway__tDAONotReadyYet();
 
         // Finally, we join the prepaidMember to the tDAO
-        ITakasurePool(DAO.DAOAddress).joinByReferral(
+        ITakasurePool(DAO.DAOAddress).prejoins(
             newMember,
             prepaidMember.contributionBeforeFee,
             prepaidMember.contributionAfterFee
