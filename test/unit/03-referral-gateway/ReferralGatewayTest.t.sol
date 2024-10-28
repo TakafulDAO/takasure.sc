@@ -248,7 +248,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     function testprepaymentParentIsMember() public createDao referralPrepays kycReferral {
         // Already collected fees with the modifiers logic
         uint256 alreadyCollectedFees = referralGateway.getDAOData(tDaoName).collectedFees;
-        assertEq(alreadyCollectedFees, 3_000_000);
+        assertEq(alreadyCollectedFees, 2_500_000);
 
         uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
 
@@ -257,14 +257,18 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT);
         referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, referral);
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100; // 25 * 27 / 100 = 6.75
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
+            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100) -
+            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100) -
+            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+        // 6.75 - (25 * 10 / 100) - (25 * 5 / 100) - (25 * 5 / 100) - (25 * 2 / 100) = 6.75 - 2.5 - 1.25 - 1.25 - 0.5 = 1.25
 
-        assertEq(collectedFees, 3_000_000);
+        assertEq(collectedFees, 1_250_000);
         assertEq(
             referralGateway.getDAOData(tDaoName).collectedFees,
-            collectedFees + alreadyCollectedFees - expectedParentReward
+            collectedFees + alreadyCollectedFees
         );
         assertEq(referralGateway.parentRewardsByChild(referral, child), expectedParentReward);
         assertEq(expectedParentReward, 1_000_000);
