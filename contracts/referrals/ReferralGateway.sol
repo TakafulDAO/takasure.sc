@@ -207,6 +207,17 @@ contract ReferralGateway is
         emit OnNewCofounderOfChange(cofounderOfChange);
     }
 
+    /**
+     * @notice Method to be called after a tDAO is deployed
+     * @param tDAOName The name of the tDAO
+     * @param tDAOAddress The address of the tDAO
+     * @param isPreJoinDiscountEnabled The pre-join discount status of the DAO
+     * @param isReferralDiscountEnabled The referral discount status of the DAO
+     * @dev Only the DAOAdmin can call this method, the DAOAdmin is the one that created the DAO and must have
+     *      the role of DAO_MULTISIG in the DAO
+     * @dev The tDAOAddress must be different from 0
+     * @dev It will disable the preJoinEnabled status of the DAO
+     */
     function launchDAO(
         string calldata tDAOName,
         address tDAOAddress,
@@ -237,14 +248,30 @@ contract ReferralGateway is
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
     }
 
+    /**
+     * @notice Switch the preJoinDiscount status of a DAO
+     */
     function switchPreJoinDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
         nameToDAOData[tDAOName].preJoinDiscount = !nameToDAOData[tDAOName].preJoinDiscount;
     }
 
+    /**
+     * @notice Switch the referralDiscount status of a DAO
+     */
     function switchReferralDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
     }
 
+    /**
+     * @notice Pay a contribution to a DAO
+     * @param contribution The amount of the contribution. In USDC six decimals
+     * @param tDAOName The name of the DAO
+     * @param parent The address of the parent. Optional
+     * @dev The contribution must be between MINIMUM_CONTRIBUTION and MAXIMUM_CONTRIBUTION
+     * @dev The function will create a prepaid member object with the contribution data if
+     *      the DAO is not deployed yet, otherwise it will call the DAO to join
+     * @dev It will apply the discounts and rewards if the DAO has the features enabled
+     */
     function payContribution(
         uint256 contribution,
         string calldata tDAOName,
