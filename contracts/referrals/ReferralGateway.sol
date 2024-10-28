@@ -98,7 +98,7 @@ contract ReferralGateway is
         address indexed child,
         uint256 reward
     );
-    event OnChildKycVerified(address indexed child);
+    event OnChildKYCVerified(address indexed child);
     event OnBenefitMultiplierConsumerChanged(
         address indexed newBenefitMultiplierConsumer,
         address indexed oldBenefitMultiplierConsumer
@@ -131,7 +131,7 @@ contract ReferralGateway is
 
     function initialize(
         address _operator,
-        address _kycProvider,
+        address _KYCProvider,
         address _usdcAddress,
         address _benefitMultiplierConsumer
     ) external notZeroAddress(_operator) notZeroAddress(_usdcAddress) initializer {
@@ -140,7 +140,7 @@ contract ReferralGateway is
         __ReentrancyGuardTransient_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _operator);
         _grantRole(OPERATOR, _operator);
-        _grantRole(KYC_PROVIDER, _kycProvider);
+        _grantRole(KYC_PROVIDER, _KYCProvider);
 
         bmConsumer = IBenefitMultiplierConsumer(_benefitMultiplierConsumer);
 
@@ -354,7 +354,7 @@ contract ReferralGateway is
             parent = prepaidMembers[parent].parent;
         }
 
-        emit OnChildKycVerified(child);
+        emit OnChildKYCVerified(child);
     }
 
     /**

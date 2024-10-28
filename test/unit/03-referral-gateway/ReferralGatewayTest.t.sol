@@ -23,7 +23,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     address daoProxy;
     address takadao;
     address admin;
-    address kycProvider;
+    address KYCProvider;
     address daoAdmin = makeAddr("daoAdmin");
     address referral = makeAddr("referral");
     address member = makeAddr("member");
@@ -56,7 +56,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         // Deployer
         deployer = new TestDeployTakasure();
         // Deploy contracts
-        (, bmConsumerMock, daoProxy, proxy, usdcAddress, kycProvider, helperConfig) = deployer
+        (, bmConsumerMock, daoProxy, proxy, usdcAddress, KYCProvider, helperConfig) = deployer
             .run();
 
         // Get config values
@@ -216,23 +216,23 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                                   KYC
     //////////////////////////////////////////////////////////////*/
 
-    function testKycAnAddress() public createDao referralPrepays {
+    function testKYCAnAddress() public createDao referralPrepays {
         assert(!referralGateway.isMemberKYCed(referral));
-        vm.prank(kycProvider);
+        vm.prank(KYCProvider);
         referralGateway.setKYCStatus(referral);
         assert(referralGateway.isMemberKYCed(referral));
     }
 
-    function testMustRevertIfKycTwiceSameAddress() public createDao referralPrepays {
-        vm.startPrank(kycProvider);
+    function testMustRevertIfKYCTwiceSameAddress() public createDao referralPrepays {
+        vm.startPrank(KYCProvider);
         referralGateway.setKYCStatus(referral);
         vm.expectRevert(ReferralGateway.ReferralGateway__MemberAlreadyKYCed.selector);
         referralGateway.setKYCStatus(referral);
         vm.stopPrank();
     }
 
-    modifier kycReferral() {
-        vm.prank(kycProvider);
+    modifier KYCReferral() {
+        vm.prank(KYCProvider);
         referralGateway.setKYCStatus(referral);
         _;
     }
@@ -241,7 +241,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                       PREPAYS WITH VALID REFERRAL
     //////////////////////////////////////////////////////////////*/
 
-    function testprepaymentParentIsMember() public createDao referralPrepays kycReferral {
+    function testprepaymentParentIsMember() public createDao referralPrepays KYCReferral {
         // Already collected fees with the modifiers logic
         uint256 alreadyCollectedFees = referralGateway.getDAOData(tDaoName).collectedFees;
         assertEq(alreadyCollectedFees, 2_500_000);
@@ -277,8 +277,8 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         _;
     }
 
-    modifier referredIsKyc() {
-        vm.prank(kycProvider);
+    modifier referredIsKYC() {
+        vm.prank(KYCProvider);
         referralGateway.setKYCStatus(child);
         _;
     }
@@ -291,7 +291,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         public
         createDao
         referralPrepays
-        kycReferral
+        KYCReferral
     {
         vm.prank(referral);
         vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
@@ -304,7 +304,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         createDao
         assignTDAOAddress
         referralPrepays
-        kycReferral
+        KYCReferral
         referredPrepays
     {
         vm.prank(child);
@@ -318,9 +318,9 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         createDao
         assignTDAOAddress
         referralPrepays
-        kycReferral
+        KYCReferral
         referredPrepays
-        referredIsKyc
+        referredIsKYC
     {
         uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
         uint256 takasurePoolInitialBalance = usdc.balanceOf(address(takasurePool));
@@ -348,9 +348,9 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     //     createDao
     //     assignTDAOAddress
     //     referralPrepays
-    //     kycReferral
+    //     KYCReferral
     //     referredPrepays
-    //     referredIsKyc
+    //     referredIsKYC
     // {
     //     address rePool = makeAddr("rePool");
     //     uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
