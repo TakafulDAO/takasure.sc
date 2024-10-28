@@ -105,7 +105,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(referralGateway.getDAOData(tDaoName).name, tDaoName);
         assertEq(referralGateway.getDAOData(tDaoName).isPreJoinEnabled, true);
-        assertEq(referralGateway.getDAOData(tDaoName).prepaymentAdmin, daoAdmin);
+        assertEq(referralGateway.getDAOData(tDaoName).DAOAdmin, daoAdmin);
         assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(0));
         assertEq(referralGateway.getDAOData(tDaoName).launchDate, 0);
         assertEq(referralGateway.getDAOData(tDaoName).objectiveAmount, 100e6);
@@ -354,7 +354,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     //     uint256 takadaoInitialBalance = usdc.balanceOf(address(takadao));
     //     uint256 rePoolInitialBalance = usdc.balanceOf(rePool);
 
-    //     vm.prank(referralGateway.getDAOData(tDaoName).prepaymentAdmin);
+    //     vm.prank(referralGateway.getDAOData(tDaoName).DAOAdmin);
     //     referralGateway.assignRePoolAddress(tDaoName, rePool);
 
     //     vm.startPrank(takadao);
