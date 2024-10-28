@@ -92,7 +92,12 @@ contract ReferralGateway is
     event OnNewReferral(address indexed referral);
     event OnNewCofounderOfChange(address indexed cofounderOfChange);
     event OnPrepayment(address indexed parent, address indexed child, uint256 indexed contribution);
-    event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
+    event OnParentRewarded(
+        address indexed parent,
+        uint256 indexed layer,
+        address indexed child,
+        uint256 reward
+    );
     event OnChildKycVerified(address indexed child);
     event OnBenefitMultiplierConsumerChanged(
         address indexed newBenefitMultiplierConsumer,
@@ -335,12 +340,15 @@ contract ReferralGateway is
         for (uint256 i; i < uint256(MAX_TIER); ++i) {
             if (parent == address(0)) break;
 
+            uint256 layer = i + 1;
+
             uint256 parentReward = parentRewardsByChild[parent][child];
 
             parentRewardsByChild[parent][child] = 0;
+            parentRewardsByLayer[parent][layer] = 0;
             usdc.safeTransfer(parent, parentReward);
 
-            emit OnParentRewarded(parent, child, parentReward);
+            emit OnParentRewarded(parent, layer, child, parentReward);
 
             // We update the parent address to check the next parent
             parent = prepaidMembers[parent].parent;

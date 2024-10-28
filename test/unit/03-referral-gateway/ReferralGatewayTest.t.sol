@@ -45,7 +45,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     event OnPrepayment(address indexed parent, address indexed child, uint256 indexed contribution);
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
     event OnNewDaoCreated(string indexed daoName);
-    event OnParentRewarded(address indexed parent, address indexed child, uint256 indexed reward);
+    event OnParentRewarded(
+        address indexed parent,
+        uint256 indexed layer,
+        address indexed child,
+        uint256 reward
+    );
 
     function setUp() public {
         // Deployer
@@ -382,6 +387,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         address parentTier3 = makeAddr("parentTier3");
         address parentTier4 = makeAddr("parentTier4");
         address[4] memory parents = [parentTier1, parentTier2, parentTier3, parentTier4];
+
         for (uint i = 0; i < parents.length; i++) {
             // Give USDC to parents
             deal(address(usdc), parents[i], 10 * CONTRIBUTION_AMOUNT);
@@ -390,43 +396,52 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             usdc.approve(address(referralGateway), 10 * CONTRIBUTION_AMOUNT);
             vm.stopPrank();
         }
+
         address childWithoutReferee = makeAddr("childWithoutReferee");
         deal(address(usdc), childWithoutReferee, 10 * CONTRIBUTION_AMOUNT);
         vm.prank(childWithoutReferee);
         usdc.approve(address(referralGateway), 10 * CONTRIBUTION_AMOUNT);
+
         // First Parent 1 becomes a member without a referral
         vm.prank(parentTier1);
         referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, address(0));
         vm.prank(takadao);
         referralGateway.setKYCStatus(parentTier1);
+
         // Parent 2 prepay referred by parent 1
         uint256 parentTier2Contribution = 5 * CONTRIBUTION_AMOUNT;
         vm.prank(parentTier2);
         referralGateway.payContribution(parentTier2Contribution, tDaoName, parentTier1);
+
         // The expected parent 1 reward ratio will be 4% of the parent 2 contribution
         uint256 expectedParentOneReward = (parentTier2Contribution * LAYER_ONE_REWARD_RATIO) / 100;
         vm.prank(takadao);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnParentRewarded(parentTier1, parentTier2, expectedParentOneReward);
+        vm.expectEmit(true, true, true, true, address(referralGateway));
+        emit OnParentRewarded(parentTier1, 1, parentTier2, expectedParentOneReward);
         referralGateway.setKYCStatus(parentTier2);
+
         // Parent 3 prepay referred by parent 2
         uint256 parentTier3Contribution = 2 * CONTRIBUTION_AMOUNT;
         vm.prank(parentTier3);
         referralGateway.payContribution(parentTier3Contribution, tDaoName, parentTier2);
+
         // The expected parent 2 reward ratio will be 4% of the parent 2 contribution
         uint256 expectedParentTwoReward = (parentTier3Contribution * LAYER_ONE_REWARD_RATIO) / 100;
         // The expected parent 1 reward ratio will be 1% of the parent 2 contribution
         expectedParentOneReward = (parentTier3Contribution * LAYER_TWO_REWARD_RATIO) / 100;
+
         vm.prank(takadao);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnParentRewarded(parentTier2, parentTier3, expectedParentTwoReward);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnParentRewarded(parentTier1, parentTier3, expectedParentOneReward);
+        vm.expectEmit(true, true, true, true, address(referralGateway));
+        emit OnParentRewarded(parentTier2, 1, parentTier3, expectedParentTwoReward);
+        vm.expectEmit(true, true, true, true, address(referralGateway));
+        emit OnParentRewarded(parentTier1, 2, parentTier3, expectedParentOneReward);
         referralGateway.setKYCStatus(parentTier3);
+
         // Parent 4 prepay referred by parent 3
         uint256 parentTier4Contribution = 7 * CONTRIBUTION_AMOUNT;
         vm.prank(parentTier4);
         referralGateway.payContribution(parentTier4Contribution, tDaoName, parentTier3);
+
         // The expected parent 3 reward ratio will be 4% of the parent 4 contribution
         uint256 expectedParentThreeReward = (parentTier4Contribution * LAYER_ONE_REWARD_RATIO) /
             100;
@@ -434,18 +449,21 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         expectedParentTwoReward = (parentTier4Contribution * LAYER_TWO_REWARD_RATIO) / 100;
         // The expected parent 1 reward ratio will be 0.35% of the parent 4 contribution
         expectedParentOneReward = (parentTier4Contribution * LAYER_THREE_REWARD_RATIO) / 10000;
+
         vm.prank(takadao);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnParentRewarded(parentTier3, parentTier4, expectedParentThreeReward);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnParentRewarded(parentTier2, parentTier4, expectedParentTwoReward);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnParentRewarded(parentTier1, parentTier4, expectedParentOneReward);
+        vm.expectEmit(true, true, true, true, address(referralGateway));
+        emit OnParentRewarded(parentTier3, 1, parentTier4, expectedParentThreeReward);
+        vm.expectEmit(true, true, true, true, address(referralGateway));
+        emit OnParentRewarded(parentTier2, 2, parentTier4, expectedParentTwoReward);
+        vm.expectEmit(true, true, true, true, address(referralGateway));
+        emit OnParentRewarded(parentTier1, 3, parentTier4, expectedParentOneReward);
         referralGateway.setKYCStatus(parentTier4);
+
         // Child without referee prepay referred by parent 4
         uint256 childWithoutRefereeContribution = 4 * CONTRIBUTION_AMOUNT;
         vm.prank(childWithoutReferee);
         referralGateway.payContribution(childWithoutRefereeContribution, tDaoName, parentTier4);
+
         // The expected parent 4 reward ratio will be 4% of the child without referee contribution
         uint256 expectedParentFourReward = (childWithoutRefereeContribution *
             LAYER_ONE_REWARD_RATIO) / 100;
@@ -461,15 +479,16 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         expectedParentOneReward =
             (childWithoutRefereeContribution * LAYER_FOUR_REWARD_RATIO) /
             100000;
+
         vm.prank(takadao);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnParentRewarded(parentTier4, childWithoutReferee, expectedParentFourReward);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnParentRewarded(parentTier3, childWithoutReferee, expectedParentThreeReward);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnParentRewarded(parentTier2, childWithoutReferee, expectedParentTwoReward);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnParentRewarded(parentTier1, childWithoutReferee, expectedParentOneReward);
+        vm.expectEmit(true, true, true, true, address(referralGateway));
+        emit OnParentRewarded(parentTier4, 1, childWithoutReferee, expectedParentFourReward);
+        vm.expectEmit(true, true, true, true, address(referralGateway));
+        emit OnParentRewarded(parentTier3, 2, childWithoutReferee, expectedParentThreeReward);
+        vm.expectEmit(true, true, true, true, address(referralGateway));
+        emit OnParentRewarded(parentTier2, 3, childWithoutReferee, expectedParentTwoReward);
+        vm.expectEmit(true, true, true, true, address(referralGateway));
+        emit OnParentRewarded(parentTier1, 4, childWithoutReferee, expectedParentOneReward);
         referralGateway.setKYCStatus(childWithoutReferee);
     }
 
@@ -522,7 +541,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.setKYCStatus(parentTier2);
 
         assertEq(referralGateway.parentRewardsByChild(parentTier1, parentTier2), 0);
-        assertEq(referralGateway.parentRewardsByLayer(parentTier1, 1), expectedParentOneReward);
+        assertEq(referralGateway.parentRewardsByLayer(parentTier1, 1), 0);
 
         uint256 parentTier3Contribution = 2 * CONTRIBUTION_AMOUNT;
         // The expected parent 2 reward ratio will be 4% of the parent 2 contribution
