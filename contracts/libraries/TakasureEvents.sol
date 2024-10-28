@@ -7,7 +7,7 @@
  */
 import {RevenueType} from "contracts/types/TakasureTypes.sol";
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 library TakasureEvents {
     event OnMemberCreated(

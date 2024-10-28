@@ -12,7 +12,7 @@ import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/Fu
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 import {console2} from "forge-std/Test.sol";
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 contract BenefitMultiplierConsumerMock is AccessControl, FunctionsClient {
     using FunctionsRequest for FunctionsRequest.Request;
