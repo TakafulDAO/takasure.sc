@@ -78,7 +78,7 @@ contract ReferralGateway is
         bool isPreJoinEnabled;
         bool preJoinDiscount;
         bool referralDiscount;
-        address prepaymentAdmin; // The one that can modify the DAO settings
+        address DAOAdmin; // The one that can modify the DAO settings
         address DAOAddress; // To be assigned when the tDAO is deployed
         uint256 launchDate; // in seconds
         uint256 objectiveAmount; // in USDC, six decimals
@@ -115,8 +115,7 @@ contract ReferralGateway is
     }
 
     modifier onlyDAOAdmin(string calldata tDAOName) {
-        if (nameToDAOData[tDAOName].prepaymentAdmin != msg.sender)
-            revert ReferralGateway__onlyDAOAdmin();
+        if (nameToDAOData[tDAOName].DAOAdmin != msg.sender) revert ReferralGateway__onlyDAOAdmin();
         _;
     }
 
@@ -169,7 +168,7 @@ contract ReferralGateway is
             isPreJoinEnabled: _isPreJoinEnabled,
             preJoinDiscount: _isPreJoinDiscountEnabled,
             referralDiscount: _isReferralDiscountEnabled,
-            prepaymentAdmin: msg.sender,
+            DAOAdmin: msg.sender,
             DAOAddress: address(0), // To be assigned when the tDAO is deployed
             rePoolAddress: address(0), // To be assigned when the tDAO is deployed
             launchDate: launchDate, // in seconds
