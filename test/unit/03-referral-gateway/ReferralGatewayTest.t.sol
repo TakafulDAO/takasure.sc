@@ -337,43 +337,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                WITHDRAW
-    //////////////////////////////////////////////////////////////*/
-
-    // function testWithdrawFees()
-    //     public
-    //     createDao
-    //     launchDAO
-    //     referralPrepays
-    //     KYCReferral
-    //     referredPrepays
-    //     referredIsKYC
-    // {
-    //     address rePool = makeAddr("rePool");
-    //     uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
-    //     uint256 collectedFees = referralGateway.getDAOData(tDaoName).collectedFees;
-    //     uint256 rePoolFees = referralGateway.getDAOData(tDaoName).toRepool;
-    //     uint256 takadaoInitialBalance = usdc.balanceOf(address(takadao));
-    //     uint256 rePoolInitialBalance = usdc.balanceOf(rePool);
-
-    //     vm.prank(referralGateway.getDAOData(tDaoName).DAOAdmin);
-    //     referralGateway.assignRePoolAddress(tDaoName, rePool);
-
-    //     vm.startPrank(takadao);
-    //     referralGateway.withdrawFees(tDaoName);
-    //     vm.stopPrank();
-
-    //     uint256 referralGatewayFinalBalance = usdc.balanceOf(address(referralGateway));
-    //     uint256 takadaoFinalBalance = usdc.balanceOf(address(takadao));
-    //     uint256 rePoolFinalBalance = usdc.balanceOf(rePool);
-
-    //     assertEq(referralGatewayFinalBalance, referralGatewayInitialBalance - collectedFees);
-    //     assertEq(referralGateway.getDAOData(tDaoName).collectedFees, 0);
-    //     assertEq(takadaoFinalBalance, takadaoInitialBalance);
-    //     assertEq(rePoolFinalBalance, rePoolInitialBalance + rePoolFees);
-    // }
-
-    /*//////////////////////////////////////////////////////////////
                               GRANDPARENTS
     //////////////////////////////////////////////////////////////*/
 
