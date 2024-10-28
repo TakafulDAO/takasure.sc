@@ -113,6 +113,8 @@ contract ReferralGateway is
     error ReferralGateway__onlyDAOAdmin();
     error ReferralGateway__HasNotPaid();
     error ReferralGateway__BenefitMultiplierRequestFailed(bytes errorResponse);
+    error ReferralGateway__MustHaveName();
+    error ReferralGateway__AlreadyExists();
 
     modifier notZeroAddress(address _address) {
         if (_address == address(0)) revert ReferralGateway__ZeroAddress();
@@ -167,6 +169,10 @@ contract ReferralGateway is
         uint256 launchDate,
         uint256 objectiveAmount
     ) external {
+        if (bytes(DAOName).length == 0) revert ReferralGateway__MustHaveName();
+        if (Strings.equal(nameToDAOData[DAOName].name, DAOName))
+            revert ReferralGateway__AlreadyExists();
+
         // Create the new DAO
         tDAO memory DAO = tDAO({
             name: DAOName, // To be used as a key

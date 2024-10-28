@@ -104,8 +104,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     function testCreateANewDao() public {
         vm.prank(daoAdmin);
-        // vm.expectEmit(true, false, false, false, address(takasurePool));
-        // emit OnNewDaoCreated(tDaoName);
         referralGateway.createDAO(tDaoName, true, true, true, 0, 100e6);
 
         assertEq(referralGateway.getDAOData(tDaoName).name, tDaoName);
@@ -115,6 +113,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.getDAOData(tDaoName).launchDate, 0);
         assertEq(referralGateway.getDAOData(tDaoName).objectiveAmount, 100e6);
         assertEq(referralGateway.getDAOData(tDaoName).currentAmount, 0);
+
+        vm.prank(referral);
+        vm.expectRevert(ReferralGateway.ReferralGateway__AlreadyExists.selector);
+        referralGateway.createDAO(tDaoName, true, true, true, 0, 100e6);
     }
 
     modifier createDao() {
