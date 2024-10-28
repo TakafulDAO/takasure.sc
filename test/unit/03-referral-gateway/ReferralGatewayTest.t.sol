@@ -143,12 +143,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.getDAOData(tDaoName).referralDiscount, true);
     }
 
-    modifier launchDAO() {
-        vm.prank(daoAdmin);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true, true);
-        _;
-    }
-
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/

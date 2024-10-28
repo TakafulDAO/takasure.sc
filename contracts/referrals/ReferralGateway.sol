@@ -226,12 +226,21 @@ contract ReferralGateway is
     /**
      * @notice Assign a rePool address to a tDAO name
      * @param tDAOName The name of the tDAO
+     * @param rePoolAddress The address of the rePool
      */
-    function assignRePoolAddress(
+    function enableRepool(
         string calldata tDAOName,
         address rePoolAddress
     ) external notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName) {
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
+    }
+
+    function switchPreJoinDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
+        nameToDAOData[tDAOName].preJoinDiscount = !nameToDAOData[tDAOName].preJoinDiscount;
+    }
+
+    function switchReferralDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
+        nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
     }
 
     function payContribution(
