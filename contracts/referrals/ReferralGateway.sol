@@ -35,25 +35,6 @@ contract ReferralGateway is
     address private operator;
     uint256 referralReserveBalance;
 
-    uint8 public constant SERVICE_FEE_RATIO = 27;
-    uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
-    uint256 public constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
-    uint256 public constant REFERRAL_RESERVE = 5; // 5% of contribution TO Referral Reserve
-    uint256 public constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
-    uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
-    uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
-    // For the referrals reward ratio
-    int256 private constant MAX_TIER = 4;
-    int256 private constant A = -3_125;
-    int256 private constant B = 30_500;
-    int256 private constant C = -99_625;
-    int256 private constant D = 112_250;
-    uint256 private constant DECIMAL_CORRECTION = 10_000;
-
-    bytes32 private constant OPERATOR = keccak256("OPERATOR");
-    bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-    bytes32 private constant COFOUNDER_OF_CHANGE = keccak256("COFOUNDER_OF_CHANGE");
-
     mapping(address parent => mapping(address child => uint256 rewards))
         public parentRewardsByChild;
     mapping(address parent => mapping(uint256 layer => uint256 rewards))
@@ -87,6 +68,40 @@ contract ReferralGateway is
         address rePoolAddress; // To be assigned when the tDAO is deployed
         uint256 toRepool; // in USDC, six decimals
     }
+
+    /*//////////////////////////////////////////////////////////////
+                              FIXED RATIOS
+    //////////////////////////////////////////////////////////////*/
+
+    uint8 public constant SERVICE_FEE_RATIO = 27;
+    uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
+    uint256 public constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
+    uint256 public constant REFERRAL_RESERVE = 5; // 5% of contribution TO Referral Reserve
+    uint256 public constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
+    uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
+    uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
+
+    /*//////////////////////////////////////////////////////////////
+                            REWARDS RELATED
+    //////////////////////////////////////////////////////////////*/
+    int256 private constant MAX_TIER = 4;
+    int256 private constant A = -3_125;
+    int256 private constant B = 30_500;
+    int256 private constant C = -99_625;
+    int256 private constant D = 112_250;
+    uint256 private constant DECIMAL_CORRECTION = 10_000;
+
+    /*//////////////////////////////////////////////////////////////
+                                 ROLES
+    //////////////////////////////////////////////////////////////*/
+
+    bytes32 private constant OPERATOR = keccak256("OPERATOR");
+    bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
+    bytes32 private constant COFOUNDER_OF_CHANGE = keccak256("COFOUNDER_OF_CHANGE");
+
+    /*//////////////////////////////////////////////////////////////
+                            EVENTS & ERRORS
+    //////////////////////////////////////////////////////////////*/
 
     event OnNewCofounderOfChange(address indexed cofounderOfChange);
     event OnPrepayment(address indexed parent, address indexed child, uint256 indexed contribution);
@@ -148,6 +163,19 @@ contract ReferralGateway is
     }
 
     /**
+     * @notice Register a Cofounder of Change
+     * @param cofounderOfChange The address to register as cofounderOfChange
+     * @dev Only the OPERATOR can register an cofounderOfChange
+     */
+    function registerCofounderOfChange(
+        address cofounderOfChange
+    ) external notZeroAddress(cofounderOfChange) onlyRole(OPERATOR) {
+        _grantRole(COFOUNDER_OF_CHANGE, cofounderOfChange);
+
+        emit OnNewCofounderOfChange(cofounderOfChange);
+    }
+
+    /**
      * @notice Create a new DAO
      * @param DAOName The name of the DAO
      * @param isPreJoinEnabled The pre-join status of the DAO
@@ -192,19 +220,6 @@ contract ReferralGateway is
 
         // Update the necessary mappings
         nameToDAOData[DAO.name] = DAO;
-    }
-
-    /**
-     * @notice Register a Cofounder of Change
-     * @param cofounderOfChange The address to register as cofounderOfChange
-     * @dev Only the OPERATOR can register an cofounderOfChange
-     */
-    function registerCofounderOfChange(
-        address cofounderOfChange
-    ) external notZeroAddress(cofounderOfChange) onlyRole(OPERATOR) {
-        _grantRole(COFOUNDER_OF_CHANGE, cofounderOfChange);
-
-        emit OnNewCofounderOfChange(cofounderOfChange);
     }
 
     /**
@@ -451,8 +466,23 @@ contract ReferralGateway is
         );
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
+
     function getDAOData(string calldata tDAOName) external view returns (tDAO memory) {
         return nameToDAOData[tDAOName];
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function _getBenefitMultiplierFromOracle(address _member) internal {
+        string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
+        string[] memory args = new string[](1);
+        args[0] = memberAddressToString;
+        bmConsumer.sendRequest(args);
     }
 
     function _parentRewards(
@@ -516,13 +546,6 @@ contract ReferralGateway is
                 D
             )
         }
-    }
-
-    function _getBenefitMultiplierFromOracle(address _member) internal {
-        string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
-        string[] memory args = new string[](1);
-        args[0] = memberAddressToString;
-        bmConsumer.sendRequest(args);
     }
 
     ///@dev required by the OZ UUPS module
