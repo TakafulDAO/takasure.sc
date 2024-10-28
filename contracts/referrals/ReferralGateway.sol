@@ -103,7 +103,6 @@ contract ReferralGateway is
     error ReferralGateway__AlreadyMember();
     error ReferralGateway__ContributionOutOfRange();
     error ReferralGateway__MemberAlreadyKYCed();
-    error ReferralGateway__NotAllowedToPrePay();
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__onlyDAOAdmin();
