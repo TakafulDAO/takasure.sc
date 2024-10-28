@@ -88,8 +88,6 @@ contract ReferralGateway is
         uint256 toRepool; // in USDC, six decimals
     }
 
-    event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
-    event OnNewReferral(address indexed referral);
     event OnNewCofounderOfChange(address indexed cofounderOfChange);
     event OnPrepayment(address indexed parent, address indexed child, uint256 indexed contribution);
     event OnParentRewarded(
@@ -112,7 +110,6 @@ contract ReferralGateway is
     error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__onlyDAOAdmin();
     error ReferralGateway__HasNotPaid();
-    error ReferralGateway__BenefitMultiplierRequestFailed(bytes errorResponse);
     error ReferralGateway__MustHaveName();
     error ReferralGateway__AlreadyExists();
 
@@ -154,6 +151,8 @@ contract ReferralGateway is
      * @notice Create a new DAO
      * @param DAOName The name of the DAO
      * @param isPreJoinEnabled The pre-join status of the DAO
+     * @param isPreJoinDiscountEnabled The pre-join discount status of the DAO
+     * @param isReferralDiscountEnabled The referral discount status of the DAO
      * @param launchDate The launch date of the DAO
      * @param objectiveAmount The objective amount of the DAO
      * @dev The launch date must be in seconds
