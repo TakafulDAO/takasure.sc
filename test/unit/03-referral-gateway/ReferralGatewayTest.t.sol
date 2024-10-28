@@ -22,9 +22,8 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     address proxy;
     address daoProxy;
     address takadao;
-    address admin;
+    address daoAdmin;
     address KYCProvider;
-    address daoAdmin = makeAddr("daoAdmin");
     address referral = makeAddr("referral");
     address member = makeAddr("member");
     address notMember = makeAddr("notMember");
@@ -62,7 +61,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
-        admin = config.daoMultisig;
+        daoAdmin = config.daoMultisig;
 
         // Assign implementations
         referralGateway = ReferralGateway(address(proxy));
@@ -70,7 +69,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(admin);
+        vm.startPrank(daoAdmin);
         takasurePool.setNewContributionToken(address(usdc));
         takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerMock));
 
@@ -91,7 +90,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
         // Join the dao
-        vm.prank(admin);
+        vm.prank(daoAdmin);
         takasurePool.setKYCStatus(member);
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -107,7 +106,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.createDAO(tDaoName, true, true, true, 0, 100e6);
 
         assertEq(referralGateway.getDAOData(tDaoName).name, tDaoName);
-        assertEq(referralGateway.getDAOData(tDaoName).isPreJoinEnabled, true);
+        assertEq(referralGateway.getDAOData(tDaoName).preJoinEnabled, true);
         assertEq(referralGateway.getDAOData(tDaoName).DAOAdmin, daoAdmin);
         assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(0));
         assertEq(referralGateway.getDAOData(tDaoName).launchDate, 0);
@@ -126,29 +125,27 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                SETTERS
+                               LAUNCH DAO
     //////////////////////////////////////////////////////////////*/
-    function testSetIsPreJoinEnabled() public createDao {
-        assert(referralGateway.getDAOData(tDaoName).isPreJoinEnabled);
 
-        vm.prank(daoAdmin);
-        vm.expectEmit(true, false, false, false, address(referralGateway));
-        emit OnPreJoinEnabledChanged(false);
-        referralGateway.setPreJoinEnabled(tDaoName, false);
-
-        assert(!referralGateway.getDAOData(tDaoName).isPreJoinEnabled);
-    }
-
-    function testAssignTDAOAddress() public createDao {
+    function testLaunchDAO() public createDao {
         assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(0));
+        assertEq(referralGateway.getDAOData(tDaoName).preJoinEnabled, true);
+        assertEq(referralGateway.getDAOData(tDaoName).preJoinDiscount, true);
+        assertEq(referralGateway.getDAOData(tDaoName).referralDiscount, true);
+
         vm.prank(daoAdmin);
-        referralGateway.assignTDAOAddress(tDaoName, address(takasurePool));
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true, true);
+
         assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(takasurePool));
+        assertEq(referralGateway.getDAOData(tDaoName).preJoinEnabled, false);
+        assertEq(referralGateway.getDAOData(tDaoName).preJoinDiscount, true);
+        assertEq(referralGateway.getDAOData(tDaoName).referralDiscount, true);
     }
 
-    modifier assignTDAOAddress() {
+    modifier launchDAO() {
         vm.prank(daoAdmin);
-        referralGateway.assignTDAOAddress(tDaoName, address(takasurePool));
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true, true);
         _;
     }
 
@@ -304,11 +301,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     function testMustRevertJoinPoolIfTheChildIsNotKYC()
         public
         createDao
-        assignTDAOAddress
         referralPrepays
         KYCReferral
         referredPrepays
     {
+        vm.prank(daoAdmin);
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true, true);
+
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__NotKYCed.selector);
         emit OnMemberJoined(2, child);
@@ -318,7 +317,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     function testJoinPool()
         public
         createDao
-        assignTDAOAddress
         referralPrepays
         KYCReferral
         referredPrepays
@@ -330,6 +328,9 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         vm.warp(launchDate + 1);
         vm.roll(block.number + 1);
+
+        vm.prank(daoAdmin);
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true, true);
 
         vm.prank(child);
         vm.expectEmit(true, true, false, false, address(takasurePool));
@@ -348,7 +349,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     // function testWithdrawFees()
     //     public
     //     createDao
-    //     assignTDAOAddress
+    //     launchDAO
     //     referralPrepays
     //     KYCReferral
     //     referredPrepays
@@ -382,7 +383,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                               GRANDPARENTS
     //////////////////////////////////////////////////////////////*/
 
-    function testCompleteReferralTreeAssignRewardCorrectly() public createDao assignTDAOAddress {
+    function testCompleteReferralTreeAssignRewardCorrectly() public createDao {
         // Parents addresses
         address parentTier1 = makeAddr("parentTier1");
         address parentTier2 = makeAddr("parentTier2");
@@ -494,7 +495,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.setKYCStatus(childWithoutReferee);
     }
 
-    function testLayersCorrectlyAssigned() public createDao assignTDAOAddress {
+    function testLayersCorrectlyAssigned() public createDao {
         // Parents addresses
         address parentTier1 = makeAddr("parentTier1");
         address parentTier2 = makeAddr("parentTier2");

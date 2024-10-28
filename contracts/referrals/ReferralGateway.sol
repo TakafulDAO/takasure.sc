@@ -75,7 +75,7 @@ contract ReferralGateway is
 
     struct tDAO {
         string name;
-        bool isPreJoinEnabled;
+        bool preJoinEnabled;
         bool preJoinDiscount;
         bool referralDiscount;
         address DAOAdmin; // The one that can modify the DAO settings
@@ -153,7 +153,7 @@ contract ReferralGateway is
     /**
      * @notice Create a new DAO
      * @param DAOName The name of the DAO
-     * @param _isPreJoinEnabled The pre-join status of the DAO
+     * @param isPreJoinEnabled The pre-join status of the DAO
      * @param launchDate The launch date of the DAO
      * @param objectiveAmount The objective amount of the DAO
      * @dev The launch date must be in seconds
@@ -163,9 +163,9 @@ contract ReferralGateway is
      */
     function createDAO(
         string calldata DAOName,
-        bool _isPreJoinEnabled,
-        bool _isPreJoinDiscountEnabled,
-        bool _isReferralDiscountEnabled,
+        bool isPreJoinEnabled,
+        bool isPreJoinDiscountEnabled,
+        bool isReferralDiscountEnabled,
         uint256 launchDate,
         uint256 objectiveAmount
     ) external {
@@ -176,9 +176,9 @@ contract ReferralGateway is
         // Create the new DAO
         tDAO memory DAO = tDAO({
             name: DAOName, // To be used as a key
-            isPreJoinEnabled: _isPreJoinEnabled,
-            preJoinDiscount: _isPreJoinDiscountEnabled,
-            referralDiscount: _isReferralDiscountEnabled,
+            preJoinEnabled: isPreJoinEnabled,
+            preJoinDiscount: isPreJoinDiscountEnabled,
+            referralDiscount: isReferralDiscountEnabled,
             DAOAdmin: msg.sender,
             DAOAddress: address(0), // To be assigned when the tDAO is deployed
             rePoolAddress: address(0), // To be assigned when the tDAO is deployed
@@ -206,15 +206,21 @@ contract ReferralGateway is
         emit OnNewCofounderOfChange(cofounderOfChange);
     }
 
-    /**
-     * @notice Assign a tDAO address to a tDAO name
-     * @param tDAOName The name of the tDAO
-     */
-    function assignTDAOAddress(
+    function launchDAO(
         string calldata tDAOName,
-        address tDAOAddress
-    ) external notZeroAddress(tDAOAddress) onlyDAOAdmin(tDAOName) {
+        address tDAOAddress,
+        bool isPreJoinDiscountEnabled,
+        bool isReferralDiscountEnabled
+    ) external onlyDAOAdmin(tDAOName) notZeroAddress(tDAOAddress) {
+        if (!ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender)) {
+            revert ReferralGateway__onlyDAOAdmin();
+        }
+
+        nameToDAOData[tDAOName].preJoinEnabled = false;
+        nameToDAOData[tDAOName].preJoinDiscount = isPreJoinDiscountEnabled;
+        nameToDAOData[tDAOName].referralDiscount = isReferralDiscountEnabled;
         nameToDAOData[tDAOName].DAOAddress = tDAOAddress;
+        nameToDAOData[tDAOName].launchDate = block.timestamp;
     }
 
     /**
@@ -228,19 +234,6 @@ contract ReferralGateway is
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
     }
 
-    /**
-     * @notice Assign a launch date to a tDAO
-     * @param tDAOName The name of the tDAO
-     * @param launchDate The launch date of the tDAO
-     * @dev The launch date must be in seconds
-     */
-    function assignTDAOLaunchDate(
-        string calldata tDAOName,
-        uint256 launchDate
-    ) external onlyDAOAdmin(tDAOName) {
-        nameToDAOData[tDAOName].launchDate = launchDate;
-    }
-
     function payContribution(
         uint256 contribution,
         string calldata tDAOName,
@@ -252,9 +245,8 @@ contract ReferralGateway is
 
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
         finalFee = fee;
-
         // If the DAO pre join is enabled it means the DAO is not deployed yet
-        if (DAO.isPreJoinEnabled) {
+        if (DAO.preJoinEnabled) {
             // The prepaid member object is created inside this if statement only
             // We check if the member already exists
             if (prepaidMembers[msg.sender].contributionBeforeFee != 0)
@@ -387,14 +379,6 @@ contract ReferralGateway is
         );
 
         usdc.safeTransfer(DAO.DAOAddress, prepaidMember.contributionAfterFee);
-    }
-
-    function setPreJoinEnabled(
-        string calldata tDAOName,
-        bool _isPreJoinEnabled
-    ) external onlyDAOAdmin(tDAOName) {
-        nameToDAOData[tDAOName].isPreJoinEnabled = _isPreJoinEnabled;
-        emit OnPreJoinEnabledChanged(_isPreJoinEnabled);
     }
 
     function setUsdcAddress(address _usdcAddress) external onlyRole(OPERATOR) {
