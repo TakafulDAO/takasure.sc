@@ -117,12 +117,12 @@ contract ReferralGateway is
     error ReferralGateway__AlreadyExists();
 
     modifier notZeroAddress(address _address) {
-        if (_address == address(0)) revert ReferralGateway__ZeroAddress();
+        require(_address != address(0), ReferralGateway__ZeroAddress());
         _;
     }
 
     modifier onlyDAOAdmin(string calldata tDAOName) {
-        if (nameToDAOData[tDAOName].DAOAdmin != msg.sender) revert ReferralGateway__onlyDAOAdmin();
+        require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
         _;
     }
 
@@ -169,9 +169,11 @@ contract ReferralGateway is
         uint256 launchDate,
         uint256 objectiveAmount
     ) external {
-        if (bytes(DAOName).length == 0) revert ReferralGateway__MustHaveName();
-        if (Strings.equal(nameToDAOData[DAOName].name, DAOName))
-            revert ReferralGateway__AlreadyExists();
+        require(bytes(DAOName).length > 0, ReferralGateway__MustHaveName());
+        require(
+            !(Strings.equal(nameToDAOData[DAOName].name, DAOName)),
+            ReferralGateway__AlreadyExists()
+        );
 
         // Create the new DAO
         tDAO memory DAO = tDAO({
@@ -212,9 +214,10 @@ contract ReferralGateway is
         bool isPreJoinDiscountEnabled,
         bool isReferralDiscountEnabled
     ) external onlyDAOAdmin(tDAOName) notZeroAddress(tDAOAddress) {
-        if (!ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender)) {
-            revert ReferralGateway__onlyDAOAdmin();
-        }
+        require(
+            ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender),
+            ReferralGateway__onlyDAOAdmin()
+        );
 
         nameToDAOData[tDAOName].preJoinEnabled = false;
         nameToDAOData[tDAOName].preJoinDiscount = isPreJoinDiscountEnabled;
@@ -249,8 +252,10 @@ contract ReferralGateway is
         address parent
     ) external returns (uint256 finalFee, uint256 discount) {
         tDAO memory DAO = nameToDAOData[tDAOName];
-        if (contribution < MINIMUM_CONTRIBUTION || contribution > MAXIMUM_CONTRIBUTION)
-            revert ReferralGateway__ContributionOutOfRange();
+        require(
+            contribution >= MINIMUM_CONTRIBUTION && contribution <= MAXIMUM_CONTRIBUTION,
+            ReferralGateway__ContributionOutOfRange()
+        );
 
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
         finalFee = fee;
@@ -258,8 +263,10 @@ contract ReferralGateway is
         if (DAO.preJoinEnabled) {
             // The prepaid member object is created inside this if statement only
             // We check if the member already exists
-            if (prepaidMembers[msg.sender].contributionBeforeFee != 0)
-                revert ReferralGateway__AlreadyMember();
+            require(
+                prepaidMembers[msg.sender].contributionBeforeFee == 0,
+                ReferralGateway__AlreadyMember()
+            );
 
             uint256 amountToTransfer = contribution;
 
@@ -334,10 +341,10 @@ contract ReferralGateway is
         // Initial checks
         PrepaidMember memory member = prepaidMembers[child];
         // Can not KYC a member that is already KYCed
-        if (isMemberKYCed[child]) revert ReferralGateway__MemberAlreadyKYCed();
+        require(!isMemberKYCed[child], ReferralGateway__MemberAlreadyKYCed());
 
         // The member must have already pre-paid
-        if (member.contributionBeforeFee == 0) revert ReferralGateway__HasNotPaid();
+        require(member.contributionBeforeFee != 0, ReferralGateway__HasNotPaid());
 
         // Update the KYC status
         isMemberKYCed[child] = true;
@@ -373,12 +380,15 @@ contract ReferralGateway is
      */
     function joinDAO(address newMember) external nonReentrant {
         // Initial checks
-        PrepaidMember memory prepaidMember = prepaidMembers[newMember];
-        if (!isMemberKYCed[prepaidMember.member]) revert ReferralGateway__NotKYCed();
+        require(isMemberKYCed[newMember], ReferralGateway__NotKYCed());
 
+        PrepaidMember memory prepaidMember = prepaidMembers[newMember];
         tDAO memory DAO = nameToDAOData[prepaidMember.tDAOName];
-        if (DAO.DAOAddress == address(0) || DAO.launchDate > block.timestamp)
-            revert ReferralGateway__tDAONotReadyYet();
+
+        require(
+            DAO.DAOAddress != address(0) && DAO.launchDate <= block.timestamp,
+            ReferralGateway__tDAONotReadyYet()
+        );
 
         // Finally, we join the prepaidMember to the tDAO
         ITakasurePool(DAO.DAOAddress).prejoins(
