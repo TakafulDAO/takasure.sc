@@ -279,7 +279,7 @@ contract ReferralGateway is
             PrepaidMember memory prepayer = PrepaidMember({
                 tDAOName: tDAOName,
                 member: msg.sender,
-                parent: address(0),
+                parent: parent,
                 contributionBeforeFee: contribution, // Input value, we need it like this for the actual join when the DAO is deployed
                 contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the DAO is deployed
                 finalFee: finalFee,
