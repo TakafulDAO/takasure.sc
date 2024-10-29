@@ -62,7 +62,7 @@ contract ReferralGateway is
         uint256 launchDate; // in seconds
         uint256 objectiveAmount; // in USDC, six decimals
         uint256 currentAmount; // in USDC, six decimals
-        uint256 collectedFees; // in USDC, six decimals
+        uint256 collectedFees; // Fees collected after deduct, discounts, referral reserve and repool amounts. In USDC, six decimals
         address rePoolAddress; // To be assigned when the tDAO is deployed
         uint256 toRepool; // in USDC, six decimals
     }
