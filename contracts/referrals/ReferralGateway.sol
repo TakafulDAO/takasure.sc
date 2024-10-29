@@ -173,6 +173,10 @@ contract ReferralGateway is
         emit OnNewCofounderOfChange(cofounderOfChange);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                              DAO SETTINGS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Create a new DAO
      * @param DAOName The name of the DAO
@@ -261,6 +265,10 @@ contract ReferralGateway is
     function switchReferralDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 JOINS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Pay a contribution to a DAO
@@ -423,6 +431,10 @@ contract ReferralGateway is
         usdc.safeTransfer(DAO.DAOAddress, prepaidMember.contributionAfterFee);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                REWARDS
+    //////////////////////////////////////////////////////////////*/
+
     function withdrawRewards() external nonReentrant {
         for (int256 i; i < MAX_TIER; ++i) {
             uint256 layer = uint256(i + 1);
@@ -431,6 +443,10 @@ contract ReferralGateway is
             usdc.safeTransfer(msg.sender, reward);
         }
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
 
     function setUsdcAddress(address _usdcAddress) external onlyRole(OPERATOR) {
         usdc = IERC20(_usdcAddress);
