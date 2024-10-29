@@ -103,13 +103,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     function testCreateANewDao() public {
         vm.prank(daoAdmin);
-        referralGateway.createDAO(tDaoName, true, true, 0, 100e6);
+        referralGateway.createDAO(tDaoName, true, true, (block.timestamp + 31_536_000), 100e6);
 
         assertEq(referralGateway.getDAOData(tDaoName).name, tDaoName);
         assertEq(referralGateway.getDAOData(tDaoName).preJoinEnabled, true);
         assertEq(referralGateway.getDAOData(tDaoName).DAOAdmin, daoAdmin);
         assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(0));
-        assertEq(referralGateway.getDAOData(tDaoName).launchDate, 0);
+        assertEq(referralGateway.getDAOData(tDaoName).launchDate, block.timestamp + 31_536_000);
         assertEq(referralGateway.getDAOData(tDaoName).objectiveAmount, 100e6);
         assertEq(referralGateway.getDAOData(tDaoName).currentAmount, 0);
 

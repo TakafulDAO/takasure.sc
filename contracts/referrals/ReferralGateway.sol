@@ -59,12 +59,12 @@ contract ReferralGateway is
         bool referralDiscount;
         address DAOAdmin; // The one that can modify the DAO settings
         address DAOAddress; // To be assigned when the tDAO is deployed
-        uint256 launchDate; // in seconds
-        uint256 objectiveAmount; // in USDC, six decimals
-        uint256 currentAmount; // in USDC, six decimals
+        uint256 launchDate; // In seconds. An estimated launch date of the DAO
+        uint256 objectiveAmount; // In USDC, six decimals
+        uint256 currentAmount; // In USDC, six decimals
         uint256 collectedFees; // Fees collected after deduct, discounts, referral reserve and repool amounts. In USDC, six decimals
         address rePoolAddress; // To be assigned when the tDAO is deployed
-        uint256 toRepool; // in USDC, six decimals
+        uint256 toRepool; // In USDC, six decimals
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -119,6 +119,7 @@ contract ReferralGateway is
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__onlyDAOAdmin();
     error ReferralGateway__MustHaveName();
+    error ReferralGateway__InvalidLaunchDate();
     error ReferralGateway__AlreadyExists();
     error ReferralGateway__ZeroAmount();
     error ReferralGateway__ContributionOutOfRange();
@@ -184,7 +185,7 @@ contract ReferralGateway is
      * @param DAOName The name of the DAO
      * @param isPreJoinEnabled The pre-join status of the DAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
-     * @param launchDate The launch date of the DAO
+     * @param launchDate An estimated launch date of the DAO
      * @param objectiveAmount The objective amount of the DAO
      * @dev The launch date must be in seconds
      * @dev The launch date can be 0, if the DAO is already launched or the launch date is not defined
@@ -203,6 +204,7 @@ contract ReferralGateway is
             !(Strings.equal(nameToDAOData[DAOName].name, DAOName)),
             ReferralGateway__AlreadyExists()
         );
+        require(launchDate > block.timestamp, ReferralGateway__InvalidLaunchDate());
 
         // Create the new DAO
         tDAO memory DAO = tDAO({
@@ -221,6 +223,16 @@ contract ReferralGateway is
 
         // Update the necessary mappings
         nameToDAOData[DAO.name] = DAO;
+    }
+
+    /**
+     * @notice Update the DAO estimated launch date
+     */
+    function updateLaunchDate(
+        string calldata tDAOName,
+        uint256 launchDate
+    ) external onlyDAOAdmin(tDAOName) {
+        nameToDAOData[tDAOName].launchDate = launchDate;
     }
 
     /**
