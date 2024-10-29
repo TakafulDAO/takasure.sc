@@ -33,7 +33,7 @@ contract ReferralGateway is
     IBenefitMultiplierConsumer private bmConsumer;
 
     address private operator;
-    uint256 referralReserveBalance;
+    uint256 private referralReserveBalance;
 
     mapping(address parent => mapping(address child => uint256 rewards))
         public parentRewardsByChild;
