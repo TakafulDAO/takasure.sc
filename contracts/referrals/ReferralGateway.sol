@@ -39,7 +39,7 @@ contract ReferralGateway is
         public parentRewardsByChild;
     mapping(address parent => mapping(uint256 layer => uint256 rewards))
         public parentRewardsByLayer;
-    mapping(address child => PrepaidMember) public prepaidMembers;
+    mapping(address member => PrepaidMember) public prepaidMembers;
     mapping(string tDAOName => tDAO DAOData) private nameToDAOData;
     mapping(address member => bool) public isMemberKYCed;
     mapping(address child => address parent) public childToParent;
