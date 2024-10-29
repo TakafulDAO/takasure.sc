@@ -47,7 +47,6 @@ contract ReferralGateway is
     struct PrepaidMember {
         string tDAOName;
         address member;
-        address parent;
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
         uint256 finalFee; // Fee after all the discounts and rewards
@@ -338,7 +337,6 @@ contract ReferralGateway is
             PrepaidMember memory prepayer = PrepaidMember({
                 tDAOName: tDAOName,
                 member: msg.sender,
-                parent: parent,
                 contributionBeforeFee: contribution, // Input value, we need it like this for the actual join when the DAO is deployed
                 contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the DAO is deployed
                 finalFee: finalFee,
@@ -390,7 +388,7 @@ contract ReferralGateway is
         // Update the KYC status
         isMemberKYCed[child] = true;
 
-        address parent = member.parent;
+        address parent = childToParent[child];
 
         for (uint256 i; i < uint256(MAX_TIER); ++i) {
             if (parent == address(0)) break;
@@ -406,7 +404,7 @@ contract ReferralGateway is
             emit OnParentRewarded(parent, layer, child, parentReward);
 
             // We update the parent address to check the next parent
-            parent = prepaidMembers[parent].parent;
+            parent = childToParent[parent];
         }
 
         emit OnChildKYCVerified(child);
