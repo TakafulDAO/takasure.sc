@@ -56,7 +56,6 @@ contract ReferralGateway is
     struct tDAO {
         string name;
         bool preJoinEnabled;
-        bool preJoinDiscount;
         bool referralDiscount;
         address DAOAdmin; // The one that can modify the DAO settings
         address DAOAddress; // To be assigned when the tDAO is deployed
@@ -178,7 +177,6 @@ contract ReferralGateway is
      * @notice Create a new DAO
      * @param DAOName The name of the DAO
      * @param isPreJoinEnabled The pre-join status of the DAO
-     * @param isPreJoinDiscountEnabled The pre-join discount status of the DAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
      * @param launchDate The launch date of the DAO
      * @param objectiveAmount The objective amount of the DAO
@@ -190,7 +188,6 @@ contract ReferralGateway is
     function createDAO(
         string calldata DAOName,
         bool isPreJoinEnabled,
-        bool isPreJoinDiscountEnabled,
         bool isReferralDiscountEnabled,
         uint256 launchDate,
         uint256 objectiveAmount
@@ -205,7 +202,6 @@ contract ReferralGateway is
         tDAO memory DAO = tDAO({
             name: DAOName, // To be used as a key
             preJoinEnabled: isPreJoinEnabled,
-            preJoinDiscount: isPreJoinDiscountEnabled,
             referralDiscount: isReferralDiscountEnabled,
             DAOAdmin: msg.sender,
             DAOAddress: address(0), // To be assigned when the tDAO is deployed
@@ -225,7 +221,6 @@ contract ReferralGateway is
      * @notice Method to be called after a tDAO is deployed
      * @param tDAOName The name of the tDAO
      * @param tDAOAddress The address of the tDAO
-     * @param isPreJoinDiscountEnabled The pre-join discount status of the DAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
      * @dev Only the DAOAdmin can call this method, the DAOAdmin is the one that created the DAO and must have
      *      the role of DAO_MULTISIG in the DAO
@@ -235,7 +230,6 @@ contract ReferralGateway is
     function launchDAO(
         string calldata tDAOName,
         address tDAOAddress,
-        bool isPreJoinDiscountEnabled,
         bool isReferralDiscountEnabled
     ) external onlyDAOAdmin(tDAOName) notZeroAddress(tDAOAddress) {
         require(
@@ -244,7 +238,6 @@ contract ReferralGateway is
         );
 
         nameToDAOData[tDAOName].preJoinEnabled = false;
-        nameToDAOData[tDAOName].preJoinDiscount = isPreJoinDiscountEnabled;
         nameToDAOData[tDAOName].referralDiscount = isReferralDiscountEnabled;
         nameToDAOData[tDAOName].DAOAddress = tDAOAddress;
         nameToDAOData[tDAOName].launchDate = block.timestamp;
@@ -260,13 +253,6 @@ contract ReferralGateway is
         address rePoolAddress
     ) external notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName) {
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
-    }
-
-    /**
-     * @notice Switch the preJoinDiscount status of a DAO
-     */
-    function switchPreJoinDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
-        nameToDAOData[tDAOName].preJoinDiscount = !nameToDAOData[tDAOName].preJoinDiscount;
     }
 
     /**
@@ -310,12 +296,10 @@ contract ReferralGateway is
 
             uint256 amountToTransfer = contribution;
 
-            // It will get a discount if this feature is enabled
-            if (DAO.preJoinDiscount) {
-                discount += (contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
-                amountToTransfer -= discount;
-                finalFee -= discount;
-            }
+            // It will get a discount as a pre-joiner
+            discount += (contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
+            amountToTransfer -= discount;
+            finalFee -= discount;
 
             if (DAO.referralDiscount) {
                 uint256 toReferralReserve = (contribution * REFERRAL_RESERVE) / 100;

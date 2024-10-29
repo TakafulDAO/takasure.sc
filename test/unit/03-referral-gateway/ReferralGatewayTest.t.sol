@@ -103,7 +103,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
     function testCreateANewDao() public {
         vm.prank(daoAdmin);
-        referralGateway.createDAO(tDaoName, true, true, true, 0, 100e6);
+        referralGateway.createDAO(tDaoName, true, true, 0, 100e6);
 
         assertEq(referralGateway.getDAOData(tDaoName).name, tDaoName);
         assertEq(referralGateway.getDAOData(tDaoName).preJoinEnabled, true);
@@ -115,12 +115,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         vm.prank(referral);
         vm.expectRevert(ReferralGateway.ReferralGateway__AlreadyExists.selector);
-        referralGateway.createDAO(tDaoName, true, true, true, 0, 100e6);
+        referralGateway.createDAO(tDaoName, true, true, 0, 100e6);
     }
 
     modifier createDao() {
         vm.prank(daoAdmin);
-        referralGateway.createDAO(tDaoName, true, true, true, 1743479999, 1e12);
+        referralGateway.createDAO(tDaoName, true, true, 1743479999, 1e12);
         _;
     }
 
@@ -131,15 +131,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     function testLaunchDAO() public createDao {
         assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(0));
         assertEq(referralGateway.getDAOData(tDaoName).preJoinEnabled, true);
-        assertEq(referralGateway.getDAOData(tDaoName).preJoinDiscount, true);
         assertEq(referralGateway.getDAOData(tDaoName).referralDiscount, true);
 
         vm.prank(daoAdmin);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true, true);
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
 
         assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(takasurePool));
         assertEq(referralGateway.getDAOData(tDaoName).preJoinEnabled, false);
-        assertEq(referralGateway.getDAOData(tDaoName).preJoinDiscount, true);
         assertEq(referralGateway.getDAOData(tDaoName).referralDiscount, true);
     }
 
@@ -300,7 +298,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referredPrepays
     {
         vm.prank(daoAdmin);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true, true);
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
 
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__NotKYCed.selector);
@@ -324,7 +322,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.roll(block.number + 1);
 
         vm.prank(daoAdmin);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true, true);
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
 
         vm.prank(child);
         vm.expectEmit(true, true, false, false, address(takasurePool));
