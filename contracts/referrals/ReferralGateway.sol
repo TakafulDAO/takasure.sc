@@ -82,6 +82,7 @@ contract ReferralGateway is
     /*//////////////////////////////////////////////////////////////
                             REWARDS RELATED
     //////////////////////////////////////////////////////////////*/
+
     int256 private constant MAX_TIER = 4;
     int256 private constant A = -3_125;
     int256 private constant B = 30_500;
@@ -116,15 +117,15 @@ contract ReferralGateway is
     );
 
     error ReferralGateway__ZeroAddress();
-    error ReferralGateway__AlreadyMember();
-    error ReferralGateway__ContributionOutOfRange();
-    error ReferralGateway__MemberAlreadyKYCed();
-    error ReferralGateway__NotKYCed();
-    error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__onlyDAOAdmin();
-    error ReferralGateway__HasNotPaid();
     error ReferralGateway__MustHaveName();
     error ReferralGateway__AlreadyExists();
+    error ReferralGateway__ContributionOutOfRange();
+    error ReferralGateway__AlreadyMember();
+    error ReferralGateway__MemberAlreadyKYCed();
+    error ReferralGateway__HasNotPaid();
+    error ReferralGateway__NotKYCed();
+    error ReferralGateway__tDAONotReadyYet();
 
     modifier notZeroAddress(address _address) {
         require(_address != address(0), ReferralGateway__ZeroAddress());
