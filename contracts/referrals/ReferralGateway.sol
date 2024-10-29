@@ -120,6 +120,7 @@ contract ReferralGateway is
     error ReferralGateway__onlyDAOAdmin();
     error ReferralGateway__MustHaveName();
     error ReferralGateway__AlreadyExists();
+    error ReferralGateway__ZeroAmount();
     error ReferralGateway__ContributionOutOfRange();
     error ReferralGateway__AlreadyMember();
     error ReferralGateway__MemberAlreadyKYCed();
@@ -175,7 +176,7 @@ contract ReferralGateway is
     }
 
     /*//////////////////////////////////////////////////////////////
-                              DAO SETTINGS
+                               DAO ADMIN
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -249,6 +250,13 @@ contract ReferralGateway is
     }
 
     /**
+     * @notice Switch the referralDiscount status of a DAO
+     */
+    function switchReferralDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
+        nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
+    }
+
+    /**
      * @notice Assign a rePool address to a tDAO name
      * @param tDAOName The name of the tDAO
      * @param rePoolAddress The address of the rePool
@@ -260,11 +268,17 @@ contract ReferralGateway is
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
     }
 
-    /**
-     * @notice Switch the referralDiscount status of a DAO
-     */
-    function switchReferralDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
-        nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
+    function transferToRepool(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
+        tDAO memory DAO = nameToDAOData[tDAOName];
+        require(DAO.rePoolAddress != address(0), ReferralGateway__ZeroAddress());
+        require(DAO.toRepool > 0, ReferralGateway__ZeroAmount());
+
+        uint256 amount = DAO.toRepool;
+        address rePoolAddress = DAO.rePoolAddress;
+
+        nameToDAOData[tDAOName].toRepool = 0;
+
+        usdc.safeTransfer(rePoolAddress, amount);
     }
 
     /*//////////////////////////////////////////////////////////////
