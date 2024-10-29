@@ -372,8 +372,7 @@ contract ReferralGateway is
         } else {
             /** Call the DAO to join
              *  TODO: This call needs to change the joinPool function to add a param for the new member
-             *  TODO: This will need to change all the tests. It is done in the size PR.
-             *  TODO: To Implement call the function in the router
+             *  TODO: To Implement call the function in the router. For V2 of this contract
              */
         }
     }
