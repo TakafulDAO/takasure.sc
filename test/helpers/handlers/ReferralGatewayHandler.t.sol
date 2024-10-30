@@ -43,7 +43,10 @@ contract ReferralGatewayHandler is Test {
             ghostDiscount = 0;
         } else {
             // 2. User is not already a member
-            (, , uint256 contributionBeforeFee, , , ) = referralGateway.prepaidMembers(msg.sender);
+            (, , uint256 contributionBeforeFee, , , ) = referralGateway.prepaidMembers(
+                msg.sender,
+                DAO_NAME
+            );
             if (contributionBeforeFee != 0 || referralGateway.isMemberKYCed(msg.sender)) {
                 skip = true;
                 ghostFee = 0;
