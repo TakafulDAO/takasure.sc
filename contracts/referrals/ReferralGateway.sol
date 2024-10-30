@@ -115,6 +115,7 @@ contract ReferralGateway is
         address indexed newBenefitMultiplierConsumer,
         address indexed oldBenefitMultiplierConsumer
     );
+    event OnRefund(string indexed tDAOName, address indexed member, uint256 indexed amount);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__onlyDAOAdmin();
@@ -455,6 +456,45 @@ contract ReferralGateway is
         );
 
         usdc.safeTransfer(DAO.DAOAddress, prepaidMember.contributionAfterFee);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                REFUNDS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Refund a prepaid member if the DAO is not deployed at launch date
+     * @param member The address of the member
+     * @param tDAOName The name of the DAO
+     */
+    function refundPrepaidMember(address member, string calldata tDAOName) external {
+        tDAO memory DAO = nameToDAOData[tDAOName];
+
+        require(
+            DAO.launchDate <= block.timestamp && DAO.DAOAddress == address(0),
+            ReferralGateway__tDAONotReadyYet()
+        );
+
+        PrepaidMember memory prepaidMember = prepaidMembers[member];
+        require(prepaidMember.contributionBeforeFee != 0, ReferralGateway__HasNotPaid());
+
+        uint256 feePaid = prepaidMember.contributionBeforeFee - prepaidMember.contributionAfterFee;
+        uint256 discountReceived = prepaidMember.discount;
+
+        uint256 amountToRefund = prepaidMember.contributionBeforeFee - feePaid - discountReceived;
+
+        prepaidMembers[member] = PrepaidMember({
+            tDAOName: "",
+            member: address(0),
+            contributionBeforeFee: 0,
+            contributionAfterFee: 0,
+            finalFee: 0,
+            discount: 0
+        });
+
+        usdc.safeTransfer(member, amountToRefund);
+
+        emit OnRefund(tDAOName, member, amountToRefund);
     }
 
     /*//////////////////////////////////////////////////////////////
