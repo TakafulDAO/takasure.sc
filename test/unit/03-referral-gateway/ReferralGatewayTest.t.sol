@@ -124,7 +124,15 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         vm.prank(referral);
         vm.expectRevert(ReferralGateway.ReferralGateway__AlreadyExists.selector);
-        referralGateway.createDAO(tDaoName, true, true, 0, 100e6);
+        referralGateway.createDAO(tDaoName, true, true, (block.timestamp + 31_536_000), 100e6);
+
+        vm.prank(referral);
+        vm.expectRevert(ReferralGateway.ReferralGateway__MustHaveName.selector);
+        referralGateway.createDAO("", true, true, (block.timestamp + 31_536_000), 100e6);
+
+        vm.prank(referral);
+        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidLaunchDate.selector);
+        referralGateway.createDAO("New DAO", true, true, 0, 100e6);
     }
 
     modifier createDao() {
@@ -142,12 +150,33 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.getDAOData(tDaoName).preJoinEnabled, true);
         assertEq(referralGateway.getDAOData(tDaoName).referralDiscount, true);
 
+        vm.prank(referral);
+        vm.expectRevert(ReferralGateway.ReferralGateway__onlyDAOAdmin.selector);
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+
         vm.prank(daoAdmin);
         referralGateway.launchDAO(tDaoName, address(takasurePool), true);
 
         assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(takasurePool));
-        assertEq(referralGateway.getDAOData(tDaoName).preJoinEnabled, false);
-        assertEq(referralGateway.getDAOData(tDaoName).referralDiscount, true);
+        assert(!referralGateway.getDAOData(tDaoName).preJoinEnabled);
+        assert(referralGateway.getDAOData(tDaoName).referralDiscount);
+        assertEq(referralGateway.getDAOData(tDaoName).rePoolAddress, address(0));
+
+        vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__DAOAlreadyLaunched.selector);
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+
+        vm.prank(daoAdmin);
+        referralGateway.switchReferralDiscount(tDaoName);
+
+        assert(!referralGateway.getDAOData(tDaoName).referralDiscount);
+
+        address rePoolAddress = makeAddr("rePoolAddress");
+
+        vm.prank(daoAdmin);
+        referralGateway.enableRepool(tDaoName, rePoolAddress);
+
+        assertEq(referralGateway.getDAOData(tDaoName).rePoolAddress, rePoolAddress);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -695,6 +724,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         address newOperator = makeAddr("newOperator");
         address newKYCProvider = makeAddr("newKYCProvider");
         address newAdmin = makeAddr("newAdmin");
+        address newCofounderOfChange = makeAddr("newCofounderOfChange");
 
         // Current addresses with roles
         assert(referralGateway.hasRole(keccak256("OPERATOR"), takadao));
@@ -705,6 +735,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
         assert(!referralGateway.hasRole(0x00, newAdmin));
+        assert(!referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
+
+        vm.prank(takadao);
+        referralGateway.registerCofounderOfChange(newCofounderOfChange);
+
+        assert(referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
 
         // Current KYCProvider can KYC a member
         vm.prank(KYCProvider);

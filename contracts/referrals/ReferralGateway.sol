@@ -122,6 +122,7 @@ contract ReferralGateway is
     error ReferralGateway__MustHaveName();
     error ReferralGateway__InvalidLaunchDate();
     error ReferralGateway__AlreadyExists();
+    error ReferralGateway__DAOAlreadyLaunched();
     error ReferralGateway__ZeroAmount();
     error ReferralGateway__ContributionOutOfRange();
     error ReferralGateway__AlreadyMember();
@@ -254,6 +255,10 @@ contract ReferralGateway is
         require(
             ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender),
             ReferralGateway__onlyDAOAdmin()
+        );
+        require(
+            nameToDAOData[tDAOName].DAOAddress == address(0),
+            ReferralGateway__DAOAlreadyLaunched()
         );
 
         nameToDAOData[tDAOName].preJoinEnabled = false;
