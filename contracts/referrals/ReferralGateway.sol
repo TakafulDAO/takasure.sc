@@ -491,6 +491,7 @@ contract ReferralGateway is
             finalFee: 0,
             discount: 0
         });
+        isMemberKYCed[member] = false;
 
         usdc.safeTransfer(member, amountToRefund);
 

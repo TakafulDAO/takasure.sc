@@ -606,6 +606,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assert(contributionAfterFee > 0);
         assert(finalFee > 0);
         assert(discount > 0);
+        assert(referralGateway.isMemberKYCed(child));
 
         vm.startPrank(child);
         // Should not be able to join because the DAO is not launched yet
@@ -657,6 +658,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(contributionAfterFee, 0);
         assertEq(finalFee, 0);
         assertEq(discount, 0);
+        assert(!referralGateway.isMemberKYCed(child));
 
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
