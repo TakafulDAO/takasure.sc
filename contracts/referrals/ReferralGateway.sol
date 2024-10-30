@@ -39,7 +39,7 @@ contract ReferralGateway is
         public parentRewardsByChild;
     mapping(address parent => mapping(uint256 layer => uint256 rewards))
         public parentRewardsByLayer;
-    mapping(address member => PrepaidMember) public prepaidMembers;
+    mapping(address member => mapping(string tDAOName => PrepaidMember)) public prepaidMembers;
     mapping(string tDAOName => tDAO DAOData) private nameToDAOData;
     mapping(address member => bool) public isMemberKYCed;
     mapping(address child => address parent) public childToParent;
@@ -326,7 +326,7 @@ contract ReferralGateway is
             // The prepaid member object is created inside this if statement only
             // We check if the member already exists
             require(
-                prepaidMembers[msg.sender].contributionBeforeFee == 0,
+                prepaidMembers[msg.sender][tDAOName].contributionBeforeFee == 0,
                 ReferralGateway__AlreadyMember()
             );
 
@@ -376,7 +376,7 @@ contract ReferralGateway is
 
             usdc.safeTransfer(operator, finalFee);
 
-            prepaidMembers[msg.sender] = prepayer;
+            prepaidMembers[msg.sender][tDAOName] = prepayer;
 
             // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
             _getBenefitMultiplierFromOracle(msg.sender);
@@ -395,9 +395,12 @@ contract ReferralGateway is
      * @param child The address of the member
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
-    function setKYCStatus(address child) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
+    function setKYCStatus(
+        address child,
+        string calldata tDAOName
+    ) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
         // Initial checks
-        PrepaidMember memory member = prepaidMembers[child];
+        PrepaidMember memory member = prepaidMembers[child][tDAOName];
         // Can not KYC a member that is already KYCed
         require(!isMemberKYCed[child], ReferralGateway__MemberAlreadyKYCed());
 
@@ -436,11 +439,11 @@ contract ReferralGateway is
      * @dev The member must have a parent
      * @dev The member must have a tDAO assigned
      */
-    function joinDAO(address newMember) external nonReentrant {
+    function joinDAO(address newMember, string calldata tDAOName) external nonReentrant {
         // Initial checks
         require(isMemberKYCed[newMember], ReferralGateway__NotKYCed());
 
-        PrepaidMember memory prepaidMember = prepaidMembers[newMember];
+        PrepaidMember memory prepaidMember = prepaidMembers[newMember][tDAOName];
         tDAO memory DAO = nameToDAOData[prepaidMember.tDAOName];
 
         require(
@@ -475,7 +478,7 @@ contract ReferralGateway is
             ReferralGateway__tDAONotReadyYet()
         );
 
-        PrepaidMember memory prepaidMember = prepaidMembers[member];
+        PrepaidMember memory prepaidMember = prepaidMembers[member][tDAOName];
         require(prepaidMember.contributionBeforeFee != 0, ReferralGateway__HasNotPaid());
 
         uint256 feePaid = prepaidMember.contributionBeforeFee - prepaidMember.contributionAfterFee;
@@ -483,7 +486,7 @@ contract ReferralGateway is
 
         uint256 amountToRefund = prepaidMember.contributionBeforeFee - feePaid - discountReceived;
 
-        prepaidMembers[member] = PrepaidMember({
+        prepaidMembers[member][tDAOName] = PrepaidMember({
             tDAOName: "",
             member: address(0),
             contributionBeforeFee: 0,
