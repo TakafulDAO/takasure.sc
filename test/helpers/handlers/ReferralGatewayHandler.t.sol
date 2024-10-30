@@ -31,12 +31,10 @@ contract ReferralGatewayHandler is Test {
         usdc = ERC20(address(referralGateway.usdc()));
     }
 
-    function payContribution(uint256 contributionAmount, address parent) public {
+    function payContribution(uint256 contributionAmount, address newMember, address parent) public {
         // 1. User is not the zero address, the parent or the referral gateway address
         if (
-            msg.sender == address(0) ||
-            msg.sender == parent ||
-            msg.sender == address(referralGateway)
+            newMember == address(0) || newMember == parent || newMember == address(referralGateway)
         ) {
             skip = true;
             ghostFee = 0;
@@ -44,31 +42,27 @@ contract ReferralGatewayHandler is Test {
         } else {
             // 2. User is not already a member
             (, , uint256 contributionBeforeFee, , , ) = referralGateway.prepaidMembers(
-                msg.sender,
+                newMember,
                 DAO_NAME
             );
-            if (contributionBeforeFee != 0 || referralGateway.isMemberKYCed(msg.sender)) {
+            if (contributionBeforeFee != 0 || referralGateway.isMemberKYCed(newMember)) {
                 skip = true;
                 ghostFee = 0;
                 ghostDiscount = 0;
             } else {
                 // 3. Contribution amount is within the limits
                 contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
-
                 // 4. User has enough balance
-                deal(address(usdc), msg.sender, contributionAmount);
-
+                deal(address(usdc), newMember, contributionAmount);
                 // 5. User approves the pool to spend the contribution amount and joins the pool
-                vm.startPrank(msg.sender);
+                vm.startPrank(newMember);
                 usdc.approve(address(referralGateway), contributionAmount);
-
                 (uint256 collectedFee, uint256 discount) = referralGateway.payContribution(
                     contributionAmount,
                     DAO_NAME,
                     parent
                 );
                 vm.stopPrank();
-
                 skip = false;
                 ghostFee = collectedFee;
                 ghostDiscount = discount;
