@@ -661,7 +661,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assert(!referralGateway.isMemberKYCed(child));
 
         vm.prank(child);
-        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        vm.expectRevert(ReferralGateway.ReferralGateway__NotKYCed.selector);
         referralGateway.joinDAO(child);
     }
 
