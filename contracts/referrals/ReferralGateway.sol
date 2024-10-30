@@ -234,6 +234,10 @@ contract ReferralGateway is
         string calldata tDAOName,
         uint256 launchDate
     ) external onlyDAOAdmin(tDAOName) {
+        require(
+            nameToDAOData[tDAOName].DAOAddress == address(0),
+            ReferralGateway__DAOAlreadyLaunched()
+        );
         nameToDAOData[tDAOName].launchDate = launchDate;
     }
 
@@ -388,7 +392,8 @@ contract ReferralGateway is
 
             emit OnPrepayment(parent, msg.sender, contribution);
         } else {
-            /** Call the DAO to join
+            /**
+             * Call the DAO to join
              *  TODO: This call needs to change the joinPool function to add a param for the new member
              *  TODO: To Implement call the function in the router. For V2 of this contract
              */
@@ -568,7 +573,9 @@ contract ReferralGateway is
             if (
                 childToParent[currentChildToCheck] == address(0) ||
                 !isMemberKYCed[childToParent[currentChildToCheck]]
-            ) break;
+            ) {
+                break;
+            }
 
             uint256 parentReward = (_contribution * _referralRewardRatioByLayer(i + 1)) /
                 (100 * DECIMAL_CORRECTION);
