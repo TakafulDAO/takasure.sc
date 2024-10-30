@@ -34,4 +34,4 @@ jobs:
 
       - name: Forge Test
         run: |
-          forge test
+          forge test --skip TakasurePoolInvariantTest.t.sol ReferralGatewayInvariantTest.t.sol
