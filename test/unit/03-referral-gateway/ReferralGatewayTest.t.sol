@@ -59,6 +59,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         address indexed child,
         uint256 reward
     );
+    event OnBenefitMultiplierConsumerChanged(
+        address indexed newBenefitMultiplierConsumer,
+        address indexed oldBenefitMultiplierConsumer
+    );
 
     function setUp() public {
         // Deployer
@@ -133,6 +137,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(referral);
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidLaunchDate.selector);
         referralGateway.createDAO("New DAO", true, true, 0, 100e6);
+
+        vm.prank(referral);
+        vm.expectRevert();
+        referralGateway.updateLaunchDate(tDaoName, block.timestamp + 32_000_000);
+
+        vm.prank(daoAdmin);
+        referralGateway.updateLaunchDate(tDaoName, block.timestamp + 32_000_000);
     }
 
     modifier createDao() {
@@ -155,12 +166,20 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.launchDAO(tDaoName, address(takasurePool), true);
 
         vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
+        referralGateway.launchDAO(tDaoName, address(0), true);
+
+        vm.prank(daoAdmin);
         referralGateway.launchDAO(tDaoName, address(takasurePool), true);
 
         assertEq(referralGateway.getDAOData(tDaoName).DAOAddress, address(takasurePool));
         assert(!referralGateway.getDAOData(tDaoName).preJoinEnabled);
         assert(referralGateway.getDAOData(tDaoName).referralDiscount);
         assertEq(referralGateway.getDAOData(tDaoName).rePoolAddress, address(0));
+
+        vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__DAOAlreadyLaunched.selector);
+        referralGateway.updateLaunchDate(tDaoName, block.timestamp + 32_000_000);
 
         vm.prank(daoAdmin);
         vm.expectRevert(ReferralGateway.ReferralGateway__DAOAlreadyLaunched.selector);
@@ -172,6 +191,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assert(!referralGateway.getDAOData(tDaoName).referralDiscount);
 
         address rePoolAddress = makeAddr("rePoolAddress");
+
+        vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
+        referralGateway.enableRepool(tDaoName, address(0));
 
         vm.prank(daoAdmin);
         referralGateway.enableRepool(tDaoName, rePoolAddress);
@@ -246,6 +269,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
 
     function testKYCAnAddress() public createDao referralPrepays {
+        vm.prank(KYCProvider);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
+        referralGateway.setKYCStatus(address(0), tDaoName);
+
         assert(!referralGateway.isMemberKYCed(referral));
         vm.prank(KYCProvider);
         referralGateway.setKYCStatus(referral, tDaoName);
@@ -384,7 +411,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         address parentTier4 = makeAddr("parentTier4");
         address[4] memory parents = [parentTier1, parentTier2, parentTier3, parentTier4];
 
-        for (uint i = 0; i < parents.length; i++) {
+        for (uint256 i = 0; i < parents.length; i++) {
             // Give USDC to parents
             deal(address(usdc), parents[i], 10 * CONTRIBUTION_AMOUNT);
             // Approve the contracts
@@ -495,7 +522,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         address parentTier3 = makeAddr("parentTier3");
         address parentTier4 = makeAddr("parentTier4");
         address[4] memory parents = [parentTier1, parentTier2, parentTier3, parentTier4];
-        for (uint i = 0; i < parents.length; i++) {
+        for (uint256 i = 0; i < parents.length; i++) {
             // Give USDC to parents
             deal(address(usdc), parents[i], 10 * CONTRIBUTION_AMOUNT);
             // Approve the contracts
@@ -738,6 +765,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assert(!referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
 
         vm.prank(takadao);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
+        referralGateway.registerCofounderOfChange(address(0));
+
+        vm.prank(takadao);
         referralGateway.registerCofounderOfChange(newCofounderOfChange);
 
         assert(referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
@@ -774,5 +805,42 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), takadao));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
         assert(!referralGateway.hasRole(0x00, takadao));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                CONSUMER
+    //////////////////////////////////////////////////////////////*/
+    function testChangeBMConsumer() public {
+        vm.prank(takadao);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
+        referralGateway.setNewBenefitMultiplierConsumer(address(0));
+
+        uint256 bmConsumerAddressSlot = 1;
+        bytes32 operatorAddressSlotBytes = vm.load(
+            address(referralGateway),
+            bytes32(uint256(bmConsumerAddressSlot))
+        );
+        address bmConsumer = address(uint160(uint256(operatorAddressSlotBytes)));
+
+        assertEq(bmConsumer, address(bmConsumerMock));
+
+        address newBMConsumer = makeAddr("newBMConsumer");
+
+        vm.prank(referral);
+        vm.expectRevert();
+        referralGateway.setNewBenefitMultiplierConsumer(newBMConsumer);
+
+        vm.prank(takadao);
+        vm.expectEmit(true, true, false, false, address(referralGateway));
+        emit OnBenefitMultiplierConsumerChanged(newBMConsumer, address(bmConsumerMock));
+        referralGateway.setNewBenefitMultiplierConsumer(newBMConsumer);
+
+        operatorAddressSlotBytes = vm.load(
+            address(referralGateway),
+            bytes32(uint256(bmConsumerAddressSlot))
+        );
+        bmConsumer = address(uint160(uint256(operatorAddressSlotBytes)));
+
+        assertEq(bmConsumer, address(newBMConsumer));
     }
 }
