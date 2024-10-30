@@ -38,6 +38,15 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
     bytes32 private constant REFERRAL = keccak256("REFERRAL");
 
+    struct PrepaidMember {
+        string tDAOName;
+        address member;
+        uint256 contributionBeforeFee;
+        uint256 contributionAfterFee;
+        uint256 finalFee; // Fee after all the discounts and rewards
+        uint256 discount;
+    }
+
     event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
     event OnNewReferralProposal(address indexed proposedReferral);
     event OnNewReferral(address indexed referral);
@@ -569,5 +578,109 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.parentRewardsByLayer(parentTier3, 2), expectedParentThreeReward);
         assertEq(referralGateway.parentRewardsByLayer(parentTier2, 3), expectedParentTwoReward);
         assertEq(referralGateway.parentRewardsByLayer(parentTier1, 4), expectedParentOneReward);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                REFUNDS
+    //////////////////////////////////////////////////////////////*/
+
+    function testRefund()
+        public
+        createDao
+        referralPrepays
+        KYCReferral
+        referredPrepays
+        referredIsKYC
+    {
+        (
+            string memory childsDAO,
+            address memberToCheck,
+            uint256 contributionBeforeFee,
+            uint256 contributionAfterFee,
+            uint256 finalFee,
+            uint256 discount
+        ) = referralGateway.prepaidMembers(child);
+        assertEq(childsDAO, tDaoName);
+        assertEq(memberToCheck, child);
+        assert(contributionBeforeFee > 0);
+        assert(contributionAfterFee > 0);
+        assert(finalFee > 0);
+        assert(discount > 0);
+
+        vm.startPrank(child);
+        // Should not be able to join because the DAO is not launched yet
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        referralGateway.joinDAO(child);
+
+        // Should not be able to refund because the launched date is not reached yet
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+        vm.stopPrank();
+
+        uint256 launchDate = referralGateway.getDAOData(tDaoName).launchDate;
+
+        vm.warp(launchDate);
+        vm.roll(block.number + 1);
+
+        vm.startPrank(child);
+        // Should not be able to join because the DAO is not launched yet
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        referralGateway.joinDAO(child);
+
+        // Should not be able to refund even if the launched date is reached, but has to wait 1 day
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 1);
+        vm.roll(block.number + 1);
+
+        vm.startPrank(child);
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+
+        // Should not be able to refund twice
+        vm.expectRevert(ReferralGateway.ReferralGateway__HasNotPaid.selector);
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+        vm.stopPrank();
+
+        (
+            childsDAO,
+            memberToCheck,
+            contributionBeforeFee,
+            contributionAfterFee,
+            finalFee,
+            discount
+        ) = referralGateway.prepaidMembers(child);
+        assertEq(childsDAO, "");
+        assertEq(memberToCheck, address(0));
+        assertEq(contributionBeforeFee, 0);
+        assertEq(contributionAfterFee, 0);
+        assertEq(finalFee, 0);
+        assertEq(discount, 0);
+
+        vm.prank(child);
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        referralGateway.joinDAO(child);
+    }
+
+    function testCanNotRefundIfDaoIsLaunched()
+        public
+        createDao
+        referralPrepays
+        KYCReferral
+        referredPrepays
+        referredIsKYC
+    {
+        uint256 launchDate = referralGateway.getDAOData(tDaoName).launchDate;
+
+        vm.warp(launchDate);
+        vm.roll(block.number + 1);
+
+        vm.prank(daoAdmin);
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+
+        vm.prank(child);
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
     }
 }

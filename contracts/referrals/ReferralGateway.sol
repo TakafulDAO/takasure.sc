@@ -467,11 +467,11 @@ contract ReferralGateway is
      * @param member The address of the member
      * @param tDAOName The name of the DAO
      */
-    function refundPrepaidMember(address member, string calldata tDAOName) external {
+    function refundIfDAOIsNotLaunched(address member, string calldata tDAOName) external {
         tDAO memory DAO = nameToDAOData[tDAOName];
 
         require(
-            DAO.launchDate <= block.timestamp && DAO.DAOAddress == address(0),
+            DAO.launchDate < block.timestamp && DAO.DAOAddress == address(0),
             ReferralGateway__tDAONotReadyYet()
         );
 
