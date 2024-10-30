@@ -685,4 +685,58 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
         referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 ROLES
+    //////////////////////////////////////////////////////////////*/
+
+    function testRoles() public createDao referralPrepays referredPrepays {
+        // Addresses that will be used to test the roles
+        address newOperator = makeAddr("newOperator");
+        address newKYCProvider = makeAddr("newKYCProvider");
+        address newAdmin = makeAddr("newAdmin");
+
+        // Current addresses with roles
+        assert(referralGateway.hasRole(keccak256("OPERATOR"), takadao));
+        assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
+        assert(referralGateway.hasRole(0x00, takadao));
+
+        // New addresses without roles
+        assert(!referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
+        assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
+        assert(!referralGateway.hasRole(0x00, newAdmin));
+
+        // Current KYCProvider can KYC a member
+        vm.prank(KYCProvider);
+        referralGateway.setKYCStatus(referral, tDaoName);
+
+        // Grant, revoke and renounce roles
+        vm.startPrank(takadao);
+        referralGateway.grantRole(keccak256("OPERATOR"), newOperator);
+        referralGateway.grantRole(keccak256("KYC_PROVIDER"), newKYCProvider);
+        referralGateway.grantRole(0x00, newAdmin);
+        referralGateway.revokeRole(keccak256("OPERATOR"), takadao);
+        referralGateway.revokeRole(keccak256("KYC_PROVIDER"), KYCProvider);
+        referralGateway.renounceRole(0x00, takadao);
+        vm.stopPrank();
+
+        // Previous KYCProvider can not KYC a member
+        vm.prank(KYCProvider);
+        vm.expectRevert();
+        referralGateway.setKYCStatus(child, tDaoName);
+
+        // New KYCProvider can KYC a member
+        vm.prank(newKYCProvider);
+        referralGateway.setKYCStatus(child, tDaoName);
+
+        // New addresses with roles
+        assert(referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
+        assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
+        assert(referralGateway.hasRole(0x00, newAdmin));
+
+        // Old addresses without roles
+        assert(!referralGateway.hasRole(keccak256("OPERATOR"), takadao));
+        assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
+        assert(!referralGateway.hasRole(0x00, takadao));
+    }
 }
