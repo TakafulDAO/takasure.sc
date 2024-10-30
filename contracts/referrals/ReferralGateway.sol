@@ -287,6 +287,10 @@ contract ReferralGateway is
         string calldata tDAOName,
         address rePoolAddress
     ) external notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName) {
+        require(
+            nameToDAOData[tDAOName].DAOAddress != address(0),
+            ReferralGateway__tDAONotReadyYet()
+        );
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
     }
 

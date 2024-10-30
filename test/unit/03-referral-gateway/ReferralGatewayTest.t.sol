@@ -637,6 +637,82 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                 REPOOL
+    //////////////////////////////////////////////////////////////*/
+
+    function testTransferToRepool() public createDao {
+        address parentTier1 = makeAddr("parentTier1");
+        address parentTier2 = makeAddr("parentTier2");
+        address parentTier3 = makeAddr("parentTier3");
+        address parentTier4 = makeAddr("parentTier4");
+        address[4] memory parents = [parentTier1, parentTier2, parentTier3, parentTier4];
+
+        for (uint256 i = 0; i < parents.length; i++) {
+            deal(address(usdc), parents[i], 10 * CONTRIBUTION_AMOUNT);
+            vm.startPrank(parents[i]);
+            usdc.approve(address(referralGateway), 10 * CONTRIBUTION_AMOUNT);
+            vm.stopPrank();
+        }
+
+        address childWithoutReferee = makeAddr("childWithoutReferee");
+        deal(address(usdc), childWithoutReferee, 10 * CONTRIBUTION_AMOUNT);
+        vm.prank(childWithoutReferee);
+        usdc.approve(address(referralGateway), 10 * CONTRIBUTION_AMOUNT);
+
+        vm.prank(parentTier1);
+        referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, address(0));
+        vm.prank(takadao);
+        referralGateway.setKYCStatus(parentTier1, tDaoName);
+
+        uint256 parentTier2Contribution = 5 * CONTRIBUTION_AMOUNT;
+        vm.prank(parentTier2);
+        referralGateway.payContribution(parentTier2Contribution, tDaoName, parentTier1);
+
+        vm.prank(takadao);
+        referralGateway.setKYCStatus(parentTier2, tDaoName);
+
+        uint256 parentTier3Contribution = 2 * CONTRIBUTION_AMOUNT;
+        vm.prank(parentTier3);
+        referralGateway.payContribution(parentTier3Contribution, tDaoName, parentTier2);
+
+        vm.prank(takadao);
+        referralGateway.setKYCStatus(parentTier3, tDaoName);
+
+        uint256 parentTier4Contribution = 7 * CONTRIBUTION_AMOUNT;
+        vm.prank(parentTier4);
+        referralGateway.payContribution(parentTier4Contribution, tDaoName, parentTier3);
+
+        vm.prank(takadao);
+        referralGateway.setKYCStatus(parentTier4, tDaoName);
+
+        uint256 childWithoutRefereeContribution = 4 * CONTRIBUTION_AMOUNT;
+        vm.prank(childWithoutReferee);
+        referralGateway.payContribution(childWithoutRefereeContribution, tDaoName, parentTier4);
+
+        vm.prank(takadao);
+        referralGateway.setKYCStatus(childWithoutReferee, tDaoName);
+
+        vm.prank(daoAdmin);
+        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+
+        address rePoolAddress = makeAddr("rePoolAddress");
+
+        vm.prank(daoAdmin);
+        referralGateway.enableRepool(tDaoName, rePoolAddress);
+
+        uint256 toRepool = referralGateway.getDAOData(tDaoName).toRepool;
+
+        assert(toRepool > 0);
+        assertEq(usdc.balanceOf(rePoolAddress), 0);
+
+        vm.prank(daoAdmin);
+        referralGateway.transferToRepool(tDaoName);
+
+        assertEq(referralGateway.getDAOData(tDaoName).toRepool, 0);
+        assertEq(usdc.balanceOf(rePoolAddress), toRepool);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 REFUNDS
     //////////////////////////////////////////////////////////////*/
 
