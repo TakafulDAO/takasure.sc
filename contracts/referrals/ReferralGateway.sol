@@ -18,6 +18,8 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
+import {console2} from "forge-std/Test.sol";
+
 pragma solidity 0.8.28;
 
 /// @custom:oz-upgrades-from contracts/version_previous_contracts/ReferralGatewayV1.sol:ReferralGatewayV1
@@ -201,7 +203,7 @@ contract ReferralGateway is
         uint256 launchDate,
         uint256 objectiveAmount
     ) external {
-        require(bytes(DAOName).length > 0, ReferralGateway__MustHaveName());
+        require(bytes(DAOName).length != 0, ReferralGateway__MustHaveName());
         require(
             !(Strings.equal(nameToDAOData[DAOName].name, DAOName)),
             ReferralGateway__AlreadyExists()
@@ -362,8 +364,7 @@ contract ReferralGateway is
 
                     childToParent[msg.sender] = parent;
 
-                    uint256 newFee = _parentRewards(msg.sender, contribution, finalFee);
-                    finalFee = newFee;
+                    finalFee = _parentRewards(msg.sender, contribution, finalFee);
                 }
             }
 
@@ -590,14 +591,14 @@ contract ReferralGateway is
 
             if (referralReserveBalance > 0) {
                 if (parentReward < referralReserveBalance) {
-                    referralReserveBalance -= parentReward; // 1, 0
+                    referralReserveBalance -= parentReward;
                 } else {
                     uint256 rewardFromReserve = parentReward - referralReserveBalance;
                     referralReserveBalance = 0;
                     _currentFee -= rewardFromReserve;
                 }
             } else {
-                _currentFee -= parentReward; // 6.65, 6.475
+                _currentFee -= parentReward;
             }
 
             currentChildToCheck = childToParent[currentChildToCheck];
