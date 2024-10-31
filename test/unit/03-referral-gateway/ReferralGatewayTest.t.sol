@@ -217,10 +217,11 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     }
 
     /*//////////////////////////////////////////////////////////////
-                     PREPAYS WITHOUT VALID REFERRAL
+                                PREPAYS
     //////////////////////////////////////////////////////////////*/
 
-    function testprepaymentWithoutParent() public createDao {
+    //======== preJoinEnabled = true, referralDiscount = true, no referral ========//
+    function testprepaymentCase1() public createDao {
         assertEq(referralGateway.getDAOData(tDaoName).collectedFees, 0);
 
         vm.prank(child);
@@ -228,16 +229,24 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT);
         referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, address(0));
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100; // 25 * 27 / 100 = 6.75
+        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees -
             ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            (((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100)); // 6.75 - (25 * 10 / 100) - (25 * 5 / 100) = 6.75 - 2.5 - 1.25 = 3
+            (((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100)) -
+            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
 
-        // assertEq(referralGateway.getDAOData(tDaoName).collectedFees, collectedFees);
-        assertEq(collectedFees, 3_000_000);
+        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
+            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
+
+        (, , , , , uint256 discount) = referralGateway.prepaidMembers(child, tDaoName);
+
+        assertEq(referralGateway.getDAOData(tDaoName).collectedFees, collectedFees);
+        assertEq(collectedFees, 2_500_000);
+        assertEq(discount, expectedDiscount);
     }
 
-    function testprepaymentParentIsNotMember() public createDao {
+    //======== preJoinEnabled = true, referralDiscount = true, invalid referral ========//
+    function testprepaymentCase2() public createDao {
         assertEq(referralGateway.getDAOData(tDaoName).collectedFees, 0);
 
         uint256 expectedParentReward = 0; // Because the parent is not a member yet
@@ -247,15 +256,78 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT);
         referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, referral);
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100; // 25 * 27 / 100 = 6.75
+        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees -
             ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
             ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100); // 6.75 - (25 * 10 / 100) - (25 * 5 / 100) - (25 * 2 / 100) = 6.75 - 2.5 - 1.25 - 0.5 = 2.5
+            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+
+        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
+            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
+
+        (, , , , , uint256 discount) = referralGateway.prepaidMembers(child, tDaoName);
 
         assertEq(referralGateway.getDAOData(tDaoName).collectedFees, collectedFees);
         assertEq(collectedFees, 2_500_000);
         assertEq(referralGateway.parentRewardsByChild(referral, child), expectedParentReward);
+        assertEq(discount, expectedDiscount);
+    }
+
+    //======== preJoinEnabled = true, referralDiscount = false, no referral ========//
+    function testprepaymentCase3() public createDao {
+        vm.prank(daoAdmin);
+        referralGateway.switchReferralDiscount(tDaoName);
+
+        assertEq(referralGateway.getDAOData(tDaoName).collectedFees, 0);
+
+        vm.prank(child);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT);
+        referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, address(0));
+
+        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 collectedFees = fees -
+            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
+            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+
+        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
+            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
+
+        (, , , , , uint256 discount) = referralGateway.prepaidMembers(child, tDaoName);
+
+        assertEq(referralGateway.getDAOData(tDaoName).collectedFees, collectedFees);
+        assertEq(collectedFees, 3_750_000);
+        assertEq(discount, expectedDiscount);
+    }
+
+    //======== preJoinEnabled = true, referralDiscount = false, invalid referral ========//
+    function testprepaymentCase4() public createDao {
+        vm.prank(daoAdmin);
+        referralGateway.switchReferralDiscount(tDaoName);
+
+        assertEq(referralGateway.getDAOData(tDaoName).collectedFees, 0);
+
+        uint256 expectedParentReward = 0; // Because the parent is not a member yet
+
+        vm.prank(child);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT);
+        referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, referral);
+
+        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 collectedFees = fees -
+            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
+            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+
+        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
+            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
+
+        (, , , , , uint256 discount) = referralGateway.prepaidMembers(child, tDaoName);
+
+        assertEq(referralGateway.getDAOData(tDaoName).collectedFees, collectedFees);
+        assertEq(collectedFees, 3_750_000);
+        assertEq(referralGateway.parentRewardsByChild(referral, child), expectedParentReward);
+        assertEq(discount, expectedDiscount);
     }
 
     modifier referralPrepays() {
@@ -263,10 +335,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, address(0));
         _;
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                  KYC
-    //////////////////////////////////////////////////////////////*/
 
     function testKYCAnAddress() public createDao referralPrepays {
         vm.prank(KYCProvider);
@@ -293,11 +361,8 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         _;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                      PREPAYS WITH VALID REFERRAL
-    //////////////////////////////////////////////////////////////*/
-
-    function testprepaymentParentIsMember() public createDao referralPrepays KYCReferral {
+    //======== preJoinEnabled = true, referralDiscount = true, valid referral ========//
+    function testprepaymentCase5() public createDao referralPrepays KYCReferral {
         // Already collected fees with the modifiers logic
         uint256 alreadyCollectedFees = referralGateway.getDAOData(tDaoName).collectedFees;
         assertEq(alreadyCollectedFees, 2_500_000);
@@ -309,13 +374,17 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT);
         referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, referral);
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100; // 25 * 27 / 100 = 6.75
+        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
         uint256 collectedFees = fees -
             ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
             ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100) -
             ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100) -
             ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
-        // 6.75 - (25 * 10 / 100) - (25 * 5 / 100) - (25 * 5 / 100) - (25 * 2 / 100) = 6.75 - 2.5 - 1.25 - 1.25 - 0.5 = 1.25
+        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT *
+            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) +
+            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100);
+
+        (, , , , , uint256 discount) = referralGateway.prepaidMembers(child, tDaoName);
 
         assertEq(collectedFees, 1_250_000);
         assertEq(
@@ -324,6 +393,41 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         );
         assertEq(referralGateway.parentRewardsByChild(referral, child), expectedParentReward);
         assertEq(expectedParentReward, 1_000_000);
+        assertEq(discount, expectedDiscount);
+    }
+
+    //======== preJoinEnabled = true, referralDiscount = false, valid referral ========//
+    function testprepaymentCase6() public createDao referralPrepays KYCReferral {
+        vm.prank(daoAdmin);
+        referralGateway.switchReferralDiscount(tDaoName);
+
+        // Already collected fees with the modifiers logic
+        uint256 alreadyCollectedFees = referralGateway.getDAOData(tDaoName).collectedFees;
+        assertEq(alreadyCollectedFees, 2_500_000);
+
+        uint256 expectedParentReward = 0;
+
+        vm.prank(child);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT);
+        referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, referral);
+
+        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 collectedFees = fees -
+            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
+            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT *
+            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100);
+
+        (, , , , , uint256 discount) = referralGateway.prepaidMembers(child, tDaoName);
+
+        assertEq(collectedFees, 3_750_000);
+        assertEq(
+            referralGateway.getDAOData(tDaoName).collectedFees,
+            collectedFees + alreadyCollectedFees
+        );
+        assertEq(referralGateway.parentRewardsByChild(referral, child), expectedParentReward);
+        assertEq(discount, expectedDiscount);
     }
 
     modifier referredPrepays() {
