@@ -111,6 +111,17 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5);
     }
 
+    function testSetNewContributionToken() public {
+        assertEq(address(referralGateway.usdc()), usdcAddress);
+
+        address newUSDC = makeAddr("newUSDC");
+
+        vm.prank(daoAdmin);
+        referralGateway.setUsdcAddress(newUSDC);
+
+        assertEq(address(referralGateway.usdc()), newUSDC);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                CREATE DAO
     //////////////////////////////////////////////////////////////*/
