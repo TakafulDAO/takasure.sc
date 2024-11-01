@@ -56,42 +56,42 @@ abstract contract CodeConstants {
     FeeClaimAddress public feeClaimAddress =
         FeeClaimAddress({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Avil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
     DaoMultisig public daoMultisig =
         DaoMultisig({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
     TakadaoOperator public takadaoOperator =
         TakadaoOperator({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
     KycProvider public kycProvider =
         KycProvider({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0x2b212e37A5619191694Ad0E99fD6F76e45fdb2Ba, // TODO
             sepolia: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3
         });
 
     PauseGuardian public pauseGuardian =
         PauseGuardian({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
     TokenAdmin public tokenAdmin =
         TokenAdmin({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 }
