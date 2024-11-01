@@ -602,16 +602,12 @@ contract ReferralGateway is
             currentChildToCheck = childToParent[currentChildToCheck];
         }
 
-        if (newReferralReserveBalance > 0) {
-            if (parentRewardsAccumulated < newReferralReserveBalance) {
-                newReferralReserveBalance -= parentRewardsAccumulated;
-            } else {
-                uint256 rewardFromReserve = parentRewardsAccumulated - newReferralReserveBalance;
-                newReferralReserveBalance = 0;
-                _currentFee -= rewardFromReserve;
-            }
+        if (newReferralReserveBalance > parentRewardsAccumulated) {
+            newReferralReserveBalance -= parentRewardsAccumulated;
         } else {
-            _currentFee -= parentRewardsAccumulated;
+            uint256 rewardFromReserve = parentRewardsAccumulated - newReferralReserveBalance;
+            _currentFee -= rewardFromReserve;
+            newReferralReserveBalance = 0;
         }
 
         referralReserveBalance = newReferralReserveBalance;
