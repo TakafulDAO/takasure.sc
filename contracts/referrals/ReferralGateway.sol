@@ -574,6 +574,8 @@ contract ReferralGateway is
         uint256 _currentFee
     ) internal returns (uint256) {
         address currentChildToCheck = _initialChildToCheck;
+        uint256 parentRewardsAccumulated;
+
         for (int256 i; i < MAX_TIER; ++i) {
             if (
                 childToParent[currentChildToCheck] == address(0) ||
@@ -589,19 +591,21 @@ contract ReferralGateway is
                 uint256(i + 1)
             ] += parentReward;
 
-            if (referralReserveBalance > 0) {
-                if (parentReward < referralReserveBalance) {
-                    referralReserveBalance -= parentReward;
-                } else {
-                    uint256 rewardFromReserve = parentReward - referralReserveBalance;
-                    referralReserveBalance = 0;
-                    _currentFee -= rewardFromReserve;
-                }
-            } else {
-                _currentFee -= parentReward;
-            }
+            parentRewardsAccumulated += parentReward;
 
             currentChildToCheck = childToParent[currentChildToCheck];
+        }
+
+        if (referralReserveBalance > 0) {
+            if (parentRewardsAccumulated < referralReserveBalance) {
+                referralReserveBalance -= parentRewardsAccumulated;
+            } else {
+                uint256 rewardFromReserve = parentRewardsAccumulated - referralReserveBalance;
+                referralReserveBalance = 0;
+                _currentFee -= rewardFromReserve;
+            }
+        } else {
+            _currentFee -= parentRewardsAccumulated;
         }
 
         return _currentFee;
