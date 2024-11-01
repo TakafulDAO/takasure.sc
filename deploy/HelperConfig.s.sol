@@ -134,6 +134,7 @@ contract HelperConfig is CodeConstants, Script {
     //////////////////////////////////////////////////////////////*/
 
     constructor() {
+        networkConfigs[ARB_MAINNET_CHAIN_ID] = getArbMainnetConfig();
         networkConfigs[ARB_SEPOLIA_CHAIN_ID] = getArbSepoliaConfig();
     }
 
@@ -145,6 +146,24 @@ contract HelperConfig is CodeConstants, Script {
         } else {
             revert HelperConfig__InvalidChainId();
         }
+    }
+
+    function getArbMainnetConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
+        sepoliaNetworkConfig = NetworkConfig({
+            contributionToken: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831,
+            feeClaimAddress: feeClaimAddress.mainnet,
+            daoMultisig: daoMultisig.mainnet,
+            takadaoOperator: takadaoOperator.mainnet,
+            kycProvider: kycProvider.mainnet,
+            pauseGuardian: pauseGuardian.mainnet,
+            tokenAdmin: tokenAdmin.mainnet,
+            tokenName: "Takasure DAO Token",
+            tokenSymbol: "TST",
+            functionsRouter: 0x97083E831F8F0638855e2A515c90EdCF158DF238,
+            donId: 0x66756e2d617262697472756d2d6d61696e6e65742d3100000000000000000000,
+            gasLimit: 300000,
+            subscriptionId: 123 // TODO
+        });
     }
 
     function getArbSepoliaConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
