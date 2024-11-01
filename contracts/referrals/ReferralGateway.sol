@@ -354,7 +354,6 @@ contract ReferralGateway is
 
             if (DAO.referralDiscount) {
                 uint256 toReferralReserve = (contribution * REFERRAL_RESERVE) / 100;
-                referralReserveBalance += toReferralReserve;
                 finalFee -= toReferralReserve;
                 if (parent != address(0) && isMemberKYCed[parent]) {
                     uint256 referralDiscount = (contribution * REFERRAL_DISCOUNT_RATIO) / 100;
@@ -364,7 +363,12 @@ contract ReferralGateway is
 
                     childToParent[msg.sender] = parent;
 
-                    finalFee = _parentRewards(msg.sender, contribution, finalFee);
+                    finalFee = _parentRewards(
+                        msg.sender,
+                        contribution,
+                        toReferralReserve,
+                        finalFee
+                    );
                 }
             }
 
@@ -571,9 +575,11 @@ contract ReferralGateway is
     function _parentRewards(
         address _initialChildToCheck,
         uint256 _contribution,
+        uint256 _toReferralReserve,
         uint256 _currentFee
     ) internal returns (uint256) {
         address currentChildToCheck = _initialChildToCheck;
+        uint256 newReferralReserveBalance = referralReserveBalance + _toReferralReserve;
         uint256 parentRewardsAccumulated;
 
         for (int256 i; i < MAX_TIER; ++i) {
@@ -596,17 +602,19 @@ contract ReferralGateway is
             currentChildToCheck = childToParent[currentChildToCheck];
         }
 
-        if (referralReserveBalance > 0) {
-            if (parentRewardsAccumulated < referralReserveBalance) {
-                referralReserveBalance -= parentRewardsAccumulated;
+        if (newReferralReserveBalance > 0) {
+            if (parentRewardsAccumulated < newReferralReserveBalance) {
+                newReferralReserveBalance -= parentRewardsAccumulated;
             } else {
-                uint256 rewardFromReserve = parentRewardsAccumulated - referralReserveBalance;
-                referralReserveBalance = 0;
+                uint256 rewardFromReserve = parentRewardsAccumulated - newReferralReserveBalance;
+                newReferralReserveBalance = 0;
                 _currentFee -= rewardFromReserve;
             }
         } else {
             _currentFee -= parentRewardsAccumulated;
         }
+
+        referralReserveBalance = newReferralReserveBalance;
 
         return _currentFee;
     }
