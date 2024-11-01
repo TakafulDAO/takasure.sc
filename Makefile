@@ -60,6 +60,11 @@ deploy-all:
 	@forge clean
 	@forge script deploy/05-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
 
+# Interactions with ReferralGateway Contract
+# Create a DAO
+create-dao:
+	@forge script scripts/contract-interactions/referralGateway/CreateDao.s.sol:CreateDao $(NETWORK_ARGS)
+
 # Interactions with BenefitMultiplierConsumer Contract
 # Add a new BM Requester
 add-bm-requester:
