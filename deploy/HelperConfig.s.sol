@@ -77,7 +77,7 @@ abstract contract CodeConstants {
     KycProvider public kycProvider =
         KycProvider({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x2b212e37A5619191694Ad0E99fD6F76e45fdb2Ba, // TODO
+            mainnet: 0x2b212e37A5619191694Ad0E99fD6F76e45fdb2Ba,
             sepolia: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3
         });
 
@@ -162,7 +162,7 @@ contract HelperConfig is CodeConstants, Script {
             functionsRouter: 0x97083E831F8F0638855e2A515c90EdCF158DF238,
             donId: 0x66756e2d617262697472756d2d6d61696e6e65742d3100000000000000000000,
             gasLimit: 300000,
-            subscriptionId: 123 // TODO
+            subscriptionId: 32
         });
     }
 
