@@ -19,7 +19,7 @@ contract GetContractAddress is Script {
         if (chainId == ARB_SEPOLIA_CHAIN_ID) {
             chainName = "testnet_arbitrum_sepolia";
         } else if (chainId == ARB_MAINNET_CHAIN_ID) {
-            chainName = "mainnet_arbitrum";
+            chainName = "mainnet_arbitrum_one";
         } else {
             revert("Invalid chainId");
         }
