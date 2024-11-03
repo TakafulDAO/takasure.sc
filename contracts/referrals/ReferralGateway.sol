@@ -370,15 +370,6 @@ contract ReferralGateway is
                 }
             }
 
-            PrepaidMember memory prepayer = PrepaidMember({
-                tDAOName: tDAOName,
-                member: msg.sender,
-                contributionBeforeFee: contribution, // Input value, we need it like this for the actual join when the DAO is deployed
-                contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the DAO is deployed
-                finalFee: finalFee,
-                discount: discount
-            });
-
             uint256 rePoolFee = (contribution * REPOOL_FEE_RATIO) / 100;
 
             finalFee -= rePoolFee;
@@ -391,6 +382,15 @@ contract ReferralGateway is
             usdc.safeTransferFrom(msg.sender, address(this), amountToTransfer);
 
             usdc.safeTransfer(operator, finalFee);
+
+            PrepaidMember memory prepayer = PrepaidMember({
+                tDAOName: tDAOName,
+                member: msg.sender,
+                contributionBeforeFee: contribution, // Input value, we need it like this for the actual join when the DAO is deployed
+                contributionAfterFee: contribution - fee, // Without discount, we need it like this for the actual join when the DAO is deployed
+                finalFee: finalFee,
+                discount: discount
+            });
 
             prepaidMembers[msg.sender][tDAOName] = prepayer;
 
