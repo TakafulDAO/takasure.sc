@@ -33,7 +33,7 @@ contract ReferralGateway is
     IBenefitMultiplierConsumer private bmConsumer;
 
     address private operator;
-    uint256 private referralReserveBalance;
+    // uint256 private referralReserveBalance;
 
     mapping(address parent => mapping(address child => uint256 rewards))
         public parentRewardsByChild;
@@ -65,6 +65,7 @@ contract ReferralGateway is
         uint256 collectedFees; // Fees collected after deduct, discounts, referral reserve and repool amounts. In USDC, six decimals
         address rePoolAddress; // To be assigned when the tDAO is deployed
         uint256 toRepool; // In USDC, six decimals
+        uint256 referralReserve; // In USDC, six decimals
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -220,7 +221,8 @@ contract ReferralGateway is
             objectiveAmount: objectiveAmount,
             currentAmount: 0,
             collectedFees: 0,
-            toRepool: 0
+            toRepool: 0,
+            referralReserve: 0
         });
 
         // Update the necessary mappings
@@ -361,9 +363,10 @@ contract ReferralGateway is
 
                     childToParent[msg.sender] = parent;
 
-                    finalFee = _parentRewards(
+                    (finalFee, DAO.referralReserve) = _parentRewards(
                         msg.sender,
                         contribution,
+                        DAO.referralReserve,
                         toReferralReserve,
                         finalFee
                     );
@@ -573,11 +576,12 @@ contract ReferralGateway is
     function _parentRewards(
         address _initialChildToCheck,
         uint256 _contribution,
+        uint256 _currentReferralReserve,
         uint256 _toReferralReserve,
         uint256 _currentFee
-    ) internal returns (uint256) {
+    ) internal returns (uint256, uint256) {
         address currentChildToCheck = _initialChildToCheck;
-        uint256 newReferralReserveBalance = referralReserveBalance + _toReferralReserve;
+        uint256 newReferralReserveBalance = _currentReferralReserve + _toReferralReserve;
         uint256 parentRewardsAccumulated;
 
         for (int256 i; i < MAX_TIER; ++i) {
@@ -608,9 +612,7 @@ contract ReferralGateway is
             newReferralReserveBalance = 0;
         }
 
-        referralReserveBalance = newReferralReserveBalance;
-
-        return _currentFee;
+        return (_currentFee, newReferralReserveBalance);
     }
 
     /**
