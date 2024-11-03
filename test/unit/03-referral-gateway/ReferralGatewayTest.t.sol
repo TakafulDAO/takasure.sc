@@ -218,12 +218,14 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
 
     function testMustRevertIfprepaymentContributionIsOutOfRange() public createDao {
+        // 24.99 USDC
         vm.startPrank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__ContributionOutOfRange.selector);
-        referralGateway.payContribution(20e6, tDaoName, referral);
+        referralGateway.payContribution(2499e4, tDaoName, referral);
 
+        // 250.01 USDC
         vm.expectRevert(ReferralGateway.ReferralGateway__ContributionOutOfRange.selector);
-        referralGateway.payContribution(300e6, tDaoName, referral);
+        referralGateway.payContribution(25001e4, tDaoName, referral);
         vm.stopPrank();
     }
 
