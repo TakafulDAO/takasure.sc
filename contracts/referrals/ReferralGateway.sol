@@ -35,6 +35,7 @@ contract ReferralGateway is
     IBenefitMultiplierConsumer private bmConsumer;
 
     address private operator;
+    uint256 private referralReserveBalance; // TODO: Deprecated, remove in next version
 
     mapping(address parent => mapping(address child => uint256 rewards))
         public parentRewardsByChild;
