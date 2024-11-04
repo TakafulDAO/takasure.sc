@@ -163,14 +163,18 @@ contract ReferralGateway is
         address _pauseGuardian,
         address _usdcAddress,
         address _benefitMultiplierConsumer
-    ) external notZeroAddress(_operator) notZeroAddress(_usdcAddress) initializer {
-        __UUPSUpgradeable_init();
-        __AccessControl_init();
-        __ReentrancyGuardTransient_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, _operator);
-        _grantRole(OPERATOR, _operator);
-        _grantRole(KYC_PROVIDER, _KYCProvider);
-        _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
+    )
+        external
+        notZeroAddress(_operator)
+        notZeroAddress(_KYCProvider)
+        notZeroAddress(_pauseGuardian)
+        notZeroAddress(_usdcAddress)
+        notZeroAddress(_benefitMultiplierConsumer)
+        initializer
+    {
+        _initDependencies();
+
+        _grantRoles(_operator, _KYCProvider, _pauseGuardian);
 
         bmConsumer = IBenefitMultiplierConsumer(_benefitMultiplierConsumer);
 
@@ -588,6 +592,20 @@ contract ReferralGateway is
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _initDependencies() internal {
+        __UUPSUpgradeable_init();
+        __AccessControl_init();
+        __ReentrancyGuardTransient_init();
+        __Pausable_init();
+    }
+
+    function _grantRoles(address _operator, address _KYCProvider, address _pauseGuardian) internal {
+        _grantRole(DEFAULT_ADMIN_ROLE, _operator);
+        _grantRole(OPERATOR, _operator);
+        _grantRole(KYC_PROVIDER, _KYCProvider);
+        _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
+    }
 
     function _getBenefitMultiplierFromOracle(address _member) internal {
         string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);

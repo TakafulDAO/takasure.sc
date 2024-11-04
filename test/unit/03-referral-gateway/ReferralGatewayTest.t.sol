@@ -133,7 +133,11 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                                CREATE DAO
     //////////////////////////////////////////////////////////////*/
     function testCreateANewDao() public {
-        vm.prank(daoAdmin);
+        vm.prank(referral);
+        vm.expectRevert();
+        referralGateway.createDAO(tDaoName, true, true, (block.timestamp + 31_536_000), 100e6);
+
+        vm.prank(takadao);
         referralGateway.createDAO(tDaoName, true, true, (block.timestamp + 31_536_000), 100e6);
 
         assertEq(referralGateway.getDAOData(tDaoName).name, tDaoName);
@@ -144,15 +148,15 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.getDAOData(tDaoName).objectiveAmount, 100e6);
         assertEq(referralGateway.getDAOData(tDaoName).currentAmount, 0);
 
-        vm.prank(referral);
+        vm.prank(takadao);
         vm.expectRevert(ReferralGateway.ReferralGateway__AlreadyExists.selector);
         referralGateway.createDAO(tDaoName, true, true, (block.timestamp + 31_536_000), 100e6);
 
-        vm.prank(referral);
+        vm.prank(takadao);
         vm.expectRevert(ReferralGateway.ReferralGateway__MustHaveName.selector);
         referralGateway.createDAO("", true, true, (block.timestamp + 31_536_000), 100e6);
 
-        vm.prank(referral);
+        vm.prank(takadao);
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidLaunchDate.selector);
         referralGateway.createDAO("New DAO", true, true, 0, 100e6);
 
