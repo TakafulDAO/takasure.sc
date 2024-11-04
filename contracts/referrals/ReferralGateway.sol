@@ -14,6 +14,7 @@ import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplie
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -25,7 +26,8 @@ contract ReferralGateway is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
-    ReentrancyGuardTransientUpgradeable
+    ReentrancyGuardTransientUpgradeable,
+    PausableUpgradeable
 {
     using SafeERC20 for IERC20;
 
@@ -98,6 +100,7 @@ contract ReferralGateway is
     bytes32 private constant OPERATOR = keccak256("OPERATOR");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 private constant COFOUNDER_OF_CHANGE = keccak256("COFOUNDER_OF_CHANGE");
+    bytes32 public constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
@@ -150,6 +153,7 @@ contract ReferralGateway is
     function initialize(
         address _operator,
         address _KYCProvider,
+        address _pauseGuardian,
         address _usdcAddress,
         address _benefitMultiplierConsumer
     ) external notZeroAddress(_operator) notZeroAddress(_usdcAddress) initializer {
@@ -159,6 +163,7 @@ contract ReferralGateway is
         _grantRole(DEFAULT_ADMIN_ROLE, _operator);
         _grantRole(OPERATOR, _operator);
         _grantRole(KYC_PROVIDER, _KYCProvider);
+        _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
 
         bmConsumer = IBenefitMultiplierConsumer(_benefitMultiplierConsumer);
 
@@ -327,7 +332,7 @@ contract ReferralGateway is
         uint256 contribution,
         string calldata tDAOName,
         address parent
-    ) external returns (uint256 finalFee, uint256 discount) {
+    ) external whenNotPaused nonReentrant returns (uint256 finalFee, uint256 discount) {
         tDAO memory DAO = nameToDAOData[tDAOName];
         require(
             contribution >= MINIMUM_CONTRIBUTION && contribution <= MAXIMUM_CONTRIBUTION,
@@ -418,7 +423,7 @@ contract ReferralGateway is
     function setKYCStatus(
         address child,
         string calldata tDAOName
-    ) external notZeroAddress(child) onlyRole(KYC_PROVIDER) {
+    ) external whenNotPaused notZeroAddress(child) onlyRole(KYC_PROVIDER) {
         // Initial checks
         PrepaidMember memory member = prepaidMembers[child][tDAOName];
         // Can not KYC a member that is already KYCed
@@ -459,7 +464,10 @@ contract ReferralGateway is
      * @dev The member must have a parent
      * @dev The member must have a tDAO assigned
      */
-    function joinDAO(address newMember, string calldata tDAOName) external nonReentrant {
+    function joinDAO(
+        address newMember,
+        string calldata tDAOName
+    ) external whenNotPaused nonReentrant {
         // Initial checks
         require(isMemberKYCed[newMember], ReferralGateway__NotKYCed());
 
@@ -552,6 +560,14 @@ contract ReferralGateway is
             newBenefitMultiplierConsumer,
             oldBenefitMultiplierConsumer
         );
+    }
+
+    function pause() external onlyRole(PAUSE_GUARDIAN) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(PAUSE_GUARDIAN) {
+        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////

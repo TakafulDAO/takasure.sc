@@ -44,6 +44,7 @@ contract TestDeployTakasure is Script {
         referralGatewayProxy = _deployReferralGateway(
             config.takadaoOperator,
             config.kycProvider,
+            config.pauseGuardian,
             config.contributionToken,
             address(bmConsumerMock)
         );
@@ -103,6 +104,7 @@ contract TestDeployTakasure is Script {
     function _deployReferralGateway(
         address _takadaoOperator,
         address _kycProvider,
+        address _pauseGuardian,
         address _contributionToken,
         address _bmConsumerMock
     ) internal returns (address referralGatewayProxy_) {
@@ -111,7 +113,13 @@ contract TestDeployTakasure is Script {
             referralImplementation,
             abi.encodeCall(
                 ReferralGateway.initialize,
-                (_takadaoOperator, _kycProvider, _contributionToken, _bmConsumerMock)
+                (
+                    _takadaoOperator,
+                    _kycProvider,
+                    _pauseGuardian,
+                    _contributionToken,
+                    _bmConsumerMock
+                )
             )
         );
     }
