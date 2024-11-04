@@ -375,6 +375,8 @@ contract ReferralGateway is
                         toReferralReserve,
                         finalFee
                     );
+                } else {
+                    nameToDAOData[tDAOName].referralReserve += toReferralReserve;
                 }
             }
 
