@@ -428,7 +428,7 @@
             "type": "event",
             "name": "OnMemberKYCVerified",
             "inputs": [
-                { "name": "child", "type": "address", "indexed": true, "internalType": "address" }
+                { "name": "member", "type": "address", "indexed": true, "internalType": "address" }
             ],
             "anonymous": false
         },
