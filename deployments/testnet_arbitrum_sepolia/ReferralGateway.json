@@ -25,6 +25,13 @@
         },
         {
             "type": "function",
+            "name": "PAUSE_GUARDIAN",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "REFERRAL_DISCOUNT_RATIO",
             "inputs": [],
             "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
@@ -108,7 +115,8 @@
                         { "name": "currentAmount", "type": "uint256", "internalType": "uint256" },
                         { "name": "collectedFees", "type": "uint256", "internalType": "uint256" },
                         { "name": "rePoolAddress", "type": "address", "internalType": "address" },
-                        { "name": "toRepool", "type": "uint256", "internalType": "uint256" }
+                        { "name": "toRepool", "type": "uint256", "internalType": "uint256" },
+                        { "name": "referralReserve", "type": "uint256", "internalType": "uint256" }
                     ]
                 }
             ],
@@ -147,6 +155,7 @@
             "inputs": [
                 { "name": "_operator", "type": "address", "internalType": "address" },
                 { "name": "_KYCProvider", "type": "address", "internalType": "address" },
+                { "name": "_pauseGuardian", "type": "address", "internalType": "address" },
                 { "name": "_usdcAddress", "type": "address", "internalType": "address" },
                 {
                     "name": "_benefitMultiplierConsumer",
@@ -203,6 +212,20 @@
                 { "name": "layer", "type": "uint256", "internalType": "uint256" }
             ],
             "outputs": [{ "name": "rewards", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "pause",
+            "inputs": [],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "paused",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
             "stateMutability": "view"
         },
         {
@@ -335,6 +358,13 @@
         },
         {
             "type": "function",
+            "name": "unpause",
+            "inputs": [],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "updateLaunchDate",
             "inputs": [
                 { "name": "tDAOName", "type": "string", "internalType": "string" },
@@ -437,6 +467,19 @@
                     "type": "uint256",
                     "indexed": true,
                     "internalType": "uint256"
+                },
+                { "name": "fee", "type": "uint256", "indexed": false, "internalType": "uint256" },
+                {
+                    "name": "discount",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "expectedMembershipStart",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
                 }
             ],
             "anonymous": false
@@ -448,6 +491,19 @@
                 { "name": "tDAOName", "type": "string", "indexed": true, "internalType": "string" },
                 { "name": "member", "type": "address", "indexed": true, "internalType": "address" },
                 { "name": "amount", "type": "uint256", "indexed": true, "internalType": "uint256" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "Paused",
+            "inputs": [
+                {
+                    "name": "account",
+                    "type": "address",
+                    "indexed": false,
+                    "internalType": "address"
+                }
             ],
             "anonymous": false
         },
@@ -503,6 +559,19 @@
         },
         {
             "type": "event",
+            "name": "Unpaused",
+            "inputs": [
+                {
+                    "name": "account",
+                    "type": "address",
+                    "indexed": false,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
             "name": "Upgraded",
             "inputs": [
                 {
@@ -534,6 +603,8 @@
             "inputs": [{ "name": "implementation", "type": "address", "internalType": "address" }]
         },
         { "type": "error", "name": "ERC1967NonPayable", "inputs": [] },
+        { "type": "error", "name": "EnforcedPause", "inputs": [] },
+        { "type": "error", "name": "ExpectedPause", "inputs": [] },
         { "type": "error", "name": "FailedCall", "inputs": [] },
         { "type": "error", "name": "InvalidInitialization", "inputs": [] },
         { "type": "error", "name": "NotInitializing", "inputs": [] },
