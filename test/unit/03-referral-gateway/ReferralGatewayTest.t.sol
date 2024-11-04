@@ -629,8 +629,22 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referredPrepays
         referredIsKYC
     {
+        (, , , , , , , , , , uint256 referralReserve) = referralGateway.getDAOData(tDaoName);
+        // Current Referral balance must be
+        // For referral prepayment: Contribution * 5% = 25 * 5% = 1.25
+        // For referred prepayment: 2*(Contribution * 5%) - (Contribution * 4%) =>
+        // 2*(25 * 5%) - (25 * 4%) = 2.5 - 1 = 1.5 => 1_500_000
+        assertEq(referralReserve, 1_500_000);
+
         uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
         uint256 takasurePoolInitialBalance = usdc.balanceOf(address(takasurePool));
+        uint256 referredContributionAfterFee = referralGateway
+            .getPrepaidMember(child, tDaoName)
+            .contributionAfterFee;
+        uint256 expectedContributionAfterFee = CONTRIBUTION_AMOUNT -
+            ((CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100);
+
+        assertEq(referredContributionAfterFee, expectedContributionAfterFee);
 
         (, , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData(tDaoName);
 
@@ -644,10 +658,18 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.expectEmit(true, true, false, false, address(takasurePool));
         emit OnMemberJoined(2, child);
         referralGateway.joinDAO(child, tDaoName);
+
         uint256 referralGatewayFinalBalance = usdc.balanceOf(address(referralGateway));
         uint256 takasurePoolFinalBalance = usdc.balanceOf(address(takasurePool));
-        assert(referralGatewayFinalBalance < referralGatewayInitialBalance);
-        assert(takasurePoolFinalBalance > takasurePoolInitialBalance);
+
+        assertEq(
+            referralGatewayFinalBalance,
+            referralGatewayInitialBalance - referredContributionAfterFee
+        );
+        assertEq(
+            takasurePoolFinalBalance,
+            takasurePoolInitialBalance + referredContributionAfterFee
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
