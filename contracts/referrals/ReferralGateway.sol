@@ -383,7 +383,7 @@ contract ReferralGateway is
             finalFee -= rePoolFee;
 
             nameToDAOData[tDAOName].toRepool += rePoolFee;
-            nameToDAOData[tDAOName].currentAmount += amountToTransfer;
+            nameToDAOData[tDAOName].currentAmount += amountToTransfer - finalFee;
             nameToDAOData[tDAOName].collectedFees += finalFee;
 
             // We transfer the contribution minus the discount (if any) minus the fee
