@@ -35,7 +35,6 @@ contract ReferralGateway is
     IBenefitMultiplierConsumer private bmConsumer;
 
     address private operator;
-    // uint256 private referralReserveBalance;
 
     mapping(address parent => mapping(address child => uint256 rewards))
         public parentRewardsByChild;
@@ -107,7 +106,14 @@ contract ReferralGateway is
     //////////////////////////////////////////////////////////////*/
 
     event OnNewCofounderOfChange(address indexed cofounderOfChange);
-    event OnPrepayment(address indexed parent, address indexed child, uint256 indexed contribution);
+    event OnPrepayment(
+        address indexed parent,
+        address indexed child,
+        uint256 indexed contribution,
+        uint256 fee,
+        uint256 discount,
+        uint256 expectedMembershipStart
+    );
     event OnParentRewarded(
         address indexed parent,
         uint256 indexed layer,
@@ -405,7 +411,7 @@ contract ReferralGateway is
             // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
             _getBenefitMultiplierFromOracle(msg.sender);
 
-            emit OnPrepayment(parent, msg.sender, contribution);
+            emit OnPrepayment(parent, msg.sender, contribution, finalFee, discount, DAO.launchDate);
         } else {
             /**
              * Call the DAO to join
