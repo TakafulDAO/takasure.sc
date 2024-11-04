@@ -49,7 +49,7 @@ contract ReferralGateway is
         address member;
         uint256 contributionBeforeFee;
         uint256 contributionAfterFee;
-        uint256 finalFee; // Fee after all the discounts and rewards
+        uint256 feeToOperator; // Fee after all the discounts and rewards
         uint256 discount;
     }
 
@@ -395,7 +395,7 @@ contract ReferralGateway is
                 member: msg.sender,
                 contributionBeforeFee: contribution, // Input value, we need it like this for the actual join when the DAO is deployed
                 contributionAfterFee: contribution - discount - fee, // Without discount, we need it like this for the actual join when the DAO is deployed
-                finalFee: finalFee,
+                feeToOperator: finalFee,
                 discount: discount
             });
 
@@ -523,7 +523,7 @@ contract ReferralGateway is
             member: address(0),
             contributionBeforeFee: 0,
             contributionAfterFee: 0,
-            finalFee: 0,
+            feeToOperator: 0,
             discount: 0
         });
         isMemberKYCed[member] = false;

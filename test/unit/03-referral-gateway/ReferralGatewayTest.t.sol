@@ -980,7 +980,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.getPrepaidMember(child, tDaoName).member, child);
         assert(referralGateway.getPrepaidMember(child, tDaoName).contributionBeforeFee > 0);
         assert(referralGateway.getPrepaidMember(child, tDaoName).contributionAfterFee > 0);
-        assert(referralGateway.getPrepaidMember(child, tDaoName).finalFee > 0);
+        assert(referralGateway.getPrepaidMember(child, tDaoName).feeToOperator > 0);
         assert(referralGateway.getPrepaidMember(child, tDaoName).discount > 0);
         assert(referralGateway.isMemberKYCed(child));
 
@@ -1023,7 +1023,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralGateway.getPrepaidMember(child, tDaoName).member, address(0));
         assertEq(referralGateway.getPrepaidMember(child, tDaoName).contributionBeforeFee, 0);
         assertEq(referralGateway.getPrepaidMember(child, tDaoName).contributionAfterFee, 0);
-        assertEq(referralGateway.getPrepaidMember(child, tDaoName).finalFee, 0);
+        assertEq(referralGateway.getPrepaidMember(child, tDaoName).feeToOperator, 0);
         assertEq(referralGateway.getPrepaidMember(child, tDaoName).discount, 0);
         assert(!referralGateway.isMemberKYCed(child));
 
