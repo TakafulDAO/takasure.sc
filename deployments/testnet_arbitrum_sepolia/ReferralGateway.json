@@ -426,7 +426,7 @@
         },
         {
             "type": "event",
-            "name": "OnChildKYCVerified",
+            "name": "OnMemberKYCVerified",
             "inputs": [
                 { "name": "child", "type": "address", "indexed": true, "internalType": "address" }
             ],

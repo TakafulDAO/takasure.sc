@@ -121,7 +121,7 @@ contract ReferralGateway is
         address indexed child,
         uint256 reward
     );
-    event OnChildKYCVerified(address indexed child);
+    event OnMemberKYCVerified(address indexed child);
     event OnBenefitMultiplierConsumerChanged(
         address indexed newBenefitMultiplierConsumer,
         address indexed oldBenefitMultiplierConsumer
@@ -461,7 +461,7 @@ contract ReferralGateway is
             parent = childToParent[parent];
         }
 
-        emit OnChildKYCVerified(child);
+        emit OnMemberKYCVerified(child);
     }
 
     /**
