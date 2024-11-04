@@ -521,13 +521,8 @@ contract ReferralGateway is
 
         uint256 amountToRefund = prepaidMember.contributionBeforeFee - feePaid - discountReceived;
 
-        nameToDAOData[tDAOName].prepaidMembers[member] = PrepaidMember({
-            member: address(0),
-            contributionBeforeFee: 0,
-            contributionAfterFee: 0,
-            feeToOperator: 0,
-            discount: 0
-        });
+        delete nameToDAOData[tDAOName].prepaidMembers[member];
+
         isMemberKYCed[member] = false;
 
         usdc.safeTransfer(member, amountToRefund);
