@@ -669,8 +669,8 @@ contract ReferralGateway is
         if (newReferralReserveBalance > parentRewardsAccumulated) {
             newReferralReserveBalance -= parentRewardsAccumulated;
         } else {
-            uint256 rewardFromReserve = parentRewardsAccumulated - newReferralReserveBalance;
-            _currentFee -= rewardFromReserve;
+            uint256 reserveShortfall = parentRewardsAccumulated - newReferralReserveBalance;
+            _currentFee -= reserveShortfall;
             newReferralReserveBalance = 0;
         }
 
