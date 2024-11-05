@@ -511,15 +511,11 @@ contract ReferralGateway is
             ReferralGateway__HasNotPaid()
         );
 
-        uint256 feePaid = nameToDAOData[tDAOName].prepaidMembers[member].contributionBeforeFee -
-            nameToDAOData[tDAOName].prepaidMembers[member].contributionAfterFee;
         uint256 discountReceived = nameToDAOData[tDAOName].prepaidMembers[member].discount;
 
         uint256 amountToRefund = nameToDAOData[tDAOName]
             .prepaidMembers[member]
-            .contributionBeforeFee -
-            feePaid -
-            discountReceived;
+            .contributionBeforeFee - discountReceived;
 
         delete nameToDAOData[tDAOName].prepaidMembers[member];
 
