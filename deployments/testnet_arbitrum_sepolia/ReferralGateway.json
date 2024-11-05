@@ -1,5 +1,5 @@
 {
-    "address": "0x50B813e584108B4cE5cd615D510A4FC0d5A0e96a",
+    "address": "0x303892f65aD2862b496fd946E3827E71fcF88e47",
     "abi": [
         { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
         {
@@ -100,25 +100,54 @@
             "name": "getDAOData",
             "inputs": [{ "name": "tDAOName", "type": "string", "internalType": "string" }],
             "outputs": [
-                {
-                    "name": "",
-                    "type": "tuple",
-                    "internalType": "struct ReferralGateway.tDAO",
-                    "components": [
-                        { "name": "name", "type": "string", "internalType": "string" },
-                        { "name": "preJoinEnabled", "type": "bool", "internalType": "bool" },
-                        { "name": "referralDiscount", "type": "bool", "internalType": "bool" },
-                        { "name": "DAOAdmin", "type": "address", "internalType": "address" },
-                        { "name": "DAOAddress", "type": "address", "internalType": "address" },
-                        { "name": "launchDate", "type": "uint256", "internalType": "uint256" },
-                        { "name": "objectiveAmount", "type": "uint256", "internalType": "uint256" },
-                        { "name": "currentAmount", "type": "uint256", "internalType": "uint256" },
-                        { "name": "collectedFees", "type": "uint256", "internalType": "uint256" },
-                        { "name": "rePoolAddress", "type": "address", "internalType": "address" },
-                        { "name": "toRepool", "type": "uint256", "internalType": "uint256" },
-                        { "name": "referralReserve", "type": "uint256", "internalType": "uint256" }
-                    ]
-                }
+                { "name": "preJoinEnabled", "type": "bool", "internalType": "bool" },
+                { "name": "referralDiscount", "type": "bool", "internalType": "bool" },
+                { "name": "DAOAdmin", "type": "address", "internalType": "address" },
+                { "name": "DAOAddress", "type": "address", "internalType": "address" },
+                { "name": "launchDate", "type": "uint256", "internalType": "uint256" },
+                { "name": "objectiveAmount", "type": "uint256", "internalType": "uint256" },
+                { "name": "currentAmount", "type": "uint256", "internalType": "uint256" },
+                { "name": "collectedFees", "type": "uint256", "internalType": "uint256" },
+                { "name": "rePoolAddress", "type": "address", "internalType": "address" },
+                { "name": "toRepool", "type": "uint256", "internalType": "uint256" },
+                { "name": "referralReserve", "type": "uint256", "internalType": "uint256" }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getParentRewardsByChild",
+            "inputs": [
+                { "name": "parent", "type": "address", "internalType": "address" },
+                { "name": "child", "type": "address", "internalType": "address" },
+                { "name": "tDAOName", "type": "string", "internalType": "string" }
+            ],
+            "outputs": [{ "name": "rewards", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getParentRewardsByLayer",
+            "inputs": [
+                { "name": "parent", "type": "address", "internalType": "address" },
+                { "name": "layer", "type": "uint256", "internalType": "uint256" },
+                { "name": "tDAOName", "type": "string", "internalType": "string" }
+            ],
+            "outputs": [{ "name": "rewards", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getPrepaidMember",
+            "inputs": [
+                { "name": "member", "type": "address", "internalType": "address" },
+                { "name": "tDAOName", "type": "string", "internalType": "string" }
+            ],
+            "outputs": [
+                { "name": "contributionBeforeFee", "type": "uint256", "internalType": "uint256" },
+                { "name": "contributionAfterFee", "type": "uint256", "internalType": "uint256" },
+                { "name": "feeToOperator", "type": "uint256", "internalType": "uint256" },
+                { "name": "discount", "type": "uint256", "internalType": "uint256" }
             ],
             "stateMutability": "view"
         },
@@ -196,26 +225,6 @@
         },
         {
             "type": "function",
-            "name": "parentRewardsByChild",
-            "inputs": [
-                { "name": "parent", "type": "address", "internalType": "address" },
-                { "name": "child", "type": "address", "internalType": "address" }
-            ],
-            "outputs": [{ "name": "rewards", "type": "uint256", "internalType": "uint256" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "parentRewardsByLayer",
-            "inputs": [
-                { "name": "parent", "type": "address", "internalType": "address" },
-                { "name": "layer", "type": "uint256", "internalType": "uint256" }
-            ],
-            "outputs": [{ "name": "rewards", "type": "uint256", "internalType": "uint256" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
             "name": "pause",
             "inputs": [],
             "outputs": [],
@@ -241,23 +250,6 @@
                 { "name": "discount", "type": "uint256", "internalType": "uint256" }
             ],
             "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
-            "name": "prepaidMembers",
-            "inputs": [
-                { "name": "member", "type": "address", "internalType": "address" },
-                { "name": "tDAOName", "type": "string", "internalType": "string" }
-            ],
-            "outputs": [
-                { "name": "tDAOName", "type": "string", "internalType": "string" },
-                { "name": "member", "type": "address", "internalType": "address" },
-                { "name": "contributionBeforeFee", "type": "uint256", "internalType": "uint256" },
-                { "name": "contributionAfterFee", "type": "uint256", "internalType": "uint256" },
-                { "name": "finalFee", "type": "uint256", "internalType": "uint256" },
-                { "name": "discount", "type": "uint256", "internalType": "uint256" }
-            ],
-            "stateMutability": "view"
         },
         {
             "type": "function",
@@ -391,13 +383,6 @@
             "stateMutability": "view"
         },
         {
-            "type": "function",
-            "name": "withdrawRewards",
-            "inputs": [],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
             "type": "event",
             "name": "Initialized",
             "inputs": [
@@ -471,12 +456,6 @@
                 { "name": "fee", "type": "uint256", "indexed": false, "internalType": "uint256" },
                 {
                     "name": "discount",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "expectedMembershipStart",
                     "type": "uint256",
                     "indexed": false,
                     "internalType": "uint256"

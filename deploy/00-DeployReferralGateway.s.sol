@@ -20,7 +20,7 @@ contract DeployReferralGateway is Script {
         if (block.chainid == 42161) {
             bmFetchScriptRoot = "/scripts/chainlink-functions/bmFetchCodeMainnet.js";
         } else if (block.chainid == 421614) {
-            bmFetchScriptRoot = "/scripts/chainlink-functions/bmFetchCodeUat.js";
+            bmFetchScriptRoot = "/scripts/chainlink-functions/bmFetchCodeTestnet.js";
         } else {
             bmFetchScriptRoot = "/scripts/chainlink-functions/bmFetchCodeUat.js";
         }
