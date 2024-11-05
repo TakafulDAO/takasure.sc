@@ -15,11 +15,18 @@ contract DeployReferralGateway is Script {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
+        string memory bmFetchScriptRoot;
+
+        if (block.chainid == 42161) {
+            bmFetchScriptRoot = "/scripts/chainlink-functions/bmFetchCodeMainnet.js";
+        } else if (block.chainid == 421614) {
+            bmFetchScriptRoot = "/scripts/chainlink-functions/bmFetchCodeUat.js";
+        } else {
+            bmFetchScriptRoot = "/scripts/chainlink-functions/bmFetchCodeUat.js";
+        }
+
         string memory root = vm.projectRoot();
-        string memory scriptPath = string.concat(
-            root,
-            "/scripts/chainlink-functions/bmFetchCode.js"
-        );
+        string memory scriptPath = string.concat(root, bmFetchScriptRoot);
         string memory bmFetchScript = vm.readFile(scriptPath);
 
         vm.startBroadcast();
