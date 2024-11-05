@@ -354,7 +354,6 @@ contract ReferralGateway is
 
             // It will get a discount as a pre-joiner
             discount += (contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
-            amountToTransfer -= discount;
             finalFee -= discount;
 
             if (nameToDAOData[tDAOName].referralDiscount) {
@@ -363,7 +362,6 @@ contract ReferralGateway is
                 if (parent != address(0) && isMemberKYCed[parent]) {
                     uint256 referralDiscount = (contribution * REFERRAL_DISCOUNT_RATIO) / 100;
                     discount += referralDiscount;
-                    amountToTransfer -= referralDiscount;
                     finalFee -= referralDiscount;
 
                     childToParent[msg.sender] = parent;
@@ -379,6 +377,8 @@ contract ReferralGateway is
                     nameToDAOData[tDAOName].referralReserve += toReferralReserve;
                 }
             }
+
+            amountToTransfer -= discount;
 
             uint256 rePoolFee = (contribution * REPOOL_FEE_RATIO) / 100;
 
