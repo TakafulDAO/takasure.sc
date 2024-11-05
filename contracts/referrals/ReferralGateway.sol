@@ -650,10 +650,7 @@ contract ReferralGateway is
         uint256 parentRewardsAccumulated;
 
         for (int256 i; i < MAX_TIER; ++i) {
-            if (
-                childToParent[currentChildToCheck] == address(0) ||
-                !isMemberKYCed[childToParent[currentChildToCheck]]
-            ) {
+            if (childToParent[currentChildToCheck] == address(0)) {
                 break;
             }
 
