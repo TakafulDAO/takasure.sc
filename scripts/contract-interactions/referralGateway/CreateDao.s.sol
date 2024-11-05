@@ -10,7 +10,7 @@ contract CreateDao is Script, GetContractAddress {
     bool preJoinEnabled = true;
     bool referralDiscount = true;
     uint256 launchDate = 1739592000; // 2025-02-15 00:00:00 UTC
-    uint256 objectiveAmount = 1_000_000 * 10 ** 6; // 100,000 USDC
+    uint256 objectiveAmount = 1_000_000 * 10 ** 6; // 100,000,000 USDC
 
     function run() public {
         address referralGatewayAddress = _getContractAddress(block.chainid, "ReferralGateway");
