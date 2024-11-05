@@ -37,10 +37,6 @@ contract ReferralGateway is
     address private operator;
     uint256 private referralReserveBalance; // TODO: Deprecated, remove in next version
 
-    // mapping(address parent => mapping(address child => uint256 rewards))
-    //     public parentRewardsByChild;
-    mapping(address parent => mapping(uint256 layer => uint256 rewards))
-        public parentRewardsByLayer;
     mapping(string tDAOName => tDAO DAOData) private nameToDAOData;
     mapping(address member => bool) public isMemberKYCed;
     mapping(address child => address parent) public childToParent;
@@ -52,6 +48,7 @@ contract ReferralGateway is
         uint256 feeToOperator; // Fee after all the discounts and rewards
         uint256 discount;
         mapping(address child => uint256 rewards) parentRewardsByChild;
+        mapping(uint256 layer => uint256 rewards) parentRewardsByLayer;
     }
 
     struct tDAO {
@@ -457,7 +454,7 @@ contract ReferralGateway is
                 .parentRewardsByChild[child];
 
             nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[child] = 0;
-            parentRewardsByLayer[parent][layer] = 0;
+            nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByLayer[layer] = 0;
             usdc.safeTransfer(parent, parentReward);
 
             emit OnParentRewarded(parent, layer, child, parentReward);
@@ -546,14 +543,14 @@ contract ReferralGateway is
                                 REWARDS
     //////////////////////////////////////////////////////////////*/
 
-    function withdrawRewards() external nonReentrant {
-        for (int256 i; i < MAX_TIER; ++i) {
-            uint256 layer = uint256(i + 1);
-            uint256 reward = parentRewardsByLayer[msg.sender][layer];
-            parentRewardsByLayer[msg.sender][layer] = 0;
-            usdc.safeTransfer(msg.sender, reward);
-        }
-    }
+    // function withdrawRewards() external nonReentrant {
+    //     for (int256 i; i < MAX_TIER; ++i) {
+    //         uint256 layer = uint256(i + 1);
+    //         uint256 reward = parentRewardsByLayer[msg.sender][layer];
+    //         parentRewardsByLayer[msg.sender][layer] = 0;
+    //         usdc.safeTransfer(msg.sender, reward);
+    //     }
+    // }
 
     /*//////////////////////////////////////////////////////////////
                                 SETTERS
@@ -614,6 +611,14 @@ contract ReferralGateway is
         string calldata tDAOName
     ) external view returns (uint256 rewards) {
         rewards = nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[child];
+    }
+
+    function getParentRewardsByLayer(
+        address parent,
+        uint256 layer,
+        string calldata tDAOName
+    ) external view returns (uint256 rewards) {
+        rewards = nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByLayer[layer];
     }
 
     function getDAOData(
@@ -692,12 +697,14 @@ contract ReferralGateway is
 
             uint256 parentReward = (_contribution * _referralRewardRatioByLayer(i + 1)) /
                 (100 * DECIMAL_CORRECTION);
+
             nameToDAOData[_tDAOName]
                 .prepaidMembers[childToParent[currentChildToCheck]]
                 .parentRewardsByChild[msg.sender] += parentReward;
-            parentRewardsByLayer[childToParent[currentChildToCheck]][
-                uint256(i + 1)
-            ] += parentReward;
+
+            nameToDAOData[_tDAOName]
+                .prepaidMembers[childToParent[currentChildToCheck]]
+                .parentRewardsByLayer[uint256(i + 1)] += parentReward;
 
             parentRewardsAccumulated += parentReward;
 
