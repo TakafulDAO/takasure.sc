@@ -540,19 +540,6 @@ contract ReferralGateway is
     }
 
     /*//////////////////////////////////////////////////////////////
-                                REWARDS
-    //////////////////////////////////////////////////////////////*/
-
-    // function withdrawRewards() external nonReentrant {
-    //     for (int256 i; i < MAX_TIER; ++i) {
-    //         uint256 layer = uint256(i + 1);
-    //         uint256 reward = parentRewardsByLayer[msg.sender][layer];
-    //         parentRewardsByLayer[msg.sender][layer] = 0;
-    //         usdc.safeTransfer(msg.sender, reward);
-    //     }
-    // }
-
-    /*//////////////////////////////////////////////////////////////
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
