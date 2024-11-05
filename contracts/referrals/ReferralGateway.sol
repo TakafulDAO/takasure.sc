@@ -212,7 +212,7 @@ contract ReferralGateway is
         bool isReferralDiscountEnabled,
         uint256 launchDate,
         uint256 objectiveAmount
-    ) external onlyRole(OPERATOR) {
+    ) external whenNotPaused onlyRole(OPERATOR) {
         require(bytes(DAOName).length != 0, ReferralGateway__MustHaveName());
         require(
             !(Strings.equal(nameToDAOData[DAOName].name, DAOName)),
