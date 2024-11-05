@@ -791,9 +791,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(takadao);
         referralGateway.setKYCStatus(parentTier2, tDaoName);
 
-        assertEq(referralGateway.getParentRewardsByChild(parentTier1, parentTier2, tDaoName), 0);
-        assertEq(referralGateway.getParentRewardsByLayer(parentTier1, 1, tDaoName), 0);
-
         uint256 parentTier3Contribution = 2 * CONTRIBUTION_AMOUNT;
         // The expected parent 2 reward ratio will be 4% of the parent 2 contribution
         uint256 expectedParentTwoReward = (parentTier3Contribution * LAYER_ONE_REWARD_RATIO) / 100;
@@ -819,8 +816,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         // Parent 4 prepay referred by parent 3
         vm.prank(takadao);
         referralGateway.setKYCStatus(parentTier3, tDaoName);
-
-        assertEq(referralGateway.getParentRewardsByChild(parentTier2, parentTier3, tDaoName), 0);
 
         uint256 parentTier4Contribution = 7 * CONTRIBUTION_AMOUNT;
         // The expected parent 3 reward ratio will be 4% of the parent 4 contribution
@@ -854,8 +849,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         // Child without referee prepay referred by parent 4
         vm.prank(takadao);
         referralGateway.setKYCStatus(parentTier4, tDaoName);
-
-        assertEq(referralGateway.getParentRewardsByChild(parentTier3, parentTier4, tDaoName), 0);
 
         // The expected parent 4 reward ratio will be 4% of the child without referee contribution
         uint256 expectedParentFourReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
