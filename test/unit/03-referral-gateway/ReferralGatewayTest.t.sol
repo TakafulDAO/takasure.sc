@@ -843,14 +843,17 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             referralGateway.getParentRewardsByChild(parentTier1, parentTier2, tDaoName),
             expectedParentOneReward
         );
-        assertEq(referralGateway.parentRewardsByLayer(parentTier1, 1), expectedParentOneReward);
+        assertEq(
+            referralGateway.getParentRewardsByLayer(parentTier1, 1, tDaoName),
+            expectedParentOneReward
+        );
 
         // Parent 3 prepay referred by parent 2
         vm.prank(takadao);
         referralGateway.setKYCStatus(parentTier2, tDaoName);
 
         assertEq(referralGateway.getParentRewardsByChild(parentTier1, parentTier2, tDaoName), 0);
-        assertEq(referralGateway.parentRewardsByLayer(parentTier1, 1), 0);
+        assertEq(referralGateway.getParentRewardsByLayer(parentTier1, 1, tDaoName), 0);
 
         uint256 parentTier3Contribution = 2 * CONTRIBUTION_AMOUNT;
         // The expected parent 2 reward ratio will be 4% of the parent 2 contribution
@@ -865,8 +868,14 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             referralGateway.getParentRewardsByChild(parentTier2, parentTier3, tDaoName),
             expectedParentTwoReward
         );
-        assertEq(referralGateway.parentRewardsByLayer(parentTier2, 1), expectedParentTwoReward);
-        assertEq(referralGateway.parentRewardsByLayer(parentTier1, 2), expectedParentOneReward);
+        assertEq(
+            referralGateway.getParentRewardsByLayer(parentTier2, 1, tDaoName),
+            expectedParentTwoReward
+        );
+        assertEq(
+            referralGateway.getParentRewardsByLayer(parentTier1, 2, tDaoName),
+            expectedParentOneReward
+        );
 
         // Parent 4 prepay referred by parent 3
         vm.prank(takadao);
@@ -890,9 +899,18 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             referralGateway.getParentRewardsByChild(parentTier3, parentTier4, tDaoName),
             expectedParentThreeReward
         );
-        assertEq(referralGateway.parentRewardsByLayer(parentTier3, 1), expectedParentThreeReward);
-        assertEq(referralGateway.parentRewardsByLayer(parentTier2, 2), expectedParentTwoReward);
-        assertEq(referralGateway.parentRewardsByLayer(parentTier1, 3), expectedParentOneReward);
+        assertEq(
+            referralGateway.getParentRewardsByLayer(parentTier3, 1, tDaoName),
+            expectedParentThreeReward
+        );
+        assertEq(
+            referralGateway.getParentRewardsByLayer(parentTier2, 2, tDaoName),
+            expectedParentTwoReward
+        );
+        assertEq(
+            referralGateway.getParentRewardsByLayer(parentTier1, 3, tDaoName),
+            expectedParentOneReward
+        );
 
         // Child without referee prepay referred by parent 4
         vm.prank(takadao);
@@ -916,10 +934,22 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             referralGateway.getParentRewardsByChild(parentTier4, childWithoutReferee, tDaoName),
             expectedParentFourReward
         );
-        assertEq(referralGateway.parentRewardsByLayer(parentTier4, 1), expectedParentFourReward);
-        assertEq(referralGateway.parentRewardsByLayer(parentTier3, 2), expectedParentThreeReward);
-        assertEq(referralGateway.parentRewardsByLayer(parentTier2, 3), expectedParentTwoReward);
-        assertEq(referralGateway.parentRewardsByLayer(parentTier1, 4), expectedParentOneReward);
+        assertEq(
+            referralGateway.getParentRewardsByLayer(parentTier4, 1, tDaoName),
+            expectedParentFourReward
+        );
+        assertEq(
+            referralGateway.getParentRewardsByLayer(parentTier3, 2, tDaoName),
+            expectedParentThreeReward
+        );
+        assertEq(
+            referralGateway.getParentRewardsByLayer(parentTier2, 3, tDaoName),
+            expectedParentTwoReward
+        );
+        assertEq(
+            referralGateway.getParentRewardsByLayer(parentTier1, 4, tDaoName),
+            expectedParentOneReward
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
