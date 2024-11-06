@@ -103,6 +103,17 @@ contract ReferralGateway is
     //////////////////////////////////////////////////////////////*/
 
     event OnNewCofounderOfChange(address indexed cofounderOfChange);
+    event OnNewDAO(
+        string indexed DAOName,
+        bool indexed preJoinEnabled,
+        bool indexed referralDiscount,
+        uint256 launchDate,
+        uint256 objectiveAmount
+    );
+    event OnDAOLaunchDateUpdated(string indexed DAOName, uint256 indexed launchDate);
+    event OnDAOLaunched(string indexed DAOName, address indexed DAOAddress);
+    event OnReferralDiscountSwitched(string indexed DAOName, bool indexed referralDiscount);
+    event OnRepoolEnabled(string indexed DAOName, address indexed rePoolAddress);
     event OnPrepayment(
         address indexed parent,
         address indexed child,
@@ -122,6 +133,7 @@ contract ReferralGateway is
         address indexed oldBenefitMultiplierConsumer
     );
     event OnRefund(string indexed tDAOName, address indexed member, uint256 indexed amount);
+    event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__onlyDAOAdmin();
@@ -227,6 +239,14 @@ contract ReferralGateway is
         nameToDAOData[DAOName].DAOAdmin = msg.sender;
         nameToDAOData[DAOName].launchDate = launchDate;
         nameToDAOData[DAOName].objectiveAmount = objectiveAmount;
+
+        emit OnNewDAO(
+            DAOName,
+            isPreJoinEnabled,
+            isReferralDiscountEnabled,
+            launchDate,
+            objectiveAmount
+        );
     }
 
     /**
@@ -241,6 +261,8 @@ contract ReferralGateway is
             ReferralGateway__DAOAlreadyLaunched()
         );
         nameToDAOData[tDAOName].launchDate = launchDate;
+
+        emit OnDAOLaunchDateUpdated(tDAOName, launchDate);
     }
 
     /**
@@ -271,6 +293,8 @@ contract ReferralGateway is
         nameToDAOData[tDAOName].referralDiscount = isReferralDiscountEnabled;
         nameToDAOData[tDAOName].DAOAddress = tDAOAddress;
         nameToDAOData[tDAOName].launchDate = block.timestamp;
+
+        emit OnDAOLaunched(tDAOName, tDAOAddress);
     }
 
     /**
@@ -278,6 +302,8 @@ contract ReferralGateway is
      */
     function switchReferralDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
+
+        emit OnReferralDiscountSwitched(tDAOName, nameToDAOData[tDAOName].referralDiscount);
     }
 
     /**
@@ -294,6 +320,8 @@ contract ReferralGateway is
             ReferralGateway__tDAONotReadyYet()
         );
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
+
+        emit OnRepoolEnabled(tDAOName, rePoolAddress);
     }
 
     function transferToRepool(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
@@ -529,7 +557,10 @@ contract ReferralGateway is
     //////////////////////////////////////////////////////////////*/
 
     function setUsdcAddress(address _usdcAddress) external onlyRole(OPERATOR) {
+        address oldUsdc = address(usdc);
         usdc = IERC20(_usdcAddress);
+
+        emit OnUsdcAddressChanged(oldUsdc, _usdcAddress);
     }
 
     function setNewBenefitMultiplierConsumer(
