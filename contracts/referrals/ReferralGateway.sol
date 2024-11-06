@@ -479,6 +479,9 @@ contract ReferralGateway is
                 .prepaidMembers[parent]
                 .parentRewardsByChild[child];
 
+            // Reset the rewards for this child
+            nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[child] = 0;
+
             usdc.safeTransfer(parent, parentReward);
 
             emit OnParentRewarded(parent, layer, child, parentReward);
@@ -710,7 +713,7 @@ contract ReferralGateway is
 
             nameToDAOData[_tDAOName]
                 .prepaidMembers[childToParent[currentChildToCheck]]
-                .parentRewardsByChild[msg.sender] += parentReward;
+                .parentRewardsByChild[msg.sender] = parentReward;
 
             nameToDAOData[_tDAOName]
                 .prepaidMembers[childToParent[currentChildToCheck]]
