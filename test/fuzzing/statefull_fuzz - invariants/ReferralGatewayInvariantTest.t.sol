@@ -55,7 +55,14 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         bmConsumerMock.setNewRequester(address(takasurePool));
 
         vm.prank(daoAdmin);
-        referralGateway.createDAO(DAO_NAME, true, true, block.timestamp + 31_536_000, 0);
+        referralGateway.createDAO(
+            DAO_NAME,
+            true,
+            true,
+            block.timestamp + 31_536_000,
+            0,
+            address(bmConsumerMock)
+        );
 
         handler = new ReferralGatewayHandler(referralGateway);
 
