@@ -32,7 +32,7 @@ contract ReferralGateway is
     using SafeERC20 for IERC20;
 
     IERC20 public usdc;
-    // IBenefitMultiplierConsumer private bmConsumer;
+    IBenefitMultiplierConsumer private bmConsumer;
 
     address private operator;
 
@@ -224,7 +224,7 @@ contract ReferralGateway is
         bool isReferralDiscountEnabled,
         uint256 launchDate,
         uint256 objectiveAmount,
-        address bmConsumer
+        address _bmConsumer
     ) external whenNotPaused onlyRole(OPERATOR) {
         require(bytes(DAOName).length != 0, ReferralGateway__MustHaveName());
         require(
@@ -240,7 +240,7 @@ contract ReferralGateway is
         nameToDAOData[DAOName].DAOAdmin = msg.sender;
         nameToDAOData[DAOName].launchDate = launchDate;
         nameToDAOData[DAOName].objectiveAmount = objectiveAmount;
-        nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(bmConsumer);
+        nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
 
         emit OnNewDAO(
             DAOName,
