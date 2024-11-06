@@ -80,7 +80,8 @@
                 { "name": "isPreJoinEnabled", "type": "bool", "internalType": "bool" },
                 { "name": "isReferralDiscountEnabled", "type": "bool", "internalType": "bool" },
                 { "name": "launchDate", "type": "uint256", "internalType": "uint256" },
-                { "name": "objectiveAmount", "type": "uint256", "internalType": "uint256" }
+                { "name": "objectiveAmount", "type": "uint256", "internalType": "uint256" },
+                { "name": "_bmConsumer", "type": "address", "internalType": "address" }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
@@ -315,7 +316,8 @@
                     "name": "newBenefitMultiplierConsumer",
                     "type": "address",
                     "internalType": "address"
-                }
+                },
+                { "name": "tDAOName", "type": "string", "internalType": "string" }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
@@ -394,6 +396,7 @@
             "type": "event",
             "name": "OnBenefitMultiplierConsumerChanged",
             "inputs": [
+                { "name": "tDAOName", "type": "string", "indexed": true, "internalType": "string" },
                 {
                     "name": "newBenefitMultiplierConsumer",
                     "type": "address",
@@ -402,6 +405,34 @@
                 },
                 {
                     "name": "oldBenefitMultiplierConsumer",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnDAOLaunchDateUpdated",
+            "inputs": [
+                { "name": "DAOName", "type": "string", "indexed": true, "internalType": "string" },
+                {
+                    "name": "launchDate",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnDAOLaunched",
+            "inputs": [
+                { "name": "DAOName", "type": "string", "indexed": true, "internalType": "string" },
+                {
+                    "name": "DAOAddress",
                     "type": "address",
                     "indexed": true,
                     "internalType": "address"
@@ -426,6 +457,38 @@
                     "type": "address",
                     "indexed": true,
                     "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewDAO",
+            "inputs": [
+                { "name": "DAOName", "type": "string", "indexed": true, "internalType": "string" },
+                {
+                    "name": "preJoinEnabled",
+                    "type": "bool",
+                    "indexed": true,
+                    "internalType": "bool"
+                },
+                {
+                    "name": "referralDiscount",
+                    "type": "bool",
+                    "indexed": true,
+                    "internalType": "bool"
+                },
+                {
+                    "name": "launchDate",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "objectiveAmount",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
                 }
             ],
             "anonymous": false
@@ -465,11 +528,53 @@
         },
         {
             "type": "event",
+            "name": "OnReferralDiscountSwitched",
+            "inputs": [
+                { "name": "DAOName", "type": "string", "indexed": true, "internalType": "string" },
+                {
+                    "name": "referralDiscount",
+                    "type": "bool",
+                    "indexed": true,
+                    "internalType": "bool"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
             "name": "OnRefund",
             "inputs": [
                 { "name": "tDAOName", "type": "string", "indexed": true, "internalType": "string" },
                 { "name": "member", "type": "address", "indexed": true, "internalType": "address" },
                 { "name": "amount", "type": "uint256", "indexed": true, "internalType": "uint256" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnRepoolEnabled",
+            "inputs": [
+                { "name": "DAOName", "type": "string", "indexed": true, "internalType": "string" },
+                {
+                    "name": "rePoolAddress",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnUsdcAddressChanged",
+            "inputs": [
+                {
+                    "name": "oldUsdc",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                { "name": "newUsdc", "type": "address", "indexed": true, "internalType": "address" }
             ],
             "anonymous": false
         },
