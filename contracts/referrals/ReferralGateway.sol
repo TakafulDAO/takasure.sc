@@ -358,6 +358,13 @@ contract ReferralGateway is
         string calldata tDAOName,
         address parent
     ) external whenNotPaused nonReentrant returns (uint256 finalFee, uint256 discount) {
+        // DAO must exist
+        require(
+            nameToDAOData[tDAOName].preJoinEnabled ||
+                nameToDAOData[tDAOName].DAOAddress != address(0),
+            ReferralGateway__tDAONotReadyYet()
+        );
+
         require(
             contribution >= MINIMUM_CONTRIBUTION && contribution <= MAXIMUM_CONTRIBUTION,
             ReferralGateway__ContributionOutOfRange()
