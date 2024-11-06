@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {USDC} from "test/mocks/USDCmock.sol";
@@ -56,42 +56,42 @@ abstract contract CodeConstants {
     FeeClaimAddress public feeClaimAddress =
         FeeClaimAddress({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Avil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
     DaoMultisig public daoMultisig =
         DaoMultisig({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
     TakadaoOperator public takadaoOperator =
         TakadaoOperator({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
     KycProvider public kycProvider =
         KycProvider({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0x2b212e37A5619191694Ad0E99fD6F76e45fdb2Ba,
             sepolia: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3
         });
 
     PauseGuardian public pauseGuardian =
         PauseGuardian({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
     TokenAdmin public tokenAdmin =
         TokenAdmin({
             local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO
+            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
             sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 }
@@ -134,6 +134,7 @@ contract HelperConfig is CodeConstants, Script {
     //////////////////////////////////////////////////////////////*/
 
     constructor() {
+        networkConfigs[ARB_MAINNET_CHAIN_ID] = getArbMainnetConfig();
         networkConfigs[ARB_SEPOLIA_CHAIN_ID] = getArbSepoliaConfig();
     }
 
@@ -145,6 +146,24 @@ contract HelperConfig is CodeConstants, Script {
         } else {
             revert HelperConfig__InvalidChainId();
         }
+    }
+
+    function getArbMainnetConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
+        sepoliaNetworkConfig = NetworkConfig({
+            contributionToken: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831,
+            feeClaimAddress: feeClaimAddress.mainnet,
+            daoMultisig: daoMultisig.mainnet,
+            takadaoOperator: takadaoOperator.mainnet,
+            kycProvider: kycProvider.mainnet,
+            pauseGuardian: pauseGuardian.mainnet,
+            tokenAdmin: tokenAdmin.mainnet,
+            tokenName: "Takasure DAO Token",
+            tokenSymbol: "TST",
+            functionsRouter: 0x97083E831F8F0638855e2A515c90EdCF158DF238,
+            donId: 0x66756e2d617262697472756d2d6d61696e6e65742d3100000000000000000000,
+            gasLimit: 300000,
+            subscriptionId: 32
+        });
     }
 
     function getArbSepoliaConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {

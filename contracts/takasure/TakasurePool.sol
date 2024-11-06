@@ -23,7 +23,7 @@ import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 contract TakasurePool is
     Initializable,
@@ -42,6 +42,7 @@ contract TakasurePool is
     bytes32 public constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 public constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
+    bytes32 public constant REFERRAL_GATEWAY = keccak256("REFERRAL_GATEWAY");
 
     uint256 private constant DECIMALS_PRECISION = 1e12;
     uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
@@ -141,6 +142,50 @@ contract TakasurePool is
             address(contributionToken),
             address(daoToken)
         );
+    }
+
+    function prejoins(
+        address newMember,
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration
+    ) external nonReentrant onlyRole(REFERRAL_GATEWAY) {
+        Member memory member = reserve.members[newMember];
+        if (member.memberState != MemberState.Inactive) {
+            revert TakasureErrors.TakasurePool__WrongMemberState();
+        }
+        if (contributionBeforeFee < minimumThreshold || contributionBeforeFee > maximumThreshold) {
+            revert TakasureErrors.TakasurePool__ContributionOutOfRange();
+        }
+
+        // Fetch the BM from the oracle
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(newMember);
+
+        (
+            uint256 normalizedContributionBeforeFee,
+            uint256 feeAmount,
+            uint256 contributionAfterFee
+        ) = _calculateAmountAndFees(contributionBeforeFee);
+
+        _createNewMember({
+            _benefitMultiplier: benefitMultiplier, // Fetch from oracle
+            _contributionBeforeFee: normalizedContributionBeforeFee, // From the input
+            _membershipDuration: membershipDuration, // From the input
+            _feeAmount: feeAmount, // Calculated
+            _isKYCVerified: true,
+            _memberWallet: newMember, // The member wallet
+            _memberState: MemberState.Active
+        });
+
+        // And we pay the contribution
+        _memberPaymentFlow({
+            _contributionBeforeFee: normalizedContributionBeforeFee,
+            _contributionAfterFee: contributionAfterFee,
+            _feeAmount: 0, // Was already paid in the referral flow
+            _memberWallet: newMember,
+            _payContribution: false // Was already paid in the referral flow
+        });
+
+        emit TakasureEvents.OnMemberJoined(reserve.members[newMember].memberId, newMember);
     }
 
     /**
@@ -416,6 +461,10 @@ contract TakasurePool is
         if (!success) {
             revert TakasureErrors.TakasurePool__RevenueTransferFailed();
         }
+    }
+
+    function setNewReferralGateway(address newReferralGateway) external onlyDaoOrTakadao {
+        _grantRole(REFERRAL_GATEWAY, newReferralGateway);
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {

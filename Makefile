@@ -29,26 +29,41 @@ build-certora:; forge build --contracts ./certora/
 
 test :; forge test 
 
-coverage :; forge coverage --report debug > coverage-report.txt
+coverage-report :; forge coverage --skip ReferralGatewayInvariantTest.t.sol --ir-minimum --report debug > coverage-report.txt
 
 snapshot :; forge snapshot
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
-deploy-all:
+deploy-referral:
 	@forge clean
-	@forge script deploy/04-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
-	
+	@forge script deploy/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGateway.sol
+
+upgrade-referral:
+	@forge clean
+	@forge script deploy/01-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGateway.sol
+
 deploy-bm-consumer:
-	@forge script deploy/01-DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)
+	@forge script deploy/02-DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)
 
 deploy-takasure:
 	@forge clean
-	@forge script deploy/02-DeployTakasure.s.sol:DeployTakasure $(NETWORK_ARGS)
+	@forge script deploy/03-DeployTakasure.s.sol:DeployTakasure $(NETWORK_ARGS)
 
 upgrade-takasure:
 	@forge clean
-	@forge script deploy/03-UpgradeTakasure.s.sol:UpgradeTakasure $(NETWORK_ARGS)
+	@forge script deploy/04-UpgradeTakasure.s.sol:UpgradeTakasure $(NETWORK_ARGS)
+
+deploy-all:
+	@forge clean
+	@forge script deploy/05-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
+
+# Interactions with ReferralGateway Contract
+# Create a DAO
+create-dao:
+	@forge script scripts/contract-interactions/referralGateway/CreateDao.s.sol:CreateDao $(NETWORK_ARGS)
 
 # Interactions with BenefitMultiplierConsumer Contract
 # Add a new BM Requester
@@ -79,6 +94,8 @@ NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KE
 
 ifeq ($(findstring --network arb_sepolia,$(ARGS)),--network arb_sepolia)
 	NETWORK_ARGS := --rpc-url $(ARBITRUM_TESTNET_SEPOLIA_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY) -vvvv
+else ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)
+	NETWORK_ARGS := --rpc-url $(ARBITRUM_MAINNET_RPC_URL) --account $(MAINNET_ACCOUNT) --sender $(MAINNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY) -vvvv
 endif
 
 # Certora
