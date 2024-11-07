@@ -150,6 +150,7 @@ contract ReferralGateway is
     error ReferralGateway__HasNotPaid();
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAONotReadyYet();
+    error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
 
     modifier notZeroAddress(address _address) {
         require(_address != address(0), ReferralGateway__ZeroAddress());
@@ -554,6 +555,32 @@ contract ReferralGateway is
         uint256 amountToRefund = nameToDAOData[tDAOName]
             .prepaidMembers[member]
             .contributionBeforeFee - discountReceived;
+
+        // We deduct first from the tDAO currentAmount
+        if (amountToRefund <= nameToDAOData[tDAOName].currentAmount) {
+            nameToDAOData[tDAOName].currentAmount -= amountToRefund;
+        } else {
+            // If not enough we calculate the difference and set the currentAmount to 0
+            uint256 difference = amountToRefund - nameToDAOData[tDAOName].currentAmount;
+            nameToDAOData[tDAOName].currentAmount = 0;
+            // And we compare now against the referralReserve
+            if (difference <= nameToDAOData[tDAOName].referralReserve) {
+                nameToDAOData[tDAOName].referralReserve -= difference;
+            } else {
+                // We calculate the difference and set the referralReserve to 0
+                difference -= nameToDAOData[tDAOName].referralReserve;
+                nameToDAOData[tDAOName].referralReserve = 0;
+                // Finally we compare against the repool amount
+                require(
+                    difference <= nameToDAOData[tDAOName].toRepool,
+                    ReferralGateway__NotEnoughFunds(
+                        amountToRefund,
+                        difference - nameToDAOData[tDAOName].toRepool
+                    )
+                );
+                nameToDAOData[tDAOName].toRepool -= difference;
+            }
+        }
 
         delete nameToDAOData[tDAOName].prepaidMembers[member];
 
