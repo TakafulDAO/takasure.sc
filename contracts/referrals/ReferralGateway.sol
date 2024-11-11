@@ -556,6 +556,11 @@ contract ReferralGateway is
             .prepaidMembers[member]
             .contributionBeforeFee - discountReceived;
 
+        require(
+            amountToRefund <= usdc.balanceOf(address(this)),
+            ReferralGateway__NotEnoughFunds(amountToRefund, usdc.balanceOf(address(this)))
+        );
+
         // We deduct first from the tDAO currentAmount
         if (amountToRefund <= nameToDAOData[tDAOName].currentAmount) {
             nameToDAOData[tDAOName].currentAmount -= amountToRefund;
@@ -571,14 +576,11 @@ contract ReferralGateway is
                 difference -= nameToDAOData[tDAOName].referralReserve;
                 nameToDAOData[tDAOName].referralReserve = 0;
                 // Finally we compare against the repool amount
-                require(
-                    difference <= nameToDAOData[tDAOName].toRepool,
-                    ReferralGateway__NotEnoughFunds(
-                        amountToRefund,
-                        difference - nameToDAOData[tDAOName].toRepool
-                    )
-                );
-                nameToDAOData[tDAOName].toRepool -= difference;
+                if (difference <= nameToDAOData[tDAOName].toRepool) {
+                    nameToDAOData[tDAOName].toRepool -= difference;
+                } else {
+                    nameToDAOData[tDAOName].toRepool = 0;
+                }
             }
         }
 
