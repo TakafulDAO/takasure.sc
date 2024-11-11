@@ -389,9 +389,10 @@ contract ReferralGateway is
             // It will get a discount as a pre-joiner
             discount += (contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
             finalFee -= discount;
+            uint256 toReferralReserve;
 
             if (nameToDAOData[tDAOName].referralDiscount) {
-                uint256 toReferralReserve = (contribution * REFERRAL_RESERVE) / 100;
+                toReferralReserve = (contribution * REFERRAL_RESERVE) / 100;
                 finalFee -= toReferralReserve;
                 if (parent != address(0) && isMemberKYCed[parent]) {
                     uint256 referralDiscount = (contribution * REFERRAL_DISCOUNT_RATIO) / 100;
@@ -420,7 +421,11 @@ contract ReferralGateway is
             finalFee -= rePoolFee;
 
             nameToDAOData[tDAOName].toRepool += rePoolFee;
-            nameToDAOData[tDAOName].currentAmount += amountToTransfer - finalFee;
+            nameToDAOData[tDAOName].currentAmount +=
+                amountToTransfer -
+                finalFee -
+                rePoolFee -
+                toReferralReserve;
             nameToDAOData[tDAOName].collectedFees += finalFee;
 
             // We transfer the contribution minus the discount (if any) minus the fee
