@@ -87,7 +87,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     /// 1. The fee deducted from the contribution is within the limits (4.475% - 27%)
     /// 2. The discount is within the limits (10% - 15%)
     function invariant_feeCalculatedCorrectly() public view {
-        // This will run assertions in the handler
+        // This will also run some assertions in the handler
         (
             ,
             ,
