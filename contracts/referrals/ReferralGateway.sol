@@ -150,6 +150,7 @@ contract ReferralGateway is
     error ReferralGateway__HasNotPaid();
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAONotReadyYet();
+    error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
 
     modifier notZeroAddress(address _address) {
         require(_address != address(0), ReferralGateway__ZeroAddress());
@@ -388,9 +389,10 @@ contract ReferralGateway is
             // It will get a discount as a pre-joiner
             discount += (contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
             finalFee -= discount;
+            uint256 toReferralReserve;
 
             if (nameToDAOData[tDAOName].referralDiscount) {
-                uint256 toReferralReserve = (contribution * REFERRAL_RESERVE) / 100;
+                toReferralReserve = (contribution * REFERRAL_RESERVE) / 100;
                 finalFee -= toReferralReserve;
                 if (parent != address(0) && isMemberKYCed[parent]) {
                     uint256 referralDiscount = (contribution * REFERRAL_DISCOUNT_RATIO) / 100;
@@ -419,7 +421,11 @@ contract ReferralGateway is
             finalFee -= rePoolFee;
 
             nameToDAOData[tDAOName].toRepool += rePoolFee;
-            nameToDAOData[tDAOName].currentAmount += amountToTransfer - finalFee;
+            nameToDAOData[tDAOName].currentAmount +=
+                amountToTransfer -
+                finalFee -
+                rePoolFee -
+                toReferralReserve;
             nameToDAOData[tDAOName].collectedFees += finalFee;
 
             // We transfer the contribution minus the discount (if any) minus the fee
@@ -554,6 +560,34 @@ contract ReferralGateway is
         uint256 amountToRefund = nameToDAOData[tDAOName]
             .prepaidMembers[member]
             .contributionBeforeFee - discountReceived;
+
+        require(
+            amountToRefund <= usdc.balanceOf(address(this)),
+            ReferralGateway__NotEnoughFunds(amountToRefund, usdc.balanceOf(address(this)))
+        );
+
+        // We deduct first from the tDAO currentAmount
+        if (amountToRefund <= nameToDAOData[tDAOName].currentAmount) {
+            nameToDAOData[tDAOName].currentAmount -= amountToRefund;
+        } else {
+            // If not enough we calculate the difference and set the currentAmount to 0
+            uint256 difference = amountToRefund - nameToDAOData[tDAOName].currentAmount;
+            nameToDAOData[tDAOName].currentAmount = 0;
+            // And we compare now against the referralReserve
+            if (difference <= nameToDAOData[tDAOName].referralReserve) {
+                nameToDAOData[tDAOName].referralReserve -= difference;
+            } else {
+                // We calculate the difference and set the referralReserve to 0
+                difference -= nameToDAOData[tDAOName].referralReserve;
+                nameToDAOData[tDAOName].referralReserve = 0;
+                // Finally we compare against the repool amount
+                if (difference <= nameToDAOData[tDAOName].toRepool) {
+                    nameToDAOData[tDAOName].toRepool -= difference;
+                } else {
+                    nameToDAOData[tDAOName].toRepool = 0;
+                }
+            }
+        }
 
         delete nameToDAOData[tDAOName].prepaidMembers[member];
 
@@ -769,4 +803,11 @@ contract ReferralGateway is
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
+
+    function fixContributionAmount(string calldata tDAOName) external onlyRole(OPERATOR) {
+        nameToDAOData[tDAOName].currentAmount =
+            usdc.balanceOf(address(this)) -
+            nameToDAOData[tDAOName].toRepool -
+            nameToDAOData[tDAOName].referralReserve;
+    }
 }
