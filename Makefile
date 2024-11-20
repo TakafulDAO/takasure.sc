@@ -94,6 +94,8 @@ NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KE
 
 ifeq ($(findstring --network arb_sepolia,$(ARGS)),--network arb_sepolia)
 	NETWORK_ARGS := --rpc-url $(ARBITRUM_TESTNET_SEPOLIA_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY) -vvvv
+else ifeq ($(findstring --network eth_sepolia,$(ARGS)),--network eth_sepolia)
+	NETWORK_ARGS := --rpc-url $(ETHEREUM_TESTNET_SEPOLIA_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)
 	NETWORK_ARGS := --rpc-url $(ARBITRUM_MAINNET_RPC_URL) --account $(MAINNET_ACCOUNT) --sender $(MAINNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY) -vvvv
 endif

@@ -9,6 +9,7 @@ contract GetContractAddress is Script {
 
     uint256 public constant ARB_MAINNET_CHAIN_ID = 42161;
     uint256 public constant ARB_SEPOLIA_CHAIN_ID = 421614;
+    uint256 public constant ETH_SEPOLIA_CHAIN_ID = 11155111;
 
     function _getContractAddress(
         uint256 chainId,
@@ -18,6 +19,8 @@ contract GetContractAddress is Script {
 
         if (chainId == ARB_SEPOLIA_CHAIN_ID) {
             chainName = "testnet_arbitrum_sepolia";
+        } else if (chainId == ETH_SEPOLIA_CHAIN_ID) {
+            chainName = "testnet_ethereum_sepolia";
         } else if (chainId == ARB_MAINNET_CHAIN_ID) {
             chainName = "mainnet_arbitrum_one";
         } else {
