@@ -591,6 +591,12 @@ contract ReferralGateway is
         );
     }
 
+    function setNewOperator(address newOperator) external onlyRole(OPERATOR) {
+        operator = newOperator;
+        _grantRole(OPERATOR, newOperator);
+        _revokeRole(OPERATOR, msg.sender);
+    }
+
     function pause() external onlyRole(PAUSE_GUARDIAN) {
         _pause();
     }
