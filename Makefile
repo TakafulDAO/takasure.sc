@@ -60,6 +60,10 @@ deploy-all:
 	@forge clean
 	@forge script deploy/05-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
 
+upgrade-referral-defender:
+	@forge clean
+	@forge script deploy/06-DefenderUpgradeReferralGateway.s.sol:DefenderUpgradeReferralGateway $(NETWORK_ARGS)
+
 # Interactions with ReferralGateway Contract
 # Create a DAO
 create-dao:
