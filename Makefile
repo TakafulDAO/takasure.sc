@@ -63,6 +63,7 @@ deploy-all:
 upgrade-referral-defender:
 	@forge clean
 	@forge script deploy/06-DefenderUpgradeReferralGateway.s.sol:DefenderUpgradeReferralGateway $(NETWORK_ARGS)
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGateway.sol
 
 # Interactions with ReferralGateway Contract
 # Create a DAO

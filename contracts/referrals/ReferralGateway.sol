@@ -151,6 +151,8 @@ contract ReferralGateway is
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAONotReadyYet();
 
+    uint256 public constant TEST = 1;
+
     modifier notZeroAddress(address _address) {
         require(_address != address(0), ReferralGateway__ZeroAddress());
         _;
