@@ -542,6 +542,7 @@ contract ReferralGateway is
      * @notice Refund a prepaid member if the DAO is not deployed at launch date
      * @param member The address of the member
      * @param tDAOName The name of the DAO
+     * @dev Intended to be called by anyone if the DAO is not deployed at launch date
      */
     function refundIfDAOIsNotLaunched(address member, string calldata tDAOName) external {
         require(
@@ -550,52 +551,17 @@ contract ReferralGateway is
             ReferralGateway__tDAONotReadyYet()
         );
 
-        require(
-            nameToDAOData[tDAOName].prepaidMembers[member].contributionBeforeFee != 0,
-            ReferralGateway__HasNotPaid()
-        );
+        _refund(member, tDAOName);
+    }
 
-        uint256 discountReceived = nameToDAOData[tDAOName].prepaidMembers[member].discount;
-
-        uint256 amountToRefund = nameToDAOData[tDAOName]
-            .prepaidMembers[member]
-            .contributionBeforeFee - discountReceived;
-
-        require(
-            amountToRefund <= usdc.balanceOf(address(this)),
-            ReferralGateway__NotEnoughFunds(amountToRefund, usdc.balanceOf(address(this)))
-        );
-
-        // We deduct first from the tDAO currentAmount
-        if (amountToRefund <= nameToDAOData[tDAOName].currentAmount) {
-            nameToDAOData[tDAOName].currentAmount -= amountToRefund;
-        } else {
-            // If not enough we calculate the difference and set the currentAmount to 0
-            uint256 difference = amountToRefund - nameToDAOData[tDAOName].currentAmount;
-            nameToDAOData[tDAOName].currentAmount = 0;
-            // And we compare now against the referralReserve
-            if (difference <= nameToDAOData[tDAOName].referralReserve) {
-                nameToDAOData[tDAOName].referralReserve -= difference;
-            } else {
-                // We calculate the difference and set the referralReserve to 0
-                difference -= nameToDAOData[tDAOName].referralReserve;
-                nameToDAOData[tDAOName].referralReserve = 0;
-                // Finally we compare against the repool amount
-                if (difference <= nameToDAOData[tDAOName].toRepool) {
-                    nameToDAOData[tDAOName].toRepool -= difference;
-                } else {
-                    nameToDAOData[tDAOName].toRepool = 0;
-                }
-            }
-        }
-
-        delete nameToDAOData[tDAOName].prepaidMembers[member];
-
-        isMemberKYCed[member] = false;
-
-        usdc.safeTransfer(member, amountToRefund);
-
-        emit OnRefund(tDAOName, member, amountToRefund);
+    /**
+     * @notice Refund a prepaid member if the DAO is not deployed at launch date
+     * @param member The address of the member
+     * @param tDAOName The name of the DAO
+     * @dev Intended to be called by the OPERATOR in spetial cases
+     */
+    function refundByAdmin(address member, string calldata tDAOName) external onlyRole(OPERATOR) {
+        _refund(member, tDAOName);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -803,6 +769,55 @@ contract ReferralGateway is
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
+
+    function _refund(address _member, string calldata _tDAOName) internal {
+        require(
+            nameToDAOData[_tDAOName].prepaidMembers[_member].contributionBeforeFee != 0,
+            ReferralGateway__HasNotPaid()
+        );
+
+        uint256 discountReceived = nameToDAOData[_tDAOName].prepaidMembers[_member].discount;
+
+        uint256 amountToRefund = nameToDAOData[_tDAOName]
+            .prepaidMembers[_member]
+            .contributionBeforeFee - discountReceived;
+
+        require(
+            amountToRefund <= usdc.balanceOf(address(this)),
+            ReferralGateway__NotEnoughFunds(amountToRefund, usdc.balanceOf(address(this)))
+        );
+
+        // We deduct first from the tDAO currentAmount
+        if (amountToRefund <= nameToDAOData[_tDAOName].currentAmount) {
+            nameToDAOData[_tDAOName].currentAmount -= amountToRefund;
+        } else {
+            // If not enough we calculate the difference and set the currentAmount to 0
+            uint256 difference = amountToRefund - nameToDAOData[_tDAOName].currentAmount;
+            nameToDAOData[_tDAOName].currentAmount = 0;
+            // And we compare now against the referralReserve
+            if (difference <= nameToDAOData[_tDAOName].referralReserve) {
+                nameToDAOData[_tDAOName].referralReserve -= difference;
+            } else {
+                // We calculate the difference and set the referralReserve to 0
+                difference -= nameToDAOData[_tDAOName].referralReserve;
+                nameToDAOData[_tDAOName].referralReserve = 0;
+                // Finally we compare against the repool amount
+                if (difference <= nameToDAOData[_tDAOName].toRepool) {
+                    nameToDAOData[_tDAOName].toRepool -= difference;
+                } else {
+                    nameToDAOData[_tDAOName].toRepool = 0;
+                }
+            }
+        }
+
+        delete nameToDAOData[_tDAOName].prepaidMembers[_member];
+
+        isMemberKYCed[_member] = false;
+
+        usdc.safeTransfer(_member, amountToRefund);
+
+        emit OnRefund(_tDAOName, _member, amountToRefund);
+    }
 
     function fixContributionAmount(string calldata tDAOName) external onlyRole(OPERATOR) {
         nameToDAOData[tDAOName].currentAmount =
