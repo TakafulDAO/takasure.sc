@@ -1183,6 +1183,22 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
     }
 
+    function testRefundByAdminEvenIfDaoIsNotYetLaunched()
+        public
+        createDao
+        referralPrepays
+        KYCReferral
+        referredPrepays
+        referredIsKYC
+    {
+        vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+
+        vm.prank(daoAdmin);
+        referralGateway.refundByAdmin(child, tDaoName);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                      ROLES
         //////////////////////////////////////////////////////////////*/

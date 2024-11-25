@@ -214,4 +214,7 @@ contract HelperConfig is CodeConstants, Script {
                 subscriptionId: 123 // Same as sepolia
             });
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

@@ -154,4 +154,7 @@ contract TestDeployTakasure is Script {
             )
         );
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }
