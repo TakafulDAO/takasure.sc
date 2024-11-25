@@ -351,33 +351,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(alreadyCollectedFees, 0);
 
-        uint256 expectedParentReward = 0; // Because the parent is not a member yet
-
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
-        uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
-
-        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
-
         vm.prank(child);
-        vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ParentMustKYCFirst.selector);
         referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, referral);
-
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child, tDaoName);
 
         (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData(tDaoName);
 
-        assertEq(totalCollectedFees, collectedFees);
-        assertEq(collectedFees, 2_500_000);
-        assertEq(
-            referralGateway.getParentRewardsByChild(referral, child, tDaoName),
-            expectedParentReward
-        );
-        assertEq(discount, expectedDiscount);
+        assertEq(totalCollectedFees, 0);
     }
 
     //======== preJoinEnabled = true, referralDiscount = false, no referral ========//
@@ -420,32 +400,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(alreadyCollectedFees, 0);
 
-        uint256 expectedParentReward = 0; // Because the parent is not a member yet
-
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
-        uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
-
-        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
-
         vm.prank(child);
-        vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ParentMustKYCFirst.selector);
         referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, referral);
-
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child, tDaoName);
 
         (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData(tDaoName);
 
-        assertEq(totalCollectedFees, collectedFees);
-        assertEq(collectedFees, 3_750_000);
-        assertEq(
-            referralGateway.getParentRewardsByChild(referral, child, tDaoName),
-            expectedParentReward
-        );
-        assertEq(discount, expectedDiscount);
+        assertEq(totalCollectedFees, 0);
     }
 
     modifier referralPrepays() {
@@ -1090,37 +1051,30 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                                      ROLES
         //////////////////////////////////////////////////////////////*/
 
-    function testRoles() public createDao referralPrepays referredPrepays {
+    function testRoles() public createDao referralPrepays KYCReferral referredPrepays {
         // Addresses that will be used to test the roles
         address newOperator = makeAddr("newOperator");
         address newKYCProvider = makeAddr("newKYCProvider");
         address newAdmin = makeAddr("newAdmin");
         address newCofounderOfChange = makeAddr("newCofounderOfChange");
-
         // Current addresses with roles
         assert(referralGateway.hasRole(keccak256("OPERATOR"), takadao));
         assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
         assert(referralGateway.hasRole(0x00, takadao));
-
         // New addresses without roles
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
         assert(!referralGateway.hasRole(0x00, newAdmin));
         assert(!referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
-
         vm.prank(takadao);
         vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
         referralGateway.registerCofounderOfChange(address(0));
-
         vm.prank(takadao);
         referralGateway.registerCofounderOfChange(newCofounderOfChange);
-
         assert(referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
-
         // Current KYCProvider can KYC a member
         vm.prank(KYCProvider);
-        referralGateway.setKYCStatus(referral, tDaoName);
-
+        referralGateway.setKYCStatus(child, tDaoName);
         // Grant, revoke and renounce roles
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("OPERATOR"), newOperator);
@@ -1130,21 +1084,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.revokeRole(keccak256("KYC_PROVIDER"), KYCProvider);
         referralGateway.renounceRole(0x00, takadao);
         vm.stopPrank();
-
-        // Previous KYCProvider can not KYC a member
-        vm.prank(KYCProvider);
-        vm.expectRevert();
-        referralGateway.setKYCStatus(child, tDaoName);
-
-        // New KYCProvider can KYC a member
-        vm.prank(newKYCProvider);
-        referralGateway.setKYCStatus(child, tDaoName);
-
         // New addresses with roles
         assert(referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
         assert(referralGateway.hasRole(0x00, newAdmin));
-
         // Old addresses without roles
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), takadao));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
