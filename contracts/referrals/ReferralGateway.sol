@@ -145,6 +145,7 @@ contract ReferralGateway is
     error ReferralGateway__DAOAlreadyLaunched();
     error ReferralGateway__ZeroAmount();
     error ReferralGateway__ContributionOutOfRange();
+    error ReferralGateway__ParentMustKYCFirst();
     error ReferralGateway__AlreadyMember();
     error ReferralGateway__MemberAlreadyKYCed();
     error ReferralGateway__HasNotPaid();
@@ -372,6 +373,9 @@ contract ReferralGateway is
             ReferralGateway__ContributionOutOfRange()
         );
 
+        if (parent != address(0))
+            require(isMemberKYCed[parent], ReferralGateway__ParentMustKYCFirst());
+
         uint256 fee = (contribution * SERVICE_FEE_RATIO) / 100;
         finalFee = fee;
         // If the DAO pre join is enabled it means the DAO is not deployed yet
@@ -392,7 +396,7 @@ contract ReferralGateway is
             if (nameToDAOData[tDAOName].referralDiscount) {
                 uint256 toReferralReserve = (contribution * REFERRAL_RESERVE) / 100;
                 finalFee -= toReferralReserve;
-                if (parent != address(0) && isMemberKYCed[parent]) {
+                if (parent != address(0)) {
                     uint256 referralDiscount = (contribution * REFERRAL_DISCOUNT_RATIO) / 100;
                     discount += referralDiscount;
                     finalFee -= referralDiscount;
