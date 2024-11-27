@@ -767,9 +767,6 @@ contract ReferralGateway is
         }
     }
 
-    ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
-
     function _refund(address _member, string calldata _tDAOName) internal {
         require(
             nameToDAOData[_tDAOName].prepaidMembers[_member].contributionBeforeFee != 0,
@@ -818,6 +815,9 @@ contract ReferralGateway is
 
         emit OnRefund(_tDAOName, _member, amountToRefund);
     }
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
 
     function fixContributionAmount(string calldata tDAOName) external onlyRole(OPERATOR) {
         nameToDAOData[tDAOName].currentAmount =
