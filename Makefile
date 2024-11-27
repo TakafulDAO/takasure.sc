@@ -38,7 +38,7 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 deploy-referral:
 	@forge clean
 	@forge script deploy/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
-	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGateway.sol
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
 upgrade-referral:
 	@forge clean
