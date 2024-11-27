@@ -14,6 +14,7 @@ contract DefenderUpgradeReferralGateway is Script, GetContractAddress {
         ApprovalProcessResponse memory approvalProcess = Defender.getUpgradeApprovalProcess();
         console2.log("Approval process id", approvalProcess.approvalProcessId);
         console2.log("Approval process via", approvalProcess.viaType);
+        string memory relayerKey = "RELAYER_ID";
 
         Options memory opts;
         opts.defender.skipLicenseType = true;
@@ -21,18 +22,14 @@ contract DefenderUpgradeReferralGateway is Script, GetContractAddress {
 
         opts.defender.salt = salt;
         opts.defender.useDefenderDeploy = true;
-        opts.defender.relayerId = "c64508f2-d3f8-4888-bc32-2664aec37fce";
+        opts.defender.relayerId = vm.envString(relayerKey);
         opts.defender.upgradeApprovalProcessId = approvalProcess.approvalProcessId;
-
-        vm.startBroadcast();
 
         ProposeUpgradeResponse memory response = Defender.proposeUpgrade(
             referralGatewayAddress,
             "ReferralGateway.sol",
             opts
         );
-
-        vm.stopBroadcast();
 
         console2.log("Proposal id", response.proposalId);
         console2.log("Url", response.url);
