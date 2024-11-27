@@ -1108,6 +1108,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 referralBalanceAfterRefund = usdc.balanceOf(referral);
 
         // Should refund 25 usdc - discount = 25 - (25 * 10%) = 22.5
+
         assertEq(referralBalanceAfterRefund, referralBalanceBeforeRefund + 225e5);
 
         uint256 newExpectedContractBalance = 39e6 - 225e5; // 16.5
@@ -1118,10 +1119,9 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             tDaoName
         );
 
-        // Only the contribution amount change
-        assertEq(currentAmount, 365e5 - 225e5);
-        assertEq(toRepool, 1e6);
-        assertEq(referralReserve, 15e5);
+        assertEq(currentAmount, 1825e4); // The new currentAmount should be 36.5 - (25 - 25 * 27%) = 36.5 - (25 - 6.75) = 36.5 - 18.25 = 18.25
+        assertEq(referralReserve, 0); // The new rr should be 1.5 - (22.5 - 18.25) = 1.5 - 4.25 = 0
+        assertEq(toRepool, 0); // The new repool should be 1 - 2.75 = 0
 
         uint256 amountToRefundToChild = CONTRIBUTION_AMOUNT -
             ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
