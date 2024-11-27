@@ -784,26 +784,30 @@ contract ReferralGateway is
             ReferralGateway__NotEnoughFunds(amountToRefund, usdc.balanceOf(address(this)))
         );
 
-        // We deduct first from the tDAO currentAmount
-        if (amountToRefund <= nameToDAOData[_tDAOName].currentAmount) {
-            nameToDAOData[_tDAOName].currentAmount -= amountToRefund;
+        uint256 leftover = amountToRefund;
+
+        // We deduct first from the tDAO currentAmount only the part the member contributed
+        nameToDAOData[_tDAOName].currentAmount -= nameToDAOData[_tDAOName]
+            .prepaidMembers[_member]
+            .contributionAfterFee;
+
+        // We update the leftover amount
+        leftover -= nameToDAOData[_tDAOName].prepaidMembers[_member].contributionAfterFee;
+
+        // We compare now against the referralReserve
+        if (leftover <= nameToDAOData[_tDAOName].referralReserve) {
+            // If it is enough we deduct the leftover from the referralReserve
+            nameToDAOData[_tDAOName].referralReserve -= leftover;
         } else {
-            // If not enough we calculate the difference and set the currentAmount to 0
-            uint256 difference = amountToRefund - nameToDAOData[_tDAOName].currentAmount;
-            nameToDAOData[_tDAOName].currentAmount = 0;
-            // And we compare now against the referralReserve
-            if (difference <= nameToDAOData[_tDAOName].referralReserve) {
-                nameToDAOData[_tDAOName].referralReserve -= difference;
+            // We update the leftover value and set the referralReserve to 0
+            leftover -= nameToDAOData[_tDAOName].referralReserve;
+            nameToDAOData[_tDAOName].referralReserve = 0;
+
+            // We compare now against the repool amount
+            if (leftover <= nameToDAOData[_tDAOName].toRepool) {
+                nameToDAOData[_tDAOName].toRepool -= leftover;
             } else {
-                // We calculate the difference and set the referralReserve to 0
-                difference -= nameToDAOData[_tDAOName].referralReserve;
-                nameToDAOData[_tDAOName].referralReserve = 0;
-                // Finally we compare against the repool amount
-                if (difference <= nameToDAOData[_tDAOName].toRepool) {
-                    nameToDAOData[_tDAOName].toRepool -= difference;
-                } else {
-                    nameToDAOData[_tDAOName].toRepool = 0;
-                }
+                nameToDAOData[_tDAOName].toRepool = 0;
             }
         }
 
