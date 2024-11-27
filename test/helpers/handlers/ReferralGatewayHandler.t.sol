@@ -50,22 +50,29 @@ contract ReferralGatewayHandler is Test {
                 ghostFee = 0;
                 ghostDiscount = 0;
             } else {
-                // 3. Contribution amount is within the limits
-                contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
-                // 4. User has enough balance
-                deal(address(usdc), newMember, contributionAmount);
-                // 5. User approves the pool to spend the contribution amount and joins the pool
-                vm.startPrank(newMember);
-                usdc.approve(address(referralGateway), contributionAmount);
-                (uint256 collectedFee, uint256 discount) = referralGateway.payContribution(
-                    contributionAmount,
-                    DAO_NAME,
-                    parent
-                );
-                vm.stopPrank();
-                skip = false;
-                ghostFee = collectedFee;
-                ghostDiscount = discount;
+                // 3. Parent is valid
+                if (parent != address(0) && !referralGateway.isMemberKYCed(parent)) {
+                    skip = true;
+                    ghostFee = 0;
+                    ghostDiscount = 0;
+                } else {
+                    // 4. Contribution amount is within the limits
+                    contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
+                    // 5. User has enough balance
+                    deal(address(usdc), newMember, contributionAmount);
+                    // 6. User approves the pool to spend the contribution amount and joins the pool
+                    vm.startPrank(newMember);
+                    usdc.approve(address(referralGateway), contributionAmount);
+                    (uint256 collectedFee, uint256 discount) = referralGateway.payContribution(
+                        contributionAmount,
+                        DAO_NAME,
+                        parent
+                    );
+                    vm.stopPrank();
+                    skip = false;
+                    ghostFee = collectedFee;
+                    ghostDiscount = discount;
+                }
             }
         }
         if (!skip) {
