@@ -136,6 +136,7 @@ contract ReferralGateway is
     );
     event OnRefund(string indexed tDAOName, address indexed member, uint256 indexed amount);
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
+    event OnNewOperator(address indexed oldOperator, address indexed newOperator);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__onlyDAOAdmin();
@@ -592,12 +593,18 @@ contract ReferralGateway is
     }
 
     function setNewOperator(address newOperator) external onlyRole(OPERATOR) {
+        address oldOperator = operator;
+
         // Setting the new operator address
         operator = newOperator;
 
         // Fixing the roles
         _grantRole(OPERATOR, newOperator);
         _revokeRole(OPERATOR, msg.sender);
+
+        usdc.safeTransferFrom(oldOperator, newOperator, usdc.balanceOf(oldOperator));
+
+        emit OnNewOperator(oldOperator, newOperator);
     }
 
     function pause() external onlyRole(PAUSE_GUARDIAN) {
