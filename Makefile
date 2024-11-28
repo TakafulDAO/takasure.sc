@@ -70,6 +70,14 @@ upgrade-referral-defender:
 create-dao:
 	@forge script scripts/contract-interactions/referralGateway/CreateDao.s.sol:CreateDao $(NETWORK_ARGS)
 
+# Change operator
+change-operator:
+	@forge script scripts/contract-interactions/referralGateway/ChangeOperator.s.sol:ChangeOperator $(NETWORK_ARGS)
+
+# Renounce admin
+renounce-admin:
+	@forge script scripts/contract-interactions/referralGateway/ChangeAdmin.s.sol:ChangeAdmin $(NETWORK_ARGS)
+
 # Interactions with BenefitMultiplierConsumer Contract
 # Add a new BM Requester
 add-bm-requester:
