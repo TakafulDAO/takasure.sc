@@ -955,7 +955,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                                     REFUNDS
         //////////////////////////////////////////////////////////////*/
 
-    function testRefund()
+    function testRefundContractHasEnoughBalance()
         public
         createDao
         referralPrepays
@@ -1026,6 +1026,103 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.joinDAO(child, tDaoName);
     }
 
+    function testRefundContractDontHaveEnoughBalance()
+        public
+        createDao
+        referralPrepays
+        KYCReferral
+        referredPrepays
+        referredIsKYC
+    {
+        // From parent 20 USDC
+        // From child 20 USDC
+        // Reward 1
+        // Balance 39
+        assertEq(usdc.balanceOf(address(referralGateway)), 39e6);
+
+        (
+            ,
+            ,
+            ,
+            ,
+            uint256 launchDate,
+            ,
+            uint256 currentAmount,
+            ,
+            ,
+            uint256 toRepool,
+            uint256 referralReserve
+        ) = referralGateway.getDAOData(tDaoName);
+
+        assertEq(currentAmount, 365e5);
+        assertEq(toRepool, 1e6);
+        assertEq(referralReserve, 15e5);
+
+        vm.warp(launchDate + 1);
+        vm.roll(block.number + 1);
+
+        uint256 referralBalanceBeforeRefund = usdc.balanceOf(referral);
+
+        vm.prank(referral);
+        referralGateway.refundIfDAOIsNotLaunched(referral, tDaoName);
+
+        uint256 referralBalanceAfterRefund = usdc.balanceOf(referral);
+
+        // Should refund 25 usdc - discount = 25 - (25 * 10%) = 22.5
+
+        assertEq(referralBalanceAfterRefund, referralBalanceBeforeRefund + 225e5);
+
+        uint256 newExpectedContractBalance = 39e6 - 225e5; // 16.5
+
+        assertEq(usdc.balanceOf(address(referralGateway)), newExpectedContractBalance);
+
+        (, , , , , , currentAmount, , , toRepool, referralReserve) = referralGateway.getDAOData(
+            tDaoName
+        );
+
+        assertEq(currentAmount, 1825e4); // The new currentAmount should be 36.5 - (25 - 25 * 27%) = 36.5 - (25 - 6.75) = 36.5 - 18.25 = 18.25
+        assertEq(referralReserve, 0); // The new rr should be 1.5 - (22.5 - 18.25) = 1.5 - 4.25 = 0
+        assertEq(toRepool, 0); // The new repool should be 1 - 2.75 = 0
+
+        uint256 amountToRefundToChild = CONTRIBUTION_AMOUNT -
+            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
+            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100); // 25 - (25 * 10%) - (25 * 5%) = 21.25
+
+        vm.prank(child);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ReferralGateway.ReferralGateway__NotEnoughFunds.selector,
+                amountToRefundToChild,
+                newExpectedContractBalance
+            )
+        );
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+
+        address usdcWhale = makeAddr("usdcWhale");
+        deal(address(usdc), usdcWhale, 100e6);
+
+        vm.prank(usdcWhale);
+        usdc.transfer(address(referralGateway), amountToRefundToChild - newExpectedContractBalance);
+
+        assertEq(usdc.balanceOf(address(referralGateway)), amountToRefundToChild);
+
+        uint256 childBalanceBeforeRefund = usdc.balanceOf(child);
+
+        vm.prank(child);
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+
+        assertEq(usdc.balanceOf(address(child)), childBalanceBeforeRefund + amountToRefundToChild);
+        assertEq(usdc.balanceOf(address(referralGateway)), 0);
+
+        (, , , , , , currentAmount, , , toRepool, referralReserve) = referralGateway.getDAOData(
+            tDaoName
+        );
+
+        assertEq(currentAmount, 0);
+        assertEq(toRepool, 0);
+        assertEq(referralReserve, 0);
+    }
+
     function testCanNotRefundIfDaoIsLaunched()
         public
         createDao
@@ -1045,6 +1142,22 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
         referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+    }
+
+    function testRefundByAdminEvenIfDaoIsNotYetLaunched()
+        public
+        createDao
+        referralPrepays
+        KYCReferral
+        referredPrepays
+        referredIsKYC
+    {
+        vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+
+        vm.prank(daoAdmin);
+        referralGateway.refundByAdmin(child, tDaoName);
     }
 
     /*//////////////////////////////////////////////////////////////

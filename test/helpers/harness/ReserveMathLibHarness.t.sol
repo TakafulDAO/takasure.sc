@@ -97,4 +97,7 @@ contract ReserveMathLibHarness {
     function exposed__minInt(int256 x, int256 y) external pure returns (int256 exposedMinInt) {
         exposedMinInt = ReserveMathLib._minInt(x, y);
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

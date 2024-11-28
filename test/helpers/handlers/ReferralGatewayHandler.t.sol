@@ -83,4 +83,7 @@ contract ReferralGatewayHandler is Test {
         }
         totalFees += ghostFee;
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }
