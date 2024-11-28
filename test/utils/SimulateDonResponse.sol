@@ -18,4 +18,7 @@ contract SimulateDonResponse {
         bytes memory err = abi.encode("This went wrong");
         BenefitMultiplierConsumerMock(consumer).simulateDonResponse(requestId, response, err);
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

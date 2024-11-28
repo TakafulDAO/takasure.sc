@@ -351,33 +351,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(alreadyCollectedFees, 0);
 
-        uint256 expectedParentReward = 0; // Because the parent is not a member yet
-
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
-        uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
-
-        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
-
         vm.prank(child);
-        vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ParentMustKYCFirst.selector);
         referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, referral);
-
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child, tDaoName);
 
         (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData(tDaoName);
 
-        assertEq(totalCollectedFees, collectedFees);
-        assertEq(collectedFees, 2_500_000);
-        assertEq(
-            referralGateway.getParentRewardsByChild(referral, child, tDaoName),
-            expectedParentReward
-        );
-        assertEq(discount, expectedDiscount);
+        assertEq(totalCollectedFees, 0);
     }
 
     //======== preJoinEnabled = true, referralDiscount = false, no referral ========//
@@ -420,32 +400,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(alreadyCollectedFees, 0);
 
-        uint256 expectedParentReward = 0; // Because the parent is not a member yet
-
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
-        uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
-
-        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
-
         vm.prank(child);
-        vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(referral, child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ParentMustKYCFirst.selector);
         referralGateway.payContribution(CONTRIBUTION_AMOUNT, tDaoName, referral);
-
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child, tDaoName);
 
         (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData(tDaoName);
 
-        assertEq(totalCollectedFees, collectedFees);
-        assertEq(collectedFees, 3_750_000);
-        assertEq(
-            referralGateway.getParentRewardsByChild(referral, child, tDaoName),
-            expectedParentReward
-        );
-        assertEq(discount, expectedDiscount);
+        assertEq(totalCollectedFees, 0);
     }
 
     modifier referralPrepays() {
@@ -994,7 +955,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
                                     REFUNDS
         //////////////////////////////////////////////////////////////*/
 
-    function testRefund()
+    function testRefundContractHasEnoughBalance()
         public
         createDao
         referralPrepays
@@ -1065,6 +1026,103 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.joinDAO(child, tDaoName);
     }
 
+    function testRefundContractDontHaveEnoughBalance()
+        public
+        createDao
+        referralPrepays
+        KYCReferral
+        referredPrepays
+        referredIsKYC
+    {
+        // From parent 20 USDC
+        // From child 20 USDC
+        // Reward 1
+        // Balance 39
+        assertEq(usdc.balanceOf(address(referralGateway)), 39e6);
+
+        (
+            ,
+            ,
+            ,
+            ,
+            uint256 launchDate,
+            ,
+            uint256 currentAmount,
+            ,
+            ,
+            uint256 toRepool,
+            uint256 referralReserve
+        ) = referralGateway.getDAOData(tDaoName);
+
+        assertEq(currentAmount, 365e5);
+        assertEq(toRepool, 1e6);
+        assertEq(referralReserve, 15e5);
+
+        vm.warp(launchDate + 1);
+        vm.roll(block.number + 1);
+
+        uint256 referralBalanceBeforeRefund = usdc.balanceOf(referral);
+
+        vm.prank(referral);
+        referralGateway.refundIfDAOIsNotLaunched(referral, tDaoName);
+
+        uint256 referralBalanceAfterRefund = usdc.balanceOf(referral);
+
+        // Should refund 25 usdc - discount = 25 - (25 * 10%) = 22.5
+
+        assertEq(referralBalanceAfterRefund, referralBalanceBeforeRefund + 225e5);
+
+        uint256 newExpectedContractBalance = 39e6 - 225e5; // 16.5
+
+        assertEq(usdc.balanceOf(address(referralGateway)), newExpectedContractBalance);
+
+        (, , , , , , currentAmount, , , toRepool, referralReserve) = referralGateway.getDAOData(
+            tDaoName
+        );
+
+        assertEq(currentAmount, 1825e4); // The new currentAmount should be 36.5 - (25 - 25 * 27%) = 36.5 - (25 - 6.75) = 36.5 - 18.25 = 18.25
+        assertEq(referralReserve, 0); // The new rr should be 1.5 - (22.5 - 18.25) = 1.5 - 4.25 = 0
+        assertEq(toRepool, 0); // The new repool should be 1 - 2.75 = 0
+
+        uint256 amountToRefundToChild = CONTRIBUTION_AMOUNT -
+            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
+            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100); // 25 - (25 * 10%) - (25 * 5%) = 21.25
+
+        vm.prank(child);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ReferralGateway.ReferralGateway__NotEnoughFunds.selector,
+                amountToRefundToChild,
+                newExpectedContractBalance
+            )
+        );
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+
+        address usdcWhale = makeAddr("usdcWhale");
+        deal(address(usdc), usdcWhale, 100e6);
+
+        vm.prank(usdcWhale);
+        usdc.transfer(address(referralGateway), amountToRefundToChild - newExpectedContractBalance);
+
+        assertEq(usdc.balanceOf(address(referralGateway)), amountToRefundToChild);
+
+        uint256 childBalanceBeforeRefund = usdc.balanceOf(child);
+
+        vm.prank(child);
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+
+        assertEq(usdc.balanceOf(address(child)), childBalanceBeforeRefund + amountToRefundToChild);
+        assertEq(usdc.balanceOf(address(referralGateway)), 0);
+
+        (, , , , , , currentAmount, , , toRepool, referralReserve) = referralGateway.getDAOData(
+            tDaoName
+        );
+
+        assertEq(currentAmount, 0);
+        assertEq(toRepool, 0);
+        assertEq(referralReserve, 0);
+    }
+
     function testCanNotRefundIfDaoIsLaunched()
         public
         createDao
@@ -1086,41 +1144,50 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
     }
 
+    function testRefundByAdminEvenIfDaoIsNotYetLaunched()
+        public
+        createDao
+        referralPrepays
+        KYCReferral
+        referredPrepays
+        referredIsKYC
+    {
+        vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        referralGateway.refundIfDAOIsNotLaunched(child, tDaoName);
+
+        vm.prank(daoAdmin);
+        referralGateway.refundByAdmin(child, tDaoName);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                      ROLES
         //////////////////////////////////////////////////////////////*/
 
-    function testRoles() public createDao referralPrepays referredPrepays {
+    function testRoles() public createDao referralPrepays KYCReferral referredPrepays {
         // Addresses that will be used to test the roles
         address newOperator = makeAddr("newOperator");
         address newKYCProvider = makeAddr("newKYCProvider");
         address newAdmin = makeAddr("newAdmin");
         address newCofounderOfChange = makeAddr("newCofounderOfChange");
-
         // Current addresses with roles
         assert(referralGateway.hasRole(keccak256("OPERATOR"), takadao));
         assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
         assert(referralGateway.hasRole(0x00, takadao));
-
         // New addresses without roles
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
         assert(!referralGateway.hasRole(0x00, newAdmin));
         assert(!referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
-
         vm.prank(takadao);
         vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
         referralGateway.registerCofounderOfChange(address(0));
-
         vm.prank(takadao);
         referralGateway.registerCofounderOfChange(newCofounderOfChange);
-
         assert(referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
-
         // Current KYCProvider can KYC a member
         vm.prank(KYCProvider);
-        referralGateway.setKYCStatus(referral, tDaoName);
-
+        referralGateway.setKYCStatus(child, tDaoName);
         // Grant, revoke and renounce roles
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("OPERATOR"), newOperator);
@@ -1130,21 +1197,10 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.revokeRole(keccak256("KYC_PROVIDER"), KYCProvider);
         referralGateway.renounceRole(0x00, takadao);
         vm.stopPrank();
-
-        // Previous KYCProvider can not KYC a member
-        vm.prank(KYCProvider);
-        vm.expectRevert();
-        referralGateway.setKYCStatus(child, tDaoName);
-
-        // New KYCProvider can KYC a member
-        vm.prank(newKYCProvider);
-        referralGateway.setKYCStatus(child, tDaoName);
-
         // New addresses with roles
         assert(referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
         assert(referralGateway.hasRole(0x00, newAdmin));
-
         // Old addresses without roles
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), takadao));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
