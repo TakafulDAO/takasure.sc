@@ -11,16 +11,16 @@ contract ChangeOperator is Script, GetContractAddress {
     IERC20 public usdc;
     HelperConfig public helperConfig;
 
-    address public safeMultiSig = 0x0259F914D29006510177B620e828a3eD93D762cf;
-
     function run() public {
-        HelperConfig helperConfig = new HelperConfig();
+        helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         address referralGatewayAddress = _getContractAddress(block.chainid, "ReferralGateway");
 
         ReferralGateway referralGateway = ReferralGateway(referralGatewayAddress);
         usdc = IERC20(config.contributionToken);
+
+        address safeMultiSig = vm.envAddress("MULTISIG_ADDRESS"); // ! CHANGE THIS
 
         vm.startBroadcast();
 
