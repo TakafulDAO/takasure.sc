@@ -596,7 +596,9 @@ contract ReferralGateway is
         );
     }
 
-    function setNewOperator(address newOperator) external onlyRole(OPERATOR) {
+    function setNewOperator(
+        address newOperator
+    ) external notZeroAddress(newOperator) onlyRole(OPERATOR) {
         address oldOperator = operator;
 
         // Setting the new operator address
