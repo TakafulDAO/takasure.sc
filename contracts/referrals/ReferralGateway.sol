@@ -383,7 +383,7 @@ contract ReferralGateway is
         address parent,
         address newMember,
         uint256 couponAmount
-    ) external returns (uint256 finalFee, uint256 discount) {
+    ) external onlyRole(COUPON_REDEEMER) returns (uint256 finalFee, uint256 discount) {
         (finalFee, discount) = _payContribution(
             contribution,
             tDAOName,
