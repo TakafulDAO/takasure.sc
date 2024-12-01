@@ -95,9 +95,10 @@ contract ReferralGateway is
     //////////////////////////////////////////////////////////////*/
 
     bytes32 private constant OPERATOR = keccak256("OPERATOR");
-    bytes32 public constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
+    bytes32 private constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 private constant COFOUNDER_OF_CHANGE = keccak256("COFOUNDER_OF_CHANGE");
-    bytes32 public constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
+    bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
+    bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
