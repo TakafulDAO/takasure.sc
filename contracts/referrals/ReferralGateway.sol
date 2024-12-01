@@ -364,7 +364,7 @@ contract ReferralGateway is
         string calldata tDAOName,
         address parent
     ) external returns (uint256 finalFee, uint256 discount) {
-        (finalFee, discount) = _payContribution(contribution, tDAOName, parent, msg.sender);
+        (finalFee, discount) = _payContribution(contribution, tDAOName, parent, msg.sender, 0);
     }
 
     /**
@@ -381,57 +381,42 @@ contract ReferralGateway is
         uint256 contribution,
         string calldata tDAOName,
         address parent,
-        address newMember
+        address newMember,
+        uint256 couponAmount
     ) external returns (uint256 finalFee, uint256 discount) {
-        (finalFee, discount) = _payContribution(contribution, tDAOName, parent, newMember);
+        (finalFee, discount) = _payContribution(
+            contribution,
+            tDAOName,
+            parent,
+            newMember,
+            couponAmount
+        );
     }
 
     function _payContribution(
         uint256 _contribution,
         string calldata _tDAOName,
         address _parent,
-        address _newMember
+        address _newMember,
+        uint256 _couponAmount
     ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
-        // DAO must exist
-        require(
-            nameToDAOData[_tDAOName].preJoinEnabled ||
-                nameToDAOData[_tDAOName].DAOAddress != address(0),
-            ReferralGateway__tDAONotReadyYet()
-        );
+        _payContributionChecks(_contribution, _tDAOName, _parent, _newMember);
 
-        require(
-            _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
-            ReferralGateway__ContributionOutOfRange()
-        );
-
-        if (_parent != address(0))
-            require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
-
-        uint256 fee = (_contribution * SERVICE_FEE_RATIO) / 100;
-        _finalFee = fee;
+        _finalFee = (_contribution * SERVICE_FEE_RATIO) / 100;
         // If the DAO pre join is enabled it means the DAO is not deployed yet
         if (nameToDAOData[_tDAOName].preJoinEnabled) {
             // The prepaid member object is created inside this if statement only
-            // We check if the member already exists
-            require(
-                nameToDAOData[_tDAOName].prepaidMembers[_newMember].contributionBeforeFee == 0,
-                ReferralGateway__AlreadyMember()
-            );
-
-            uint256 amountToTransfer = _contribution;
 
             // It will get a discount as a pre-joiner
             _discount += (_contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
-            _finalFee -= _discount;
             uint256 toReferralReserve;
 
             if (nameToDAOData[_tDAOName].referralDiscount) {
                 toReferralReserve = (_contribution * REFERRAL_RESERVE) / 100;
-                _finalFee -= toReferralReserve;
+
                 if (_parent != address(0)) {
                     uint256 referralDiscount = (_contribution * REFERRAL_DISCOUNT_RATIO) / 100;
                     _discount += referralDiscount;
-                    _finalFee -= referralDiscount;
 
                     childToParent[_newMember] = _parent;
 
@@ -448,11 +433,11 @@ contract ReferralGateway is
                 }
             }
 
-            amountToTransfer -= _discount;
+            uint256 amountToTransfer = _contribution - _discount;
 
             uint256 rePoolFee = (_contribution * REPOOL_FEE_RATIO) / 100;
 
-            _finalFee -= rePoolFee;
+            _finalFee -= _discount + toReferralReserve + rePoolFee;
 
             nameToDAOData[_tDAOName].toRepool += rePoolFee;
             nameToDAOData[_tDAOName].currentAmount +=
@@ -473,7 +458,8 @@ contract ReferralGateway is
                 .contributionBeforeFee = _contribution;
             nameToDAOData[_tDAOName].prepaidMembers[_newMember].contributionAfterFee =
                 _contribution -
-                fee;
+                (_contribution * SERVICE_FEE_RATIO) /
+                100;
             nameToDAOData[_tDAOName].prepaidMembers[_newMember].feeToOperator = _finalFee;
             nameToDAOData[_tDAOName].prepaidMembers[_newMember].discount = _discount;
 
@@ -487,6 +473,36 @@ contract ReferralGateway is
              *  TODO: This call needs to change the joinPool function to add a param for the new member
              *  TODO: To Implement call the function in the router. For V2 of this contract
              */
+        }
+    }
+
+    function _payContributionChecks(
+        uint256 _contribution,
+        string calldata _tDAOName,
+        address _parent,
+        address _newMember
+    ) internal view {
+        // DAO must exist
+        require(
+            nameToDAOData[_tDAOName].preJoinEnabled ||
+                nameToDAOData[_tDAOName].DAOAddress != address(0),
+            ReferralGateway__tDAONotReadyYet()
+        );
+
+        require(
+            _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
+            ReferralGateway__ContributionOutOfRange()
+        );
+
+        if (_parent != address(0))
+            require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
+
+        if (nameToDAOData[_tDAOName].preJoinEnabled) {
+            // We check if the member already exists
+            require(
+                nameToDAOData[_tDAOName].prepaidMembers[_newMember].contributionBeforeFee == 0,
+                ReferralGateway__AlreadyMember()
+            );
         }
     }
 
