@@ -438,24 +438,25 @@ contract ReferralGateway is
                 }
             }
 
-            uint256 amountToTransfer = realContribution - _discount;
-
             uint256 rePoolFee = (realContribution * REPOOL_FEE_RATIO) / 100;
 
             _finalFee -= _discount + toReferralReserve + rePoolFee;
 
             nameToDAOData[_tDAOName].toRepool += rePoolFee;
             nameToDAOData[_tDAOName].currentAmount +=
-                amountToTransfer -
+                realContribution -
+                _discount -
                 _finalFee -
                 rePoolFee -
                 toReferralReserve;
             nameToDAOData[_tDAOName].collectedFees += _finalFee;
 
-            // We transfer the contribution minus the discount (if any) minus the fee
-            usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
+            uint256 amountToTransfer = realContribution - _discount - _couponAmount;
 
-            usdc.safeTransfer(operator, _finalFee);
+            if (amountToTransfer > 0) {
+                usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
+                usdc.safeTransfer(operator, _finalFee);
+            }
 
             nameToDAOData[_tDAOName].prepaidMembers[_newMember].member = _newMember;
             nameToDAOData[_tDAOName]
