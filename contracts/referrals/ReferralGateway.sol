@@ -413,14 +413,17 @@ contract ReferralGateway is
             // The prepaid member object is created inside this if statement only
 
             // It will get a discount as a pre-joiner
-            _discount += (realContribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
+            _discount +=
+                ((realContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+                100;
             uint256 toReferralReserve;
 
             if (nameToDAOData[_tDAOName].referralDiscount) {
                 toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
 
                 if (_parent != address(0)) {
-                    uint256 referralDiscount = (realContribution * REFERRAL_DISCOUNT_RATIO) / 100;
+                    uint256 referralDiscount = ((realContribution - _couponAmount) *
+                        REFERRAL_DISCOUNT_RATIO) / 100;
                     _discount += referralDiscount;
 
                     childToParent[_newMember] = _parent;
