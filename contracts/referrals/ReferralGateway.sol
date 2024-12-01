@@ -400,29 +400,34 @@ contract ReferralGateway is
         address _newMember,
         uint256 _couponAmount
     ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
-        _payContributionChecks(_contribution, _tDAOName, _parent, _newMember);
+        uint256 realContribution;
 
-        _finalFee = (_contribution * SERVICE_FEE_RATIO) / 100;
+        if (_couponAmount > _contribution) realContribution = _couponAmount;
+        else realContribution = _contribution;
+
+        _payContributionChecks(realContribution, _tDAOName, _parent, _newMember);
+
+        _finalFee = (realContribution * SERVICE_FEE_RATIO) / 100;
         // If the DAO pre join is enabled it means the DAO is not deployed yet
         if (nameToDAOData[_tDAOName].preJoinEnabled) {
             // The prepaid member object is created inside this if statement only
 
             // It will get a discount as a pre-joiner
-            _discount += (_contribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
+            _discount += (realContribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
             uint256 toReferralReserve;
 
             if (nameToDAOData[_tDAOName].referralDiscount) {
-                toReferralReserve = (_contribution * REFERRAL_RESERVE) / 100;
+                toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
 
                 if (_parent != address(0)) {
-                    uint256 referralDiscount = (_contribution * REFERRAL_DISCOUNT_RATIO) / 100;
+                    uint256 referralDiscount = (realContribution * REFERRAL_DISCOUNT_RATIO) / 100;
                     _discount += referralDiscount;
 
                     childToParent[_newMember] = _parent;
 
                     (_finalFee, nameToDAOData[_tDAOName].referralReserve) = _parentRewards(
                         _newMember,
-                        _contribution,
+                        realContribution,
                         nameToDAOData[_tDAOName].referralReserve,
                         toReferralReserve,
                         _finalFee,
@@ -433,9 +438,9 @@ contract ReferralGateway is
                 }
             }
 
-            uint256 amountToTransfer = _contribution - _discount;
+            uint256 amountToTransfer = realContribution - _discount;
 
-            uint256 rePoolFee = (_contribution * REPOOL_FEE_RATIO) / 100;
+            uint256 rePoolFee = (realContribution * REPOOL_FEE_RATIO) / 100;
 
             _finalFee -= _discount + toReferralReserve + rePoolFee;
 
@@ -455,10 +460,10 @@ contract ReferralGateway is
             nameToDAOData[_tDAOName].prepaidMembers[_newMember].member = _newMember;
             nameToDAOData[_tDAOName]
                 .prepaidMembers[_newMember]
-                .contributionBeforeFee = _contribution;
+                .contributionBeforeFee = realContribution;
             nameToDAOData[_tDAOName].prepaidMembers[_newMember].contributionAfterFee =
-                _contribution -
-                (_contribution * SERVICE_FEE_RATIO) /
+                realContribution -
+                (realContribution * SERVICE_FEE_RATIO) /
                 100;
             nameToDAOData[_tDAOName].prepaidMembers[_newMember].feeToOperator = _finalFee;
             nameToDAOData[_tDAOName].prepaidMembers[_newMember].discount = _discount;
@@ -466,7 +471,7 @@ contract ReferralGateway is
             // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
             _getBenefitMultiplierFromOracle(_tDAOName, _newMember);
 
-            emit OnPrepayment(_parent, _newMember, _contribution, _finalFee, _discount);
+            emit OnPrepayment(_parent, _newMember, realContribution, _finalFee, _discount);
         } else {
             /**
              * Call the DAO to join
