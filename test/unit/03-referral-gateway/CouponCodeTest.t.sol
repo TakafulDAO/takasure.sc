@@ -150,9 +150,13 @@ contract CouponCodeTest is Test, SimulateDonResponse {
 
         assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
 
-        (uint256 contributionBeforeFee, , , ) = referralGateway.getPrepaidMember(child, tDaoName);
+        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+            child,
+            tDaoName
+        );
 
         assertEq(contributionBeforeFee, couponAmount);
+        assertEq(discount, 0); // No discount as the coupon is consumed completely and covers the whole membership
     }
 
     //======== coupon equals than contribution ========//
@@ -176,9 +180,13 @@ contract CouponCodeTest is Test, SimulateDonResponse {
 
         assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
 
-        (uint256 contributionBeforeFee, , , ) = referralGateway.getPrepaidMember(child, tDaoName);
+        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+            child,
+            tDaoName
+        );
 
         assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT);
+        assertEq(discount, 0); // No discount as the coupon is consumed completely and covers the whole membership
     }
 
     //======== coupon less than contribution ========//
@@ -202,8 +210,15 @@ contract CouponCodeTest is Test, SimulateDonResponse {
 
         assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
 
-        (uint256 contributionBeforeFee, , , ) = referralGateway.getPrepaidMember(child, tDaoName);
+        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+            child,
+            tDaoName
+        );
+
+        uint256 expectedDiscount = (((CONTRIBUTION_AMOUNT * 2) - couponAmount) *
+            CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
 
         assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT * 2);
+        assertEq(discount, expectedDiscount); // Applied to what is left after the coupon
     }
 }
