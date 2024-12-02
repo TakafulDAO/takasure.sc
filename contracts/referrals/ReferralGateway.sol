@@ -40,6 +40,8 @@ contract ReferralGateway is
     mapping(address member => bool) public isMemberKYCed;
     mapping(address child => address parent) public childToParent;
 
+    address private couponPool;
+
     struct PrepaidMember {
         address member;
         uint256 contributionBeforeFee;
@@ -191,6 +193,13 @@ contract ReferralGateway is
 
         operator = _operator;
         usdc = IERC20(_usdcAddress);
+    }
+
+    function initializeNewVersion(
+        address _couponPool,
+        uint64 version
+    ) external reinitializer(version) {
+        couponPool = _couponPool;
     }
 
     /**
@@ -459,6 +468,10 @@ contract ReferralGateway is
             if (amountToTransfer > 0) {
                 usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
                 usdc.safeTransfer(operator, _finalFee);
+            }
+
+            if (_couponAmount > 0) {
+                usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
             }
 
             nameToDAOData[_tDAOName].prepaidMembers[_newMember].member = _newMember;
