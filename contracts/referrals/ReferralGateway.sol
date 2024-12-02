@@ -404,132 +404,6 @@ contract ReferralGateway is
         );
     }
 
-    function _payContribution(
-        uint256 _contribution,
-        string calldata _tDAOName,
-        address _parent,
-        address _newMember,
-        uint256 _couponAmount
-    ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
-        uint256 realContribution;
-
-        if (_couponAmount > _contribution) realContribution = _couponAmount;
-        else realContribution = _contribution;
-
-        _payContributionChecks(realContribution, _tDAOName, _parent, _newMember);
-
-        _finalFee = (realContribution * SERVICE_FEE_RATIO) / 100;
-        // If the DAO pre join is enabled it means the DAO is not deployed yet
-        if (nameToDAOData[_tDAOName].preJoinEnabled) {
-            // The prepaid member object is created inside this if statement only
-
-            // It will get a discount as a pre-joiner
-            _discount +=
-                ((realContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
-                100;
-            uint256 toReferralReserve;
-
-            if (nameToDAOData[_tDAOName].referralDiscount) {
-                toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
-
-                if (_parent != address(0)) {
-                    uint256 referralDiscount = ((realContribution - _couponAmount) *
-                        REFERRAL_DISCOUNT_RATIO) / 100;
-                    _discount += referralDiscount;
-
-                    childToParent[_newMember] = _parent;
-
-                    (_finalFee, nameToDAOData[_tDAOName].referralReserve) = _parentRewards(
-                        _newMember,
-                        realContribution,
-                        nameToDAOData[_tDAOName].referralReserve,
-                        toReferralReserve,
-                        _finalFee,
-                        _tDAOName
-                    );
-                } else {
-                    nameToDAOData[_tDAOName].referralReserve += toReferralReserve;
-                }
-            }
-
-            uint256 rePoolFee = (realContribution * REPOOL_FEE_RATIO) / 100;
-
-            _finalFee -= _discount + toReferralReserve + rePoolFee;
-
-            nameToDAOData[_tDAOName].toRepool += rePoolFee;
-            nameToDAOData[_tDAOName].currentAmount +=
-                realContribution -
-                _discount -
-                _finalFee -
-                rePoolFee -
-                toReferralReserve;
-            nameToDAOData[_tDAOName].collectedFees += _finalFee;
-
-            uint256 amountToTransfer = realContribution - _discount - _couponAmount;
-
-            if (amountToTransfer > 0) {
-                usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
-                usdc.safeTransfer(operator, _finalFee);
-            }
-
-            if (_couponAmount > 0) {
-                usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
-            }
-
-            nameToDAOData[_tDAOName].prepaidMembers[_newMember].member = _newMember;
-            nameToDAOData[_tDAOName]
-                .prepaidMembers[_newMember]
-                .contributionBeforeFee = realContribution;
-            nameToDAOData[_tDAOName].prepaidMembers[_newMember].contributionAfterFee =
-                realContribution -
-                (realContribution * SERVICE_FEE_RATIO) /
-                100;
-            nameToDAOData[_tDAOName].prepaidMembers[_newMember].feeToOperator = _finalFee;
-            nameToDAOData[_tDAOName].prepaidMembers[_newMember].discount = _discount;
-
-            // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
-            _getBenefitMultiplierFromOracle(_tDAOName, _newMember);
-
-            emit OnPrepayment(_parent, _newMember, realContribution, _finalFee, _discount);
-        } else {
-            /**
-             * Call the DAO to join
-             *  TODO: This call needs to change the joinPool function to add a param for the new member
-             *  TODO: To Implement call the function in the router. For V2 of this contract
-             */
-        }
-    }
-
-    function _payContributionChecks(
-        uint256 _contribution,
-        string calldata _tDAOName,
-        address _parent,
-        address _newMember
-    ) internal view {
-        // DAO must exist
-        require(
-            nameToDAOData[_tDAOName].preJoinEnabled ||
-                nameToDAOData[_tDAOName].DAOAddress != address(0),
-            ReferralGateway__tDAONotReadyYet()
-        );
-
-        require(
-            _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
-            ReferralGateway__ContributionOutOfRange()
-        );
-
-        if (_parent != address(0))
-            require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
-
-        if (nameToDAOData[_tDAOName].preJoinEnabled) {
-            // We check if the member already exists
-            require(
-                nameToDAOData[_tDAOName].prepaidMembers[_newMember].contributionBeforeFee == 0,
-                ReferralGateway__AlreadyMember()
-            );
-        }
-    }
-
     /**
      * @notice Set the KYC status of a member
      * @param child The address of the member
@@ -788,6 +662,132 @@ contract ReferralGateway is
         string[] memory args = new string[](1);
         args[0] = memberAddressToString;
         nameToDAOData[_tDAOName].bmConsumer.sendRequest(args);
+    }
+
+    function _payContribution(
+        uint256 _contribution,
+        string calldata _tDAOName,
+        address _parent,
+        address _newMember,
+        uint256 _couponAmount
+    ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
+        uint256 realContribution;
+
+        if (_couponAmount > _contribution) realContribution = _couponAmount;
+        else realContribution = _contribution;
+
+        _payContributionChecks(realContribution, _tDAOName, _parent, _newMember);
+
+        _finalFee = (realContribution * SERVICE_FEE_RATIO) / 100;
+        // If the DAO pre join is enabled it means the DAO is not deployed yet
+        if (nameToDAOData[_tDAOName].preJoinEnabled) {
+            // The prepaid member object is created inside this if statement only
+
+            // It will get a discount as a pre-joiner
+            _discount +=
+                ((realContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+                100;
+            uint256 toReferralReserve;
+
+            if (nameToDAOData[_tDAOName].referralDiscount) {
+                toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
+
+                if (_parent != address(0)) {
+                    uint256 referralDiscount = ((realContribution - _couponAmount) *
+                        REFERRAL_DISCOUNT_RATIO) / 100;
+                    _discount += referralDiscount;
+
+                    childToParent[_newMember] = _parent;
+
+                    (_finalFee, nameToDAOData[_tDAOName].referralReserve) = _parentRewards(
+                        _newMember,
+                        realContribution,
+                        nameToDAOData[_tDAOName].referralReserve,
+                        toReferralReserve,
+                        _finalFee,
+                        _tDAOName
+                    );
+                } else {
+                    nameToDAOData[_tDAOName].referralReserve += toReferralReserve;
+                }
+            }
+
+            uint256 rePoolFee = (realContribution * REPOOL_FEE_RATIO) / 100;
+
+            _finalFee -= _discount + toReferralReserve + rePoolFee;
+
+            nameToDAOData[_tDAOName].toRepool += rePoolFee;
+            nameToDAOData[_tDAOName].currentAmount +=
+                realContribution -
+                _discount -
+                _finalFee -
+                rePoolFee -
+                toReferralReserve;
+            nameToDAOData[_tDAOName].collectedFees += _finalFee;
+
+            uint256 amountToTransfer = realContribution - _discount - _couponAmount;
+
+            if (amountToTransfer > 0) {
+                usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
+                usdc.safeTransfer(operator, _finalFee);
+            }
+
+            if (_couponAmount > 0) {
+                usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
+            }
+
+            nameToDAOData[_tDAOName].prepaidMembers[_newMember].member = _newMember;
+            nameToDAOData[_tDAOName]
+                .prepaidMembers[_newMember]
+                .contributionBeforeFee = realContribution;
+            nameToDAOData[_tDAOName].prepaidMembers[_newMember].contributionAfterFee =
+                realContribution -
+                (realContribution * SERVICE_FEE_RATIO) /
+                100;
+            nameToDAOData[_tDAOName].prepaidMembers[_newMember].feeToOperator = _finalFee;
+            nameToDAOData[_tDAOName].prepaidMembers[_newMember].discount = _discount;
+
+            // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
+            _getBenefitMultiplierFromOracle(_tDAOName, _newMember);
+
+            emit OnPrepayment(_parent, _newMember, realContribution, _finalFee, _discount);
+        } else {
+            /**
+             * Call the DAO to join
+             *  TODO: This call needs to change the joinPool function to add a param for the new member
+             *  TODO: To Implement call the function in the router. For V2 of this contract
+             */
+        }
+    }
+
+    function _payContributionChecks(
+        uint256 _contribution,
+        string calldata _tDAOName,
+        address _parent,
+        address _newMember
+    ) internal view {
+        // DAO must exist
+        require(
+            nameToDAOData[_tDAOName].preJoinEnabled ||
+                nameToDAOData[_tDAOName].DAOAddress != address(0),
+            ReferralGateway__tDAONotReadyYet()
+        );
+
+        require(
+            _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
+            ReferralGateway__ContributionOutOfRange()
+        );
+
+        if (_parent != address(0))
+            require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
+
+        if (nameToDAOData[_tDAOName].preJoinEnabled) {
+            // We check if the member already exists
+            require(
+                nameToDAOData[_tDAOName].prepaidMembers[_newMember].contributionBeforeFee == 0,
+                ReferralGateway__AlreadyMember()
+            );
+        }
     }
 
     function _parentRewards(
