@@ -56,27 +56,10 @@ contract CouponCodeTest is Test, SimulateDonResponse {
         uint256 discount;
     }
 
-    event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
-    event OnNewReferralProposal(address indexed proposedReferral);
-    event OnNewReferral(address indexed referral);
-    event OnPrepayment(
-        address indexed parent,
-        address indexed child,
-        uint256 indexed contribution,
-        uint256 fee,
-        uint256 discount
-    );
-    event OnMemberJoined(uint256 indexed memberId, address indexed member);
-    event OnNewDaoCreated(string indexed daoName);
-    event OnParentRewarded(
-        address indexed parent,
-        uint256 indexed layer,
-        address indexed child,
-        uint256 reward
-    );
-    event OnBenefitMultiplierConsumerChanged(
-        address indexed newBenefitMultiplierConsumer,
-        address indexed oldBenefitMultiplierConsumer
+    event OnCouponRedeemed(
+        address indexed member,
+        string indexed tDAOName,
+        uint256 indexed couponAmount
     );
 
     function setUp() public {
@@ -153,6 +136,8 @@ contract CouponCodeTest is Test, SimulateDonResponse {
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
 
         vm.prank(couponRedeemer);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnCouponRedeemed(child, tDaoName, couponAmount);
         referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             tDaoName,
@@ -177,6 +162,8 @@ contract CouponCodeTest is Test, SimulateDonResponse {
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
 
         vm.prank(couponRedeemer);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnCouponRedeemed(child, tDaoName, couponAmount);
         referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             tDaoName,
@@ -201,6 +188,8 @@ contract CouponCodeTest is Test, SimulateDonResponse {
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
 
         vm.prank(couponRedeemer);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnCouponRedeemed(child, tDaoName, couponAmount);
         referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT * 2,
             tDaoName,
