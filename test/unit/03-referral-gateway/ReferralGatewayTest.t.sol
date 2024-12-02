@@ -35,8 +35,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     uint256 public constant LAYER_TWO_REWARD_RATIO = 1; // Layer two reward ratio 1%
     uint256 public constant LAYER_THREE_REWARD_RATIO = 35; // Layer three reward ratio 0.35%
     uint256 public constant LAYER_FOUR_REWARD_RATIO = 175; // Layer four reward ratio 0.175%
+    uint8 public constant SERVICE_FEE_RATIO = 27;
+    uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
+    uint256 public constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
+    uint256 public constant REFERRAL_RESERVE = 5; // 5% of contribution TO Referral Reserve
+    uint256 public constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
 
-    bytes32 private constant REFERRAL = keccak256("REFERRAL");
+    bytes32 public constant REFERRAL = keccak256("REFERRAL");
 
     struct PrepaidMember {
         string tDAOName;
@@ -322,14 +327,14 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(alreadyCollectedFees, 0);
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            (((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100)) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            (((CONTRIBUTION_AMOUNT * REFERRAL_RESERVE) / 100)) -
+            ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
 
-        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
+        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+            100;
 
         vm.prank(child);
         vm.expectEmit(true, true, true, true, address(referralGateway));
@@ -369,13 +374,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(alreadyCollectedFees, 0);
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
 
-        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
+        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+            100;
 
         vm.prank(child);
         vm.expectEmit(true, true, true, true, address(referralGateway));
@@ -449,16 +454,15 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REFERRAL_RESERVE) / 100) -
+            ((CONTRIBUTION_AMOUNT * REFERRAL_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
 
-        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) +
-            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100);
+        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+            100) + ((CONTRIBUTION_AMOUNT * REFERRAL_DISCOUNT_RATIO) / 100);
 
         vm.prank(child);
         vm.expectEmit(true, true, true, true, address(referralGateway));
@@ -490,13 +494,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         uint256 expectedParentReward = 0;
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
 
-        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100);
+        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+            100);
 
         vm.prank(child);
         vm.expectEmit(true, true, true, true, address(referralGateway));
@@ -583,7 +587,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             tDaoName
         );
         uint256 expectedContributionAfterFee = CONTRIBUTION_AMOUNT -
-            ((CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100);
 
         assertEq(referredContributionAfterFee, expectedContributionAfterFee);
 
@@ -1085,8 +1089,8 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(toRepool, 0); // The new repool should be 1 - 2.75 = 0
 
         uint256 amountToRefundToChild = CONTRIBUTION_AMOUNT -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100); // 25 - (25 * 10%) - (25 * 5%) = 21.25
+            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REFERRAL_DISCOUNT_RATIO) / 100); // 25 - (25 * 10%) - (25 * 5%) = 21.25
 
         vm.prank(child);
         vm.expectRevert(
