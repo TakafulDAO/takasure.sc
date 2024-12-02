@@ -125,6 +125,11 @@ contract ReferralGateway is
         uint256 fee,
         uint256 discount
     );
+    event OnCouponRedeemed(
+        address indexed member,
+        string indexed tDAOName,
+        uint256 indexed couponAmount
+    );
     event OnParentRewarded(
         address indexed parent,
         uint256 indexed layer,
@@ -404,6 +409,8 @@ contract ReferralGateway is
             newMember,
             couponAmount
         );
+
+        emit OnCouponRedeemed(newMember, tDAOName, couponAmount);
     }
 
     /**
