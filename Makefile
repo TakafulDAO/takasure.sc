@@ -43,7 +43,7 @@ deploy-referral:
 upgrade-referral:
 	@forge clean
 	@forge script deploy/01-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
-	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGateway.sol
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
 deploy-bm-consumer:
 	@forge script deploy/02-DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)
@@ -63,7 +63,12 @@ deploy-all:
 upgrade-referral-defender:
 	@forge clean
 	@forge script deploy/06-DefenderUpgradeReferralGateway.s.sol:DefenderUpgradeReferralGateway $(NETWORK_ARGS)
-	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGateway.sol
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
+
+prepare-upgrade:
+	@forge clean
+	@forge script deploy/07-DefenderPrepareUpgrade.s.sol:DefenderPrepareUpgrade $(NETWORK_ARGS)
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
 # Interactions with ReferralGateway Contract
 # Create a DAO
