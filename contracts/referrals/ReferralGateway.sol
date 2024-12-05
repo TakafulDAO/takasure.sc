@@ -841,4 +841,7 @@ contract ReferralGateway is
 
         emit OnRefund(_tDAOName, _member, amountToRefund);
     }
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
 }
