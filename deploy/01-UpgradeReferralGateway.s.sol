@@ -19,11 +19,7 @@ contract UpgradeReferralGateway is Script, GetContractAddress {
         vm.startBroadcast();
 
         // Upgrade ReferralGateway
-        Upgrades.upgradeProxy(
-            referralGatewayAddress,
-            "ReferralGateway.sol",
-            abi.encodeCall(ReferralGateway.initializeNewVersion, (config.takadaoOperator, 2)) // Todo: Change this address, just for testing purposes
-        );
+        Upgrades.upgradeProxy(referralGatewayAddress, "ReferralGateway.sol", "");
 
         vm.stopBroadcast();
 

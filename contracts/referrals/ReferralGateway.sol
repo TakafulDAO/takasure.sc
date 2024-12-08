@@ -203,7 +203,13 @@ contract ReferralGateway is
         address _couponPool,
         address _couponRedeemer,
         uint64 version
-    ) external notZeroAddress(_couponPool) notZeroAddress(_couponRedeemer) reinitializer(version) {
+    )
+        external
+        notZeroAddress(_couponPool)
+        notZeroAddress(_couponRedeemer)
+        reinitializer(version)
+        onlyRole(OPERATOR)
+    {
         couponPool = _couponPool;
         _grantRole(COUPON_REDEEMER, _couponRedeemer);
     }
