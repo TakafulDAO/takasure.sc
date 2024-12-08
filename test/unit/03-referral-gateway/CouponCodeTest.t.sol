@@ -184,4 +184,17 @@ contract CouponCodeTest is Test {
         assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT * 2);
         assertEq(discount, expectedDiscount); // Applied to what is left after the coupon
     }
+
+    //======== no coupon ========//
+    function testShouldNootRevertIfThereIsNoCouponPool() public setCouponPoolAndCouponRedeemer {
+        vm.prank(child);
+        (uint256 feeToOp, uint256 discount) = referralGateway.payContribution(
+            CONTRIBUTION_AMOUNT,
+            tDaoName,
+            address(0)
+        );
+
+        assert(feeToOp > 0);
+        assert(discount > 0);
+    }
 }
