@@ -26,6 +26,7 @@ contract CouponCodeTest is Test {
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
 
+    event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
     event OnCouponRedeemed(
         address indexed member,
         string indexed tDAOName,
@@ -51,14 +52,6 @@ contract CouponCodeTest is Test {
         vm.prank(child);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
 
-        ReferralGateway newImplementation = new ReferralGateway();
-
-        vm.prank(operator);
-        referralGateway.upgradeToAndCall(
-            address(newImplementation),
-            abi.encodeCall(ReferralGateway.initializeNewVersion, (couponPool, couponRedeemer, 2))
-        );
-
         deal(address(usdc), couponPool, 1000e6);
 
         vm.prank(couponPool);
@@ -68,12 +61,27 @@ contract CouponCodeTest is Test {
         referralGateway.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
     }
 
+    function testSetNewCouponPoolAddress() public {
+        vm.prank(operator);
+        vm.expectEmit(true, true, false, false, address(referralGateway));
+        emit OnNewCouponPoolAddress(address(0), couponPool);
+        referralGateway.setNewCouponPoolAddress(couponPool);
+    }
+
+    modifier setCouponPoolAndCouponRedeemer() {
+        vm.startPrank(operator);
+        referralGateway.setNewCouponPoolAddress(couponPool);
+        referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
+        vm.stopPrank();
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                            COUPON PREPAYMENTS
     //////////////////////////////////////////////////////////////*/
 
     //======== coupon higher than contribution ========//
-    function testCouponPrepaymentCase1() public {
+    function testCouponPrepaymentCase1() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT * 2;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -107,7 +115,7 @@ contract CouponCodeTest is Test {
     }
 
     //======== coupon equals than contribution ========//
-    function testCouponPrepaymentCase2() public {
+    function testCouponPrepaymentCase2() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -141,7 +149,7 @@ contract CouponCodeTest is Test {
     }
 
     //======== coupon less than contribution ========//
-    function testCouponPrepaymentCase3() public {
+    function testCouponPrepaymentCase3() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
