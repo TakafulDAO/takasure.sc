@@ -105,7 +105,6 @@ contract ReferralGateway is
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    event OnNewCofounderOfChange(address indexed cofounderOfChange);
     event OnNewDAO(
         string indexed DAOName,
         bool indexed preJoinEnabled,
@@ -144,6 +143,7 @@ contract ReferralGateway is
     event OnRefund(string indexed tDAOName, address indexed member, uint256 indexed amount);
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
+    event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__onlyDAOAdmin();
@@ -197,21 +197,6 @@ contract ReferralGateway is
 
         operator = _operator;
         usdc = IERC20(_usdcAddress);
-    }
-
-    function initializeNewVersion(
-        address _couponPool,
-        address _couponRedeemer,
-        uint64 version
-    )
-        external
-        notZeroAddress(_couponPool)
-        notZeroAddress(_couponRedeemer)
-        reinitializer(version)
-        onlyRole(OPERATOR)
-    {
-        couponPool = _couponPool;
-        _grantRole(COUPON_REDEEMER, _couponRedeemer);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -557,6 +542,14 @@ contract ReferralGateway is
         usdc.safeTransferFrom(oldOperator, newOperator, usdc.balanceOf(oldOperator));
 
         emit OnNewOperator(oldOperator, newOperator);
+    }
+
+    function setNewCouponPoolAddress(
+        address _couponPool
+    ) external notZeroAddress(_couponPool) onlyRole(OPERATOR) {
+        address oldCouponPool = couponPool;
+        couponPool = _couponPool;
+        emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
     }
 
     function pause() external onlyRole(PAUSE_GUARDIAN) {
