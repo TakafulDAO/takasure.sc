@@ -733,12 +733,13 @@ contract ReferralGateway is
 
             if (amountToTransfer > 0) {
                 usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
-                usdc.safeTransfer(operator, _finalFee);
             }
 
             if (_couponAmount > 0) {
                 usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
             }
+
+            usdc.safeTransfer(operator, _finalFee);
 
             nameToDAOData[_tDAOName].prepaidMembers[_newMember].member = _newMember;
             nameToDAOData[_tDAOName]
