@@ -98,7 +98,6 @@ contract ReferralGateway is
 
     bytes32 private constant OPERATOR = keccak256("OPERATOR");
     bytes32 private constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-    bytes32 private constant COFOUNDER_OF_CHANGE = keccak256("COFOUNDER_OF_CHANGE");
     bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
     bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
 
@@ -207,19 +206,6 @@ contract ReferralGateway is
     ) external notZeroAddress(_couponPool) notZeroAddress(_couponRedeemer) reinitializer(version) {
         couponPool = _couponPool;
         _grantRole(COUPON_REDEEMER, _couponRedeemer);
-    }
-
-    /**
-     * @notice Register a Cofounder of Change
-     * @param cofounderOfChange The address to register as cofounderOfChange
-     * @dev Only the OPERATOR can register an cofounderOfChange
-     */
-    function registerCofounderOfChange(
-        address cofounderOfChange
-    ) external notZeroAddress(cofounderOfChange) onlyRole(OPERATOR) {
-        _grantRole(COFOUNDER_OF_CHANGE, cofounderOfChange);
-
-        emit OnNewCofounderOfChange(cofounderOfChange);
     }
 
     /*//////////////////////////////////////////////////////////////

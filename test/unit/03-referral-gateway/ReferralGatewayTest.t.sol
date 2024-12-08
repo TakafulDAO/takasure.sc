@@ -1182,13 +1182,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
         assert(!referralGateway.hasRole(0x00, newAdmin));
-        assert(!referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
-        vm.prank(takadao);
-        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
-        referralGateway.registerCofounderOfChange(address(0));
-        vm.prank(takadao);
-        referralGateway.registerCofounderOfChange(newCofounderOfChange);
-        assert(referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
         // Current KYCProvider can KYC a member
         vm.prank(KYCProvider);
         referralGateway.setKYCStatus(child, tDaoName);
