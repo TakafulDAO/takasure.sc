@@ -1172,16 +1172,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         // Addresses that will be used to test the roles
         address newOperator = makeAddr("newOperator");
         address newKYCProvider = makeAddr("newKYCProvider");
-        address newAdmin = makeAddr("newAdmin");
-        address newCofounderOfChange = makeAddr("newCofounderOfChange");
         // Current addresses with roles
         assert(referralGateway.hasRole(keccak256("OPERATOR"), takadao));
         assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
-        assert(referralGateway.hasRole(0x00, takadao));
         // New addresses without roles
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
-        assert(!referralGateway.hasRole(0x00, newAdmin));
         // Current KYCProvider can KYC a member
         vm.prank(KYCProvider);
         referralGateway.setKYCStatus(child, tDaoName);
@@ -1189,55 +1185,74 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("OPERATOR"), newOperator);
         referralGateway.grantRole(keccak256("KYC_PROVIDER"), newKYCProvider);
-        referralGateway.grantRole(0x00, newAdmin);
         referralGateway.revokeRole(keccak256("OPERATOR"), takadao);
         referralGateway.revokeRole(keccak256("KYC_PROVIDER"), KYCProvider);
-        referralGateway.renounceRole(0x00, takadao);
         vm.stopPrank();
         // New addresses with roles
         assert(referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
-        assert(referralGateway.hasRole(0x00, newAdmin));
         // Old addresses without roles
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), takadao));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
-        assert(!referralGateway.hasRole(0x00, takadao));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                    CONSUMER
-        //////////////////////////////////////////////////////////////*/
-    // function testChangeBMConsumer() public {
-    //     vm.prank(takadao);
-    //     vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
-    //     referralGateway.setNewBenefitMultiplierConsumer(address(0), tDaoName);
+    function testAdminRole() public createDao referralPrepays KYCReferral referredPrepays {
+        // Address that will be used to test the roles
+        address newAdmin = makeAddr("newAdmin");
+        address newCouponRedeemer = makeAddr("newCouponRedeemer");
 
-    //     uint256 bmConsumerAddressSlot = 1;
-    //     bytes32 operatorAddressSlotBytes = vm.load(
-    //         address(referralGateway),
-    //         bytes32(uint256(bmConsumerAddressSlot))
-    //     );
-    //     address bmConsumer = address(uint160(uint256(operatorAddressSlotBytes)));
+        bytes32 defaultAdminRole = 0x00;
+        bytes32 couponRedeemer = keccak256("COUPON_REDEEMER");
 
-    //     assertEq(bmConsumer, address(bmConsumerMock));
+        // Current address with roles
+        assert(referralGateway.hasRole(defaultAdminRole, takadao));
 
-    //     address newBMConsumer = makeAddr("newBMConsumer");
+        // New addresses without roles
+        assert(!referralGateway.hasRole(defaultAdminRole, newAdmin));
 
-    //     vm.prank(referral);
-    //     vm.expectRevert();
-    //     referralGateway.setNewBenefitMultiplierConsumer(newBMConsumer, tDaoName);
+        // Current Admin can give and remove anyone a role
+        vm.prank(takadao);
+        referralGateway.grantRole(couponRedeemer, newCouponRedeemer);
 
-    //     vm.prank(takadao);
-    //     vm.expectEmit(true, true, false, false, address(referralGateway));
-    //     emit OnBenefitMultiplierConsumerChanged(newBMConsumer, address(bmConsumerMock));
-    //     referralGateway.setNewBenefitMultiplierConsumer(newBMConsumer, tDaoName);
+        assert(referralGateway.hasRole(couponRedeemer, newCouponRedeemer));
 
-    //     operatorAddressSlotBytes = vm.load(
-    //         address(referralGateway),
-    //         bytes32(uint256(bmConsumerAddressSlot))
-    //     );
-    //     bmConsumer = address(uint160(uint256(operatorAddressSlotBytes)));
+        vm.prank(takadao);
+        referralGateway.revokeRole(couponRedeemer, newCouponRedeemer);
 
-    //     assertEq(bmConsumer, address(newBMConsumer));
-    // }
+        assert(!referralGateway.hasRole(couponRedeemer, newCouponRedeemer));
+
+        // Grant, revoke and renounce roles
+        vm.startPrank(takadao);
+        referralGateway.grantRole(defaultAdminRole, newAdmin);
+        referralGateway.renounceRole(defaultAdminRole, takadao);
+        vm.stopPrank();
+
+        // New addresses with roles
+        assert(referralGateway.hasRole(defaultAdminRole, newAdmin));
+
+        // Old addresses without roles
+        assert(!referralGateway.hasRole(defaultAdminRole, takadao));
+
+        // New Admin can give and remove anyone a role
+        vm.prank(newAdmin);
+        referralGateway.grantRole(couponRedeemer, newCouponRedeemer);
+
+        assert(referralGateway.hasRole(couponRedeemer, newCouponRedeemer));
+
+        vm.prank(newAdmin);
+        referralGateway.revokeRole(couponRedeemer, newCouponRedeemer);
+
+        assert(!referralGateway.hasRole(couponRedeemer, newCouponRedeemer));
+
+        // Old Admin can no longer give anyone a role
+        vm.prank(takadao);
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "AccessControlUnauthorizedAccount(address,bytes32)",
+                takadao,
+                defaultAdminRole
+            )
+        );
+        referralGateway.grantRole(couponRedeemer, newCouponRedeemer);
+    }
 }
