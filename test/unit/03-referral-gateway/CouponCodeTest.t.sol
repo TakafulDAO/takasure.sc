@@ -17,6 +17,7 @@ contract CouponCodeTest is Test {
     IUSDC usdc;
     address usdcAddress;
     address proxy;
+    address operator;
     address child = makeAddr("child");
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
@@ -39,6 +40,7 @@ contract CouponCodeTest is Test {
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        operator = config.takadaoOperator;
 
         // Assign implementations
         referralGateway = ReferralGateway(address(proxy));
@@ -51,7 +53,7 @@ contract CouponCodeTest is Test {
 
         ReferralGateway newImplementation = new ReferralGateway();
 
-        vm.prank(config.takadaoOperator);
+        vm.prank(operator);
         referralGateway.upgradeToAndCall(
             address(newImplementation),
             abi.encodeCall(ReferralGateway.initializeNewVersion, (couponPool, couponRedeemer, 2))
@@ -75,11 +77,12 @@ contract CouponCodeTest is Test {
         uint256 couponAmount = CONTRIBUTION_AMOUNT * 2;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 initialOperatorBalance = usdc.balanceOf(operator);
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnCouponRedeemed(child, tDaoName, couponAmount);
-        referralGateway.payContributionOnBehalfOf(
+        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             tDaoName,
             address(0),
@@ -88,8 +91,11 @@ contract CouponCodeTest is Test {
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 finalOperatorBalance = usdc.balanceOf(operator);
 
         assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
+        assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
+        assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
             child,
@@ -105,11 +111,12 @@ contract CouponCodeTest is Test {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 initialOperatorBalance = usdc.balanceOf(operator);
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnCouponRedeemed(child, tDaoName, couponAmount);
-        referralGateway.payContributionOnBehalfOf(
+        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             tDaoName,
             address(0),
@@ -118,8 +125,11 @@ contract CouponCodeTest is Test {
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 finalOperatorBalance = usdc.balanceOf(operator);
 
         assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
+        assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
+        assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
             child,
@@ -135,11 +145,12 @@ contract CouponCodeTest is Test {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 initialOperatorBalance = usdc.balanceOf(operator);
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnCouponRedeemed(child, tDaoName, couponAmount);
-        referralGateway.payContributionOnBehalfOf(
+        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT * 2,
             tDaoName,
             address(0),
@@ -148,8 +159,11 @@ contract CouponCodeTest is Test {
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 finalOperatorBalance = usdc.balanceOf(operator);
 
         assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
+        assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
+        assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
             child,
