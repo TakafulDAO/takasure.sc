@@ -711,13 +711,16 @@ contract ReferralGateway is
 
             _finalFee -= _discount + toReferralReserve + rePoolFee;
 
+            assert(
+                (realContribution * SERVICE_FEE_RATIO) / 100 ==
+                    _finalFee + _discount + toReferralReserve + rePoolFee
+            );
+
             nameToDAOData[_tDAOName].toRepool += rePoolFee;
             nameToDAOData[_tDAOName].currentAmount +=
                 realContribution -
-                _discount -
-                _finalFee -
-                rePoolFee -
-                toReferralReserve;
+                (realContribution * SERVICE_FEE_RATIO) /
+                100;
             nameToDAOData[_tDAOName].collectedFees += _finalFee;
 
             uint256 amountToTransfer = realContribution - _discount - _couponAmount;
