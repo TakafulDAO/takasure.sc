@@ -4,58 +4,9 @@
         { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
         {
             "type": "function",
-            "name": "CONTRIBUTION_PREJOIN_DISCOUNT_RATIO",
-            "inputs": [],
-            "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
             "name": "DEFAULT_ADMIN_ROLE",
             "inputs": [],
             "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "KYC_PROVIDER",
-            "inputs": [],
-            "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "PAUSE_GUARDIAN",
-            "inputs": [],
-            "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "REFERRAL_DISCOUNT_RATIO",
-            "inputs": [],
-            "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "REFERRAL_RESERVE",
-            "inputs": [],
-            "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "REPOOL_FEE_RATIO",
-            "inputs": [],
-            "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "SERVICE_FEE_RATIO",
-            "inputs": [],
-            "outputs": [{ "name": "", "type": "uint8", "internalType": "uint8" }],
             "stateMutability": "view"
         },
         {
@@ -93,6 +44,13 @@
                 { "name": "tDAOName", "type": "string", "internalType": "string" },
                 { "name": "rePoolAddress", "type": "address", "internalType": "address" }
             ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "fixContributionAmount",
+            "inputs": [{ "name": "tDAOName", "type": "string", "internalType": "string" }],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -254,6 +212,22 @@
         },
         {
             "type": "function",
+            "name": "payContributionOnBehalfOf",
+            "inputs": [
+                { "name": "contribution", "type": "uint256", "internalType": "uint256" },
+                { "name": "tDAOName", "type": "string", "internalType": "string" },
+                { "name": "parent", "type": "address", "internalType": "address" },
+                { "name": "newMember", "type": "address", "internalType": "address" },
+                { "name": "couponAmount", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [
+                { "name": "finalFee", "type": "uint256", "internalType": "uint256" },
+                { "name": "discount", "type": "uint256", "internalType": "uint256" }
+            ],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "proxiableUUID",
             "inputs": [],
             "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
@@ -261,7 +235,7 @@
         },
         {
             "type": "function",
-            "name": "refundIfDAOIsNotLaunched",
+            "name": "refundByAdmin",
             "inputs": [
                 { "name": "member", "type": "address", "internalType": "address" },
                 { "name": "tDAOName", "type": "string", "internalType": "string" }
@@ -271,9 +245,10 @@
         },
         {
             "type": "function",
-            "name": "registerCofounderOfChange",
+            "name": "refundIfDAOIsNotLaunched",
             "inputs": [
-                { "name": "cofounderOfChange", "type": "address", "internalType": "address" }
+                { "name": "member", "type": "address", "internalType": "address" },
+                { "name": "tDAOName", "type": "string", "internalType": "string" }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
@@ -300,6 +275,13 @@
         },
         {
             "type": "function",
+            "name": "setCouponPoolAddress",
+            "inputs": [{ "name": "_couponPool", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "setKYCStatus",
             "inputs": [
                 { "name": "child", "type": "address", "internalType": "address" },
@@ -319,6 +301,13 @@
                 },
                 { "name": "tDAOName", "type": "string", "internalType": "string" }
             ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setNewOperator",
+            "inputs": [{ "name": "newOperator", "type": "address", "internalType": "address" }],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -414,6 +403,21 @@
         },
         {
             "type": "event",
+            "name": "OnCouponRedeemed",
+            "inputs": [
+                { "name": "member", "type": "address", "indexed": true, "internalType": "address" },
+                { "name": "tDAOName", "type": "string", "indexed": true, "internalType": "string" },
+                {
+                    "name": "couponAmount",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
             "name": "OnDAOLaunchDateUpdated",
             "inputs": [
                 { "name": "DAOName", "type": "string", "indexed": true, "internalType": "string" },
@@ -450,10 +454,16 @@
         },
         {
             "type": "event",
-            "name": "OnNewCofounderOfChange",
+            "name": "OnNewCouponPoolAddress",
             "inputs": [
                 {
-                    "name": "cofounderOfChange",
+                    "name": "oldCouponPool",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "newCouponPool",
                     "type": "address",
                     "indexed": true,
                     "internalType": "address"
@@ -489,6 +499,25 @@
                     "type": "uint256",
                     "indexed": false,
                     "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewOperator",
+            "inputs": [
+                {
+                    "name": "oldOperator",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "newOperator",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
                 }
             ],
             "anonymous": false
@@ -701,7 +730,16 @@
         { "type": "error", "name": "ReferralGateway__InvalidLaunchDate", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__MemberAlreadyKYCed", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__MustHaveName", "inputs": [] },
+        {
+            "type": "error",
+            "name": "ReferralGateway__NotEnoughFunds",
+            "inputs": [
+                { "name": "amountToRefund", "type": "uint256", "internalType": "uint256" },
+                { "name": "neededAmount", "type": "uint256", "internalType": "uint256" }
+            ]
+        },
         { "type": "error", "name": "ReferralGateway__NotKYCed", "inputs": [] },
+        { "type": "error", "name": "ReferralGateway__ParentMustKYCFirst", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__ZeroAddress", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__ZeroAmount", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__onlyDAOAdmin", "inputs": [] },

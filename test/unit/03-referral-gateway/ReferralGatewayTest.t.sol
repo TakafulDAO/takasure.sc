@@ -35,8 +35,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     uint256 public constant LAYER_TWO_REWARD_RATIO = 1; // Layer two reward ratio 1%
     uint256 public constant LAYER_THREE_REWARD_RATIO = 35; // Layer three reward ratio 0.35%
     uint256 public constant LAYER_FOUR_REWARD_RATIO = 175; // Layer four reward ratio 0.175%
+    uint8 public constant SERVICE_FEE_RATIO = 27;
+    uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
+    uint256 public constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
+    uint256 public constant REFERRAL_RESERVE = 5; // 5% of contribution TO Referral Reserve
+    uint256 public constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
 
-    bytes32 private constant REFERRAL = keccak256("REFERRAL");
+    bytes32 public constant REFERRAL = keccak256("REFERRAL");
 
     struct PrepaidMember {
         string tDAOName;
@@ -322,14 +327,14 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(alreadyCollectedFees, 0);
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            (((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100)) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            (((CONTRIBUTION_AMOUNT * REFERRAL_RESERVE) / 100)) -
+            ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
 
-        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
+        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+            100;
 
         vm.prank(child);
         vm.expectEmit(true, true, true, true, address(referralGateway));
@@ -369,13 +374,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         assertEq(alreadyCollectedFees, 0);
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
 
-        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100;
+        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+            100;
 
         vm.prank(child);
         vm.expectEmit(true, true, true, true, address(referralGateway));
@@ -449,16 +454,15 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_RESERVE()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REFERRAL_RESERVE) / 100) -
+            ((CONTRIBUTION_AMOUNT * REFERRAL_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
 
-        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) +
-            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100);
+        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+            100) + ((CONTRIBUTION_AMOUNT * REFERRAL_DISCOUNT_RATIO) / 100);
 
         vm.prank(child);
         vm.expectEmit(true, true, true, true, address(referralGateway));
@@ -490,13 +494,13 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         uint256 expectedParentReward = 0;
 
-        uint256 fees = (CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100;
+        uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
         uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REPOOL_FEE_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
 
-        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT *
-            referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100);
+        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+            100);
 
         vm.prank(child);
         vm.expectEmit(true, true, true, true, address(referralGateway));
@@ -583,7 +587,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
             tDaoName
         );
         uint256 expectedContributionAfterFee = CONTRIBUTION_AMOUNT -
-            ((CONTRIBUTION_AMOUNT * referralGateway.SERVICE_FEE_RATIO()) / 100);
+            ((CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100);
 
         assertEq(referredContributionAfterFee, expectedContributionAfterFee);
 
@@ -1085,8 +1089,8 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(toRepool, 0); // The new repool should be 1 - 2.75 = 0
 
         uint256 amountToRefundToChild = CONTRIBUTION_AMOUNT -
-            ((CONTRIBUTION_AMOUNT * referralGateway.CONTRIBUTION_PREJOIN_DISCOUNT_RATIO()) / 100) -
-            ((CONTRIBUTION_AMOUNT * referralGateway.REFERRAL_DISCOUNT_RATIO()) / 100); // 25 - (25 * 10%) - (25 * 5%) = 21.25
+            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REFERRAL_DISCOUNT_RATIO) / 100); // 25 - (25 * 10%) - (25 * 5%) = 21.25
 
         vm.prank(child);
         vm.expectRevert(
@@ -1168,23 +1172,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         // Addresses that will be used to test the roles
         address newOperator = makeAddr("newOperator");
         address newKYCProvider = makeAddr("newKYCProvider");
-        address newAdmin = makeAddr("newAdmin");
-        address newCofounderOfChange = makeAddr("newCofounderOfChange");
         // Current addresses with roles
         assert(referralGateway.hasRole(keccak256("OPERATOR"), takadao));
         assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
-        assert(referralGateway.hasRole(0x00, takadao));
         // New addresses without roles
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
-        assert(!referralGateway.hasRole(0x00, newAdmin));
-        assert(!referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
-        vm.prank(takadao);
-        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
-        referralGateway.registerCofounderOfChange(address(0));
-        vm.prank(takadao);
-        referralGateway.registerCofounderOfChange(newCofounderOfChange);
-        assert(referralGateway.hasRole(keccak256("COFOUNDER_OF_CHANGE"), newCofounderOfChange));
         // Current KYCProvider can KYC a member
         vm.prank(KYCProvider);
         referralGateway.setKYCStatus(child, tDaoName);
@@ -1192,55 +1185,74 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("OPERATOR"), newOperator);
         referralGateway.grantRole(keccak256("KYC_PROVIDER"), newKYCProvider);
-        referralGateway.grantRole(0x00, newAdmin);
         referralGateway.revokeRole(keccak256("OPERATOR"), takadao);
         referralGateway.revokeRole(keccak256("KYC_PROVIDER"), KYCProvider);
-        referralGateway.renounceRole(0x00, takadao);
         vm.stopPrank();
         // New addresses with roles
         assert(referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
-        assert(referralGateway.hasRole(0x00, newAdmin));
         // Old addresses without roles
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), takadao));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
-        assert(!referralGateway.hasRole(0x00, takadao));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                    CONSUMER
-        //////////////////////////////////////////////////////////////*/
-    // function testChangeBMConsumer() public {
-    //     vm.prank(takadao);
-    //     vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
-    //     referralGateway.setNewBenefitMultiplierConsumer(address(0), tDaoName);
+    function testAdminRole() public createDao referralPrepays KYCReferral referredPrepays {
+        // Address that will be used to test the roles
+        address newAdmin = makeAddr("newAdmin");
+        address newCouponRedeemer = makeAddr("newCouponRedeemer");
 
-    //     uint256 bmConsumerAddressSlot = 1;
-    //     bytes32 operatorAddressSlotBytes = vm.load(
-    //         address(referralGateway),
-    //         bytes32(uint256(bmConsumerAddressSlot))
-    //     );
-    //     address bmConsumer = address(uint160(uint256(operatorAddressSlotBytes)));
+        bytes32 defaultAdminRole = 0x00;
+        bytes32 couponRedeemer = keccak256("COUPON_REDEEMER");
 
-    //     assertEq(bmConsumer, address(bmConsumerMock));
+        // Current address with roles
+        assert(referralGateway.hasRole(defaultAdminRole, takadao));
 
-    //     address newBMConsumer = makeAddr("newBMConsumer");
+        // New addresses without roles
+        assert(!referralGateway.hasRole(defaultAdminRole, newAdmin));
 
-    //     vm.prank(referral);
-    //     vm.expectRevert();
-    //     referralGateway.setNewBenefitMultiplierConsumer(newBMConsumer, tDaoName);
+        // Current Admin can give and remove anyone a role
+        vm.prank(takadao);
+        referralGateway.grantRole(couponRedeemer, newCouponRedeemer);
 
-    //     vm.prank(takadao);
-    //     vm.expectEmit(true, true, false, false, address(referralGateway));
-    //     emit OnBenefitMultiplierConsumerChanged(newBMConsumer, address(bmConsumerMock));
-    //     referralGateway.setNewBenefitMultiplierConsumer(newBMConsumer, tDaoName);
+        assert(referralGateway.hasRole(couponRedeemer, newCouponRedeemer));
 
-    //     operatorAddressSlotBytes = vm.load(
-    //         address(referralGateway),
-    //         bytes32(uint256(bmConsumerAddressSlot))
-    //     );
-    //     bmConsumer = address(uint160(uint256(operatorAddressSlotBytes)));
+        vm.prank(takadao);
+        referralGateway.revokeRole(couponRedeemer, newCouponRedeemer);
 
-    //     assertEq(bmConsumer, address(newBMConsumer));
-    // }
+        assert(!referralGateway.hasRole(couponRedeemer, newCouponRedeemer));
+
+        // Grant, revoke and renounce roles
+        vm.startPrank(takadao);
+        referralGateway.grantRole(defaultAdminRole, newAdmin);
+        referralGateway.renounceRole(defaultAdminRole, takadao);
+        vm.stopPrank();
+
+        // New addresses with roles
+        assert(referralGateway.hasRole(defaultAdminRole, newAdmin));
+
+        // Old addresses without roles
+        assert(!referralGateway.hasRole(defaultAdminRole, takadao));
+
+        // New Admin can give and remove anyone a role
+        vm.prank(newAdmin);
+        referralGateway.grantRole(couponRedeemer, newCouponRedeemer);
+
+        assert(referralGateway.hasRole(couponRedeemer, newCouponRedeemer));
+
+        vm.prank(newAdmin);
+        referralGateway.revokeRole(couponRedeemer, newCouponRedeemer);
+
+        assert(!referralGateway.hasRole(couponRedeemer, newCouponRedeemer));
+
+        // Old Admin can no longer give anyone a role
+        vm.prank(takadao);
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "AccessControlUnauthorizedAccount(address,bytes32)",
+                takadao,
+                defaultAdminRole
+            )
+        );
+        referralGateway.grantRole(couponRedeemer, newCouponRedeemer);
+    }
 }
