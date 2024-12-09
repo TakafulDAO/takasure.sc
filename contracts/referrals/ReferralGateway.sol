@@ -544,7 +544,7 @@ contract ReferralGateway is
         emit OnNewOperator(oldOperator, newOperator);
     }
 
-    function setNewCouponPoolAddress(
+    function setCouponPoolAddress(
         address _couponPool
     ) external notZeroAddress(_couponPool) onlyRole(OPERATOR) {
         address oldCouponPool = couponPool;

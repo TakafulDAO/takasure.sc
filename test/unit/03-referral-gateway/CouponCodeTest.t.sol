@@ -65,12 +65,12 @@ contract CouponCodeTest is Test {
         vm.prank(operator);
         vm.expectEmit(true, true, false, false, address(referralGateway));
         emit OnNewCouponPoolAddress(address(0), couponPool);
-        referralGateway.setNewCouponPoolAddress(couponPool);
+        referralGateway.setCouponPoolAddress(couponPool);
     }
 
     modifier setCouponPoolAndCouponRedeemer() {
         vm.startPrank(operator);
-        referralGateway.setNewCouponPoolAddress(couponPool);
+        referralGateway.setCouponPoolAddress(couponPool);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         vm.stopPrank();
         _;
