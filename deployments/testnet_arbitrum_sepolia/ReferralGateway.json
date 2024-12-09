@@ -156,17 +156,6 @@
         },
         {
             "type": "function",
-            "name": "initializeNewVersion",
-            "inputs": [
-                { "name": "_couponPool", "type": "address", "internalType": "address" },
-                { "name": "_couponRedeemer", "type": "address", "internalType": "address" },
-                { "name": "version", "type": "uint64", "internalType": "uint64" }
-            ],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
             "name": "isMemberKYCed",
             "inputs": [{ "name": "member", "type": "address", "internalType": "address" }],
             "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
@@ -281,6 +270,13 @@
                 { "name": "role", "type": "bytes32", "internalType": "bytes32" },
                 { "name": "account", "type": "address", "internalType": "address" }
             ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setCouponPoolAddress",
+            "inputs": [{ "name": "_couponPool", "type": "address", "internalType": "address" }],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -458,10 +454,16 @@
         },
         {
             "type": "event",
-            "name": "OnNewCofounderOfChange",
+            "name": "OnNewCouponPoolAddress",
             "inputs": [
                 {
-                    "name": "cofounderOfChange",
+                    "name": "oldCouponPool",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "newCouponPool",
                     "type": "address",
                     "indexed": true,
                     "internalType": "address"
