@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GNU GPLv3
+// SPDX-License-Identifier: GPL-3.0-only
 
 /**
  * @title ReferralGateway
@@ -916,11 +916,4 @@ contract ReferralGateway is
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
-
-    function fixContributionAmount(string calldata tDAOName) external onlyRole(OPERATOR) {
-        nameToDAOData[tDAOName].currentAmount =
-            usdc.balanceOf(address(this)) -
-            nameToDAOData[tDAOName].toRepool -
-            nameToDAOData[tDAOName].referralReserve;
-    }
 }
