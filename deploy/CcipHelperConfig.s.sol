@@ -37,9 +37,6 @@ abstract contract CodeConstants {
                                ADDRESSES
     //////////////////////////////////////////////////////////////*/
 
-    address public constant REFERRAL_MAINNET = 0x14Eb9897c6b7Ac579e6eFE130287e2729b9A018E;
-    address public constant REFERRAL_TESTNET = 0x303892f65aD2862b496fd946E3827E71fcF88e47;
-
     struct RouterAddress {
         address arbMainnetRouter;
         address avaxMainnetRouter;
