@@ -162,8 +162,8 @@ contract HelperConfig is CodeConstants, Script {
         }
     }
 
-    function getArbMainnetConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
-        sepoliaNetworkConfig = NetworkConfig({
+    function getArbMainnetConfig() public view returns (NetworkConfig memory mainnetNetworkConfig) {
+        mainnetNetworkConfig = NetworkConfig({
             contributionToken: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831,
             feeClaimAddress: feeClaimAddress.mainnet,
             daoMultisig: daoMultisig.mainnet,
@@ -180,8 +180,12 @@ contract HelperConfig is CodeConstants, Script {
         });
     }
 
-    function getArbSepoliaConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
-        sepoliaNetworkConfig = NetworkConfig({
+    function getArbSepoliaConfig()
+        public
+        view
+        returns (NetworkConfig memory arbSepoliaNetworkConfig)
+    {
+        arbSepoliaNetworkConfig = NetworkConfig({
             contributionToken: 0xf9b2DE65196fA500527c576De9312E3c626C7d6a,
             feeClaimAddress: feeClaimAddress.arb_sepolia,
             daoMultisig: daoMultisig.arb_sepolia,
@@ -198,8 +202,12 @@ contract HelperConfig is CodeConstants, Script {
         });
     }
 
-    function getEthSepoliaConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
-        sepoliaNetworkConfig = NetworkConfig({
+    function getEthSepoliaConfig()
+        public
+        view
+        returns (NetworkConfig memory ethSepoliaNetworkConfig)
+    {
+        ethSepoliaNetworkConfig = NetworkConfig({
             contributionToken: 0x4173c6CfB9721cbC32b18Dbaba826715127443e0,
             feeClaimAddress: feeClaimAddress.eth_sepolia,
             daoMultisig: daoMultisig.eth_sepolia,
