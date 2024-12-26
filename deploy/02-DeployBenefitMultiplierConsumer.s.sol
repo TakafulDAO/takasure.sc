@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
-import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
+import {BenefitMultiplierConsumer} from "contracts/chainlink/functions/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 
 contract DeployBenefitMultiplierConsumer is Script {
