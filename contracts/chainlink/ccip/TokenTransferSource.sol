@@ -21,7 +21,7 @@ contract TokenTransferSource is Ownable2Step {
     IERC20 private immutable linkToken;
     IERC20 private immutable usdc;
 
-    uint64 private constant ARB_ONE_CHAIN_SELECTOR = 4949039107694359620;
+    uint64 private immutable destinationChainSelector;
 
     address private immutable referralContract;
 
@@ -51,12 +51,14 @@ contract TokenTransferSource is Ownable2Step {
         address _router,
         address _link,
         address _usdc,
-        address _referralContract
+        address _referralContract,
+        uint64 _chainSelector
     ) Ownable(msg.sender) {
         router = IRouterClient(_router);
         linkToken = IERC20(_link);
         usdc = IERC20(_usdc);
         referralContract = _referralContract;
+        destinationChainSelector = _chainSelector;
     }
 
     receive() external payable {}
@@ -80,7 +82,7 @@ contract TokenTransferSource is Ownable2Step {
         );
 
         // Fee required to send the message
-        uint256 ccipFees = router.getFee(ARB_ONE_CHAIN_SELECTOR, message);
+        uint256 ccipFees = router.getFee(destinationChainSelector, message);
 
         if (ccipFees > linkToken.balanceOf(address(this)))
             revert TokenTransferSource__NotEnoughBalance(
@@ -95,7 +97,7 @@ contract TokenTransferSource is Ownable2Step {
         usdc.approve(address(router), amount);
 
         // Send the message through the router and store the returned message ID
-        messageId = router.ccipSend(ARB_ONE_CHAIN_SELECTOR, message);
+        messageId = router.ccipSend(destinationChainSelector, message);
 
         // Emit an event with message details
         emit OnTokensTransferred(messageId, amount, address(linkToken), ccipFees);
@@ -124,7 +126,7 @@ contract TokenTransferSource is Ownable2Step {
         );
 
         // Get the fee required to send the message
-        uint256 ccipFees = router.getFee(ARB_ONE_CHAIN_SELECTOR, message);
+        uint256 ccipFees = router.getFee(destinationChainSelector, message);
 
         if (ccipFees > address(this).balance)
             revert TokenTransferSource__NotEnoughBalance(address(this).balance, ccipFees);
@@ -133,7 +135,7 @@ contract TokenTransferSource is Ownable2Step {
         usdc.approve(address(router), amount);
 
         // Send the message through the router and store the returned message ID
-        messageId = router.ccipSend{value: ccipFees}(ARB_ONE_CHAIN_SELECTOR, message);
+        messageId = router.ccipSend{value: ccipFees}(destinationChainSelector, message);
 
         // Emit an event with message details
         emit OnTokensTransferred(messageId, amount, address(0), ccipFees);
