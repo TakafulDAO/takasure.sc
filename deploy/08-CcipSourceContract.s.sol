@@ -22,6 +22,7 @@ contract DeployTokenTransferSource is Script {
 
         address referralContract;
         uint64 destinationChainSelector;
+        bytes32 salt = "06062020";
 
         if (block.chainid == 421614 || block.chainid == 11155111) {
             referralContract = REFERRAL_TESTNET;
@@ -31,11 +32,9 @@ contract DeployTokenTransferSource is Script {
             destinationChainSelector = ARB_ONE_CHAIN_SELECTOR;
         }
 
-        bytes32 salt = "1234567890";
-
         vm.startBroadcast();
 
-        // Deploy BenefitMultiplierConsumer
+        // Deploy TokenTransferSource contract
         TokenTransferSource tokenTransferSource = new TokenTransferSource{salt: salt}(
             config.router,
             config.link,
