@@ -2,13 +2,13 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {TokenTransferSource} from "contracts/chainlink/ccip/TokenTransferSource.sol";
 import {DevOpsTools} from "foundry-devops/src/DevOpsTools.sol";
 import {CcipHelperConfig} from "deploy/CcipHelperConfig.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract TransferUsdcPayWithLink is Script {
+contract TransferUsdcPayWithLink is Script, GetContractAddress {
     function run() public {
         uint256 chainId = block.chainid;
         uint256 amountToApprove = 1e6; // 1 USDC
@@ -19,10 +19,7 @@ contract TransferUsdcPayWithLink is Script {
             chainId
         );
 
-        address tokenTransferSourceAddress = DevOpsTools.get_most_recent_deployment(
-            "TokenTransferSource",
-            chainId
-        );
+        address tokenTransferSourceAddress = _getContractAddress(chainId, "TokenTransferSource");
         TokenTransferSource tokenTransferSource = TokenTransferSource(
             payable(tokenTransferSourceAddress)
         );
