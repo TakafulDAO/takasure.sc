@@ -33,12 +33,15 @@ fail_on_revert = true
 
 [etherscan]
 arb_one = { key = "${ARBISCAN_API_KEY}" }
-base = { key = "${BASESCAN_API_KEY}" }
+base_mainnet = { key = "${BASESCAN_API_KEY}" }
 eth_mainnet = { key = "${ETHERSCAN_API_KEY}" }
-optimism = { key = "${OPTIMISMSCAN_API_KEY}" }
-polygon = { key = "${POLYGONSCAN_API_KEY}" }
+optimism_mainnet = { key = "${OPTIMISMSCAN_API_KEY}" }
+polygon_mainnet = { key = "${POLYGONSCAN_API_KEY}" }
 arb_sepolia = { key = "${ARBISCAN_API_KEY}" }
+base_sepolia = { key = "${BASESCAN_API_KEY}" }
 eth_sepolia = { key = "${ETHERSCAN_API_KEY}" }
+optimism_sepolia = { key = "${OPTIMISMSCAN_API_KEY}" }
+polygon_amoy = { key = "${POLYGONSCAN_API_KEY}" }
 
 [rpc_endpoints]
 arb_one = "${ARBITRUM_MAINNET_RPC_URL}"
