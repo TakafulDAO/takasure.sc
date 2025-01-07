@@ -31,10 +31,12 @@ contract DeployTokenTransferSource is Script {
             destinationChainSelector = ARB_ONE_CHAIN_SELECTOR;
         }
 
+        bytes32 salt = "1234567890";
+
         vm.startBroadcast();
 
         // Deploy BenefitMultiplierConsumer
-        TokenTransferSource tokenTransferSource = new TokenTransferSource(
+        TokenTransferSource tokenTransferSource = new TokenTransferSource{salt: salt}(
             config.router,
             config.link,
             config.usdc,

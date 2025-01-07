@@ -131,7 +131,7 @@ else ifeq ($(findstring --network arb_sepolia,$(ARGS)),--network arb_sepolia)
 else ifeq ($(findstring --network avax_fuji,$(ARGS)),--network avax_fuji)
 	NETWORK_ARGS := --rpc-url $(AVAX_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(AVAXSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network base_sepolia,$(ARGS)),--network base_sepolia)
-	NETWORK_ARGS := --rpc-url $(BASE_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan--api-key $(BASESCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(BASE_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(BASESCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network eth_sepolia,$(ARGS)),--network eth_sepolia)
 	NETWORK_ARGS := --rpc-url $(ETHEREUM_TESTNET_SEPOLIA_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network optimism_sepolia,$(ARGS)),--network optimism_sepolia)
