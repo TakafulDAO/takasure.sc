@@ -16,7 +16,11 @@ abstract contract CodeConstants {
     uint256 public constant POL_MAINNET_CHAIN_ID = 137;
 
     uint256 public constant ARB_SEPOLIA_CHAIN_ID = 421614;
+    uint256 public constant AVAX_FUJI_CHAIN_ID = 43113;
+    uint256 public constant BASE_SEPOLIA_CHAIN_ID = 84532;
     uint256 public constant ETH_SEPOLIA_CHAIN_ID = 11155111;
+    uint256 public constant OP_SEPOLIA_CHAIN_ID = 11155420;
+    uint256 public constant POL_AMOY_CHAIN_ID = 80002;
 
     uint256 public constant LOCAL_CHAIN_ID = 31337;
 
@@ -31,7 +35,11 @@ abstract contract CodeConstants {
     uint256 public constant POL_MAINNET_SELECTOR = 4051577828743386545;
 
     uint256 public constant ARB_SEPOLIA_SELECTOR = 3478487238524512106;
+    uint256 public constant AVAX_FUJI_SELECTOR = 14767482510784806043;
+    uint256 public constant BASE_SEPOLIA_SELECTOR = 10344971235874465080;
     uint256 public constant ETH_SEPOLIA_SELECTOR = 16015286601757825753;
+    uint256 public constant OP_SEPOLIA_SELECTOR = 10344971235874465080;
+    uint256 public constant POL_AMOY_SELECTOR = 10344971235874465080;
 
     /*//////////////////////////////////////////////////////////////
                                ADDRESSES
@@ -45,7 +53,11 @@ abstract contract CodeConstants {
         address opMainnetRouter;
         address polMainnetRouter;
         address arbSepoliaRouter;
+        address avaxFujiRouter;
+        address baseSepoliaRouter;
         address ethSepoliaRouter;
+        address opSepoliaRouter;
+        address polAmoyRouter;
     }
 
     struct LinkAddress {
@@ -56,7 +68,11 @@ abstract contract CodeConstants {
         address opMainnetLink;
         address polMainnetLink;
         address arbSepoliaLink;
+        address avaxFujiLink;
+        address baseSepoliaLink;
         address ethSepoliaLink;
+        address opSepoliaLink;
+        address polAmoyLink;
     }
 
     struct USDCAddress {
@@ -67,7 +83,11 @@ abstract contract CodeConstants {
         address opMainnetUSDC;
         address polMainnetUSDC;
         address arbSepoliaUSDC;
+        address avaxFujiUSDC;
+        address baseSepoliaUSDC;
         address ethSepoliaUSDC;
+        address opSepoliaUSDC;
+        address polAmoyUSDC;
     }
 
     RouterAddress public routerAddress =
@@ -79,7 +99,11 @@ abstract contract CodeConstants {
             opMainnetRouter: 0x3206695CaE29952f4b0c22a169725a865bc8Ce0f,
             polMainnetRouter: 0x849c5ED5a80F5B408Dd4969b78c2C8fdf0565Bfe,
             arbSepoliaRouter: 0x2a9C5afB0d0e4BAb2BCdaE109EC4b0c4Be15a165,
-            ethSepoliaRouter: 0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59
+            avaxFujiRouter: 0xF694E193200268f9a4868e4Aa017A0118C9a8177,
+            baseSepoliaRouter: 0xD3b06cEbF099CE7DA4AcCf578aaebFDBd6e88a93,
+            ethSepoliaRouter: 0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59,
+            opSepoliaRouter: 0x114A20A10b43D4115e5aeef7345a1A71d2a60C57,
+            polAmoyRouter: 0x9C32fCB86BF0f4a1A8921a9Fe46de3198bb884B2
         });
 
     LinkAddress public linkAddress =
@@ -91,7 +115,11 @@ abstract contract CodeConstants {
             opMainnetLink: 0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6,
             polMainnetLink: 0xb0897686c545045aFc77CF20eC7A532E3120E0F1,
             arbSepoliaLink: 0xb1D4538B4571d411F07960EF2838Ce337FE1E80E,
-            ethSepoliaLink: 0x779877A7B0D9E8603169DdbD7836e478b4624789
+            avaxFujiLink: 0x0b9d5D9136855f6FEc3c0993feE6E9CE8a297846,
+            baseSepoliaLink: 0xE4aB69C077896252FAFBD49EFD26B5D171A32410,
+            ethSepoliaLink: 0x779877A7B0D9E8603169DdbD7836e478b4624789,
+            opSepoliaLink: 0xE4aB69C077896252FAFBD49EFD26B5D171A32410,
+            polAmoyLink: 0x0Fd9e8d3aF1aaee056EB9e802c3A762a667b1904
         });
 
     USDCAddress public usdcAddress =
@@ -103,7 +131,11 @@ abstract contract CodeConstants {
             opMainnetUSDC: 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85,
             polMainnetUSDC: 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359,
             arbSepoliaUSDC: 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d,
-            ethSepoliaUSDC: 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+            avaxFujiUSDC: 0x5425890298aed601595a70AB815c96711a31Bc65,
+            baseSepoliaUSDC: 0x036CbD53842c5426634e7929541eC2318f3dCF7e,
+            ethSepoliaUSDC: 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238,
+            opSepoliaUSDC: 0x5fd84259d66Cd46123540766Be93DFE6D43130D7,
+            polAmoyUSDC: 0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582
         });
 }
 
@@ -141,8 +173,13 @@ contract CcipHelperConfig is CodeConstants, Script {
         ccipNetworkConfigs[ETH_MAINNET_CHAIN_ID] = getEthMainnetConfig();
         ccipNetworkConfigs[OP_MAINNET_CHAIN_ID] = getOptimismConfig();
         ccipNetworkConfigs[POL_MAINNET_CHAIN_ID] = getPolConfig();
+
         ccipNetworkConfigs[ARB_SEPOLIA_CHAIN_ID] = getArbSepoliaConfig();
+        ccipNetworkConfigs[AVAX_FUJI_CHAIN_ID] = getAvaxFujiConfig();
+        ccipNetworkConfigs[BASE_SEPOLIA_CHAIN_ID] = getBaseSepoliaConfig();
         ccipNetworkConfigs[ETH_SEPOLIA_CHAIN_ID] = getEthSepoliaConfig();
+        ccipNetworkConfigs[OP_SEPOLIA_CHAIN_ID] = getOpSepoliaConfig();
+        ccipNetworkConfigs[POL_AMOY_CHAIN_ID] = getPolAmoyConfig();
     }
 
     function getConfigByChainId(uint256 chainId) public returns (CCIPNetworkConfig memory) {
@@ -223,6 +260,26 @@ contract CcipHelperConfig is CodeConstants, Script {
         });
     }
 
+    function getAvaxFujiConfig() public view returns (CCIPNetworkConfig memory avaxFujiCcipConfig) {
+        avaxFujiCcipConfig = CCIPNetworkConfig({
+            router: routerAddress.avaxFujiRouter,
+            link: linkAddress.avaxFujiLink,
+            usdc: usdcAddress.avaxFujiUSDC
+        });
+    }
+
+    function getBaseSepoliaConfig()
+        public
+        view
+        returns (CCIPNetworkConfig memory baseSepoliaCcipConfig)
+    {
+        baseSepoliaCcipConfig = CCIPNetworkConfig({
+            router: routerAddress.baseSepoliaRouter,
+            link: linkAddress.baseSepoliaLink,
+            usdc: usdcAddress.baseSepoliaUSDC
+        });
+    }
+
     function getEthSepoliaConfig()
         public
         view
@@ -232,6 +289,26 @@ contract CcipHelperConfig is CodeConstants, Script {
             router: routerAddress.ethSepoliaRouter,
             link: linkAddress.ethSepoliaLink,
             usdc: usdcAddress.ethSepoliaUSDC
+        });
+    }
+
+    function getOpSepoliaConfig()
+        public
+        view
+        returns (CCIPNetworkConfig memory opSepoliaCcipConfig)
+    {
+        opSepoliaCcipConfig = CCIPNetworkConfig({
+            router: routerAddress.opSepoliaRouter,
+            link: linkAddress.opSepoliaLink,
+            usdc: usdcAddress.opSepoliaUSDC
+        });
+    }
+
+    function getPolAmoyConfig() public view returns (CCIPNetworkConfig memory polAmoyCcipConfig) {
+        polAmoyCcipConfig = CCIPNetworkConfig({
+            router: routerAddress.polAmoyRouter,
+            link: linkAddress.polAmoyLink,
+            usdc: usdcAddress.polAmoyUSDC
         });
     }
 
