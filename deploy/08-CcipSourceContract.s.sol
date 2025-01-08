@@ -14,6 +14,8 @@ contract DeployTokenTransferSource is Script {
     uint64 public constant ARB_SEPOLIA_CHAIN_SELECTOR = 3478487238524512106;
 
     function run() external returns (TokenTransferSource) {
+        uint256 chainId = block.chainid;
+
         CcipHelperConfig ccipHelperConfig = new CcipHelperConfig();
 
         CcipHelperConfig.CCIPNetworkConfig memory config = ccipHelperConfig.getConfigByChainId(
@@ -22,9 +24,15 @@ contract DeployTokenTransferSource is Script {
 
         address referralContract;
         uint64 destinationChainSelector;
-        bytes32 salt = "06062020";
+        bytes32 salt = "20200606";
 
-        if (block.chainid == 421614 || block.chainid == 11155111) {
+        if (
+            chainId == 43113 ||
+            chainId == 84532 ||
+            chainId == 11155111 ||
+            chainId == 11155420 ||
+            chainId == 80002
+        ) {
             referralContract = REFERRAL_TESTNET;
             destinationChainSelector = ARB_SEPOLIA_CHAIN_SELECTOR;
         } else {
