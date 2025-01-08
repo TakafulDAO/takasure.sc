@@ -916,4 +916,8 @@ contract ReferralGateway is
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
+
+    function testCaller() external pure returns (string memory) {
+        return "CCIP call";
+    }
 }
