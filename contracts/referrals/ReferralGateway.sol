@@ -18,6 +18,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 
 pragma solidity 0.8.28;
 
@@ -144,6 +145,7 @@ contract ReferralGateway is
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
+    event OnMessageFailed(bytes32 indexed messageId, bytes reason);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__onlyDAOAdmin();
@@ -160,16 +162,7 @@ contract ReferralGateway is
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
-
-    modifier notZeroAddress(address _address) {
-        require(_address != address(0), ReferralGateway__ZeroAddress());
-        _;
-    }
-
-    modifier onlyDAOAdmin(string calldata tDAOName) {
-        require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
-        _;
-    }
+    error ReferralGateway__OnlySelf();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -184,13 +177,18 @@ contract ReferralGateway is
         address _benefitMultiplierConsumer
     )
         external
-        notZeroAddress(_operator)
+        /*notZeroAddress(_operator)
         notZeroAddress(_KYCProvider)
         notZeroAddress(_pauseGuardian)
         notZeroAddress(_usdcAddress)
-        notZeroAddress(_benefitMultiplierConsumer)
+        notZeroAddress(_benefitMultiplierConsumer)*/
         initializer
     {
+        _notZeroAddress(_operator);
+        _notZeroAddress(_KYCProvider);
+        _notZeroAddress(_pauseGuardian);
+        _notZeroAddress(_usdcAddress);
+        _notZeroAddress(_benefitMultiplierConsumer);
         _initDependencies();
 
         _grantRoles(_operator, _KYCProvider, _pauseGuardian);
@@ -254,7 +252,8 @@ contract ReferralGateway is
     function updateLaunchDate(
         string calldata tDAOName,
         uint256 launchDate
-    ) external onlyDAOAdmin(tDAOName) {
+    ) external /*onlyDAOAdmin(tDAOName)*/ {
+        _onlyDAOAdmin(tDAOName);
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             ReferralGateway__DAOAlreadyLaunched()
@@ -278,7 +277,9 @@ contract ReferralGateway is
         string calldata tDAOName,
         address tDAOAddress,
         bool isReferralDiscountEnabled
-    ) external onlyDAOAdmin(tDAOName) notZeroAddress(tDAOAddress) {
+    ) external /*onlyDAOAdmin(tDAOName) notZeroAddress(tDAOAddress)*/ {
+        _onlyDAOAdmin(tDAOName);
+        _notZeroAddress(tDAOAddress);
         require(
             ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender),
             ReferralGateway__onlyDAOAdmin()
@@ -299,7 +300,8 @@ contract ReferralGateway is
     /**
      * @notice Switch the referralDiscount status of a DAO
      */
-    function switchReferralDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
+    function switchReferralDiscount(string calldata tDAOName) external /*onlyDAOAdmin(tDAOName)*/ {
+        _onlyDAOAdmin(tDAOName);
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
 
         emit OnReferralDiscountSwitched(tDAOName, nameToDAOData[tDAOName].referralDiscount);
@@ -313,7 +315,9 @@ contract ReferralGateway is
     function enableRepool(
         string calldata tDAOName,
         address rePoolAddress
-    ) external notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName) {
+    ) external /*notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName)*/ {
+        _onlyDAOAdmin(tDAOName);
+        _notZeroAddress(rePoolAddress);
         require(
             nameToDAOData[tDAOName].DAOAddress != address(0),
             ReferralGateway__tDAONotReadyYet()
@@ -323,7 +327,8 @@ contract ReferralGateway is
         emit OnRepoolEnabled(tDAOName, rePoolAddress);
     }
 
-    function transferToRepool(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
+    function transferToRepool(string calldata tDAOName) external /*onlyDAOAdmin(tDAOName)*/ {
+        _onlyDAOAdmin(tDAOName);
         require(
             nameToDAOData[tDAOName].rePoolAddress != address(0),
             ReferralGateway__ZeroAddress()
@@ -398,7 +403,8 @@ contract ReferralGateway is
     function setKYCStatus(
         address child,
         string calldata tDAOName
-    ) external whenNotPaused notZeroAddress(child) onlyRole(KYC_PROVIDER) {
+    ) external whenNotPaused /*notZeroAddress(child)*/ onlyRole(KYC_PROVIDER) {
+        _notZeroAddress(child);
         // Initial checks
         // Can not KYC a member that is already KYCed
         require(!isMemberKYCed[child], ReferralGateway__MemberAlreadyKYCed());
@@ -514,7 +520,8 @@ contract ReferralGateway is
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer,
         string calldata tDAOName
-    ) external onlyRole(OPERATOR) notZeroAddress(newBenefitMultiplierConsumer) {
+    ) external onlyRole(OPERATOR) /*notZeroAddress(newBenefitMultiplierConsumer)*/ {
+        _notZeroAddress(newBenefitMultiplierConsumer);
         address oldBenefitMultiplierConsumer = address(nameToDAOData[tDAOName].bmConsumer);
         nameToDAOData[tDAOName].bmConsumer = IBenefitMultiplierConsumer(
             newBenefitMultiplierConsumer
@@ -529,7 +536,8 @@ contract ReferralGateway is
 
     function setNewOperator(
         address newOperator
-    ) external notZeroAddress(newOperator) onlyRole(OPERATOR) {
+    ) external /*notZeroAddress(newOperator)*/ onlyRole(OPERATOR) {
+        _notZeroAddress(newOperator);
         address oldOperator = operator;
 
         // Setting the new operator address
@@ -546,7 +554,8 @@ contract ReferralGateway is
 
     function setCouponPoolAddress(
         address _couponPool
-    ) external notZeroAddress(_couponPool) onlyRole(OPERATOR) {
+    ) external /*notZeroAddress(_couponPool)*/ onlyRole(OPERATOR) {
+        _notZeroAddress(_couponPool);
         address oldCouponPool = couponPool;
         couponPool = _couponPool;
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
@@ -917,7 +926,68 @@ contract ReferralGateway is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
 
-    function testCaller() external pure returns (string memory) {
-        return "CCIP call";
+    /// @notice The entrypoint for the CCIP router to call. This function should
+    /// never revert, all errors should be handled internally in this contract.
+    /// @param any2EvmMessage The message to process.
+    /// @dev Extremely important to ensure only router calls this.
+    function ccipReceive(
+        Client.Any2EVMMessage calldata any2EvmMessage /*onlyRouter*/
+    ) external /*override*/ {
+        try this.processMessage(any2EvmMessage) {
+            // Intentionally empty in this example; no action needed if processMessage succeeds
+        } catch (bytes memory err) {
+            // Don't revert so CCIP doesn't revert. Emit event instead.
+            // The message can be retried later without having to do manual execution of CCIP.
+            emit OnMessageFailed(any2EvmMessage.messageId, err);
+            return;
+        }
+    }
+
+    /// @notice Serves as the entry point for this contract to process incoming messages.
+    /// @param any2EvmMessage Received CCIP message.
+    /// @dev Transfers specified token amounts to the owner of this contract. This function
+    /// must be external because of the  try/catch for error handling.
+    /// It uses the `onlySelf`: can only be called from the contract.
+    function processMessage(Client.Any2EVMMessage calldata any2EvmMessage) external /*onlySelf*/ {
+        _onlySelf();
+        // Simulate a revert for testing purposes
+        // if (s_simRevert) revert ErrorCase();
+
+        _ccipReceive(any2EvmMessage); // process the message - may revert as well
+    }
+
+    function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal /*override*/ {
+        // s_lastReceivedMessageId = any2EvmMessage.messageId; // fetch the messageId
+        // s_lastReceivedText = abi.decode(any2EvmMessage.data, (string)); // abi-decoding of the sent text
+        // Expect one token to be transferred at once, but you can transfer several tokens.
+        // s_lastReceivedTokenAddress = any2EvmMessage.destTokenAmounts[0].token;
+        // s_lastReceivedTokenAmount = any2EvmMessage.destTokenAmounts[0].amount;
+        // emit MessageReceived(
+        //     any2EvmMessage.messageId,
+        //     any2EvmMessage.sourceChainSelector, // fetch the source chain identifier (aka selector)
+        //     abi.decode(any2EvmMessage.sender, (address)), // abi-decoding of the sender address,
+        //     abi.decode(any2EvmMessage.data, (string)),
+        //     any2EvmMessage.destTokenAmounts[0].token,
+        //     any2EvmMessage.destTokenAmounts[0].amount
+        // );
+    }
+
+    function _notZeroAddress(address _address) internal pure {
+        require(_address != address(0), ReferralGateway__ZeroAddress());
+    }
+
+    function _onlyDAOAdmin(string calldata tDAOName) internal view {
+        require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
+    }
+
+    function _onlySelf() internal view {
+        if (msg.sender != address(this)) revert ReferralGateway__OnlySelf();
+    }
+
+    function checkCaller(
+        address caller,
+        uint256 callUint
+    ) external view returns (address, uint256, address) {
+        return (caller, callUint, msg.sender);
     }
 }
