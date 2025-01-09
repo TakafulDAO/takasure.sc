@@ -212,7 +212,7 @@ contract TransferAndCallSource is Ownable2Step {
         tokenAmounts[0] = tokenAmount;
 
         bytes memory dataToSend = abi.encodeWithSelector(
-            IReferralGateway.testCaller.selector,
+            IReferralGateway.checkCaller.selector,
             msg.sender,
             _amount
         );
