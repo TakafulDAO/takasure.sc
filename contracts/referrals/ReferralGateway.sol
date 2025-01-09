@@ -18,7 +18,6 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 
 pragma solidity 0.8.28;
 
@@ -145,7 +144,7 @@ contract ReferralGateway is
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
-    event OnMessageFailed(bytes32 indexed messageId, bytes reason);
+    event OnCaller(address indexed user, uint256 indexed value, address indexed caller);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__onlyDAOAdmin();
@@ -162,7 +161,6 @@ contract ReferralGateway is
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
-    error ReferralGateway__OnlySelf();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -926,52 +924,6 @@ contract ReferralGateway is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
 
-    /// @notice The entrypoint for the CCIP router to call. This function should
-    /// never revert, all errors should be handled internally in this contract.
-    /// @param any2EvmMessage The message to process.
-    /// @dev Extremely important to ensure only router calls this.
-    function ccipReceive(
-        Client.Any2EVMMessage calldata any2EvmMessage /*onlyRouter*/
-    ) external /*override*/ {
-        try this.processMessage(any2EvmMessage) {
-            // Intentionally empty in this example; no action needed if processMessage succeeds
-        } catch (bytes memory err) {
-            // Don't revert so CCIP doesn't revert. Emit event instead.
-            // The message can be retried later without having to do manual execution of CCIP.
-            emit OnMessageFailed(any2EvmMessage.messageId, err);
-            return;
-        }
-    }
-
-    /// @notice Serves as the entry point for this contract to process incoming messages.
-    /// @param any2EvmMessage Received CCIP message.
-    /// @dev Transfers specified token amounts to the owner of this contract. This function
-    /// must be external because of the  try/catch for error handling.
-    /// It uses the `onlySelf`: can only be called from the contract.
-    function processMessage(Client.Any2EVMMessage calldata any2EvmMessage) external /*onlySelf*/ {
-        _onlySelf();
-        // Simulate a revert for testing purposes
-        // if (s_simRevert) revert ErrorCase();
-
-        _ccipReceive(any2EvmMessage); // process the message - may revert as well
-    }
-
-    function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal /*override*/ {
-        // s_lastReceivedMessageId = any2EvmMessage.messageId; // fetch the messageId
-        // s_lastReceivedText = abi.decode(any2EvmMessage.data, (string)); // abi-decoding of the sent text
-        // Expect one token to be transferred at once, but you can transfer several tokens.
-        // s_lastReceivedTokenAddress = any2EvmMessage.destTokenAmounts[0].token;
-        // s_lastReceivedTokenAmount = any2EvmMessage.destTokenAmounts[0].amount;
-        // emit MessageReceived(
-        //     any2EvmMessage.messageId,
-        //     any2EvmMessage.sourceChainSelector, // fetch the source chain identifier (aka selector)
-        //     abi.decode(any2EvmMessage.sender, (address)), // abi-decoding of the sender address,
-        //     abi.decode(any2EvmMessage.data, (string)),
-        //     any2EvmMessage.destTokenAmounts[0].token,
-        //     any2EvmMessage.destTokenAmounts[0].amount
-        // );
-    }
-
     function _notZeroAddress(address _address) internal pure {
         require(_address != address(0), ReferralGateway__ZeroAddress());
     }
@@ -980,14 +932,7 @@ contract ReferralGateway is
         require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
     }
 
-    function _onlySelf() internal view {
-        if (msg.sender != address(this)) revert ReferralGateway__OnlySelf();
-    }
-
-    function checkCaller(
-        address caller,
-        uint256 callUint
-    ) external view returns (address, uint256, address) {
-        return (caller, callUint, msg.sender);
+    function checkCaller(address caller, uint256 callUint) external {
+        emit OnCaller(caller, callUint, msg.sender);
     }
 }
