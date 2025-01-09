@@ -70,17 +70,13 @@ prepare-upgrade:
 	@forge script deploy/07-DefenderPrepareUpgrade.s.sol:DefenderPrepareUpgrade $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
-deploy-ccip-source:
-	@forge clean
-	@forge script deploy/08-CcipSourceContract.s.sol:DeployTokenTransferSource $(NETWORK_ARGS)
-
 deploy-ccip-transfer-and-call:
 	@forge clean
-	@forge script deploy/09-CcipSourceTransferAndCall.s.sol:DeployTransferAndCallSource $(NETWORK_ARGS)
+	@forge script deploy/08-CcipSourceTransferAndCall.s.sol:DeployTransferAndCallSource $(NETWORK_ARGS)
 
 deploy-ccip-receiver:
 	@forge clean
-	@forge script deploy/10-CcipReceiver.s.sol:DeployReceiverContract $(NETWORK_ARGS)
+	@forge script deploy/09-CcipReceiver.s.sol:DeployReceiverContract $(NETWORK_ARGS)
 
 # Interactions with ReferralGateway Contract
 # Create a DAO
