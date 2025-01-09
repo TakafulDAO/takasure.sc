@@ -8,7 +8,7 @@ import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
-import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract TestDeployTakasure is Script {
     BenefitMultiplierConsumerMock bmConsumerMock;

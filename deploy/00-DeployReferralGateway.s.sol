@@ -6,7 +6,7 @@ import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {BenefitMultiplierConsumer} from "contracts/chainlink/functions/BenefitMultiplierConsumer.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract DeployReferralGateway is Script {
     using stdJson for string;

@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
-import {Defender, Options, ApprovalProcessResponse} from "openzeppelin-foundry-upgrades/src/Defender.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {Defender, Options, ApprovalProcessResponse} from "openzeppelin-foundry-upgrades/Defender.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract DefenderPrepareUpgrade is Script {
     function run() external {
