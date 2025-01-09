@@ -14,7 +14,7 @@ contract DeployTransferAndCallSource is Script {
     uint256 public constant POL_AMOY_CHAIN_ID = 80002;
 
     address public constant RECEIVER_MAINNET = 0x14Eb9897c6b7Ac579e6eFE130287e2729b9A018E; //TODO: deploy first
-    address public constant RECEIVER_TESTNET = 0x7444908f54F304CC5F6e97d809C106B33953036C;
+    address public constant RECEIVER_TESTNET = 0x3cf960FbBA71f53fB9B17FFAcC9388603016795a;
 
     uint64 public constant ARB_ONE_CHAIN_SELECTOR = 4949039107694359620;
     uint64 public constant ARB_SEPOLIA_CHAIN_SELECTOR = 3478487238524512106;

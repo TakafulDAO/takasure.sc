@@ -7,6 +7,7 @@ import {ReceiverContract} from "contracts/chainlink/ccip/ReceiverContract.sol";
 import {CcipHelperConfig} from "./CcipHelperConfig.s.sol";
 
 contract DeployReceiverContract is Script {
+    uint256 public constant ARB_SEPOLIA_CHAIN_ID = 421614;
     uint256 public constant AVAX_FUJI_CHAIN_ID = 43113;
     uint256 public constant BASE_SEPOLIA_CHAIN_ID = 84532;
     uint256 public constant ETH_SEPOLIA_CHAIN_ID = 11155111;
@@ -29,9 +30,10 @@ contract DeployReceiverContract is Script {
         );
 
         address referralContract;
-        bytes32 salt = "10031960";
+        bytes32 salt = "1960";
 
         if (
+            chainId == ARB_SEPOLIA_CHAIN_ID ||
             chainId == AVAX_FUJI_CHAIN_ID ||
             chainId == BASE_SEPOLIA_CHAIN_ID ||
             chainId == ETH_SEPOLIA_CHAIN_ID ||
