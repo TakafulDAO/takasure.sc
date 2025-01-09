@@ -13,7 +13,6 @@ import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {IReferralGateway} from "contracts/interfaces/IReferralGateway.sol";
 
 contract TransferAndCallSource is Ownable2Step {
     using SafeERC20 for IERC20;
@@ -211,8 +210,8 @@ contract TransferAndCallSource is Ownable2Step {
         });
         tokenAmounts[0] = tokenAmount;
 
-        bytes memory dataToSend = abi.encodeWithSelector(
-            IReferralGateway.checkCaller.selector,
+        bytes memory dataToSend = abi.encodeWithSignature(
+            "checkCaller(address,uint256)",
             msg.sender,
             _amount
         );
