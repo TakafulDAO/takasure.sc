@@ -24,7 +24,7 @@ contract TransferAndCallSource is Ownable2Step {
 
     uint64 private immutable destinationChainSelector;
 
-    address private immutable referralContract;
+    address private immutable receiverContract;
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
@@ -45,19 +45,19 @@ contract TransferAndCallSource is Ownable2Step {
     /**
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
-     * @param _referralContract The address of the referral contract. This will be the only receiver
+     * @param _receiverContract The address of the referral contract. This will be the only receiver
      */
     constructor(
         address _router,
         address _link,
         address _usdc,
-        address _referralContract,
+        address _receiverContract,
         uint64 _chainSelector
     ) Ownable(msg.sender) {
         router = IRouterClient(_router);
         linkToken = IERC20(_link);
         usdc = IERC20(_usdc);
-        referralContract = _referralContract;
+        receiverContract = _receiverContract;
         destinationChainSelector = _chainSelector;
     }
 
@@ -75,7 +75,7 @@ contract TransferAndCallSource is Ownable2Step {
     function transferUSDCPayLINK(uint256 amount) external returns (bytes32 messageId) {
         // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
         Client.EVM2AnyMessage memory message = _buildCCIPMessage(
-            referralContract,
+            receiverContract,
             address(usdc),
             amount,
             address(linkToken) // fees are paid in LINK
@@ -119,7 +119,7 @@ contract TransferAndCallSource is Ownable2Step {
     function transferUSDCPayNative(uint256 amount) external returns (bytes32 messageId) {
         // address(0) means fees are paid in native gas
         Client.EVM2AnyMessage memory message = _buildCCIPMessage(
-            referralContract,
+            receiverContract,
             address(usdc),
             amount,
             address(0)
