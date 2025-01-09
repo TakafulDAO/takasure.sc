@@ -74,6 +74,14 @@ deploy-ccip-source:
 	@forge clean
 	@forge script deploy/08-CcipSourceContract.s.sol:DeployTokenTransferSource $(NETWORK_ARGS)
 
+deploy-ccip-transfer-and-call:
+	@forge clean
+	@forge script deploy/09-CcipSourceTransferAndCall.s.sol:DeployTransferAndCallSource $(NETWORK_ARGS)
+
+deploy-ccip-receiver:
+	@forge clean
+	@forge script deploy/10-CcipReceiver.s.sol:DeployReceiverContract $(NETWORK_ARGS)
+
 # Interactions with ReferralGateway Contract
 # Create a DAO
 create-dao:
@@ -115,6 +123,9 @@ join-pool:
 # Interactions with CCIP Source Contract
 transfer-pay-link:
 	@forge script scripts/contract-interactions/chainlink-ccip/TransferUsdcPayWithLink.s.sol:TransferUsdcPayWithLink $(NETWORK_ARGS)
+
+transfer-and-call:
+	@forge script scripts/contract-interactions/chainlink-ccip/TransferAndCallUsdcPayWithLink.s.sol:TransferAndCallUsdcPayWithLink $(NETWORK_ARGS)
 	
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
