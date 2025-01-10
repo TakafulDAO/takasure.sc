@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GNU GPLv3
 
+/// @notice Run only in Arbitrum (One and Sepolia)
+
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";

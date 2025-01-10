@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
+/// @notice Run in Avax (Mainnet and Fuji), Base (Mainnet and Sepolia), Ethereum (Mainnet and Sepolia),
+///         Optimism (Mainnet and Sepolia), Polygon (Mainnet and Amoy)
+
 pragma solidity 0.8.28;
 
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
