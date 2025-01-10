@@ -1,9 +1,14 @@
 //SPDX-License-Identifier: GNU GPLv3
 
 /**
- * @title TransferAndCallSource
+ * @title Sender
  * @author Maikel Ordaz
- * @notice This contract is used to interact with the CCIP pprotocol to transfer tokens across chains and pay contribution
+ * @notice This contract will:
+ *          - Interact with the CCIP pprotocol
+ *          - Encode the data to send
+ *          - Send data to the Receiver contract
+ *          - Deployed in Avax (Mainnet and Fuji), Base (Mainnet and Sepolia), Ethereum (Mainnet and Sepolia),
+ *            Optimism (Mainnet and Sepolia), Polygon (Mainnet and Amoy)
  */
 
 pragma solidity 0.8.28;
@@ -44,7 +49,9 @@ contract Sender is Ownable2Step {
     /**
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
+     * @param _usdc The address of the USDC contract. // ? Question: Hardcord as only USDC, but we can add more tokens and have them as inputs in the functions
      * @param _receiverContract The address of the referral contract. This will be the only receiver
+     * @param _chainSelector The chain selector of the destination chain. From the list of supported chains.
      */
     constructor(
         address _router,
@@ -70,7 +77,7 @@ contract Sender is Ownable2Step {
      * @param amount token amount.
      * @return messageId The ID of the message that was sent.
      */
-    // TODO: We can add an input for another token, here only USDC
+    // ? Question: Here is where we can add more tokens
     function transferUSDCPayLINK(uint256 amount) external returns (bytes32 messageId) {
         // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
         Client.EVM2AnyMessage memory message = _buildCCIPMessage(
@@ -114,7 +121,8 @@ contract Sender is Ownable2Step {
      * @param amount token amount.
      * @return messageId The ID of the message that was sent.
      */
-    // TODO: We can add an input for another token, here only USDC
+    // ? Question: Here is where we can add more tokens
+    // ? Question: For this function, the fees are paid in native gas, so the contract needs balance. If not going to be used, we can remove it.
     function transferUSDCPayNative(uint256 amount) external returns (bytes32 messageId) {
         // address(0) means fees are paid in native gas
         Client.EVM2AnyMessage memory message = _buildCCIPMessage(
@@ -148,7 +156,7 @@ contract Sender is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Emergency function. Allows the contract owner to withdraw the entire balance of Ether from the contract.
+     * @notice Emergency function to withdraw the entire balance of Ether from the contract.
      * @param beneficiary The address to which the Ether should be transferred.
      * @dev This function reverts if there are no funds to withdraw or if the transfer fails.
      * @dev It should only be callable by the owner of the contract.
@@ -169,18 +177,18 @@ contract Sender is Ownable2Step {
     }
 
     /**
-     * @notice Emergency function. Allows the owner of the contract to withdraw all tokens of a specific ERC20 token.
+     * @notice Emergency function to withdraw all tokens of Link.
      * @dev This function reverts with a 'TransferAndCallSource__NothingToWithdraw' error if there are no tokens to withdraw.
      * @param beneficiary The address to which the tokens will be sent.
      */
     function withdrawToken(address beneficiary) external onlyOwner {
         // Retrieve the balance of this contract
-        uint256 amount = usdc.balanceOf(address(this));
+        uint256 amount = linkToken.balanceOf(address(this));
 
         // Revert if there is nothing to withdraw
         if (amount == 0) revert TransferAndCallSource__NothingToWithdraw();
 
-        usdc.safeTransfer(beneficiary, amount);
+        linkToken.safeTransfer(beneficiary, amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -189,7 +197,7 @@ contract Sender is Ownable2Step {
 
     /**
      * @notice Construct a CCIP message.
-     * @dev This function will create an EVM2AnyMessage struct with all the necessary information for tokens transfer.
+     * @dev This function will create an EVM2AnyMessage struct with the information to tramsfer the tokens and send data.
      * @param _receiver The address of the receiver.
      * @param _token The token to be transferred.
      * @param _amount The amount of the token to be transferred.
@@ -210,6 +218,7 @@ contract Sender is Ownable2Step {
         });
         tokenAmounts[0] = tokenAmount;
 
+        // Todo: Here is calling this test function, but we need to change it to the real one. To do in other PR
         bytes memory dataToSend = abi.encodeWithSignature(
             "checkCaller(address,uint256)",
             msg.sender,
@@ -223,7 +232,7 @@ contract Sender is Ownable2Step {
             tokenAmounts: tokenAmounts,
             extraArgs: Client._argsToBytes(
                 Client.EVMExtraArgsV2({
-                    gasLimit: 1_000_000, // Gas limit for the callback on the destination chain // TODO: Now hardcoded, because is easier, fix this
+                    gasLimit: 1_000_000, // TODO: Now hardcoded, because is easier, fix this
                     allowOutOfOrderExecution: true
                 })
             ),

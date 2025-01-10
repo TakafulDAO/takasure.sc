@@ -1,4 +1,14 @@
 //SPDX-License-Identifier: GNU GPLv3
+
+/**
+ * @title Receiver
+ * @author Maikel Ordaz
+ * @notice This contract will:
+ *          - Interact with the CCIP pprotocol
+ *          - Receive data from the Sender contract
+ *          - Perform a call to the ReferralGateway with the data received
+ *          - Deployed only in Arbitrum (One and Sepolia)
+ */
 pragma solidity 0.8.28;
 
 import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
@@ -18,6 +28,7 @@ contract Receiver is CCIPReceiver, Ownable2Step {
     mapping(bytes32 messageId => Client.Any2EVMMessage message) public messageContentsById;
     EnumerableMap.Bytes32ToUintMap internal failedMessages;
 
+    // ? Question: Here we can have a lot of failed messages, open to proposals by the team
     enum ErrorCode {
         RESOLVED,
         FAILED
@@ -55,7 +66,6 @@ contract Receiver is CCIPReceiver, Ownable2Step {
     }
 
     /**
-     * @notice Constructor initializes the contract with the router address.
      * @param _router The address of the router contract.
      * @param _usdc The address of the usdc contract.
      * @param _referralGateway The address of the staker contract.
@@ -72,9 +82,8 @@ contract Receiver is CCIPReceiver, Ownable2Step {
     }
 
     /**
-     * @notice The entrypoint for the CCIP router to call. This function should
-     *         never revert, all errors should be handled internally in this contract.
-     * @param any2EvmMessage The message to process.
+     * @notice CCIP router calls this function. Should never revert, errors are handled internally
+     * @param any2EvmMessage The message to process
      * @dev Only router can call
      */
     function ccipReceive(
@@ -82,7 +91,9 @@ contract Receiver is CCIPReceiver, Ownable2Step {
     ) external override onlyRouter {
         // Try-catch to avoid reverting the tx, emit event instead
         // Try catch to be able to call the external function
-        try this.processMessage(any2EvmMessage) {} catch (bytes memory err) {
+        try this.processMessage(any2EvmMessage) {
+            // ? Question: We can do anything here, open to proposals by the team. Can be emit an event to track something
+        } catch (bytes memory err) {
             failedMessages.set(any2EvmMessage.messageId, uint256(ErrorCode.FAILED));
             messageContentsById[any2EvmMessage.messageId] = any2EvmMessage;
             emit OnMessageFailed(any2EvmMessage.messageId, err);
@@ -91,23 +102,11 @@ contract Receiver is CCIPReceiver, Ownable2Step {
     }
 
     /**
-     * @notice Serves as the entry point for this contract to process incoming messages.
+     * @notice It process the message received from the CCIP protocol.
      * @param any2EvmMessage Received CCIP message.
      */
     function processMessage(Client.Any2EVMMessage calldata any2EvmMessage) external onlySelf {
         _ccipReceive(any2EvmMessage);
-    }
-
-    function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
-        (bool success, ) = referralGateway.call(any2EvmMessage.data);
-        require(success, Receiver__CallTFailed());
-        emit OnMessageReceived(
-            any2EvmMessage.messageId,
-            any2EvmMessage.sourceChainSelector,
-            abi.decode(any2EvmMessage.sender, (address)),
-            any2EvmMessage.data,
-            any2EvmMessage.destTokenAmounts[0].amount
-        );
     }
 
     /**
@@ -115,7 +114,7 @@ contract Receiver is CCIPReceiver, Ownable2Step {
      * @param messageId The unique identifier of the failed message
      * @dev This function is only callable by the contract owner
      * @dev It changes the status of the message from 'failed' to 'resolved' to prevent reentrancy
-     * Todo: Try again the low level call to the referral gateway
+     * Todo: Try again the low level call to the referral gateway, this one is to be implemented completely in other PR
      */
     function retryFailedMessage(bytes32 messageId) external onlyOwner {
         require(
@@ -149,5 +148,18 @@ contract Receiver is CCIPReceiver, Ownable2Step {
             failedMessagesList[i] = FailedMessage(messageId, ErrorCode(errorCode));
         }
         return failedMessagesList;
+    }
+
+    function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
+        // Low level call to the referral gateway
+        (bool success, ) = referralGateway.call(any2EvmMessage.data);
+        require(success, Receiver__CallTFailed());
+        emit OnMessageReceived(
+            any2EvmMessage.messageId,
+            any2EvmMessage.sourceChainSelector,
+            abi.decode(any2EvmMessage.sender, (address)),
+            any2EvmMessage.data,
+            any2EvmMessage.destTokenAmounts[0].amount
+        );
     }
 }
