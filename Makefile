@@ -117,9 +117,6 @@ join-pool:
 	@forge script scripts/contract-interactions/chainlink-ccip/TransferUsdcPayWithLink.s.sol:TransferUsdcPayWithLink $(NETWORK_ARGS)
 
 # Interactions with CCIP Source Contract
-transfer-pay-link:
-	@forge script scripts/contract-interactions/chainlink-ccip/TransferUsdcPayWithLink.s.sol:TransferUsdcPayWithLink $(NETWORK_ARGS)
-
 transfer-and-call:
 	@forge script scripts/contract-interactions/chainlink-ccip/TransferAndCallUsdcPayWithLink.s.sol:TransferAndCallUsdcPayWithLink $(NETWORK_ARGS)
 	
