@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {DeployConstants} from "deploy/DeployConstants.s.sol";
+import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 
 contract CcipHelperConfig is DeployConstants, Script {
     /*//////////////////////////////////////////////////////////////

@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {TransferAndCallSource} from "contracts/chainlink/ccip/TransferAndCallSource.sol";
-import {CcipHelperConfig} from "./CcipHelperConfig.s.sol";
+import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 
 contract DeployTransferAndCallSource is Script {
     uint256 public constant AVAX_FUJI_CHAIN_ID = 43113;

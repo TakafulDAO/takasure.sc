@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {TransferAndCallSource} from "contracts/chainlink/ccip/TransferAndCallSource.sol";
-import {CcipHelperConfig} from "deploy/CcipHelperConfig.s.sol";
+import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract TransferAndCallUsdcPayWithLink is Script, GetContractAddress {

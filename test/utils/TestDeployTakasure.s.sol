@@ -7,7 +7,7 @@ import {TSToken} from "contracts/token/TSToken.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
-import {HelperConfig} from "deploy/HelperConfig.s.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract TestDeployTakasure is Script {

@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumer} from "contracts/chainlink/functions/BenefitMultiplierConsumer.sol";
-import {HelperConfig} from "./HelperConfig.s.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract DeployAll is Script {
