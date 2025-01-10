@@ -35,48 +35,55 @@ snapshot :; forge snapshot
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
-deploy-referral:
+# Protocol deployments
+protoco-deploy-referral:
 	@forge clean
-	@forge script deploy/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
+	@forge script deploy/protocol/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
-upgrade-referral:
+protocol-deploy-all:
 	@forge clean
-	@forge script deploy/01-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
+	@forge script deploy/protocol/01-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
+
+protocol-deploy-takasure:
+	@forge clean
+	@forge script deploy/protocol/02-DeployTakasure.s.sol:DeployTakasure $(NETWORK_ARGS)
+
+# Protocol upgrades
+protocol-upgrade-referral:
+	@forge clean
+	@forge script deploy/protocol/upgrades/00-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
-deploy-bm-consumer:
-	@forge script deploy/02-DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)
-
-deploy-takasure:
+protocol-upgrade-takasure:
 	@forge clean
-	@forge script deploy/03-DeployTakasure.s.sol:DeployTakasure $(NETWORK_ARGS)
+	@forge script deploy/protocol/upgrades/01-UpgradeTakasure.s.sol:UpgradeTakasure $(NETWORK_ARGS)
 
-upgrade-takasure:
+# Defender
+defender-prepare-upgrade:
 	@forge clean
-	@forge script deploy/04-UpgradeTakasure.s.sol:UpgradeTakasure $(NETWORK_ARGS)
-
-deploy-all:
-	@forge clean
-	@forge script deploy/05-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
-
-upgrade-referral-defender:
-	@forge clean
-	@forge script deploy/06-DefenderUpgradeReferralGateway.s.sol:DefenderUpgradeReferralGateway $(NETWORK_ARGS)
+	@forge script deploy/defender/00-DefenderPrepareUpgrade.s.sol:DefenderPrepareUpgrade $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
-prepare-upgrade:
+defender-upgrade-referral:
 	@forge clean
-	@forge script deploy/07-DefenderPrepareUpgrade.s.sol:DefenderPrepareUpgrade $(NETWORK_ARGS)
+	@forge script deploy/defender/01-DefenderUpgradeReferralGateway.s.sol:DefenderUpgradeReferralGateway $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
+
+# Chainlink functions
+functions-deploy-bm-consumer:
+	@forge script deploy/chainlink/functions/DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)
+
+#Chainlink ccip
+ccip-deploy-receiver:
+	@forge clean
+	@forge script deploy/00-CcipDeployReceiver.s.sol:DeployReceiver $(NETWORK_ARGS)
 
 ccip-deploy-sender:
 	@forge clean
-	@forge script deploy/08-CcipDeploySender.s.sol:DeploySender $(NETWORK_ARGS)
+	@forge script deploy/chainlink/ccip/01-CcipDeploySender.s.sol:DeploySender $(NETWORK_ARGS)
 
-ccip-deploy-receiver:
-	@forge clean
-	@forge script deploy/09-CcipDeployReceiver.s.sol:DeployReceiver $(NETWORK_ARGS)
+
 
 # Interactions with ReferralGateway Contract
 # Create a DAO
