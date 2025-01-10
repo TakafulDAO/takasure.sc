@@ -77,7 +77,7 @@ functions-deploy-bm-consumer:
 #Chainlink ccip
 ccip-deploy-receiver:
 	@forge clean
-	@forge script deploy/00-CcipDeployReceiver.s.sol:DeployReceiver $(NETWORK_ARGS)
+	@forge script deploy/chainlink/ccip/00-CcipDeployReceiver.s.sol:DeployReceiver $(NETWORK_ARGS)
 
 ccip-deploy-sender:
 	@forge clean
