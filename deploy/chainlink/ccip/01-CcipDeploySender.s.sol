@@ -20,10 +20,9 @@ contract DeploySender is Script, DeployConstants, GetContractAddress {
             chainId
         );
 
-        address receiverContractAddress = _getContractAddress(chainId, "Receiver");
-
+        address receiverContractAddress;
         uint64 destinationChainSelector;
-        bytes32 salt = "10031960";
+        bytes32 salt = "2020";
 
         if (
             chainId == AVAX_FUJI_CHAIN_ID ||
@@ -32,8 +31,10 @@ contract DeploySender is Script, DeployConstants, GetContractAddress {
             chainId == OP_SEPOLIA_CHAIN_ID ||
             chainId == POL_AMOY_CHAIN_ID
         ) {
+            receiverContractAddress = _getContractAddress(ARB_SEPOLIA_CHAIN_ID, "Receiver");
             destinationChainSelector = ARB_SEPOLIA_SELECTOR;
         } else {
+            receiverContractAddress = _getContractAddress(ARB_MAINNET_CHAIN_ID, "Receiver");
             destinationChainSelector = ARB_MAINNET_SELECTOR;
         }
 

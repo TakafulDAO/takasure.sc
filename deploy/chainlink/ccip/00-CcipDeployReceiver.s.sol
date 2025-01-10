@@ -21,7 +21,7 @@ contract DeployReceiver is Script, DeployConstants, GetContractAddress {
 
         address referralContractAddress = _getContractAddress(chainId, "ReferralGateway");
 
-        bytes32 salt = "1960";
+        bytes32 salt = "2020";
 
         vm.startBroadcast();
 
