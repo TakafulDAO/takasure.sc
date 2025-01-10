@@ -25,19 +25,19 @@ abstract contract DeployConstants {
     /*//////////////////////////////////////////////////////////////
                                SELECTORS
     //////////////////////////////////////////////////////////////*/
-    uint256 public constant ARB_MAINNET_SELECTOR = 4949039107694359620;
-    uint256 public constant AVAX_MAINNET_SELECTOR = 6433500567565415381;
-    uint256 public constant BASE_MAINNET_SELECTOR = 15971525489660198786;
-    uint256 public constant ETH_MAINNET_SELECTOR = 5009297550715157269;
-    uint256 public constant OP_MAINNET_SELECTOR = 3734403246176062136;
-    uint256 public constant POL_MAINNET_SELECTOR = 4051577828743386545;
+    uint64 public constant ARB_MAINNET_SELECTOR = 4949039107694359620;
+    uint64 public constant AVAX_MAINNET_SELECTOR = 6433500567565415381;
+    uint64 public constant BASE_MAINNET_SELECTOR = 15971525489660198786;
+    uint64 public constant ETH_MAINNET_SELECTOR = 5009297550715157269;
+    uint64 public constant OP_MAINNET_SELECTOR = 3734403246176062136;
+    uint64 public constant POL_MAINNET_SELECTOR = 4051577828743386545;
 
-    uint256 public constant ARB_SEPOLIA_SELECTOR = 3478487238524512106;
-    uint256 public constant AVAX_FUJI_SELECTOR = 14767482510784806043;
-    uint256 public constant BASE_SEPOLIA_SELECTOR = 10344971235874465080;
-    uint256 public constant ETH_SEPOLIA_SELECTOR = 16015286601757825753;
-    uint256 public constant OP_SEPOLIA_SELECTOR = 10344971235874465080;
-    uint256 public constant POL_AMOY_SELECTOR = 10344971235874465080;
+    uint64 public constant ARB_SEPOLIA_SELECTOR = 3478487238524512106;
+    uint64 public constant AVAX_FUJI_SELECTOR = 14767482510784806043;
+    uint64 public constant BASE_SEPOLIA_SELECTOR = 10344971235874465080;
+    uint64 public constant ETH_SEPOLIA_SELECTOR = 16015286601757825753;
+    uint64 public constant OP_SEPOLIA_SELECTOR = 10344971235874465080;
+    uint64 public constant POL_AMOY_SELECTOR = 10344971235874465080;
 
     /*//////////////////////////////////////////////////////////////
                                ADDRESSES
@@ -241,4 +241,12 @@ abstract contract DeployConstants {
             arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
             eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
+
+    /*//////////////////////////////////////////////////////////////
+                         BM FETCH SCRIPT ROOTS
+    //////////////////////////////////////////////////////////////*/
+
+    string constant MAINNET_SCRIPT_ROOT = "/scripts/chainlink-functions/bmFetchCodeMainnet.js";
+    string constant TESTNET_SCRIPT_ROOT = "/scripts/chainlink-functions/bmFetchCodeTestnet.js";
+    string constant UAT_SCRIPT_ROOT = "/scripts/chainlink-functions/bmFetchCodeUat.js";
 }

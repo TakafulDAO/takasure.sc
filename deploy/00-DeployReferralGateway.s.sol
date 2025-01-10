@@ -7,22 +7,24 @@ import {BenefitMultiplierConsumer} from "contracts/chainlink/functions/BenefitMu
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 
-contract DeployReferralGateway is Script {
+contract DeployReferralGateway is Script, DeployConstants {
     using stdJson for string;
 
     function run() external returns (address proxy) {
+        uint256 chainId = block.chainid;
         HelperConfig helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
 
         string memory bmFetchScriptRoot;
 
-        if (block.chainid == 42161) {
-            bmFetchScriptRoot = "/scripts/chainlink-functions/bmFetchCodeMainnet.js";
-        } else if (block.chainid == 421614) {
-            bmFetchScriptRoot = "/scripts/chainlink-functions/bmFetchCodeTestnet.js";
+        if (chainId == ARB_MAINNET_CHAIN_ID) {
+            bmFetchScriptRoot = MAINNET_SCRIPT_ROOT;
+        } else if (chainId == ARB_SEPOLIA_CHAIN_ID) {
+            bmFetchScriptRoot = TESTNET_SCRIPT_ROOT;
         } else {
-            bmFetchScriptRoot = "/scripts/chainlink-functions/bmFetchCodeUat.js";
+            bmFetchScriptRoot = UAT_SCRIPT_ROOT;
         }
 
         string memory root = vm.projectRoot();

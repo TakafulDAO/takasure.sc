@@ -3,23 +3,10 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
+import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 
-contract GetContractAddress is Script {
+contract GetContractAddress is Script, DeployConstants {
     using stdJson for string;
-
-    uint256 public constant ARB_MAINNET_CHAIN_ID = 42161;
-    uint256 public constant AVAX_MAINNET_CHAIN_ID = 43114;
-    uint256 public constant BASE_MAINNET_CHAIN_ID = 8453;
-    uint256 public constant ETH_MAINNET_CHAIN_ID = 1;
-    uint256 public constant OP_MAINNET_CHAIN_ID = 10;
-    uint256 public constant POL_MAINNET_CHAIN_ID = 137;
-
-    uint256 public constant ARB_SEPOLIA_CHAIN_ID = 421614;
-    uint256 public constant AVAX_FUJI_CHAIN_ID = 43113;
-    uint256 public constant BASE_SEPOLIA_CHAIN_ID = 84532;
-    uint256 public constant ETH_SEPOLIA_CHAIN_ID = 11155111;
-    uint256 public constant OP_SEPOLIA_CHAIN_ID = 11155420;
-    uint256 public constant POL_AMOY_CHAIN_ID = 80002;
 
     function _getContractAddress(
         uint256 chainId,
