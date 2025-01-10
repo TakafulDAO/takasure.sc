@@ -70,13 +70,13 @@ prepare-upgrade:
 	@forge script deploy/07-DefenderPrepareUpgrade.s.sol:DefenderPrepareUpgrade $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
-deploy-ccip-transfer-and-call:
+ccip-deploy-sender:
 	@forge clean
-	@forge script deploy/08-CcipSourceTransferAndCall.s.sol:DeployTransferAndCallSource $(NETWORK_ARGS)
+	@forge script deploy/08-CcipDeploySender.s.sol:DeploySender $(NETWORK_ARGS)
 
-deploy-ccip-receiver:
+ccip-deploy-receiver:
 	@forge clean
-	@forge script deploy/09-CcipReceiver.s.sol:DeployReceiverContract $(NETWORK_ARGS)
+	@forge script deploy/09-CcipDeployReceiver.s.sol:DeployReceiver $(NETWORK_ARGS)
 
 # Interactions with ReferralGateway Contract
 # Create a DAO
@@ -117,8 +117,8 @@ join-pool:
 	@forge script scripts/contract-interactions/chainlink-ccip/TransferUsdcPayWithLink.s.sol:TransferUsdcPayWithLink $(NETWORK_ARGS)
 
 # Interactions with CCIP Source Contract
-transfer-and-call:
-	@forge script scripts/contract-interactions/chainlink-ccip/TransferAndCallUsdcPayWithLink.s.sol:TransferAndCallUsdcPayWithLink $(NETWORK_ARGS)
+ccip-send-message:
+	@forge script scripts/contract-interactions/chainlink-ccip/SendMessage.s.sol:SendMessage $(NETWORK_ARGS)
 	
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 

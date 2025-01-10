@@ -3,10 +3,10 @@
 pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {TransferAndCallSource} from "contracts/chainlink/ccip/TransferAndCallSource.sol";
+import {Sender} from "contracts/chainlink/ccip/Sender.sol";
 import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 
-contract DeployTransferAndCallSource is Script {
+contract DeploySender is Script {
     uint256 public constant AVAX_FUJI_CHAIN_ID = 43113;
     uint256 public constant BASE_SEPOLIA_CHAIN_ID = 84532;
     uint256 public constant ETH_SEPOLIA_CHAIN_ID = 11155111;
@@ -19,7 +19,7 @@ contract DeployTransferAndCallSource is Script {
     uint64 public constant ARB_ONE_CHAIN_SELECTOR = 4949039107694359620;
     uint64 public constant ARB_SEPOLIA_CHAIN_SELECTOR = 3478487238524512106;
 
-    function run() external returns (TransferAndCallSource) {
+    function run() external returns (Sender) {
         uint256 chainId = block.chainid;
 
         CcipHelperConfig ccipHelperConfig = new CcipHelperConfig();
@@ -48,8 +48,8 @@ contract DeployTransferAndCallSource is Script {
 
         vm.startBroadcast();
 
-        // Deploy TransferAndCallSource contract
-        TransferAndCallSource transferAndCallSource = new TransferAndCallSource{salt: salt}(
+        // Deploy Sender contract
+        Sender sender = new Sender{salt: salt}(
             config.router,
             config.link,
             config.usdc,
@@ -59,6 +59,6 @@ contract DeployTransferAndCallSource is Script {
 
         vm.stopBroadcast();
 
-        return (transferAndCallSource);
+        return (sender);
     }
 }

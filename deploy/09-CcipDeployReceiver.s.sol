@@ -3,10 +3,10 @@
 pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {ReceiverContract} from "contracts/chainlink/ccip/ReceiverContract.sol";
+import {Receiver} from "contracts/chainlink/ccip/Receiver.sol";
 import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 
-contract DeployReceiverContract is Script {
+contract DeployReceiver is Script {
     uint256 public constant ARB_SEPOLIA_CHAIN_ID = 421614;
     uint256 public constant AVAX_FUJI_CHAIN_ID = 43113;
     uint256 public constant BASE_SEPOLIA_CHAIN_ID = 84532;
@@ -20,7 +20,7 @@ contract DeployReceiverContract is Script {
     uint64 public constant ARB_ONE_CHAIN_SELECTOR = 4949039107694359620;
     uint64 public constant ARB_SEPOLIA_CHAIN_SELECTOR = 3478487238524512106;
 
-    function run() external returns (ReceiverContract) {
+    function run() external returns (Receiver) {
         uint256 chainId = block.chainid;
 
         CcipHelperConfig ccipHelperConfig = new CcipHelperConfig();
@@ -47,15 +47,11 @@ contract DeployReceiverContract is Script {
 
         vm.startBroadcast();
 
-        // Deploy TransferAndCallSource contract
-        ReceiverContract receiverContract = new ReceiverContract{salt: salt}(
-            config.router,
-            config.usdc,
-            referralContract
-        );
+        // Deploy Receiver contract
+        Receiver receiver = new Receiver{salt: salt}(config.router, config.usdc, referralContract);
 
         vm.stopBroadcast();
 
-        return (receiverContract);
+        return (receiver);
     }
 }
