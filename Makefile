@@ -83,44 +83,42 @@ ccip-deploy-sender:
 	@forge clean
 	@forge script deploy/chainlink/ccip/01-CcipDeploySender.s.sol:DeploySender $(NETWORK_ARGS)
 
-
-
 # Interactions with ReferralGateway Contract
 # Create a DAO
-create-dao:
+referral-create-dao:
 	@forge script scripts/contract-interactions/referralGateway/CreateDao.s.sol:CreateDao $(NETWORK_ARGS)
 
 # Change operator
-change-operator:
+referral-change-operator:
 	@forge script scripts/contract-interactions/referralGateway/ChangeOperator.s.sol:ChangeOperator $(NETWORK_ARGS)
 
 # Renounce admin
-renounce-admin:
+referral-renounce-admin:
 	@forge script scripts/contract-interactions/referralGateway/ChangeAdmin.s.sol:ChangeAdmin $(NETWORK_ARGS)
 
 # Interactions with BenefitMultiplierConsumer Contract
 # Add a new BM Requester
-add-bm-requester:
+functions-add-bm-requester:
 	@forge script scripts/contract-interactions/bmConsumer/AddBmRequester.s.sol:AddBmRequester $(NETWORK_ARGS)
 
-request-bm:
+functions-request-bm:
 	@forge script scripts/contract-interactions/bmConsumer/RequestBenefitMultiplier.s.sol:RequestBenefitMultiplier $(NETWORK_ARGS)
 
 # Add a new BM fetch code
-add-bm-fetch-code:
+functions-add-bm-fetch-code:
 	@forge script scripts/contract-interactions/bmConsumer/AddBmFetchCode.s.sol:AddBmFetchCode $(NETWORK_ARGS)
 
 # Interactions with USDC
-approve-spender:
+mock-approve-spender:
 	@forge script scripts/contract-interactions/usdc/ApproveSpender.s.sol:ApproveSpender $(NETWORK_ARGS)
 
 # Interactions with Takasure Contract
 # Add a new BM Oracle Consumer
-add-bm-consumer:
+takasure-add-bm-consumer:
 	@forge script scripts/contract-interactions/takasure/AddBmOracleConsumer.s.sol:AddBmOracleConsumer $(NETWORK_ARGS)
 
 # Join pool
-join-pool:
+takasure-join-pool:
 	@forge script scripts/contract-interactions/chainlink-ccip/TransferUsdcPayWithLink.s.sol:TransferUsdcPayWithLink $(NETWORK_ARGS)
 
 # Interactions with CCIP Source Contract
@@ -154,8 +152,6 @@ else ifeq ($(findstring --network optimism_sepolia,$(ARGS)),--network optimism_s
 else ifeq ($(findstring --network polygon_amoy,$(ARGS)),--network polygon_amoy)
 	NETWORK_ARGS := --rpc-url $(POLYGON_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(POLYGONSCAN_API_KEY) -vvvv
 endif
-
-
 
 # Certora
 fv:; certoraRun ./certora/conf/ReserveMathLib.conf
