@@ -144,7 +144,6 @@ contract ReferralGateway is
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
-    event OnCaller(address indexed user, uint256 indexed value, address indexed caller);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__onlyDAOAdmin();
@@ -930,9 +929,5 @@ contract ReferralGateway is
 
     function _onlyDAOAdmin(string calldata tDAOName) internal view {
         require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
-    }
-
-    function checkCaller(address caller, uint256 callUint) external {
-        emit OnCaller(caller, callUint, msg.sender);
     }
 }
