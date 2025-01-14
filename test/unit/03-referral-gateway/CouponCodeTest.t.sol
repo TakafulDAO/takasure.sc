@@ -81,6 +81,13 @@ contract CouponCodeTest is Test {
         referralGateway.setCouponPoolAddress(couponPool);
     }
 
+    function testSetNewCcipReceiverContract() public {
+        vm.prank(operator);
+        vm.expectEmit(true, true, false, false, address(referralGateway));
+        emit OnNewCCIPReceiverContract(address(0), ccipReceiverContract);
+        referralGateway.setCCIPReceiverContract(ccipReceiverContract);
+    }
+
     modifier setCouponPoolAndCouponRedeemer() {
         vm.startPrank(operator);
         referralGateway.setCouponPoolAddress(couponPool);
@@ -89,12 +96,18 @@ contract CouponCodeTest is Test {
         _;
     }
 
+    modifier setCcipReceiverContract() {
+        vm.prank(operator);
+        referralGateway.setCCIPReceiverContract(ccipReceiverContract);
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                        COUPON PREPAYMENTS NO CCIP
     //////////////////////////////////////////////////////////////*/
 
     //======== coupon higher than contribution ========//
-    function testCouponPrepaymentCase1() public setCouponPoolAndCouponRedeemer {
+    function testCouponPrepaymentNoCcipCase1() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT * 2;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -138,7 +151,7 @@ contract CouponCodeTest is Test {
     }
 
     //======== coupon equals than contribution ========//
-    function testCouponPrepaymentCase2() public setCouponPoolAndCouponRedeemer {
+    function testCouponPrepaymentNoCcipCase2() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -182,7 +195,7 @@ contract CouponCodeTest is Test {
     }
 
     //======== coupon less than contribution ========//
-    function testCouponPrepaymentCase3() public setCouponPoolAndCouponRedeemer {
+    function testCouponPrepaymentNoCcipCase3() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -234,7 +247,7 @@ contract CouponCodeTest is Test {
     }
 
     //======== no coupon ========//
-    function testCouponPrepaymentCase4() public setCouponPoolAndCouponRedeemer {
+    function testCouponPrepaymentNoCcipCase4() public setCouponPoolAndCouponRedeemer {
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
         uint256 initialOperatorBalance = usdc.balanceOf(operator);
         uint256 initialCouponUserBalance = usdc.balanceOf(couponUser);
@@ -273,6 +286,201 @@ contract CouponCodeTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                         CCIP PAYMENT NO COUPON
+                      COUPON PREPAYMENTS WITH CCIP
     //////////////////////////////////////////////////////////////*/
+
+    //======== coupon higher than contribution ========//
+    function testCouponPrepaymentWithCcipCase1()
+        public
+        setCouponPoolAndCouponRedeemer
+        setCcipReceiverContract
+    {
+        uint256 couponAmount = CONTRIBUTION_AMOUNT * 2;
+
+        uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 initialOperatorBalance = usdc.balanceOf(operator);
+        uint256 initialCouponUserBalance = usdc.balanceOf(couponUser);
+        uint256 initialCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
+
+        vm.prank(ccipReceiverContract);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
+        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
+            CONTRIBUTION_AMOUNT,
+            tDaoName,
+            address(0),
+            couponUser,
+            couponAmount
+        );
+
+        uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 finalOperatorBalance = usdc.balanceOf(operator);
+        uint256 finalCouponUserBalance = usdc.balanceOf(couponUser);
+        uint256 finalCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
+
+        // Coupon pool balance should decrease by the coupon amount
+        assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
+        // Operator balance should increase by the fee
+        assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
+        // Coupon user balance should not change
+        assertEq(finalCouponUserBalance, initialCouponUserBalance);
+        // CCIP receiver contract balance should not change
+        assertEq(finalCCIPReceiverContractBalance, initialCCIPReceiverContractBalance);
+        assert(feeToOp > 0);
+
+        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+            couponUser,
+            tDaoName
+        );
+
+        assertEq(contributionBeforeFee, couponAmount);
+        assertEq(discount, 0); // No discount as the coupon is consumed completely and covers the whole membership
+    }
+
+    //======== coupon equals than contribution ========//
+    function testCouponPrepaymentWithCcipCase2()
+        public
+        setCouponPoolAndCouponRedeemer
+        setCcipReceiverContract
+    {
+        uint256 couponAmount = CONTRIBUTION_AMOUNT;
+
+        uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 initialOperatorBalance = usdc.balanceOf(operator);
+        uint256 initialCouponUserBalance = usdc.balanceOf(couponUser);
+        uint256 initialCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
+
+        vm.prank(ccipReceiverContract);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
+        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
+            CONTRIBUTION_AMOUNT,
+            tDaoName,
+            address(0),
+            couponUser,
+            couponAmount
+        );
+
+        uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 finalOperatorBalance = usdc.balanceOf(operator);
+        uint256 finalCouponUserBalance = usdc.balanceOf(couponUser);
+        uint256 finalCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
+
+        // Coupon pool balance should decrease by the coupon amount
+        assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
+        // Operator balance should increase by the fee
+        assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
+        // Coupon user balance should not change
+        assertEq(finalCouponUserBalance, initialCouponUserBalance);
+        // CCIP receiver contract balance should not change
+        assertEq(finalCCIPReceiverContractBalance, initialCCIPReceiverContractBalance);
+        assert(feeToOp > 0);
+
+        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+            couponUser,
+            tDaoName
+        );
+
+        assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT);
+        assertEq(discount, 0); // No discount as the coupon is consumed completely and covers the whole membership
+    }
+
+    //======== coupon less than contribution ========//
+    function testCouponPrepaymentWithCcipCase3()
+        public
+        setCouponPoolAndCouponRedeemer
+        setCcipReceiverContract
+    {
+        uint256 couponAmount = CONTRIBUTION_AMOUNT;
+
+        uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 initialOperatorBalance = usdc.balanceOf(operator);
+        uint256 initialCouponUserBalance = usdc.balanceOf(couponUser);
+        uint256 initialCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
+
+        vm.prank(ccipReceiverContract);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
+        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
+            CONTRIBUTION_AMOUNT * 2,
+            tDaoName,
+            address(0),
+            couponUser,
+            couponAmount
+        );
+
+        uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 finalOperatorBalance = usdc.balanceOf(operator);
+        uint256 finalCouponUserBalance = usdc.balanceOf(couponUser);
+        uint256 finalCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
+
+        // Coupon pool balance should decrease by the coupon amount
+        assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
+        // Operator balance should increase by the fee
+        assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
+        // Coupon user balance should not change
+        assertEq(finalCouponUserBalance, initialCouponUserBalance);
+        // CCIP receiver balance should decrease by the contribution minus the coupon minus the discount
+        assertEq(
+            finalCCIPReceiverContractBalance,
+            initialCCIPReceiverContractBalance -
+                (CONTRIBUTION_AMOUNT -
+                    ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100))
+        );
+        assert(feeToOp > 0);
+
+        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+            couponUser,
+            tDaoName
+        );
+
+        uint256 expectedDiscount = (((CONTRIBUTION_AMOUNT * 2) - couponAmount) *
+            CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
+
+        assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT * 2);
+        assertEq(discount, expectedDiscount); // Applied to what is left after the coupon
+    }
+
+    //======== no coupon ========//
+    function testCouponPrepaymentWithCcipCase4()
+        public
+        setCouponPoolAndCouponRedeemer
+        setCcipReceiverContract
+    {
+        uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 initialOperatorBalance = usdc.balanceOf(operator);
+        uint256 initialCouponUserBalance = usdc.balanceOf(couponUser);
+        uint256 initialCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
+
+        vm.prank(ccipReceiverContract);
+        (uint256 feeToOp, uint256 discount) = referralGateway.payContributionOnBehalfOf(
+            CONTRIBUTION_AMOUNT,
+            tDaoName,
+            address(0),
+            couponUser,
+            0
+        );
+
+        uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
+        uint256 finalOperatorBalance = usdc.balanceOf(operator);
+        uint256 finalCouponUserBalance = usdc.balanceOf(couponUser);
+        uint256 finalCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
+
+        // Coupon pool balance should not change
+        assertEq(finalCouponPoolBalance, initialCouponPoolBalance);
+        // Operator balance should increase by the fee
+        assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
+        // Coupon user balance should not change
+        assertEq(finalCouponUserBalance, initialCouponUserBalance);
+        // CCIP receiver balance should decrease by the contribution minus minus the discount
+        assertEq(
+            finalCCIPReceiverContractBalance,
+            initialCCIPReceiverContractBalance -
+                (CONTRIBUTION_AMOUNT -
+                    ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100))
+        );
+
+        assert(feeToOp > 0);
+        assert(discount > 0);
+    }
 }
