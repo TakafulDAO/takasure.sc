@@ -41,6 +41,7 @@ contract ReferralGateway is
     mapping(address child => address parent) public childToParent;
 
     address private couponPool;
+    address private ccipReceiverContract;
 
     struct PrepaidMember {
         address member;
@@ -144,6 +145,10 @@ contract ReferralGateway is
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
+    event OnNewCCIPReceiverContract(
+        address indexed oldCCIPReceiverContract,
+        address indexed newCCIPReceiverContract
+    );
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__onlyDAOAdmin();
@@ -550,6 +555,14 @@ contract ReferralGateway is
         address oldCouponPool = couponPool;
         couponPool = _couponPool;
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
+    }
+
+    function setCCIPReceiverContract(
+        address _ccipReceiverContract
+    ) external notZeroAddress(_ccipReceiverContract) onlyRole(OPERATOR) {
+        address oldCCIPReceiverContract = ccipReceiverContract;
+        ccipReceiverContract = _ccipReceiverContract;
+        emit OnNewCCIPReceiverContract(oldCCIPReceiverContract, _ccipReceiverContract);
     }
 
     function pause() external onlyRole(PAUSE_GUARDIAN) {
