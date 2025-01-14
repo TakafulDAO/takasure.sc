@@ -165,6 +165,7 @@ contract ReferralGateway is
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
+    error ReferralGateway__WrongCaller();
 
     modifier notZeroAddress(address _address) {
         require(_address != address(0), ReferralGateway__ZeroAddress());
@@ -173,6 +174,14 @@ contract ReferralGateway is
 
     modifier onlyDAOAdmin(string calldata tDAOName) {
         require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
+        _;
+    }
+
+    modifier onlyCouponRedeemerOrCcipReceiver() {
+        require(
+            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            ReferralGateway__WrongCaller()
+        );
         _;
     }
 
@@ -376,6 +385,8 @@ contract ReferralGateway is
      * @dev The function will create a prepaid member object with the contribution data if
      *      the DAO is not deployed yet, otherwise it will call the DAO to join
      * @dev It will apply the discounts and rewards if the DAO has the features enabled
+     * @dev It can be call by the coupon redeemer if the payment comes from the same blockchain
+     * @dev It can be call by the ccipReceiverContract if the payment comes from another blockchain
      */
     function payContributionOnBehalfOf(
         uint256 contribution,
@@ -383,7 +394,7 @@ contract ReferralGateway is
         address parent,
         address newMember,
         uint256 couponAmount
-    ) external onlyRole(COUPON_REDEEMER) returns (uint256 finalFee, uint256 discount) {
+    ) external onlyCouponRedeemerOrCcipReceiver returns (uint256 finalFee, uint256 discount) {
         (finalFee, discount) = _payContribution(
             contribution,
             tDAOName,
