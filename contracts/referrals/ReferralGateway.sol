@@ -403,7 +403,7 @@ contract ReferralGateway is
             couponAmount
         );
 
-        emit OnCouponRedeemed(newMember, tDAOName, couponAmount);
+        if (couponAmount > 0) emit OnCouponRedeemed(newMember, tDAOName, couponAmount);
     }
 
     /**
