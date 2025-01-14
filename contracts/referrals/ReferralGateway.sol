@@ -738,7 +738,11 @@ contract ReferralGateway is
             uint256 amountToTransfer = realContribution - _discount - _couponAmount;
 
             if (amountToTransfer > 0) {
-                usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
+                if (msg.sender == ccipReceiverContract) {
+                    usdc.safeTransferFrom(ccipReceiverContract, address(this), amountToTransfer);
+                } else {
+                    usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
+                }
             }
 
             if (_couponAmount > 0) {
