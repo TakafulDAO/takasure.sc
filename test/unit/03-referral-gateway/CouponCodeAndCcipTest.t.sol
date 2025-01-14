@@ -9,7 +9,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract CouponCodeTest is Test {
+contract CouponCodeAndCcipTest is Test {
     TestDeployTakasure deployer;
     ReferralGateway referralGateway;
     BenefitMultiplierConsumerMock bmConsumerMock;
