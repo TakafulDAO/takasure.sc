@@ -14,7 +14,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
+contract payRecurringContribution_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
     DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
@@ -66,7 +66,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
         vm.stopPrank;
     }
 
-    function testTakasurePool_recurringPaymentThrough5Years() public {
+    function testTakasurePool_payRecurringContributionThrough5Years() public {
         uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
 
         for (uint256 i = 0; i < 5; i++) {
@@ -85,10 +85,10 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
                 alice,
                 testMember.memberId,
                 lastYearStartDateBefore + 365 days,
-                totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
+                CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
-            takasurePool.recurringPayment();
+            takasurePool.payRecurringContribution();
             vm.stopPrank;
 
             testMember = takasurePool.getMemberFromAddress(alice);
@@ -109,8 +109,10 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
         }
     }
 
-    /// @dev `recurringPayment` must default member, a year + 30 days has passed and the member has not paid
-    function testTakasurePool_recurringPaymentMustDefaultMemberIfEnoughTimeHasPassed() public {
+    /// @dev `payRecurringContribution` must default member, a year + 30 days has passed and the member has not paid
+    function testTakasurePool_payRecurringContributionMustDefaultMemberIfEnoughTimeHasPassed()
+        public
+    {
         vm.warp(block.timestamp + 395 days);
         vm.roll(block.number + 1);
 
@@ -120,7 +122,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
             takasurePool.getMemberFromAddress(alice).memberId,
             alice
         );
-        takasurePool.recurringPayment();
+        takasurePool.payRecurringContribution();
         vm.stopPrank;
 
         Member memory testMember = takasurePool.getMemberFromAddress(alice);
