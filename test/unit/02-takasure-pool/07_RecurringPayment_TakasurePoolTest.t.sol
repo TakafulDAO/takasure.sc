@@ -12,6 +12,8 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
+import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
+
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
 contract payRecurringContribution_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
@@ -110,23 +112,13 @@ contract payRecurringContribution_TakasurePoolTest is StdCheats, Test, SimulateD
     }
 
     /// @dev `payRecurringContribution` must default member, a year + 30 days has passed and the member has not paid
-    function testTakasurePool_payRecurringContributionMustDefaultMemberIfEnoughTimeHasPassed()
-        public
-    {
+    function testTakasurePool_payRecurringContributionMustRevertIfEnoughTimeHasPassed() public {
         vm.warp(block.timestamp + 395 days);
         vm.roll(block.number + 1);
 
         vm.startPrank(alice);
-        vm.expectEmit(true, true, false, false, address(takasurePool));
-        emit TakasureEvents.OnMemberDefaulted(
-            takasurePool.getMemberFromAddress(alice).memberId,
-            alice
-        );
+        vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
         takasurePool.payRecurringContribution();
-        vm.stopPrank;
-
-        Member memory testMember = takasurePool.getMemberFromAddress(alice);
-
-        assert(testMember.memberState == MemberState.Defaulted);
+        vm.stopPrank();
     }
 }
