@@ -422,7 +422,7 @@ contract TakasurePool is
                 msg.sender,
                 reserve.members[msg.sender].memberId,
                 reserve.members[msg.sender].lastPaidYearStartDate,
-                reserve.members[msg.sender].totalContributions,
+                contributionBeforeFee,
                 reserve.members[msg.sender].totalServiceFee
             );
         }

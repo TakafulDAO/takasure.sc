@@ -34,7 +34,7 @@ library TakasureEvents {
         address member,
         uint256 indexed memberId,
         uint256 indexed lastPaidYearDate,
-        uint256 indexed updatedContribution,
+        uint256 indexed latestContribution,
         uint256 updatedTotalServiceFee
     );
     event OnServiceFeeChanged(uint8 indexed newServiceFee);
