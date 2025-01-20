@@ -373,7 +373,7 @@ contract TakasurePool is
         _cancelMembership(memberWallet);
     }
 
-    function payRecurreingContribution() external {
+    function payRecurringContribution() external {
         // The member can pay the contribution if active or defaulted but at least 30 days have passed from the new year
         Member memory member = reserve.members[msg.sender];
         if (
