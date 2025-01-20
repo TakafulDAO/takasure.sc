@@ -390,13 +390,8 @@ contract TakasurePool is
         uint256 firstLimitTimestamp = membershipStartTime + membershipDuration; // The complete membership duration
         uint256 secondLimitTimestamp = lastPaidYearStartDate + year + gracePeriod;
 
-        if (currentTimestamp > firstLimitTimestamp) {
+        if (currentTimestamp > firstLimitTimestamp || currentTimestamp >= secondLimitTimestamp) {
             revert TakasureErrors.TakasurePool__InvalidDate();
-        } else if (currentTimestamp >= secondLimitTimestamp) {
-            // Update the state, this will allow to cancel the membership
-            reserve.members[msg.sender].memberState = MemberState.Defaulted;
-
-            emit TakasureEvents.OnMemberDefaulted(reserve.members[msg.sender].memberId, msg.sender);
         } else {
             uint256 contributionBeforeFee = member.contribution;
             uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
