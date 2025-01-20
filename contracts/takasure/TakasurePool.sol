@@ -435,10 +435,10 @@ contract TakasurePool is
 
         uint256 currentTimestamp = block.timestamp;
         uint256 lastPaidYearStartDate = member.lastPaidYearStartDate;
-        uint256 limitTimestamp = member.membershipStartTime + lastPaidYearStartDate + (30 days); // 30 days after the new membership year
+        uint256 limitTimestamp = member.membershipStartTime + lastPaidYearStartDate;
 
         if (currentTimestamp >= limitTimestamp) {
-            //     // Update the state, this will allow to cancel the membership
+            // Update the state, this will allow to cancel the membership
             reserve.members[memberWallet].memberState = MemberState.Defaulted;
 
             emit TakasureEvents.OnMemberDefaulted(reserve.members[msg.sender].memberId, msg.sender);
