@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GNU GPLv3
+// SPDX-License-Identifier: GPL-3.0
 
 pragma solidity 0.8.28;
 
@@ -13,7 +13,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
+contract Refund_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
@@ -25,7 +25,6 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-    uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
@@ -36,7 +35,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
 
         admin = config.daoMultisig;
 
-        takasurePool = TakasurePool(proxy);
+        takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
 
         vm.prank(admin);
@@ -58,49 +57,23 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
 
         vm.startPrank(admin);
         takasurePool.setKYCStatus(alice);
-        vm.stopPrank;
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + YEAR + 31 days);
+        vm.roll(block.number + 1);
+
+        takasurePool.defaultMember(alice);
     }
 
-    function testTakasurePool_payRecurringContributionThrough5Years() public {
-        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
+    function testTakasurePool_cancelMembership() public {
+        Member memory Alice = takasurePool.getMemberFromAddress(alice);
+        assert(Alice.memberState == MemberState.Defaulted);
 
-        for (uint256 i = 0; i < 5; i++) {
-            Member memory testMember = takasurePool.getMemberFromAddress(alice);
+        vm.expectEmit(true, true, false, false, address(takasurePool));
+        emit TakasureEvents.OnMemberCanceled(Alice.memberId, alice);
+        takasurePool.cancelMembership(alice);
 
-            uint256 lastYearStartDateBefore = testMember.lastPaidYearStartDate;
-            uint256 totalContributionBeforePayment = testMember.totalContributions;
-            uint256 totalServiceFeeBeforePayment = testMember.totalServiceFee;
-
-            vm.warp(block.timestamp + YEAR);
-            vm.roll(block.number + 1);
-
-            vm.startPrank(alice);
-            vm.expectEmit(true, true, true, true, address(takasurePool));
-            emit TakasureEvents.OnRecurringPayment(
-                alice,
-                testMember.memberId,
-                lastYearStartDateBefore + 365 days,
-                CONTRIBUTION_AMOUNT,
-                totalServiceFeeBeforePayment + expectedServiceIncrease
-            );
-            takasurePool.payRecurringContribution();
-            vm.stopPrank;
-
-            testMember = takasurePool.getMemberFromAddress(alice);
-
-            uint256 lastYearStartDateAfter = testMember.lastPaidYearStartDate;
-            uint256 totalContributionAfterPayment = testMember.totalContributions;
-            uint256 totalServiceFeeAfterPayment = testMember.totalServiceFee;
-
-            assert(lastYearStartDateAfter == lastYearStartDateBefore + 365 days);
-            assert(
-                totalContributionAfterPayment ==
-                    totalContributionBeforePayment + CONTRIBUTION_AMOUNT
-            );
-            assert(
-                totalServiceFeeAfterPayment ==
-                    totalServiceFeeBeforePayment + expectedServiceIncrease
-            );
-        }
+        Alice = takasurePool.getMemberFromAddress(alice);
+        assert(Alice.memberState == MemberState.Canceled);
     }
 }
