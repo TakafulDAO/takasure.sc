@@ -80,7 +80,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
                 alice,
                 testMember.memberId,
                 lastYearStartDateBefore + 365 days,
-                totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
+                CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
             takasurePool.payRecurringContribution();
