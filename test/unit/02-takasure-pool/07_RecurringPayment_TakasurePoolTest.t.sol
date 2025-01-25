@@ -61,7 +61,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
         vm.stopPrank;
     }
 
-    function testTakasurePool_recurringPaymentThrough5Years() public {
+    function testTakasurePool_payRecurringContributionThrough5Years() public {
         uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
 
         for (uint256 i = 0; i < 5; i++) {
@@ -83,7 +83,7 @@ contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonRespon
                 totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
-            takasurePool.recurringPayment();
+            takasurePool.payRecurringContribution();
             vm.stopPrank;
 
             testMember = takasurePool.getMemberFromAddress(alice);
