@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
 /**
  * @title Events
@@ -7,7 +7,7 @@
  */
 import {RevenueType} from "contracts/types/TakasureTypes.sol";
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 library TakasureEvents {
     event OnMemberCreated(

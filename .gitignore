@@ -37,3 +37,6 @@ broadcast/*
 
 # local deployments
 deployments/localhost/
+
+# previous deployments
+contracts/version_previous_contracts

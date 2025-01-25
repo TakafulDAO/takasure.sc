@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
@@ -20,7 +20,7 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, ) = deployer.run();
+        (, , proxy, , contributionTokenAddress, , ) = deployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -76,4 +76,7 @@ contract TakasurePoolInvariantTest is StdInvariant, Test {
     //     takasurePool.getReserveValues();
     //     takasurePool.getDaoTokenAddress();
     // }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

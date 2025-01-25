@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
@@ -52,4 +52,7 @@ contract TakasurePoolHandler is Test {
         // console2.log("Date updated by", time / 1 days, "days");
         // console2.log("=====================================");
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

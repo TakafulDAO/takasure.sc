@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: GPL-3.0
+//SPDX-License-Identifier: GNU GPLv3
 
 /**
  * @title BenefitMultiplierConsumer
@@ -11,7 +11,7 @@ import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/Fu
 
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
     using FunctionsRequest for FunctionsRequest.Request;
@@ -61,7 +61,6 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
 
     function setNewRequester(address newRequester) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newRequester == address(0)) revert OracleConsumer__NotAddressZero();
-        if (requester != address(0)) _revokeRole(BM_REQUESTER_ROLE, requester);
         _grantRole(BM_REQUESTER_ROLE, newRequester);
         requester = newRequester;
     }

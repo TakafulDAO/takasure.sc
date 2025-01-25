@@ -1,10 +1,9 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
-import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
@@ -12,8 +11,8 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract TakasurePoolFuzzTest is Test {
     TestDeployTakasure deployer;
-    DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
+    BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     address proxy;
     address contributionTokenAddress;
@@ -30,15 +29,12 @@ contract TakasurePoolFuzzTest is Test {
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+        (, bmConsumerMock, proxy, , contributionTokenAddress, , helperConfig) = deployer.run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         daoMultisig = config.daoMultisig;
         takadao = config.takadaoOperator;
-
-        mockDeployer = new DeployConsumerMocks();
-        BenefitMultiplierConsumerMock bmConnsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -50,10 +46,10 @@ contract TakasurePoolFuzzTest is Test {
         usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
 
         vm.prank(daoMultisig);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConnsumerMock));
+        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConnsumerMock.setNewRequester(address(takasurePool));
+        bmConsumerMock.setNewRequester(address(takasurePool));
     }
 
     function test_fuzz_ownerCanSetKycstatus(address notOwner) public {

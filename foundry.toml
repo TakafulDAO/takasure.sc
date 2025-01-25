@@ -41,7 +41,9 @@ fail_on_revert = true
 [etherscan]
 arb_one = { key = "${ARBISCAN_API_KEY}" }
 arb_sepolia = { key = "${ARBISCAN_API_KEY}" }
+eth_sepolia = { key = "${ETHERSCAN_API_KEY}" }
 
 [rpc_endpoints]
 arb_one = "${ARBITRUM_MAINNET_RPC_URL}"
 arb_sepolia = "${ARBITRUM_TESTNET_SEPOLIA_RPC_URL}"
+eth_sepolia = "${ETHEREUM_TESTNET_SEPOLIA_RPC_URL}"

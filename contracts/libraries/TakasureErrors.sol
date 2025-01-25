@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
 /**
  * @title Errors
  * @author  Maikel Ordaz
  * @notice  This library is used to store the errors of the Takasure protocol
  */
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 library TakasureErrors {
     error TakasurePool__ZeroAddress();

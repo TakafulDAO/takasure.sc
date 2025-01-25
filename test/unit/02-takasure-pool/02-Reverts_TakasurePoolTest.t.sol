@@ -1,10 +1,9 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
-import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
@@ -16,7 +15,6 @@ import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 
 contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
-    DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -33,19 +31,17 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     address public frank = makeAddr("frank");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
+    uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+        (, bmConsumerMock, proxy, , contributionTokenAddress, , helperConfig) = deployer.run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
         takadao = config.takadaoOperator;
-
-        mockDeployer = new DeployConsumerMocks();
-        bmConsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(address(proxy));
         usdc = IUSDC(contributionTokenAddress);
@@ -76,14 +72,6 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         vm.prank(msg.sender);
         bmConsumerMock.setNewRequester(address(takasurePool));
-    }
-
-    modifier tokensTo(address user) {
-        deal(address(usdc), user, USDC_INITIAL_AMOUNT);
-        vm.startPrank(user);
-        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
-        vm.stopPrank;
-        _;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -157,10 +145,9 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev If it is an active member, can not join again
-    function testTakasurePool_activeMembersSholdNotJoinAgain() public tokensTo(alice) {
-        vm.startPrank(admin);
+    function testTakasurePool_activeMembersSholdNotJoinAgain() public {
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
-        vm.stopPrank();
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -195,21 +182,39 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.stopPrank();
     }
 
-    /// @dev `payRecurringContribution` must revert if the member is invalid
-    function testTakasurePool_payRecurringContributionMustRevertIfMemberIsInvalid() public {
+    /// @dev `recurringPayment` must revert if the member is invalid
+    function testTakasurePool_recurringPaymentMustRevertIfMemberIsInvalid() public {
         vm.prank(alice);
         vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
-        takasurePool.payRecurringContribution();
+        takasurePool.recurringPayment();
     }
 
-    /// @dev `payRecurringContribution` must revert if the date is invalid, the membership expired
-    function testTakasurePool_payRecurringContributionMustRevertIfDateIsInvalidMembershipExpired()
-        public
-        tokensTo(alice)
-    {
-        vm.startPrank(admin);
+    /// @dev `recurringPayment` must revert if the date is invalid, a year has passed and the member has not paid
+    function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidNotPaidInTime() public {
+        vm.prank(admin);
         takasurePool.setKYCStatus(alice);
-        vm.stopPrank();
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerMock));
+
+        vm.startPrank(alice);
+        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank;
+
+        vm.warp(block.timestamp + 396 days);
+        vm.roll(block.number + 1);
+
+        vm.startPrank(alice);
+        vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
+        takasurePool.recurringPayment();
+        vm.stopPrank;
+    }
+
+    /// @dev `recurringPayment` must revert if the date is invalid, the membership expired
+    function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidMembershipExpired() public {
+        vm.prank(admin);
+        takasurePool.setKYCStatus(alice);
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -224,7 +229,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
             vm.roll(block.number + 1);
 
             vm.startPrank(alice);
-            takasurePool.payRecurringContribution();
+            takasurePool.recurringPayment();
             vm.stopPrank;
         }
 
@@ -233,7 +238,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(alice);
         vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
-        takasurePool.payRecurringContribution();
+        takasurePool.recurringPayment();
     }
 
     /// @dev can not refund someone already KYC verified
@@ -247,7 +252,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev can not refund someone already refunded
-    function testTakasurePool_refundRevertIfMemberAlreadyRefunded() public tokensTo(alice) {
+    function testTakasurePool_refundRevertIfMemberAlreadyRefunded() public {
         vm.startPrank(alice);
         // Join and refund
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
@@ -265,7 +270,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev can not refund before 14 days
-    function testTakasurePool_refundRevertIfMemberRefundBefore14Days() public tokensTo(alice) {
+    function testTakasurePool_refundRevertIfMemberRefundBefore14Days() public {
         // Join
         vm.startPrank(alice);
         takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);

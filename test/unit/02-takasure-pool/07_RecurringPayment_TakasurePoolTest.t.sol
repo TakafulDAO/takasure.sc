@@ -1,10 +1,9 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
-import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
@@ -12,13 +11,10 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
-import {TakasureErrors} from "contracts/libraries/TakasureErrors.sol";
-
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract payRecurringContribution_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
+contract RecurringPayment_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasure deployer;
-    DeployConsumerMocks mockDeployer;
     TakasurePool takasurePool;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -34,14 +30,11 @@ contract payRecurringContribution_TakasurePoolTest is StdCheats, Test, SimulateD
 
     function setUp() public {
         deployer = new TestDeployTakasure();
-        (, proxy, contributionTokenAddress, helperConfig) = deployer.run();
+        (, bmConsumerMock, proxy, , contributionTokenAddress, , helperConfig) = deployer.run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
-
-        mockDeployer = new DeployConsumerMocks();
-        bmConsumerMock = mockDeployer.run();
 
         takasurePool = TakasurePool(proxy);
         usdc = IUSDC(contributionTokenAddress);
@@ -68,7 +61,7 @@ contract payRecurringContribution_TakasurePoolTest is StdCheats, Test, SimulateD
         vm.stopPrank;
     }
 
-    function testTakasurePool_payRecurringContributionThrough5Years() public {
+    function testTakasurePool_recurringPaymentThrough5Years() public {
         uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
 
         for (uint256 i = 0; i < 5; i++) {
@@ -87,10 +80,10 @@ contract payRecurringContribution_TakasurePoolTest is StdCheats, Test, SimulateD
                 alice,
                 testMember.memberId,
                 lastYearStartDateBefore + 365 days,
-                CONTRIBUTION_AMOUNT,
+                totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
-            takasurePool.payRecurringContribution();
+            takasurePool.recurringPayment();
             vm.stopPrank;
 
             testMember = takasurePool.getMemberFromAddress(alice);
@@ -109,16 +102,5 @@ contract payRecurringContribution_TakasurePoolTest is StdCheats, Test, SimulateD
                     totalServiceFeeBeforePayment + expectedServiceIncrease
             );
         }
-    }
-
-    /// @dev `payRecurringContribution` must default member, a year + 30 days has passed and the member has not paid
-    function testTakasurePool_payRecurringContributionMustRevertIfEnoughTimeHasPassed() public {
-        vm.warp(block.timestamp + 395 days);
-        vm.roll(block.number + 1);
-
-        vm.startPrank(alice);
-        vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
-        takasurePool.payRecurringContribution();
-        vm.stopPrank();
     }
 }
