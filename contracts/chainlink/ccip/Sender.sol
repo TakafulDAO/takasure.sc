@@ -22,13 +22,13 @@ import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step
 contract Sender is Ownable2Step {
     using SafeERC20 for IERC20;
 
-    IRouterClient private router;
-    IERC20 private immutable linkToken;
-    IERC20 private immutable usdc;
+    IRouterClient public router;
+    IERC20 public immutable linkToken;
+    IERC20 public immutable usdc;
 
-    uint64 private immutable destinationChainSelector;
+    uint64 public immutable destinationChainSelector;
 
-    address private immutable receiverContract;
+    address public immutable receiverContract;
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS

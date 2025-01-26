@@ -22,8 +22,8 @@ contract Receiver is CCIPReceiver, Ownable2Step {
     using SafeERC20 for IERC20;
     using EnumerableMap for EnumerableMap.Bytes32ToUintMap;
 
-    IERC20 private immutable usdc;
-    address private referralGateway;
+    IERC20 public immutable usdc;
+    address public referralGateway;
 
     mapping(bytes32 messageId => Client.Any2EVMMessage message) public messageContentsById;
     EnumerableMap.Bytes32ToUintMap internal failedMessages;
