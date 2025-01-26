@@ -41,10 +41,9 @@ contract Sender is Ownable2Step {
         uint256 fees
     );
 
-    error TransferAndCallSource__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
-    error TransferAndCallSource__NothingToWithdraw();
-    error TransferAndCallSource__FailedToWithdrawEth(address owner, address target, uint256 value);
-    error TransferAndCallSource__DestinationChainNotAllowlisted(uint64 destinationChainSelector);
+    error Sender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
+    error Sender__NothingToWithdraw();
+    error Sender__FailedToWithdrawEth(address owner, address target, uint256 value);
 
     /**
      * @param _router The address of the router contract.
@@ -91,10 +90,7 @@ contract Sender is Ownable2Step {
         uint256 ccipFees = router.getFee(destinationChainSelector, message);
 
         if (ccipFees > linkToken.balanceOf(address(this)))
-            revert TransferAndCallSource__NotEnoughBalance(
-                linkToken.balanceOf(address(this)),
-                ccipFees
-            );
+            revert Sender__NotEnoughBalance(linkToken.balanceOf(address(this)), ccipFees);
 
         // Approve the Router to transfer LINK tokens from this contract. It will spend the fees in LINK
         linkToken.approve(address(router), ccipFees);
@@ -136,7 +132,7 @@ contract Sender is Ownable2Step {
         uint256 ccipFees = router.getFee(destinationChainSelector, message);
 
         if (ccipFees > address(this).balance)
-            revert TransferAndCallSource__NotEnoughBalance(address(this).balance, ccipFees);
+            revert Sender__NotEnoughBalance(address(this).balance, ccipFees);
 
         usdc.safeTransferFrom(msg.sender, address(this), amount);
         usdc.approve(address(router), amount);
@@ -166,19 +162,18 @@ contract Sender is Ownable2Step {
         uint256 amount = address(this).balance;
 
         // Revert if there is nothing to withdraw
-        if (amount == 0) revert TransferAndCallSource__NothingToWithdraw();
+        if (amount == 0) revert Sender__NothingToWithdraw();
 
         // Attempt to send the funds, capturing the success status and discarding any return data
         (bool sent, ) = beneficiary.call{value: amount}("");
 
         // Revert if the send failed, with information about the attempted transfer
-        if (!sent)
-            revert TransferAndCallSource__FailedToWithdrawEth(msg.sender, beneficiary, amount);
+        if (!sent) revert Sender__FailedToWithdrawEth(msg.sender, beneficiary, amount);
     }
 
     /**
      * @notice Emergency function to withdraw all tokens of Link.
-     * @dev This function reverts with a 'TransferAndCallSource__NothingToWithdraw' error if there are no tokens to withdraw.
+     * @dev This function reverts with a 'Sender__NothingToWithdraw' error if there are no tokens to withdraw.
      * @param beneficiary The address to which the tokens will be sent.
      */
     function withdrawToken(address beneficiary) external onlyOwner {
@@ -186,7 +181,7 @@ contract Sender is Ownable2Step {
         uint256 amount = linkToken.balanceOf(address(this));
 
         // Revert if there is nothing to withdraw
-        if (amount == 0) revert TransferAndCallSource__NothingToWithdraw();
+        if (amount == 0) revert Sender__NothingToWithdraw();
 
         linkToken.safeTransfer(beneficiary, amount);
     }
