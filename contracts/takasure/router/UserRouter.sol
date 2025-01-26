@@ -52,8 +52,8 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         joinModule.refund(msg.sender);
     }
 
-    function recurringPayment() external {
-        membersModule.recurringPayment(msg.sender);
+    function payRecurringContribution() external {
+        membersModule.payRecurringContribution(msg.sender);
     }
 
     function setTakasureReserve(

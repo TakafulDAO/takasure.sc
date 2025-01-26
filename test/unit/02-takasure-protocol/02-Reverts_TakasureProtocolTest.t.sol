@@ -221,15 +221,17 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         vm.stopPrank();
     }
 
-    /// @dev `recurringPayment` must revert if the member is invalid
-    function testMembersModule_recurringPaymentMustRevertIfMemberIsInvalid() public {
+    /// @dev `payRecurringContribution` must revert if the member is invalid
+    function testMembersModule_payRecurringContributionMustRevertIfMemberIsInvalid() public {
         vm.prank(alice);
         vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
-        userRouter.recurringPayment();
+        userRouter.payRecurringContribution();
     }
 
-    /// @dev `recurringPayment` must revert if the date is invalid, a year has passed and the member has not paid
-    function testMembersModule_recurringPaymentMustRevertIfDateIsInvalidNotPaidInTime() public {
+    /// @dev `payRecurringContribution` must revert if the date is invalid, a year has passed and the member has not paid
+    function testMembersModule_payRecurringContributionMustRevertIfDateIsInvalidNotPaidInTime()
+        public
+    {
         vm.startPrank(alice);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
@@ -246,12 +248,14 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(alice);
         vm.expectRevert(MembersModule.MembersModule__InvalidDate.selector);
-        userRouter.recurringPayment();
+        userRouter.payRecurringContribution();
         vm.stopPrank();
     }
 
-    /// @dev `recurringPayment` must revert if the date is invalid, the membership expired
-    function testMembersModule_recurringPaymentMustRevertIfDateIsInvalidMembershipExpired() public {
+    /// @dev `payRecurringContribution` must revert if the date is invalid, the membership expired
+    function testMembersModule_payRecurringContributionMustRevertIfDateIsInvalidMembershipExpired()
+        public
+    {
         vm.startPrank(alice);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
@@ -268,7 +272,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             vm.roll(block.number + 1);
 
             vm.startPrank(alice);
-            userRouter.recurringPayment();
+            userRouter.payRecurringContribution();
             vm.stopPrank();
         }
 
@@ -277,7 +281,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(alice);
         vm.expectRevert(MembersModule.MembersModule__InvalidDate.selector);
-        userRouter.recurringPayment();
+        userRouter.payRecurringContribution();
     }
 
     /// @dev can not refund someone already KYC verified

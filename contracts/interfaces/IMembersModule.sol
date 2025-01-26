@@ -3,5 +3,5 @@
 pragma solidity 0.8.28;
 
 interface IMembersModule {
-    function recurringPayment(address memberWallet) external;
+    function payRecurringContribution(address memberWallet) external;
 }

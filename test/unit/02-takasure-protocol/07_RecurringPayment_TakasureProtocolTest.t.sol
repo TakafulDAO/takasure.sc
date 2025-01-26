@@ -17,7 +17,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract RecurringPayment_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
+contract payRecurringContribution_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;
@@ -95,7 +95,7 @@ contract RecurringPayment_TakasureProtocolTest is StdCheats, Test, SimulateDonRe
         vm.stopPrank;
     }
 
-    function testMembersModule_recurringPaymentThrough5Years() public {
+    function testMembersModule_payRecurringContributionThrough5Years() public {
         uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
 
         for (uint256 i = 0; i < 5; i++) {
@@ -114,10 +114,10 @@ contract RecurringPayment_TakasureProtocolTest is StdCheats, Test, SimulateDonRe
                 alice,
                 testMember.memberId,
                 lastYearStartDateBefore + 365 days,
-                totalContributionBeforePayment + CONTRIBUTION_AMOUNT,
+                CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
-            userRouter.recurringPayment();
+            userRouter.payRecurringContribution();
             vm.stopPrank;
 
             testMember = takasureReserve.getMemberFromAddress(alice);

@@ -68,12 +68,12 @@ contract MembersModule is
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
     }
 
-    function recurringPayment(address memberWallet) external nonReentrant {
+    function payRecurringContribution(address memberWallet) external nonReentrant {
         (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
             ._getReserveAndMemberValuesHook(takasureReserve, memberWallet);
 
         require(
-            newMember.memberState == MemberState.Active,
+            newMember.memberState == MemberState.Active && newMember.memberState != MemberState.Defaulted,
             ModuleErrors.Module__WrongMemberState()
         );
 
@@ -85,8 +85,8 @@ contract MembersModule is
         uint256 gracePeriod = 30 days;
 
         require(
-            currentTimestamp <= lastPaidYearStartDate + year + gracePeriod &&
-                currentTimestamp <= membershipStartTime + membershipDuration,
+            currentTimestamp <= membershipStartTime + membershipDuration &&
+                currentTimestamp < lastPaidYearStartDate + year + gracePeriod,
             MembersModule__InvalidDate()
         );
 
@@ -115,7 +115,7 @@ contract MembersModule is
             memberWallet,
             newMember.memberId,
             newMember.lastPaidYearStartDate,
-            newMember.totalContributions,
+            contributionBeforeFee,
             newMember.totalServiceFee
         );
 
