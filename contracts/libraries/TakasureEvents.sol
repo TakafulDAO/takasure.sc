@@ -80,4 +80,6 @@ library TakasureEvents {
     event OnFundSurplusUpdated(uint256 indexed surplus);
     event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
     event OnAllowCustomDuration(bool allowCustomDuration);
+    event OnMemberCanceled(uint256 indexed memberId, address indexed member);
+    event OnMemberDefaulted(uint256 indexed memberId, address indexed member);
 }

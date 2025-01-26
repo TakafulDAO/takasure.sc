@@ -8,6 +8,7 @@ enum MemberState {
     Inactive,
     Active,
     Defaulted,
+    Canceled,
     Deceased
 }
 

@@ -39,6 +39,7 @@ contract MembersModule is
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
 
+    // solhint-disable-next-line
     uint256 private transient mintedTokens;
 
     error MembersModule__InvalidDate();
@@ -68,19 +69,28 @@ contract MembersModule is
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
     }
 
+    /**
+     * @notice Method to cancel a membership
+     * @dev To be called by anyone
+     */
+    function cancelMembership(address memberWallet) external notZeroAddress(memberWallet) {
+        _cancelMembership(memberWallet);
+    }
+
     function payRecurringContribution(address memberWallet) external nonReentrant {
-        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
+        (Reserve memory reserve, Member memory activeMember) = ReserveAndMemberValues
             ._getReserveAndMemberValuesHook(takasureReserve, memberWallet);
 
         require(
-            newMember.memberState == MemberState.Active && newMember.memberState != MemberState.Defaulted,
+            activeMember.memberState == MemberState.Active &&
+                activeMember.memberState != MemberState.Defaulted,
             ModuleErrors.Module__WrongMemberState()
         );
 
         uint256 currentTimestamp = block.timestamp;
-        uint256 membershipStartTime = newMember.membershipStartTime;
-        uint256 membershipDuration = newMember.membershipDuration;
-        uint256 lastPaidYearStartDate = newMember.lastPaidYearStartDate;
+        uint256 membershipStartTime = activeMember.membershipStartTime;
+        uint256 membershipDuration = activeMember.membershipDuration;
+        uint256 lastPaidYearStartDate = activeMember.lastPaidYearStartDate;
         uint256 year = 365 days;
         uint256 gracePeriod = 30 days;
 
@@ -90,16 +100,16 @@ contract MembersModule is
             MembersModule__InvalidDate()
         );
 
-        uint256 contributionBeforeFee = newMember.contribution;
+        uint256 contributionBeforeFee = activeMember.contribution;
         uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
         uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
 
         // Update the values
-        newMember.lastPaidYearStartDate += 365 days;
-        newMember.totalContributions += contributionBeforeFee;
-        newMember.totalServiceFee += feeAmount;
-        newMember.lastEcr = 0;
-        newMember.lastUcr = 0;
+        activeMember.lastPaidYearStartDate += 365 days;
+        activeMember.totalContributions += contributionBeforeFee;
+        activeMember.totalServiceFee += feeAmount;
+        activeMember.lastEcr = 0;
+        activeMember.lastUcr = 0;
 
         // And we pay the contribution
         reserve = _memberRecurringPaymentFlow({
@@ -109,22 +119,68 @@ contract MembersModule is
             _reserve: reserve
         });
 
-        newMember.creditTokensBalance += mintedTokens;
+        activeMember.creditTokensBalance += mintedTokens;
 
         emit TakasureEvents.OnRecurringPayment(
             memberWallet,
-            newMember.memberId,
-            newMember.lastPaidYearStartDate,
+            activeMember.memberId,
+            activeMember.lastPaidYearStartDate,
             contributionBeforeFee,
-            newMember.totalServiceFee
+            activeMember.totalServiceFee
         );
 
         ReserveAndMemberValues._setNewReserveAndMemberValuesHook(
             takasureReserve,
             reserve,
-            newMember
+            activeMember
         );
-        takasureReserve.memberSurplus(newMember);
+        takasureReserve.memberSurplus(activeMember);
+    }
+
+    function defaultMember(address memberWallet) external {
+        Member memory member = takasureReserve.getMemberFromAddress(memberWallet);
+
+        require(member.memberState != MemberState.Active, ModuleErrors.Module__WrongMemberState());
+
+        uint256 currentTimestamp = block.timestamp;
+        uint256 lastPaidYearStartDate = member.lastPaidYearStartDate;
+        uint256 limitTimestamp = member.membershipStartTime + lastPaidYearStartDate;
+
+        if (currentTimestamp >= limitTimestamp) {
+            // Update the state, this will allow to cancel the membership
+            member.memberState = MemberState.Defaulted;
+
+            emit TakasureEvents.OnMemberDefaulted(member.memberId, msg.sender);
+
+            takasureReserve.setMemberValuesFromModule(member);
+        } else {
+            revert ModuleErrors.Module__TooEarlyToDefault();
+        }
+    }
+
+    function _cancelMembership(address _memberWallet) internal {
+        Member memory member = takasureReserve.getMemberFromAddress(_memberWallet);
+
+        require(
+            member.memberState != MemberState.Defaulted,
+            ModuleErrors.Module__WrongMemberState()
+        );
+
+        // To cancel the member should be defaulted and at least 30 days have passed from the new year
+        uint256 currentTimestamp = block.timestamp;
+        uint256 limitTimestamp = member.membershipStartTime +
+            member.lastPaidYearStartDate +
+            (30 days);
+
+        if (currentTimestamp >= limitTimestamp) {
+            member.memberState = MemberState.Canceled;
+
+            emit TakasureEvents.OnMemberCanceled(member.memberId, _memberWallet);
+
+            takasureReserve.setMemberValuesFromModule(member);
+        } else {
+            revert ModuleErrors.Module__TooEarlyToCancel();
+        }
     }
 
     /**
