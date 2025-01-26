@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: GNU GPLv3
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 interface ITSToken {
     /// @notice Mint Takasure powered tokens

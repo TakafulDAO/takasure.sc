@@ -77,9 +77,17 @@ contract TakasurePool is
         _;
     }
 
+    modifier neededState(address memberWallet, MemberState state) {
+        if (reserve.members[memberWallet].memberState != state) {
+            revert TakasureErrors.TakasurePool__WrongMemberState();
+        }
+        _;
+    }
+
     modifier onlyDaoOrTakadao() {
         if (!hasRole(TAKADAO_OPERATOR, msg.sender) && !hasRole(DAO_MULTISIG, msg.sender))
             revert TakasureErrors.OnlyDaoOrTakadao();
+
         _;
     }
 
@@ -394,51 +402,89 @@ contract TakasurePool is
         _refund(memberWallet);
     }
 
-    function recurringPayment() external {
-        if (reserve.members[msg.sender].memberState != MemberState.Active) {
+    /**
+     * @notice Method to cancel a membership
+     * @dev To be called by the user itself
+     */
+    function cancelMembership() external {
+        _cancelMembership(msg.sender);
+    }
+
+    /**
+     * @notice Method to cancel a membership
+     * @dev To be called by anyone
+     */
+    function cancelMembership(address memberWallet) external notZeroAddress(memberWallet) {
+        _cancelMembership(memberWallet);
+    }
+
+    function payRecurringContribution() external {
+        // The member can pay the contribution if active or defaulted but at least 30 days have passed from the new year
+        Member memory member = reserve.members[msg.sender];
+        if (
+            member.memberState != MemberState.Active && member.memberState != MemberState.Defaulted
+        ) {
             revert TakasureErrors.TakasurePool__WrongMemberState();
         }
         uint256 currentTimestamp = block.timestamp;
-        uint256 membershipStartTime = reserve.members[msg.sender].membershipStartTime;
-        uint256 membershipDuration = reserve.members[msg.sender].membershipDuration;
-        uint256 lastPaidYearStartDate = reserve.members[msg.sender].lastPaidYearStartDate;
+        uint256 membershipStartTime = member.membershipStartTime;
+        uint256 membershipDuration = member.membershipDuration;
+        uint256 lastPaidYearStartDate = member.lastPaidYearStartDate;
         uint256 year = 365 days;
         uint256 gracePeriod = 30 days;
+        uint256 firstLimitTimestamp = membershipStartTime + membershipDuration; // The complete membership duration
+        uint256 secondLimitTimestamp = lastPaidYearStartDate + year + gracePeriod;
 
-        if (
-            currentTimestamp > lastPaidYearStartDate + year + gracePeriod ||
-            currentTimestamp > membershipStartTime + membershipDuration
-        ) {
+        if (currentTimestamp > firstLimitTimestamp || currentTimestamp >= secondLimitTimestamp) {
             revert TakasureErrors.TakasurePool__InvalidDate();
+        } else {
+            uint256 contributionBeforeFee = member.contribution;
+            uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
+            uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
+
+            // Update the values
+            reserve.members[msg.sender].lastPaidYearStartDate += 365 days;
+            reserve.members[msg.sender].totalContributions += contributionBeforeFee;
+            reserve.members[msg.sender].totalServiceFee += feeAmount;
+            reserve.members[msg.sender].lastEcr = 0;
+            reserve.members[msg.sender].lastUcr = 0;
+
+            // And we pay the contribution
+            _memberPaymentFlow(
+                contributionBeforeFee,
+                feeAmount,
+                contributionAfterFee,
+                msg.sender,
+                true
+            );
+
+            emit TakasureEvents.OnRecurringPayment(
+                msg.sender,
+                reserve.members[msg.sender].memberId,
+                reserve.members[msg.sender].lastPaidYearStartDate,
+                contributionBeforeFee,
+                reserve.members[msg.sender].totalServiceFee
+            );
         }
+    }
 
-        uint256 contributionBeforeFee = reserve.members[msg.sender].contribution;
-        uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
-        uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
+    function defaultMember(
+        address memberWallet
+    ) external neededState(memberWallet, MemberState.Active) {
+        Member memory member = reserve.members[memberWallet];
 
-        // Update the values
-        reserve.members[msg.sender].lastPaidYearStartDate += 365 days;
-        reserve.members[msg.sender].totalContributions += contributionBeforeFee;
-        reserve.members[msg.sender].totalServiceFee += feeAmount;
-        reserve.members[msg.sender].lastEcr = 0;
-        reserve.members[msg.sender].lastUcr = 0;
+        uint256 currentTimestamp = block.timestamp;
+        uint256 lastPaidYearStartDate = member.lastPaidYearStartDate;
+        uint256 limitTimestamp = member.membershipStartTime + lastPaidYearStartDate;
 
-        // And we pay the contribution
-        _memberPaymentFlow(
-            contributionBeforeFee,
-            feeAmount,
-            contributionAfterFee,
-            msg.sender,
-            true
-        );
+        if (currentTimestamp >= limitTimestamp) {
+            // Update the state, this will allow to cancel the membership
+            reserve.members[memberWallet].memberState = MemberState.Defaulted;
 
-        emit TakasureEvents.OnRecurringPayment(
-            msg.sender,
-            reserve.members[msg.sender].memberId,
-            reserve.members[msg.sender].lastPaidYearStartDate,
-            reserve.members[msg.sender].totalContributions,
-            reserve.members[msg.sender].totalServiceFee
-        );
+            emit TakasureEvents.OnMemberDefaulted(reserve.members[msg.sender].memberId, msg.sender);
+        } else {
+            revert TakasureErrors.TakasurePool__TooEarlyToDefault();
+        }
     }
 
     /**
@@ -672,6 +718,28 @@ contract TakasurePool is
             _memberWallet,
             amountToRefund
         );
+    }
+
+    function _cancelMembership(
+        address _memberWallet
+    ) internal neededState(_memberWallet, MemberState.Defaulted) {
+        // To cancel the member should be defaulted and at least 30 days have passed from the new year
+        Member memory member = reserve.members[_memberWallet];
+        uint256 currentTimestamp = block.timestamp;
+        uint256 limitTimestamp = member.membershipStartTime +
+            member.lastPaidYearStartDate +
+            (30 days);
+
+        if (currentTimestamp >= limitTimestamp) {
+            reserve.members[_memberWallet].memberState = MemberState.Canceled;
+
+            emit TakasureEvents.OnMemberCanceled(
+                reserve.members[_memberWallet].memberId,
+                _memberWallet
+            );
+        } else {
+            revert TakasureErrors.TakasurePool__TooEarlyToCancel();
+        }
     }
 
     function _calculateAmountAndFees(

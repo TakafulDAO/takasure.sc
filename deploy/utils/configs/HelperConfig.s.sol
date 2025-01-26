@@ -4,112 +4,9 @@ pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {USDC} from "test/mocks/USDCmock.sol";
+import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 
-abstract contract CodeConstants {
-    /*//////////////////////////////////////////////////////////////
-                               CHAIN IDS
-    //////////////////////////////////////////////////////////////*/
-    uint256 public constant ARB_MAINNET_CHAIN_ID = 42161;
-    uint256 public constant ARB_SEPOLIA_CHAIN_ID = 421614;
-    uint256 public constant ETH_SEPOLIA_CHAIN_ID = 11155111;
-    uint256 public constant LOCAL_CHAIN_ID = 31337;
-
-    /*//////////////////////////////////////////////////////////////
-                               ACCOUNTS
-    //////////////////////////////////////////////////////////////*/
-
-    struct FeeClaimAddress {
-        address local;
-        address mainnet;
-        address arb_sepolia;
-        address eth_sepolia;
-    }
-
-    struct DaoMultisig {
-        address local;
-        address mainnet;
-        address arb_sepolia;
-        address eth_sepolia;
-    }
-
-    struct TakadaoOperator {
-        address local;
-        address mainnet;
-        address arb_sepolia;
-        address eth_sepolia;
-    }
-
-    struct KycProvider {
-        address local;
-        address mainnet;
-        address arb_sepolia;
-        address eth_sepolia;
-    }
-
-    struct PauseGuardian {
-        address local;
-        address mainnet;
-        address arb_sepolia;
-        address eth_sepolia;
-    }
-
-    struct TokenAdmin {
-        address local;
-        address mainnet;
-        address arb_sepolia;
-        address eth_sepolia;
-    }
-
-    FeeClaimAddress public feeClaimAddress =
-        FeeClaimAddress({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Avil's account 0
-            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
-            arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
-        });
-
-    DaoMultisig public daoMultisig =
-        DaoMultisig({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
-            arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
-        });
-
-    TakadaoOperator public takadaoOperator =
-        TakadaoOperator({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
-            arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
-        });
-
-    KycProvider public kycProvider =
-        KycProvider({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x2b212e37A5619191694Ad0E99fD6F76e45fdb2Ba,
-            arb_sepolia: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
-            eth_sepolia: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3
-        });
-
-    PauseGuardian public pauseGuardian =
-        PauseGuardian({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
-            arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
-        });
-
-    TokenAdmin public tokenAdmin =
-        TokenAdmin({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
-            arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
-        });
-}
-
-contract HelperConfig is CodeConstants, Script {
+contract HelperConfig is DeployConstants, Script {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -162,8 +59,8 @@ contract HelperConfig is CodeConstants, Script {
         }
     }
 
-    function getArbMainnetConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
-        sepoliaNetworkConfig = NetworkConfig({
+    function getArbMainnetConfig() public view returns (NetworkConfig memory mainnetNetworkConfig) {
+        mainnetNetworkConfig = NetworkConfig({
             contributionToken: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831,
             feeClaimAddress: feeClaimAddress.mainnet,
             daoMultisig: daoMultisig.mainnet,
@@ -180,8 +77,12 @@ contract HelperConfig is CodeConstants, Script {
         });
     }
 
-    function getArbSepoliaConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
-        sepoliaNetworkConfig = NetworkConfig({
+    function getArbSepoliaConfig()
+        public
+        view
+        returns (NetworkConfig memory arbSepoliaNetworkConfig)
+    {
+        arbSepoliaNetworkConfig = NetworkConfig({
             contributionToken: 0xf9b2DE65196fA500527c576De9312E3c626C7d6a,
             feeClaimAddress: feeClaimAddress.arb_sepolia,
             daoMultisig: daoMultisig.arb_sepolia,
@@ -198,8 +99,12 @@ contract HelperConfig is CodeConstants, Script {
         });
     }
 
-    function getEthSepoliaConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
-        sepoliaNetworkConfig = NetworkConfig({
+    function getEthSepoliaConfig()
+        public
+        view
+        returns (NetworkConfig memory ethSepoliaNetworkConfig)
+    {
+        ethSepoliaNetworkConfig = NetworkConfig({
             contributionToken: 0x4173c6CfB9721cbC32b18Dbaba826715127443e0,
             feeClaimAddress: feeClaimAddress.eth_sepolia,
             daoMultisig: daoMultisig.eth_sepolia,

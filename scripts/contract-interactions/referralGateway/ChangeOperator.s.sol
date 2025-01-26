@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
-import {HelperConfig} from "deploy/HelperConfig.s.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 
 contract ChangeOperator is Script, GetContractAddress {
     IERC20 public usdc;
