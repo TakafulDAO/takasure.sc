@@ -182,15 +182,17 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.stopPrank();
     }
 
-    /// @dev `recurringPayment` must revert if the member is invalid
-    function testTakasurePool_recurringPaymentMustRevertIfMemberIsInvalid() public {
+    /// @dev `payRecurringContribution` must revert if the member is invalid
+    function testTakasurePool_payRecurringContributionMustRevertIfMemberIsInvalid() public {
         vm.prank(alice);
         vm.expectRevert(TakasureErrors.TakasurePool__WrongMemberState.selector);
-        takasurePool.recurringPayment();
+        takasurePool.payRecurringContribution();
     }
 
-    /// @dev `recurringPayment` must revert if the date is invalid, a year has passed and the member has not paid
-    function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidNotPaidInTime() public {
+    /// @dev `payRecurringContribution` must revert if the date is invalid, a year has passed and the member has not paid
+    function testTakasurePool_payRecurringContributiontMustRevertIfDateIsInvalidNotPaidInTime()
+        public
+    {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
@@ -207,12 +209,14 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(alice);
         vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
-        takasurePool.recurringPayment();
+        takasurePool.payRecurringContribution();
         vm.stopPrank;
     }
 
-    /// @dev `recurringPayment` must revert if the date is invalid, the membership expired
-    function testTakasurePool_recurringPaymentMustRevertIfDateIsInvalidMembershipExpired() public {
+    /// @dev `payRecurringContribution` must revert if the date is invalid, the membership expired
+    function testTakasurePool_payRecurringContributionMustRevertIfDateIsInvalidMembershipExpired()
+        public
+    {
         vm.prank(admin);
         takasurePool.setKYCStatus(alice);
 
@@ -229,7 +233,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
             vm.roll(block.number + 1);
 
             vm.startPrank(alice);
-            takasurePool.recurringPayment();
+            takasurePool.payRecurringContribution();
             vm.stopPrank;
         }
 
@@ -238,7 +242,7 @@ contract Reverts_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(alice);
         vm.expectRevert(TakasureErrors.TakasurePool__InvalidDate.selector);
-        takasurePool.recurringPayment();
+        takasurePool.payRecurringContribution();
     }
 
     /// @dev can not refund someone already KYC verified
