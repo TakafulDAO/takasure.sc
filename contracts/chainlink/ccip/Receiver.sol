@@ -52,7 +52,7 @@ contract Receiver is CCIPReceiver, Ownable2Step {
     error Receiver__InvalidUsdcToken();
     error Receiver__InvalidSourceChain();
     error Receiver__OnlySelf();
-    error Receiver__CallTFailed();
+    error Receiver__CallFailed();
     error Receiver__MessageNotFailed(bytes32 messageId);
 
     modifier validateSourceChain(uint64 _sourceChainSelector) {
@@ -153,7 +153,7 @@ contract Receiver is CCIPReceiver, Ownable2Step {
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
         // Low level call to the referral gateway
         (bool success, ) = referralGateway.call(any2EvmMessage.data);
-        require(success, Receiver__CallTFailed());
+        require(success, Receiver__CallFailed());
         emit OnMessageReceived(
             any2EvmMessage.messageId,
             any2EvmMessage.sourceChainSelector,
