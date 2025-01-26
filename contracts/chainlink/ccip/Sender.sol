@@ -44,6 +44,7 @@ contract Sender is Ownable2Step {
     error Sender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
     error Sender__NothingToWithdraw();
     error Sender__FailedToWithdrawEth(address owner, address target, uint256 value);
+    error Sender__AddressZeroNotAllowed();
 
     /**
      * @param _router The address of the router contract.
@@ -158,6 +159,7 @@ contract Sender is Ownable2Step {
      * @dev It should only be callable by the owner of the contract.
      */
     function withdraw(address beneficiary) external onlyOwner {
+        require(beneficiary != address(0), Sender__AddressZeroNotAllowed());
         // Retrieve the balance of this contract
         uint256 amount = address(this).balance;
 
@@ -177,6 +179,7 @@ contract Sender is Ownable2Step {
      * @param beneficiary The address to which the tokens will be sent.
      */
     function withdrawToken(address beneficiary) external onlyOwner {
+        require(beneficiary != address(0), Sender__AddressZeroNotAllowed());
         // Retrieve the balance of this contract
         uint256 amount = linkToken.balanceOf(address(this));
 
