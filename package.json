@@ -19,5 +19,8 @@
   "scripts": {
     "slither": "slither . --solc-remaps '@openzeppelin=node_modules/@openzeppelin' --exclude naming-convention,low-level-calls --buidler-ignore-compile",
     "format": "yarn prettier --write ."
+  },
+  "dependencies": {
+    "@openzeppelin/upgrades-core": "^1.41.0"
   }
 }

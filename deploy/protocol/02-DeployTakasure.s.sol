@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
-import {HelperConfig} from "./HelperConfig.s.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract DeployTakasure is Script {
     function run() external returns (address proxy) {

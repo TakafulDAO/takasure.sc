@@ -161,16 +161,6 @@ contract ReferralGateway is
     error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
 
-    modifier notZeroAddress(address _address) {
-        require(_address != address(0), ReferralGateway__ZeroAddress());
-        _;
-    }
-
-    modifier onlyDAOAdmin(string calldata tDAOName) {
-        require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -184,13 +174,18 @@ contract ReferralGateway is
         address _benefitMultiplierConsumer
     )
         external
-        notZeroAddress(_operator)
+        /*notZeroAddress(_operator)
         notZeroAddress(_KYCProvider)
         notZeroAddress(_pauseGuardian)
         notZeroAddress(_usdcAddress)
-        notZeroAddress(_benefitMultiplierConsumer)
+        notZeroAddress(_benefitMultiplierConsumer)*/
         initializer
     {
+        _notZeroAddress(_operator);
+        _notZeroAddress(_KYCProvider);
+        _notZeroAddress(_pauseGuardian);
+        _notZeroAddress(_usdcAddress);
+        _notZeroAddress(_benefitMultiplierConsumer);
         _initDependencies();
 
         _grantRoles(_operator, _KYCProvider, _pauseGuardian);
@@ -254,7 +249,8 @@ contract ReferralGateway is
     function updateLaunchDate(
         string calldata tDAOName,
         uint256 launchDate
-    ) external onlyDAOAdmin(tDAOName) {
+    ) external /*onlyDAOAdmin(tDAOName)*/ {
+        _onlyDAOAdmin(tDAOName);
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             ReferralGateway__DAOAlreadyLaunched()
@@ -278,7 +274,9 @@ contract ReferralGateway is
         string calldata tDAOName,
         address tDAOAddress,
         bool isReferralDiscountEnabled
-    ) external onlyDAOAdmin(tDAOName) notZeroAddress(tDAOAddress) {
+    ) external /*onlyDAOAdmin(tDAOName) notZeroAddress(tDAOAddress)*/ {
+        _onlyDAOAdmin(tDAOName);
+        _notZeroAddress(tDAOAddress);
         require(
             ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender),
             ReferralGateway__onlyDAOAdmin()
@@ -299,7 +297,8 @@ contract ReferralGateway is
     /**
      * @notice Switch the referralDiscount status of a DAO
      */
-    function switchReferralDiscount(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
+    function switchReferralDiscount(string calldata tDAOName) external /*onlyDAOAdmin(tDAOName)*/ {
+        _onlyDAOAdmin(tDAOName);
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
 
         emit OnReferralDiscountSwitched(tDAOName, nameToDAOData[tDAOName].referralDiscount);
@@ -313,7 +312,9 @@ contract ReferralGateway is
     function enableRepool(
         string calldata tDAOName,
         address rePoolAddress
-    ) external notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName) {
+    ) external /*notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName)*/ {
+        _onlyDAOAdmin(tDAOName);
+        _notZeroAddress(rePoolAddress);
         require(
             nameToDAOData[tDAOName].DAOAddress != address(0),
             ReferralGateway__tDAONotReadyYet()
@@ -323,7 +324,8 @@ contract ReferralGateway is
         emit OnRepoolEnabled(tDAOName, rePoolAddress);
     }
 
-    function transferToRepool(string calldata tDAOName) external onlyDAOAdmin(tDAOName) {
+    function transferToRepool(string calldata tDAOName) external /*onlyDAOAdmin(tDAOName)*/ {
+        _onlyDAOAdmin(tDAOName);
         require(
             nameToDAOData[tDAOName].rePoolAddress != address(0),
             ReferralGateway__ZeroAddress()
@@ -398,7 +400,8 @@ contract ReferralGateway is
     function setKYCStatus(
         address child,
         string calldata tDAOName
-    ) external whenNotPaused notZeroAddress(child) onlyRole(KYC_PROVIDER) {
+    ) external whenNotPaused /*notZeroAddress(child)*/ onlyRole(KYC_PROVIDER) {
+        _notZeroAddress(child);
         // Initial checks
         // Can not KYC a member that is already KYCed
         require(!isMemberKYCed[child], ReferralGateway__MemberAlreadyKYCed());
@@ -514,7 +517,8 @@ contract ReferralGateway is
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer,
         string calldata tDAOName
-    ) external onlyRole(OPERATOR) notZeroAddress(newBenefitMultiplierConsumer) {
+    ) external onlyRole(OPERATOR) /*notZeroAddress(newBenefitMultiplierConsumer)*/ {
+        _notZeroAddress(newBenefitMultiplierConsumer);
         address oldBenefitMultiplierConsumer = address(nameToDAOData[tDAOName].bmConsumer);
         nameToDAOData[tDAOName].bmConsumer = IBenefitMultiplierConsumer(
             newBenefitMultiplierConsumer
@@ -529,7 +533,8 @@ contract ReferralGateway is
 
     function setNewOperator(
         address newOperator
-    ) external notZeroAddress(newOperator) onlyRole(OPERATOR) {
+    ) external /*notZeroAddress(newOperator)*/ onlyRole(OPERATOR) {
+        _notZeroAddress(newOperator);
         address oldOperator = operator;
 
         // Setting the new operator address
@@ -546,7 +551,8 @@ contract ReferralGateway is
 
     function setCouponPoolAddress(
         address _couponPool
-    ) external notZeroAddress(_couponPool) onlyRole(OPERATOR) {
+    ) external /*notZeroAddress(_couponPool)*/ onlyRole(OPERATOR) {
+        _notZeroAddress(_couponPool);
         address oldCouponPool = couponPool;
         couponPool = _couponPool;
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
@@ -916,4 +922,12 @@ contract ReferralGateway is
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
+
+    function _notZeroAddress(address _address) internal pure {
+        require(_address != address(0), ReferralGateway__ZeroAddress());
+    }
+
+    function _onlyDAOAdmin(string calldata tDAOName) internal view {
+        require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
+    }
 }

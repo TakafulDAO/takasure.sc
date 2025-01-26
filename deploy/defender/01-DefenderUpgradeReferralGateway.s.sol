@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
-import {ProposeUpgradeResponse, Defender, Options, ApprovalProcessResponse} from "openzeppelin-foundry-upgrades/src/Defender.sol";
+import {ProposeUpgradeResponse, Defender, Options, ApprovalProcessResponse} from "openzeppelin-foundry-upgrades/Defender.sol";
 
 contract DefenderUpgradeReferralGateway is Script, GetContractAddress {
     function run() external {
