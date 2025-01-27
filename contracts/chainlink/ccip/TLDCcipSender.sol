@@ -42,11 +42,11 @@ contract TLDCcipSender is Ownable2Step {
         uint256 fees
     );
 
-    error Sender__AlreadySupportedToken();
-    error Sender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
-    error Sender__NothingToWithdraw();
-    error Sender__FailedToWithdrawEth(address owner, address target, uint256 value);
-    error Sender__AddressZeroNotAllowed();
+    error TLDCcipSender__AlreadySupportedToken();
+    error TLDCcipSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
+    error TLDCcipSender__NothingToWithdraw();
+    error TLDCcipSender__FailedToWithdrawEth(address owner, address target, uint256 value);
+    error TLDCcipSender__AddressZeroNotAllowed();
 
     modifier notZeroAddress(address addressToCheck) {
         require(addressToCheck != address(0), Sender__AddressZeroNotAllowed());
