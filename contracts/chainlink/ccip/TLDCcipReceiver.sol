@@ -175,6 +175,10 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
         Client.Any2EVMMessage memory message = messageContentsById[messageId];
 
+        // Low level call to the referral gateway
+        (bool success, ) = referralGateway.call(message.data);
+        require(success, TLDCcipReceiver__CallFailed());
+
         emit OnMessageRecovered(messageId);
     }
 
