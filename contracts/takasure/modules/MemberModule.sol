@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title MembersModule
+ * @title MemberModule
  * @author Maikel Ordaz
  * @notice This contract will manage defaults, cancelations and recurring payments
  * @dev It will interact with the TakasureReserve contract to update the values
@@ -28,7 +28,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
-contract MembersModule is
+contract MemberModule is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
@@ -42,7 +42,7 @@ contract MembersModule is
     // solhint-disable-next-line
     uint256 private transient mintedTokens;
 
-    error MembersModule__InvalidDate();
+    error MemberModule__InvalidDate();
 
     modifier notZeroAddress(address _address) {
         require(_address != address(0), GlobalErrors.TakasureProtocol__ZeroAddress());
@@ -97,7 +97,7 @@ contract MembersModule is
         require(
             currentTimestamp <= membershipStartTime + membershipDuration &&
                 currentTimestamp < lastPaidYearStartDate + year + gracePeriod,
-            MembersModule__InvalidDate()
+            MemberModule__InvalidDate()
         );
 
         uint256 contributionBeforeFee = activeMember.contribution;

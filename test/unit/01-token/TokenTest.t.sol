@@ -6,15 +6,15 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 
 contract TokenTest is Test {
     TestDeployTakasureReserve deployer;
     TSToken daoToken;
     TakasureReserve takasureReserve;
-    JoinModule joinModule;
+    EntryModule entryModule;
     address takasureReserveProxy;
-    address joinModuleAddress;
+    address entryModuleAddress;
 
     address public admin = makeAddr("admin");
     address public user = makeAddr("user");
@@ -28,9 +28,9 @@ contract TokenTest is Test {
         // deployer = new TestDeployTakasure();
         // (daoToken, proxy, , ) = deployer.run();
         deployer = new TestDeployTakasureReserve();
-        (takasureReserveProxy, joinModuleAddress, , , , , ) = deployer.run();
+        (takasureReserveProxy, entryModuleAddress, , , , , ) = deployer.run();
 
-        joinModule = JoinModule(joinModuleAddress);
+        entryModule = EntryModule(entryModuleAddress);
 
         daoToken = TSToken(TakasureReserve(takasureReserveProxy).getReserveValues().daoToken);
     }
@@ -43,7 +43,7 @@ contract TokenTest is Test {
         // Get users balance from the mapping and the balanceOf function to check if they match up
         uint256 userBalanceBefore = daoToken.balanceOf(user);
 
-        vm.prank(address(joinModule));
+        vm.prank(address(entryModule));
 
         // Event should be emitted
         vm.expectEmit(true, true, false, false, address(daoToken));
@@ -66,15 +66,15 @@ contract TokenTest is Test {
         uint256 burnAmount = MINT_AMOUNT / 2;
 
         // Mint some tokens to the user
-        vm.startPrank(address(joinModule));
-        daoToken.mint(address(joinModule), MINT_AMOUNT);
-        uint256 balanceBefore = daoToken.balanceOf(address(joinModule));
+        vm.startPrank(address(entryModule));
+        daoToken.mint(address(entryModule), MINT_AMOUNT);
+        uint256 balanceBefore = daoToken.balanceOf(address(entryModule));
 
         // Expect to emit the event
         vm.expectEmit(true, true, false, false, address(daoToken));
-        emit OnTokenBurned(address(joinModule), burnAmount);
+        emit OnTokenBurned(address(entryModule), burnAmount);
         daoToken.burn(burnAmount);
-        uint256 balanceAfter = daoToken.balanceOf(address(joinModule));
+        uint256 balanceAfter = daoToken.balanceOf(address(entryModule));
         vm.stopPrank();
         assert(balanceBefore > balanceAfter);
     }
@@ -82,12 +82,12 @@ contract TokenTest is Test {
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
-    function testToken_JoinModuleIsMinterAndBurner() public view {
+    function testToken_EntryModuleIsMinterAndBurner() public view {
         bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
         bytes32 BURNER_ROLE = keccak256("BURNER_ROLE");
 
-        bool isMinter = daoToken.hasRole(MINTER_ROLE, address(joinModule));
-        bool isBurner = daoToken.hasRole(BURNER_ROLE, address(joinModule));
+        bool isMinter = daoToken.hasRole(MINTER_ROLE, address(entryModule));
+        bool isBurner = daoToken.hasRole(BURNER_ROLE, address(entryModule));
 
         assert(isMinter);
         assert(isBurner);
@@ -98,26 +98,26 @@ contract TokenTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testToken_mustRevertIfTryToMintToAddressZero() public {
-        vm.prank(address(joinModule));
+        vm.prank(address(entryModule));
         vm.expectRevert(TSToken.Token__NotZeroAddress.selector);
         daoToken.mint(address(0), MINT_AMOUNT);
     }
 
     function testToken_mustRevertIfTryToMintZero() public {
-        vm.prank(address(joinModule));
+        vm.prank(address(entryModule));
         vm.expectRevert(TSToken.Token__MustBeMoreThanZero.selector);
         daoToken.mint(user, 0);
     }
 
     function testToken_mustRevertIfTryToBurnZero() public {
-        vm.prank(address(joinModule));
+        vm.prank(address(entryModule));
         vm.expectRevert(TSToken.Token__MustBeMoreThanZero.selector);
         daoToken.burn(0);
     }
 
     function testToken_mustRevertIfTryToBurnMoreThanBalance() public {
         uint256 userBalance = daoToken.balanceOf(user);
-        vm.prank(address(joinModule));
+        vm.prank(address(entryModule));
         vm.expectRevert(
             abi.encodeWithSelector(
                 TSToken.Token__BurnAmountExceedsBalance.selector,

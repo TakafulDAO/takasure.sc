@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.28;
 
-interface IJoinModule {
+interface IEntryModule {
     function joinPool(
         address mebersWallet,
         uint256 contributionBeforeFee,

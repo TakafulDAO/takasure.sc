@@ -7,7 +7,7 @@ import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -21,14 +21,14 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    JoinModule joinModule;
+    EntryModule entryModule;
     UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
-    address joinModuleAddress;
+    address entryModuleAddress;
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -40,7 +40,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         deployer = new TestDeployTakasureReserve();
         (
             takasureReserveProxy,
-            joinModuleAddress,
+            entryModuleAddress,
             ,
             ,
             userRouterAddress,
@@ -48,7 +48,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             helperConfig
         ) = deployer.run();
 
-        joinModule = JoinModule(joinModuleAddress);
+        entryModule = EntryModule(entryModuleAddress);
         userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -67,17 +67,17 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerMock.setNewRequester(address(joinModuleAddress));
+        bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
         vm.prank(takadao);
-        joinModule.updateBmAddress();
+        entryModule.updateBmAddress();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -100,7 +100,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        joinModule.setKYCStatus(alice);
+        entryModule.setKYCStatus(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 finalClaimReserve = reserve.totalClaimReserve;
@@ -133,7 +133,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             lotOfUsers[i] = makeAddr(vm.toString(i));
             deal(address(usdc), lotOfUsers[i], USDC_INITIAL_AMOUNT);
             vm.prank(lotOfUsers[i]);
-            usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
+            usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
 
             vm.prank(lotOfUsers[i]);
             userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -146,7 +146,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // First day
         for (uint256 i; i < 10; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -155,7 +155,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Second day
         for (uint256 i = 10; i < 20; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -164,7 +164,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Third day
         for (uint256 i = 20; i < 30; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -173,7 +173,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Fourth day
         for (uint256 i = 30; i < 40; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -182,7 +182,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Fifth day
         for (uint256 i = 40; i < 50; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         uint256 cash = takasureReserve.getCashLast12Months();
@@ -207,7 +207,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             lotOfUsers[i] = makeAddr(vm.toString(i));
             deal(address(usdc), lotOfUsers[i], USDC_INITIAL_AMOUNT);
             vm.prank(lotOfUsers[i]);
-            usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
+            usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
 
             vm.prank(lotOfUsers[i]);
             userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -223,7 +223,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // 20 * 30 = 600USDC
         for (uint256 i; i < 30; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 31 days);
@@ -233,7 +233,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // 20 * 10 = 200USDC + 600USDC = 800USDC
         for (uint256 i = 30; i < 40; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 31 days);
@@ -243,7 +243,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // 20 * 15 = 300USDC + 800USDC = 1100USDC
         for (uint256 i = 40; i < 55; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -253,7 +253,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // 20 * 23 = 460USDC + 1100USDC = 1560USDC
         for (uint256 i = 55; i < 78; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         uint256 cash = takasureReserve.getCashLast12Months();
@@ -276,7 +276,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             lotOfUsers[i] = makeAddr(vm.toString(i));
             deal(address(usdc), lotOfUsers[i], USDC_INITIAL_AMOUNT);
             vm.prank(lotOfUsers[i]);
-            usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
+            usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
 
             vm.prank(lotOfUsers[i]);
             userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -288,7 +288,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Months 1, 2 and 3, one new member joins daily
         for (uint256 i; i < 90; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
             vm.warp(block.timestamp + 1 days);
             vm.roll(block.number + 1);
         }
@@ -296,7 +296,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Months 4 to 12, 10 new members join monthly
         for (uint256 i = 90; i < 180; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
 
             // End of the month
             if (
@@ -325,7 +325,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Thirteenth month 10 people joins
         for (uint256 i = 180; i < 190; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         // Month 1 take 29 days => Total 580USDC
@@ -348,7 +348,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Fourteenth month 10 people joins
         for (uint256 i = 190; i < 200; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         // Month 1 should not count
@@ -372,7 +372,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         // Last 2 days 2 people joins
         for (uint256 i = 200; i < 202; i++) {
             vm.prank(admin);
-            joinModule.setKYCStatus(lotOfUsers[i]);
+            entryModule.setKYCStatus(lotOfUsers[i]);
 
             vm.warp(block.timestamp + 1 days);
             vm.roll(block.number + 1);

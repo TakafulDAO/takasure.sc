@@ -5,8 +5,8 @@ pragma solidity 0.8.28;
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
-import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
+import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureProtocolHandler} from "test/helpers/handlers/TakasureProtocolHandler.t.sol";
@@ -14,13 +14,13 @@ import {TakasureProtocolHandler} from "test/helpers/handlers/TakasureProtocolHan
 contract TakasureProtocolInvariantTest is StdInvariant, Test {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
-    JoinModule joinModule;
-    MembersModule membersModule;
+    EntryModule entryModule;
+    MemberModule memberModule;
     TakasureProtocolHandler handler;
     UserRouter userRouter;
     address takasureReserveProxy;
-    address joinModuleAddress;
-    address membersModuleAddress;
+    address entryModuleAddress;
+    address memberModuleAddress;
     address contributionTokenAddress;
     address userRouterAddress;
     IUSDC usdc;
@@ -31,8 +31,8 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
         deployer = new TestDeployTakasureReserve();
         (
             takasureReserveProxy,
-            joinModuleAddress,
-            membersModuleAddress,
+            entryModuleAddress,
+            memberModuleAddress,
             ,
             userRouterAddress,
             contributionTokenAddress,
@@ -40,15 +40,15 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
         ) = deployer.run();
 
         takasureReserve = TakasureReserve(address(takasureReserveProxy));
-        joinModule = JoinModule(joinModuleAddress);
-        membersModule = MembersModule(membersModuleAddress);
+        entryModule = EntryModule(entryModuleAddress);
+        memberModule = MemberModule(memberModuleAddress);
         userRouter = UserRouter(userRouterAddress);
         usdc = IUSDC(contributionTokenAddress);
 
         handler = new TakasureProtocolHandler(
             takasureReserve,
-            joinModule,
-            membersModule,
+            entryModule,
+            memberModule,
             userRouter
         );
 

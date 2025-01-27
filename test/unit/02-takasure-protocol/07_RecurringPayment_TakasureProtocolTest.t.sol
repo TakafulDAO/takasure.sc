@@ -7,8 +7,8 @@ import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
-import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
+import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -23,16 +23,16 @@ contract PayRecurringContribution_TakasureProtocolTest is StdCheats, Test, Simul
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    JoinModule joinModule;
-    MembersModule membersModule;
+    EntryModule entryModule;
+    MemberModule memberModule;
     UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
-    address joinModuleAddress;
-    address membersModuleAddress;
+    address entryModuleAddress;
+    address memberModuleAddress;
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -44,16 +44,16 @@ contract PayRecurringContribution_TakasureProtocolTest is StdCheats, Test, Simul
         deployer = new TestDeployTakasureReserve();
         (
             takasureReserveProxy,
-            joinModuleAddress,
-            membersModuleAddress,
+            entryModuleAddress,
+            memberModuleAddress,
             ,
             userRouterAddress,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
-        joinModule = JoinModule(joinModuleAddress);
-        membersModule = MembersModule(membersModuleAddress);
+        entryModule = EntryModule(entryModuleAddress);
+        memberModule = MemberModule(memberModuleAddress);
         userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -72,17 +72,17 @@ contract PayRecurringContribution_TakasureProtocolTest is StdCheats, Test, Simul
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerMock.setNewRequester(address(joinModuleAddress));
+        bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
         vm.prank(takadao);
-        joinModule.updateBmAddress();
+        entryModule.updateBmAddress();
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
-        usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
 
         userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
@@ -91,11 +91,11 @@ contract PayRecurringContribution_TakasureProtocolTest is StdCheats, Test, Simul
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
-        joinModule.setKYCStatus(alice);
+        entryModule.setKYCStatus(alice);
         vm.stopPrank();
     }
 
-    function testMembersModule_payRecurringContributionThrough5Years() public {
+    function testMemberModule_payRecurringContributionThrough5Years() public {
         uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
 
         for (uint256 i = 0; i < 5; i++) {
@@ -109,7 +109,7 @@ contract PayRecurringContribution_TakasureProtocolTest is StdCheats, Test, Simul
             vm.roll(block.number + 1);
 
             vm.startPrank(alice);
-            vm.expectEmit(true, true, true, true, address(membersModule));
+            vm.expectEmit(true, true, true, true, address(memberModule));
             emit TakasureEvents.OnRecurringPayment(
                 alice,
                 testMember.memberId,

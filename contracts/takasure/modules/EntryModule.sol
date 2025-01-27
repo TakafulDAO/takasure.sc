@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title JoinModule
+ * @title EntryModule
  * @author Maikel Ordaz
  * @notice This contract manage all the process to become a member
  * @dev It will interact with the TakasureReserve contract to update the values
@@ -29,7 +29,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
-contract JoinModule is
+contract EntryModule is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
@@ -48,13 +48,13 @@ contract JoinModule is
     uint256 private transient feeAmount;
     uint256 private transient contributionAfterFee;
 
-    error JoinModule__NoContribution();
-    error JoinModule__ContributionOutOfRange();
-    error JoinModule__AlreadyJoinedPendingForKYC();
-    error JoinModule__BenefitMultiplierRequestFailed(bytes errorResponse);
-    error JoinModule__MemberAlreadyKYCed();
-    error JoinModule__NothingToRefund();
-    error JoinModule__TooEarlytoRefund();
+    error EntryModule__NoContribution();
+    error EntryModule__ContributionOutOfRange();
+    error EntryModule__AlreadyJoinedPendingForKYC();
+    error EntryModule__BenefitMultiplierRequestFailed(bytes errorResponse);
+    error EntryModule__MemberAlreadyKYCed();
+    error EntryModule__NothingToRefund();
+    error EntryModule__TooEarlytoRefund();
 
     modifier notZeroAddress(address _address) {
         require(_address != address(0), GlobalErrors.TakasureProtocol__ZeroAddress());
@@ -108,7 +108,7 @@ contract JoinModule is
         require(
             contributionBeforeFee >= reserve.minimumThreshold &&
                 contributionBeforeFee <= reserve.maximumThreshold,
-            JoinModule__ContributionOutOfRange()
+            EntryModule__ContributionOutOfRange()
         );
 
        _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
@@ -119,7 +119,7 @@ contract JoinModule is
             // Flow 1: Join -> KYC
             require(
                 newMember.wallet == address(0),
-                JoinModule__AlreadyJoinedPendingForKYC()
+                EntryModule__AlreadyJoinedPendingForKYC()
             );
             // If is not refunded, it is a completele new member, we create it
             newMember = _createNewMember({
@@ -175,12 +175,12 @@ contract JoinModule is
         (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
             ._getReserveAndMemberValuesHook(takasureReserve, memberWallet);
 
-        require(!newMember.isKYCVerified, JoinModule__MemberAlreadyKYCed());
+        require(!newMember.isKYCVerified, EntryModule__MemberAlreadyKYCed());
         require(
             newMember.memberState == MemberState.Inactive,
             ModuleErrors.Module__WrongMemberState()
         );
-        require(newMember.contribution > 0, JoinModule__NoContribution());
+        require(newMember.contribution > 0, EntryModule__NoContribution());
 
         // This means the user exists and payed contribution but is not KYCed yet, we update the values
         _calculateAmountAndFees(
@@ -250,14 +250,14 @@ contract JoinModule is
             ._getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
 
         // The member should not be KYCed neither already refunded
-        require(!_member.isKYCVerified, JoinModule__MemberAlreadyKYCed());
-        require(!_member.isRefunded, JoinModule__NothingToRefund());
+        require(!_member.isKYCVerified, EntryModule__MemberAlreadyKYCed());
+        require(!_member.isRefunded, EntryModule__NothingToRefund());
 
         uint256 currentTimestamp = block.timestamp;
         uint256 membershipStartTime = _member.membershipStartTime;
         // The member can refund after 14 days of the payment
         uint256 limitTimestamp = membershipStartTime + (14 days);
-        require(currentTimestamp >= limitTimestamp, JoinModule__TooEarlytoRefund());
+        require(currentTimestamp >= limitTimestamp, EntryModule__TooEarlytoRefund());
 
         // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
         // when first KYC and then join the pool. So the previous check is enough
@@ -444,7 +444,7 @@ contract JoinModule is
             } else {
                 // If failed we get the error and revert with it
                 bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
-                revert JoinModule__BenefitMultiplierRequestFailed(errorResponse);
+                revert EntryModule__BenefitMultiplierRequestFailed(errorResponse);
             }
         }
     }

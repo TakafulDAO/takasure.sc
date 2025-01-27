@@ -7,7 +7,7 @@ import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -20,13 +20,13 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    JoinModule joinModule;
+    EntryModule entryModule;
     UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
-    address joinModuleAddress;
+    address entryModuleAddress;
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -37,7 +37,7 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
         deployer = new TestDeployTakasureReserve();
         (
             takasureReserveProxy,
-            joinModuleAddress,
+            entryModuleAddress,
             ,
             ,
             userRouterAddress,
@@ -45,7 +45,7 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
             helperConfig
         ) = deployer.run();
 
-        joinModule = JoinModule(joinModuleAddress);
+        entryModule = EntryModule(entryModuleAddress);
         userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -70,10 +70,10 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerMock.setNewRequester(address(joinModuleAddress));
+        bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
         vm.prank(config.takadaoOperator);
-        joinModule.updateBmAddress();
+        entryModule.updateBmAddress();
     }
 
     /// @dev Test the owner can set a new service fee

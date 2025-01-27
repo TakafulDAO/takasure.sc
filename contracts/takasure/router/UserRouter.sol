@@ -6,8 +6,8 @@
  * @notice This contract allows an easier implementation of the user's actions
  */
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {IJoinModule} from "contracts/interfaces/IJoinModule.sol";
-import {IMembersModule} from "contracts/interfaces/IMembersModule.sol";
+import {IEntryModule} from "contracts/interfaces/IEntryModule.sol";
+import {IMemberModule} from "contracts/interfaces/IMemberModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -18,8 +18,8 @@ pragma solidity 0.8.28;
 
 contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     ITakasureReserve private takasureReserve;
-    IJoinModule private joinModule;
-    IMembersModule private membersModule;
+    IEntryModule private entryModule;
+    IMemberModule private memberModule;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -28,15 +28,15 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
 
     function initialize(
         address _takasureReserveAddress,
-        address _joinModule,
-        address _membersModule
+        address _entryModule,
+        address _memberModule
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        joinModule = IJoinModule(_joinModule);
-        membersModule = IMembersModule(_membersModule);
+        entryModule = IEntryModule(_entryModule);
+        memberModule = IMemberModule(_memberModule);
 
         address takadaoOperator = takasureReserve.takadaoOperator();
 
@@ -45,27 +45,27 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
     }
 
     function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
-        joinModule.joinPool(msg.sender, contributionBeforeFee, membershipDuration);
+        entryModule.joinPool(msg.sender, contributionBeforeFee, membershipDuration);
     }
 
     function refund() external {
-        joinModule.refund(msg.sender);
+        entryModule.refund(msg.sender);
     }
 
     function payRecurringContribution() external {
-        membersModule.payRecurringContribution(msg.sender);
+        memberModule.payRecurringContribution(msg.sender);
     }
 
     function cancelMembership() external {
-        membersModule.cancelMembership(msg.sender);
+        memberModule.cancelMembership(msg.sender);
     }
 
     function cancelMembership(address memberWallet) external {
-        membersModule.cancelMembership(memberWallet);
+        memberModule.cancelMembership(memberWallet);
     }
 
     function defaultMember(address memberWallet) external {
-        membersModule.defaultMember(memberWallet);
+        memberModule.defaultMember(memberWallet);
     }
 
     function setTakasureReserve(
@@ -74,16 +74,16 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
     }
 
-    function setJoinModule(
-        address _joinModule
+    function setentryModule(
+        address _entryModule
     ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        joinModule = IJoinModule(_joinModule);
+        entryModule = IEntryModule(_entryModule);
     }
 
-    function setMembersModule(
-        address _membersModule
+    function setMemberModule(
+        address _memberModule
     ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        membersModule = IMembersModule(_membersModule);
+        memberModule = IMemberModule(_memberModule);
     }
 
     ///@dev required by the OZ UUPS module

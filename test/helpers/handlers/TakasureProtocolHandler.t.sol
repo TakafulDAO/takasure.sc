@@ -4,16 +4,16 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
-import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
+import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {MemberState} from "contracts/types/TakasureTypes.sol";
 
 contract TakasureProtocolHandler is Test {
     TakasureReserve takasureReserve;
-    JoinModule joinModule;
-    MembersModule membersModule;
+    EntryModule entryModule;
+    MemberModule memberModule;
     UserRouter userRouter;
     ERC20 usdc;
 
@@ -23,13 +23,13 @@ contract TakasureProtocolHandler is Test {
 
     constructor(
         TakasureReserve _takasureReserve,
-        JoinModule _joinModule,
-        MembersModule _membersModule,
+        EntryModule _entryModule,
+        MemberModule _memberModule,
         UserRouter _userRouter
     ) {
         takasureReserve = _takasureReserve;
-        joinModule = _joinModule;
-        membersModule = _membersModule;
+        entryModule = _entryModule;
+        memberModule = _memberModule;
         userRouter = _userRouter;
         usdc = ERC20(address(takasureReserve.getReserveValues().contributionToken));
     }
@@ -38,8 +38,8 @@ contract TakasureProtocolHandler is Test {
         // 1. User is not the zero address or the contracts address
         vm.assume(msg.sender != address(0));
         vm.assume(msg.sender != address(takasureReserve));
-        vm.assume(msg.sender != address(joinModule));
-        vm.assume(msg.sender != address(membersModule));
+        vm.assume(msg.sender != address(entryModule));
+        vm.assume(msg.sender != address(memberModule));
 
         // 2. User is not already a member
         MemberState currentMemberState = takasureReserve
@@ -55,7 +55,7 @@ contract TakasureProtocolHandler is Test {
 
         // 5. User approves the pool to spend the contribution amount and joins the pool
         vm.startPrank(msg.sender);
-        usdc.approve(address(joinModule), contributionAmount);
+        usdc.approve(address(entryModule), contributionAmount);
 
         userRouter.joinPool(contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
         vm.stopPrank();

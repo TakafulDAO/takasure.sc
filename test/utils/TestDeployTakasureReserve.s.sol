@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
-import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
+import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
@@ -31,8 +31,8 @@ contract TestDeployTakasureReserve is Script {
         external
         returns (
             address takasureReserve,
-            address joinModule,
-            address membersModule,
+            address entryModule,
+            address memberModule,
             address revenueModule,
             address router,
             address contributionTokenAddress,
@@ -76,27 +76,27 @@ contract TestDeployTakasureReserve is Script {
             config.subscriptionId
         );
 
-        (joinModule, membersModule, revenueModule) = _deployModules(takasureReserve);
+        (entryModule, memberModule, revenueModule) = _deployModules(takasureReserve);
 
         // Deploy router
         userRouterImplementation = address(new UserRouter());
         router = UnsafeUpgrades.deployUUPSProxy(
             userRouterImplementation,
-            abi.encodeCall(UserRouter.initialize, (takasureReserve, joinModule, membersModule))
+            abi.encodeCall(UserRouter.initialize, (takasureReserve, entryModule, memberModule))
         );
 
         _setContracts(
             benefitMultiplierConsumer,
             bmFetchScript,
-            joinModule,
-            membersModule,
+            entryModule,
+            memberModule,
             revenueModule,
             takasureReserve
         );
 
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
 
-        _assignRoles(takasureReserve, config.daoMultisig, creditToken, joinModule, membersModule);
+        _assignRoles(takasureReserve, config.daoMultisig, creditToken, entryModule, memberModule);
 
         vm.stopBroadcast();
 
@@ -106,8 +106,8 @@ contract TestDeployTakasureReserve is Script {
 
         return (
             takasureReserve,
-            joinModule,
-            membersModule,
+            entryModule,
+            memberModule,
             revenueModule,
             router,
             contributionTokenAddress,
@@ -117,19 +117,19 @@ contract TestDeployTakasureReserve is Script {
 
     function _deployModules(
         address _takasureReserve
-    ) internal returns (address joinModule, address membersModule, address revenueModule) {
-        // Deploy JoinModule
-        address joinModuleImplementation = address(new JoinModule());
-        joinModule = UnsafeUpgrades.deployUUPSProxy(
-            joinModuleImplementation,
-            abi.encodeCall(JoinModule.initialize, (_takasureReserve))
+    ) internal returns (address entryModule, address memberModule, address revenueModule) {
+        // Deploy EntryModule
+        address entryModuleImplementation = address(new EntryModule());
+        entryModule = UnsafeUpgrades.deployUUPSProxy(
+            entryModuleImplementation,
+            abi.encodeCall(EntryModule.initialize, (_takasureReserve))
         );
 
-        // Deploy MembersModule
-        address membersModuleImplementation = address(new MembersModule());
-        membersModule = UnsafeUpgrades.deployUUPSProxy(
-            membersModuleImplementation,
-            abi.encodeCall(MembersModule.initialize, (_takasureReserve))
+        // Deploy MemberModule
+        address memberModuleImplementation = address(new MemberModule());
+        memberModule = UnsafeUpgrades.deployUUPSProxy(
+            memberModuleImplementation,
+            abi.encodeCall(MemberModule.initialize, (_takasureReserve))
         );
 
         // Deploy RevenueModule
@@ -143,20 +143,20 @@ contract TestDeployTakasureReserve is Script {
     function _setContracts(
         BenefitMultiplierConsumer _benefitMultiplierConsumer,
         string memory _bmFetchScript,
-        address _joinModule,
-        address _membersModule,
+        address _entryModule,
+        address _memberModule,
         address _revenueModule,
         address _takasureReserve
     ) internal {
-        // Setting JoinModule as a requester in BenefitMultiplierConsumer
-        _benefitMultiplierConsumer.setNewRequester(_joinModule);
+        // Setting EntryModule as a requester in BenefitMultiplierConsumer
+        _benefitMultiplierConsumer.setNewRequester(_entryModule);
 
         // Add new source code to BenefitMultiplierConsumer
         _benefitMultiplierConsumer.setBMSourceRequestCode(_bmFetchScript);
 
         // Set modules contracts in TakasureReserve
-        TakasureReserve(_takasureReserve).setNewModuleContract(_joinModule);
-        TakasureReserve(_takasureReserve).setNewModuleContract(_membersModule);
+        TakasureReserve(_takasureReserve).setNewModuleContract(_entryModule);
+        TakasureReserve(_takasureReserve).setNewModuleContract(_memberModule);
         TakasureReserve(_takasureReserve).setNewModuleContract(_revenueModule);
     }
 
@@ -164,16 +164,16 @@ contract TestDeployTakasureReserve is Script {
         address _takasureReserve,
         address _daoMultisig,
         TSToken _creditToken,
-        address _joinModule,
-        address _membersModule
+        address _entryModule,
+        address _memberModule
     ) internal {
         // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(_takasureReserve).grantRole(0x00, _daoMultisig);
         // And the modules as burner and minters
-        _creditToken.grantRole(MINTER_ROLE, _joinModule);
-        _creditToken.grantRole(MINTER_ROLE, _membersModule);
-        _creditToken.grantRole(BURNER_ROLE, _joinModule);
-        _creditToken.grantRole(BURNER_ROLE, _membersModule);
+        _creditToken.grantRole(MINTER_ROLE, _entryModule);
+        _creditToken.grantRole(MINTER_ROLE, _memberModule);
+        _creditToken.grantRole(BURNER_ROLE, _entryModule);
+        _creditToken.grantRole(BURNER_ROLE, _memberModule);
 
         // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(_takasureReserve).renounceRole(0x00, msg.sender);

@@ -7,8 +7,8 @@ import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
-import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
+import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -23,16 +23,16 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    JoinModule joinModule;
-    MembersModule membersModule;
+    EntryModule entryModule;
+    MemberModule memberModule;
     UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
-    address joinModuleAddress;
-    address membersModuleAddress;
+    address entryModuleAddress;
+    address memberModuleAddress;
     address userRouterAddress;
     IUSDC usdc;
     uint256 public constant USDC_INITIAL_AMOUNT = 500e6; // 100 USDC
@@ -51,16 +51,16 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         deployer = new TestDeployTakasureReserve();
         (
             takasureReserveProxy,
-            joinModuleAddress,
-            membersModuleAddress,
+            entryModuleAddress,
+            memberModuleAddress,
             ,
             userRouterAddress,
             contributionTokenAddress,
             helperConfig
         ) = deployer.run();
 
-        joinModule = JoinModule(joinModuleAddress);
-        membersModule = MembersModule(membersModuleAddress);
+        entryModule = EntryModule(entryModuleAddress);
+        memberModule = MemberModule(memberModuleAddress);
         userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -79,16 +79,16 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerMock.setNewRequester(address(joinModuleAddress));
+        bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
         vm.prank(takadao);
-        joinModule.updateBmAddress();
+        entryModule.updateBmAddress();
     }
 
     modifier tokensTo(address user) {
         deal(address(usdc), user, USDC_INITIAL_AMOUNT);
         vm.startPrank(user);
-        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
         _;
     }
@@ -242,7 +242,7 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
-        joinModule.setKYCStatus(user);
+        entryModule.setKYCStatus(user);
         vm.stopPrank();
     }
 }

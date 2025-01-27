@@ -7,7 +7,7 @@ import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.
 import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
 import {HelperConfig} from "deploy/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -22,14 +22,14 @@ contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    JoinModule joinModule;
+    EntryModule entryModule;
     UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
-    address joinModuleAddress;
+    address entryModuleAddress;
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -42,7 +42,7 @@ contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         deployer = new TestDeployTakasureReserve();
         (
             takasureReserveProxy,
-            joinModuleAddress,
+            entryModuleAddress,
             ,
             ,
             userRouterAddress,
@@ -50,7 +50,7 @@ contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             helperConfig
         ) = deployer.run();
 
-        joinModule = JoinModule(joinModuleAddress);
+        entryModule = EntryModule(entryModuleAddress);
         userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -69,28 +69,28 @@ contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(msg.sender);
-        bmConsumerMock.setNewRequester(address(joinModuleAddress));
+        bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
         vm.prank(takadao);
-        joinModule.updateBmAddress();
+        entryModule.updateBmAddress();
     }
 
     /// @dev Test contribution amount is transferred to the contract
-    function testJoinModule_KycFlow() public {
+    function testEntryModule_KycFlow() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 memberIdBeforeJoin = reserve.memberIdCounter;
 
         // Join the pool
         vm.prank(alice);
 
-        vm.expectEmit(true, true, true, true, address(joinModule));
+        vm.expectEmit(true, true, true, true, address(entryModule));
         emit TakasureEvents.OnMemberCreated(
             memberIdBeforeJoin + 1,
             alice,
@@ -136,7 +136,7 @@ contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
 
         // Set KYC status to true
         vm.prank(admin);
-        vm.expectEmit(true, true, true, true, address(joinModule));
+        vm.expectEmit(true, true, true, true, address(entryModule));
         emit TakasureEvents.OnMemberUpdated(
             memberIdAfterJoin,
             alice,
@@ -147,13 +147,13 @@ contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
             1
         );
 
-        vm.expectEmit(true, false, false, false, address(joinModule));
+        vm.expectEmit(true, false, false, false, address(entryModule));
         emit TakasureEvents.OnMemberKycVerified(memberIdAfterJoin, alice);
 
-        vm.expectEmit(true, true, false, false, address(joinModule));
+        vm.expectEmit(true, true, false, false, address(entryModule));
         emit TakasureEvents.OnMemberJoined(memberIdAfterJoin, alice);
 
-        joinModule.setKYCStatus(alice);
+        entryModule.setKYCStatus(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 memberIdAfterKyc = reserve.memberIdCounter;
