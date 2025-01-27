@@ -49,7 +49,7 @@ contract TLDCcipSender is Ownable2Step {
     error TLDCcipSender__AddressZeroNotAllowed();
 
     modifier notZeroAddress(address addressToCheck) {
-        require(addressToCheck != address(0), Sender__AddressZeroNotAllowed());
+        require(addressToCheck != address(0), TLDCcipSender__AddressZeroNotAllowed());
         _;
     }
 
@@ -84,7 +84,7 @@ contract TLDCcipSender is Ownable2Step {
      * @param token The address of the token to be added.
      */
     function addSupportedToken(address token) external onlyOwner notZeroAddress(token) {
-        require(!isSupportedToken[token], Sender__AlreadySupportedToken());
+        require(!isSupportedToken[token], TLDCcipSender__AlreadySupportedToken());
 
         isSupportedToken[token] = true;
 
@@ -133,7 +133,7 @@ contract TLDCcipSender is Ownable2Step {
         uint256 ccipFees = router.getFee(destinationChainSelector, message);
 
         if (ccipFees > linkToken.balanceOf(address(this)))
-            revert Sender__NotEnoughBalance(linkToken.balanceOf(address(this)), ccipFees);
+            revert TLDCcipSender__NotEnoughBalance(linkToken.balanceOf(address(this)), ccipFees);
 
         // Approve the Router to transfer LINK tokens from this contract. It will spend the fees in LINK
         linkToken.approve(address(router), ccipFees);
@@ -192,7 +192,7 @@ contract TLDCcipSender is Ownable2Step {
         uint256 ccipFees = router.getFee(destinationChainSelector, message);
 
         if (ccipFees > address(this).balance)
-            revert Sender__NotEnoughBalance(address(this).balance, ccipFees);
+            revert TLDCcipSender__NotEnoughBalance(address(this).balance, ccipFees);
 
         IERC20(tokenToTransfer).safeTransferFrom(msg.sender, address(this), amountToTransfer);
         IERC20(tokenToTransfer).approve(address(router), amountToTransfer);
@@ -220,13 +220,13 @@ contract TLDCcipSender is Ownable2Step {
         uint256 amount = address(this).balance;
 
         // Revert if there is nothing to withdraw
-        if (amount == 0) revert Sender__NothingToWithdraw();
+        if (amount == 0) revert TLDCcipSender__NothingToWithdraw();
 
         // Attempt to send the funds, capturing the success status and discarding any return data
         (bool sent, ) = beneficiary.call{value: amount}("");
 
         // Revert if the send failed, with information about the attempted transfer
-        if (!sent) revert Sender__FailedToWithdrawEth(msg.sender, beneficiary, amount);
+        if (!sent) revert TLDCcipSender__FailedToWithdrawEth(msg.sender, beneficiary, amount);
     }
 
     /**
@@ -239,7 +239,7 @@ contract TLDCcipSender is Ownable2Step {
         uint256 amount = linkToken.balanceOf(address(this));
 
         // Revert if there is nothing to withdraw
-        if (amount == 0) revert Sender__NothingToWithdraw();
+        if (amount == 0) revert TLDCcipSender__NothingToWithdraw();
 
         linkToken.safeTransfer(beneficiary, amount);
     }
