@@ -40,9 +40,6 @@ contract EntryModule is
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
 
-    uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
-    uint256 private constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
-
     uint256 private transient mintedTokens;
     uint256 private transient normalizedContributionBeforeFee;
     uint256 private transient feeAmount;
@@ -287,8 +284,8 @@ contract EntryModule is
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
         normalizedContributionBeforeFee =
-            (_contributionBeforeFee / DECIMAL_REQUIREMENT_PRECISION_USDC) *
-            DECIMAL_REQUIREMENT_PRECISION_USDC;
+            (_contributionBeforeFee / ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC;
         feeAmount = (normalizedContributionBeforeFee * _fee) / 100;
         contributionAfterFee = normalizedContributionBeforeFee - feeAmount;
     }
@@ -308,7 +305,7 @@ contract EntryModule is
         if (_allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
         } else {
-            userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
+            userMembershipDuration = ModuleConstants.DEFAULT_MEMBERSHIP_DURATION;
         }
 
         uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) / 100;
@@ -363,7 +360,7 @@ contract EntryModule is
         if (_allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
         } else {
-            userMembershipDuration = DEFAULT_MEMBERSHIP_DURATION;
+            userMembershipDuration = ModuleConstants.DEFAULT_MEMBERSHIP_DURATION;
         }
 
         _member.benefitMultiplier = _benefitMultiplier;

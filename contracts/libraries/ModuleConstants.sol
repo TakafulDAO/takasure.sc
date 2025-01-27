@@ -13,4 +13,7 @@ library ModuleConstants {
     uint256 internal constant DAY = 1 days;
 
     uint256 internal constant DECIMALS_PRECISION = 1e12;
+
+    uint256 internal constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
+    uint256 internal constant DEFAULT_MEMBERSHIP_DURATION = 5 * (365 days); // 5 year
 }
