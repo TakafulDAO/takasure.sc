@@ -87,12 +87,12 @@ contract Refund_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
 
         userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.stopPrank;
+        vm.stopPrank();
 
         vm.startPrank(bob);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
-        vm.stopPrank;
+        vm.stopPrank();
     }
 
     function testJoinModule_refundContribution() public {

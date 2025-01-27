@@ -118,7 +118,7 @@ contract PayRecurringContribution_TakasureProtocolTest is StdCheats, Test, Simul
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
             userRouter.payRecurringContribution();
-            vm.stopPrank;
+            vm.stopPrank();
 
             testMember = takasureReserve.getMemberFromAddress(alice);
 

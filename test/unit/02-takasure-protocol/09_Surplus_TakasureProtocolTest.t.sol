@@ -89,7 +89,7 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         deal(address(usdc), user, USDC_INITIAL_AMOUNT);
         vm.startPrank(user);
         usdc.approve(address(joinModule), USDC_INITIAL_AMOUNT);
-        vm.stopPrank;
+        vm.stopPrank();
         _;
     }
 
