@@ -19,7 +19,7 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/libraries/ModuleConstants.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
-import {PaymentAlgorithms} from "contracts/libraries/PaymentAlgorithms.sol";
+import {CashFlowAlgorithms} from "contracts/libraries/CashFlowAlgorithms.sol";
 import {ReserveAndMemberValues} from "contracts/libraries/ReserveAndMemberValues.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {GlobalErrors} from "contracts/libraries/GlobalErrors.sol";
@@ -401,7 +401,7 @@ contract EntryModule is
     ) internal returns (Reserve memory) {
         _getBenefitMultiplierFromOracle(_memberWallet);
 
-        _reserve = PaymentAlgorithms._updateNewReserveValues(
+        _reserve = CashFlowAlgorithms._updateNewReserveValues(
             takasureReserve,
             _contributionAfterFee,
             _contributionBeforeFee,
@@ -415,7 +415,7 @@ contract EntryModule is
         );
 
         // Mint the DAO Tokens
-        mintedTokens = PaymentAlgorithms._mintDaoTokens(takasureReserve, _contributionBeforeFee);
+        mintedTokens = CashFlowAlgorithms._mintDaoTokens(takasureReserve, _contributionBeforeFee);
 
         return _reserve;
     }
