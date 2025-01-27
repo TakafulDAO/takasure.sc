@@ -167,14 +167,6 @@ contract ReferralGateway is
     error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
     error ReferralGateway__WrongCaller();
 
-    modifier onlyCouponRedeemerOrCcipReceiver() {
-        require(
-            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
-            ReferralGateway__WrongCaller()
-        );
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -394,7 +386,9 @@ contract ReferralGateway is
         address parent,
         address newMember,
         uint256 couponAmount
-    ) external onlyCouponRedeemerOrCcipReceiver returns (uint256 finalFee, uint256 discount) {
+    ) external returns (uint256 finalFee, uint256 discount) {
+        _onlyCouponRedeemerOrCcipReceiver;
+
         (finalFee, discount) = _payContribution(
             contribution,
             tDAOName,
@@ -954,5 +948,12 @@ contract ReferralGateway is
 
     function _onlyDAOAdmin(string calldata tDAOName) internal view {
         require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
+    }
+
+    function _onlyCouponRedeemerOrCcipReceiver() internal view {
+        require(
+            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            ReferralGateway__WrongCaller()
+        );
     }
 }
