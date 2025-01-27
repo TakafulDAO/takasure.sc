@@ -30,10 +30,13 @@ contract Sender is Ownable2Step {
 
     address public immutable receiverContract;
 
+    mapping(address token => bool supportedTokens) public isSupportedToken;
+
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    event OnNewSupportedToken(address token);
     event OnTokensTransferred(
         bytes32 indexed messageId,
         uint256 indexed tokenAmount,
@@ -41,6 +44,7 @@ contract Sender is Ownable2Step {
         uint256 fees
     );
 
+    error Sender__AlreadySupportedToken();
     error Sender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
     error Sender__NothingToWithdraw();
     error Sender__FailedToWithdrawEth(address owner, address target, uint256 value);
@@ -67,7 +71,26 @@ contract Sender is Ownable2Step {
         destinationChainSelector = _chainSelector;
     }
 
+    fallback() external payable {}
+
     receive() external payable {}
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTINGS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Add a token to the list of supported tokens.
+     * @param token The address of the token to be added.
+     */
+    function addSupportedToken(address token) external onlyOwner {
+        require(token != address(0), Sender__AddressZeroNotAllowed());
+        require(!isSupportedToken[token], Sender__AlreadySupportedToken());
+
+        isSupportedToken[token] = true;
+
+        emit OnNewSupportedToken(token);
+    }
 
     /**
      * @notice Transfer tokens to referrral contract on the destination chain.
