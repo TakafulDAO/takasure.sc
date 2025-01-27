@@ -79,8 +79,9 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     constructor(
         address _router,
         address _usdc,
-        address _referralGateway
-    ) CCIPReceiver(_router) Ownable(msg.sender) {
+        address _referralGateway,
+        address _owner
+    ) CCIPReceiver(_router) Ownable(_owner) {
         require(_usdc != address(0), TLDCcipReceiver__InvalidUsdcToken());
         usdc = IERC20(_usdc);
         referralGateway = _referralGateway;
