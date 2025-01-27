@@ -49,19 +49,19 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     event OnMessageFailed(bytes32 indexed messageId, bytes reason);
     event OnMessageRecovered(bytes32 indexed messageId);
 
-    error Receiver__InvalidUsdcToken();
-    error Receiver__InvalidSourceChain();
-    error Receiver__OnlySelf();
-    error Receiver__CallFailed();
-    error Receiver__MessageNotFailed(bytes32 messageId);
+    error TLDCcipReceiver__InvalidUsdcToken();
+    error TLDCcipReceiver__InvalidSourceChain();
+    error TLDCcipReceiver__OnlySelf();
+    error TLDCcipReceiver__CallFailed();
+    error TLDCcipReceiver__MessageNotFailed(bytes32 messageId);
 
     modifier validateSourceChain(uint64 _sourceChainSelector) {
-        if (_sourceChainSelector == 0) revert Receiver__InvalidSourceChain();
+        if (_sourceChainSelector == 0) revert TLDCcipReceiver__InvalidSourceChain();
         _;
     }
 
     modifier onlySelf() {
-        if (msg.sender != address(this)) revert Receiver__OnlySelf();
+        if (msg.sender != address(this)) revert TLDCcipReceiver__OnlySelf();
         _;
     }
 
@@ -75,7 +75,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         address _usdc,
         address _referralGateway
     ) CCIPReceiver(_router) Ownable(msg.sender) {
-        require(_usdc != address(0), Receiver__InvalidUsdcToken());
+        require(_usdc != address(0), TLDCcipReceiver__InvalidUsdcToken());
         usdc = IERC20(_usdc);
         referralGateway = _referralGateway;
         usdc.approve(_referralGateway, type(uint256).max);
@@ -119,7 +119,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     function retryFailedMessage(bytes32 messageId) external onlyOwner {
         require(
             failedMessages.get(messageId) == uint256(ErrorCode.FAILED),
-            Receiver__MessageNotFailed(messageId)
+            TLDCcipReceiver__MessageNotFailed(messageId)
         );
         failedMessages.set(messageId, uint256(ErrorCode.RESOLVED));
 
@@ -153,7 +153,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
         // Low level call to the referral gateway
         (bool success, ) = referralGateway.call(any2EvmMessage.data);
-        require(success, Receiver__CallFailed());
+        require(success, TLDCcipReceiver__CallFailed());
         emit OnMessageReceived(
             any2EvmMessage.messageId,
             any2EvmMessage.sourceChainSelector,
