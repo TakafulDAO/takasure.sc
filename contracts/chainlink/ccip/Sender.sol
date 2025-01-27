@@ -49,6 +49,11 @@ contract Sender is Ownable2Step {
     error Sender__FailedToWithdrawEth(address owner, address target, uint256 value);
     error Sender__AddressZeroNotAllowed();
 
+    modifier notZeroAddress(address addressToCheck) {
+        require(addressToCheck != address(0), Sender__AddressZeroNotAllowed());
+        _;
+    }
+
     /**
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
@@ -79,8 +84,7 @@ contract Sender is Ownable2Step {
      * @notice Add a token to the list of supported tokens.
      * @param token The address of the token to be added.
      */
-    function addSupportedToken(address token) external onlyOwner {
-        require(token != address(0), Sender__AddressZeroNotAllowed());
+    function addSupportedToken(address token) external onlyOwner notZeroAddress(token) {
         require(!isSupportedToken[token], Sender__AlreadySupportedToken());
 
         isSupportedToken[token] = true;
@@ -199,8 +203,7 @@ contract Sender is Ownable2Step {
      * @dev This function reverts if there are no funds to withdraw or if the transfer fails.
      * @dev It should only be callable by the owner of the contract.
      */
-    function withdraw(address beneficiary) external onlyOwner {
-        require(beneficiary != address(0), Sender__AddressZeroNotAllowed());
+    function withdraw(address beneficiary) external onlyOwner notZeroAddress(beneficiary) {
         // Retrieve the balance of this contract
         uint256 amount = address(this).balance;
 
@@ -219,8 +222,7 @@ contract Sender is Ownable2Step {
      * @dev This function reverts with a 'Sender__NothingToWithdraw' error if there are no tokens to withdraw.
      * @param beneficiary The address to which the tokens will be sent.
      */
-    function withdrawToken(address beneficiary) external onlyOwner {
-        require(beneficiary != address(0), Sender__AddressZeroNotAllowed());
+    function withdrawToken(address beneficiary) external onlyOwner notZeroAddress(beneficiary) {
         // Retrieve the balance of this contract
         uint256 amount = linkToken.balanceOf(address(this));
 
