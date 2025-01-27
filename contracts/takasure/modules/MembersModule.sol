@@ -140,7 +140,7 @@ contract MembersModule is
     function defaultMember(address memberWallet) external {
         Member memory member = takasureReserve.getMemberFromAddress(memberWallet);
 
-        require(member.memberState != MemberState.Active, ModuleErrors.Module__WrongMemberState());
+        require(member.memberState == MemberState.Active, ModuleErrors.Module__WrongMemberState());
 
         uint256 currentTimestamp = block.timestamp;
         uint256 lastPaidYearStartDate = member.lastPaidYearStartDate;
@@ -162,7 +162,7 @@ contract MembersModule is
         Member memory member = takasureReserve.getMemberFromAddress(_memberWallet);
 
         require(
-            member.memberState != MemberState.Defaulted,
+            member.memberState == MemberState.Defaulted,
             ModuleErrors.Module__WrongMemberState()
         );
 
