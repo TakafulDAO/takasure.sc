@@ -24,7 +24,6 @@ contract Sender is Ownable2Step {
 
     IRouterClient public router;
     IERC20 public immutable linkToken;
-    IERC20 public immutable usdc;
 
     uint64 public immutable destinationChainSelector;
 
@@ -53,20 +52,17 @@ contract Sender is Ownable2Step {
     /**
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
-     * @param _usdc The address of the USDC contract. // ? Question: Hardcord as only USDC, but we can add more tokens and have them as inputs in the functions
      * @param _receiverContract The address of the referral contract. This will be the only receiver
      * @param _chainSelector The chain selector of the destination chain. From the list of supported chains.
      */
     constructor(
         address _router,
         address _link,
-        address _usdc,
         address _receiverContract,
         uint64 _chainSelector
     ) Ownable(msg.sender) {
         router = IRouterClient(_router);
         linkToken = IERC20(_link);
-        usdc = IERC20(_usdc);
         receiverContract = _receiverContract;
         destinationChainSelector = _chainSelector;
     }
@@ -103,6 +99,7 @@ contract Sender is Ownable2Step {
     // ? Question: Here is where we can add more tokens
     function transferUSDCPayLINK(
         uint256 amount,
+        address tokenToTransfer,
         uint256 contribution,
         string calldata tDAOName,
         address parent,
@@ -110,7 +107,7 @@ contract Sender is Ownable2Step {
     ) external returns (bytes32 messageId) {
         // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
         Client.EVM2AnyMessage memory message = _buildCCIPMessage({
-            _token: address(usdc),
+            _token: tokenToTransfer,
             _amount: amount,
             _feeTokenAddress: address(linkToken), // fees are paid in LINK
             _contribution: contribution,
@@ -129,8 +126,8 @@ contract Sender is Ownable2Step {
         // Approve the Router to transfer LINK tokens from this contract. It will spend the fees in LINK
         linkToken.approve(address(router), ccipFees);
 
-        usdc.safeTransferFrom(msg.sender, address(this), amount);
-        usdc.approve(address(router), amount);
+        IERC20(tokenToTransfer).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(tokenToTransfer).approve(address(router), amount);
 
         // Send the message through the router and store the returned message ID
         messageId = router.ccipSend(destinationChainSelector, message);
@@ -155,6 +152,7 @@ contract Sender is Ownable2Step {
     // ? Question: For this function, the fees are paid in native gas, so the contract needs balance. If not going to be used, we can remove it.
     function transferUSDCPayNative(
         uint256 amount,
+        address tokenToTransfer,
         uint256 contribution,
         string calldata tDAOName,
         address parent,
@@ -162,7 +160,7 @@ contract Sender is Ownable2Step {
     ) external returns (bytes32 messageId) {
         // address(0) means fees are paid in native gas
         Client.EVM2AnyMessage memory message = _buildCCIPMessage({
-            _token: address(usdc),
+            _token: tokenToTransfer,
             _amount: amount,
             _feeTokenAddress: address(0),
             _contribution: contribution,
@@ -178,8 +176,8 @@ contract Sender is Ownable2Step {
         if (ccipFees > address(this).balance)
             revert Sender__NotEnoughBalance(address(this).balance, ccipFees);
 
-        usdc.safeTransferFrom(msg.sender, address(this), amount);
-        usdc.approve(address(router), amount);
+        IERC20(tokenToTransfer).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(tokenToTransfer).approve(address(router), amount);
 
         // Send the message through the router and store the returned message ID
         messageId = router.ccipSend{value: ccipFees}(destinationChainSelector, message);
