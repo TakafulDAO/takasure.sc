@@ -25,10 +25,11 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     IERC20 public immutable usdc;
     address public referralGateway;
 
+    mapping(uint64 chainSelector => bool) public isSourceChainAllowed;
+    mapping(address sender => bool) public isSenderAllowed;
     mapping(bytes32 messageId => Client.Any2EVMMessage message) public messageContentsById;
     EnumerableMap.Bytes32ToUintMap internal failedMessages;
 
-    // ? Question: Here we can have a lot of failed messages, open to proposals by the team
     enum ErrorCode {
         RESOLVED,
         FAILED
@@ -50,13 +51,18 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     event OnMessageRecovered(bytes32 indexed messageId);
 
     error TLDCcipReceiver__InvalidUsdcToken();
-    error TLDCcipReceiver__InvalidSourceChain();
+    error TLDCcipReceiver__NotAllowedSource();
     error TLDCcipReceiver__OnlySelf();
     error TLDCcipReceiver__CallFailed();
     error TLDCcipReceiver__MessageNotFailed(bytes32 messageId);
 
-    modifier validateSourceChain(uint64 _sourceChainSelector) {
-        if (_sourceChainSelector == 0) revert TLDCcipReceiver__InvalidSourceChain();
+    modifier onlyAllowedSource(uint64 _sourceChainSelector, address _sender) {
+        require(
+            _sourceChainSelector != 0 &&
+                isSourceChainAllowed[_sourceChainSelector] &&
+                isSenderAllowed[_sender],
+            TLDCcipReceiver__NotAllowedSource()
+        );
         _;
     }
 
@@ -81,6 +87,34 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         usdc.approve(_referralGateway, type(uint256).max);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                SETTINGS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Allows the owner to enable/disable a source chain to the list of allowed chains.
+     * @param sourceChainSelector The chain selector of the source chain.
+     */
+    function toggleAllowedSourceChain(uint64 sourceChainSelector) external onlyOwner {
+        require(sourceChainSelector != 0, TLDCcipReceiver__NotAllowedSource());
+        bool enable = !isSourceChainAllowed[sourceChainSelector];
+        isSourceChainAllowed[sourceChainSelector] = enable;
+    }
+
+    /**
+     * @notice Allows the owner to enable/disable a sender to the list of allowed senders.
+     * @param sender The address of the sender.
+     */
+    function toggleAllowedSender(address sender) external onlyOwner {
+        require(sender != address(0), TLDCcipReceiver__NotAllowedSource());
+        bool enable = !isSenderAllowed[sender];
+        isSenderAllowed[sender] = enable;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            RECEIVE MESSAGE
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice CCIP router calls this function. Should never revert, errors are handled internally
      * @param any2EvmMessage The message to process
@@ -88,12 +122,18 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
      */
     function ccipReceive(
         Client.Any2EVMMessage calldata any2EvmMessage
-    ) external override onlyRouter {
+    )
+        external
+        override
+        onlyRouter
+        onlyAllowedSource(
+            any2EvmMessage.sourceChainSelector,
+            abi.decode(any2EvmMessage.sender, (address))
+        )
+    {
         // Try-catch to avoid reverting the tx, emit event instead
         // Try catch to be able to call the external function
-        try this.processMessage(any2EvmMessage) {
-            // ? Question: We can do anything here, open to proposals by the team. Can be emit an event to track something
-        } catch (bytes memory err) {
+        try this.processMessage(any2EvmMessage) {} catch (bytes memory err) {
             failedMessages.set(any2EvmMessage.messageId, uint256(ErrorCode.FAILED));
             messageContentsById[any2EvmMessage.messageId] = any2EvmMessage;
             emit OnMessageFailed(any2EvmMessage.messageId, err);
@@ -105,7 +145,16 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
      * @notice It process the message received from the CCIP protocol.
      * @param any2EvmMessage Received CCIP message.
      */
-    function processMessage(Client.Any2EVMMessage calldata any2EvmMessage) external onlySelf {
+    function processMessage(
+        Client.Any2EVMMessage calldata any2EvmMessage
+    )
+        external
+        onlySelf
+        onlyAllowedSource(
+            any2EvmMessage.sourceChainSelector,
+            abi.decode(any2EvmMessage.sender, (address))
+        )
+    {
         _ccipReceive(any2EvmMessage);
     }
 
@@ -149,6 +198,10 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         }
         return failedMessagesList;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
         // Low level call to the referral gateway
