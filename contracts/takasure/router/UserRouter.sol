@@ -64,6 +64,10 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         membersModule.cancelMembership(memberWallet);
     }
 
+    function defaultMember(address memberWallet) external {
+        membersModule.defaultMember(memberWallet);
+    }
+
     function setTakasureReserve(
         address _takasureReserveAddress
     ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
