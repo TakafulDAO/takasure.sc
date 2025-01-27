@@ -25,8 +25,7 @@ contract Sender is Ownable2Step {
     IRouterClient public router;
     IERC20 public immutable linkToken;
 
-    uint64 public immutable destinationChainSelector;
-
+    uint64 public immutable destinationChainSelector; // Only Arbitrum (One, Sepolia)
     address public immutable receiverContract;
 
     mapping(address token => bool supportedTokens) public isSupportedToken;
@@ -97,28 +96,32 @@ contract Sender is Ownable2Step {
      * @notice pay in LINK.
      * @notice the token must be in the list of supported tokens.
      * @dev Revert if this contract dont have sufficient LINK tokens to pay for the fees.
-     * @param amount token amount.
+     * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
      * @return messageId The ID of the message that was sent.
      */
-    // ? Question: Here is where we can add more tokens
     function transferUSDCPayLINK(
-        uint256 amount,
+        uint256 amountToTransfer,
         address tokenToTransfer,
         uint256 contribution,
         string calldata tDAOName,
         address parent,
-        uint256 couponAmount
+        uint256 couponAmount,
+        uint256 gasLimit
     ) external returns (bytes32 messageId) {
+        // If no gas limit is provided, set a default value of 1_000_000
+        if (gasLimit == 0) gasLimit = 1_000_000;
+
         // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
         Client.EVM2AnyMessage memory message = _buildCCIPMessage({
             _token: tokenToTransfer,
-            _amount: amount,
+            _amount: amountToTransfer,
             _feeTokenAddress: address(linkToken), // fees are paid in LINK
             _contribution: contribution,
             _tDAOName: tDAOName,
             _parent: parent,
             _newMember: msg.sender,
-            _couponAmount: couponAmount
+            _couponAmount: couponAmount,
+            _gasLimit: gasLimit
         });
 
         // Fee required to send the message
@@ -130,17 +133,14 @@ contract Sender is Ownable2Step {
         // Approve the Router to transfer LINK tokens from this contract. It will spend the fees in LINK
         linkToken.approve(address(router), ccipFees);
 
-        IERC20(tokenToTransfer).safeTransferFrom(msg.sender, address(this), amount);
-        IERC20(tokenToTransfer).approve(address(router), amount);
+        IERC20(tokenToTransfer).safeTransferFrom(msg.sender, address(this), amountToTransfer);
+        IERC20(tokenToTransfer).approve(address(router), amountToTransfer);
 
         // Send the message through the router and store the returned message ID
         messageId = router.ccipSend(destinationChainSelector, message);
 
         // Emit an event with message details
-        emit OnTokensTransferred(messageId, amount, address(linkToken), ccipFees);
-
-        // Return the message ID
-        return messageId;
+        emit OnTokensTransferred(messageId, amountToTransfer, address(linkToken), ccipFees);
     }
 
     /**
@@ -149,29 +149,33 @@ contract Sender is Ownable2Step {
      * @notice the token must be in the list of supported tokens.
      * @notice This function can only be called by the owner.
      * @dev Assumes your contract has sufficient native gas like ETH on Ethereum or POL on Polygon.
-     * @param amount token amount.
+     * @param amountToTransfer token amount.
      * @return messageId The ID of the message that was sent.
      */
-    // ? Question: Here is where we can add more tokens
     // ? Question: For this function, the fees are paid in native gas, so the contract needs balance. If not going to be used, we can remove it.
     function transferUSDCPayNative(
-        uint256 amount,
+        uint256 amountToTransfer,
         address tokenToTransfer,
         uint256 contribution,
         string calldata tDAOName,
         address parent,
-        uint256 couponAmount
+        uint256 couponAmount,
+        uint256 gasLimit
     ) external returns (bytes32 messageId) {
+        // If no gas limit is provided, set a default value of 1_000_000
+        if (gasLimit == 0) gasLimit = 1_000_000;
+
         // address(0) means fees are paid in native gas
         Client.EVM2AnyMessage memory message = _buildCCIPMessage({
             _token: tokenToTransfer,
-            _amount: amount,
+            _amount: amountToTransfer,
             _feeTokenAddress: address(0),
             _contribution: contribution,
             _tDAOName: tDAOName,
             _parent: parent,
             _newMember: msg.sender,
-            _couponAmount: couponAmount
+            _couponAmount: couponAmount,
+            _gasLimit: gasLimit
         });
 
         // Get the fee required to send the message
@@ -180,17 +184,14 @@ contract Sender is Ownable2Step {
         if (ccipFees > address(this).balance)
             revert Sender__NotEnoughBalance(address(this).balance, ccipFees);
 
-        IERC20(tokenToTransfer).safeTransferFrom(msg.sender, address(this), amount);
-        IERC20(tokenToTransfer).approve(address(router), amount);
+        IERC20(tokenToTransfer).safeTransferFrom(msg.sender, address(this), amountToTransfer);
+        IERC20(tokenToTransfer).approve(address(router), amountToTransfer);
 
         // Send the message through the router and store the returned message ID
         messageId = router.ccipSend{value: ccipFees}(destinationChainSelector, message);
 
         // Emit an event with message details
-        emit OnTokensTransferred(messageId, amount, address(0), ccipFees);
-
-        // Return the message ID
-        return messageId;
+        emit OnTokensTransferred(messageId, amountToTransfer, address(0), ccipFees);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -200,8 +201,9 @@ contract Sender is Ownable2Step {
     /**
      * @notice Emergency function to withdraw the entire balance of Ether from the contract.
      * @param beneficiary The address to which the Ether should be transferred.
-     * @dev This function reverts if there are no funds to withdraw or if the transfer fails.
+     * @dev This function reverts with a 'Sender__NothingToWithdraw' error, if there are no funds to withdraw
      * @dev It should only be callable by the owner of the contract.
+     * @dev This ether is used to pay the fees of the CCIP protocol, when using native gas.
      */
     function withdraw(address beneficiary) external onlyOwner notZeroAddress(beneficiary) {
         // Retrieve the balance of this contract
@@ -218,7 +220,7 @@ contract Sender is Ownable2Step {
     }
 
     /**
-     * @notice Emergency function to withdraw all tokens of Link.
+     * @notice Emergency function to withdraw all Link tokens.
      * @dev This function reverts with a 'Sender__NothingToWithdraw' error if there are no tokens to withdraw.
      * @param beneficiary The address to which the tokens will be sent.
      */
@@ -252,7 +254,8 @@ contract Sender is Ownable2Step {
         string calldata _tDAOName,
         address _parent,
         address _newMember,
-        uint256 _couponAmount
+        uint256 _couponAmount,
+        uint256 _gasLimit
     ) internal view returns (Client.EVM2AnyMessage memory) {
         // Set the token amounts
         Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
@@ -262,6 +265,7 @@ contract Sender is Ownable2Step {
         });
         tokenAmounts[0] = tokenAmount;
 
+        // Function to call in the receiver contract
         // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
         bytes memory dataToSend = abi.encodeWithSignature(
             "payContributionOnBehalfOf(uint256,string,address,address,uint256)",
@@ -278,10 +282,7 @@ contract Sender is Ownable2Step {
             data: dataToSend,
             tokenAmounts: tokenAmounts,
             extraArgs: Client._argsToBytes(
-                Client.EVMExtraArgsV2({
-                    gasLimit: 1_000_000, // TODO: Now hardcoded, because is easier, fix this
-                    allowOutOfOrderExecution: true
-                })
+                Client.EVMExtraArgsV2({gasLimit: _gasLimit, allowOutOfOrderExecution: true})
             ),
             feeToken: _feeTokenAddress // If address(0) is native token
         });
