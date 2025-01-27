@@ -92,11 +92,16 @@ contract Sender is Ownable2Step {
     }
 
     /**
-     * @notice Transfer tokens to referrral contract on the destination chain.
-     * @notice pay in LINK.
-     * @notice the token must be in the list of supported tokens.
+     * @notice Transfer tokens to receiver contract on the destination chain.
+     * @notice Pay CCIP fees in LINK.
      * @dev Revert if this contract dont have sufficient LINK tokens to pay for the fees.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
+     * @param tokenToTransfer The address of the token to be transferred. Must be in the list of supported tokens.
+     * @param contribution The amount of the contribution to be paid in the TLD contract.
+     * @param tDAOName The name of the DAO to point in the TLD contract.
+     * @param parent The address of the parent if the caller has a referral.
+     * @param couponAmount The amount of the coupon if the caller has one.
+     * @param gasLimit The gas limit for the transaction. If 0, a default value of 1_000_000 will be used.
      * @return messageId The ID of the message that was sent.
      */
     function transferUSDCPayLINK(
@@ -147,9 +152,14 @@ contract Sender is Ownable2Step {
      * @notice Transfer tokens to receiver on the destination chain.
      * @notice Pay in native gas such as ETH on Ethereum or POL on Polygon.
      * @notice the token must be in the list of supported tokens.
-     * @notice This function can only be called by the owner.
-     * @dev Assumes your contract has sufficient native gas like ETH on Ethereum or POL on Polygon.
+     * @dev Assumes your contract has sufficient native gas.
      * @param amountToTransfer token amount.
+     * @param tokenToTransfer The address of the token to be transferred. Must be in the list of supported tokens.
+     * @param contribution The amount of the contribution to be paid in the TLD contract.
+     * @param tDAOName The name of the DAO to point in the TLD contract.
+     * @param parent The address of the parent if the caller has a referral.
+     * @param couponAmount The amount of the coupon if the caller has one.
+     * @param gasLimit The gas limit for the transaction. If 0, a default value of 1_000_000 will be used.
      * @return messageId The ID of the message that was sent.
      */
     // ? Question: For this function, the fees are paid in native gas, so the contract needs balance. If not going to be used, we can remove it.
