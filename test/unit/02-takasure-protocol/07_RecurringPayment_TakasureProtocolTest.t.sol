@@ -17,7 +17,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract payRecurringContribution_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
+contract PayRecurringContribution_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;
@@ -85,14 +85,14 @@ contract payRecurringContribution_TakasureProtocolTest is StdCheats, Test, Simul
         usdc.approve(address(membersModule), USDC_INITIAL_AMOUNT);
 
         userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.stopPrank;
+        vm.stopPrank();
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
         joinModule.setKYCStatus(alice);
-        vm.stopPrank;
+        vm.stopPrank();
     }
 
     function testMembersModule_payRecurringContributionThrough5Years() public {
