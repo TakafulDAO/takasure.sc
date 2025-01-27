@@ -78,14 +78,24 @@ contract Sender is Ownable2Step {
      * @return messageId The ID of the message that was sent.
      */
     // ? Question: Here is where we can add more tokens
-    function transferUSDCPayLINK(uint256 amount) external returns (bytes32 messageId) {
+    function transferUSDCPayLINK(
+        uint256 amount,
+        uint256 contribution,
+        string calldata tDAOName,
+        address parent,
+        uint256 couponAmount
+    ) external returns (bytes32 messageId) {
         // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
-        Client.EVM2AnyMessage memory message = _buildCCIPMessage(
-            receiverContract,
-            address(usdc),
-            amount,
-            address(linkToken) // fees are paid in LINK
-        );
+        Client.EVM2AnyMessage memory message = _buildCCIPMessage({
+            _token: address(usdc),
+            _amount: amount,
+            _feeTokenAddress: address(linkToken), // fees are paid in LINK
+            _contribution: contribution,
+            _tDAOName: tDAOName,
+            _parent: parent,
+            _newMember: msg.sender,
+            _couponAmount: couponAmount
+        });
 
         // Fee required to send the message
         uint256 ccipFees = router.getFee(destinationChainSelector, message);
@@ -120,14 +130,24 @@ contract Sender is Ownable2Step {
      */
     // ? Question: Here is where we can add more tokens
     // ? Question: For this function, the fees are paid in native gas, so the contract needs balance. If not going to be used, we can remove it.
-    function transferUSDCPayNative(uint256 amount) external returns (bytes32 messageId) {
+    function transferUSDCPayNative(
+        uint256 amount,
+        uint256 contribution,
+        string calldata tDAOName,
+        address parent,
+        uint256 couponAmount
+    ) external returns (bytes32 messageId) {
         // address(0) means fees are paid in native gas
-        Client.EVM2AnyMessage memory message = _buildCCIPMessage(
-            receiverContract,
-            address(usdc),
-            amount,
-            address(0)
-        );
+        Client.EVM2AnyMessage memory message = _buildCCIPMessage({
+            _token: address(usdc),
+            _amount: amount,
+            _feeTokenAddress: address(0),
+            _contribution: contribution,
+            _tDAOName: tDAOName,
+            _parent: parent,
+            _newMember: msg.sender,
+            _couponAmount: couponAmount
+        });
 
         // Get the fee required to send the message
         uint256 ccipFees = router.getFee(destinationChainSelector, message);
@@ -196,17 +216,20 @@ contract Sender is Ownable2Step {
     /**
      * @notice Construct a CCIP message.
      * @dev This function will create an EVM2AnyMessage struct with the information to tramsfer the tokens and send data.
-     * @param _receiver The address of the receiver.
      * @param _token The token to be transferred.
      * @param _amount The amount of the token to be transferred.
      * @param _feeTokenAddress The address of the token used for fees. Set address(0) for native gas.
      * @return Client.EVM2AnyMessage Returns an EVM2AnyMessage struct which contains information for sending a CCIP message.
      */
     function _buildCCIPMessage(
-        address _receiver,
         address _token,
         uint256 _amount,
-        address _feeTokenAddress
+        address _feeTokenAddress,
+        uint256 _contribution,
+        string calldata _tDAOName,
+        address _parent,
+        address _newMember,
+        uint256 _couponAmount
     ) internal view returns (Client.EVM2AnyMessage memory) {
         // Set the token amounts
         Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
@@ -216,16 +239,19 @@ contract Sender is Ownable2Step {
         });
         tokenAmounts[0] = tokenAmount;
 
-        // Todo: Here is calling this test function, but we need to change it to the real one. To do in other PR
+        // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
         bytes memory dataToSend = abi.encodeWithSignature(
-            "checkCaller(address,uint256)",
-            msg.sender,
-            _amount
+            "payContributionOnBehalfOf(uint256,string,address,address,uint256)",
+            _contribution,
+            _tDAOName,
+            _parent,
+            _newMember,
+            _couponAmount
         );
 
         // EVM2AnyMessage struct
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
-            receiver: abi.encode(_receiver),
+            receiver: abi.encode(receiverContract),
             data: dataToSend,
             tokenAmounts: tokenAmounts,
             extraArgs: Client._argsToBytes(
