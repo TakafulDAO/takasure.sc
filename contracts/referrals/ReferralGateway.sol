@@ -747,15 +747,15 @@ contract ReferralGateway is
 
             if (amountToTransfer > 0) {
                 if (msg.sender == ccipReceiverContract) {
-                    // usdc.safeTransferFrom(ccipReceiverContract, address(this), amountToTransfer);
+                    usdc.safeTransferFrom(ccipReceiverContract, address(this), amountToTransfer);
 
                     // Note: This is a temporary solution to test the CCIP integration in the testnet
                     // This is because in testnet we are using a different USDC contract for easier testing
-                    IERC20(0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d).safeTransferFrom(
-                        ccipReceiverContract,
-                        address(this),
-                        amountToTransfer
-                    );
+                    // IERC20(0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d).safeTransferFrom(
+                    //     ccipReceiverContract,
+                    //     address(this),
+                    //     amountToTransfer
+                    // );
                 } else {
                     usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
                 }
