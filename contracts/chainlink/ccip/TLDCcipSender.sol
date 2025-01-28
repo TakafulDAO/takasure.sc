@@ -111,6 +111,10 @@ contract TLDCcipSender is Ownable2Step {
         emit OnBackendProviderSet(_backendProvider);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                PAYMENT
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Transfer tokens to receiver contract on the destination chain.
      * @dev Revert if this contract dont have sufficient balance to pay for the fees.
@@ -158,67 +162,6 @@ contract TLDCcipSender is Ownable2Step {
         });
     }
 
-    function _sendMessage(
-        uint256 _amountToTransfer,
-        address _tokenToTransfer,
-        address _feeTokenAddress,
-        uint256 _ccipFees,
-        Client.EVM2AnyMessage memory _message
-    ) internal returns (bytes32 _messageId) {
-        IERC20(_tokenToTransfer).safeTransferFrom(msg.sender, address(this), _amountToTransfer);
-        IERC20(_tokenToTransfer).approve(address(router), _amountToTransfer);
-
-        // Send the message through the router and store the returned message ID
-        _messageId = router.ccipSend(destinationChainSelector, _message);
-
-        // Emit an event with message details
-        emit OnTokensTransferred(_messageId, _amountToTransfer, _feeTokenAddress, _ccipFees);
-    }
-
-    function _feeChecks(
-        Client.EVM2AnyMessage memory _message,
-        bool _feesInLink
-    ) internal returns (uint256 _ccipFees) {
-        // Fee required to send the message
-        _ccipFees = router.getFee(destinationChainSelector, _message);
-
-        uint256 _feeTokenBalance;
-
-        if (_feesInLink) _feeTokenBalance = linkToken.balanceOf(address(this));
-        else _feeTokenBalance = address(this).balance;
-
-        if (_ccipFees > _feeTokenBalance)
-            revert TLDCcipSender__NotEnoughBalance(_feeTokenBalance, _ccipFees);
-
-        // Approve the Router to transfer LINK tokens from this contract if needed
-        if (_feesInLink) linkToken.approve(address(router), _ccipFees);
-    }
-
-    function _setup(
-        uint256 _amountToTransfer,
-        address _tokenToTransfer,
-        uint256 _contributionAmount,
-        string calldata _tDAOName,
-        address _parent,
-        uint256 _couponAmount,
-        bool _feesInLink
-    ) internal view returns (address _feeTokenAddressToUse, Client.EVM2AnyMessage memory _message) {
-        if (_feesInLink) _feeTokenAddressToUse = address(linkToken);
-        else _feeTokenAddressToUse = address(0); // address(0) means fees are paid in native gas
-
-        // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
-        _message = _buildCCIPMessage({
-            _token: _tokenToTransfer,
-            _amount: _amountToTransfer,
-            _feeTokenAddress: _feeTokenAddressToUse,
-            _contribution: _contributionAmount,
-            _tDAOName: _tDAOName,
-            _parent: _parent,
-            _newMember: msg.sender,
-            _couponAmount: _couponAmount
-        });
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  OWNER
     //////////////////////////////////////////////////////////////*/
@@ -262,6 +205,67 @@ contract TLDCcipSender is Ownable2Step {
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _setup(
+        uint256 _amountToTransfer,
+        address _tokenToTransfer,
+        uint256 _contributionAmount,
+        string calldata _tDAOName,
+        address _parent,
+        uint256 _couponAmount,
+        bool _feesInLink
+    ) internal view returns (address _feeTokenAddressToUse, Client.EVM2AnyMessage memory _message) {
+        if (_feesInLink) _feeTokenAddressToUse = address(linkToken);
+        else _feeTokenAddressToUse = address(0); // address(0) means fees are paid in native gas
+
+        // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
+        _message = _buildCCIPMessage({
+            _token: _tokenToTransfer,
+            _amount: _amountToTransfer,
+            _feeTokenAddress: _feeTokenAddressToUse,
+            _contribution: _contributionAmount,
+            _tDAOName: _tDAOName,
+            _parent: _parent,
+            _newMember: msg.sender,
+            _couponAmount: _couponAmount
+        });
+    }
+
+    function _feeChecks(
+        Client.EVM2AnyMessage memory _message,
+        bool _feesInLink
+    ) internal returns (uint256 _ccipFees) {
+        // Fee required to send the message
+        _ccipFees = router.getFee(destinationChainSelector, _message);
+
+        uint256 _feeTokenBalance;
+
+        if (_feesInLink) _feeTokenBalance = linkToken.balanceOf(address(this));
+        else _feeTokenBalance = address(this).balance;
+
+        if (_ccipFees > _feeTokenBalance)
+            revert TLDCcipSender__NotEnoughBalance(_feeTokenBalance, _ccipFees);
+
+        // Approve the Router to transfer LINK tokens from this contract if needed
+        if (_feesInLink) linkToken.approve(address(router), _ccipFees);
+    }
+
+    function _sendMessage(
+        uint256 _amountToTransfer,
+        address _tokenToTransfer,
+        address _feeTokenAddress,
+        uint256 _ccipFees,
+        Client.EVM2AnyMessage memory _message
+    ) internal returns (bytes32 _messageId) {
+        IERC20(_tokenToTransfer).safeTransferFrom(msg.sender, address(this), _amountToTransfer);
+        IERC20(_tokenToTransfer).approve(address(router), _amountToTransfer);
+
+        // Send the message through the router and store the returned message ID
+        _messageId = router.ccipSend(destinationChainSelector, _message);
+
+        // Emit an event with message details
+        emit OnTokensTransferred(_messageId, _amountToTransfer, _feeTokenAddress, _ccipFees);
+    }
 
     /**
      * @notice Construct a CCIP message.
