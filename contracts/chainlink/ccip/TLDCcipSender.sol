@@ -64,13 +64,14 @@ contract TLDCcipSender is Ownable2Step {
      * @param _link The address of the link contract.
      * @param _receiverContract The address of the referral contract. This will be the only receiver
      * @param _chainSelector The chain selector of the destination chain. From the list of supported chains.
+     * @param _owner admin address
      */
     constructor(
         address _router,
         address _link,
         address _receiverContract,
-        uint64 _chainSelector
-    ) Ownable(msg.sender) {
+        uint64 _chainSelector, address _owner
+    ) Ownable(_owner) {
         router = IRouterClient(_router);
         linkToken = IERC20(_link);
         receiverContract = _receiverContract;
