@@ -27,6 +27,7 @@ contract TLDCcipSender is Ownable2Step {
 
     uint64 public immutable destinationChainSelector; // Only Arbitrum (One, Sepolia)
     address public immutable receiverContract;
+    address public backendProvider;
 
     mapping(address token => bool supportedTokens) public isSupportedToken;
 
@@ -48,14 +49,10 @@ contract TLDCcipSender is Ownable2Step {
     error TLDCcipSender__NothingToWithdraw();
     error TLDCcipSender__FailedToWithdrawEth(address owner, address target, uint256 value);
     error TLDCcipSender__AddressZeroNotAllowed();
+    error TLDCcipSender__NotAuthorized();
 
     modifier notZeroAddress(address addressToCheck) {
         require(addressToCheck != address(0), TLDCcipSender__AddressZeroNotAllowed());
-        _;
-    }
-
-    modifier allowedToken(address token) {
-        require(isSupportedToken[token], TLDCcipSender__NotSupportedToken());
         _;
     }
 
@@ -70,13 +67,15 @@ contract TLDCcipSender is Ownable2Step {
         address _router,
         address _link,
         address _receiverContract,
-        uint64 _chainSelector, 
-        address _owner
+        uint64 _chainSelector,
+        address _owner,
+        address _backendProvider
     ) Ownable(_owner) {
         router = IRouterClient(_router);
         linkToken = IERC20(_link);
         receiverContract = _receiverContract;
         destinationChainSelector = _chainSelector;
+        backendProvider = _backendProvider;
     }
 
     fallback() external payable {}
@@ -101,115 +100,109 @@ contract TLDCcipSender is Ownable2Step {
 
     /**
      * @notice Transfer tokens to receiver contract on the destination chain.
-     * @notice Pay CCIP fees in LINK.
-     * @dev Revert if this contract dont have sufficient LINK tokens to pay for the fees.
+     * @dev Revert if this contract dont have sufficient balance to pay for the fees.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
      * @param tokenToTransfer The address of the token to be transferred. Must be in the list of supported tokens.
      * @param contribution The amount of the contribution to be paid in the TLD contract.
      * @param tDAOName The name of the DAO to point in the TLD contract.
      * @param parent The address of the parent if the caller has a referral.
      * @param couponAmount The amount of the coupon if the caller has one.
-     * @param gasLimit The gas limit for the transaction. If 0, a default value of 1_000_000 will be used.
+     * @param feesInLink If true, the fees will be paid in LINK tokens. If false, the fees will be paid in native gas.
      * @return messageId The ID of the message that was sent.
      */
-    function transferUSDCPayLINK(
+    function payContribution(
         uint256 amountToTransfer,
         address tokenToTransfer,
         uint256 contribution,
         string calldata tDAOName,
         address parent,
         uint256 couponAmount,
-        uint256 gasLimit
-    ) external allowedToken(tokenToTransfer) returns (bytes32 messageId) {
-        // If no gas limit is provided, set a default value of 1_000_000
-        if (gasLimit == 0) gasLimit = 1_000_000;
+        bool feesInLink
+    ) external returns (bytes32 messageId) {
+        require(isSupportedToken[tokenToTransfer], TLDCcipSender__NotSupportedToken());
+        if (couponAmount > 0)
+            require(msg.sender == backendProvider, TLDCcipSender__NotAuthorized());
 
-        // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
-        Client.EVM2AnyMessage memory message = _buildCCIPMessage({
-            _token: tokenToTransfer,
-            _amount: amountToTransfer,
-            _feeTokenAddress: address(linkToken), // fees are paid in LINK
-            _contribution: contribution,
+        (address feeTokenAddress, Client.EVM2AnyMessage memory message) = _setup({
+            _amountToTransfer: amountToTransfer,
+            _tokenToTransfer: tokenToTransfer,
+            _contributionAmount: contribution,
             _tDAOName: tDAOName,
             _parent: parent,
-            _newMember: msg.sender,
             _couponAmount: couponAmount,
-            _gasLimit: gasLimit
+            _feesInLink: feesInLink
         });
 
-        // Fee required to send the message
-        uint256 ccipFees = router.getFee(destinationChainSelector, message);
+        uint256 ccipFees = _feeChecks(message, feesInLink);
 
-        if (ccipFees > linkToken.balanceOf(address(this)))
-            revert TLDCcipSender__NotEnoughBalance(linkToken.balanceOf(address(this)), ccipFees);
-
-        // Approve the Router to transfer LINK tokens from this contract. It will spend the fees in LINK
-        linkToken.approve(address(router), ccipFees);
-
-        IERC20(tokenToTransfer).safeTransferFrom(msg.sender, address(this), amountToTransfer);
-        IERC20(tokenToTransfer).approve(address(router), amountToTransfer);
-
-        // Send the message through the router and store the returned message ID
-        messageId = router.ccipSend(destinationChainSelector, message);
-
-        // Emit an event with message details
-        emit OnTokensTransferred(messageId, amountToTransfer, address(linkToken), ccipFees);
+        messageId = _sendMessage({
+            _amountToTransfer: amountToTransfer,
+            _tokenToTransfer: tokenToTransfer,
+            _feeTokenAddress: feeTokenAddress,
+            _ccipFees: ccipFees,
+            _message: message
+        });
     }
 
-    /**
-     * @notice Transfer tokens to receiver on the destination chain.
-     * @notice Pay in native gas such as ETH on Ethereum or POL on Polygon.
-     * @notice the token must be in the list of supported tokens.
-     * @dev Assumes your contract has sufficient native gas.
-     * @param amountToTransfer token amount.
-     * @param tokenToTransfer The address of the token to be transferred. Must be in the list of supported tokens.
-     * @param contribution The amount of the contribution to be paid in the TLD contract.
-     * @param tDAOName The name of the DAO to point in the TLD contract.
-     * @param parent The address of the parent if the caller has a referral.
-     * @param couponAmount The amount of the coupon if the caller has one.
-     * @param gasLimit The gas limit for the transaction. If 0, a default value of 1_000_000 will be used.
-     * @return messageId The ID of the message that was sent.
-     */
-    // ? Question: For this function, the fees are paid in native gas, so the contract needs balance. If not going to be used, we can remove it.
-    function transferUSDCPayNative(
-        uint256 amountToTransfer,
-        address tokenToTransfer,
-        uint256 contribution,
-        string calldata tDAOName,
-        address parent,
-        uint256 couponAmount,
-        uint256 gasLimit
-    ) external allowedToken(tokenToTransfer) returns (bytes32 messageId) {
-        // If no gas limit is provided, set a default value of 1_000_000
-        if (gasLimit == 0) gasLimit = 1_000_000;
-
-        // address(0) means fees are paid in native gas
-        Client.EVM2AnyMessage memory message = _buildCCIPMessage({
-            _token: tokenToTransfer,
-            _amount: amountToTransfer,
-            _feeTokenAddress: address(0),
-            _contribution: contribution,
-            _tDAOName: tDAOName,
-            _parent: parent,
-            _newMember: msg.sender,
-            _couponAmount: couponAmount,
-            _gasLimit: gasLimit
-        });
-
-        // Get the fee required to send the message
-        uint256 ccipFees = router.getFee(destinationChainSelector, message);
-
-        if (ccipFees > address(this).balance)
-            revert TLDCcipSender__NotEnoughBalance(address(this).balance, ccipFees);
-
-        IERC20(tokenToTransfer).safeTransferFrom(msg.sender, address(this), amountToTransfer);
-        IERC20(tokenToTransfer).approve(address(router), amountToTransfer);
+    function _sendMessage(
+        uint256 _amountToTransfer,
+        address _tokenToTransfer,
+        address _feeTokenAddress,
+        uint256 _ccipFees,
+        Client.EVM2AnyMessage memory _message
+    ) internal returns (bytes32 _messageId) {
+        IERC20(_tokenToTransfer).safeTransferFrom(msg.sender, address(this), _amountToTransfer);
+        IERC20(_tokenToTransfer).approve(address(router), _amountToTransfer);
 
         // Send the message through the router and store the returned message ID
-        messageId = router.ccipSend{value: ccipFees}(destinationChainSelector, message);
+        _messageId = router.ccipSend(destinationChainSelector, _message);
 
         // Emit an event with message details
-        emit OnTokensTransferred(messageId, amountToTransfer, address(0), ccipFees);
+        emit OnTokensTransferred(_messageId, _amountToTransfer, _feeTokenAddress, _ccipFees);
+    }
+
+    function _feeChecks(
+        Client.EVM2AnyMessage memory _message,
+        bool _feesInLink
+    ) internal returns (uint256 _ccipFees) {
+        // Fee required to send the message
+        _ccipFees = router.getFee(destinationChainSelector, _message);
+
+        uint256 _feeTokenBalance;
+
+        if (_feesInLink) _feeTokenBalance = linkToken.balanceOf(address(this));
+        else _feeTokenBalance = address(this).balance;
+
+        if (_ccipFees > _feeTokenBalance)
+            revert TLDCcipSender__NotEnoughBalance(_feeTokenBalance, _ccipFees);
+
+        // Approve the Router to transfer LINK tokens from this contract if needed
+        if (_feesInLink) linkToken.approve(address(router), _ccipFees);
+    }
+
+    function _setup(
+        uint256 _amountToTransfer,
+        address _tokenToTransfer,
+        uint256 _contributionAmount,
+        string calldata _tDAOName,
+        address _parent,
+        uint256 _couponAmount,
+        bool _feesInLink
+    ) internal view returns (address _feeTokenAddressToUse, Client.EVM2AnyMessage memory _message) {
+        if (_feesInLink) _feeTokenAddressToUse = address(linkToken);
+        else _feeTokenAddressToUse = address(0); // address(0) means fees are paid in native gas
+
+        // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
+        _message = _buildCCIPMessage({
+            _token: _tokenToTransfer,
+            _amount: _amountToTransfer,
+            _feeTokenAddress: _feeTokenAddressToUse,
+            _contribution: _contributionAmount,
+            _tDAOName: _tDAOName,
+            _parent: _parent,
+            _newMember: msg.sender,
+            _couponAmount: _couponAmount
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -272,8 +265,7 @@ contract TLDCcipSender is Ownable2Step {
         string calldata _tDAOName,
         address _parent,
         address _newMember,
-        uint256 _couponAmount,
-        uint256 _gasLimit
+        uint256 _couponAmount
     ) internal view returns (Client.EVM2AnyMessage memory) {
         // Set the token amounts
         Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
@@ -300,7 +292,7 @@ contract TLDCcipSender is Ownable2Step {
             data: dataToSend,
             tokenAmounts: tokenAmounts,
             extraArgs: Client._argsToBytes(
-                Client.EVMExtraArgsV2({gasLimit: _gasLimit, allowOutOfOrderExecution: true})
+                Client.EVMExtraArgsV2({gasLimit: 1_000_000, allowOutOfOrderExecution: true})
             ),
             feeToken: _feeTokenAddress // If address(0) is native token
         });
