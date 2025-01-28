@@ -70,7 +70,8 @@ contract TLDCcipSender is Ownable2Step {
         address _router,
         address _link,
         address _receiverContract,
-        uint64 _chainSelector, address _owner
+        uint64 _chainSelector, 
+        address _owner
     ) Ownable(_owner) {
         router = IRouterClient(_router);
         linkToken = IERC20(_link);
