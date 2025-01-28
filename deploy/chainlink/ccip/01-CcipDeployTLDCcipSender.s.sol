@@ -46,7 +46,8 @@ contract DeployTLDCcipSender is Script, DeployConstants, GetContractAddress {
             config.link,
             receiverContractAddress,
             destinationChainSelector,
-            config.senderOwner
+            config.senderOwner,
+            config.couponProvider
         );
 
         vm.stopBroadcast();

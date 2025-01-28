@@ -167,6 +167,37 @@ abstract contract DeployConstants {
             polAmoySenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
         });
 
+    struct CouponProvider {
+        address arbMainnetCouponProvider;
+        address avaxMainnetCouponProvider;
+        address baseMainnetCouponProvider;
+        address ethMainnetCouponProvider;
+        address opMainnetCouponProvider;
+        address polMainnetCouponProvider;
+        address arbSepoliaCouponProvider;
+        address avaxFujiCouponProvider;
+        address baseSepoliaCouponProvider;
+        address ethSepoliaCouponProvider;
+        address opSepoliaCouponProvider;
+        address polAmoyCouponProvider;
+    }
+
+    CouponProvider public couponProvider =
+        CouponProvider({
+            arbMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            avaxMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            baseMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            ethMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            opMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            polMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            arbSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+            avaxFujiCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+            baseSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+            ethSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+            opSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+            polAmoyCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3
+        });
+
     /*//////////////////////////////////////////////////////////////
                                ACCOUNTS
     //////////////////////////////////////////////////////////////*/
