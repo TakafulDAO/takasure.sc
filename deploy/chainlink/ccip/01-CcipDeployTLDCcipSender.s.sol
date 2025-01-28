@@ -22,7 +22,7 @@ contract DeployTLDCcipSender is Script, DeployConstants, GetContractAddress {
 
         address receiverContractAddress;
         uint64 destinationChainSelector;
-        bytes32 salt = "2025";
+        bytes32 salt = "2004";
 
         if (
             chainId == AVAX_FUJI_CHAIN_ID ||
