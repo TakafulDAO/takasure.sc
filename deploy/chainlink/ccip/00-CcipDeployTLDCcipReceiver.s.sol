@@ -5,12 +5,12 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
-import {Receiver} from "contracts/chainlink/ccip/Receiver.sol";
+import {TLDCcipReceiver} from "contracts/chainlink/ccip/TLDCcipReceiver.sol";
 import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 
-contract DeployReceiver is Script, DeployConstants, GetContractAddress {
-    function run() external returns (Receiver) {
+contract DeployTLDCcipReceiver is Script, DeployConstants, GetContractAddress {
+    function run() external returns (TLDCcipReceiver) {
         uint256 chainId = block.chainid;
 
         CcipHelperConfig ccipHelperConfig = new CcipHelperConfig();
@@ -25,8 +25,8 @@ contract DeployReceiver is Script, DeployConstants, GetContractAddress {
 
         vm.startBroadcast();
 
-        // Deploy Receiver contract
-        Receiver receiver = new Receiver{salt: salt}(
+        // Deploy TLDCcipReceiver contract
+        TLDCcipReceiver receiver = new TLDCcipReceiver{salt: salt}(
             config.router,
             config.usdc,
             referralContractAddress

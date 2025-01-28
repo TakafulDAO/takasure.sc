@@ -140,6 +140,33 @@ abstract contract DeployConstants {
             polAmoyUSDC: 0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582
         });
 
+    struct SenderOwner {
+        address avaxMainnetSenderOwner;
+        address baseMainnetSenderOwner;
+        address ethMainnetSenderOwner;
+        address opMainnetSenderOwner;
+        address polMainnetSenderOwner;
+        address avaxFujiSenderOwner;
+        address baseSepoliaSenderOwner;
+        address ethSepoliaSenderOwner;
+        address opSepoliaSenderOwner;
+        address polAmoySenderOwner;
+    }
+
+    SenderOwner public senderOwner =
+        SenderOwner({
+            avaxMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            baseMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            ethMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            opMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            polMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            avaxFujiSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+            baseSepoliaSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+            ethSepoliaSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+            opSepoliaSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+            polAmoySenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+        });
+
     /*//////////////////////////////////////////////////////////////
                                ACCOUNTS
     //////////////////////////////////////////////////////////////*/
