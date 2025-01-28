@@ -43,6 +43,7 @@ contract TLDCcipSender is Ownable2Step {
     );
 
     error TLDCcipSender__AlreadySupportedToken();
+    error TLDCcipSender__NotSupportedToken();
     error TLDCcipSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
     error TLDCcipSender__NothingToWithdraw();
     error TLDCcipSender__FailedToWithdrawEth(address owner, address target, uint256 value);
@@ -50,6 +51,11 @@ contract TLDCcipSender is Ownable2Step {
 
     modifier notZeroAddress(address addressToCheck) {
         require(addressToCheck != address(0), TLDCcipSender__AddressZeroNotAllowed());
+        _;
+    }
+
+    modifier allowedToken(address token) {
+        require(isSupportedToken[token], TLDCcipSender__NotSupportedToken());
         _;
     }
 
@@ -112,7 +118,7 @@ contract TLDCcipSender is Ownable2Step {
         address parent,
         uint256 couponAmount,
         uint256 gasLimit
-    ) external returns (bytes32 messageId) {
+    ) external allowedToken(tokenToTransfer) returns (bytes32 messageId) {
         // If no gas limit is provided, set a default value of 1_000_000
         if (gasLimit == 0) gasLimit = 1_000_000;
 
@@ -171,7 +177,7 @@ contract TLDCcipSender is Ownable2Step {
         address parent,
         uint256 couponAmount,
         uint256 gasLimit
-    ) external returns (bytes32 messageId) {
+    ) external allowedToken(tokenToTransfer) returns (bytes32 messageId) {
         // If no gas limit is provided, set a default value of 1_000_000
         if (gasLimit == 0) gasLimit = 1_000_000;
 
