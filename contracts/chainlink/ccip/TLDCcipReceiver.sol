@@ -75,6 +75,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
      * @param _router The address of the router contract.
      * @param _usdc The address of the usdc contract.
      * @param _referralGateway The address of the staker contract.
+     * @param _owner admin address
      */
     constructor(
         address _router,
@@ -164,7 +165,6 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
      * @param messageId The unique identifier of the failed message
      * @dev This function is only callable by the contract owner
      * @dev It changes the status of the message from 'failed' to 'resolved' to prevent reentrancy
-     * Todo: Try again the low level call to the referral gateway, this one is to be implemented completely in other PR
      */
     function retryFailedMessage(bytes32 messageId) external onlyOwner {
         require(
