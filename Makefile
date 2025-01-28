@@ -122,27 +122,27 @@ NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KE
 ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)
 	NETWORK_ARGS := --rpc-url $(ARBITRUM_MAINNET_RPC_URL) --account $(MAINNET_ACCOUNT) --sender $(MAINNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network avax_mainnet,$(ARGS)),--network avax_mainnet)
-	NETWORK_ARGS := --rpc-url $(AVAX_MAINNET_RPC_URL) --account $(MAINNET_ACCOUNT) --sender $(MAINNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(AVAXSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(AVAX_MAINNET_RPC_URL) --account $(CCIP_DEPLOYER) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(AVAXSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network base_mainnet,$(ARGS)),--network base_mainnet)
-	NETWORK_ARGS := --rpc-url $(BASE_MAINNET_RPC_URL) --account $(MAINNET_ACCOUNT) --sender $(MAINNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(BASESCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(BASE_MAINNET_RPC_URL) --account $(CCIP_DEPLOYER) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(BASESCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network eth_mainnet,$(ARGS)),--network eth_mainnet)	
-	NETWORK_ARGS := --rpc-url $(ETHEREUM_MAINNET_RPC_URL) --account $(MAINNET_ACCOUNT) --sender $(MAINNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(ETHEREUM_MAINNET_RPC_URL) --account $(CCIP_DEPLOYER) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network optimism_mainnet,$(ARGS)),--network optimism_mainnet)
-	NETWORK_ARGS := --rpc-url $(OPTIMISM_MAINNET_RPC_URL) --account $(MAINNET_ACCOUNT) --sender $(MAINNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(OPTIMISMSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(OPTIMISM_MAINNET_RPC_URL) --account $(CCIP_DEPLOYER) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(OPTIMISMSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network polygon_mainnet,$(ARGS)),--network polygon_mainnet)
-	NETWORK_ARGS := --rpc-url $(POLYGON_MAINNET_RPC_URL) --account $(MAINNET_ACCOUNT) --sender $(MAINNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(POLYGONSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(POLYGON_MAINNET_RPC_URL) --account $(CCIP_DEPLOYER) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(POLYGONSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network arb_sepolia,$(ARGS)),--network arb_sepolia)
 	NETWORK_ARGS := --rpc-url $(ARBITRUM_TESTNET_SEPOLIA_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ARBISCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network avax_fuji,$(ARGS)),--network avax_fuji)
-	NETWORK_ARGS := --rpc-url $(AVAX_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(AVAXSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(AVAX_TESTNET_RPC_URL) --account $(CCIP_DEPLOYER) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(AVAXSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network base_sepolia,$(ARGS)),--network base_sepolia)
-	NETWORK_ARGS := --rpc-url $(BASE_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(BASESCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(BASE_TESTNET_RPC_URL) --account $(CCIP_DEPLOYER) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(BASESCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network eth_sepolia,$(ARGS)),--network eth_sepolia)
-	NETWORK_ARGS := --rpc-url $(ETHEREUM_TESTNET_SEPOLIA_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(ETHEREUM_TESTNET_SEPOLIA_RPC_URL) --account $(CCIP_DEPLOYER) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network optimism_sepolia,$(ARGS)),--network optimism_sepolia)
-	NETWORK_ARGS := --rpc-url $(OPTIMISM_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(OPTIMISMSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(OPTIMISM_TESTNET_RPC_URL) --account $(CCIP_DEPLOYER) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(OPTIMISMSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network polygon_amoy,$(ARGS)),--network polygon_amoy)
-	NETWORK_ARGS := --rpc-url $(POLYGON_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(POLYGONSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(POLYGON_TESTNET_RPC_URL) --account $(CCIP_DEPLOYER) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(POLYGONSCAN_API_KEY) -vvvv
 endif
 
 # Certora
