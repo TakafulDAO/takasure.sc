@@ -1,5 +1,5 @@
 {
-    "address": "0x641aD812694Ab765887780D5319191DeF006c1aA",
+    "address": "0xaEAc0E5a81B33253D88aB2725fC4870d5c28B848",
     "abi": [
         {
             "type": "constructor",
@@ -60,13 +60,13 @@
                 {
                     "name": "",
                     "type": "tuple[]",
-                    "internalType": "struct ReceiverContract.FailedMessage[]",
+                    "internalType": "struct TLDCcipReceiver.FailedMessage[]",
                     "components": [
                         { "name": "messageId", "type": "bytes32", "internalType": "bytes32" },
                         {
                             "name": "errorCode",
                             "type": "uint8",
-                            "internalType": "enum ReceiverContract.ErrorCode"
+                            "internalType": "enum TLDCcipReceiver.ErrorCode"
                         }
                     ]
                 }
@@ -78,6 +78,20 @@
             "name": "getRouter",
             "inputs": [],
             "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "isSenderAllowed",
+            "inputs": [{ "name": "sender", "type": "address", "internalType": "address" }],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "isSourceChainAllowed",
+            "inputs": [{ "name": "chainSelector", "type": "uint64", "internalType": "uint64" }],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
             "stateMutability": "view"
         },
         {
@@ -140,6 +154,13 @@
         },
         {
             "type": "function",
+            "name": "referralGateway",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "renounceOwnership",
             "inputs": [],
             "outputs": [],
@@ -148,10 +169,7 @@
         {
             "type": "function",
             "name": "retryFailedMessage",
-            "inputs": [
-                { "name": "messageId", "type": "bytes32", "internalType": "bytes32" },
-                { "name": "beneficiary", "type": "address", "internalType": "address" }
-            ],
+            "inputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -164,10 +182,33 @@
         },
         {
             "type": "function",
+            "name": "toggleAllowedSender",
+            "inputs": [{ "name": "sender", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "toggleAllowedSourceChain",
+            "inputs": [
+                { "name": "sourceChainSelector", "type": "uint64", "internalType": "uint64" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "transferOwnership",
             "inputs": [{ "name": "newOwner", "type": "address", "internalType": "address" }],
             "outputs": [],
             "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "usdc",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "contract IERC20" }],
+            "stateMutability": "view"
         },
         {
             "type": "event",
@@ -281,19 +322,14 @@
             "name": "OwnableUnauthorizedAccount",
             "inputs": [{ "name": "account", "type": "address", "internalType": "address" }]
         },
-        { "type": "error", "name": "Receiver__CallToStakerFailed", "inputs": [] },
-        { "type": "error", "name": "Receiver__InvalidSourceChain", "inputs": [] },
-        { "type": "error", "name": "Receiver__InvalidUsdcToken", "inputs": [] },
+        { "type": "error", "name": "TLDCcipReceiver__CallFailed", "inputs": [] },
+        { "type": "error", "name": "TLDCcipReceiver__InvalidUsdcToken", "inputs": [] },
         {
             "type": "error",
-            "name": "Receiver__MessageNotFailed",
+            "name": "TLDCcipReceiver__MessageNotFailed",
             "inputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }]
         },
-        { "type": "error", "name": "Receiver__OnlySelf", "inputs": [] },
-        {
-            "type": "error",
-            "name": "SafeERC20FailedOperation",
-            "inputs": [{ "name": "token", "type": "address", "internalType": "address" }]
-        }
+        { "type": "error", "name": "TLDCcipReceiver__NotAllowedSource", "inputs": [] },
+        { "type": "error", "name": "TLDCcipReceiver__OnlySelf", "inputs": [] }
     ]
 }
