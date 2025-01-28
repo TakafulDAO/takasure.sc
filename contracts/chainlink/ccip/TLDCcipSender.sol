@@ -36,6 +36,7 @@ contract TLDCcipSender is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     event OnNewSupportedToken(address token);
+    event OnBackendProviderSet(address backendProvider);
     event OnTokensTransferred(
         bytes32 indexed messageId,
         uint256 indexed tokenAmount,
@@ -99,6 +100,18 @@ contract TLDCcipSender is Ownable2Step {
     }
 
     /**
+     * @notice Set the address of the backend provider.
+     * @param _backendProvider The address of the backend provider.
+     */
+    function setBackendProvider(
+        address _backendProvider
+    ) external onlyOwner notZeroAddress(_backendProvider) {
+        backendProvider = _backendProvider;
+
+        emit OnBackendProviderSet(_backendProvider);
+    }
+
+    /**
      * @notice Transfer tokens to receiver contract on the destination chain.
      * @dev Revert if this contract dont have sufficient balance to pay for the fees.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
@@ -120,6 +133,7 @@ contract TLDCcipSender is Ownable2Step {
         bool feesInLink
     ) external returns (bytes32 messageId) {
         require(isSupportedToken[tokenToTransfer], TLDCcipSender__NotSupportedToken());
+
         if (couponAmount > 0)
             require(msg.sender == backendProvider, TLDCcipSender__NotAuthorized());
 
