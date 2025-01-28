@@ -77,11 +77,11 @@ functions-deploy-bm-consumer:
 #Chainlink ccip
 ccip-deploy-receiver:
 	@forge clean
-	@forge script deploy/chainlink/ccip/00-CcipDeployReceiver.s.sol:DeployReceiver $(NETWORK_ARGS)
+	@forge script deploy/chainlink/ccip/00-CcipDeployTLDCcipReceiver.s.sol:DeployTLDCcipReceiver $(NETWORK_ARGS)
 
 ccip-deploy-sender:
 	@forge clean
-	@forge script deploy/chainlink/ccip/01-CcipDeploySender.s.sol:DeploySender $(NETWORK_ARGS)
+	@forge script deploy/chainlink/ccip/01-CcipDeployTLDCcipSender.s.sol:DeployTLDCcipSender $(NETWORK_ARGS)
 
 # Interactions with ReferralGateway Contract
 # Create a DAO
@@ -117,14 +117,6 @@ mock-approve-spender:
 takasure-add-bm-consumer:
 	@forge script scripts/contract-interactions/takasure/AddBmOracleConsumer.s.sol:AddBmOracleConsumer $(NETWORK_ARGS)
 
-# Join pool
-takasure-join-pool:
-	@forge script scripts/contract-interactions/chainlink-ccip/TransferUsdcPayWithLink.s.sol:TransferUsdcPayWithLink $(NETWORK_ARGS)
-
-# Interactions with CCIP Source Contract
-ccip-send-message:
-	@forge script scripts/contract-interactions/chainlink-ccip/SendMessage.s.sol:SendMessage $(NETWORK_ARGS)
-	
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)
