@@ -34,10 +34,10 @@ abstract contract DeployConstants {
 
     uint64 public constant ARB_SEPOLIA_SELECTOR = 3478487238524512106;
     uint64 public constant AVAX_FUJI_SELECTOR = 14767482510784806043;
-    uint64 public constant BASE_SEPOLIA_SELECTOR = 10344971235874465080;
+    uint64 public constant BASE_SEPOLIA_SELECTOR = 10344971235874465080; // Todo: check
     uint64 public constant ETH_SEPOLIA_SELECTOR = 16015286601757825753;
-    uint64 public constant OP_SEPOLIA_SELECTOR = 10344971235874465080;
-    uint64 public constant POL_AMOY_SELECTOR = 10344971235874465080;
+    uint64 public constant OP_SEPOLIA_SELECTOR = 10344971235874465080; // Todo: check
+    uint64 public constant POL_AMOY_SELECTOR = 10344971235874465080; // Todo: check
 
     /*//////////////////////////////////////////////////////////////
                                ADDRESSES

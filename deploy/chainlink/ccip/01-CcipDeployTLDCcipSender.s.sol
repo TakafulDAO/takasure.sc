@@ -22,7 +22,7 @@ contract DeployTLDCcipSender is Script, DeployConstants, GetContractAddress {
 
         address receiverContractAddress;
         uint64 destinationChainSelector;
-        bytes32 salt = "2020";
+        bytes32 salt = "2025";
 
         if (
             chainId == AVAX_FUJI_CHAIN_ID ||
@@ -31,10 +31,10 @@ contract DeployTLDCcipSender is Script, DeployConstants, GetContractAddress {
             chainId == OP_SEPOLIA_CHAIN_ID ||
             chainId == POL_AMOY_CHAIN_ID
         ) {
-            receiverContractAddress = _getContractAddress(ARB_SEPOLIA_CHAIN_ID, "Receiver");
+            receiverContractAddress = _getContractAddress(ARB_SEPOLIA_CHAIN_ID, "TLDCcipReceiver");
             destinationChainSelector = ARB_SEPOLIA_SELECTOR;
         } else {
-            receiverContractAddress = _getContractAddress(ARB_MAINNET_CHAIN_ID, "Receiver");
+            receiverContractAddress = _getContractAddress(ARB_MAINNET_CHAIN_ID, "TLDCcipReceiver");
             destinationChainSelector = ARB_MAINNET_SELECTOR;
         }
 

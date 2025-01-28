@@ -21,12 +21,10 @@ contract DeployTLDCcipReceiver is Script, DeployConstants, GetContractAddress {
 
         address referralContractAddress = _getContractAddress(chainId, "ReferralGateway");
 
-        bytes32 salt = "2020";
-
         vm.startBroadcast();
 
         // Deploy TLDCcipReceiver contract
-        TLDCcipReceiver receiver = new TLDCcipReceiver{salt: salt}(
+        TLDCcipReceiver receiver = new TLDCcipReceiver(
             config.router,
             config.usdc,
             referralContractAddress
