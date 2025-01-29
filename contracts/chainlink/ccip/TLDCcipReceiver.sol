@@ -28,6 +28,8 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     mapping(uint64 chainSelector => bool) public isSourceChainAllowed;
     mapping(address sender => bool) public isSenderAllowed;
     mapping(bytes32 messageId => Client.Any2EVMMessage message) public messageContentsById;
+    mapping(address user => Client.Any2EVMMessage message) public messageByUser;
+    mapping(address user => bytes32 messageId) public messageIdByUser;
     EnumerableMap.Bytes32ToUintMap internal failedMessages;
 
     enum ErrorCode {
@@ -60,6 +62,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     error TLDCcipReceiver__OnlySelf();
     error TLDCcipReceiver__CallFailed();
     error TLDCcipReceiver__MessageNotFailed(bytes32 messageId);
+    error TLDCcipReceiver__NotAuthorized();
 
     modifier onlyAllowedSource(uint64 _sourceChainSelector, address _sender) {
         require(
@@ -73,6 +76,11 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
     modifier onlySelf() {
         if (msg.sender != address(this)) revert TLDCcipReceiver__OnlySelf();
+        _;
+    }
+
+    modifier onlyOwnerOrUser(address user) {
+        require(msg.sender == owner() || msg.sender == user, TLDCcipReceiver__NotAuthorized());
         _;
     }
 
@@ -158,8 +166,16 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         // Try catch to be able to call the external function
         try this.processMessage(any2EvmMessage) {} catch (bytes memory err) {
             failedMessages.set(any2EvmMessage.messageId, uint256(ErrorCode.FAILED));
+
             messageContentsById[any2EvmMessage.messageId] = any2EvmMessage;
+
+            // Save the message by user for easy access
+            address user = _getNewMemberAddress(any2EvmMessage.data);
+            messageByUser[user] = any2EvmMessage;
+            messageIdByUser[user] = any2EvmMessage.messageId;
+
             emit OnMessageFailed(any2EvmMessage.messageId, err);
+
             return;
         }
     }
@@ -183,11 +199,13 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
     /**
      * @notice Allows the owner to retry a failed message in order to unblock the associated tokens.
-     * @param messageId The unique identifier of the failed message
+     * @param user The user which message failed
      * @dev This function is only callable by the contract owner
      * @dev It changes the status of the message from 'failed' to 'resolved' to prevent reentrancy
      */
-    function retryFailedMessage(bytes32 messageId) external onlyOwner {
+    function retryFailedMessage(address user) external onlyOwnerOrUser(user) {
+        bytes32 messageId = messageIdByUser[user];
+
         require(
             failedMessages.get(messageId) == uint256(ErrorCode.FAILED),
             TLDCcipReceiver__MessageNotFailed(messageId)
@@ -240,5 +258,20 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
             any2EvmMessage.data,
             any2EvmMessage.destTokenAmounts[0].amount
         );
+    }
+
+    function _getNewMemberAddress(bytes memory _data) internal pure returns (address _newMember) {
+        // The data is structured to be able to call the function payContributionOnBehalfOf
+        // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
+
+        assembly {
+            let _dataOffset := add(_data, 0x20) // Skip the first 32 bytes word from the data, this will point to the real place where the data starts
+            let _newMemberStartingPoint := mul(0x03, 0x20) // 0x03 is the input index (0-indexed of the newMember), 0x20 is the length of a 32 bytes word
+            let _inputsStartingPoint := add(0x04, _newMemberStartingPoint) // 0x04 is the length of the function selector
+
+            _newMember := mload(add(_dataOffset, _inputsStartingPoint)) // Load the newMember address from the data
+        }
+
+        return _newMember;
     }
 }
