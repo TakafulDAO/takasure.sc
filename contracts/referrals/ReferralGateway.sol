@@ -165,7 +165,7 @@ contract ReferralGateway is
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
-    error ReferralGateway__WrongCaller();
+    error ReferralGateway__NotAuthorizedCaller();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -961,7 +961,7 @@ contract ReferralGateway is
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
             hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
-            ReferralGateway__WrongCaller()
+            ReferralGateway__NotAuthorizedCaller()
         );
     }
 }
