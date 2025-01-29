@@ -23,7 +23,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     using EnumerableMap for EnumerableMap.Bytes32ToUintMap;
 
     IERC20 public immutable usdc;
-    address public referralGateway;
+    address public protocolGateway;
 
     mapping(uint64 chainSelector => bool) public isSourceChainAllowed;
     mapping(address sender => bool) public isSenderAllowed;
@@ -40,6 +40,10 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         ErrorCode errorCode;
     }
 
+    event OnProtocolGatewayChanged(
+        address indexed oldProtocolGateway,
+        address indexed newProtocolGateway
+    );
     event OnMessageReceived(
         bytes32 indexed messageId,
         uint64 indexed sourceChainSelector,
@@ -50,6 +54,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     event OnMessageFailed(bytes32 indexed messageId, bytes reason);
     event OnMessageRecovered(bytes32 indexed messageId);
 
+    error TLDCcipReceiver__NotZeroAddress();
     error TLDCcipReceiver__InvalidUsdcToken();
     error TLDCcipReceiver__NotAllowedSource();
     error TLDCcipReceiver__OnlySelf();
@@ -74,17 +79,17 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     /**
      * @param _router The address of the router contract.
      * @param _usdc The address of the usdc contract.
-     * @param _referralGateway The address of the staker contract.
+     * @param _protocolGateway The address of the contract, that will process the data received
      */
     constructor(
         address _router,
         address _usdc,
-        address _referralGateway
+        address _protocolGateway
     ) CCIPReceiver(_router) Ownable(msg.sender) {
         require(_usdc != address(0), TLDCcipReceiver__InvalidUsdcToken());
         usdc = IERC20(_usdc);
-        referralGateway = _referralGateway;
-        usdc.approve(_referralGateway, type(uint256).max);
+        protocolGateway = _protocolGateway;
+        usdc.approve(_protocolGateway, type(uint256).max);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -109,6 +114,24 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         require(sender != address(0), TLDCcipReceiver__NotAllowedSource());
         bool enable = !isSenderAllowed[sender];
         isSenderAllowed[sender] = enable;
+    }
+
+    /**
+     * @notice Allows the owner to change the address of the protocol gateway.
+     * @param _protocolGateway The address of the contract, that will process the data received
+     */
+    function setProtocolGateway(address _protocolGateway) external onlyOwner {
+        require(_protocolGateway != address(0), TLDCcipReceiver__NotZeroAddress());
+
+        // Get the old protocol gateway address and set the approval to 0
+        address oldProtocolGateway = protocolGateway;
+        usdc.approve(oldProtocolGateway, 0);
+
+        // Set the new protocol gateway address and approve the maximum amount
+        protocolGateway = _protocolGateway;
+        usdc.approve(_protocolGateway, type(uint256).max);
+
+        emit OnProtocolGatewayChanged(oldProtocolGateway, _protocolGateway);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -174,7 +197,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         Client.Any2EVMMessage memory message = messageContentsById[messageId];
 
         // Low level call to the referral gateway
-        (bool success, ) = referralGateway.call(message.data);
+        (bool success, ) = protocolGateway.call(message.data);
         require(success, TLDCcipReceiver__CallFailed());
 
         emit OnMessageRecovered(messageId);
@@ -208,7 +231,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
         // Low level call to the referral gateway
-        (bool success, ) = referralGateway.call(any2EvmMessage.data);
+        (bool success, ) = protocolGateway.call(any2EvmMessage.data);
         require(success, TLDCcipReceiver__CallFailed());
         emit OnMessageReceived(
             any2EvmMessage.messageId,
