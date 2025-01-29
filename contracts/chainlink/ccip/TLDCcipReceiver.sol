@@ -205,15 +205,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
      * @dev It changes the status of the message from 'failed' to 'resolved' to prevent reentrancy
      */
     function retryFailedMessage(address user) external onlyOwnerOrUser(user) {
-        bytes32 messageId = messageIdByUser[user];
-
-        require(
-            failedMessages.get(messageId) == uint256(ErrorCode.FAILED),
-            TLDCcipReceiver__MessageNotFailed(messageId)
-        );
-        failedMessages.set(messageId, uint256(ErrorCode.RESOLVED));
-
-        Client.Any2EVMMessage memory message = messageContentsById[messageId];
+        (Client.Any2EVMMessage memory message, bytes32 messageId) = _getUserMessageAndResolve(user);
 
         // Low level call to the referral gateway
         (bool success, ) = protocolGateway.call(message.data);
@@ -228,16 +220,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
      * @dev This function is only callable by the user or the contract owner
      */
     function recoverTokens(address user) external onlyOwnerOrUser(user) {
-        bytes32 messageId = messageIdByUser[user];
-
-        require(
-            failedMessages.get(messageId) == uint256(ErrorCode.FAILED),
-            TLDCcipReceiver__MessageNotFailed(messageId)
-        );
-
-        failedMessages.set(messageId, uint256(ErrorCode.RESOLVED));
-
-        Client.Any2EVMMessage memory message = messageContentsById[messageId];
+        (Client.Any2EVMMessage memory message, ) = _getUserMessageAndResolve(user);
 
         // Transfer the tokens back to the user
         usdc.safeTransfer(user, message.destTokenAmounts[0].amount);
@@ -297,5 +280,19 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         }
 
         return _newMember;
+    }
+
+    function _getUserMessageAndResolve(
+        address _user
+    ) internal returns (Client.Any2EVMMessage memory _message, bytes32 _messageId) {
+        _messageId = messageIdByUser[_user];
+
+        require(
+            failedMessages.get(_messageId) == uint256(ErrorCode.FAILED),
+            TLDCcipReceiver__MessageNotFailed(_messageId)
+        );
+        failedMessages.set(_messageId, uint256(ErrorCode.RESOLVED));
+
+        _message = messageContentsById[_messageId];
     }
 }
