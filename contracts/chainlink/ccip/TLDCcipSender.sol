@@ -128,7 +128,7 @@ contract TLDCcipSender is Ownable2Step {
      * @param feesInLink If true, the fees will be paid in LINK tokens. If false, the fees will be paid in native gas.
      * @return messageId The ID of the message that was sent.
      */
-    function payContribution(
+    function sendMessage(
         uint256 amountToTransfer,
         address tokenToTransfer,
         uint256 contribution,
