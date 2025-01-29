@@ -55,6 +55,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     );
     event OnMessageFailed(bytes32 indexed messageId, bytes reason);
     event OnMessageRecovered(bytes32 indexed messageId);
+    event OnTokensRecovered(address indexed user, uint256 amount);
 
     error TLDCcipReceiver__NotZeroAddress();
     error TLDCcipReceiver__InvalidUsdcToken();
@@ -219,6 +220,29 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         require(success, TLDCcipReceiver__CallFailed());
 
         emit OnMessageRecovered(messageId);
+    }
+
+    /**
+     * @notice An emergency function to allow a user to recover their tokens in case of a failed message.
+     * @param user The user which message failed
+     * @dev This function is only callable by the user or the contract owner
+     */
+    function recoverTokens(address user) external onlyOwnerOrUser(user) {
+        bytes32 messageId = messageIdByUser[user];
+
+        require(
+            failedMessages.get(messageId) == uint256(ErrorCode.FAILED),
+            TLDCcipReceiver__MessageNotFailed(messageId)
+        );
+
+        failedMessages.set(messageId, uint256(ErrorCode.RESOLVED));
+
+        Client.Any2EVMMessage memory message = messageContentsById[messageId];
+
+        // Transfer the tokens back to the user
+        usdc.safeTransfer(user, message.destTokenAmounts[0].amount);
+
+        emit OnTokensRecovered(user, message.destTokenAmounts[0].amount);
     }
 
     /**
