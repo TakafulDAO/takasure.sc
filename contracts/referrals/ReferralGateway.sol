@@ -178,15 +178,7 @@ contract ReferralGateway is
         address _pauseGuardian,
         address _usdcAddress,
         address _benefitMultiplierConsumer
-    )
-        external
-        /*notZeroAddress(_operator)
-        notZeroAddress(_KYCProvider)
-        notZeroAddress(_pauseGuardian)
-        notZeroAddress(_usdcAddress)
-        notZeroAddress(_benefitMultiplierConsumer)*/
-        initializer
-    {
+    ) external initializer {
         _notZeroAddress(_operator);
         _notZeroAddress(_KYCProvider);
         _notZeroAddress(_pauseGuardian);
@@ -252,10 +244,7 @@ contract ReferralGateway is
     /**
      * @notice Update the DAO estimated launch date
      */
-    function updateLaunchDate(
-        string calldata tDAOName,
-        uint256 launchDate
-    ) external /*onlyDAOAdmin(tDAOName)*/ {
+    function updateLaunchDate(string calldata tDAOName, uint256 launchDate) external {
         _onlyDAOAdmin(tDAOName);
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
@@ -280,7 +269,7 @@ contract ReferralGateway is
         string calldata tDAOName,
         address tDAOAddress,
         bool isReferralDiscountEnabled
-    ) external /*onlyDAOAdmin(tDAOName) notZeroAddress(tDAOAddress)*/ {
+    ) external {
         _onlyDAOAdmin(tDAOName);
         _notZeroAddress(tDAOAddress);
         require(
@@ -303,7 +292,7 @@ contract ReferralGateway is
     /**
      * @notice Switch the referralDiscount status of a DAO
      */
-    function switchReferralDiscount(string calldata tDAOName) external /*onlyDAOAdmin(tDAOName)*/ {
+    function switchReferralDiscount(string calldata tDAOName) external {
         _onlyDAOAdmin(tDAOName);
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
 
@@ -315,10 +304,7 @@ contract ReferralGateway is
      * @param tDAOName The name of the tDAO
      * @param rePoolAddress The address of the rePool
      */
-    function enableRepool(
-        string calldata tDAOName,
-        address rePoolAddress
-    ) external /*notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName)*/ {
+    function enableRepool(string calldata tDAOName, address rePoolAddress) external {
         _onlyDAOAdmin(tDAOName);
         _notZeroAddress(rePoolAddress);
         require(
@@ -330,7 +316,7 @@ contract ReferralGateway is
         emit OnRepoolEnabled(tDAOName, rePoolAddress);
     }
 
-    function transferToRepool(string calldata tDAOName) external /*onlyDAOAdmin(tDAOName)*/ {
+    function transferToRepool(string calldata tDAOName) external {
         _onlyDAOAdmin(tDAOName);
         require(
             nameToDAOData[tDAOName].rePoolAddress != address(0),
@@ -408,7 +394,7 @@ contract ReferralGateway is
     function setKYCStatus(
         address child,
         string calldata tDAOName
-    ) external whenNotPaused /*notZeroAddress(child)*/ onlyRole(KYC_PROVIDER) {
+    ) external whenNotPaused onlyRole(KYC_PROVIDER) {
         _notZeroAddress(child);
         // Initial checks
         // Can not KYC a member that is already KYCed
@@ -525,7 +511,7 @@ contract ReferralGateway is
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer,
         string calldata tDAOName
-    ) external onlyRole(OPERATOR) /*notZeroAddress(newBenefitMultiplierConsumer)*/ {
+    ) external onlyRole(OPERATOR) {
         _notZeroAddress(newBenefitMultiplierConsumer);
         address oldBenefitMultiplierConsumer = address(nameToDAOData[tDAOName].bmConsumer);
         nameToDAOData[tDAOName].bmConsumer = IBenefitMultiplierConsumer(
@@ -539,9 +525,7 @@ contract ReferralGateway is
         );
     }
 
-    function setNewOperator(
-        address newOperator
-    ) external /*notZeroAddress(newOperator)*/ onlyRole(OPERATOR) {
+    function setNewOperator(address newOperator) external onlyRole(OPERATOR) {
         _notZeroAddress(newOperator);
         address oldOperator = operator;
 
@@ -557,9 +541,7 @@ contract ReferralGateway is
         emit OnNewOperator(oldOperator, newOperator);
     }
 
-    function setCouponPoolAddress(
-        address _couponPool
-    ) external /*notZeroAddress(_couponPool)*/ onlyRole(OPERATOR) {
+    function setCouponPoolAddress(address _couponPool) external onlyRole(OPERATOR) {
         _notZeroAddress(_couponPool);
         address oldCouponPool = couponPool;
         couponPool = _couponPool;
