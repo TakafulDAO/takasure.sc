@@ -60,7 +60,8 @@ contract TLDCcipSender is Ownable2Step {
     /**
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
-     * @param _receiverContract The address of the referral contract. This will be the only receiver
+     * @param _receiverContract The address of the receiver contract in the destination blockchain.
+     *                          This will be the only receiver
      * @param _chainSelector The chain selector of the destination chain. From the list of supported chains.
      * @param _owner admin address
      */
