@@ -75,11 +75,6 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         _;
     }
 
-    modifier onlySelf() {
-        if (msg.sender != address(this)) revert TLDCcipReceiver__OnlySelf();
-        _;
-    }
-
     modifier onlyOwnerOrUser(address user) {
         require(msg.sender == owner() || msg.sender == user, TLDCcipReceiver__NotAuthorized());
         _;
@@ -189,12 +184,12 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         Client.Any2EVMMessage calldata any2EvmMessage
     )
         external
-        onlySelf
         onlyAllowedSource(
             any2EvmMessage.sourceChainSelector,
             abi.decode(any2EvmMessage.sender, (address))
         )
     {
+        if (msg.sender != address(this)) revert TLDCcipReceiver__OnlySelf();
         _ccipReceive(any2EvmMessage);
     }
 
