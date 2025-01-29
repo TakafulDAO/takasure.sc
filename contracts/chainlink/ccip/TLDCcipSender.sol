@@ -9,24 +9,27 @@
  *          - Send data to the Receiver contract
  *          - Deployed in Avax (Mainnet and Fuji), Base (Mainnet and Sepolia), Ethereum (Mainnet and Sepolia),
  *            Optimism (Mainnet and Sepolia), Polygon (Mainnet and Amoy)
+ * @dev Upgradeable contract with UUPS pattern
  */
 
 pragma solidity 0.8.28;
 
 import {IRouterClient} from "ccip/contracts/src/v0.8/ccip/interfaces/IRouterClient.sol";
-import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
-contract TLDCcipSender is Ownable2Step {
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/TLDCcipSenderV1.sol:TLDCcipSenderV1
+contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     using SafeERC20 for IERC20;
 
     IRouterClient public router;
-    IERC20 public immutable linkToken;
+    IERC20 public linkToken;
 
-    uint64 public immutable destinationChainSelector; // Only Arbitrum (One, Sepolia)
-    address public immutable receiverContract;
+    uint64 public destinationChainSelector; // Only Arbitrum (One, Sepolia)
+    address public receiverContract;
     address public backendProvider;
 
     mapping(address token => bool supportedTokens) public isSupportedToken;
@@ -57,6 +60,10 @@ contract TLDCcipSender is Ownable2Step {
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
     /**
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
@@ -64,17 +71,23 @@ contract TLDCcipSender is Ownable2Step {
      *                          This will be the only receiver
      * @param _chainSelector The chain selector of the destination chain. From the list of supported chains.
      * @param _owner admin address
+     * @param _backendProvider The address with privileges to pay contributions with coupon codes
      */
-    constructor(
+    function initialize(
         address _router,
         address _link,
         address _receiverContract,
         uint64 _chainSelector,
         address _owner,
         address _backendProvider
-    ) Ownable(_owner) {
+    ) external initializer {
+        __UUPSUpgradeable_init();
+        __Ownable2Step_init();
+        __Ownable_init(_owner);
+
         router = IRouterClient(_router);
         linkToken = IERC20(_link);
+
         receiverContract = _receiverContract;
         destinationChainSelector = _chainSelector;
         backendProvider = _backendProvider;
@@ -318,4 +331,7 @@ contract TLDCcipSender is Ownable2Step {
 
         return message;
     }
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
