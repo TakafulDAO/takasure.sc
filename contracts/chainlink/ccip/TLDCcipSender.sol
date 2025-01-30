@@ -134,6 +134,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     function sendMessage(
         uint256 amountToTransfer,
         address tokenToTransfer,
+        uint256 gasLimit,
         uint256 contribution,
         string calldata tDAOName,
         address parent,
@@ -147,6 +148,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         Client.EVM2AnyMessage memory message = _setup({
             _amountToTransfer: amountToTransfer,
             _tokenToTransfer: tokenToTransfer,
+            _gasLimit: gasLimit,
             _contributionAmount: contribution,
             _tDAOName: tDAOName,
             _parent: parent,
@@ -210,6 +212,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     function _setup(
         uint256 _amountToTransfer,
         address _tokenToTransfer,
+        uint256 _gasLimit,
         uint256 _contributionAmount,
         string calldata _tDAOName,
         address _parent,
@@ -219,6 +222,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         _message = _buildCCIPMessage({
             _token: _tokenToTransfer,
             _amount: _amountToTransfer,
+            _gasLimit: _gasLimit,
             _contribution: _contributionAmount,
             _tDAOName: _tDAOName,
             _parent: _parent,
@@ -268,6 +272,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     function _buildCCIPMessage(
         address _token,
         uint256 _amount,
+        uint256 _gasLimit,
         uint256 _contribution,
         string calldata _tDAOName,
         address _parent,
@@ -276,11 +281,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     ) internal view returns (Client.EVM2AnyMessage memory) {
         // Set the token amounts
         Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
-        Client.EVMTokenAmount memory tokenAmount = Client.EVMTokenAmount({
-            token: _token,
-            amount: _amount
-        });
-        tokenAmounts[0] = tokenAmount;
+        tokenAmounts[0] = Client.EVMTokenAmount({token: _token, amount: _amount});
 
         // Function to call in the receiver contract
         // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
@@ -299,7 +300,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             data: dataToSend,
             tokenAmounts: tokenAmounts,
             extraArgs: Client._argsToBytes(
-                Client.EVMExtraArgsV2({gasLimit: 1_000_000, allowOutOfOrderExecution: true})
+                Client.EVMExtraArgsV2({gasLimit: _gasLimit, allowOutOfOrderExecution: true})
             ),
             feeToken: address(linkToken)
         });
