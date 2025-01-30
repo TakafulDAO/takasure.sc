@@ -40,12 +40,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     event OnNewSupportedToken(address token);
     event OnBackendProviderSet(address backendProvider);
-    event OnTokensTransferred(
-        bytes32 indexed messageId,
-        uint256 indexed tokenAmount,
-        address feeToken,
-        uint256 fees
-    );
+    event OnTokensTransferred(bytes32 indexed messageId, uint256 indexed tokenAmount, uint256 fees);
 
     error TLDCcipSender__AlreadySupportedToken();
     error TLDCcipSender__NotSupportedToken();
@@ -93,10 +88,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         backendProvider = _backendProvider;
     }
 
-    fallback() external payable {}
-
-    receive() external payable {}
-
     /*//////////////////////////////////////////////////////////////
                                 SETTINGS
     //////////////////////////////////////////////////////////////*/
@@ -138,7 +129,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
      * @param tDAOName The name of the DAO to point in the TLD contract.
      * @param parent The address of the parent if the caller has a referral.
      * @param couponAmount The amount of the coupon if the caller has one.
-     * @param feesInLink If true, the fees will be paid in LINK tokens. If false, the fees will be paid in native gas.
      * @return messageId The ID of the message that was sent.
      */
     function sendMessage(
@@ -147,30 +137,27 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 contribution,
         string calldata tDAOName,
         address parent,
-        uint256 couponAmount,
-        bool feesInLink
+        uint256 couponAmount
     ) external returns (bytes32 messageId) {
         require(isSupportedToken[tokenToTransfer], TLDCcipSender__NotSupportedToken());
 
         if (couponAmount > 0)
             require(msg.sender == backendProvider, TLDCcipSender__NotAuthorized());
 
-        (address feeTokenAddress, Client.EVM2AnyMessage memory message) = _setup({
+        Client.EVM2AnyMessage memory message = _setup({
             _amountToTransfer: amountToTransfer,
             _tokenToTransfer: tokenToTransfer,
             _contributionAmount: contribution,
             _tDAOName: tDAOName,
             _parent: parent,
-            _couponAmount: couponAmount,
-            _feesInLink: feesInLink
+            _couponAmount: couponAmount
         });
 
-        uint256 ccipFees = _feeChecks(message, feesInLink);
+        uint256 ccipFees = _feeChecks(message);
 
         messageId = _sendMessage({
             _amountToTransfer: amountToTransfer,
             _tokenToTransfer: tokenToTransfer,
-            _feeTokenAddress: feeTokenAddress,
             _ccipFees: ccipFees,
             _message: message
         });
@@ -226,17 +213,13 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 _contributionAmount,
         string calldata _tDAOName,
         address _parent,
-        uint256 _couponAmount,
-        bool _feesInLink
-    ) internal view returns (address _feeTokenAddressToUse, Client.EVM2AnyMessage memory _message) {
-        if (_feesInLink) _feeTokenAddressToUse = address(linkToken);
-        else _feeTokenAddressToUse = address(0); // address(0) means fees are paid in native gas
-
+        uint256 _couponAmount
+    ) internal view returns (Client.EVM2AnyMessage memory _message) {
         // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
         _message = _buildCCIPMessage({
             _token: _tokenToTransfer,
             _amount: _amountToTransfer,
-            _feeTokenAddress: _feeTokenAddressToUse,
+            _feeTokenAddress: address(linkToken),
             _contribution: _contributionAmount,
             _tDAOName: _tDAOName,
             _parent: _parent,
@@ -246,28 +229,23 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     }
 
     function _feeChecks(
-        Client.EVM2AnyMessage memory _message,
-        bool _feesInLink
+        Client.EVM2AnyMessage memory _message
     ) internal returns (uint256 _ccipFees) {
         // Fee required to send the message
         _ccipFees = router.getFee(destinationChainSelector, _message);
 
-        uint256 _feeTokenBalance;
-
-        if (_feesInLink) _feeTokenBalance = linkToken.balanceOf(address(this));
-        else _feeTokenBalance = address(this).balance;
+        uint256 _feeTokenBalance = linkToken.balanceOf(address(this));
 
         if (_ccipFees > _feeTokenBalance)
             revert TLDCcipSender__NotEnoughBalance(_feeTokenBalance, _ccipFees);
 
         // Approve the Router to transfer LINK tokens from this contract if needed
-        if (_feesInLink) linkToken.approve(address(router), _ccipFees);
+        linkToken.approve(address(router), _ccipFees);
     }
 
     function _sendMessage(
         uint256 _amountToTransfer,
         address _tokenToTransfer,
-        address _feeTokenAddress,
         uint256 _ccipFees,
         Client.EVM2AnyMessage memory _message
     ) internal returns (bytes32 _messageId) {
@@ -278,7 +256,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         _messageId = router.ccipSend(destinationChainSelector, _message);
 
         // Emit an event with message details
-        emit OnTokensTransferred(_messageId, _amountToTransfer, _feeTokenAddress, _ccipFees);
+        emit OnTokensTransferred(_messageId, _amountToTransfer, _ccipFees);
     }
 
     /**
