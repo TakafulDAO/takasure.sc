@@ -219,7 +219,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         _message = _buildCCIPMessage({
             _token: _tokenToTransfer,
             _amount: _amountToTransfer,
-            _feeTokenAddress: address(linkToken),
             _contribution: _contributionAmount,
             _tDAOName: _tDAOName,
             _parent: _parent,
@@ -234,10 +233,10 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         // Fee required to send the message
         _ccipFees = router.getFee(destinationChainSelector, _message);
 
-        uint256 _feeTokenBalance = linkToken.balanceOf(address(this));
+        uint256 _linkBalance = linkToken.balanceOf(address(this));
 
-        if (_ccipFees > _feeTokenBalance)
-            revert TLDCcipSender__NotEnoughBalance(_feeTokenBalance, _ccipFees);
+        if (_ccipFees > _linkBalance)
+            revert TLDCcipSender__NotEnoughBalance(_linkBalance, _ccipFees);
 
         // Approve the Router to transfer LINK tokens from this contract if needed
         linkToken.approve(address(router), _ccipFees);
@@ -264,13 +263,11 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
      * @dev This function will create an EVM2AnyMessage struct with the information to tramsfer the tokens and send data.
      * @param _token The token to be transferred.
      * @param _amount The amount of the token to be transferred.
-     * @param _feeTokenAddress The address of the token used for fees. Set address(0) for native gas.
      * @return Client.EVM2AnyMessage Returns an EVM2AnyMessage struct which contains information for sending a CCIP message.
      */
     function _buildCCIPMessage(
         address _token,
         uint256 _amount,
-        address _feeTokenAddress,
         uint256 _contribution,
         string calldata _tDAOName,
         address _parent,
@@ -304,7 +301,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             extraArgs: Client._argsToBytes(
                 Client.EVMExtraArgsV2({gasLimit: 1_000_000, allowOutOfOrderExecution: true})
             ),
-            feeToken: _feeTokenAddress // If address(0) is native token
+            feeToken: address(linkToken)
         });
 
         return message;
