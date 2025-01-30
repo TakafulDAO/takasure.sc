@@ -32,14 +32,15 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     mapping(address user => bytes32 messageId) public messageIdByUser;
     EnumerableMap.Bytes32ToUintMap internal failedMessages;
 
-    enum ErrorCode {
+    enum StatusCode {
         RESOLVED,
-        FAILED
+        FAILED,
+        RECOVERED
     }
 
     struct FailedMessage {
         bytes32 messageId;
-        ErrorCode errorCode;
+        StatusCode statusCode;
     }
 
     event OnProtocolGatewayChanged(
@@ -161,7 +162,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         // Try-catch to avoid reverting the tx, emit event instead
         // Try catch to be able to call the external function
         try this.processMessage(any2EvmMessage) {} catch (bytes memory err) {
-            failedMessages.set(any2EvmMessage.messageId, uint256(ErrorCode.FAILED));
+            failedMessages.set(any2EvmMessage.messageId, uint256(StatusCode.FAILED));
 
             messageContentsById[any2EvmMessage.messageId] = any2EvmMessage;
 
@@ -200,7 +201,9 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
      * @dev It changes the status of the message from 'failed' to 'resolved' to prevent reentrancy
      */
     function retryFailedMessage(address user) external onlyOwnerOrUser(user) {
-        (Client.Any2EVMMessage memory message, bytes32 messageId) = _getUserMessageAndResolve(user);
+        (Client.Any2EVMMessage memory message, bytes32 messageId) = _getUserMessage(user);
+
+        failedMessages.set(messageId, uint256(StatusCode.RESOLVED));
 
         // Low level call to the referral gateway
         (bool success, ) = protocolGateway.call(message.data);
@@ -215,7 +218,9 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
      * @dev This function is only callable by the user or the contract owner
      */
     function recoverTokens(address user) external onlyOwnerOrUser(user) {
-        (Client.Any2EVMMessage memory message, ) = _getUserMessageAndResolve(user);
+        (Client.Any2EVMMessage memory message, bytes32 messageId) = _getUserMessage(user);
+
+        failedMessages.set(messageId, uint256(StatusCode.RECOVERED));
 
         // Transfer the tokens back to the user
         usdc.safeTransfer(user, message.destTokenAmounts[0].amount);
@@ -227,7 +232,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
      * @notice Retrieves a paginated list of failed messages.
      * @param offset The index of the first failed message to return, enabling pagination by skipping a specified number of messages
      * @param limit The maximum number of failed messages to return, this is the size of the returned array
-     * @return failedMessages. Array of `FailedMessage` struct, with a `messageId` and an `errorCode` (RESOLVED or FAILED)
+     * @return failedMessages. Array of `FailedMessage` struct, with a `messageId` and an `statusCode` (RESOLVED or FAILED)
      */
     function getFailedMessages(
         uint256 offset,
@@ -239,8 +244,8 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         FailedMessage[] memory failedMessagesList = new FailedMessage[](returnLength);
 
         for (uint256 i; i < returnLength; ++i) {
-            (bytes32 messageId, uint256 errorCode) = failedMessages.at(offset + i);
-            failedMessagesList[i] = FailedMessage(messageId, ErrorCode(errorCode));
+            (bytes32 messageId, uint256 statusCode) = failedMessages.at(offset + i);
+            failedMessagesList[i] = FailedMessage(messageId, StatusCode(statusCode));
         }
         return failedMessagesList;
     }
@@ -277,16 +282,15 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         return _newMember;
     }
 
-    function _getUserMessageAndResolve(
+    function _getUserMessage(
         address _user
-    ) internal returns (Client.Any2EVMMessage memory _message, bytes32 _messageId) {
+    ) internal view returns (Client.Any2EVMMessage memory _message, bytes32 _messageId) {
         _messageId = messageIdByUser[_user];
 
         require(
-            failedMessages.get(_messageId) == uint256(ErrorCode.FAILED),
+            failedMessages.get(_messageId) == uint256(StatusCode.FAILED),
             TLDCcipReceiver__MessageNotFailed(_messageId)
         );
-        failedMessages.set(_messageId, uint256(ErrorCode.RESOLVED));
 
         _message = messageContentsById[_messageId];
     }
