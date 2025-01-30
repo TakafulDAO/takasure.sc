@@ -125,6 +125,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
      * @dev Revert if this contract dont have sufficient balance to pay for the fees.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
      * @param tokenToTransfer The address of the token to be transferred. Must be in the list of supported tokens.
+     * @param gasLimit gas allowed by the user to be the maximum spend in the destination blockchain by the CCIP protocol
      * @param contribution The amount of the contribution to be paid in the TLD contract.
      * @param tDAOName The name of the DAO to point in the TLD contract.
      * @param parent The address of the parent if the caller has a referral.
@@ -262,13 +263,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         emit OnTokensTransferred(_messageId, _amountToTransfer, _ccipFees);
     }
 
-    /**
-     * @notice Construct a CCIP message.
-     * @dev This function will create an EVM2AnyMessage struct with the information to tramsfer the tokens and send data.
-     * @param _token The token to be transferred.
-     * @param _amount The amount of the token to be transferred.
-     * @return Client.EVM2AnyMessage Returns an EVM2AnyMessage struct which contains information for sending a CCIP message.
-     */
     function _buildCCIPMessage(
         address _token,
         uint256 _amount,

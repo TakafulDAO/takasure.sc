@@ -33,9 +33,9 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     EnumerableMap.Bytes32ToUintMap internal failedMessages;
 
     enum StatusCode {
-        RESOLVED,
-        FAILED,
-        RECOVERED
+        FAILED, // Messages that receives this contract, but is not able to make the low level call
+        RESOLVED, // Failed messages that are successfull after retry
+        RECOVERED // Failed messages the user recover the tokens
     }
 
     struct FailedMessage {
@@ -66,6 +66,10 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     error TLDCcipReceiver__MessageNotFailed(bytes32 messageId);
     error TLDCcipReceiver__NotAuthorized();
 
+    /**
+     * @param _sourceChainSelector Identify the source blockchain
+     * @param _sender Identify the sender contract in the source blockchain
+     */
     modifier onlyAllowedSource(uint64 _sourceChainSelector, address _sender) {
         require(
             _sourceChainSelector != 0 &&
