@@ -83,6 +83,10 @@ ccip-deploy-sender:
 	@forge clean
 	@forge script deploy/chainlink/ccip/01-CcipDeployTLDCcipSender.s.sol:DeployTLDCcipSender $(NETWORK_ARGS)
 
+ccip-upgrade-sender:
+	@forge clean
+	@forge script deploy/chainlink/ccip/02-CcipUpgradeTLDCcipSender.s.sol:UpgradeTLDCcipSender $(NETWORK_ARGS)
+
 # Interactions with ReferralGateway Contract
 # Create a DAO
 referral-create-dao:
