@@ -27,7 +27,9 @@ contract AddAllowedSenders is Script, DeployConstants, GetContractAddress {
             receiver.toggleAllowedSender({
                 sender: _getContractAddress(OP_SEPOLIA_CHAIN_ID, "TLDCcipSender")
             });
-            // receiver.toggleAllowedSender({sender: _getContractAddress(POL_AMOY_CHAIN_ID, "TLDCcipSender")});
+            receiver.toggleAllowedSender({
+                sender: _getContractAddress(POL_AMOY_CHAIN_ID, "TLDCcipSender")
+            });
         } else {
             // TODO: Add when mainnet is available
             // receiver.toggleAllowedSender({sender: _getContractAddress(AVAX_MAINNET_CHAIN_ID, "TLDCcipSender")});

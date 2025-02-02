@@ -1,12 +1,12 @@
 {
-    "address": "0xaEAc0E5a81B33253D88aB2725fC4870d5c28B848",
+    "address": "0x3a54B21a75Dc9Fd65cee803fC7A8682117B0fd38",
     "abi": [
         {
             "type": "constructor",
             "inputs": [
                 { "name": "_router", "type": "address", "internalType": "address" },
                 { "name": "_usdc", "type": "address", "internalType": "address" },
-                { "name": "_referralGateway", "type": "address", "internalType": "address" }
+                { "name": "_protocolGateway", "type": "address", "internalType": "address" }
             ],
             "stateMutability": "nonpayable"
         },
@@ -64,9 +64,9 @@
                     "components": [
                         { "name": "messageId", "type": "bytes32", "internalType": "bytes32" },
                         {
-                            "name": "errorCode",
+                            "name": "statusCode",
                             "type": "uint8",
-                            "internalType": "enum TLDCcipReceiver.ErrorCode"
+                            "internalType": "enum TLDCcipReceiver.StatusCode"
                         }
                     ]
                 }
@@ -96,6 +96,18 @@
         },
         {
             "type": "function",
+            "name": "messageByUser",
+            "inputs": [{ "name": "user", "type": "address", "internalType": "address" }],
+            "outputs": [
+                { "name": "messageId", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "sourceChainSelector", "type": "uint64", "internalType": "uint64" },
+                { "name": "sender", "type": "bytes", "internalType": "bytes" },
+                { "name": "data", "type": "bytes", "internalType": "bytes" }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "messageContentsById",
             "inputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }],
             "outputs": [
@@ -104,6 +116,13 @@
                 { "name": "sender", "type": "bytes", "internalType": "bytes" },
                 { "name": "data", "type": "bytes", "internalType": "bytes" }
             ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "messageIdByUser",
+            "inputs": [{ "name": "user", "type": "address", "internalType": "address" }],
+            "outputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }],
             "stateMutability": "view"
         },
         {
@@ -154,10 +173,17 @@
         },
         {
             "type": "function",
-            "name": "referralGateway",
+            "name": "protocolGateway",
             "inputs": [],
             "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
             "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "recoverTokens",
+            "inputs": [{ "name": "user", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
         },
         {
             "type": "function",
@@ -169,7 +195,16 @@
         {
             "type": "function",
             "name": "retryFailedMessage",
-            "inputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }],
+            "inputs": [{ "name": "user", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setProtocolGateway",
+            "inputs": [
+                { "name": "_protocolGateway", "type": "address", "internalType": "address" }
+            ],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -266,6 +301,34 @@
         },
         {
             "type": "event",
+            "name": "OnProtocolGatewayChanged",
+            "inputs": [
+                {
+                    "name": "oldProtocolGateway",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "newProtocolGateway",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnTokensRecovered",
+            "inputs": [
+                { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+                { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
             "name": "OwnershipTransferStarted",
             "inputs": [
                 {
@@ -322,6 +385,11 @@
             "name": "OwnableUnauthorizedAccount",
             "inputs": [{ "name": "account", "type": "address", "internalType": "address" }]
         },
+        {
+            "type": "error",
+            "name": "SafeERC20FailedOperation",
+            "inputs": [{ "name": "token", "type": "address", "internalType": "address" }]
+        },
         { "type": "error", "name": "TLDCcipReceiver__CallFailed", "inputs": [] },
         { "type": "error", "name": "TLDCcipReceiver__InvalidUsdcToken", "inputs": [] },
         {
@@ -330,6 +398,8 @@
             "inputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }]
         },
         { "type": "error", "name": "TLDCcipReceiver__NotAllowedSource", "inputs": [] },
+        { "type": "error", "name": "TLDCcipReceiver__NotAuthorized", "inputs": [] },
+        { "type": "error", "name": "TLDCcipReceiver__NotZeroAddress", "inputs": [] },
         { "type": "error", "name": "TLDCcipReceiver__OnlySelf", "inputs": [] }
     ]
 }
