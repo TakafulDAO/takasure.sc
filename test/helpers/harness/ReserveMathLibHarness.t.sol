@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 /// @dev This contract is used to be able to test some internal functions
 
 pragma solidity 0.8.28;
@@ -97,4 +97,7 @@ contract ReserveMathLibHarness {
     function exposed__minInt(int256 x, int256 y) external pure returns (int256 exposedMinInt) {
         exposedMinInt = ReserveMathLib._minInt(x, y);
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

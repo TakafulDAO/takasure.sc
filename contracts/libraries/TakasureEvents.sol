@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
 /**
  * @title Events
@@ -67,6 +67,8 @@ library TakasureEvents {
         address indexed newBenefitMultiplierConsumer,
         address indexed oldBenefitMultiplierConsumer
     );
+    event OnMemberDefaulted(uint256 indexed memberId, address indexed member);
+    event OnMemberCanceled(uint256 indexed memberId, address indexed member);
     event OnNewMarketExpendsFundReserveAddShare(
         uint8 indexed newMarketExpendsFundReserveAddShare,
         uint8 indexed oldMarketExpendsFundReserveAddShare

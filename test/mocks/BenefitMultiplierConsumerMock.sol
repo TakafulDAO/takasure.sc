@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: GPL-3.0
+//SPDX-License-Identifier: GNU GPLv3
 
 /**
  * @title BenefitMultiplierConsumer
@@ -61,8 +61,7 @@ contract BenefitMultiplierConsumerMock is AccessControl, FunctionsClient {
     }
 
     function setNewRequester(address newRequester) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(newRequester != address(0), OracleConsumer__NotAddressZero());
-        if (requester != address(0)) _revokeRole(BM_REQUESTER_ROLE, requester);
+        if (newRequester == address(0)) revert OracleConsumer__NotAddressZero();
         _grantRole(BM_REQUESTER_ROLE, newRequester);
         requester = newRequester;
     }
@@ -106,7 +105,7 @@ contract BenefitMultiplierConsumerMock is AccessControl, FunctionsClient {
         bytes memory response,
         bytes memory err
     ) internal override {
-        require(requestId == lastRequestId, OracleConsumer__UnexpectedRequestID(requestId));
+        if (requestId != lastRequestId) revert OracleConsumer__UnexpectedRequestID(requestId);
 
         lastResponse = response;
         lastError = err;
@@ -130,4 +129,7 @@ contract BenefitMultiplierConsumerMock is AccessControl, FunctionsClient {
     ) external {
         fulfillRequest(requestId, response, err);
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

@@ -13,4 +13,7 @@ contract USDC is ERC20 {
     function decimals() public pure override returns (uint8) {
         return 6;
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

@@ -1,0 +1,405 @@
+{
+    "address": "0x3a54B21a75Dc9Fd65cee803fC7A8682117B0fd38",
+    "abi": [
+        {
+            "type": "constructor",
+            "inputs": [
+                { "name": "_router", "type": "address", "internalType": "address" },
+                { "name": "_usdc", "type": "address", "internalType": "address" },
+                { "name": "_protocolGateway", "type": "address", "internalType": "address" }
+            ],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "acceptOwnership",
+            "inputs": [],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "ccipReceive",
+            "inputs": [
+                {
+                    "name": "any2EvmMessage",
+                    "type": "tuple",
+                    "internalType": "struct Client.Any2EVMMessage",
+                    "components": [
+                        { "name": "messageId", "type": "bytes32", "internalType": "bytes32" },
+                        {
+                            "name": "sourceChainSelector",
+                            "type": "uint64",
+                            "internalType": "uint64"
+                        },
+                        { "name": "sender", "type": "bytes", "internalType": "bytes" },
+                        { "name": "data", "type": "bytes", "internalType": "bytes" },
+                        {
+                            "name": "destTokenAmounts",
+                            "type": "tuple[]",
+                            "internalType": "struct Client.EVMTokenAmount[]",
+                            "components": [
+                                { "name": "token", "type": "address", "internalType": "address" },
+                                { "name": "amount", "type": "uint256", "internalType": "uint256" }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "getFailedMessages",
+            "inputs": [
+                { "name": "offset", "type": "uint256", "internalType": "uint256" },
+                { "name": "limit", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "tuple[]",
+                    "internalType": "struct TLDCcipReceiver.FailedMessage[]",
+                    "components": [
+                        { "name": "messageId", "type": "bytes32", "internalType": "bytes32" },
+                        {
+                            "name": "statusCode",
+                            "type": "uint8",
+                            "internalType": "enum TLDCcipReceiver.StatusCode"
+                        }
+                    ]
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getRouter",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "isSenderAllowed",
+            "inputs": [{ "name": "sender", "type": "address", "internalType": "address" }],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "isSourceChainAllowed",
+            "inputs": [{ "name": "chainSelector", "type": "uint64", "internalType": "uint64" }],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "messageByUser",
+            "inputs": [{ "name": "user", "type": "address", "internalType": "address" }],
+            "outputs": [
+                { "name": "messageId", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "sourceChainSelector", "type": "uint64", "internalType": "uint64" },
+                { "name": "sender", "type": "bytes", "internalType": "bytes" },
+                { "name": "data", "type": "bytes", "internalType": "bytes" }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "messageContentsById",
+            "inputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }],
+            "outputs": [
+                { "name": "messageId", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "sourceChainSelector", "type": "uint64", "internalType": "uint64" },
+                { "name": "sender", "type": "bytes", "internalType": "bytes" },
+                { "name": "data", "type": "bytes", "internalType": "bytes" }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "messageIdByUser",
+            "inputs": [{ "name": "user", "type": "address", "internalType": "address" }],
+            "outputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "owner",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "pendingOwner",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "processMessage",
+            "inputs": [
+                {
+                    "name": "any2EvmMessage",
+                    "type": "tuple",
+                    "internalType": "struct Client.Any2EVMMessage",
+                    "components": [
+                        { "name": "messageId", "type": "bytes32", "internalType": "bytes32" },
+                        {
+                            "name": "sourceChainSelector",
+                            "type": "uint64",
+                            "internalType": "uint64"
+                        },
+                        { "name": "sender", "type": "bytes", "internalType": "bytes" },
+                        { "name": "data", "type": "bytes", "internalType": "bytes" },
+                        {
+                            "name": "destTokenAmounts",
+                            "type": "tuple[]",
+                            "internalType": "struct Client.EVMTokenAmount[]",
+                            "components": [
+                                { "name": "token", "type": "address", "internalType": "address" },
+                                { "name": "amount", "type": "uint256", "internalType": "uint256" }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "protocolGateway",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "recoverTokens",
+            "inputs": [{ "name": "user", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "renounceOwnership",
+            "inputs": [],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "retryFailedMessage",
+            "inputs": [{ "name": "user", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setProtocolGateway",
+            "inputs": [
+                { "name": "_protocolGateway", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "supportsInterface",
+            "inputs": [{ "name": "interfaceId", "type": "bytes4", "internalType": "bytes4" }],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "toggleAllowedSender",
+            "inputs": [{ "name": "sender", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "toggleAllowedSourceChain",
+            "inputs": [
+                { "name": "sourceChainSelector", "type": "uint64", "internalType": "uint64" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "transferOwnership",
+            "inputs": [{ "name": "newOwner", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "usdc",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "contract IERC20" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "event",
+            "name": "OnMessageFailed",
+            "inputs": [
+                {
+                    "name": "messageId",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                },
+                { "name": "reason", "type": "bytes", "indexed": false, "internalType": "bytes" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnMessageReceived",
+            "inputs": [
+                {
+                    "name": "messageId",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                },
+                {
+                    "name": "sourceChainSelector",
+                    "type": "uint64",
+                    "indexed": true,
+                    "internalType": "uint64"
+                },
+                { "name": "sender", "type": "address", "indexed": true, "internalType": "address" },
+                { "name": "data", "type": "bytes", "indexed": false, "internalType": "bytes" },
+                {
+                    "name": "tokenAmount",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnMessageRecovered",
+            "inputs": [
+                {
+                    "name": "messageId",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnProtocolGatewayChanged",
+            "inputs": [
+                {
+                    "name": "oldProtocolGateway",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "newProtocolGateway",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnTokensRecovered",
+            "inputs": [
+                { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+                { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OwnershipTransferStarted",
+            "inputs": [
+                {
+                    "name": "previousOwner",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "newOwner",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OwnershipTransferred",
+            "inputs": [
+                {
+                    "name": "previousOwner",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "newOwner",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "error",
+            "name": "EnumerableMapNonexistentKey",
+            "inputs": [{ "name": "key", "type": "bytes32", "internalType": "bytes32" }]
+        },
+        {
+            "type": "error",
+            "name": "InvalidRouter",
+            "inputs": [{ "name": "router", "type": "address", "internalType": "address" }]
+        },
+        {
+            "type": "error",
+            "name": "OwnableInvalidOwner",
+            "inputs": [{ "name": "owner", "type": "address", "internalType": "address" }]
+        },
+        {
+            "type": "error",
+            "name": "OwnableUnauthorizedAccount",
+            "inputs": [{ "name": "account", "type": "address", "internalType": "address" }]
+        },
+        {
+            "type": "error",
+            "name": "SafeERC20FailedOperation",
+            "inputs": [{ "name": "token", "type": "address", "internalType": "address" }]
+        },
+        { "type": "error", "name": "TLDCcipReceiver__CallFailed", "inputs": [] },
+        { "type": "error", "name": "TLDCcipReceiver__InvalidUsdcToken", "inputs": [] },
+        {
+            "type": "error",
+            "name": "TLDCcipReceiver__MessageNotFailed",
+            "inputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }]
+        },
+        { "type": "error", "name": "TLDCcipReceiver__NotAllowedSource", "inputs": [] },
+        { "type": "error", "name": "TLDCcipReceiver__NotAuthorized", "inputs": [] },
+        { "type": "error", "name": "TLDCcipReceiver__NotZeroAddress", "inputs": [] },
+        { "type": "error", "name": "TLDCcipReceiver__OnlySelf", "inputs": [] }
+    ]
+}

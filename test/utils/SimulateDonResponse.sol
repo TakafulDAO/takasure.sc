@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
 pragma solidity 0.8.28;
 
@@ -18,4 +18,7 @@ contract SimulateDonResponse {
         bytes memory err = abi.encode("This went wrong");
         BenefitMultiplierConsumerMock(consumer).simulateDonResponse(requestId, response, err);
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }
