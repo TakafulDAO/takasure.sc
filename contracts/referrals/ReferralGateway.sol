@@ -41,6 +41,7 @@ contract ReferralGateway is
     mapping(address child => address parent) public childToParent;
 
     address private couponPool;
+    address private ccipReceiverContract;
 
     struct PrepaidMember {
         address member;
@@ -144,6 +145,10 @@ contract ReferralGateway is
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
+    event OnNewCCIPReceiverContract(
+        address indexed oldCCIPReceiverContract,
+        address indexed newCCIPReceiverContract
+    );
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__onlyDAOAdmin();
@@ -160,6 +165,7 @@ contract ReferralGateway is
     error ReferralGateway__NotKYCed();
     error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
+    error ReferralGateway__NotAuthorizedCaller();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -172,15 +178,7 @@ contract ReferralGateway is
         address _pauseGuardian,
         address _usdcAddress,
         address _benefitMultiplierConsumer
-    )
-        external
-        /*notZeroAddress(_operator)
-        notZeroAddress(_KYCProvider)
-        notZeroAddress(_pauseGuardian)
-        notZeroAddress(_usdcAddress)
-        notZeroAddress(_benefitMultiplierConsumer)*/
-        initializer
-    {
+    ) external initializer {
         _notZeroAddress(_operator);
         _notZeroAddress(_KYCProvider);
         _notZeroAddress(_pauseGuardian);
@@ -246,10 +244,7 @@ contract ReferralGateway is
     /**
      * @notice Update the DAO estimated launch date
      */
-    function updateLaunchDate(
-        string calldata tDAOName,
-        uint256 launchDate
-    ) external /*onlyDAOAdmin(tDAOName)*/ {
+    function updateLaunchDate(string calldata tDAOName, uint256 launchDate) external {
         _onlyDAOAdmin(tDAOName);
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
@@ -274,7 +269,7 @@ contract ReferralGateway is
         string calldata tDAOName,
         address tDAOAddress,
         bool isReferralDiscountEnabled
-    ) external /*onlyDAOAdmin(tDAOName) notZeroAddress(tDAOAddress)*/ {
+    ) external {
         _onlyDAOAdmin(tDAOName);
         _notZeroAddress(tDAOAddress);
         require(
@@ -297,7 +292,7 @@ contract ReferralGateway is
     /**
      * @notice Switch the referralDiscount status of a DAO
      */
-    function switchReferralDiscount(string calldata tDAOName) external /*onlyDAOAdmin(tDAOName)*/ {
+    function switchReferralDiscount(string calldata tDAOName) external {
         _onlyDAOAdmin(tDAOName);
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
 
@@ -309,10 +304,7 @@ contract ReferralGateway is
      * @param tDAOName The name of the tDAO
      * @param rePoolAddress The address of the rePool
      */
-    function enableRepool(
-        string calldata tDAOName,
-        address rePoolAddress
-    ) external /*notZeroAddress(rePoolAddress) onlyDAOAdmin(tDAOName)*/ {
+    function enableRepool(string calldata tDAOName, address rePoolAddress) external {
         _onlyDAOAdmin(tDAOName);
         _notZeroAddress(rePoolAddress);
         require(
@@ -324,7 +316,7 @@ contract ReferralGateway is
         emit OnRepoolEnabled(tDAOName, rePoolAddress);
     }
 
-    function transferToRepool(string calldata tDAOName) external /*onlyDAOAdmin(tDAOName)*/ {
+    function transferToRepool(string calldata tDAOName) external {
         _onlyDAOAdmin(tDAOName);
         require(
             nameToDAOData[tDAOName].rePoolAddress != address(0),
@@ -380,7 +372,9 @@ contract ReferralGateway is
         address parent,
         address newMember,
         uint256 couponAmount
-    ) external onlyRole(COUPON_REDEEMER) returns (uint256 finalFee, uint256 discount) {
+    ) external returns (uint256 finalFee, uint256 discount) {
+        _onlyCouponRedeemerOrCcipReceiver;
+
         (finalFee, discount) = _payContribution(
             contribution,
             tDAOName,
@@ -389,7 +383,7 @@ contract ReferralGateway is
             couponAmount
         );
 
-        emit OnCouponRedeemed(newMember, tDAOName, couponAmount);
+        if (couponAmount > 0) emit OnCouponRedeemed(newMember, tDAOName, couponAmount);
     }
 
     /**
@@ -400,7 +394,7 @@ contract ReferralGateway is
     function setKYCStatus(
         address child,
         string calldata tDAOName
-    ) external whenNotPaused /*notZeroAddress(child)*/ onlyRole(KYC_PROVIDER) {
+    ) external whenNotPaused onlyRole(KYC_PROVIDER) {
         _notZeroAddress(child);
         // Initial checks
         // Can not KYC a member that is already KYCed
@@ -517,7 +511,7 @@ contract ReferralGateway is
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer,
         string calldata tDAOName
-    ) external onlyRole(OPERATOR) /*notZeroAddress(newBenefitMultiplierConsumer)*/ {
+    ) external onlyRole(OPERATOR) {
         _notZeroAddress(newBenefitMultiplierConsumer);
         address oldBenefitMultiplierConsumer = address(nameToDAOData[tDAOName].bmConsumer);
         nameToDAOData[tDAOName].bmConsumer = IBenefitMultiplierConsumer(
@@ -531,9 +525,7 @@ contract ReferralGateway is
         );
     }
 
-    function setNewOperator(
-        address newOperator
-    ) external /*notZeroAddress(newOperator)*/ onlyRole(OPERATOR) {
+    function setNewOperator(address newOperator) external onlyRole(OPERATOR) {
         _notZeroAddress(newOperator);
         address oldOperator = operator;
 
@@ -549,13 +541,18 @@ contract ReferralGateway is
         emit OnNewOperator(oldOperator, newOperator);
     }
 
-    function setCouponPoolAddress(
-        address _couponPool
-    ) external /*notZeroAddress(_couponPool)*/ onlyRole(OPERATOR) {
+    function setCouponPoolAddress(address _couponPool) external onlyRole(OPERATOR) {
         _notZeroAddress(_couponPool);
         address oldCouponPool = couponPool;
         couponPool = _couponPool;
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
+    }
+
+    function setCCIPReceiverContract(address _ccipReceiverContract) external onlyRole(OPERATOR) {
+        _notZeroAddress(_ccipReceiverContract);
+        address oldCCIPReceiverContract = ccipReceiverContract;
+        ccipReceiverContract = _ccipReceiverContract;
+        emit OnNewCCIPReceiverContract(oldCCIPReceiverContract, _ccipReceiverContract);
     }
 
     function pause() external onlyRole(PAUSE_GUARDIAN) {
@@ -731,7 +728,19 @@ contract ReferralGateway is
             uint256 amountToTransfer = realContribution - _discount - _couponAmount;
 
             if (amountToTransfer > 0) {
-                usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
+                if (msg.sender == ccipReceiverContract) {
+                    usdc.safeTransferFrom(ccipReceiverContract, address(this), amountToTransfer);
+
+                    // Note: This is a temporary solution to test the CCIP integration in the testnet
+                    // This is because in testnet we are using a different USDC contract for easier testing
+                    // IERC20(0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d).safeTransferFrom(
+                    //     ccipReceiverContract,
+                    //     address(this),
+                    //     amountToTransfer
+                    // );
+                } else {
+                    usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
+                }
             }
 
             if (_couponAmount > 0) {
@@ -929,5 +938,12 @@ contract ReferralGateway is
 
     function _onlyDAOAdmin(string calldata tDAOName) internal view {
         require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
+    }
+
+    function _onlyCouponRedeemerOrCcipReceiver() internal view {
+        require(
+            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            ReferralGateway__NotAuthorizedCaller()
+        );
     }
 }

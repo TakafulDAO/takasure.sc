@@ -6,12 +6,13 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
-import {Sender} from "contracts/chainlink/ccip/Sender.sol";
+import {TLDCcipSender} from "contracts/chainlink/ccip/TLDCcipSender.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 
-contract DeploySender is Script, DeployConstants, GetContractAddress {
-    function run() external returns (Sender) {
+contract DeployTLDCcipSender is Script, DeployConstants, GetContractAddress {
+    function run() external returns (address) {
         uint256 chainId = block.chainid;
 
         CcipHelperConfig ccipHelperConfig = new CcipHelperConfig();
@@ -22,7 +23,7 @@ contract DeploySender is Script, DeployConstants, GetContractAddress {
 
         address receiverContractAddress;
         uint64 destinationChainSelector;
-        bytes32 salt = "2020";
+        bytes32 salt = "222025";
 
         if (
             chainId == AVAX_FUJI_CHAIN_ID ||
@@ -31,26 +32,32 @@ contract DeploySender is Script, DeployConstants, GetContractAddress {
             chainId == OP_SEPOLIA_CHAIN_ID ||
             chainId == POL_AMOY_CHAIN_ID
         ) {
-            receiverContractAddress = _getContractAddress(ARB_SEPOLIA_CHAIN_ID, "Receiver");
+            receiverContractAddress = _getContractAddress(ARB_SEPOLIA_CHAIN_ID, "TLDCcipReceiver");
             destinationChainSelector = ARB_SEPOLIA_SELECTOR;
         } else {
-            receiverContractAddress = _getContractAddress(ARB_MAINNET_CHAIN_ID, "Receiver");
+            receiverContractAddress = _getContractAddress(ARB_MAINNET_CHAIN_ID, "TLDCcipReceiver");
             destinationChainSelector = ARB_MAINNET_SELECTOR;
         }
 
         vm.startBroadcast();
 
-        // Deploy Sender contract
-        Sender sender = new Sender{salt: salt}(
+        // Deploy implementation
+        TLDCcipSender sender = new TLDCcipSender();
+
+        // Deploy proxy
+        ERC1967Proxy proxy = new ERC1967Proxy{salt: salt}(address(sender), "");
+
+        TLDCcipSender(address(proxy)).initialize(
             config.router,
             config.link,
-            config.usdc,
             receiverContractAddress,
-            destinationChainSelector
+            destinationChainSelector,
+            config.senderOwner,
+            config.couponProvider
         );
 
         vm.stopBroadcast();
 
-        return (sender);
+        return address(proxy);
     }
 }

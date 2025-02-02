@@ -19,6 +19,8 @@ contract CcipHelperConfig is DeployConstants, Script {
         address router;
         address link;
         address usdc;
+        address senderOwner;
+        address couponProvider;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -66,7 +68,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         arbMainnetCcipConfig = CCIPNetworkConfig({
             router: routerAddress.arbMainnetRouter,
             link: linkAddress.arbMainnetLink,
-            usdc: usdcAddress.arbMainnetUSDC
+            usdc: usdcAddress.arbMainnetUSDC,
+            senderOwner: address(0),
+            couponProvider: couponProvider.arbMainnetCouponProvider
         });
     }
 
@@ -74,7 +78,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         avaxCcipConfig = CCIPNetworkConfig({
             router: routerAddress.avaxMainnetRouter,
             link: linkAddress.avaxMainnetLink,
-            usdc: usdcAddress.avaxMainnetUSDC
+            usdc: usdcAddress.avaxMainnetUSDC,
+            senderOwner: senderOwner.avaxMainnetSenderOwner,
+            couponProvider: couponProvider.avaxMainnetCouponProvider
         });
     }
 
@@ -82,7 +88,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         baseCcipConfig = CCIPNetworkConfig({
             router: routerAddress.baseMainnetRouter,
             link: linkAddress.baseMainnetLink,
-            usdc: usdcAddress.baseMainnetUSDC
+            usdc: usdcAddress.baseMainnetUSDC,
+            senderOwner: senderOwner.baseMainnetSenderOwner,
+            couponProvider: couponProvider.baseMainnetCouponProvider
         });
     }
 
@@ -94,7 +102,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         ethMainnetCcipConfig = CCIPNetworkConfig({
             router: routerAddress.ethMainnetRouter,
             link: linkAddress.ethMainnetLink,
-            usdc: usdcAddress.ethMainnetUSDC
+            usdc: usdcAddress.ethMainnetUSDC,
+            senderOwner: senderOwner.ethMainnetSenderOwner,
+            couponProvider: couponProvider.ethMainnetCouponProvider
         });
     }
 
@@ -102,7 +112,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         optimismCcipConfig = CCIPNetworkConfig({
             router: routerAddress.opMainnetRouter,
             link: linkAddress.opMainnetLink,
-            usdc: usdcAddress.opMainnetUSDC
+            usdc: usdcAddress.opMainnetUSDC,
+            senderOwner: senderOwner.opMainnetSenderOwner,
+            couponProvider: couponProvider.opMainnetCouponProvider
         });
     }
 
@@ -110,7 +122,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         polCcipConfig = CCIPNetworkConfig({
             router: routerAddress.polMainnetRouter,
             link: linkAddress.polMainnetLink,
-            usdc: usdcAddress.polMainnetUSDC
+            usdc: usdcAddress.polMainnetUSDC,
+            senderOwner: senderOwner.polMainnetSenderOwner,
+            couponProvider: couponProvider.polMainnetCouponProvider
         });
     }
 
@@ -122,7 +136,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         arbSepoliaCcipConfig = CCIPNetworkConfig({
             router: routerAddress.arbSepoliaRouter,
             link: linkAddress.arbSepoliaLink,
-            usdc: usdcAddress.arbSepoliaUSDC
+            usdc: usdcAddress.arbSepoliaUSDC,
+            senderOwner: address(0),
+            couponProvider: couponProvider.arbSepoliaCouponProvider
         });
     }
 
@@ -130,7 +146,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         avaxFujiCcipConfig = CCIPNetworkConfig({
             router: routerAddress.avaxFujiRouter,
             link: linkAddress.avaxFujiLink,
-            usdc: usdcAddress.avaxFujiUSDC
+            usdc: usdcAddress.avaxFujiUSDC,
+            senderOwner: senderOwner.avaxFujiSenderOwner,
+            couponProvider: couponProvider.avaxFujiCouponProvider
         });
     }
 
@@ -142,7 +160,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         baseSepoliaCcipConfig = CCIPNetworkConfig({
             router: routerAddress.baseSepoliaRouter,
             link: linkAddress.baseSepoliaLink,
-            usdc: usdcAddress.baseSepoliaUSDC
+            usdc: usdcAddress.baseSepoliaUSDC,
+            senderOwner: senderOwner.baseSepoliaSenderOwner,
+            couponProvider: couponProvider.baseSepoliaCouponProvider
         });
     }
 
@@ -154,7 +174,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         ethSepoliaCcipConfig = CCIPNetworkConfig({
             router: routerAddress.ethSepoliaRouter,
             link: linkAddress.ethSepoliaLink,
-            usdc: usdcAddress.ethSepoliaUSDC
+            usdc: usdcAddress.ethSepoliaUSDC,
+            senderOwner: senderOwner.ethSepoliaSenderOwner,
+            couponProvider: couponProvider.ethSepoliaCouponProvider
         });
     }
 
@@ -166,7 +188,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         opSepoliaCcipConfig = CCIPNetworkConfig({
             router: routerAddress.opSepoliaRouter,
             link: linkAddress.opSepoliaLink,
-            usdc: usdcAddress.opSepoliaUSDC
+            usdc: usdcAddress.opSepoliaUSDC,
+            senderOwner: senderOwner.opSepoliaSenderOwner,
+            couponProvider: couponProvider.opSepoliaCouponProvider
         });
     }
 
@@ -174,7 +198,9 @@ contract CcipHelperConfig is DeployConstants, Script {
         polAmoyCcipConfig = CCIPNetworkConfig({
             router: routerAddress.polAmoyRouter,
             link: linkAddress.polAmoyLink,
-            usdc: usdcAddress.polAmoyUSDC
+            usdc: usdcAddress.polAmoyUSDC,
+            senderOwner: senderOwner.polAmoySenderOwner,
+            couponProvider: couponProvider.polAmoyCouponProvider
         });
     }
 

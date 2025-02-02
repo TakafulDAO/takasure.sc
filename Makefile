@@ -77,11 +77,15 @@ functions-deploy-bm-consumer:
 #Chainlink ccip
 ccip-deploy-receiver:
 	@forge clean
-	@forge script deploy/chainlink/ccip/00-CcipDeployReceiver.s.sol:DeployReceiver $(NETWORK_ARGS)
+	@forge script deploy/chainlink/ccip/00-CcipDeployTLDCcipReceiver.s.sol:DeployTLDCcipReceiver $(NETWORK_ARGS)
 
 ccip-deploy-sender:
 	@forge clean
-	@forge script deploy/chainlink/ccip/01-CcipDeploySender.s.sol:DeploySender $(NETWORK_ARGS)
+	@forge script deploy/chainlink/ccip/01-CcipDeployTLDCcipSender.s.sol:DeployTLDCcipSender $(NETWORK_ARGS)
+
+ccip-upgrade-sender:
+	@forge clean
+	@forge script deploy/chainlink/ccip/02-CcipUpgradeTLDCcipSender.s.sol:UpgradeTLDCcipSender $(NETWORK_ARGS)
 
 # Interactions with ReferralGateway Contract
 # Create a DAO
@@ -95,6 +99,10 @@ referral-change-operator:
 # Renounce admin
 referral-renounce-admin:
 	@forge script scripts/contract-interactions/referralGateway/ChangeAdmin.s.sol:ChangeAdmin $(NETWORK_ARGS)
+
+# Add ccip receiver contract
+referral-set-ccip-receiver:
+	@forge script scripts/contract-interactions/referralGateway/SetCcipReceiverContract.s.sol:SetCcipReceiverContract $(NETWORK_ARGS)
 
 # Interactions with BenefitMultiplierConsumer Contract
 # Add a new BM Requester
@@ -117,14 +125,18 @@ mock-approve-spender:
 takasure-add-bm-consumer:
 	@forge script scripts/contract-interactions/takasure/AddBmOracleConsumer.s.sol:AddBmOracleConsumer $(NETWORK_ARGS)
 
-# Join pool
-takasure-join-pool:
-	@forge script scripts/contract-interactions/chainlink-ccip/TransferUsdcPayWithLink.s.sol:TransferUsdcPayWithLink $(NETWORK_ARGS)
+#Interactions with TLDCcipSender Contract
+ccip-sender-add-usdc:
+	@forge script scripts/contract-interactions/ccip/sender/AddSupportedToken.s.sol:AddSupportedToken $(NETWORK_ARGS)
 
-# Interactions with CCIP Source Contract
-ccip-send-message:
-	@forge script scripts/contract-interactions/chainlink-ccip/SendMessage.s.sol:SendMessage $(NETWORK_ARGS)
-	
+#Interactions with TLDCcipReceiver Contract
+ccip-receiver-add-chains:
+	@forge script scripts/contract-interactions/ccip/receiver/AddAllowedChains.s.sol:AddAllowedChains $(NETWORK_ARGS)
+
+ccip-receiver-add-senders:
+	@forge script scripts/contract-interactions/ccip/receiver/AddAllowedSenders.s.sol:AddAllowedSenders $(NETWORK_ARGS)
+
+
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)

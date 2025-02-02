@@ -34,10 +34,10 @@ abstract contract DeployConstants {
 
     uint64 public constant ARB_SEPOLIA_SELECTOR = 3478487238524512106;
     uint64 public constant AVAX_FUJI_SELECTOR = 14767482510784806043;
-    uint64 public constant BASE_SEPOLIA_SELECTOR = 10344971235874465080;
+    uint64 public constant BASE_SEPOLIA_SELECTOR = 10344971235874465080; // Todo: check
     uint64 public constant ETH_SEPOLIA_SELECTOR = 16015286601757825753;
-    uint64 public constant OP_SEPOLIA_SELECTOR = 10344971235874465080;
-    uint64 public constant POL_AMOY_SELECTOR = 10344971235874465080;
+    uint64 public constant OP_SEPOLIA_SELECTOR = 10344971235874465080; // Todo: check
+    uint64 public constant POL_AMOY_SELECTOR = 10344971235874465080; // Todo: check
 
     /*//////////////////////////////////////////////////////////////
                                ADDRESSES
@@ -138,6 +138,64 @@ abstract contract DeployConstants {
             ethSepoliaUSDC: 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238,
             opSepoliaUSDC: 0x5fd84259d66Cd46123540766Be93DFE6D43130D7,
             polAmoyUSDC: 0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582
+        });
+
+    struct SenderOwner {
+        address avaxMainnetSenderOwner;
+        address baseMainnetSenderOwner;
+        address ethMainnetSenderOwner;
+        address opMainnetSenderOwner;
+        address polMainnetSenderOwner;
+        address avaxFujiSenderOwner;
+        address baseSepoliaSenderOwner;
+        address ethSepoliaSenderOwner;
+        address opSepoliaSenderOwner;
+        address polAmoySenderOwner;
+    }
+
+    SenderOwner public senderOwner =
+        SenderOwner({
+            avaxMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            baseMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            ethMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            opMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            polMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            avaxFujiSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+            baseSepoliaSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+            ethSepoliaSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+            opSepoliaSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+            polAmoySenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+        });
+
+    struct CouponProvider {
+        address arbMainnetCouponProvider;
+        address avaxMainnetCouponProvider;
+        address baseMainnetCouponProvider;
+        address ethMainnetCouponProvider;
+        address opMainnetCouponProvider;
+        address polMainnetCouponProvider;
+        address arbSepoliaCouponProvider;
+        address avaxFujiCouponProvider;
+        address baseSepoliaCouponProvider;
+        address ethSepoliaCouponProvider;
+        address opSepoliaCouponProvider;
+        address polAmoyCouponProvider;
+    }
+
+    CouponProvider public couponProvider =
+        CouponProvider({
+            arbMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            avaxMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            baseMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            ethMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            opMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            polMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            arbSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+            avaxFujiCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+            baseSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+            ethSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+            opSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+            polAmoyCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3
         });
 
     /*//////////////////////////////////////////////////////////////
