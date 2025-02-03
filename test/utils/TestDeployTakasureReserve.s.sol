@@ -8,13 +8,14 @@ import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
-import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
-import {HelperConfig} from "deploy/HelperConfig.s.sol";
+import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
+import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
 contract TestDeployTakasureReserve is Script {
-    BenefitMultiplierConsumer benefitMultiplierConsumer;
+    BenefitMultiplierConsumerMock bmConsumerMock;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -30,23 +31,39 @@ contract TestDeployTakasureReserve is Script {
     function run()
         external
         returns (
+            address tsToken,
+            BenefitMultiplierConsumerMock,
             address takasureReserve,
             address entryModule,
             address memberModule,
             address revenueModule,
             address router,
+            address referralGatewayProxy,
             address contributionTokenAddress,
+            address kycProvider,
             HelperConfig helperConfig
         )
     {
         helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        root = vm.projectRoot();
-        scriptPath = string.concat(root, "/scripts/chainlink-functions/bmFetchCode.js");
-        string memory bmFetchScript = vm.readFile(scriptPath);
-
         vm.startBroadcast(msg.sender);
+
+        // Deploy the BenefitMultiplierConsumerMock
+        bmConsumerMock = _deployBMConsumer(
+            config.functionsRouter,
+            config.donId,
+            config.gasLimit,
+            config.subscriptionId
+        );
+
+        referralGatewayProxy = _deployReferralGateway(
+            config.takadaoOperator,
+            config.kycProvider,
+            config.pauseGuardian,
+            config.contributionToken,
+            address(bmConsumerMock)
+        );
 
         // Deploy TakasureReserve
         takasureReserveImplementation = address(new TakasureReserve());
@@ -68,14 +85,6 @@ contract TestDeployTakasureReserve is Script {
             )
         );
 
-        // Deploy BenefitMultiplierConsumer
-        benefitMultiplierConsumer = new BenefitMultiplierConsumer(
-            config.functionsRouter,
-            config.donId,
-            config.gasLimit,
-            config.subscriptionId
-        );
-
         (entryModule, memberModule, revenueModule) = _deployModules(takasureReserve);
 
         // Deploy router
@@ -85,16 +94,10 @@ contract TestDeployTakasureReserve is Script {
             abi.encodeCall(UserRouter.initialize, (takasureReserve, entryModule, memberModule))
         );
 
-        _setContracts(
-            benefitMultiplierConsumer,
-            bmFetchScript,
-            entryModule,
-            memberModule,
-            revenueModule,
-            takasureReserve
-        );
+        _setContracts(bmConsumerMock, entryModule, memberModule, revenueModule, takasureReserve);
 
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
+        tsToken = address(creditToken);
 
         _assignRoles(takasureReserve, config.daoMultisig, creditToken, entryModule, memberModule);
 
@@ -105,13 +108,54 @@ contract TestDeployTakasureReserve is Script {
             .contributionToken;
 
         return (
+            tsToken,
+            bmConsumerMock,
             takasureReserve,
             entryModule,
             memberModule,
             revenueModule,
             router,
+            referralGatewayProxy,
             contributionTokenAddress,
+            kycProvider,
             helperConfig
+        );
+    }
+
+    function _deployBMConsumer(
+        address _functionsRouter,
+        bytes32 _donId,
+        uint32 _gasLimit,
+        uint64 _subscriptionId
+    ) internal returns (BenefitMultiplierConsumerMock bmConsumerMock_) {
+        bmConsumerMock_ = new BenefitMultiplierConsumerMock(
+            _functionsRouter,
+            _donId,
+            _gasLimit,
+            _subscriptionId
+        );
+    }
+
+    function _deployReferralGateway(
+        address _takadaoOperator,
+        address _kycProvider,
+        address _pauseGuardian,
+        address _contributionToken,
+        address _bmConsumerMock
+    ) internal returns (address referralGatewayProxy_) {
+        address referralImplementation = address(new ReferralGateway());
+        referralGatewayProxy_ = UnsafeUpgrades.deployUUPSProxy(
+            referralImplementation,
+            abi.encodeCall(
+                ReferralGateway.initialize,
+                (
+                    _takadaoOperator,
+                    _kycProvider,
+                    _pauseGuardian,
+                    _contributionToken,
+                    _bmConsumerMock
+                )
+            )
         );
     }
 
@@ -141,18 +185,14 @@ contract TestDeployTakasureReserve is Script {
     }
 
     function _setContracts(
-        BenefitMultiplierConsumer _benefitMultiplierConsumer,
-        string memory _bmFetchScript,
+        BenefitMultiplierConsumerMock _benefitMultiplierConsumerMock,
         address _entryModule,
         address _memberModule,
         address _revenueModule,
         address _takasureReserve
     ) internal {
         // Setting EntryModule as a requester in BenefitMultiplierConsumer
-        _benefitMultiplierConsumer.setNewRequester(_entryModule);
-
-        // Add new source code to BenefitMultiplierConsumer
-        _benefitMultiplierConsumer.setBMSourceRequestCode(_bmFetchScript);
+        _benefitMultiplierConsumerMock.setNewRequester(_entryModule);
 
         // Set modules contracts in TakasureReserve
         TakasureReserve(_takasureReserve).setNewModuleContract(_entryModule);

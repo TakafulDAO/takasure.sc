@@ -20,6 +20,7 @@ contract BenefitMultiplierConsumerMock is AccessControl, FunctionsClient {
     bytes32 public constant BM_REQUESTER_ROLE = keccak256("BM_REQUESTER_ROLE");
 
     address public requester;
+    address public admin;
 
     bytes32 private donId;
     uint32 private gasLimit;
@@ -55,6 +56,7 @@ contract BenefitMultiplierConsumerMock is AccessControl, FunctionsClient {
         uint64 _subscriptionId
     ) FunctionsClient(router) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        admin = msg.sender;
         donId = _donId;
         gasLimit = _gasLimit;
         subscriptionId = _subscriptionId;

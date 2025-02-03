@@ -4,8 +4,7 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
-import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
-import {HelperConfig} from "deploy/HelperConfig.s.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
@@ -16,7 +15,6 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract Transfers_TakasureProtocolTest is StdCheats, Test {
     TestDeployTakasureReserve deployer;
-    DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -38,12 +36,16 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
     function setUp() public {
         deployer = new TestDeployTakasureReserve();
         (
+            ,
+            bmConsumerMock,
             takasureReserveProxy,
             entryModuleAddress,
             ,
             ,
             userRouterAddress,
+            ,
             contributionTokenAddress,
+            ,
             helperConfig
         ) = deployer.run();
 
@@ -55,9 +57,6 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
         admin = config.daoMultisig;
         kycService = config.kycProvider;
         takadao = config.takadaoOperator;
-
-        mockDeployer = new DeployConsumerMocks();
-        bmConsumerMock = mockDeployer.run();
 
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
@@ -72,7 +71,7 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
-        vm.prank(msg.sender);
+        vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
         vm.prank(takadao);

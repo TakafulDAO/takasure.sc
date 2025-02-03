@@ -13,5 +13,5 @@ foundry-devops/=lib/foundry-devops/
 halmos-cheatcodes/=lib/openzeppelin-contracts-upgradeable/lib/halmos-cheatcodes/src/
 openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/
 openzeppelin-contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/
-openzeppelin-foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/
+openzeppelin-foundry-upgrades/=lib/openzeppelin-foundry-upgrades/
 solidity-stringutils/=lib/openzeppelin-foundry-upgrades/lib/solidity-stringutils/

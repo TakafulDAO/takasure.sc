@@ -46,6 +46,7 @@ contract TakasureReserve is
     bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
     bytes32 private constant MODULE_CONTRACT = keccak256("MODULE_CONTRACT");
+    bytes32 public constant REFERRAL_GATEWAY = keccak256("REFERRAL_GATEWAY");
 
     mapping(uint16 month => uint256 montCashFlow) public monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) public dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
@@ -237,6 +238,10 @@ contract TakasureReserve is
         feeClaimAddress = newFeeClaimAddress;
     }
 
+    function setNewReferralGateway(address newReferralGateway) external onlyDaoOrTakadao {
+        _grantRole(REFERRAL_GATEWAY, newReferralGateway);
+    }
+
     function setNewBenefitMultiplierConsumerAddress(
         address newBenefitMultiplierConsumerAddress
     ) external onlyDaoOrTakadao notZeroAddress(newBenefitMultiplierConsumerAddress) {
@@ -261,6 +266,16 @@ contract TakasureReserve is
 
         _grantRole(PAUSE_GUARDIAN, newPauseGuardianAddress);
         _revokeRole(PAUSE_GUARDIAN, oldPauseGuardian);
+    }
+
+    function prejoins(
+        address newMember,
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration
+    ) external onlyRole(REFERRAL_GATEWAY) whenNotPaused {
+        // TODO: Prejoin logic or move to entry module
+        // mock event
+        emit TakasureEvents.OnMemberJoined(1, newMember);
     }
 
     /**

@@ -5,11 +5,11 @@ pragma solidity 0.8.28;
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {JoinModule} from "contracts/takasure/modules/JoinModule.sol";
-import {MembersModule} from "contracts/takasure/modules/MembersModule.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
+import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
-import {BenefitMultiplierConsumer} from "contracts/takasure/oracle/BenefitMultiplierConsumer.sol";
-import {HelperConfig} from "./HelperConfig.s.sol";
+import {BenefitMultiplierConsumer} from "contracts/chainlink/functions/BenefitMultiplierConsumer.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
 contract DeployTakasureReserve is Script {
@@ -22,8 +22,8 @@ contract DeployTakasureReserve is Script {
         external
         returns (
             address takasureReserve,
-            address joinModule,
-            address membersModule,
+            address entryModule,
+            address memberModule,
             address revenueModule
         )
     {
@@ -66,16 +66,16 @@ contract DeployTakasureReserve is Script {
             config.subscriptionId
         );
 
-        // Deploy JoinModule
-        joinModule = Upgrades.deployUUPSProxy(
-            "JoinModule.sol",
-            abi.encodeCall(JoinModule.initialize, (takasureReserve))
+        // Deploy EntryModule
+        entryModule = Upgrades.deployUUPSProxy(
+            "EntryModule.sol",
+            abi.encodeCall(EntryModule.initialize, (takasureReserve))
         );
 
-        // Deploy MembersModule
-        membersModule = Upgrades.deployUUPSProxy(
-            "MembersModule.sol",
-            abi.encodeCall(MembersModule.initialize, (takasureReserve))
+        // Deploy MemberModule
+        memberModule = Upgrades.deployUUPSProxy(
+            "MemberModule.sol",
+            abi.encodeCall(MemberModule.initialize, (takasureReserve))
         );
 
         // Deploy RevemueModule
@@ -92,14 +92,14 @@ contract DeployTakasureReserve is Script {
         // Add new source code to BenefitMultiplierConsumer
         benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
 
-        // Setting JoinModule as a requester in BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setNewRequester(joinModule);
+        // Setting EntryModule as a requester in BenefitMultiplierConsumer
+        benefitMultiplierConsumer.setNewRequester(entryModule);
 
-        // Set JoinModule as a module in TakasurePool
-        TakasureReserve(takasureReserve).setNewModuleContract(joinModule);
+        // Set EntryModule as a module in TakasurePool
+        TakasureReserve(takasureReserve).setNewModuleContract(entryModule);
 
-        // Set MembersModule as a module in TakasurePool
-        TakasureReserve(takasureReserve).setNewModuleContract(membersModule);
+        // Set MemberModule as a module in TakasurePool
+        TakasureReserve(takasureReserve).setNewModuleContract(memberModule);
 
         // Set RevenueModule as a module in TakasurePool
         TakasureReserve(takasureReserve).setNewModuleContract(revenueModule);
@@ -109,10 +109,10 @@ contract DeployTakasureReserve is Script {
         // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(takasureReserve).grantRole(0x00, config.daoMultisig);
         // And the modules as burner and minters
-        creditToken.grantRole(MINTER_ROLE, joinModule);
-        creditToken.grantRole(MINTER_ROLE, membersModule);
-        creditToken.grantRole(BURNER_ROLE, joinModule);
-        creditToken.grantRole(BURNER_ROLE, membersModule);
+        creditToken.grantRole(MINTER_ROLE, entryModule);
+        creditToken.grantRole(MINTER_ROLE, memberModule);
+        creditToken.grantRole(BURNER_ROLE, entryModule);
+        creditToken.grantRole(BURNER_ROLE, memberModule);
 
         // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(takasureReserve).renounceRole(0x00, msg.sender);

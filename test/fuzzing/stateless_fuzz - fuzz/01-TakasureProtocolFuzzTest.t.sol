@@ -4,8 +4,7 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
-import {DeployConsumerMocks} from "test/utils/DeployConsumerMocks.s.sol";
-import {HelperConfig} from "deploy/HelperConfig.s.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
@@ -15,12 +14,12 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract TakasureProtocolFuzzTest is Test {
     TestDeployTakasureReserve deployer;
-    DeployConsumerMocks mockDeployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     EntryModule entryModule;
     MemberModule memberModule;
     UserRouter userRouter;
+    BenefitMultiplierConsumerMock bmConsumerMock;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address daoMultisig;
@@ -37,12 +36,16 @@ contract TakasureProtocolFuzzTest is Test {
     function setUp() public {
         deployer = new TestDeployTakasureReserve();
         (
+            ,
+            bmConsumerMock,
             takasureReserveProxy,
             entryModuleAddress,
             memberModuleAddress,
             ,
             userRouterAddress,
+            ,
             contributionTokenAddress,
+            ,
             helperConfig
         ) = deployer.run();
 
@@ -54,9 +57,6 @@ contract TakasureProtocolFuzzTest is Test {
 
         daoMultisig = config.daoMultisig;
         takadao = config.takadaoOperator;
-
-        mockDeployer = new DeployConsumerMocks();
-        BenefitMultiplierConsumerMock bmConsumerMock = mockDeployer.run();
 
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
@@ -72,7 +72,7 @@ contract TakasureProtocolFuzzTest is Test {
         vm.prank(daoMultisig);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
-        vm.prank(msg.sender);
+        vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
         vm.prank(takadao);

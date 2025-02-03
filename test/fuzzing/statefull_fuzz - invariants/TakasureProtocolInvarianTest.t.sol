@@ -30,12 +30,16 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
     function setUp() public {
         deployer = new TestDeployTakasureReserve();
         (
+            ,
+            ,
             takasureReserveProxy,
             entryModuleAddress,
             memberModuleAddress,
             ,
             userRouterAddress,
+            ,
             contributionTokenAddress,
+            ,
 
         ) = deployer.run();
 
