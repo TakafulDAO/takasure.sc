@@ -3,20 +3,20 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract CouponCodeAndCcipTest is Test {
-    TestDeployTakasure deployer;
+    TestDeployTakasureReserve deployer;
     ReferralGateway referralGateway;
     BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     IUSDC usdc;
     address usdcAddress;
-    address proxy;
+    address referralGatewayAddress;
     address operator;
     address couponUser = makeAddr("couponUser");
     address ccipUser = makeAddr("ccipUser");
@@ -41,16 +41,17 @@ contract CouponCodeAndCcipTest is Test {
 
     function setUp() public {
         // Deployer
-        deployer = new TestDeployTakasure();
+        deployer = new TestDeployTakasureReserve();
         // Deploy contracts
-        (, bmConsumerMock, , proxy, usdcAddress, , helperConfig) = deployer.run();
+        (, bmConsumerMock, , , , , , referralGatewayAddress, usdcAddress, , helperConfig) = deployer
+            .run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         operator = config.takadaoOperator;
 
         // Assign implementations
-        referralGateway = ReferralGateway(address(proxy));
+        referralGateway = ReferralGateway(address(referralGatewayAddress));
         usdc = IUSDC(usdcAddress);
 
         // Give and approve USDC
@@ -72,6 +73,9 @@ contract CouponCodeAndCcipTest is Test {
 
         vm.prank(config.daoMultisig);
         referralGateway.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
+
+        vm.prank(bmConsumerMock.admin());
+        bmConsumerMock.setNewRequester(referralGatewayAddress);
     }
 
     function testSetNewCouponPoolAddress() public {

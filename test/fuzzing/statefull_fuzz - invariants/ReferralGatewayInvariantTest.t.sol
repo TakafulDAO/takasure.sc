@@ -3,26 +3,24 @@
 pragma solidity 0.8.28;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ReferralGatewayHandler} from "test/helpers/handlers/ReferralGatewayHandler.t.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 
 contract ReferralGatewayInvariantTest is StdInvariant, Test {
-    TestDeployTakasure deployer;
+    TestDeployTakasureReserve deployer;
     ReferralGateway referralGateway;
-    TakasurePool takasurePool;
+    TakasureReserve takasureReserve;
     BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     ReferralGatewayHandler handler;
-
     IUSDC usdc;
-
-    address proxy;
-    address daoProxy;
+    address referralGatewayAddress;
+    address reserve;
     address contributionTokenAddress;
     address daoAdmin;
     address operator;
@@ -32,27 +30,38 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     string constant DAO_NAME = "The LifeDAO";
 
     function setUp() public {
-        deployer = new TestDeployTakasure();
-        (, bmConsumerMock, daoProxy, proxy, contributionTokenAddress, , helperConfig) = deployer
-            .run();
+        deployer = new TestDeployTakasureReserve();
+        (
+            ,
+            bmConsumerMock,
+            reserve,
+            ,
+            ,
+            ,
+            ,
+            referralGatewayAddress,
+            contributionTokenAddress,
+            ,
+            helperConfig
+        ) = deployer.run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         daoAdmin = config.daoMultisig;
 
         // Assign implementations
-        referralGateway = ReferralGateway(address(proxy));
-        takasurePool = TakasurePool(address(daoProxy));
+        referralGateway = ReferralGateway(referralGatewayAddress);
+        takasureReserve = TakasureReserve(reserve);
         usdc = IUSDC(contributionTokenAddress);
 
         // Config mocks
         vm.startPrank(daoAdmin);
-        takasurePool.setNewContributionToken(address(usdc));
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerMock));
-        takasurePool.setNewReferralGateway(address(referralGateway));
+        takasureReserve.setNewContributionToken(contributionTokenAddress);
+        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
+        takasureReserve.setNewReferralGateway(referralGatewayAddress);
         vm.stopPrank();
 
-        vm.prank(msg.sender);
-        bmConsumerMock.setNewRequester(address(takasurePool));
+        vm.prank(bmConsumerMock.admin());
+        bmConsumerMock.setNewRequester(referralGatewayAddress);
 
         vm.prank(daoAdmin);
         referralGateway.createDAO(
@@ -77,7 +86,6 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
 
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = ReferralGatewayHandler.payContribution.selector;
-
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
     }
@@ -102,7 +110,6 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
             uint256 referralReserve
         ) = referralGateway.getDAOData(DAO_NAME);
         uint256 contractBalance = usdc.balanceOf(address(referralGateway));
-
         assertEq(contractBalance, currentAmount + toRepool + referralReserve);
     }
 

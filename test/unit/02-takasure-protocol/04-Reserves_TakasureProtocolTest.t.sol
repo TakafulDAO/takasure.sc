@@ -1,56 +1,82 @@
-// SPDX-License-Identifier: GNU GPLv3
+// SPDX-License-Identifier: GPL-3.0
 
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
+import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
+import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
-    TestDeployTakasure deployer;
-    TakasurePool takasurePool;
+contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
+    TestDeployTakasureReserve deployer;
+    TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    address proxy;
+    EntryModule entryModule;
+    UserRouter userRouter;
+    address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
+    address kycService;
+    address takadao;
+    address entryModuleAddress;
+    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-    uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
 
-    event MemberJoined(address indexed member, uint256 indexed contributionAmount);
-
     function setUp() public {
-        deployer = new TestDeployTakasure();
-        (, bmConsumerMock, proxy, , contributionTokenAddress, , helperConfig) = deployer.run();
+        deployer = new TestDeployTakasureReserve();
+        (
+            ,
+            bmConsumerMock,
+            takasureReserveProxy,
+            entryModuleAddress,
+            ,
+            ,
+            userRouterAddress,
+            ,
+            contributionTokenAddress,
+            ,
+            helperConfig
+        ) = deployer.run();
+
+        entryModule = EntryModule(entryModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
+        kycService = config.kycProvider;
+        takadao = config.takadaoOperator;
 
-        takasurePool = TakasurePool(address(proxy));
+        takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
-        vm.prank(alice);
-        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        vm.startPrank(alice);
+        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
+        vm.stopPrank();
 
         vm.prank(admin);
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerMock));
+        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
-        vm.prank(msg.sender);
-        bmConsumerMock.setNewRequester(address(takasurePool));
+        vm.prank(bmConsumerMock.admin());
+        bmConsumerMock.setNewRequester(address(entryModuleAddress));
+
+        vm.prank(takadao);
+        entryModule.updateBmAddress();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -58,24 +84,26 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Test fund and claim reserves are calculated correctly
-    function testTakasurePool_fundAndClaimReserves() public {
-        vm.prank(admin);
-        takasurePool.setKYCStatus(alice);
+    function testTakasureReserve_fundAndClaimReserves() public {
+        vm.prank(alice);
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 initialReserveRatio = takasurePool.INITIAL_RESERVE_RATIO();
-        (, uint256 initialClaimReserve, uint256 initialFundReserve, , ) = takasurePool
-            .getCurrentReservesBalances();
-        uint8 serviceFee = takasurePool.getCurrentServiceFee();
-        (, uint8 fundMarketExpendsShare) = takasurePool.getCurrentSharePercentages();
+        Reserve memory reserve = takasureReserve.getReserveValues();
+        uint256 initialReserveRatio = reserve.initialReserveRatio;
+        uint256 initialClaimReserve = reserve.totalClaimReserve;
+        uint256 initialFundReserve = reserve.totalFundReserve;
+        uint8 serviceFee = reserve.serviceFee;
+        uint8 fundMarketExpendsShare = reserve.fundMarketExpendsAddShare;
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.prank(alice);
-        takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.prank(admin);
+        entryModule.setKYCStatus(alice);
 
-        (, uint256 finalClaimReserve, uint256 finalFundReserve, , ) = takasurePool
-            .getCurrentReservesBalances();
+        reserve = takasureReserve.getReserveValues();
+        uint256 finalClaimReserve = reserve.totalClaimReserve;
+        uint256 finalFundReserve = reserve.totalFundReserve;
 
         uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 22% = 5.5USDC
 
@@ -98,16 +126,16 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Cash last 12 months less than a month
-    function testTakasurePool_cashLessThanMonth() public {
+    function testTakasureReserve_cashLessThanMonth() public {
         address[50] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {
             lotOfUsers[i] = makeAddr(vm.toString(i));
             deal(address(usdc), lotOfUsers[i], USDC_INITIAL_AMOUNT);
             vm.prank(lotOfUsers[i]);
-            usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+            usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
 
-            vm.prank(admin);
-            takasurePool.setKYCStatus(lotOfUsers[i]);
+            vm.prank(lotOfUsers[i]);
+            userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
         // Each day 10 users will join with the contribution amount
 
@@ -116,8 +144,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         // First day
         for (uint256 i; i < 10; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -125,8 +153,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         // Second day
         for (uint256 i = 10; i < 20; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -134,8 +162,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         // Third day
         for (uint256 i = 20; i < 30; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -143,8 +171,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         // Fourth day
         for (uint256 i = 30; i < 40; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -152,17 +180,19 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         // Fifth day
         for (uint256 i = 40; i < 50; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
-        uint256 cash = takasurePool.getCashLast12Months();
+        uint256 cash = takasureReserve.getCashLast12Months();
 
         // Each day 25USDC - fee = 20USDC will be deposited
         // 200USDC * 5 days = 1000USDC
 
-        uint256 totalMembers = takasurePool.memberIdCounter();
-        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        Reserve memory reserve = takasureReserve.getReserveValues();
+
+        uint256 totalMembers = reserve.memberIdCounter;
+        uint8 serviceFee = reserve.serviceFee;
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 
@@ -170,16 +200,16 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev Cash last 12 months more than a month less than a year
-    function testTakasurePool_cashMoreThanMonthLessThanYear() public {
+    function testTakasureReserve_cashMoreThanMonthLessThanYear() public {
         address[78] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {
             lotOfUsers[i] = makeAddr(vm.toString(i));
             deal(address(usdc), lotOfUsers[i], USDC_INITIAL_AMOUNT);
             vm.prank(lotOfUsers[i]);
-            usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+            usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
 
-            vm.prank(admin);
-            takasurePool.setKYCStatus(lotOfUsers[i]);
+            vm.prank(lotOfUsers[i]);
+            userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         // We simulate a request before the KYC
@@ -191,8 +221,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // 25USDC - fee = 20USDC
         // 20 * 30 = 600USDC
         for (uint256 i; i < 30; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 31 days);
@@ -201,8 +231,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Second 10 people joins
         // 20 * 10 = 200USDC + 600USDC = 800USDC
         for (uint256 i = 30; i < 40; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 31 days);
@@ -211,8 +241,8 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Third month first day 15 people joins
         // 20 * 15 = 300USDC + 800USDC = 1100USDC
         for (uint256 i = 40; i < 55; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -221,14 +251,16 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Third month second day 23 people joins
         // 20 * 23 = 460USDC + 1100USDC = 1560USDC
         for (uint256 i = 55; i < 78; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
-        uint256 cash = takasurePool.getCashLast12Months();
+        uint256 cash = takasureReserve.getCashLast12Months();
 
-        uint256 totalMembers = takasurePool.memberIdCounter();
-        uint8 serviceFee = takasurePool.getCurrentServiceFee();
+        Reserve memory reserve = takasureReserve.getReserveValues();
+
+        uint256 totalMembers = reserve.memberIdCounter;
+        uint8 serviceFee = reserve.serviceFee;
         uint256 depositedByEach = CONTRIBUTION_AMOUNT - ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
         uint256 totalDeposited = totalMembers * depositedByEach;
 
@@ -236,17 +268,17 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev Cash last 12 months more than a  year
-    function testTakasurePool_cashMoreThanYear() public {
+    function testTakasureReserve_cashMoreThanYear() public {
         uint256 cash;
         address[202] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {
             lotOfUsers[i] = makeAddr(vm.toString(i));
             deal(address(usdc), lotOfUsers[i], USDC_INITIAL_AMOUNT);
             vm.prank(lotOfUsers[i]);
-            usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+            usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
 
-            vm.prank(admin);
-            takasurePool.setKYCStatus(lotOfUsers[i]);
+            vm.prank(lotOfUsers[i]);
+            userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         // We simulate a request before the KYC
@@ -254,16 +286,16 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
 
         // Months 1, 2 and 3, one new member joins daily
         for (uint256 i; i < 90; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
             vm.warp(block.timestamp + 1 days);
             vm.roll(block.number + 1);
         }
 
         // Months 4 to 12, 10 new members join monthly
         for (uint256 i = 90; i < 180; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
 
             // End of the month
             if (
@@ -286,19 +318,19 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Months 1 to 12 take all => Total 3490.5USDC
         // Month 13 0USDC => Total 3490.5USDC
 
-        cash = takasurePool.getCashLast12Months();
+        cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 34905e5);
 
         // Thirteenth month 10 people joins
         for (uint256 i = 180; i < 190; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         // Month 1 take 29 days => Total 580USDC
         // Month 2 to 13 take all => Total 3685.5USDC
 
-        cash = takasurePool.getCashLast12Months();
+        cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 36855e5);
 
         vm.warp(block.timestamp + 30 days);
@@ -309,20 +341,20 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Month 3 to 13 take all => Total 3100.5USDC
         // Month 14 0USDC => Total 3100.5USDC
 
-        cash = takasurePool.getCashLast12Months();
+        cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 31005e5);
 
         // Fourteenth month 10 people joins
         for (uint256 i = 190; i < 200; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
         }
 
         // Month 1 should not count
         // Month 2 take 29 days => Total 580USDC
         // Month 3 to 14 take all => Total 3295.5USDC
 
-        cash = takasurePool.getCashLast12Months();
+        cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 32955e5);
 
         vm.warp(block.timestamp + 30 days);
@@ -333,13 +365,13 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Month 4 to 14 take all => Total 2780USDC
         // Month 15 0USDC => Total 2710.5USDC
 
-        cash = takasurePool.getCashLast12Months();
+        cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 27105e5);
 
         // Last 2 days 2 people joins
         for (uint256 i = 200; i < 202; i++) {
-            vm.prank(lotOfUsers[i]);
-            takasurePool.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            vm.prank(admin);
+            entryModule.setKYCStatus(lotOfUsers[i]);
 
             vm.warp(block.timestamp + 1 days);
             vm.roll(block.number + 1);
@@ -349,7 +381,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         // Month 3 take 27 days => Total 540USDC
         // Month 4 to 15 take all => Total 2710.5USDC
 
-        cash = takasurePool.getCashLast12Months();
+        cash = takasureReserve.getCashLast12Months();
 
         assertEq(cash, 27105e5);
 
@@ -359,7 +391,7 @@ contract Reserves_TakasurePoolTest is StdCheats, Test, SimulateDonResponse {
         vm.warp(block.timestamp + 359 days);
         vm.roll(block.number + 1);
 
-        cash = takasurePool.getCashLast12Months();
+        cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 0);
     }
 }

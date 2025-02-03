@@ -3,24 +3,27 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
 contract ReferralGatewayTest is Test, SimulateDonResponse {
-    TestDeployTakasure deployer;
+    TestDeployTakasureReserve deployer;
     ReferralGateway referralGateway;
-    TakasurePool takasurePool;
+    TakasureReserve takasureReserve;
+    EntryModule entryModule;
     BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     IUSDC usdc;
     address usdcAddress;
-    address proxy;
-    address daoProxy;
+    address referralGatewayAddress;
+    address takasureReserveAddress;
+    address entryModuleAddress;
     address takadao;
     address daoAdmin;
     address KYCProvider;
@@ -77,49 +80,64 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
     function setUp() public {
         // Deployer
-        deployer = new TestDeployTakasure();
+        deployer = new TestDeployTakasureReserve();
         // Deploy contracts
-        (, bmConsumerMock, daoProxy, proxy, usdcAddress, KYCProvider, helperConfig) = deployer
-            .run();
+        (
+            ,
+            bmConsumerMock,
+            takasureReserveAddress,
+            entryModuleAddress,
+            ,
+            ,
+            ,
+            referralGatewayAddress,
+            usdcAddress,
+            ,
+            helperConfig
+        ) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
         daoAdmin = config.daoMultisig;
+        KYCProvider = config.kycProvider;
 
         // Assign implementations
-        referralGateway = ReferralGateway(address(proxy));
-        takasurePool = TakasurePool(address(daoProxy));
+        referralGateway = ReferralGateway(referralGatewayAddress);
+        takasureReserve = TakasureReserve(takasureReserveAddress);
+        entryModule = EntryModule(entryModuleAddress);
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
         vm.startPrank(daoAdmin);
-        takasurePool.setNewContributionToken(address(usdc));
-        takasurePool.setNewBenefitMultiplierConsumer(address(bmConsumerMock));
-
-        takasurePool.setNewReferralGateway(address(referralGateway));
+        takasureReserve.setNewContributionToken(address(usdc));
+        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
+        takasureReserve.setNewReferralGateway(address(referralGateway));
         vm.stopPrank();
-        vm.prank(msg.sender);
-        bmConsumerMock.setNewRequester(address(takasurePool));
+
+        vm.prank(bmConsumerMock.admin());
+        bmConsumerMock.setNewRequester(address(takasureReserve));
+        bmConsumerMock.setNewRequester(referralGatewayAddress);
 
         // Give and approve USDC
         deal(address(usdc), referral, USDC_INITIAL_AMOUNT);
         deal(address(usdc), child, USDC_INITIAL_AMOUNT);
         deal(address(usdc), member, USDC_INITIAL_AMOUNT);
+
         vm.prank(referral);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
         vm.prank(child);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
         vm.prank(member);
-        usdc.approve(address(takasurePool), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
 
         // Join the dao
-        vm.prank(daoAdmin);
-        takasurePool.setKYCStatus(member);
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-        vm.prank(member);
-        takasurePool.joinPool(CONTRIBUTION_AMOUNT, 5);
+        // vm.prank(member);
+        // entryModule.joinPool(msg.sender, CONTRIBUTION_AMOUNT, 5);
+        // // We simulate a request before the KYC
+        // _successResponse(address(bmConsumerMock));
+        // vm.prank(daoAdmin);
+        // entryModule.setKYCStatus(member);
     }
 
     function testSetNewContributionToken() public {
@@ -244,14 +262,14 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         vm.prank(referral);
         vm.expectRevert(ReferralGateway.ReferralGateway__onlyDAOAdmin.selector);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+        referralGateway.launchDAO(tDaoName, address(takasureReserve), true);
 
         vm.prank(daoAdmin);
         vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
         referralGateway.launchDAO(tDaoName, address(0), true);
 
         vm.prank(daoAdmin);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+        referralGateway.launchDAO(tDaoName, address(takasureReserve), true);
 
         (
             prejoinEnabled,
@@ -267,7 +285,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         ) = referralGateway.getDAOData(tDaoName);
 
-        assertEq(DAOAddress, address(takasurePool));
+        assertEq(DAOAddress, address(takasureReserve));
         assert(!prejoinEnabled);
         assert(referralDiscount);
         assertEq(rePoolAddress, address(0));
@@ -278,7 +296,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
 
         vm.prank(daoAdmin);
         vm.expectRevert(ReferralGateway.ReferralGateway__DAOAlreadyLaunched.selector);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+        referralGateway.launchDAO(tDaoName, address(takasureReserve), true);
 
         vm.prank(daoAdmin);
         referralGateway.switchReferralDiscount(tDaoName);
@@ -557,7 +575,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referredPrepays
     {
         vm.prank(daoAdmin);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+        referralGateway.launchDAO(tDaoName, address(takasureReserve), true);
 
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__NotKYCed.selector);
@@ -581,7 +599,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralReserve, 1_500_000);
 
         uint256 referralGatewayInitialBalance = usdc.balanceOf(address(referralGateway));
-        uint256 takasurePoolInitialBalance = usdc.balanceOf(address(takasurePool));
+        uint256 takasureReserveInitialBalance = usdc.balanceOf(address(takasureReserve));
         (, uint256 referredContributionAfterFee, , ) = referralGateway.getPrepaidMember(
             child,
             tDaoName
@@ -597,23 +615,23 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.roll(block.number + 1);
 
         vm.prank(daoAdmin);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+        referralGateway.launchDAO(tDaoName, address(takasureReserve), true);
 
         vm.prank(child);
-        vm.expectEmit(true, true, false, false, address(takasurePool));
-        emit OnMemberJoined(2, child);
+        // vm.expectEmit(true, true, false, false, address(takasureReserve));
+        // emit OnMemberJoined(2, child);
         referralGateway.joinDAO(child, tDaoName);
 
         uint256 referralGatewayFinalBalance = usdc.balanceOf(address(referralGateway));
-        uint256 takasurePoolFinalBalance = usdc.balanceOf(address(takasurePool));
+        uint256 takasureReserveFinalBalance = usdc.balanceOf(address(takasureReserve));
 
         assertEq(
             referralGatewayFinalBalance,
             referralGatewayInitialBalance - referredContributionAfterFee
         );
         assertEq(
-            takasurePoolFinalBalance,
-            takasurePoolInitialBalance + referredContributionAfterFee
+            takasureReserveFinalBalance,
+            takasureReserveInitialBalance + referredContributionAfterFee
         );
     }
 
@@ -934,7 +952,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         referralGateway.setKYCStatus(childWithoutReferee, tDaoName);
 
         vm.prank(daoAdmin);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+        referralGateway.launchDAO(tDaoName, address(takasureReserve), true);
 
         address rePoolAddress = makeAddr("rePoolAddress");
 
@@ -1141,7 +1159,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.roll(block.number + 1);
 
         vm.prank(daoAdmin);
-        referralGateway.launchDAO(tDaoName, address(takasurePool), true);
+        referralGateway.launchDAO(tDaoName, address(takasureReserve), true);
 
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);

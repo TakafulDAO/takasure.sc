@@ -3,24 +3,31 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasure} from "test/utils/TestDeployTakasure.s.sol";
+import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {TakasurePool} from "contracts/takasure/TakasurePool.sol";
+import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 
 contract TokenFuzzTest is Test {
-    TestDeployTakasure deployer;
+    TestDeployTakasureReserve deployer;
+    TakasureReserve takasureReserve;
     TSToken daoToken;
-    TakasurePool takasurePool;
-    address proxy;
+    EntryModule entryModule;
+    address daoTokenAddress;
+    address takasureReserveProxy;
+    address entryModuleAddress;
 
     address public user = makeAddr("user");
     uint256 public constant MINT_AMOUNT = 1 ether;
 
     function setUp() public {
-        deployer = new TestDeployTakasure();
-        (daoToken, , proxy, , , , ) = deployer.run();
+        deployer = new TestDeployTakasureReserve();
+        (daoTokenAddress, , takasureReserveProxy, entryModuleAddress, , , , , , , ) = deployer
+            .run();
 
-        takasurePool = TakasurePool(address(proxy));
+        daoToken = TSToken(daoTokenAddress);
+        takasureReserve = TakasureReserve(takasureReserveProxy);
+        entryModule = EntryModule(entryModuleAddress);
     }
 
     function test_fuzz_onlyTakasurePoolIsBurnerAndMinter(
@@ -28,8 +35,8 @@ contract TokenFuzzTest is Test {
         address notBurner
     ) public view {
         // The input addresses must not be the same as the takasurePool address
-        vm.assume(notMinter != address(takasurePool));
-        vm.assume(notBurner != address(takasurePool));
+        vm.assume(notMinter != entryModuleAddress);
+        vm.assume(notBurner != entryModuleAddress);
 
         // Roles to check
         bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -44,7 +51,7 @@ contract TokenFuzzTest is Test {
 
     function test_fuzz_onlyMinterCanMint(address notMinter) public {
         // The input address must not be the same as the takasurePool address
-        vm.assume(notMinter != address(takasurePool));
+        vm.assume(notMinter != entryModuleAddress);
 
         vm.prank(notMinter);
         vm.expectRevert();
@@ -53,10 +60,10 @@ contract TokenFuzzTest is Test {
 
     function test_fuzz_onlyBurnerCanBurn(address notBurner) public {
         // The input address must not be the same as the takasurePool address
-        vm.assume(notBurner != address(takasurePool));
+        vm.assume(notBurner != entryModuleAddress);
 
         // Mint some tokens to the user
-        vm.prank(address(takasurePool));
+        vm.prank(entryModuleAddress);
         daoToken.mint(user, MINT_AMOUNT);
 
         vm.prank(notBurner);
