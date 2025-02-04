@@ -75,6 +75,7 @@ struct Reserve {
     uint256 proFormaFundReserve; // Used to update the dynamic reserve ratio
     uint256 proFormaClaimReserve;
     uint256 lossRatio; // Default 0
+    uint256 lossRatioThreshold; // Default 80%
     uint256 ECRes; // Default 0
     uint256 UCRes; // Default 0
     uint256 surplus; // Default 0
