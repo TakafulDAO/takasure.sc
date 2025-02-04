@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
 /**
  * @title Takasure Token
@@ -8,7 +8,7 @@
  * @dev Minting and burning of the this utility token based on new members' admission into the pool, and members
  *      leaving due to inactivity or claims.
  */
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
@@ -17,6 +17,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+    bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
+    bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
 
     event OnTokenMinted(address indexed to, uint256 indexed amount);
     event OnTokenBurned(address indexed from, uint256 indexed amount);
@@ -26,20 +28,23 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     error Token__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
 
     modifier mustBeMoreThanZero(uint256 _amount) {
-        if (_amount <= 0) {
-            revert Token__MustBeMoreThanZero();
-        }
+        require(_amount > 0, Token__MustBeMoreThanZero());
         _;
     }
 
     constructor(
         address admin,
+        address temporaryAdmin,
         string memory tokenName,
         string memory tokenSymbol
     ) ERC20(tokenName, tokenSymbol) {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(MINTER_ROLE, msg.sender);
-        _grantRole(BURNER_ROLE, msg.sender);
+        _setRoleAdmin(MINTER_ROLE, MINTER_ADMIN_ROLE);
+        _setRoleAdmin(BURNER_ROLE, BURNER_ADMIN_ROLE);
+        _grantRole(MINTER_ADMIN_ROLE, admin);
+        _grantRole(BURNER_ADMIN_ROLE, admin);
+        _grantRole(MINTER_ADMIN_ROLE, temporaryAdmin);
+        _grantRole(BURNER_ADMIN_ROLE, temporaryAdmin);
     }
 
     /** @notice Mint Takasure powered tokens
@@ -51,9 +56,7 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         address to,
         uint256 amountToMint
     ) external nonReentrant onlyRole(MINTER_ROLE) mustBeMoreThanZero(amountToMint) returns (bool) {
-        if (to == address(0)) {
-            revert Token__NotZeroAddress();
-        }
+        require(to != address(0), Token__NotZeroAddress());
         _mint(to, amountToMint);
         emit OnTokenMinted(to, amountToMint);
 
@@ -69,9 +72,8 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         uint256 amountToBurn
     ) public override nonReentrant onlyRole(BURNER_ROLE) mustBeMoreThanZero(amountToBurn) {
         uint256 balance = balanceOf(msg.sender);
-        if (amountToBurn > balance) {
-            revert Token__BurnAmountExceedsBalance(balance, amountToBurn);
-        }
+        require(amountToBurn <= balance, Token__BurnAmountExceedsBalance(balance, amountToBurn));
+
         emit OnTokenBurned(msg.sender, amountToBurn);
 
         super.burn(amountToBurn);

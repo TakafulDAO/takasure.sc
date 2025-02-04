@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
 /**
  * @title Events
@@ -7,7 +7,7 @@
  */
 import {RevenueType} from "contracts/types/TakasureTypes.sol";
 
-pragma solidity 0.8.25;
+pragma solidity 0.8.28;
 
 library TakasureEvents {
     event OnMemberCreated(
@@ -34,7 +34,7 @@ library TakasureEvents {
         address member,
         uint256 indexed memberId,
         uint256 indexed lastPaidYearDate,
-        uint256 indexed updatedContribution,
+        uint256 indexed latestContribution,
         uint256 updatedTotalServiceFee
     );
     event OnServiceFeeChanged(uint8 indexed newServiceFee);
@@ -79,4 +79,7 @@ library TakasureEvents {
     );
     event OnFundSurplusUpdated(uint256 indexed surplus);
     event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
+    event OnAllowCustomDuration(bool allowCustomDuration);
+    event OnMemberCanceled(uint256 indexed memberId, address indexed member);
+    event OnMemberDefaulted(uint256 indexed memberId, address indexed member);
 }

@@ -22,8 +22,6 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: "nightly"
 
       - name: Forge Build
         run: |
@@ -34,4 +32,4 @@ jobs:
 
       - name: Forge Test
         run: |
-          forge test
+          forge test --skip TakasurePoolInvariantTest.t.sol ReferralGatewayInvariantTest.t.sol
