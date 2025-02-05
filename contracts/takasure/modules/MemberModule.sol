@@ -33,7 +33,8 @@ contract MemberModule is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
-    ReentrancyGuardTransientUpgradeable, ModuleCheck
+    ReentrancyGuardTransientUpgradeable,
+    ModuleCheck
 {
     using SafeERC20 for IERC20;
 

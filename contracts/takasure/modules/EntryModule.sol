@@ -34,7 +34,8 @@ contract EntryModule is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
-    ReentrancyGuardTransientUpgradeable, ModuleCheck
+    ReentrancyGuardTransientUpgradeable,
+    ModuleCheck
 {
     using SafeERC20 for IERC20;
 
@@ -109,16 +110,13 @@ contract EntryModule is
             EntryModule__ContributionOutOfRange()
         );
 
-       _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
+        _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(mebersWallet);
 
         if (!newMember.isRefunded) {
             // Flow 1: Join -> KYC
-            require(
-                newMember.wallet == address(0),
-                EntryModule__AlreadyJoinedPendingForKYC()
-            );
+            require(newMember.wallet == address(0), EntryModule__AlreadyJoinedPendingForKYC());
             // If is not refunded, it is a completele new member, we create it
             newMember = _createNewMember({
                 _newMemberId: ++reserve.memberIdCounter,
@@ -148,9 +146,7 @@ contract EntryModule is
         // The member will pay the contribution, but will remain inactive until the KYC is verified
         // This means the proformas wont be updated, the amounts wont be added to the reserves,
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-        _transferContributionToModule({
-            _memberWallet: mebersWallet
-        });
+        _transferContributionToModule({_memberWallet: mebersWallet});
 
         ReserveAndMemberValues._setNewReserveAndMemberValuesHook(
             takasureReserve,
@@ -181,10 +177,7 @@ contract EntryModule is
         require(newMember.contribution > 0, EntryModule__NoContribution());
 
         // This means the user exists and payed contribution but is not KYCed yet, we update the values
-        _calculateAmountAndFees(
-            newMember.contribution,
-            reserve.serviceFee
-        );
+        _calculateAmountAndFees(newMember.contribution, reserve.serviceFee);
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
@@ -275,12 +268,7 @@ contract EntryModule is
         takasureReserve.setMemberValuesFromModule(_member);
     }
 
-    function _calculateAmountAndFees(
-        uint256 _contributionBeforeFee,
-        uint256 _fee
-    )
-        internal
-    {
+    function _calculateAmountAndFees(uint256 _contributionBeforeFee, uint256 _fee) internal {
         // Then we pay the contribution
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
@@ -309,7 +297,8 @@ contract EntryModule is
             userMembershipDuration = ModuleConstants.DEFAULT_MEMBERSHIP_DURATION;
         }
 
-        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) / 100;
+        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) /
+            100;
 
         Member memory newMember = Member({
             memberId: _newMemberId,
@@ -356,7 +345,8 @@ contract EntryModule is
         Member memory _member
     ) internal returns (Member memory) {
         uint256 userMembershipDuration;
-        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) / 100;
+        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) /
+            100;
 
         if (_allowCustomDuration) {
             userMembershipDuration = _membershipDuration;
@@ -494,9 +484,7 @@ contract EntryModule is
         }
     }
 
-    function _transferContributionToModule(
-        address _memberWallet
-    ) internal {
+    function _transferContributionToModule(address _memberWallet) internal {
         IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
 
         // Store temporarily the contribution in this contract, this way will be available for refunds
