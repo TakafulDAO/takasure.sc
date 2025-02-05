@@ -41,7 +41,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @param newModule The new module address
      * @param status Can only be DISABLED or ENABLED
      */
-    function addModule(address newModule, Status status) external onlyOwner nonReentrant {\
+    function addModule(address newModule, Status status) external onlyOwner nonReentrant {
         // New module can not be address 0, can not be already a module, and the status must be disabled or enabled
         require(newModule != address(0), ModuleManager__AddressZeroNotAllowed());
         require(
@@ -52,5 +52,8 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
             status == Status.DISABLED || status == Status.ENABLED,
             ModuleManager__WrongInitialState()
         );
+
+        addressToModule[newModule].moduleAddress = newModule;
+        addressToModule[newModule].moduleState = status;
     }
 }
