@@ -11,6 +11,22 @@
  * @dev The state in this contract will be mainly the modules addresses and their status and any other auxiliary data
  */
 
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+
 pragma solidity 0.8.28;
 
-contract ModuleManager {}
+contract ModuleManager is Ownable2Step {
+    enum Status {
+        ACTIVE,
+        PAUSED,
+        DEPRECATED
+    }
+    struct Module {
+        address moduleAddress;
+        Status moduleState;
+    }
+
+    mapping(address moduleAddr => Module) private addressToModule;
+
+    constructor() Ownable(msg.sender) {}
+}
