@@ -15,6 +15,7 @@ import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {ModuleCheck} from "contracts/takasure/modules/moduleUtils/ModuleCheck.sol";
 
 import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/libraries/ModuleConstants.sol";
@@ -32,7 +33,7 @@ contract MemberModule is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
-    ReentrancyGuardTransientUpgradeable
+    ReentrancyGuardTransientUpgradeable, ModuleCheck
 {
     using SafeERC20 for IERC20;
 
