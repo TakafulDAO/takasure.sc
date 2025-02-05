@@ -98,6 +98,15 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Function that will be used by Core contracts to confirm if an address is a module
+     * @param module The module address
+     * @return True if the address is a module, false otherwise
+     */
+    function isModule(address module) external view returns (bool) {
+        return addressToModule[module].moduleState == State.ENABLED;
+    }
+
+    /**
      * @notice Return the module state
      * @param module The module address
      * @return The state of the module
