@@ -30,6 +30,8 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
 
     mapping(address moduleAddr => Module) private addressToModule;
 
+    event OnNewModule(address newModuleAddr, Status newModuleStatus);
+
     error ModuleManager__AddressZeroNotAllowed();
     error ModuleManager__AlreadyModule();
     error ModuleManager__WrongInitialState();
@@ -55,5 +57,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
 
         addressToModule[newModule].moduleAddress = newModule;
         addressToModule[newModule].moduleState = status;
+
+        emit OnNewModule(newModule, status);
     }
 }
