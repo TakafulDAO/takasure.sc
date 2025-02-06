@@ -8,6 +8,7 @@ import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
 import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
+import {ModuleManager} from "contracts/takasure/modules/manager/ModuleManager.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
@@ -16,6 +17,7 @@ import {TSToken} from "contracts/token/TSToken.sol";
 
 contract TestDeployTakasureReserve is Script {
     BenefitMultiplierConsumerMock bmConsumerMock;
+    ModuleManager moduleManager;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -65,6 +67,8 @@ contract TestDeployTakasureReserve is Script {
             address(bmConsumerMock)
         );
 
+        moduleManager = new ModuleManager();
+
         // Deploy TakasureReserve
         takasureReserveImplementation = address(new TakasureReserve());
         takasureReserve = UnsafeUpgrades.deployUUPSProxy(
@@ -79,6 +83,7 @@ contract TestDeployTakasureReserve is Script {
                     config.kycProvider,
                     config.pauseGuardian,
                     config.tokenAdmin,
+                    address(moduleManager),
                     config.tokenName,
                     config.tokenSymbol
                 )
@@ -94,7 +99,7 @@ contract TestDeployTakasureReserve is Script {
             abi.encodeCall(UserRouter.initialize, (takasureReserve, entryModule, memberModule))
         );
 
-        _setContracts(bmConsumerMock, entryModule, memberModule, revenueModule, takasureReserve);
+        _setContracts(entryModule, memberModule, revenueModule);
 
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
         tsToken = address(creditToken);
@@ -185,19 +190,17 @@ contract TestDeployTakasureReserve is Script {
     }
 
     function _setContracts(
-        BenefitMultiplierConsumerMock _benefitMultiplierConsumerMock,
         address _entryModule,
         address _memberModule,
-        address _revenueModule,
-        address _takasureReserve
+        address _revenueModule
     ) internal {
         // Setting EntryModule as a requester in BenefitMultiplierConsumer
-        _benefitMultiplierConsumerMock.setNewRequester(_entryModule);
+        bmConsumerMock.setNewRequester(_entryModule);
 
         // Set modules contracts in TakasureReserve
-        TakasureReserve(_takasureReserve).setNewModuleContract(_entryModule);
-        TakasureReserve(_takasureReserve).setNewModuleContract(_memberModule);
-        TakasureReserve(_takasureReserve).setNewModuleContract(_revenueModule);
+        moduleManager.addModule(_entryModule, ModuleManager.State.ENABLED);
+        moduleManager.addModule(_memberModule, ModuleManager.State.ENABLED);
+        moduleManager.addModule(_revenueModule, ModuleManager.State.ENABLED);
     }
 
     function _assignRoles(

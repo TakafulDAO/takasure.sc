@@ -8,6 +8,7 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -27,6 +28,8 @@ contract TakasureReserve is
     AccessControlUpgradeable,
     PausableUpgradeable
 {
+    IModuleManager private moduleManager;
+
     Reserve private reserve;
     CashFlowVars private cashFlowVars;
 
@@ -45,7 +48,6 @@ contract TakasureReserve is
     bytes32 internal constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
-    bytes32 private constant MODULE_CONTRACT = keccak256("MODULE_CONTRACT");
     bytes32 public constant REFERRAL_GATEWAY = keccak256("REFERRAL_GATEWAY");
 
     mapping(uint16 month => uint256 montCashFlow) public monthToCashFlow;
@@ -57,6 +59,7 @@ contract TakasureReserve is
     error TakasureReserve__OnlyDaoOrTakadao();
     error TakasureReserve__WrongServiceFee();
     error TakasureReserve__WrongFundMarketExpendsShare();
+    error TakasureReserve__UnallowedAccess();
 
     modifier notZeroAddress(address _address) {
         require(_address != address(0), GlobalErrors.TakasureProtocol__ZeroAddress());
@@ -70,6 +73,11 @@ contract TakasureReserve is
                 hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
             TakasureReserve__OnlyDaoOrTakadao()
         );
+        _;
+    }
+
+    modifier onlyModule() {
+        require(moduleManager.isActiveModule(msg.sender), TakasureReserve__UnallowedAccess());
         _;
     }
 
@@ -92,6 +100,7 @@ contract TakasureReserve is
         address _kycProvider,
         address _pauseGuardian,
         address _tokenAdmin,
+        address _moduleManager,
         string memory _tokenName,
         string memory _tokenSymbol
     ) external initializer {
@@ -103,6 +112,7 @@ contract TakasureReserve is
         _grantRole(DAO_MULTISIG, _daoOperator);
         _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
 
+        moduleManager = IModuleManager(_moduleManager);
         takadaoOperator = _takadaoOperator;
         daoMultisig = _daoOperator;
         kycProvider = _kycProvider;
@@ -148,29 +158,27 @@ contract TakasureReserve is
         _unpause();
     }
 
-    function setMemberValuesFromModule(
-        Member memory newMember
-    ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
+    function setMemberValuesFromModule(Member memory newMember) external whenNotPaused onlyModule {
         members[newMember.wallet] = newMember;
         idToMemberWallet[newMember.memberId] = newMember.wallet;
     }
 
     function setReserveValuesFromModule(
         Reserve memory newReserve
-    ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
+    ) external whenNotPaused onlyModule {
         reserve = newReserve;
     }
 
     function setCashFlowValuesFromModule(
         CashFlowVars memory newCashFlowVars
-    ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
+    ) external whenNotPaused onlyModule {
         cashFlowVars = newCashFlowVars;
     }
 
     function setMonthToCashFlowValuesFromModule(
         uint16 month,
         uint256 monthCashFlow
-    ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
+    ) external whenNotPaused onlyModule {
         monthToCashFlow[month] = monthCashFlow;
     }
 
@@ -178,14 +186,14 @@ contract TakasureReserve is
         uint16 month,
         uint8 day,
         uint256 dayCashFlow
-    ) external whenNotPaused onlyRole(MODULE_CONTRACT) {
+    ) external whenNotPaused onlyModule {
         dayToCashFlow[month][day] = dayCashFlow;
     }
 
-    function setNewModuleContract(
-        address newModuleContract
-    ) external onlyDaoOrTakadao notZeroAddress(newModuleContract) {
-        grantRole(MODULE_CONTRACT, newModuleContract);
+    function setModuleManagerContract(
+        address newModuleManagerContract
+    ) external onlyDaoOrTakadao notZeroAddress(newModuleManagerContract) {
+        moduleManager = IModuleManager(newModuleManagerContract);
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
@@ -282,7 +290,7 @@ contract TakasureReserve is
     /**
      * @notice Calculate the surplus for a member
      */
-    function memberSurplus(Member memory newMemberValues) external onlyRole(MODULE_CONTRACT) {
+    function memberSurplus(Member memory newMemberValues) external onlyModule {
         uint256 totalSurplus = _calculateSurplus();
         uint256 userCreditTokensBalance = newMemberValues.creditTokensBalance;
         address daoToken = reserve.daoToken;
