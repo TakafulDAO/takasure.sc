@@ -16,11 +16,11 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {ModuleCheck} from "contracts/takasure/modules/moduleUtils/ModuleCheck.sol";
+import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 
 import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/libraries/ModuleConstants.sol";
 import {CashFlowAlgorithms} from "contracts/libraries/CashFlowAlgorithms.sol";
-import {ReserveAndMemberValues} from "contracts/libraries/ReserveAndMemberValues.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {GlobalErrors} from "contracts/libraries/GlobalErrors.sol";
 import {ModuleErrors} from "contracts/libraries/ModuleErrors.sol";
@@ -34,14 +34,14 @@ contract MemberModule is
     UUPSUpgradeable,
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
-    ModuleCheck
+    ModuleCheck,
+    ReserveAndMemberValuesHook
 {
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
 
-    // solhint-disable-next-line
     uint256 private transient mintedTokens;
 
     error MemberModule__InvalidDate();
@@ -80,8 +80,10 @@ contract MemberModule is
     }
 
     function payRecurringContribution(address memberWallet) external nonReentrant {
-        (Reserve memory reserve, Member memory activeMember) = ReserveAndMemberValues
-            ._getReserveAndMemberValuesHook(takasureReserve, memberWallet);
+        (Reserve memory reserve, Member memory activeMember) = _getReserveAndMemberValuesHook(
+            takasureReserve,
+            memberWallet
+        );
 
         require(
             activeMember.memberState == MemberState.Active &&
@@ -131,16 +133,12 @@ contract MemberModule is
             activeMember.totalServiceFee
         );
 
-        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(
-            takasureReserve,
-            reserve,
-            activeMember
-        );
+        _setNewReserveAndMemberValuesHook(takasureReserve, reserve, activeMember);
         takasureReserve.memberSurplus(activeMember);
     }
 
     function defaultMember(address memberWallet) external {
-        Member memory member = takasureReserve.getMemberFromAddress(memberWallet);
+        Member memory member = _getMembersValuesHook(takasureReserve, memberWallet);
 
         require(member.memberState == MemberState.Active, ModuleErrors.Module__WrongMemberState());
 
@@ -154,14 +152,14 @@ contract MemberModule is
 
             emit TakasureEvents.OnMemberDefaulted(member.memberId, msg.sender);
 
-            takasureReserve.setMemberValuesFromModule(member);
+            _setMembersValuesHook(takasureReserve, member);
         } else {
             revert ModuleErrors.Module__TooEarlyToDefault();
         }
     }
 
     function _cancelMembership(address _memberWallet) internal {
-        Member memory member = takasureReserve.getMemberFromAddress(_memberWallet);
+        Member memory member = _getMembersValuesHook(takasureReserve, _memberWallet);
 
         require(
             member.memberState == MemberState.Defaulted,
@@ -179,7 +177,7 @@ contract MemberModule is
 
             emit TakasureEvents.OnMemberCanceled(member.memberId, _memberWallet);
 
-            takasureReserve.setMemberValuesFromModule(member);
+            _setMembersValuesHook(takasureReserve, member);
         } else {
             revert ModuleErrors.Module__TooEarlyToCancel();
         }

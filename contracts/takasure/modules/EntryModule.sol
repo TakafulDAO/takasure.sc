@@ -16,12 +16,12 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {ModuleCheck} from "contracts/takasure/modules/moduleUtils/ModuleCheck.sol";
+import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/libraries/ModuleConstants.sol";
 import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
 import {CashFlowAlgorithms} from "contracts/libraries/CashFlowAlgorithms.sol";
-import {ReserveAndMemberValues} from "contracts/libraries/ReserveAndMemberValues.sol";
 import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
 import {GlobalErrors} from "contracts/libraries/GlobalErrors.sol";
 import {ModuleErrors} from "contracts/libraries/ModuleErrors.sol";
@@ -35,7 +35,8 @@ contract EntryModule is
     UUPSUpgradeable,
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
-    ModuleCheck
+    ModuleCheck,
+    ReserveAndMemberValuesHook
 {
     using SafeERC20 for IERC20;
 
@@ -97,8 +98,7 @@ contract EntryModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
-            ._getReserveAndMemberValuesHook(takasureReserve, mebersWallet);
+        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(takasureReserve, mebersWallet);
 
         require(
             newMember.memberState == MemberState.Inactive,
@@ -148,7 +148,7 @@ contract EntryModule is
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
         _transferContributionToModule({_memberWallet: mebersWallet});
 
-        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(
+        _setNewReserveAndMemberValuesHook(
             takasureReserve,
             reserve,
             newMember
@@ -166,8 +166,7 @@ contract EntryModule is
     function setKYCStatus(
         address memberWallet
     ) external notZeroAddress(memberWallet) onlyRole(ModuleConstants.KYC_PROVIDER) {
-        (Reserve memory reserve, Member memory newMember) = ReserveAndMemberValues
-            ._getReserveAndMemberValuesHook(takasureReserve, memberWallet);
+        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(takasureReserve, memberWallet);
 
         require(!newMember.isKYCVerified, EntryModule__MemberAlreadyKYCed());
         require(
@@ -207,7 +206,7 @@ contract EntryModule is
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
         emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
 
-        ReserveAndMemberValues._setNewReserveAndMemberValuesHook(
+        _setNewReserveAndMemberValuesHook(
             takasureReserve,
             reserve,
             newMember
@@ -237,8 +236,7 @@ contract EntryModule is
     }
 
     function _refund(address _memberWallet) internal {
-        (Reserve memory _reserve, Member memory _member) = ReserveAndMemberValues
-            ._getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
+        (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
 
         // The member should not be KYCed neither already refunded
         require(!_member.isKYCVerified, EntryModule__MemberAlreadyKYCed());
@@ -265,7 +263,7 @@ contract EntryModule is
 
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
 
-        takasureReserve.setMemberValuesFromModule(_member);
+        _setMembersValuesHook(takasureReserve, _member);
     }
 
     function _calculateAmountAndFees(uint256 _contributionBeforeFee, uint256 _fee) internal {
@@ -411,7 +409,8 @@ contract EntryModule is
     function _getBenefitMultiplierFromOracle(
         address _member
     ) internal returns (uint256 benefitMultiplier_) {
-        Member memory member = takasureReserve.getMemberFromAddress(_member);
+        Member memory member = _getMembersValuesHook(takasureReserve, _member);
+
         string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
 
         // First we check if there is already a request id for this member
