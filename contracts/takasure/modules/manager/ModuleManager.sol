@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GPL-3.0
 
 /**
  * @title ModuleManager
@@ -32,7 +32,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
     mapping(address moduleAddr => Module) private addressToModule;
 
     /*//////////////////////////////////////////////////////////////
-                            EVENT AND ERRORS
+                           EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
     event OnNewModule(address newModuleAddr, State newModuleStatus);
@@ -103,7 +103,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @param module The module address
      * @return True if the address is a module, false otherwise
      */
-    function isModule(address module) external view returns (bool) {
+    function isActiveModule(address module) external view returns (bool) {
         return addressToModule[module].moduleState == State.ENABLED;
     }
 
