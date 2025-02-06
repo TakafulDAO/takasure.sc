@@ -67,6 +67,8 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
             ModuleManager__WrongInitialState()
         );
 
+        _checkIsModule(newModule);
+
         addressToModule[newModule].moduleAddress = newModule;
         addressToModule[newModule].moduleState = state;
 
@@ -81,7 +83,6 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      */
     function changeModuleStatus(address module, State newState) external onlyOwner {
         require(addressToModule[module].moduleAddress != address(0), ModuleManager__NotModule());
-        require(module != address(0), ModuleManager__AddressZeroNotAllowed());
         require(
             addressToModule[module].moduleState != State.DEPRECATED,
             ModuleManager__WrongState()
