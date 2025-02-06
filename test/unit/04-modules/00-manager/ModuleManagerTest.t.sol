@@ -40,7 +40,7 @@ contract ModuleManagerTest is Test {
         vm.expectRevert(ModuleManager.ModuleManager__WrongInitialState.selector);
         moduleManager.addModule(address(isModule), ModuleManager.State.PAUSED);
 
-        assert(!moduleManager.isModule(address(isModule)));
+        assert(!moduleManager.isActiveModule(address(isModule)));
     }
 
     function testAddModuleAtDeprecatedStateReverts() public {
@@ -48,7 +48,7 @@ contract ModuleManagerTest is Test {
         vm.expectRevert(ModuleManager.ModuleManager__WrongInitialState.selector);
         moduleManager.addModule(address(isModule), ModuleManager.State.DEPRECATED);
 
-        assert(!moduleManager.isModule(address(isModule)));
+        assert(!moduleManager.isActiveModule(address(isModule)));
     }
 
     function testAddAddressZeroAsModuleReverts() public {
@@ -138,7 +138,7 @@ contract ModuleManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testChangeModuleStateEmitsEvent() public addModule {
-        assert(!moduleManager.isModule(address(isModule)));
+        assert(!moduleManager.isActiveModule(address(isModule)));
 
         // From DISABLED to ENABLED
         vm.prank(moduleManagerOwner);
@@ -146,7 +146,7 @@ contract ModuleManagerTest is Test {
         emit OnModuleStateChanged(State.DISABLED, State.ENABLED);
         moduleManager.changeModuleStatus(address(isModule), ModuleManager.State.ENABLED);
 
-        assert(moduleManager.isModule(address(isModule)));
+        assert(moduleManager.isActiveModule(address(isModule)));
 
         // From ENABLED to DISABLED
         vm.prank(moduleManagerOwner);
@@ -154,7 +154,7 @@ contract ModuleManagerTest is Test {
         emit OnModuleStateChanged(State.ENABLED, State.DISABLED);
         moduleManager.changeModuleStatus(address(isModule), ModuleManager.State.DISABLED);
 
-        assert(!moduleManager.isModule(address(isModule)));
+        assert(!moduleManager.isActiveModule(address(isModule)));
 
         // From DISABLED to PAUSED
         vm.prank(moduleManagerOwner);
@@ -162,7 +162,7 @@ contract ModuleManagerTest is Test {
         emit OnModuleStateChanged(State.DISABLED, State.PAUSED);
         moduleManager.changeModuleStatus(address(isModule), ModuleManager.State.PAUSED);
 
-        assert(!moduleManager.isModule(address(isModule)));
+        assert(!moduleManager.isActiveModule(address(isModule)));
 
         // From PAUSED to DISABLED
         vm.prank(moduleManagerOwner);
@@ -170,7 +170,7 @@ contract ModuleManagerTest is Test {
         emit OnModuleStateChanged(State.PAUSED, State.DISABLED);
         moduleManager.changeModuleStatus(address(isModule), ModuleManager.State.DISABLED);
 
-        assert(!moduleManager.isModule(address(isModule)));
+        assert(!moduleManager.isActiveModule(address(isModule)));
 
         // From ENABLED to PAUSED
         vm.startPrank(moduleManagerOwner);
@@ -180,7 +180,7 @@ contract ModuleManagerTest is Test {
         moduleManager.changeModuleStatus(address(isModule), ModuleManager.State.PAUSED);
         vm.stopPrank();
 
-        assert(!moduleManager.isModule(address(isModule)));
+        assert(!moduleManager.isActiveModule(address(isModule)));
 
         // DEPRECATED
         vm.prank(moduleManagerOwner);
@@ -188,6 +188,6 @@ contract ModuleManagerTest is Test {
         emit OnModuleStateChanged(State.PAUSED, State.DEPRECATED);
         moduleManager.changeModuleStatus(address(isModule), ModuleManager.State.DEPRECATED);
 
-        assert(!moduleManager.isModule(address(isModule)));
+        assert(!moduleManager.isActiveModule(address(isModule)));
     }
 }
