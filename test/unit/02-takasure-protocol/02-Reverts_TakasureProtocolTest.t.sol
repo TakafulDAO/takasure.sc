@@ -12,9 +12,9 @@ import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {ModuleErrors} from "contracts/helpers/libraries/ModuleErrors.sol";
-import {GlobalErrors} from "contracts/helpers/libraries/GlobalErrors.sol";
-import {TakasureEvents} from "contracts/helpers/libraries/TakasureEvents.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
+import {GlobalErrors} from "contracts/helpers/libraries/errors/GlobalErrors.sol";
+import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
 contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {

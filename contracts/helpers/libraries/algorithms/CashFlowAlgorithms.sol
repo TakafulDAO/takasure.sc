@@ -9,10 +9,10 @@ import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 
 import {Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/ModuleConstants.sol";
-import {ReserveMathLib} from "contracts/helpers/libraries/ReserveMathLib.sol";
-import {TakasureEvents} from "contracts/helpers/libraries/TakasureEvents.sol";
-import {ModuleErrors} from "contracts/helpers/libraries/ModuleErrors.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {ReserveMathLib} from "contracts/helpers/libraries/algorithms/ReserveMathLib.sol";
+import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 pragma solidity 0.8.28;
 

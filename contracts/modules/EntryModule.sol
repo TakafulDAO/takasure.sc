@@ -19,12 +19,12 @@ import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/ModuleConstants.sol";
-import {ReserveMathLib} from "contracts/helpers/libraries/ReserveMathLib.sol";
-import {CashFlowAlgorithms} from "contracts/helpers/libraries/CashFlowAlgorithms.sol";
-import {TakasureEvents} from "contracts/helpers/libraries/TakasureEvents.sol";
-import {GlobalErrors} from "contracts/helpers/libraries/GlobalErrors.sol";
-import {ModuleErrors} from "contracts/helpers/libraries/ModuleErrors.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {ReserveMathLib} from "contracts/helpers/libraries/algorithms/ReserveMathLib.sol";
+import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
+import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
+import {GlobalErrors} from "contracts/helpers/libraries/errors/GlobalErrors.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 

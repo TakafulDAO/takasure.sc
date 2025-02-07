@@ -12,7 +12,7 @@ import {IMemberModule} from "contracts/interfaces/IMemberModule.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-import {ModuleConstants} from "contracts/helpers/libraries/ModuleConstants.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 
 pragma solidity 0.8.28;
 
