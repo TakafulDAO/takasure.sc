@@ -5,7 +5,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
-import {TLDCcipReceiver} from "contracts/chainlink/ccip/TLDCcipReceiver.sol";
+import {TLDCcipReceiver} from "contracts/helpers/chainlink/ccip/TLDCcipReceiver.sol";
 import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 

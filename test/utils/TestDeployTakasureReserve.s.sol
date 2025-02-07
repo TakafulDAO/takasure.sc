@@ -12,7 +12,7 @@ import {ModuleManager} from "contracts/takasure/modules/manager/ModuleManager.so
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
 contract TestDeployTakasureReserve is Script {
