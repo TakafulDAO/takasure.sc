@@ -39,9 +39,6 @@ contract TakasureReserve is
     address public takadaoOperator;
     address public daoMultisig;
     address private pauseGuardian;
-    address private entryModuleContract;
-    address private memberModuleContract;
-    address private claimModuleContract;
 
     uint256 private RPOOL; // todo: define this value
 
