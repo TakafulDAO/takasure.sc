@@ -11,7 +11,7 @@ import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ModuleCheck} from "contracts/takasure/modules/moduleUtils/ModuleCheck.sol";
+import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
 
 import {Reserve, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/ModuleConstants.sol";

@@ -4,10 +4,10 @@ pragma solidity 0.8.28;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
-import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
-import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {UserRouter} from "contracts/router/UserRouter.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureProtocolHandler} from "test/helpers/handlers/TakasureProtocolHandler.t.sol";
 

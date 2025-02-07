@@ -3,12 +3,12 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
-import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
-import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
-import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
-import {ModuleManager} from "contracts/takasure/modules/manager/ModuleManager.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {RevenueModule} from "contracts/modules/RevenueModule.sol";
+import {UserRouter} from "contracts/router/UserRouter.sol";
+import {ModuleManager} from "contracts/modules/manager/ModuleManager.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";

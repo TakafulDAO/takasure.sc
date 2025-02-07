@@ -5,8 +5,8 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/modules/EntryModule.sol";
 
 contract TokenTest is Test {
     TestDeployTakasureReserve deployer;

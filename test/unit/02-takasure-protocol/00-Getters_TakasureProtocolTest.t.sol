@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Test, console} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {Reserve} from "contracts/types/TakasureTypes.sol";
