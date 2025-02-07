@@ -8,7 +8,7 @@
 
 pragma solidity 0.8.28;
 
-import {Member} from "../types/TakasureTypes.sol";
+import {Member} from "contracts/types/TakasureTypes.sol";
 
 library ReserveMathLib {
     error WrongTimestamps();

@@ -19,11 +19,11 @@ import {ModuleCheck} from "contracts/takasure/modules/moduleUtils/ModuleCheck.so
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 
 import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
-import {ModuleConstants} from "contracts/libraries/ModuleConstants.sol";
-import {CashFlowAlgorithms} from "contracts/libraries/CashFlowAlgorithms.sol";
-import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
-import {GlobalErrors} from "contracts/libraries/GlobalErrors.sol";
-import {ModuleErrors} from "contracts/libraries/ModuleErrors.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/ModuleConstants.sol";
+import {CashFlowAlgorithms} from "contracts/helpers/libraries/CashFlowAlgorithms.sol";
+import {TakasureEvents} from "contracts/helpers/libraries/TakasureEvents.sol";
+import {GlobalErrors} from "contracts/helpers/libraries/GlobalErrors.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/ModuleErrors.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 

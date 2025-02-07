@@ -12,7 +12,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
+import {TakasureEvents} from "contracts/helpers/libraries/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
 contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {

@@ -11,7 +11,7 @@ import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
+import {TakasureEvents} from "contracts/helpers/libraries/TakasureEvents.sol";
 
 contract Setters_TakasureProtocolTest is StdCheats, Test {
     TestDeployTakasureReserve deployer;

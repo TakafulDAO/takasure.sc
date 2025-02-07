@@ -16,9 +16,9 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {TSToken} from "contracts/token/TSToken.sol";
 
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
-import {ReserveMathLib} from "contracts/libraries/ReserveMathLib.sol";
-import {TakasureEvents} from "contracts/libraries/TakasureEvents.sol";
-import {GlobalErrors} from "contracts/libraries/GlobalErrors.sol";
+import {ReserveMathLib} from "contracts/helpers/libraries/ReserveMathLib.sol";
+import {TakasureEvents} from "contracts/helpers/libraries/TakasureEvents.sol";
+import {GlobalErrors} from "contracts/helpers/libraries/GlobalErrors.sol";
 
 pragma solidity 0.8.28;
 
