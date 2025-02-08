@@ -17,6 +17,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
+import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
 import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -35,14 +36,13 @@ contract MemberModule is
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     ModuleCheck,
-    ReserveAndMemberValuesHook
+    ReserveAndMemberValuesHook,
+    MemberPaymentFlow
 {
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
-
-    uint256 private transient mintedTokens;
 
     error MemberModule__InvalidDate();
 
@@ -106,7 +106,6 @@ contract MemberModule is
 
         uint256 contributionBeforeFee = activeMember.contribution;
         uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
-        uint256 contributionAfterFee = contributionBeforeFee - feeAmount;
 
         // Update the values
         activeMember.lastPaidYearStartDate += 365 days;
@@ -116,11 +115,14 @@ contract MemberModule is
         activeMember.lastUcr = 0;
 
         // And we pay the contribution
-        reserve = _memberRecurringPaymentFlow({
+        uint256 mintedTokens;
+
+        (reserve, mintedTokens) = _memberPaymentFlow({
             _contributionBeforeFee: contributionBeforeFee,
-            _contributionAfterFee: contributionAfterFee,
+            _contributionAfterFee: contributionBeforeFee - feeAmount,
             _memberWallet: memberWallet,
-            _reserve: reserve
+            _reserve: reserve,
+            _takasureReserve: takasureReserve
         });
 
         activeMember.creditTokensBalance += mintedTokens;
@@ -181,35 +183,6 @@ contract MemberModule is
         } else {
             revert ModuleErrors.Module__TooEarlyToCancel();
         }
-    }
-
-    /**
-     * @notice This function will update all the variables needed when a member pays the contribution
-     * @dev It transfer the contribution from the module to the reserves
-     */
-    function _memberRecurringPaymentFlow(
-        uint256 _contributionBeforeFee,
-        uint256 _contributionAfterFee,
-        address _memberWallet,
-        Reserve memory _reserve
-    ) internal returns (Reserve memory) {
-        _reserve = CashFlowAlgorithms._updateNewReserveValues(
-            takasureReserve,
-            _contributionAfterFee,
-            _contributionBeforeFee,
-            _reserve
-        );
-
-        IERC20(_reserve.contributionToken).safeTransferFrom(
-            _memberWallet,
-            address(takasureReserve),
-            _contributionAfterFee
-        );
-
-        // Mint the DAO Tokens
-        mintedTokens = CashFlowAlgorithms._mintDaoTokens(takasureReserve, _contributionBeforeFee);
-
-        return _reserve;
     }
 
     ///@dev required by the OZ UUPS module

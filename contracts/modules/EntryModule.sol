@@ -17,6 +17,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
+import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -36,14 +37,14 @@ contract EntryModule is
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     ModuleCheck,
-    ReserveAndMemberValuesHook
+    ReserveAndMemberValuesHook, 
+    MemberPaymentFlow
 {
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
 
-    uint256 private transient mintedTokens;
     uint256 private transient normalizedContributionBeforeFee;
     uint256 private transient feeAmount;
     uint256 private transient contributionAfterFee;
@@ -194,11 +195,14 @@ contract EntryModule is
 
         // Then the everyting needed will be updated, proformas, reserves, cash flow,
         // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
-        reserve = _memberPaymentFlow({
+        uint256 mintedTokens;
+
+        (reserve, mintedTokens) = _memberPaymentFlow({
             _contributionBeforeFee: newMember.contribution,
             _contributionAfterFee: contributionAfterFee,
             _memberWallet: memberWallet,
-            _reserve: reserve
+            _reserve: reserve,
+            _takasureReserve: takasureReserve
         });
 
         newMember.creditTokensBalance += mintedTokens;
@@ -375,35 +379,24 @@ contract EntryModule is
         return _member;
     }
 
-    /**
-     * @notice This function will update all the variables needed when someone fully becomes a member
-     * @dev It transfer the contribution from the module to the reserves
-     */
     function _memberPaymentFlow(
         uint256 _contributionBeforeFee,
         uint256 _contributionAfterFee,
         address _memberWallet,
-        Reserve memory _reserve
-    ) internal returns (Reserve memory) {
+        Reserve memory _reserve,
+        ITakasureReserve _takasureReserve
+    ) internal override returns (Reserve memory, uint256) {
         _getBenefitMultiplierFromOracle(_memberWallet);
+        return super._memberPaymentFlow(_contributionBeforeFee, _contributionAfterFee, _memberWallet, _reserve, _takasureReserve);
+    }
 
-        _reserve = CashFlowAlgorithms._updateNewReserveValues(
-            takasureReserve,
-            _contributionAfterFee,
-            _contributionBeforeFee,
-            _reserve
-        );
-
-        // Transfer the contribution to the reserves
-        IERC20(_reserve.contributionToken).safeTransfer(
-            address(takasureReserve),
-            _contributionAfterFee
-        );
-
-        // Mint the DAO Tokens
-        mintedTokens = CashFlowAlgorithms._mintDaoTokens(takasureReserve, _contributionBeforeFee);
-
-        return _reserve;
+    function _transferContribution(
+        IERC20 _contributionToken,
+        address _memberWallet,
+        address _takasureReserve,
+        uint256 _contributionAfterFee
+    ) internal override {
+        _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee);
     }
 
     function _getBenefitMultiplierFromOracle(
