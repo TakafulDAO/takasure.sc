@@ -1,5 +1,18 @@
 //SPDX-License-Identifier: GPL-3.0
 
+/**
+ * @title MemberPaymentFlow
+ * @author Maikel Ordaz
+ * @notice This contract will run thhe needed algorithms when a user performs a payment
+ * @dev The logic in this contract will be different according to the module that is using it:
+ *      1. EntryModule:
+ *          1.1 Will fetch first the Benefit Multiplier for the user.
+ *          1.2 Then it will run the algorithms to update the reserves and mint the DAO Tokens
+ *          1.3 As in joining the user first transfer to the module, and when it is KYCed the module will transfer
+ *              the contribution to the reserves, the transfer will be done from the module to the reserves
+ *      2. MemberModule: Will run the functions as written here
+ */
+
 import {Reserve} from "contracts/types/TakasureTypes.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
