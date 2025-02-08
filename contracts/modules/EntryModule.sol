@@ -21,7 +21,7 @@ import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.so
 
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
-import {ReserveMathLib} from "contracts/helpers/libraries/algorithms/ReserveMathLib.sol";
+import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
@@ -437,11 +437,11 @@ contract EntryModule is
         uint256 lastMonthDepositTimestamp = cashFlowVars.monthDepositTimestamp;
 
         // Calculate how many days and months have passed since the last deposit and the current timestamp
-        uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
+        uint256 daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
             currentTimestamp,
             lastDayDepositTimestamp
         );
-        uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
+        uint256 monthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(
             currentTimestamp,
             lastMonthDepositTimestamp
         );
@@ -463,7 +463,7 @@ contract EntryModule is
             uint256 timestampThisMonthStarted = lastMonthDepositTimestamp +
                 (monthsPassed * ModuleConstants.MONTH);
             // And calculate the days passed in this new month using the new month timestamp
-            daysPassed = ReserveMathLib._calculateDaysPassed(
+            daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
                 currentTimestamp,
                 timestampThisMonthStarted
             );

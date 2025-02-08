@@ -15,7 +15,7 @@ import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
 
 import {Reserve, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
-import {ReserveMathLib} from "contracts/helpers/libraries/algorithms/ReserveMathLib.sol";
+import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -91,11 +91,11 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
             );
         } else {
             // Check how many days and months have passed since the last deposit
-            uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
+            uint256 daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
                 currentTimestamp,
                 cashFlowVars.dayDepositTimestamp
             );
-            uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
+            uint256 monthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(
                 currentTimestamp,
                 cashFlowVars.monthDepositTimestamp
             );
@@ -139,7 +139,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeab
                 cashFlowVars.monthReference += uint16(monthsPassed);
                 // Calculate the day reference for the new month, we need to recalculate the days passed
                 // with the new day deposit timestamp
-                daysPassed = ReserveMathLib._calculateDaysPassed(
+                daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
                     currentTimestamp,
                     cashFlowVars.dayDepositTimestamp
                 );

@@ -3,15 +3,15 @@
 
 pragma solidity 0.8.28;
 
-import {ReserveMathLib} from "contracts/helpers/libraries/algorithms/ReserveMathLib.sol";
+import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 
-contract ReserveMathLibHarness {
+contract ReserveMathAlgorithmsHarness {
     function exposed__updateProFormaFundReserve(
         uint256 currentProFormaFundReserve,
         uint256 memberNetContribution,
         uint256 currentDynamicReserveRatio
     ) external pure returns (uint256 exposedUpdatedProFormaFundReserve) {
-        exposedUpdatedProFormaFundReserve = ReserveMathLib._updateProFormaFundReserve(
+        exposedUpdatedProFormaFundReserve = ReserveMathAlgorithms._updateProFormaFundReserve(
             currentProFormaFundReserve,
             memberNetContribution,
             currentDynamicReserveRatio
@@ -24,7 +24,7 @@ contract ReserveMathLibHarness {
         uint8 serviceFee,
         uint256 initialReserveRatio
     ) external pure returns (uint256 exposedUpdatedProFormaClaimReserve) {
-        exposedUpdatedProFormaClaimReserve = ReserveMathLib._updateProFormaClaimReserve(
+        exposedUpdatedProFormaClaimReserve = ReserveMathAlgorithms._updateProFormaClaimReserve(
             currentProFormaClaimReserve,
             memberNetContribution,
             serviceFee,
@@ -38,7 +38,7 @@ contract ReserveMathLibHarness {
         uint256 fundReserve,
         uint256 cashFlowLastPeriod
     ) external pure returns (uint256 exposedUpdatedDynamicReserveRatio) {
-        exposedUpdatedDynamicReserveRatio = ReserveMathLib._calculateDynamicReserveRatio(
+        exposedUpdatedDynamicReserveRatio = ReserveMathAlgorithms._calculateDynamicReserveRatio(
             initialReserveRatio,
             proFormaFundReserve,
             fundReserve,
@@ -53,7 +53,7 @@ contract ReserveMathLibHarness {
         uint256 proFormaClaimReserve,
         uint256 bmaInflowAssumption
     ) external pure returns (uint256 bma) {
-        bma = ReserveMathLib._calculateBmaCashFlowMethod(
+        bma = ReserveMathAlgorithms._calculateBmaCashFlowMethod(
             totalClaimReserves,
             totalFundReserves,
             bmaFundReserveShares,
@@ -66,7 +66,7 @@ contract ReserveMathLibHarness {
         uint256 finalDayTimestamp,
         uint256 initialDayTimestamp
     ) external pure returns (uint256 exposedDaysPassed) {
-        exposedDaysPassed = ReserveMathLib._calculateDaysPassed(
+        exposedDaysPassed = ReserveMathAlgorithms._calculateDaysPassed(
             finalDayTimestamp,
             initialDayTimestamp
         );
@@ -76,26 +76,26 @@ contract ReserveMathLibHarness {
         uint256 finalMonthTimestamp,
         uint256 initialMonthTimestamp
     ) external pure returns (uint256 exposedMonthsPassed) {
-        exposedMonthsPassed = ReserveMathLib._calculateMonthsPassed(
+        exposedMonthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(
             finalMonthTimestamp,
             initialMonthTimestamp
         );
     }
 
     function exposed__maxUint(uint256 x, uint256 y) external pure returns (uint256 exposedMaxUint) {
-        exposedMaxUint = ReserveMathLib._maxUint(x, y);
+        exposedMaxUint = ReserveMathAlgorithms._maxUint(x, y);
     }
 
     function exposed__maxInt(int256 x, int256 y) external pure returns (int256 exposedMaxInt) {
-        exposedMaxInt = ReserveMathLib._maxInt(x, y);
+        exposedMaxInt = ReserveMathAlgorithms._maxInt(x, y);
     }
 
     function exposed__minUint(uint256 x, uint256 y) external pure returns (uint256 exposedMinUint) {
-        exposedMinUint = ReserveMathLib._minUint(x, y);
+        exposedMinUint = ReserveMathAlgorithms._minUint(x, y);
     }
 
     function exposed__minInt(int256 x, int256 y) external pure returns (int256 exposedMinInt) {
-        exposedMinInt = ReserveMathLib._minInt(x, y);
+        exposedMinInt = ReserveMathAlgorithms._minInt(x, y);
     }
 
     // To avoid this contract to be count in coverage

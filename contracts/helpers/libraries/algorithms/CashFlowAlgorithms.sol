@@ -10,7 +10,7 @@ import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 
 import {Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
-import {ReserveMathLib} from "contracts/helpers/libraries/algorithms/ReserveMathLib.sol";
+import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
@@ -65,13 +65,13 @@ library CashFlowAlgorithms {
         uint256 _contributionBeforeFee,
         Reserve memory _reserve
     ) internal returns (uint256 updatedProFormaFundReserve_, uint256 updatedProFormaClaimReserve_) {
-        updatedProFormaFundReserve_ = ReserveMathLib._updateProFormaFundReserve(
+        updatedProFormaFundReserve_ = ReserveMathAlgorithms._updateProFormaFundReserve(
             _reserve.proFormaFundReserve,
             _contributionAfterFee,
             _reserve.initialReserveRatio
         );
 
-        updatedProFormaClaimReserve_ = ReserveMathLib._updateProFormaClaimReserve(
+        updatedProFormaClaimReserve_ = ReserveMathAlgorithms._updateProFormaClaimReserve(
             _reserve.proFormaClaimReserve,
             _contributionBeforeFee,
             _reserve.serviceFee,
@@ -113,7 +113,7 @@ library CashFlowAlgorithms {
         uint256 _totalFundCost,
         uint256 _totalFundRevenues
     ) internal returns (uint256 lossRatio_) {
-        lossRatio_ = ReserveMathLib._calculateLossRatio(_totalFundCost, _totalFundRevenues);
+        lossRatio_ = ReserveMathAlgorithms._calculateLossRatio(_totalFundCost, _totalFundRevenues);
         emit TakasureEvents.OnNewLossRatio(lossRatio_);
     }
 
@@ -139,11 +139,11 @@ library CashFlowAlgorithms {
             );
         } else {
             // Check how many days and months have passed since the last deposit
-            uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
+            uint256 daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
                 currentTimestamp,
                 cashFlowVars.dayDepositTimestamp
             );
-            uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
+            uint256 monthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(
                 currentTimestamp,
                 cashFlowVars.monthDepositTimestamp
             );
@@ -187,7 +187,7 @@ library CashFlowAlgorithms {
                 cashFlowVars.monthReference += uint16(monthsPassed);
                 // Calculate the day reference for the new month, we need to recalculate the days passed
                 // with the new day deposit timestamp
-                daysPassed = ReserveMathLib._calculateDaysPassed(
+                daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
                     currentTimestamp,
                     cashFlowVars.dayDepositTimestamp
                 );
@@ -259,7 +259,7 @@ library CashFlowAlgorithms {
         uint256 _cash,
         Reserve memory _reserve
     ) internal returns (uint256 updatedDynamicReserveRatio_) {
-        updatedDynamicReserveRatio_ = ReserveMathLib._calculateDynamicReserveRatio(
+        updatedDynamicReserveRatio_ = ReserveMathAlgorithms._calculateDynamicReserveRatio(
             _reserve.initialReserveRatio,
             _reserve.proFormaFundReserve,
             _reserve.totalFundReserve,
@@ -273,13 +273,13 @@ library CashFlowAlgorithms {
         uint256 _cash,
         Reserve memory _reserve
     ) internal returns (uint256 updatedBMA_) {
-        uint256 bmaInflowAssumption = ReserveMathLib._calculateBmaInflowAssumption(
+        uint256 bmaInflowAssumption = ReserveMathAlgorithms._calculateBmaInflowAssumption(
             _cash,
             _reserve.serviceFee,
             _reserve.initialReserveRatio
         );
 
-        updatedBMA_ = ReserveMathLib._calculateBmaCashFlowMethod(
+        updatedBMA_ = ReserveMathAlgorithms._calculateBmaCashFlowMethod(
             _reserve.totalClaimReserve,
             _reserve.totalFundReserve,
             _reserve.bmaFundReserveShare,

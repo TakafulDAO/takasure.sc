@@ -16,7 +16,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {TSToken} from "contracts/token/TSToken.sol";
 
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
-import {ReserveMathLib} from "contracts/helpers/libraries/algorithms/ReserveMathLib.sol";
+import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
 
@@ -329,11 +329,11 @@ contract TakasureReserve is
         uint256 lastMonthDepositTimestamp = cashFlowVars.monthDepositTimestamp;
 
         // Calculate how many days and months have passed since the last deposit and the current timestamp
-        uint256 daysPassed = ReserveMathLib._calculateDaysPassed(
+        uint256 daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
             currentTimestamp,
             lastDayDepositTimestamp
         );
-        uint256 monthsPassed = ReserveMathLib._calculateMonthsPassed(
+        uint256 monthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(
             currentTimestamp,
             lastMonthDepositTimestamp
         );
@@ -355,7 +355,7 @@ contract TakasureReserve is
             uint256 timestampThisMonthStarted = lastMonthDepositTimestamp +
                 (monthsPassed * 30 days);
             // And calculate the days passed in this new month using the new month timestamp
-            daysPassed = ReserveMathLib._calculateDaysPassed(
+            daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
                 currentTimestamp,
                 timestampThisMonthStarted
             );
@@ -426,9 +426,8 @@ contract TakasureReserve is
             address memberWallet = idToMemberWallet[i];
             Member storage memberToCheck = members[memberWallet];
             if (memberToCheck.memberState == MemberState.Active) {
-                (uint256 memberEcr, uint256 memberUcr) = ReserveMathLib._calculateEcrAndUcrByMember(
-                    memberToCheck
-                );
+                (uint256 memberEcr, uint256 memberUcr) = ReserveMathAlgorithms
+                    ._calculateEcrAndUcrByMember(memberToCheck);
 
                 newECRes += memberEcr;
                 totalUCRes_ += memberUcr;
@@ -453,10 +452,10 @@ contract TakasureReserve is
 
         // surplus = max(0, ECRes - max(0, UCRisk - UCRes -  RPOOL))
         surplus_ = uint256(
-            ReserveMathLib._maxInt(
+            ReserveMathAlgorithms._maxInt(
                 0,
                 (int256(totalECRes) -
-                    ReserveMathLib._maxInt(
+                    ReserveMathAlgorithms._maxInt(
                         0,
                         (int256(UCRisk) - int256(totalUCRes) - int256(RPOOL))
                     ))

@@ -3,13 +3,13 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {ReserveMathLibHarness} from "../../helpers/harness/ReserveMathLibHarness.t.sol";
+import {ReserveMathAlgorithmsHarness} from "../../helpers/harness/ReserveMathAlgorithmsHarness.t.sol";
 
-contract ReserveMathLibFuzzTest is Test {
-    ReserveMathLibHarness public reserveMathLibHarness;
+contract ReserveMathAlgorithmsFuzzTest is Test {
+    ReserveMathAlgorithmsHarness public reserveMathAlgorithmsHarness;
 
     function setUp() public {
-        reserveMathLibHarness = new ReserveMathLibHarness();
+        reserveMathAlgorithmsHarness = new ReserveMathAlgorithmsHarness();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -47,7 +47,7 @@ contract ReserveMathLibFuzzTest is Test {
             }
         }
 
-        uint256 updatedDynamicReserveRatio = reserveMathLibHarness
+        uint256 updatedDynamicReserveRatio = reserveMathAlgorithmsHarness
             .exposed__calculateDynamicReserveRatio(
                 initialReserveRatio,
                 proFormaFundReserve,
