@@ -13,8 +13,8 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
-import {GlobalErrors} from "contracts/helpers/libraries/errors/GlobalErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
+import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
 contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
@@ -143,7 +143,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     /// @dev `setNewContributionToken` must revert if the address is zero
     function testTakasureReserve_setNewContributionTokenMustRevertIfAddressZero() public {
         vm.prank(admin);
-        vm.expectRevert(GlobalErrors.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
         takasureReserve.setNewContributionToken(address(0));
     }
 
@@ -157,7 +157,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     /// @dev `setNewFeeClaimAddress` must revert if the address is zero
     function testTakasureReserve_setNewFeeClaimAddressMustRevertIfAddressZero() public {
         vm.prank(admin);
-        vm.expectRevert(GlobalErrors.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
         takasureReserve.setNewFeeClaimAddress(address(0));
     }
 
@@ -198,7 +198,7 @@ contract Reverts_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     function testEntryModule_setKYCStatusMustRevertIfMemberIsAddressZero() public {
         vm.prank(admin);
 
-        vm.expectRevert(GlobalErrors.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
         entryModule.setKYCStatus(address(0));
     }
 

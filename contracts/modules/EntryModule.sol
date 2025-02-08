@@ -24,8 +24,8 @@ import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConst
 import {ReserveMathLib} from "contracts/helpers/libraries/algorithms/ReserveMathLib.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {GlobalErrors} from "contracts/helpers/libraries/errors/GlobalErrors.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
+import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -56,11 +56,6 @@ contract EntryModule is
     error EntryModule__MemberAlreadyKYCed();
     error EntryModule__NothingToRefund();
     error EntryModule__TooEarlytoRefund();
-
-    modifier notZeroAddress(address _address) {
-        require(_address != address(0), GlobalErrors.TakasureProtocol__ZeroAddress());
-        _;
-    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -166,7 +161,8 @@ contract EntryModule is
      */
     function setKYCStatus(
         address memberWallet
-    ) external notZeroAddress(memberWallet) onlyRole(ModuleConstants.KYC_PROVIDER) {
+    ) external onlyRole(ModuleConstants.KYC_PROVIDER) {
+        AddressCheck._notZeroAddress(memberWallet);
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(takasureReserve, memberWallet);
 
         require(!newMember.isKYCVerified, EntryModule__MemberAlreadyKYCed());
@@ -231,7 +227,8 @@ contract EntryModule is
      * @dev To be called by anyone
      * @param memberWallet address to be refunded
      */
-    function refund(address memberWallet) external notZeroAddress(memberWallet) {
+    function refund(address memberWallet) external  {
+        AddressCheck._notZeroAddress(memberWallet);
         _refund(memberWallet);
     }
 

@@ -18,7 +18,7 @@ import {TSToken} from "contracts/token/TSToken.sol";
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathLib} from "contracts/helpers/libraries/algorithms/ReserveMathLib.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {GlobalErrors} from "contracts/helpers/libraries/errors/GlobalErrors.sol";
+import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
 
 pragma solidity 0.8.28;
 
@@ -57,11 +57,6 @@ contract TakasureReserve is
     error TakasureReserve__WrongServiceFee();
     error TakasureReserve__WrongFundMarketExpendsShare();
     error TakasureReserve__UnallowedAccess();
-
-    modifier notZeroAddress(address _address) {
-        require(_address != address(0), GlobalErrors.TakasureProtocol__ZeroAddress());
-        _;
-    }
 
     modifier onlyDaoOrTakadao() {
         require(
@@ -187,9 +182,8 @@ contract TakasureReserve is
         dayToCashFlow[month][day] = dayCashFlow;
     }
 
-    function setModuleManagerContract(
-        address newModuleManagerContract
-    ) external onlyDaoOrTakadao notZeroAddress(newModuleManagerContract) {
+    function setModuleManagerContract(address newModuleManagerContract) external onlyDaoOrTakadao {
+        AddressCheck._notZeroAddress(newModuleManagerContract);
         moduleManager = IModuleManager(newModuleManagerContract);
     }
 
@@ -232,15 +226,13 @@ contract TakasureReserve is
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
     }
 
-    function setNewContributionToken(
-        address newContributionToken
-    ) external onlyRole(DAO_MULTISIG) notZeroAddress(newContributionToken) {
+    function setNewContributionToken(address newContributionToken) external onlyRole(DAO_MULTISIG) {
+        AddressCheck._notZeroAddress(newContributionToken);
         reserve.contributionToken = newContributionToken;
     }
 
-    function setNewFeeClaimAddress(
-        address newFeeClaimAddress
-    ) external onlyRole(TAKADAO_OPERATOR) notZeroAddress(newFeeClaimAddress) {
+    function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(TAKADAO_OPERATOR) {
+        AddressCheck._notZeroAddress(newFeeClaimAddress);
         feeClaimAddress = newFeeClaimAddress;
     }
 
@@ -250,7 +242,8 @@ contract TakasureReserve is
 
     function setNewBenefitMultiplierConsumerAddress(
         address newBenefitMultiplierConsumerAddress
-    ) external onlyDaoOrTakadao notZeroAddress(newBenefitMultiplierConsumerAddress) {
+    ) external onlyDaoOrTakadao {
+        AddressCheck._notZeroAddress(newBenefitMultiplierConsumerAddress);
         address oldBenefitMultiplierConsumer = address(bmConsumer);
         bmConsumer = newBenefitMultiplierConsumerAddress;
 

@@ -23,8 +23,8 @@ import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {GlobalErrors} from "contracts/helpers/libraries/errors/GlobalErrors.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
+import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -46,19 +46,13 @@ contract MemberModule is
 
     error MemberModule__InvalidDate();
 
-    modifier notZeroAddress(address _address) {
-        require(_address != address(0), GlobalErrors.TakasureProtocol__ZeroAddress());
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(
-        address _takasureReserveAddress
-    ) external initializer notZeroAddress(_takasureReserveAddress) {
+    function initialize(address _takasureReserveAddress) external initializer {
+        AddressCheck._notZeroAddress(_takasureReserveAddress);
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __ReentrancyGuardTransient_init();
@@ -75,7 +69,8 @@ contract MemberModule is
      * @notice Method to cancel a membership
      * @dev To be called by anyone
      */
-    function cancelMembership(address memberWallet) external notZeroAddress(memberWallet) {
+    function cancelMembership(address memberWallet) external {
+        AddressCheck._notZeroAddress(memberWallet);
         _cancelMembership(memberWallet);
     }
 
