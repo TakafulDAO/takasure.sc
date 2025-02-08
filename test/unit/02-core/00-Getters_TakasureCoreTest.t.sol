@@ -9,7 +9,7 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {Reserve} from "contracts/types/TakasureTypes.sol";
 
-contract Getters_TakasurePoolTest is StdCheats, Test {
+contract Getters_TakasureCoreTest is StdCheats, Test {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
     address takasureReserveProxy;
@@ -32,13 +32,13 @@ contract Getters_TakasurePoolTest is StdCheats, Test {
         vm.stopPrank();
     }
 
-    function testTakasurePool_getServiceFee() public view {
+    function testTakasureCore_getServiceFee() public view {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint8 expectedServiceFee = 22;
         assertEq(reserve.serviceFee, expectedServiceFee);
     }
 
-    function testTakasurePool_getMinimumThreshold() public view {
+    function testTakasureCore_getMinimumThreshold() public view {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 expectedMinimumThreshold = 25e6;
         assertEq(reserve.minimumThreshold, expectedMinimumThreshold);

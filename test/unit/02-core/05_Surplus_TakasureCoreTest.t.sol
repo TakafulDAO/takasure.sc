@@ -16,7 +16,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
+contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
@@ -92,7 +92,7 @@ contract Surplus_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         _;
     }
 
-    function testTakasurePool_surplus()
+    function testTakasureCore_surplus()
         public
         tokensTo(alice)
         tokensTo(bob)

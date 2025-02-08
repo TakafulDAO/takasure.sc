@@ -15,7 +15,7 @@ import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
+contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
@@ -172,7 +172,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev Test the membership duration is 5 years if allowCustomDuration is false
-    function testTakasureReserve_defaultMembershipDuration() public aliceJoinAndKYC {
+    function testEntryModule_defaultMembershipDuration() public aliceJoinAndKYC {
         Member memory member = takasureReserve.getMemberFromAddress(alice);
 
         assertEq(member.membershipDuration, 5 * YEAR);
@@ -192,7 +192,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev Test the member is created
-    function testTakasureReserve_newMember() public {
+    function testEntryModule_newMember() public {
         vm.prank(alice);
         userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
@@ -221,7 +221,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev More than one can join
-    function testTakasureReserve_moreThanOneJoin() public aliceJoinAndKYC bobJoinAndKYC {
+    function testEntryModule_moreThanOneJoin() public aliceJoinAndKYC bobJoinAndKYC {
         Member memory aliceMember = takasureReserve.getMemberFromAddress(alice);
         Member memory bobMember = takasureReserve.getMemberFromAddress(bob);
 
@@ -238,7 +238,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
                     JOIN POOL::UPDATE BOTH PRO FORMAS
     //////////////////////////////////////////////////////////////*/
     /// @dev Pro formas updated when a member joins
-    function testTakasureReserve_proFormasUpdatedOnMemberJoined() public aliceJoinAndKYC {
+    function testEntryModule_proFormasUpdatedOnMemberJoined() public aliceJoinAndKYC {
         vm.prank(bob);
         userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
@@ -263,7 +263,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
                          JOIN POOL::UPDATE DRR
     //////////////////////////////////////////////////////////////*/
     /// @dev New DRR is calculated when a member joins
-    function testTakasureReserve_drrCalculatedOnMemberJoined() public {
+    function testEntryModule_drrCalculatedOnMemberJoined() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 currentDRR = reserve.dynamicReserveRatio;
         uint256 initialDRR = reserve.initialReserveRatio;
@@ -304,7 +304,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
                          JOIN POOL::UPDATE BMA
     //////////////////////////////////////////////////////////////*/
     /// @dev New BMA is calculated when a member joins
-    function testTakasureReserve_bmaCalculatedOnMemberJoined() public {
+    function testEntryModule_bmaCalculatedOnMemberJoined() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 initialBMA = reserve.benefitMultiplierAdjuster;
 
@@ -345,7 +345,7 @@ contract Join_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
                         JOINPOOL::TOKENS MINTED
     //////////////////////////////////////////////////////////////*/
     /// @dev Test the tokens minted are staked in the pool
-    function testTakasureReserve_tokensMinted() public {
+    function testEntryModule_tokensMinted() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         address creditToken = reserve.daoToken;
         TSToken creditTokenInstance = TSToken(creditToken);

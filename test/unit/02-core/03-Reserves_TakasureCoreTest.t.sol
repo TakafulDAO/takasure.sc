@@ -14,7 +14,7 @@ import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
+contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
@@ -84,7 +84,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Test fund and claim reserves are calculated correctly
-    function testTakasureReserve_fundAndClaimReserves() public {
+    function testTakasureCore_fundAndClaimReserves() public {
         vm.prank(alice);
         userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
 
@@ -126,7 +126,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Cash last 12 months less than a month
-    function testTakasureReserve_cashLessThanMonth() public {
+    function testTakasureCore_cashLessThanMonth() public {
         address[50] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {
             lotOfUsers[i] = makeAddr(vm.toString(i));
@@ -200,7 +200,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev Cash last 12 months more than a month less than a year
-    function testTakasureReserve_cashMoreThanMonthLessThanYear() public {
+    function testTakasureCore_cashMoreThanMonthLessThanYear() public {
         address[78] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {
             lotOfUsers[i] = makeAddr(vm.toString(i));
@@ -268,7 +268,7 @@ contract Reserves_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev Cash last 12 months more than a  year
-    function testTakasureReserve_cashMoreThanYear() public {
+    function testTakasureCore_cashMoreThanYear() public {
         uint256 cash;
         address[202] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {

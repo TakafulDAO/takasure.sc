@@ -13,7 +13,7 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract Transfers_TakasureProtocolTest is StdCheats, Test {
+contract Transfers_TakasureCoreTest is StdCheats, Test {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
@@ -83,7 +83,7 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Test contribution amount is not transferred to the contract if only the KYC is done
-    function testTakasureReserve_contributionAmountNotTransferToContractWhenKycMissing() public {
+    function testTakasureCore_contributionAmountNotTransferToContractWhenKycMissing() public {
         uint256 takasureReserveBalanceBefore = usdc.balanceOf(address(takasureReserve));
         uint256 entryModuleBalanceBefore = usdc.balanceOf(address(entryModule));
 
@@ -98,7 +98,7 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
     }
 
     /// @dev Test contribution amount is transferred to the contract when joins the pool
-    function testTakasureReserve_contributionAmountTransferToContractWhenJoinPool() public {
+    function testTakasureCore_contributionAmountTransferToContractWhenJoinPool() public {
         uint256 takasureReserveBalanceBefore = usdc.balanceOf(address(takasureReserve));
         uint256 entryModuleBalanceBefore = usdc.balanceOf(address(entryModule));
 
@@ -119,7 +119,7 @@ contract Transfers_TakasureProtocolTest is StdCheats, Test {
     }
 
     /// @dev Test service fee is transferred when the member joins the pool
-    function testTakasureReserve_serviceFeeAmountTransferedWhenJoinsPool() public {
+    function testTakasureCore_serviceFeeAmountTransferedWhenJoinsPool() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint8 serviceFee = reserve.serviceFee;
         address serviceFeeReceiver = takasureReserve.feeClaimAddress();

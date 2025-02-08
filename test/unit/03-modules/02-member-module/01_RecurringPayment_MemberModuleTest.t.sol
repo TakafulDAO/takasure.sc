@@ -16,7 +16,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Cancel_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
+contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
@@ -92,22 +92,48 @@ contract Cancel_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(admin);
         entryModule.setKYCStatus(alice);
         vm.stopPrank();
-
-        vm.warp(block.timestamp + YEAR + 31 days);
-        vm.roll(block.number + 1);
-
-        userRouter.defaultMember(alice);
     }
 
-    function testTakasureProtocol_cancelMembership() public {
-        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
-        assert(Alice.memberState == MemberState.Defaulted);
+    function testMemberModule_payRecurringContributionThrough5Years() public {
+        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
 
-        vm.expectEmit(true, true, false, false, address(memberModule));
-        emit TakasureEvents.OnMemberCanceled(Alice.memberId, alice);
-        userRouter.cancelMembership(alice);
+        for (uint256 i = 0; i < 5; i++) {
+            Member memory testMember = takasureReserve.getMemberFromAddress(alice);
 
-        Alice = takasureReserve.getMemberFromAddress(alice);
-        assert(Alice.memberState == MemberState.Canceled);
+            uint256 lastYearStartDateBefore = testMember.lastPaidYearStartDate;
+            uint256 totalContributionBeforePayment = testMember.totalContributions;
+            uint256 totalServiceFeeBeforePayment = testMember.totalServiceFee;
+
+            vm.warp(block.timestamp + YEAR);
+            vm.roll(block.number + 1);
+
+            vm.startPrank(alice);
+            vm.expectEmit(true, true, true, true, address(memberModule));
+            emit TakasureEvents.OnRecurringPayment(
+                alice,
+                testMember.memberId,
+                lastYearStartDateBefore + 365 days,
+                CONTRIBUTION_AMOUNT,
+                totalServiceFeeBeforePayment + expectedServiceIncrease
+            );
+            userRouter.payRecurringContribution();
+            vm.stopPrank();
+
+            testMember = takasureReserve.getMemberFromAddress(alice);
+
+            uint256 lastYearStartDateAfter = testMember.lastPaidYearStartDate;
+            uint256 totalContributionAfterPayment = testMember.totalContributions;
+            uint256 totalServiceFeeAfterPayment = testMember.totalServiceFee;
+
+            assert(lastYearStartDateAfter == lastYearStartDateBefore + 365 days);
+            assert(
+                totalContributionAfterPayment ==
+                    totalContributionBeforePayment + CONTRIBUTION_AMOUNT
+            );
+            assert(
+                totalServiceFeeAfterPayment ==
+                    totalServiceFeeBeforePayment + expectedServiceIncrease
+            );
+        }
     }
 }

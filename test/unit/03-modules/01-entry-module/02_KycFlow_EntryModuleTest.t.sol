@@ -15,7 +15,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract KycFlow_TakasureProtocolTest is StdCheats, Test, SimulateDonResponse {
+contract KycFlow_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;

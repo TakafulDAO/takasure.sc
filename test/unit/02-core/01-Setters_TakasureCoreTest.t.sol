@@ -6,23 +6,20 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 
-contract Setters_TakasureProtocolTest is StdCheats, Test {
+contract Setters_TakasureCoreTest is StdCheats, Test {
     TestDeployTakasureReserve deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
-    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -37,14 +34,12 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
             ,
             ,
             ,
-            userRouterAddress,
+            ,
             ,
             contributionTokenAddress,
             ,
             helperConfig
         ) = deployer.run();
-
-        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -81,7 +76,7 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
     }
 
     /// @dev Test the owner can set a new minimum threshold
-    function testTakasureReserve_setNewMinimumThreshold() public {
+    function testTakasureCore_setNewMinimumThreshold() public {
         uint256 newMinimumThreshold = 50e6;
 
         vm.prank(admin);
@@ -93,7 +88,7 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
     }
 
     /// @dev Test the owner can set a new minimum threshold
-    function testTakasureReserve_setNewMaximumThreshold() public {
+    function testTakasureCore_setNewMaximumThreshold() public {
         uint256 newMaximumThreshold = 50e6;
 
         vm.prank(admin);
@@ -105,7 +100,7 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
     }
 
     /// @dev Test the owner can set a new contribution token
-    function testTakasureReserve_setNewContributionToken() public {
+    function testTakasureCore_setNewContributionToken() public {
         vm.prank(admin);
         takasureReserve.setNewContributionToken(alice);
 
@@ -113,7 +108,7 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
     }
 
     /// @dev Test the owner can set a new service claim address
-    function testTakasureReserve_cansetNewServiceClaimAddress() public {
+    function testTakasureCore_cansetNewServiceClaimAddress() public {
         vm.prank(admin);
         takasureReserve.setNewFeeClaimAddress(alice);
 
@@ -121,7 +116,7 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
     }
 
     /// @dev Test the owner can set custom duration
-    function testTakasureReserve_setAllowCustomDuration() public {
+    function testTakasureCore_setAllowCustomDuration() public {
         vm.prank(admin);
         takasureReserve.setAllowCustomDuration(true);
 
