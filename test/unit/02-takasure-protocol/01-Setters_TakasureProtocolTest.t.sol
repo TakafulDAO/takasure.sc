@@ -6,7 +6,6 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -18,13 +17,11 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    EntryModule entryModule;
     UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
-    address entryModuleAddress;
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -37,7 +34,7 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
             ,
             bmConsumerMock,
             takasureReserveProxy,
-            entryModuleAddress,
+            ,
             ,
             ,
             userRouterAddress,
@@ -47,7 +44,6 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
             helperConfig
         ) = deployer.run();
 
-        entryModule = EntryModule(entryModuleAddress);
         userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -67,12 +63,6 @@ contract Setters_TakasureProtocolTest is StdCheats, Test {
 
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(entryModuleAddress));
-
-        vm.prank(config.takadaoOperator);
-        entryModule.updateBmAddress();
     }
 
     /// @dev Test the owner can set a new service fee
