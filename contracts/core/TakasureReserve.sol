@@ -58,19 +58,8 @@ contract TakasureReserve is
     error TakasureReserve__WrongFundMarketExpendsShare();
     error TakasureReserve__UnallowedAccess();
 
-    modifier onlyDaoOrTakadao() {
-        require(
-            hasRole(TAKADAO_OPERATOR, msg.sender) ||
-                hasRole(DAO_MULTISIG, msg.sender) ||
-                hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
-            TakasureReserve__OnlyDaoOrTakadao()
-        );
-        _;
-    }
-
-    modifier onlyModule() {
+    function _onlyModule() internal view {
         require(moduleManager.isActiveModule(msg.sender), TakasureReserve__UnallowedAccess());
-        _;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -150,27 +139,29 @@ contract TakasureReserve is
         _unpause();
     }
 
-    function setMemberValuesFromModule(Member memory newMember) external whenNotPaused onlyModule {
+    function setMemberValuesFromModule(Member memory newMember) external whenNotPaused {
+        _onlyModule();
         members[newMember.wallet] = newMember;
         idToMemberWallet[newMember.memberId] = newMember.wallet;
     }
 
-    function setReserveValuesFromModule(
-        Reserve memory newReserve
-    ) external whenNotPaused onlyModule {
+    function setReserveValuesFromModule(Reserve memory newReserve) external whenNotPaused {
+        _onlyModule();
         reserve = newReserve;
     }
 
     function setCashFlowValuesFromModule(
         CashFlowVars memory newCashFlowVars
-    ) external whenNotPaused onlyModule {
+    ) external whenNotPaused {
+        _onlyModule();
         cashFlowVars = newCashFlowVars;
     }
 
     function setMonthToCashFlowValuesFromModule(
         uint16 month,
         uint256 monthCashFlow
-    ) external whenNotPaused onlyModule {
+    ) external whenNotPaused {
+        _onlyModule();
         monthToCashFlow[month] = monthCashFlow;
     }
 
@@ -178,11 +169,13 @@ contract TakasureReserve is
         uint16 month,
         uint8 day,
         uint256 dayCashFlow
-    ) external whenNotPaused onlyModule {
+    ) external whenNotPaused {
+        _onlyModule();
         dayToCashFlow[month][day] = dayCashFlow;
     }
 
-    function setModuleManagerContract(address newModuleManagerContract) external onlyDaoOrTakadao {
+    function setModuleManagerContract(address newModuleManagerContract) external {
+        _onlyDaoOrTakadao();
         AddressCheck._notZeroAddress(newModuleManagerContract);
         moduleManager = IModuleManager(newModuleManagerContract);
     }
@@ -236,13 +229,15 @@ contract TakasureReserve is
         feeClaimAddress = newFeeClaimAddress;
     }
 
-    function setNewReferralGateway(address newReferralGateway) external onlyDaoOrTakadao {
+    function setNewReferralGateway(address newReferralGateway) external {
+        _onlyDaoOrTakadao();
         _grantRole(REFERRAL_GATEWAY, newReferralGateway);
     }
 
     function setNewBenefitMultiplierConsumerAddress(
         address newBenefitMultiplierConsumerAddress
-    ) external onlyDaoOrTakadao {
+    ) external {
+        _onlyDaoOrTakadao();
         AddressCheck._notZeroAddress(newBenefitMultiplierConsumerAddress);
         address oldBenefitMultiplierConsumer = address(bmConsumer);
         bmConsumer = newBenefitMultiplierConsumerAddress;
@@ -259,7 +254,8 @@ contract TakasureReserve is
         kycProvider = newKycProviderAddress;
     }
 
-    function setNewPauseGuardianAddress(address newPauseGuardianAddress) external onlyDaoOrTakadao {
+    function setNewPauseGuardianAddress(address newPauseGuardianAddress) external {
+        _onlyDaoOrTakadao();
         address oldPauseGuardian = pauseGuardian;
         pauseGuardian = newPauseGuardianAddress;
 
@@ -280,7 +276,8 @@ contract TakasureReserve is
     /**
      * @notice Calculate the surplus for a member
      */
-    function memberSurplus(Member memory newMemberValues) external onlyModule {
+    function memberSurplus(Member memory newMemberValues) external {
+        _onlyModule();
         uint256 totalSurplus = _calculateSurplus();
         uint256 userCreditTokensBalance = newMemberValues.creditTokensBalance;
         address daoToken = reserve.daoToken;
@@ -465,6 +462,15 @@ contract TakasureReserve is
         reserve.surplus = surplus_;
 
         emit TakasureEvents.OnFundSurplusUpdated(surplus_);
+    }
+
+    function _onlyDaoOrTakadao() internal view {
+        require(
+            hasRole(TAKADAO_OPERATOR, msg.sender) ||
+                hasRole(DAO_MULTISIG, msg.sender) ||
+                hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            TakasureReserve__OnlyDaoOrTakadao()
+        );
     }
 
     ///@dev required by the OZ UUPS module
