@@ -392,7 +392,7 @@ contract EntryModule is
 
     function _transferContribution(
         IERC20 _contributionToken,
-        address _memberWallet,
+        address ,
         address _takasureReserve,
         uint256 _contributionAfterFee
     ) internal override {
