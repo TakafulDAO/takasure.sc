@@ -40,13 +40,14 @@ contract PrejoinModule is
 
     address private operator;
 
-    mapping(string tDAOName => tDAO DAOData) private nameToDAOData;
+    mapping(string tDAOName => tDAO DAOData) private nameToDAOData; // ! Deprecated slot
     mapping(address member => bool) public isMemberKYCed;
     mapping(address child => address parent) public childToParent;
 
     address private couponPool;
     address private ccipReceiverContract;
 
+    string private tDAOName;
     struct PrepaidMember {
         address member;
         uint256 contributionBeforeFee;
@@ -919,5 +920,10 @@ contract PrejoinModule is
             hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
             ReferralGateway__NotAuthorizedCaller()
         );
+    }
+
+    function setDAOName(string calldata oldDAOName, string calldata newDAOName) internal {
+        _onlyDAOAdmin(oldDAOName);
+        tDAOName = newDAOName;
     }
 }
