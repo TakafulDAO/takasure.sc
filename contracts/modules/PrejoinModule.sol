@@ -14,6 +14,7 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasurePool} from "contracts/interfaces/ITakasurePool.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
+import {IEntryModule} from "contracts/interfaces/IEntryModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -22,6 +23,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
 
+import {tDAO, PrepaidMember} from "contracts/types/TakasureTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
@@ -53,32 +55,6 @@ contract PrejoinModule is
     address private ccipReceiverContract;
 
     string private tDAOName;
-    struct PrepaidMember {
-        address member;
-        uint256 contributionBeforeFee;
-        uint256 contributionAfterFee;
-        uint256 feeToOperator; // Fee after all the discounts and rewards
-        uint256 discount;
-        mapping(address child => uint256 rewards) parentRewardsByChild;
-        mapping(uint256 layer => uint256 rewards) parentRewardsByLayer;
-    }
-
-    struct tDAO {
-        mapping(address member => PrepaidMember) prepaidMembers;
-        string name;
-        bool preJoinEnabled;
-        bool referralDiscount;
-        address DAOAdmin; // The one that can modify the DAO settings
-        address DAOAddress; // To be assigned when the tDAO is deployed
-        uint256 launchDate; // In seconds. An estimated launch date of the DAO
-        uint256 objectiveAmount; // In USDC, six decimals
-        uint256 currentAmount; // In USDC, six decimals
-        uint256 collectedFees; // Fees collected after deduct, discounts, referral reserve and repool amounts. In USDC, six decimals
-        address rePoolAddress; // To be assigned when the tDAO is deployed
-        uint256 toRepool; // In USDC, six decimals
-        uint256 referralReserve; // In USDC, six decimals
-        IBenefitMultiplierConsumer bmConsumer;
-    }
 
     /*//////////////////////////////////////////////////////////////
                               FIXED RATIOS
@@ -387,13 +363,16 @@ contract PrejoinModule is
             ReferralGateway__tDAONotReadyYet()
         );
 
+        uint256 membershipDuration = 60 * 60 * 24 * 365 * 5; // 5 years
+
         // Finally, we join the prepaidMember to the tDAO
-        ITakasurePool(nameToDAOData[tDAOName].DAOAddress).prejoins(
+        IEntryModule(nameToDAOData[tDAOName].entryModule).joinPool(
             newMember,
             nameToDAOData[tDAOName].prepaidMembers[newMember].contributionBeforeFee,
-            nameToDAOData[tDAOName].prepaidMembers[newMember].contributionAfterFee
+            membershipDuration
         );
 
+        // TODO: Check if this is the correct amount to transfer
         usdc.safeTransfer(
             nameToDAOData[tDAOName].DAOAddress,
             nameToDAOData[tDAOName].prepaidMembers[newMember].contributionAfterFee
