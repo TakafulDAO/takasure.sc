@@ -1,10 +1,9 @@
-//SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GNU GPLv3
 
 pragma solidity 0.8.28;
-
 interface IEntryModule {
     function joinPool(
-        address mebersWallet,
+        address membersWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external;
