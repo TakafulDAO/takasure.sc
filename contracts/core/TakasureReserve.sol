@@ -58,10 +58,6 @@ contract TakasureReserve is
     error TakasureReserve__WrongFundMarketExpendsShare();
     error TakasureReserve__UnallowedAccess();
 
-    function _onlyModule() internal view {
-        require(moduleManager.isActiveModule(msg.sender), TakasureReserve__UnallowedAccess());
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -462,6 +458,10 @@ contract TakasureReserve is
         reserve.surplus = surplus_;
 
         emit TakasureEvents.OnFundSurplusUpdated(surplus_);
+    }
+
+    function _onlyModule() internal view {
+        require(moduleManager.isActiveModule(msg.sender), TakasureReserve__UnallowedAccess());
     }
 
     function _onlyDaoOrTakadao() internal view {
