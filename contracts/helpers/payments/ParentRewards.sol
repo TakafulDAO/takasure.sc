@@ -15,8 +15,7 @@ abstract contract ParentRewards {
         uint256 _contribution,
         uint256 _currentReferralReserve,
         uint256 _toReferralReserve,
-        uint256 _currentFee,
-        string calldata _tDAOName
+        uint256 _currentFee
     ) internal virtual returns (uint256, uint256) {}
 
     /**
