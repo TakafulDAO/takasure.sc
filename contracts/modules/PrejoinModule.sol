@@ -108,16 +108,15 @@ contract PrejoinModule is
     //////////////////////////////////////////////////////////////*/
 
     event OnNewDAO(
-        string indexed DAOName,
         bool indexed preJoinEnabled,
         bool indexed referralDiscount,
         uint256 launchDate,
         uint256 objectiveAmount
     );
-    event OnDAOLaunchDateUpdated(string indexed DAOName, uint256 indexed launchDate);
-    event OnDAOLaunched(string indexed DAOName, address indexed DAOAddress);
-    event OnReferralDiscountSwitched(string indexed DAOName, bool indexed referralDiscount);
-    event OnRepoolEnabled(string indexed DAOName, address indexed rePoolAddress);
+    event OnDAOLaunchDateUpdated(uint256 indexed launchDate);
+    event OnDAOLaunched(address indexed DAOAddress);
+    event OnReferralDiscountSwitched(bool indexed referralDiscount);
+    event OnRepoolEnabled(address indexed rePoolAddress);
     event OnPrepayment(
         address indexed parent,
         address indexed child,
@@ -125,11 +124,7 @@ contract PrejoinModule is
         uint256 fee,
         uint256 discount
     );
-    event OnCouponRedeemed(
-        address indexed member,
-        string indexed tDAOName,
-        uint256 indexed couponAmount
-    );
+    event OnCouponRedeemed(address indexed member, uint256 indexed couponAmount);
     event OnParentRewarded(
         address indexed parent,
         uint256 indexed layer,
@@ -138,11 +133,10 @@ contract PrejoinModule is
     );
     event OnMemberKYCVerified(address indexed member);
     event OnBenefitMultiplierConsumerChanged(
-        string indexed tDAOName,
         address indexed newBenefitMultiplierConsumer,
         address indexed oldBenefitMultiplierConsumer
     );
-    event OnRefund(string indexed tDAOName, address indexed member, uint256 indexed amount);
+    event OnRefund(address indexed member, uint256 indexed amount);
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
@@ -233,13 +227,7 @@ contract PrejoinModule is
         nameToDAOData[DAOName].objectiveAmount = objectiveAmount;
         nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
 
-        emit OnNewDAO(
-            DAOName,
-            isPreJoinEnabled,
-            isReferralDiscountEnabled,
-            launchDate,
-            objectiveAmount
-        );
+        emit OnNewDAO(isPreJoinEnabled, isReferralDiscountEnabled, launchDate, objectiveAmount);
     }
 
     /**
@@ -253,7 +241,7 @@ contract PrejoinModule is
         );
         nameToDAOData[tDAOName].launchDate = launchDate;
 
-        emit OnDAOLaunchDateUpdated(tDAOName, launchDate);
+        emit OnDAOLaunchDateUpdated(launchDate);
     }
 
     /**
@@ -287,7 +275,7 @@ contract PrejoinModule is
         nameToDAOData[tDAOName].DAOAddress = tDAOAddress;
         nameToDAOData[tDAOName].launchDate = block.timestamp;
 
-        emit OnDAOLaunched(tDAOName, tDAOAddress);
+        emit OnDAOLaunched(tDAOAddress);
     }
 
     /**
@@ -297,7 +285,7 @@ contract PrejoinModule is
         _onlyDAOAdmin(tDAOName);
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
 
-        emit OnReferralDiscountSwitched(tDAOName, nameToDAOData[tDAOName].referralDiscount);
+        emit OnReferralDiscountSwitched(nameToDAOData[tDAOName].referralDiscount);
     }
 
     /**
@@ -314,7 +302,7 @@ contract PrejoinModule is
         );
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
 
-        emit OnRepoolEnabled(tDAOName, rePoolAddress);
+        emit OnRepoolEnabled(rePoolAddress);
     }
 
     function transferToRepool(string calldata tDAOName) external {
@@ -384,7 +372,7 @@ contract PrejoinModule is
             couponAmount
         );
 
-        if (couponAmount > 0) emit OnCouponRedeemed(newMember, tDAOName, couponAmount);
+        if (couponAmount > 0) emit OnCouponRedeemed(newMember, couponAmount);
     }
 
     /**
@@ -520,7 +508,6 @@ contract PrejoinModule is
         );
 
         emit OnBenefitMultiplierConsumerChanged(
-            tDAOName,
             newBenefitMultiplierConsumer,
             oldBenefitMultiplierConsumer
         );
@@ -901,7 +888,7 @@ contract PrejoinModule is
 
         usdc.safeTransfer(_member, amountToRefund);
 
-        emit OnRefund(_tDAOName, _member, amountToRefund);
+        emit OnRefund(_member, amountToRefund);
     }
 
     ///@dev required by the OZ UUPS module
