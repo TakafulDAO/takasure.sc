@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 /**
- * @title ReferralGateway
+ * @title PrejoinModule
  * @author Maikel Ordaz
- * @dev This contract will manage all the functionalities related to the referral system and pre-joins
- *      to the LifeDAO protocol
+ * @dev This contract will manage all the functionalities related to the pre-joins to the LifeDAO protocol
+ * @dev Important notes:
+ *      1. When the dao is launched the prejoin feature will be disabled
+ *      2. After the DAO is launched the user will have to join the DAO manually
+ *      3. After every user joins the DAO, those ones that did not KYC will be refunded
+ *      4. After all this, the module will be disabled
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -20,6 +24,7 @@ import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
 
 pragma solidity 0.8.28;
 
@@ -174,11 +179,11 @@ contract PrejoinModule is
         address _usdcAddress,
         address _benefitMultiplierConsumer
     ) external initializer {
-        _notZeroAddress(_operator);
-        _notZeroAddress(_KYCProvider);
-        _notZeroAddress(_pauseGuardian);
-        _notZeroAddress(_usdcAddress);
-        _notZeroAddress(_benefitMultiplierConsumer);
+        AddressCheck._notZeroAddress(_operator);
+        AddressCheck._notZeroAddress(_KYCProvider);
+        AddressCheck._notZeroAddress(_pauseGuardian);
+        AddressCheck._notZeroAddress(_usdcAddress);
+        AddressCheck._notZeroAddress(_benefitMultiplierConsumer);
         _initDependencies();
 
         _grantRoles(_operator, _KYCProvider, _pauseGuardian);
@@ -216,7 +221,7 @@ contract PrejoinModule is
      */
     function launchDAO(address tDAOAddress, bool isReferralDiscountEnabled) external {
         _onlyDAOAdmin();
-        _notZeroAddress(tDAOAddress);
+        AddressCheck._notZeroAddress(tDAOAddress);
         require(
             ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender),
             ReferralGateway__onlyDAOAdmin()
@@ -250,7 +255,7 @@ contract PrejoinModule is
      */
     function enableRepool(address rePoolAddress) external {
         _onlyDAOAdmin();
-        _notZeroAddress(rePoolAddress);
+        AddressCheck._notZeroAddress(rePoolAddress);
         require(
             nameToDAOData[tDAOName].DAOAddress != address(0),
             ReferralGateway__tDAONotReadyYet()
@@ -325,8 +330,8 @@ contract PrejoinModule is
      * @param child The address of the member
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
-    function setKYCStatus(address child) external whenNotPaused onlyRole(KYC_PROVIDER) {
-        _notZeroAddress(child);
+    function setKYCStatus(address child) external onlyRole(KYC_PROVIDER) {
+        AddressCheck._notZeroAddress(child);
         // Initial checks
         // Can not KYC a member that is already KYCed
         require(!isMemberKYCed[child], ReferralGateway__MemberAlreadyKYCed());
@@ -437,7 +442,7 @@ contract PrejoinModule is
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
     ) external onlyRole(OPERATOR) {
-        _notZeroAddress(newBenefitMultiplierConsumer);
+        AddressCheck._notZeroAddress(newBenefitMultiplierConsumer);
         address oldBenefitMultiplierConsumer = address(nameToDAOData[tDAOName].bmConsumer);
         nameToDAOData[tDAOName].bmConsumer = IBenefitMultiplierConsumer(
             newBenefitMultiplierConsumer
@@ -450,7 +455,7 @@ contract PrejoinModule is
     }
 
     function setNewOperator(address newOperator) external onlyRole(OPERATOR) {
-        _notZeroAddress(newOperator);
+        AddressCheck._notZeroAddress(newOperator);
         address oldOperator = operator;
 
         // Setting the new operator address
@@ -466,14 +471,14 @@ contract PrejoinModule is
     }
 
     function setCouponPoolAddress(address _couponPool) external onlyRole(OPERATOR) {
-        _notZeroAddress(_couponPool);
+        AddressCheck._notZeroAddress(_couponPool);
         address oldCouponPool = couponPool;
         couponPool = _couponPool;
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
     }
 
     function setCCIPReceiverContract(address _ccipReceiverContract) external onlyRole(OPERATOR) {
-        _notZeroAddress(_ccipReceiverContract);
+        AddressCheck._notZeroAddress(_ccipReceiverContract);
         address oldCCIPReceiverContract = ccipReceiverContract;
         ccipReceiverContract = _ccipReceiverContract;
         emit OnNewCCIPReceiverContract(oldCCIPReceiverContract, _ccipReceiverContract);
@@ -586,6 +591,10 @@ contract PrejoinModule is
         address _newMember,
         uint256 _couponAmount
     ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
+        // If the DAO pre join is enabled it means the DAO is not deployed yet
+        require(nameToDAOData[tDAOName].preJoinEnabled, ReferralGateway__tDAONotReadyYet());
+
+        // The prepaid member object is created
         uint256 realContribution;
 
         if (_couponAmount > _contribution) realContribution = _couponAmount;
@@ -594,100 +603,88 @@ contract PrejoinModule is
         _payContributionChecks(realContribution, _parent, _newMember);
 
         _finalFee = (realContribution * SERVICE_FEE_RATIO) / 100;
-        // If the DAO pre join is enabled it means the DAO is not deployed yet
-        if (nameToDAOData[tDAOName].preJoinEnabled) {
-            // The prepaid member object is created inside this if statement only
 
-            // It will get a discount as a pre-joiner
-            _discount +=
-                ((realContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
-                100;
-            uint256 toReferralReserve;
+        // It will get a discount as a pre-joiner
+        _discount +=
+            ((realContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+            100;
+        uint256 toReferralReserve;
 
-            if (nameToDAOData[tDAOName].referralDiscount) {
-                toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
+        if (nameToDAOData[tDAOName].referralDiscount) {
+            toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
 
-                if (_parent != address(0)) {
-                    uint256 referralDiscount = ((realContribution - _couponAmount) *
-                        REFERRAL_DISCOUNT_RATIO) / 100;
-                    _discount += referralDiscount;
+            if (_parent != address(0)) {
+                uint256 referralDiscount = ((realContribution - _couponAmount) *
+                    REFERRAL_DISCOUNT_RATIO) / 100;
+                _discount += referralDiscount;
 
-                    childToParent[_newMember] = _parent;
+                childToParent[_newMember] = _parent;
 
-                    (_finalFee, nameToDAOData[tDAOName].referralReserve) = _parentRewards(
-                        _newMember,
-                        realContribution,
-                        nameToDAOData[tDAOName].referralReserve,
-                        toReferralReserve,
-                        _finalFee
-                    );
-                } else {
-                    nameToDAOData[tDAOName].referralReserve += toReferralReserve;
-                }
+                (_finalFee, nameToDAOData[tDAOName].referralReserve) = _parentRewards(
+                    _newMember,
+                    realContribution,
+                    nameToDAOData[tDAOName].referralReserve,
+                    toReferralReserve,
+                    _finalFee
+                );
+            } else {
+                nameToDAOData[tDAOName].referralReserve += toReferralReserve;
             }
-
-            uint256 rePoolFee = (realContribution * REPOOL_FEE_RATIO) / 100;
-
-            _finalFee -= _discount + toReferralReserve + rePoolFee;
-
-            assert(
-                (realContribution * SERVICE_FEE_RATIO) / 100 ==
-                    _finalFee + _discount + toReferralReserve + rePoolFee
-            );
-
-            nameToDAOData[tDAOName].toRepool += rePoolFee;
-            nameToDAOData[tDAOName].currentAmount +=
-                realContribution -
-                (realContribution * SERVICE_FEE_RATIO) /
-                100;
-            nameToDAOData[tDAOName].collectedFees += _finalFee;
-
-            uint256 amountToTransfer = realContribution - _discount - _couponAmount;
-
-            if (amountToTransfer > 0) {
-                if (msg.sender == ccipReceiverContract) {
-                    usdc.safeTransferFrom(ccipReceiverContract, address(this), amountToTransfer);
-
-                    // Note: This is a temporary solution to test the CCIP integration in the testnet
-                    // This is because in testnet we are using a different USDC contract for easier testing
-                    // IERC20(0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d).safeTransferFrom(
-                    //     ccipReceiverContract,
-                    //     address(this),
-                    //     amountToTransfer
-                    // );
-                } else {
-                    usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
-                }
-            }
-
-            if (_couponAmount > 0) {
-                usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
-            }
-
-            usdc.safeTransfer(operator, _finalFee);
-
-            nameToDAOData[tDAOName].prepaidMembers[_newMember].member = _newMember;
-            nameToDAOData[tDAOName]
-                .prepaidMembers[_newMember]
-                .contributionBeforeFee = realContribution;
-            nameToDAOData[tDAOName].prepaidMembers[_newMember].contributionAfterFee =
-                realContribution -
-                (realContribution * SERVICE_FEE_RATIO) /
-                100;
-            nameToDAOData[tDAOName].prepaidMembers[_newMember].feeToOperator = _finalFee;
-            nameToDAOData[tDAOName].prepaidMembers[_newMember].discount = _discount;
-
-            // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
-            _getBenefitMultiplierFromOracle(_newMember);
-
-            emit OnPrepayment(_parent, _newMember, realContribution, _finalFee, _discount);
-        } else {
-            /**
-             * Call the DAO to join
-             *  TODO: This call needs to change the joinPool function to add a param for the new member
-             *  TODO: To Implement call the function in the router. For V2 of this contract
-             */
         }
+
+        uint256 rePoolFee = (realContribution * REPOOL_FEE_RATIO) / 100;
+
+        _finalFee -= _discount + toReferralReserve + rePoolFee;
+
+        assert(
+            (realContribution * SERVICE_FEE_RATIO) / 100 ==
+                _finalFee + _discount + toReferralReserve + rePoolFee
+        );
+
+        nameToDAOData[tDAOName].toRepool += rePoolFee;
+        nameToDAOData[tDAOName].currentAmount +=
+            realContribution -
+            (realContribution * SERVICE_FEE_RATIO) /
+            100;
+        nameToDAOData[tDAOName].collectedFees += _finalFee;
+
+        uint256 amountToTransfer = realContribution - _discount - _couponAmount;
+
+        if (amountToTransfer > 0) {
+            if (msg.sender == ccipReceiverContract) {
+                usdc.safeTransferFrom(ccipReceiverContract, address(this), amountToTransfer);
+
+                // Note: This is a temporary solution to test the CCIP integration in the testnet
+                // This is because in testnet we are using a different USDC contract for easier testing
+                // IERC20(0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d).safeTransferFrom(
+                //     ccipReceiverContract,
+                //     address(this),
+                //     amountToTransfer
+                // );
+            } else {
+                usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
+            }
+        }
+
+        if (_couponAmount > 0) {
+            usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
+        }
+
+        usdc.safeTransfer(operator, _finalFee);
+
+        nameToDAOData[tDAOName].prepaidMembers[_newMember].member = _newMember;
+        nameToDAOData[tDAOName].prepaidMembers[_newMember].contributionBeforeFee = realContribution;
+        nameToDAOData[tDAOName].prepaidMembers[_newMember].contributionAfterFee =
+            realContribution -
+            (realContribution * SERVICE_FEE_RATIO) /
+            100;
+        nameToDAOData[tDAOName].prepaidMembers[_newMember].feeToOperator = _finalFee;
+        nameToDAOData[tDAOName].prepaidMembers[_newMember].discount = _discount;
+
+        // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
+        _getBenefitMultiplierFromOracle(_newMember);
+
+        emit OnPrepayment(_parent, _newMember, realContribution, _finalFee, _discount);
     }
 
     function _payContributionChecks(
@@ -821,10 +818,6 @@ contract PrejoinModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
 
-    function _notZeroAddress(address _address) internal pure {
-        require(_address != address(0), ReferralGateway__ZeroAddress());
-    }
-
     function _onlyDAOAdmin() internal view {
         require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
     }
@@ -836,8 +829,8 @@ contract PrejoinModule is
         );
     }
 
-    function setDAOName(string calldata newDAOName) internal {
-        _onlyDAOAdmin();
+    /// @dev this function can be removed when the contract is deployed
+    function reinitialize(string calldata newDAOName) internal reinitializer(2) {
         tDAOName = newDAOName;
     }
 }
