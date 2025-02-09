@@ -16,6 +16,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
+import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -23,13 +24,14 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 pragma solidity 0.8.28;
 
 /// @custom:oz-upgrades-from contracts/version_previous_contracts/ReferralGatewayV1.sol:ReferralGatewayV1
-contract ReferralGateway is
+contract PrejoinModule is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     PausableUpgradeable,
-    ParentRewards
+    ParentRewards,
+    ModuleCheck
 {
     using SafeERC20 for IERC20;
 
