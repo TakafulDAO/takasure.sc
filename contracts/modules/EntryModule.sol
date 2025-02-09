@@ -37,7 +37,7 @@ contract EntryModule is
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     ModuleCheck,
-    ReserveAndMemberValuesHook, 
+    ReserveAndMemberValuesHook,
     MemberPaymentFlow
 {
     using SafeERC20 for IERC20;
@@ -48,6 +48,7 @@ contract EntryModule is
     uint256 private transient normalizedContributionBeforeFee;
     uint256 private transient feeAmount;
     uint256 private transient contributionAfterFee;
+    address private prejoinModule;
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
@@ -62,7 +63,10 @@ contract EntryModule is
         _disableInitializers();
     }
 
-    function initialize(address _takasureReserveAddress) external initializer {
+    function initialize(
+        address _takasureReserveAddress,
+        address _prejoinModule
+    ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __ReentrancyGuardTransient_init();
@@ -70,6 +74,7 @@ contract EntryModule is
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
         address takadaoOperator = takasureReserve.takadaoOperator();
+        prejoinModule = _prejoinModule;
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
@@ -80,7 +85,7 @@ contract EntryModule is
      * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
      *         member will be active.
-     * @param mebersWallet address of the member
+     * @param membersWallet address of the member
      * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
      * @dev it reverts if the contribution is less than the minimum threshold defaultes to `minimumThreshold`
@@ -90,65 +95,39 @@ contract EntryModule is
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
     function joinPool(
-        address mebersWallet,
+        address membersWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(takasureReserve, mebersWallet);
+        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
+            takasureReserve,
+            membersWallet
+        );
 
-        require(
-            newMember.memberState == MemberState.Inactive,
-            ModuleErrors.Module__WrongMemberState()
-        );
-        require(
-            contributionBeforeFee >= reserve.minimumThreshold &&
-                contributionBeforeFee <= reserve.maximumThreshold,
-            EntryModule__ContributionOutOfRange()
-        );
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(membersWallet);
 
         _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
 
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(mebersWallet);
-
-        if (!newMember.isRefunded) {
-            // Flow 1: Join -> KYC
-            require(newMember.wallet == address(0), EntryModule__AlreadyJoinedPendingForKYC());
-            // If is not refunded, it is a completele new member, we create it
-            newMember = _createNewMember({
-                _newMemberId: ++reserve.memberIdCounter,
-                _allowCustomDuration: reserve.allowCustomDuration,
-                _drr: reserve.dynamicReserveRatio,
-                _benefitMultiplier: benefitMultiplier, // Fetch from oracle
-                _membershipDuration: membershipDuration, // From the input
-                _isKYCVerified: newMember.isKYCVerified, // The current state, in this case false
-                _memberWallet: mebersWallet, // The member wallet
-                _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
-            });
+        if (msg.sender == prejoinModule) {
+            (reserve, newMember) = _joinFromPrejoinModule(
+                reserve,
+                newMember,
+                membersWallet,
+                membershipDuration,
+                benefitMultiplier
+            );
         } else {
-            // Flow 2: Join (with flow 1) -> Refund -> Join
-            // If is refunded, the member exist already, but was previously refunded
-            newMember = _updateMember({
-                _drr: reserve.dynamicReserveRatio,
-                _benefitMultiplier: benefitMultiplier,
-                _membershipDuration: membershipDuration, // From the input
-                _memberWallet: mebersWallet, // The member wallet
-                _memberState: MemberState.Inactive, // Set to inactive until the KYC is verified
-                _isKYCVerified: newMember.isKYCVerified, // The current state, in this case false
-                _isRefunded: false, // Reset to false as the user repays the contribution
-                _allowCustomDuration: reserve.allowCustomDuration,
-                _member: newMember
-            });
+            (reserve, newMember) = _join(
+                reserve,
+                newMember,
+                membersWallet,
+                contributionBeforeFee,
+                membershipDuration,
+                benefitMultiplier
+            );
         }
-        // The member will pay the contribution, but will remain inactive until the KYC is verified
-        // This means the proformas wont be updated, the amounts wont be added to the reserves,
-        // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-        _transferContributionToModule({_memberWallet: mebersWallet});
 
-        _setNewReserveAndMemberValuesHook(
-            takasureReserve,
-            reserve,
-            newMember
-        );
+        _setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
     }
 
     /**
@@ -159,11 +138,12 @@ contract EntryModule is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function setKYCStatus(
-        address memberWallet
-    ) external onlyRole(ModuleConstants.KYC_PROVIDER) {
+    function setKYCStatus(address memberWallet) external onlyRole(ModuleConstants.KYC_PROVIDER) {
         AddressCheck._notZeroAddress(memberWallet);
-        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(takasureReserve, memberWallet);
+        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
+            takasureReserve,
+            memberWallet
+        );
 
         require(!newMember.isKYCVerified, EntryModule__MemberAlreadyKYCed());
         require(
@@ -206,11 +186,7 @@ contract EntryModule is
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
         emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
 
-        _setNewReserveAndMemberValuesHook(
-            takasureReserve,
-            reserve,
-            newMember
-        );
+        _setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
         takasureReserve.memberSurplus(newMember);
     }
 
@@ -227,7 +203,7 @@ contract EntryModule is
      * @dev To be called by anyone
      * @param memberWallet address to be refunded
      */
-    function refund(address memberWallet) external  {
+    function refund(address memberWallet) external {
         AddressCheck._notZeroAddress(memberWallet);
         _refund(memberWallet);
     }
@@ -236,8 +212,106 @@ contract EntryModule is
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
+    function _joinFromPrejoinModule(
+        Reserve memory _reserve,
+        Member memory _newMember,
+        address _membersWallet,
+        uint256 _membershipDuration,
+        uint256 _benefitMultiplier
+    ) internal returns (Reserve memory, Member memory) {
+        _newMember = _createNewMember({
+            _newMemberId: ++_reserve.memberIdCounter,
+            _allowCustomDuration: _reserve.allowCustomDuration,
+            _drr: _reserve.dynamicReserveRatio,
+            _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
+            _membershipDuration: _membershipDuration, // From the input
+            _isKYCVerified: true, // All members from prejoin are KYCed
+            _memberWallet: _membersWallet, // The member wallet
+            _memberState: MemberState.Active // Set to inactive until the KYC is verified
+        });
+
+        // Then the everyting needed will be updated, proformas, reserves, cash flow,
+        // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
+        uint256 mintedTokens;
+
+        (_reserve, mintedTokens) = _memberPaymentFlow({
+            _contributionBeforeFee: _newMember.contribution,
+            _contributionAfterFee: contributionAfterFee,
+            _memberWallet: _membersWallet,
+            _reserve: _reserve,
+            _takasureReserve: takasureReserve
+        });
+
+        _newMember.creditTokensBalance += mintedTokens;
+
+        emit TakasureEvents.OnMemberKycVerified(_newMember.memberId, _membersWallet);
+        emit TakasureEvents.OnMemberJoined(_newMember.memberId, _membersWallet);
+
+        takasureReserve.memberSurplus(_newMember);
+
+        return (_reserve, _newMember);
+    }
+
+    function _join(
+        Reserve memory _reserve,
+        Member memory _newMember,
+        address _membersWallet,
+        uint256 _contributionBeforeFee,
+        uint256 _membershipDuration,
+        uint256 _benefitMultiplier
+    ) internal returns (Reserve memory, Member memory) {
+        require(
+            _newMember.memberState == MemberState.Inactive,
+            ModuleErrors.Module__WrongMemberState()
+        );
+        require(
+            _contributionBeforeFee >= _reserve.minimumThreshold &&
+                _contributionBeforeFee <= _reserve.maximumThreshold,
+            EntryModule__ContributionOutOfRange()
+        );
+
+        if (!_newMember.isRefunded) {
+            // Flow 1: Join -> KYC
+            require(_newMember.wallet == address(0), EntryModule__AlreadyJoinedPendingForKYC());
+            // If is not refunded, it is a completele new member, we create it
+            _newMember = _createNewMember({
+                _newMemberId: ++_reserve.memberIdCounter,
+                _allowCustomDuration: _reserve.allowCustomDuration,
+                _drr: _reserve.dynamicReserveRatio,
+                _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
+                _membershipDuration: _membershipDuration, // From the input
+                _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
+                _memberWallet: _membersWallet, // The member wallet
+                _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
+            });
+        } else {
+            // Flow 2: Join (with flow 1) -> Refund -> Join
+            // If is refunded, the member exist already, but was previously refunded
+            _newMember = _updateMember({
+                _drr: _reserve.dynamicReserveRatio,
+                _benefitMultiplier: _benefitMultiplier,
+                _membershipDuration: _membershipDuration, // From the input
+                _memberWallet: _membersWallet, // The member wallet
+                _memberState: MemberState.Inactive, // Set to inactive until the KYC is verified
+                _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
+                _isRefunded: false, // Reset to false as the user repays the contribution
+                _allowCustomDuration: _reserve.allowCustomDuration,
+                _member: _newMember
+            });
+        }
+        // The member will pay the contribution, but will remain inactive until the KYC is verified
+        // This means the proformas wont be updated, the amounts wont be added to the reserves,
+        // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
+        _transferContributionToModule({_memberWallet: _membersWallet});
+
+        return (_reserve, _newMember);
+    }
+
     function _refund(address _memberWallet) internal {
-        (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
+        (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
+            takasureReserve,
+            _memberWallet
+        );
 
         // The member should not be KYCed neither already refunded
         require(!_member.isKYCVerified, EntryModule__MemberAlreadyKYCed());
@@ -384,16 +458,27 @@ contract EntryModule is
         ITakasureReserve _takasureReserve
     ) internal override returns (Reserve memory, uint256) {
         _getBenefitMultiplierFromOracle(_memberWallet);
-        return super._memberPaymentFlow(_contributionBeforeFee, _contributionAfterFee, _memberWallet, _reserve, _takasureReserve);
+        return
+            super._memberPaymentFlow(
+                _contributionBeforeFee,
+                _contributionAfterFee,
+                _memberWallet,
+                _reserve,
+                _takasureReserve
+            );
     }
 
     function _transferContribution(
         IERC20 _contributionToken,
-        address ,
+        address,
         address _takasureReserve,
         uint256 _contributionAfterFee
     ) internal override {
-        _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee);
+        // If the caller is from the prejoin module, the transfer will be done by the prejoin module
+        // to the takasure reserve. Otherwise, the transfer will be done by this contract
+        if (msg.sender != prejoinModule) {
+            _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee);
+        }
     }
 
     function _getBenefitMultiplierFromOracle(
