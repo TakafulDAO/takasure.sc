@@ -90,7 +90,10 @@ contract TestDeployTakasureReserve is Script {
             )
         );
 
-        (entryModule, memberModule, revenueModule) = _deployModules(takasureReserve);
+        (entryModule, memberModule, revenueModule) = _deployModules(
+            takasureReserve,
+            address(referralGatewayProxy)
+        );
 
         // Deploy router
         userRouterImplementation = address(new UserRouter());
@@ -165,13 +168,14 @@ contract TestDeployTakasureReserve is Script {
     }
 
     function _deployModules(
-        address _takasureReserve
+        address _takasureReserve,
+        address _prejoinModule
     ) internal returns (address entryModule, address memberModule, address revenueModule) {
         // Deploy EntryModule
         address entryModuleImplementation = address(new EntryModule());
         entryModule = UnsafeUpgrades.deployUUPSProxy(
             entryModuleImplementation,
-            abi.encodeCall(EntryModule.initialize, (_takasureReserve))
+            abi.encodeCall(EntryModule.initialize, (_takasureReserve, _prejoinModule))
         );
 
         // Deploy MemberModule
