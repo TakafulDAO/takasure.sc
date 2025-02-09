@@ -23,7 +23,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.28;
 
-/// @custom:oz-upgrades-from contracts/version_previous_contracts/ReferralGatewayV1.sol:ReferralGatewayV1
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/PrejoinModuleV1.sol:PrejoinModuleV1
 contract PrejoinModule is
     Initializable,
     UUPSUpgradeable,
@@ -40,7 +40,7 @@ contract PrejoinModule is
 
     address private operator;
 
-    mapping(string tDAOName => tDAO DAOData) private nameToDAOData; // ! Deprecated slot
+    mapping(string tDAOName => tDAO DAOData) private nameToDAOData;
     mapping(address member => bool) public isMemberKYCed;
     mapping(address child => address parent) public childToParent;
 
@@ -60,7 +60,7 @@ contract PrejoinModule is
 
     struct tDAO {
         mapping(address member => PrepaidMember) prepaidMembers;
-        string name; // ! Deprecated
+        string name;
         bool preJoinEnabled;
         bool referralDiscount;
         address DAOAdmin; // The one that can modify the DAO settings
@@ -190,38 +190,6 @@ contract PrejoinModule is
     /*//////////////////////////////////////////////////////////////
                                DAO ADMIN
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Create a new DAO
-     * @param isPreJoinEnabled The pre-join status of the DAO
-     * @param isReferralDiscountEnabled The referral discount status of the DAO
-     * @param launchDate An estimated launch date of the DAO
-     * @param objectiveAmount The objective amount of the DAO
-     * @dev The launch date must be in seconds
-     * @dev The launch date can be 0, if the DAO is already launched or the launch date is not defined
-     * @dev The objective amount must be in USDC, six decimals
-     * @dev The objective amount can be 0, if the DAO is already launched or the objective amount is not defined
-     */
-    function createDAO(
-        bool isPreJoinEnabled,
-        bool isReferralDiscountEnabled,
-        uint256 launchDate,
-        uint256 objectiveAmount,
-        address _bmConsumer
-    ) external whenNotPaused onlyRole(OPERATOR) {
-        require(launchDate > block.timestamp, ReferralGateway__InvalidLaunchDate());
-
-        // Create the new DAO
-        nameToDAOData[tDAOName].name = tDAOName;
-        nameToDAOData[tDAOName].preJoinEnabled = isPreJoinEnabled;
-        nameToDAOData[tDAOName].referralDiscount = isReferralDiscountEnabled;
-        nameToDAOData[tDAOName].DAOAdmin = msg.sender;
-        nameToDAOData[tDAOName].launchDate = launchDate;
-        nameToDAOData[tDAOName].objectiveAmount = objectiveAmount;
-        nameToDAOData[tDAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
-
-        emit OnNewDAO(isPreJoinEnabled, isReferralDiscountEnabled, launchDate, objectiveAmount);
-    }
 
     /**
      * @notice Update the DAO estimated launch date
