@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
@@ -12,7 +12,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureProtocolHandler} from "test/helpers/handlers/TakasureProtocolHandler.t.sol";
 
 contract TakasureProtocolInvariantTest is StdInvariant, Test {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     EntryModule entryModule;
     MemberModule memberModule;
@@ -28,16 +28,16 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
 
     function setUp() public {
-        deployer = new TestDeployTakasureReserve();
+        deployer = new TestDeployProtocol();
         (
             ,
             ,
             takasureReserveProxy,
+            ,
             entryModuleAddress,
             memberModuleAddress,
             ,
             userRouterAddress,
-            ,
             contributionTokenAddress,
             ,
 

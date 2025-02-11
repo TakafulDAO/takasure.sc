@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
@@ -16,7 +16,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
 contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -38,16 +38,16 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new TestDeployTakasureReserve();
+        deployer = new TestDeployProtocol();
         (
             ,
             bmConsumerMock,
             takasureReserveProxy,
+            ,
             entryModuleAddress,
             ,
             ,
             userRouterAddress,
-            ,
             contributionTokenAddress,
             ,
             helperConfig

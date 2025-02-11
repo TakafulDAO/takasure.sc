@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
@@ -12,7 +12,7 @@ import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.
 import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
 
 contract Reverts_TakasureCoreTest is StdCheats, Test {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -22,7 +22,7 @@ contract Reverts_TakasureCoreTest is StdCheats, Test {
     address public alice = makeAddr("alice");
 
     function setUp() public {
-        deployer = new TestDeployTakasureReserve();
+        deployer = new TestDeployProtocol();
         (, bmConsumerMock, takasureReserveProxy, , , , , , , , helperConfig) = deployer.run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);

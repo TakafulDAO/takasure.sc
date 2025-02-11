@@ -3,13 +3,13 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
 
 contract TokenTest is Test {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     TSToken daoToken;
     TakasureReserve takasureReserve;
     EntryModule entryModule;
@@ -27,8 +27,8 @@ contract TokenTest is Test {
     function setUp() public {
         // deployer = new TestDeployTakasure();
         // (daoToken, proxy, , ) = deployer.run();
-        deployer = new TestDeployTakasureReserve();
-        (, , takasureReserveProxy, entryModuleAddress, , , , , , , ) = deployer.run();
+        deployer = new TestDeployProtocol();
+        (, , takasureReserveProxy, , entryModuleAddress, , , , , , ) = deployer.run();
 
         entryModule = EntryModule(entryModuleAddress);
 

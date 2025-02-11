@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
@@ -11,13 +11,14 @@ import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
+import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonResponse {
-    TestDeployTakasureReserve deployer;
+contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
+    TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -27,7 +28,6 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
-    address kycService;
     address takadao;
     address entryModuleAddress;
     address memberModuleAddress;
@@ -39,16 +39,16 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new TestDeployTakasureReserve();
+        deployer = new TestDeployProtocol();
         (
             ,
             bmConsumerMock,
             takasureReserveProxy,
+            ,
             entryModuleAddress,
             memberModuleAddress,
             ,
             userRouterAddress,
-            ,
             contributionTokenAddress,
             ,
             helperConfig
@@ -61,11 +61,17 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
-        kycService = config.kycProvider;
         takadao = config.takadaoOperator;
 
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
+
+        // For easier testing there is a minimal USDC mock contract without restrictions
+        deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
+
+        vm.startPrank(alice);
+        usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
+        vm.stopPrank();
 
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
@@ -75,65 +81,72 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
 
         vm.prank(takadao);
         entryModule.updateBmAddress();
+    }
 
-        // For easier testing there is a minimal USDC mock contract without restrictions
-        deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
+    /*//////////////////////////////////////////////////////////////
+                                REVERTS
+    //////////////////////////////////////////////////////////////*/
 
+    /// @dev `payRecurringContribution` must revert if the member is invalid
+    function testMemberModule_payRecurringContributionMustRevertIfMemberIsInvalid() public {
+        vm.prank(alice);
+        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
+        userRouter.payRecurringContribution();
+    }
+
+    /// @dev `payRecurringContribution` must revert if the date is invalid, a year has passed and the member has not paid
+    function testMemberModule_payRecurringContributionMustRevertIfDateIsInvalidNotPaidInTime()
+        public
+    {
         vm.startPrank(alice);
         usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
-        usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
-
         userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.startPrank(admin);
+        vm.prank(admin);
         entryModule.setKYCStatus(alice);
+
+        vm.warp(block.timestamp + 396 days);
+        vm.roll(block.number + 1);
+
+        vm.startPrank(alice);
+        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
+        userRouter.payRecurringContribution();
         vm.stopPrank();
     }
 
-    function testMemberModule_payRecurringContributionThrough5Years() public {
-        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
+    /// @dev `payRecurringContribution` must revert if the date is invalid, the membership expired
+    function testMemberModule_payRecurringContributionMustRevertIfDateIsInvalidMembershipExpired()
+        public
+    {
+        vm.startPrank(alice);
+        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
+        userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.stopPrank();
+
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerMock));
+
+        vm.prank(admin);
+        entryModule.setKYCStatus(alice);
 
         for (uint256 i = 0; i < 5; i++) {
-            Member memory testMember = takasureReserve.getMemberFromAddress(alice);
-
-            uint256 lastYearStartDateBefore = testMember.lastPaidYearStartDate;
-            uint256 totalContributionBeforePayment = testMember.totalContributions;
-            uint256 totalServiceFeeBeforePayment = testMember.totalServiceFee;
-
             vm.warp(block.timestamp + YEAR);
             vm.roll(block.number + 1);
 
             vm.startPrank(alice);
-            vm.expectEmit(true, true, true, true, address(memberModule));
-            emit TakasureEvents.OnRecurringPayment(
-                alice,
-                testMember.memberId,
-                lastYearStartDateBefore + 365 days,
-                CONTRIBUTION_AMOUNT,
-                totalServiceFeeBeforePayment + expectedServiceIncrease
-            );
             userRouter.payRecurringContribution();
             vm.stopPrank();
-
-            testMember = takasureReserve.getMemberFromAddress(alice);
-
-            uint256 lastYearStartDateAfter = testMember.lastPaidYearStartDate;
-            uint256 totalContributionAfterPayment = testMember.totalContributions;
-            uint256 totalServiceFeeAfterPayment = testMember.totalServiceFee;
-
-            assert(lastYearStartDateAfter == lastYearStartDateBefore + 365 days);
-            assert(
-                totalContributionAfterPayment ==
-                    totalContributionBeforePayment + CONTRIBUTION_AMOUNT
-            );
-            assert(
-                totalServiceFeeAfterPayment ==
-                    totalServiceFeeBeforePayment + expectedServiceIncrease
-            );
         }
+
+        vm.warp(block.timestamp + YEAR);
+        vm.roll(block.number + 1);
+
+        vm.startPrank(alice);
+        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
+        userRouter.payRecurringContribution();
     }
 }
