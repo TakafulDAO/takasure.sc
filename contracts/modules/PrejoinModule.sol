@@ -126,22 +126,22 @@ contract PrejoinModule is
         address indexed newCCIPReceiverContract
     );
 
-    error ReferralGateway__ZeroAddress();
-    error ReferralGateway__onlyDAOAdmin();
-    error ReferralGateway__MustHaveName();
-    error ReferralGateway__InvalidLaunchDate();
-    error ReferralGateway__AlreadyExists();
-    error ReferralGateway__DAOAlreadyLaunched();
-    error ReferralGateway__ZeroAmount();
-    error ReferralGateway__ContributionOutOfRange();
-    error ReferralGateway__ParentMustKYCFirst();
-    error ReferralGateway__AlreadyMember();
-    error ReferralGateway__MemberAlreadyKYCed();
-    error ReferralGateway__HasNotPaid();
-    error ReferralGateway__NotKYCed();
-    error ReferralGateway__tDAONotReadyYet();
-    error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
-    error ReferralGateway__NotAuthorizedCaller();
+    error PrejoinModule__ZeroAddress();
+    error PrejoinModule__onlyDAOAdmin();
+    error PrejoinModule__MustHaveName();
+    error PrejoinModule__InvalidLaunchDate();
+    error PrejoinModule__AlreadyExists();
+    error PrejoinModule__DAOAlreadyLaunched();
+    error PrejoinModule__ZeroAmount();
+    error PrejoinModule__ContributionOutOfRange();
+    error PrejoinModule__ParentMustKYCFirst();
+    error PrejoinModule__AlreadyMember();
+    error PrejoinModule__MemberAlreadyKYCed();
+    error PrejoinModule__HasNotPaid();
+    error PrejoinModule__NotKYCed();
+    error PrejoinModule__tDAONotReadyYet();
+    error PrejoinModule__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
+    error PrejoinModule__NotAuthorizedCaller();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -173,13 +173,52 @@ contract PrejoinModule is
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Create a new DAO
+     * @param DAOName The name of the DAO
+     * @param isPreJoinEnabled The pre-join status of the DAO
+     * @param isReferralDiscountEnabled The referral discount status of the DAO
+     * @param launchDate An estimated launch date of the DAO
+     * @param objectiveAmount The objective amount of the DAO
+     * @dev The launch date must be in seconds
+     * @dev The launch date can be 0, if the DAO is already launched or the launch date is not defined
+     * @dev The objective amount must be in USDC, six decimals
+     * @dev The objective amount can be 0, if the DAO is already launched or the objective amount is not defined
+     */
+    function createDAO(
+        string calldata DAOName,
+        bool isPreJoinEnabled,
+        bool isReferralDiscountEnabled,
+        uint256 launchDate,
+        uint256 objectiveAmount,
+        address _bmConsumer
+    ) external whenNotPaused onlyRole(OPERATOR) {
+        require(bytes(DAOName).length != 0, PrejoinModule__MustHaveName());
+        require(
+            !(Strings.equal(nameToDAOData[DAOName].name, DAOName)),
+            PrejoinModule__AlreadyExists()
+        );
+        require(launchDate > block.timestamp, PrejoinModule__InvalidLaunchDate());
+
+        // Create the new DAO
+        nameToDAOData[DAOName].name = DAOName;
+        nameToDAOData[DAOName].preJoinEnabled = isPreJoinEnabled;
+        nameToDAOData[DAOName].referralDiscount = isReferralDiscountEnabled;
+        nameToDAOData[DAOName].DAOAdmin = msg.sender;
+        nameToDAOData[DAOName].launchDate = launchDate;
+        nameToDAOData[DAOName].objectiveAmount = objectiveAmount;
+        nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
+
+        emit OnNewDAO(isPreJoinEnabled, isReferralDiscountEnabled, launchDate, objectiveAmount);
+    }
+
+    /**
      * @notice Update the DAO estimated launch date
      */
     function updateLaunchDate(uint256 launchDate) external {
         _onlyDAOAdmin();
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
-            ReferralGateway__DAOAlreadyLaunched()
+            PrejoinModule__DAOAlreadyLaunched()
         );
         nameToDAOData[tDAOName].launchDate = launchDate;
 
@@ -200,11 +239,11 @@ contract PrejoinModule is
         AddressCheck._notZeroAddress(tDAOAddress);
         require(
             ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender),
-            ReferralGateway__onlyDAOAdmin()
+            PrejoinModule__onlyDAOAdmin()
         );
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
-            ReferralGateway__DAOAlreadyLaunched()
+            PrejoinModule__DAOAlreadyLaunched()
         );
 
         nameToDAOData[tDAOName].preJoinEnabled = false;
@@ -232,10 +271,7 @@ contract PrejoinModule is
     function enableRepool(address rePoolAddress) external {
         _onlyDAOAdmin();
         AddressCheck._notZeroAddress(rePoolAddress);
-        require(
-            nameToDAOData[tDAOName].DAOAddress != address(0),
-            ReferralGateway__tDAONotReadyYet()
-        );
+        require(nameToDAOData[tDAOName].DAOAddress != address(0), PrejoinModule__tDAONotReadyYet());
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
 
         emit OnRepoolEnabled(rePoolAddress);
@@ -243,11 +279,8 @@ contract PrejoinModule is
 
     function transferToRepool() external {
         _onlyDAOAdmin();
-        require(
-            nameToDAOData[tDAOName].rePoolAddress != address(0),
-            ReferralGateway__ZeroAddress()
-        );
-        require(nameToDAOData[tDAOName].toRepool > 0, ReferralGateway__ZeroAmount());
+        require(nameToDAOData[tDAOName].rePoolAddress != address(0), PrejoinModule__ZeroAddress());
+        require(nameToDAOData[tDAOName].toRepool > 0, PrejoinModule__ZeroAmount());
 
         uint256 amount = nameToDAOData[tDAOName].toRepool;
         address rePoolAddress = nameToDAOData[tDAOName].rePoolAddress;
@@ -310,12 +343,12 @@ contract PrejoinModule is
         AddressCheck._notZeroAddress(child);
         // Initial checks
         // Can not KYC a member that is already KYCed
-        require(!isMemberKYCed[child], ReferralGateway__MemberAlreadyKYCed());
+        require(!isMemberKYCed[child], PrejoinModule__MemberAlreadyKYCed());
 
         // The member must have already pre-paid
         require(
             nameToDAOData[tDAOName].prepaidMembers[child].contributionBeforeFee != 0,
-            ReferralGateway__HasNotPaid()
+            PrejoinModule__HasNotPaid()
         );
 
         // Update the KYC status
@@ -355,12 +388,12 @@ contract PrejoinModule is
      */
     function joinDAO(address newMember) external whenNotPaused nonReentrant {
         // Initial checks
-        require(isMemberKYCed[newMember], ReferralGateway__NotKYCed());
+        require(isMemberKYCed[newMember], PrejoinModule__NotKYCed());
 
         require(
             nameToDAOData[tDAOName].DAOAddress != address(0) &&
                 nameToDAOData[tDAOName].launchDate <= block.timestamp,
-            ReferralGateway__tDAONotReadyYet()
+            PrejoinModule__tDAONotReadyYet()
         );
 
         uint256 membershipDuration = 60 * 60 * 24 * 365 * 5; // 5 years
@@ -392,7 +425,7 @@ contract PrejoinModule is
         require(
             nameToDAOData[tDAOName].launchDate < block.timestamp &&
                 nameToDAOData[tDAOName].DAOAddress == address(0),
-            ReferralGateway__tDAONotReadyYet()
+            PrejoinModule__tDAONotReadyYet()
         );
 
         _refund(member);
@@ -571,7 +604,7 @@ contract PrejoinModule is
         uint256 _couponAmount
     ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
         // If the DAO pre join is enabled it means the DAO is not deployed yet
-        require(nameToDAOData[tDAOName].preJoinEnabled, ReferralGateway__tDAONotReadyYet());
+        require(nameToDAOData[tDAOName].preJoinEnabled, PrejoinModule__tDAONotReadyYet());
 
         // The prepaid member object is created
         uint256 realContribution;
@@ -675,22 +708,22 @@ contract PrejoinModule is
         require(
             nameToDAOData[tDAOName].preJoinEnabled ||
                 nameToDAOData[tDAOName].DAOAddress != address(0),
-            ReferralGateway__tDAONotReadyYet()
+            PrejoinModule__tDAONotReadyYet()
         );
 
         require(
             _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
-            ReferralGateway__ContributionOutOfRange()
+            PrejoinModule__ContributionOutOfRange()
         );
 
         if (_parent != address(0))
-            require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
+            require(isMemberKYCed[_parent], PrejoinModule__ParentMustKYCFirst());
 
         if (nameToDAOData[tDAOName].preJoinEnabled) {
             // We check if the member already exists
             require(
                 nameToDAOData[tDAOName].prepaidMembers[_newMember].contributionBeforeFee == 0,
-                ReferralGateway__AlreadyMember()
+                PrejoinModule__AlreadyMember()
             );
         }
     }
@@ -744,7 +777,7 @@ contract PrejoinModule is
     function _refund(address _member) internal {
         require(
             nameToDAOData[tDAOName].prepaidMembers[_member].contributionBeforeFee != 0,
-            ReferralGateway__HasNotPaid()
+            PrejoinModule__HasNotPaid()
         );
 
         uint256 discountReceived = nameToDAOData[tDAOName].prepaidMembers[_member].discount;
@@ -755,7 +788,7 @@ contract PrejoinModule is
 
         require(
             amountToRefund <= usdc.balanceOf(address(this)),
-            ReferralGateway__NotEnoughFunds(amountToRefund, usdc.balanceOf(address(this)))
+            PrejoinModule__NotEnoughFunds(amountToRefund, usdc.balanceOf(address(this)))
         );
 
         uint256 leftover = amountToRefund;
@@ -798,18 +831,18 @@ contract PrejoinModule is
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
 
     function _onlyDAOAdmin() internal view {
-        require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
+        require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, PrejoinModule__onlyDAOAdmin());
     }
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
             hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
-            ReferralGateway__NotAuthorizedCaller()
+            PrejoinModule__NotAuthorizedCaller()
         );
     }
 
     /// @dev this function can be removed when the contract is deployed
-    function reinitialize(string calldata newDAOName) internal reinitializer(2) {
+    function setDAOName(string calldata newDAOName) external onlyRole(OPERATOR) {
         tDAOName = newDAOName;
     }
 }
