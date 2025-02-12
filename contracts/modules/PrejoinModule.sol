@@ -234,9 +234,14 @@ contract PrejoinModule is
      * @dev The tDAOAddress must be different from 0
      * @dev It will disable the preJoinEnabled status of the DAO
      */
-    function launchDAO(address tDAOAddress, bool isReferralDiscountEnabled) external {
+    function launchDAO(
+        address tDAOAddress,
+        address entryModuleAddress,
+        bool isReferralDiscountEnabled
+    ) external {
         _onlyDAOAdmin();
         AddressCheck._notZeroAddress(tDAOAddress);
+        AddressCheck._notZeroAddress(entryModuleAddress);
         require(
             ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender),
             PrejoinModule__onlyDAOAdmin()
@@ -249,6 +254,7 @@ contract PrejoinModule is
         nameToDAOData[tDAOName].preJoinEnabled = false;
         nameToDAOData[tDAOName].referralDiscount = isReferralDiscountEnabled;
         nameToDAOData[tDAOName].DAOAddress = tDAOAddress;
+        nameToDAOData[tDAOName].entryModule = entryModuleAddress;
         nameToDAOData[tDAOName].launchDate = block.timestamp;
 
         emit OnDAOLaunched(tDAOAddress);
