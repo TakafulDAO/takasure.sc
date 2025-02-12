@@ -11,7 +11,7 @@ import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
+import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
 import {Reserve, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -21,7 +21,12 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
-contract RevenueModule is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ModuleCheck {
+contract RevenueModule is
+    Initializable,
+    UUPSUpgradeable,
+    AccessControlUpgradeable,
+    TLDModuleImplementation
+{
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;

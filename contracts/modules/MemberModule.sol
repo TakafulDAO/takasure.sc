@@ -15,7 +15,7 @@ import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
+import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
@@ -35,7 +35,7 @@ contract MemberModule is
     UUPSUpgradeable,
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
-    ModuleCheck,
+    TLDModuleImplementation,
     ReserveAndMemberValuesHook,
     MemberPaymentFlow
 {

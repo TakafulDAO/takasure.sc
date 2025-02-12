@@ -21,7 +21,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
-import {ModuleCheck} from "contracts/modules/moduleUtils/ModuleCheck.sol";
+import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
 import {tDAO, PrepaidMember} from "contracts/types/TakasureTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -38,7 +38,7 @@ contract PrejoinModule is
     ReentrancyGuardTransientUpgradeable,
     PausableUpgradeable,
     ParentRewards,
-    ModuleCheck
+    TLDModuleImplementation
 {
     using SafeERC20 for IERC20;
 
