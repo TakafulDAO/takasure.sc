@@ -116,9 +116,10 @@ contract PrejoinModuleTest is Test, SimulateDonResponse {
         takasureReserve.setNewReferralGateway(address(prejoinModule));
         vm.stopPrank();
 
-        vm.prank(bmConsumerMock.admin());
+        vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
         bmConsumerMock.setNewRequester(prejoinModuleAddress);
+        vm.stopPrank();
 
         // Give and approve USDC
         deal(address(usdc), referral, USDC_INITIAL_AMOUNT);
@@ -241,14 +242,18 @@ contract PrejoinModuleTest is Test, SimulateDonResponse {
 
         vm.prank(referral);
         vm.expectRevert(PrejoinModule.PrejoinModule__onlyDAOAdmin.selector);
-        prejoinModule.launchDAO(address(takasureReserve), true);
+        prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         vm.prank(daoAdmin);
         vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
-        prejoinModule.launchDAO(address(0), true);
+        prejoinModule.launchDAO(address(0), entryModuleAddress, true);
 
         vm.prank(daoAdmin);
-        prejoinModule.launchDAO(address(takasureReserve), true);
+        vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
+        prejoinModule.launchDAO(address(takasureReserve), address(0), true);
+
+        vm.prank(daoAdmin);
+        prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         (
             prejoinEnabled,
@@ -275,7 +280,7 @@ contract PrejoinModuleTest is Test, SimulateDonResponse {
 
         vm.prank(daoAdmin);
         vm.expectRevert(PrejoinModule.PrejoinModule__DAOAlreadyLaunched.selector);
-        prejoinModule.launchDAO(address(takasureReserve), true);
+        prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         vm.prank(daoAdmin);
         prejoinModule.switchReferralDiscount();
@@ -548,7 +553,7 @@ contract PrejoinModuleTest is Test, SimulateDonResponse {
         referredPrepays
     {
         vm.prank(daoAdmin);
-        prejoinModule.launchDAO(address(takasureReserve), true);
+        prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         vm.prank(child);
         vm.expectRevert(PrejoinModule.PrejoinModule__NotKYCed.selector);
@@ -564,6 +569,9 @@ contract PrejoinModuleTest is Test, SimulateDonResponse {
         referredPrepays
         referredIsKYC
     {
+        // We simulate a request before the KYC
+        _successResponse(address(bmConsumerMock));
+
         (, , , , , , , , , , uint256 referralReserve) = prejoinModule.getDAOData();
         // Current Referral balance must be
         // For referral prepayment: Contribution * 5% = 25 * 5% = 1.25
@@ -584,12 +592,12 @@ contract PrejoinModuleTest is Test, SimulateDonResponse {
         vm.warp(launchDate + 1);
         vm.roll(block.number + 1);
 
-        vm.prank(daoAdmin);
-        prejoinModule.launchDAO(address(takasureReserve), true);
+        vm.startPrank(daoAdmin);
+        prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
+        entryModule.updateBmAddress();
+        vm.stopPrank();
 
         vm.prank(child);
-        // vm.expectEmit(true, true, false, false, address(takasureReserve));
-        // emit OnMemberJoined(2, child);
         prejoinModule.joinDAO(child);
 
         uint256 prejoinModuleFinalBalance = usdc.balanceOf(address(prejoinModule));
@@ -892,7 +900,7 @@ contract PrejoinModuleTest is Test, SimulateDonResponse {
         prejoinModule.setKYCStatus(childWithoutReferee);
 
         vm.prank(daoAdmin);
-        prejoinModule.launchDAO(address(takasureReserve), true);
+        prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         address rePoolAddress = makeAddr("rePoolAddress");
 
@@ -1095,7 +1103,7 @@ contract PrejoinModuleTest is Test, SimulateDonResponse {
         vm.roll(block.number + 1);
 
         vm.prank(daoAdmin);
-        prejoinModule.launchDAO(address(takasureReserve), true);
+        prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         vm.prank(child);
         vm.expectRevert(PrejoinModule.PrejoinModule__tDAONotReadyYet.selector);
