@@ -69,4 +69,7 @@ contract TakasureProtocolHandler is Test {
         // console2.log("Date updated by", time / 1 days, "days");
         // console2.log("=====================================");
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

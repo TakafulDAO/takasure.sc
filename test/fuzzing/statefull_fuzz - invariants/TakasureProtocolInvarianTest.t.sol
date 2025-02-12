@@ -105,4 +105,7 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
     //     takasurePool.getReserveValues();
     //     takasurePool.getDaoTokenAddress();
     // }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

@@ -228,4 +228,7 @@ contract TestDeployTakasureReserve is Script {
         _creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
         _creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }
