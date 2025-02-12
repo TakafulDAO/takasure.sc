@@ -3,12 +3,12 @@
 pragma solidity 0.8.28;
 
 abstract contract ParentRewards {
-    int256 private constant MAX_TIER = 4;
+    int256 internal constant MAX_TIER = 4;
     int256 private constant A = -3_125;
     int256 private constant B = 30_500;
     int256 private constant C = -99_625;
     int256 private constant D = 112_250;
-    uint256 private constant DECIMAL_CORRECTION = 10_000;
+    uint256 internal constant DECIMAL_CORRECTION = 10_000;
 
     function _parentRewards(
         address _initialChildToCheck,
