@@ -3,6 +3,13 @@ import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplie
 
 pragma solidity 0.8.28;
 
+enum ModuleState {
+    Disabled,
+    Enabled,
+    Paused,
+    Deprecated
+}
+
 enum MemberState {
     Inactive,
     Active,
@@ -33,6 +40,16 @@ struct CashFlowVars {
     uint8 dayReference;
 }
 
+struct PrepaidMember {
+    address member;
+    uint256 contributionBeforeFee;
+    uint256 contributionAfterFee;
+    uint256 feeToOperator; // Fee after all the discounts and rewards
+    uint256 discount;
+    mapping(address child => uint256 rewards) parentRewardsByChild;
+    mapping(uint256 layer => uint256 rewards) parentRewardsByLayer;
+}
+
 struct Member {
     uint256 memberId;
     uint256 benefitMultiplier;
@@ -51,6 +68,24 @@ struct Member {
     bool isRefunded; // Can not be true if isKYCVerified is true
     uint256 lastEcr; // the last ECR calculated
     uint256 lastUcr; // the last UCR calculated
+}
+
+struct tDAO {
+    mapping(address member => PrepaidMember) prepaidMembers;
+    string name;
+    bool preJoinEnabled;
+    bool referralDiscount;
+    address DAOAdmin; // The one that can modify the DAO settings
+    address DAOAddress; // To be assigned when the tDAO is deployed
+    uint256 launchDate; // In seconds. An estimated launch date of the DAO
+    uint256 objectiveAmount; // In USDC, six decimals
+    uint256 currentAmount; // In USDC, six decimals
+    uint256 collectedFees; // Fees collected after deduct, discounts, referral reserve and repool amounts. In USDC, six decimals
+    address rePoolAddress; // To be assigned when the tDAO is deployed
+    uint256 toRepool; // In USDC, six decimals
+    uint256 referralReserve; // In USDC, six decimals
+    IBenefitMultiplierConsumer bmConsumer;
+    address entryModule; // The module that will be used to enter the DAO
 }
 
 struct Reserve {
@@ -80,32 +115,4 @@ struct Reserve {
     uint256 ECRes; // Default 0
     uint256 UCRes; // Default 0
     uint256 surplus; // Default 0
-}
-
-struct PrepaidMember {
-    address member;
-    uint256 contributionBeforeFee;
-    uint256 contributionAfterFee;
-    uint256 feeToOperator; // Fee after all the discounts and rewards
-    uint256 discount;
-    mapping(address child => uint256 rewards) parentRewardsByChild;
-    mapping(uint256 layer => uint256 rewards) parentRewardsByLayer;
-}
-
-struct tDAO {
-    mapping(address member => PrepaidMember) prepaidMembers;
-    string name;
-    bool preJoinEnabled;
-    bool referralDiscount;
-    address DAOAdmin; // The one that can modify the DAO settings
-    address DAOAddress; // To be assigned when the tDAO is deployed
-    uint256 launchDate; // In seconds. An estimated launch date of the DAO
-    uint256 objectiveAmount; // In USDC, six decimals
-    uint256 currentAmount; // In USDC, six decimals
-    uint256 collectedFees; // Fees collected after deduct, discounts, referral reserve and repool amounts. In USDC, six decimals
-    address rePoolAddress; // To be assigned when the tDAO is deployed
-    uint256 toRepool; // In USDC, six decimals
-    uint256 referralReserve; // In USDC, six decimals
-    IBenefitMultiplierConsumer bmConsumer;
-    address entryModule; // The module that will be used to enter the DAO
 }

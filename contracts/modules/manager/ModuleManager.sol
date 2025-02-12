@@ -15,18 +15,14 @@ import {IModuleCheck} from "contracts/interfaces/IModuleCheck.sol";
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
+import {ModuleState} from "contracts/types/TakasureTypes.sol";
+
 pragma solidity 0.8.28;
 
 contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
-    enum State {
-        DISABLED,
-        ENABLED,
-        PAUSED,
-        DEPRECATED
-    }
     struct Module {
         address moduleAddress;
-        State moduleState;
+        ModuleState moduleState;
     }
 
     mapping(address moduleAddr => Module) private addressToModule;
@@ -35,8 +31,8 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    event OnNewModule(address newModuleAddr, State newModuleStatus);
-    event OnModuleStateChanged(State oldState, State newState);
+    event OnNewModule(address newModuleAddr, ModuleState newModuleStatus);
+    event OnModuleStateChanged(ModuleState oldState, ModuleState newState);
 
     error ModuleManager__AddressZeroNotAllowed();
     error ModuleManager__AlreadyModule();
@@ -55,7 +51,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @param newModule The new module address
      * @param state Can only be DISABLED or ENABLED
      */
-    function addModule(address newModule, State state) external onlyOwner nonReentrant {
+    function addModule(address newModule, ModuleState state) external onlyOwner nonReentrant {
         // New module can not be address 0, can not be already a module, and the status must be disabled or enabled
         require(newModule != address(0), ModuleManager__AddressZeroNotAllowed());
         require(
@@ -63,7 +59,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
             ModuleManager__AlreadyModule()
         );
         require(
-            state == State.DISABLED || state == State.ENABLED,
+            state == ModuleState.Disabled || state == ModuleState.Enabled,
             ModuleManager__WrongInitialState()
         );
 
@@ -81,14 +77,14 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @param newState The new state of the module
      * @dev The module can not be DEPRECATED
      */
-    function changeModuleStatus(address module, State newState) external onlyOwner {
+    function changeModuleState(address module, ModuleState newState) external onlyOwner {
         require(addressToModule[module].moduleAddress != address(0), ModuleManager__NotModule());
         require(
-            addressToModule[module].moduleState != State.DEPRECATED,
+            addressToModule[module].moduleState != ModuleState.Deprecated,
             ModuleManager__WrongState()
         );
 
-        State oldState = addressToModule[module].moduleState;
+        ModuleState oldState = addressToModule[module].moduleState;
         addressToModule[module].moduleState = newState;
 
         emit OnModuleStateChanged(oldState, newState);
@@ -104,7 +100,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @return True if the address is a module, false otherwise
      */
     function isActiveModule(address module) external view returns (bool) {
-        return addressToModule[module].moduleState == State.ENABLED;
+        return addressToModule[module].moduleState == ModuleState.Enabled;
     }
 
     /**
@@ -113,7 +109,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @return The state of the module
      * @dev The given address must be a module
      */
-    function getModuleState(address module) external view returns (State) {
+    function getModuleState(address module) external view returns (ModuleState) {
         require(addressToModule[module].moduleAddress != address(0), ModuleManager__NotModule());
         return addressToModule[module].moduleState;
     }

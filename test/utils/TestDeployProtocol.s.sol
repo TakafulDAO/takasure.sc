@@ -14,6 +14,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
+import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 contract TestDeployProtocol is Script {
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -224,10 +225,10 @@ contract TestDeployProtocol is Script {
         bmConsumerMock.setNewRequester(_entryModuleAddress);
 
         // Set modules contracts in TakasureReserve
-        moduleManager.addModule(_prejoinModuleAddress, ModuleManager.State.ENABLED);
-        moduleManager.addModule(_entryModuleAddress, ModuleManager.State.ENABLED);
-        moduleManager.addModule(_memberModuleAddress, ModuleManager.State.ENABLED);
-        moduleManager.addModule(_revenueModuleAddress, ModuleManager.State.ENABLED);
+        moduleManager.addModule(_prejoinModuleAddress, ModuleState.Enabled);
+        moduleManager.addModule(_entryModuleAddress, ModuleState.Enabled);
+        moduleManager.addModule(_memberModuleAddress, ModuleState.Enabled);
+        moduleManager.addModule(_revenueModuleAddress, ModuleState.Enabled);
     }
 
     function _assignRoles(
