@@ -72,7 +72,6 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         vm.startPrank(daoAdmin);
         takasureReserve.setNewContributionToken(address(usdc));
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        takasureReserve.setNewPrejoinModule(address(prejoinModule));
         vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());

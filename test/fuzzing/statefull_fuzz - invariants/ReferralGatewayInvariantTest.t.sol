@@ -57,7 +57,6 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         vm.startPrank(daoAdmin);
         takasureReserve.setNewContributionToken(contributionTokenAddress);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        takasureReserve.setNewPrejoinModule(referralGatewayAddress);
         vm.stopPrank();
 
         vm.prank(bmConsumerMock.admin());
