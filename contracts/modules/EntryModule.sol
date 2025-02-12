@@ -109,7 +109,7 @@ contract EntryModule is
         _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
 
         if (msg.sender == prejoinModule) {
-            (reserve, newMember) = _joinFromPrejoinModule(
+            _joinFromPrejoinModule(
                 reserve,
                 newMember,
                 membersWallet,
@@ -117,7 +117,7 @@ contract EntryModule is
                 benefitMultiplier
             );
         } else {
-            (reserve, newMember) = _join(
+            _join(
                 reserve,
                 newMember,
                 membersWallet,
@@ -126,8 +126,6 @@ contract EntryModule is
                 benefitMultiplier
             );
         }
-
-        _setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
     }
 
     /**
@@ -218,7 +216,7 @@ contract EntryModule is
         address _membersWallet,
         uint256 _membershipDuration,
         uint256 _benefitMultiplier
-    ) internal returns (Reserve memory, Member memory) {
+    ) internal {
         _newMember = _createNewMember({
             _newMemberId: ++_reserve.memberIdCounter,
             _allowCustomDuration: _reserve.allowCustomDuration,
@@ -247,9 +245,8 @@ contract EntryModule is
         emit TakasureEvents.OnMemberKycVerified(_newMember.memberId, _membersWallet);
         emit TakasureEvents.OnMemberJoined(_newMember.memberId, _membersWallet);
 
+        _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
         takasureReserve.memberSurplus(_newMember);
-
-        return (_reserve, _newMember);
     }
 
     function _join(
@@ -259,7 +256,7 @@ contract EntryModule is
         uint256 _contributionBeforeFee,
         uint256 _membershipDuration,
         uint256 _benefitMultiplier
-    ) internal returns (Reserve memory, Member memory) {
+    ) internal {
         require(
             _newMember.memberState == MemberState.Inactive,
             ModuleErrors.Module__WrongMemberState()
@@ -304,7 +301,7 @@ contract EntryModule is
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
         _transferContributionToModule({_memberWallet: _membersWallet});
 
-        return (_reserve, _newMember);
+        _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
     }
 
     function _refund(address _memberWallet) internal {
