@@ -225,9 +225,9 @@ contract TakasureReserve is
         feeClaimAddress = newFeeClaimAddress;
     }
 
-    function setNewReferralGateway(address newReferralGateway) external {
+    function setNewPrejoinModule(address newPrejoinModuleAddress) external {
         _onlyDaoOrTakadao();
-        _grantRole(REFERRAL_GATEWAY, newReferralGateway);
+        _grantRole(REFERRAL_GATEWAY, newPrejoinModuleAddress);
     }
 
     function setNewBenefitMultiplierConsumerAddress(

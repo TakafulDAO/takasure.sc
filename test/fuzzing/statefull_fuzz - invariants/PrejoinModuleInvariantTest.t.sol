@@ -57,7 +57,7 @@ contract PrejoinModuleInvariantTest is StdInvariant, Test {
         vm.startPrank(daoAdmin);
         takasureReserve.setNewContributionToken(contributionTokenAddress);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        takasureReserve.setNewReferralGateway(prejoinModuleAddress);
+        takasureReserve.setNewPrejoinModule(prejoinModuleAddress);
         vm.stopPrank();
 
         vm.prank(bmConsumerMock.admin());

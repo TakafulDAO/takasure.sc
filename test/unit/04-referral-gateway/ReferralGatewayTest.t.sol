@@ -112,7 +112,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         vm.startPrank(daoAdmin);
         takasureReserve.setNewContributionToken(address(usdc));
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        takasureReserve.setNewReferralGateway(address(referralGateway));
+        takasureReserve.setNewPrejoinModule(address(referralGateway));
         vm.stopPrank();
 
         vm.prank(bmConsumerMock.admin());

@@ -70,7 +70,7 @@ contract RefundsPrejoinModuleTest is Test {
         vm.startPrank(daoAdmin);
         takasureReserve.setNewContributionToken(address(usdc));
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        takasureReserve.setNewReferralGateway(address(prejoinModule));
+        takasureReserve.setNewPrejoinModule(address(prejoinModule));
         vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
