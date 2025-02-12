@@ -833,9 +833,6 @@ contract PrejoinModule is
         emit OnRefund(_member, amountToRefund);
     }
 
-    ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
-
     function _onlyDAOAdmin() internal view {
         require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, PrejoinModule__onlyDAOAdmin());
     }
@@ -846,6 +843,12 @@ contract PrejoinModule is
             PrejoinModule__NotAuthorizedCaller()
         );
     }
+
+    ///@dev required by the Protocol to build this contract as module
+    function _isTLDModule() internal override {}
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
 
     /// @dev this function can be removed when the contract is deployed
     function setDAOName(string calldata newDAOName) external onlyRole(OPERATOR) {

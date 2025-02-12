@@ -8,8 +8,11 @@
 
 pragma solidity 0.8.28;
 
-contract ModuleCheck {
-    function isTLDModule() external pure returns (bytes4) {
+abstract contract ModuleCheck {
+    function isTLDModule() external returns (bytes4) {
+        _isTLDModule();
         return bytes4(keccak256("isTLDModule()"));
     }
+
+    function _isTLDModule() internal virtual;
 }

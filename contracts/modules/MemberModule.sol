@@ -180,6 +180,9 @@ contract MemberModule is
         }
     }
 
+    ///@dev required by the Protocol to build this contract as module
+    function _isTLDModule() internal override {}
+
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
