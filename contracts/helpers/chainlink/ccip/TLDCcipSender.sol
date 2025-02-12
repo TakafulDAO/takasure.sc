@@ -46,7 +46,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     error TLDCcipSender__NotSupportedToken();
     error TLDCcipSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
     error TLDCcipSender__NothingToWithdraw();
-    error TLDCcipSender__FailedToWithdrawEth(address owner, address target, uint256 value);
     error TLDCcipSender__AddressZeroNotAllowed();
     error TLDCcipSender__NotAuthorized();
 
@@ -171,32 +170,11 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Emergency function to withdraw the entire balance of Ether from the contract.
-     * @param beneficiary The address to which the Ether should be transferred.
-     * @dev This function reverts with a 'Sender__NothingToWithdraw' error, if there are no funds to withdraw
-     * @dev It should only be callable by the owner of the contract.
-     * @dev This ether is used to pay the fees of the CCIP protocol, when using native gas.
-     */
-    function withdraw(address beneficiary) external onlyOwner notZeroAddress(beneficiary) {
-        // Retrieve the balance of this contract
-        uint256 amount = address(this).balance;
-
-        // Revert if there is nothing to withdraw
-        if (amount == 0) revert TLDCcipSender__NothingToWithdraw();
-
-        // Attempt to send the funds, capturing the success status and discarding any return data
-        (bool sent, ) = beneficiary.call{value: amount}("");
-
-        // Revert if the send failed, with information about the attempted transfer
-        if (!sent) revert TLDCcipSender__FailedToWithdrawEth(msg.sender, beneficiary, amount);
-    }
-
-    /**
      * @notice Emergency function to withdraw all Link tokens.
      * @dev This function reverts with a 'Sender__NothingToWithdraw' error if there are no tokens to withdraw.
      * @param beneficiary The address to which the tokens will be sent.
      */
-    function withdrawToken(address beneficiary) external onlyOwner notZeroAddress(beneficiary) {
+    function withdrawLink(address beneficiary) external onlyOwner notZeroAddress(beneficiary) {
         // Retrieve the balance of this contract
         uint256 amount = linkToken.balanceOf(address(this));
 
