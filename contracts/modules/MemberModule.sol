@@ -19,7 +19,7 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
-import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
@@ -43,6 +43,7 @@ contract MemberModule is
 
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
+    ModuleState private moduleState;
 
     error MemberModule__InvalidDate();
 
@@ -63,6 +64,14 @@ contract MemberModule is
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+    }
+
+    /**
+     * @notice Function to set initially the module state
+     * @dev Called only by Module Manager contract
+     */
+    function setModuleState(ModuleState newState) external override {
+        moduleState = newState;
     }
 
     /**
@@ -179,9 +188,6 @@ contract MemberModule is
             revert ModuleErrors.Module__TooEarlyToCancel();
         }
     }
-
-    ///@dev required by the Protocol to build this contract as module
-    function _isTLDModule() internal override {}
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
