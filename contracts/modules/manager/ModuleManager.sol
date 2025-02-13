@@ -63,10 +63,10 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
             ModuleManager__WrongInitialState()
         );
 
-        _checkIsModule(newModule);
-
         addressToModule[newModule].moduleAddress = newModule;
         addressToModule[newModule].moduleState = state;
+
+        _checkIsModule(newModule);
 
         emit OnNewModule(newModule, state);
     }

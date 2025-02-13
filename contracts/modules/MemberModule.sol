@@ -67,14 +67,6 @@ contract MemberModule is
     }
 
     /**
-     * @notice Function to set initially the module state
-     * @dev Called only by Module Manager contract
-     */
-    function setModuleState(ModuleState newState) external override {
-        moduleState = newState;
-    }
-
-    /**
      * @notice Method to cancel a membership
      * @dev To be called by anyone
      */
@@ -188,6 +180,9 @@ contract MemberModule is
             revert ModuleErrors.Module__TooEarlyToCancel();
         }
     }
+
+    ///@dev required by the Protocol to build this contract as module
+    function _isTLDModule() internal override {}
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
