@@ -166,7 +166,6 @@ contract TestDeployProtocol is Script {
         address _takasureReserve,
         address _takadaoOperator,
         address _kycProvider,
-        address _pauseGuardian,
         address _contributionToken,
         address _bmConsumerMock
     )
