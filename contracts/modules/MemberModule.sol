@@ -19,7 +19,7 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
-import {Reserve, Member, MemberState, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
@@ -43,7 +43,6 @@ contract MemberModule is
 
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
-    ModuleState private moduleState;
 
     error MemberModule__InvalidDate();
 
