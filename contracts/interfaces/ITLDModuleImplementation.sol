@@ -2,6 +2,6 @@
 
 pragma solidity 0.8.28;
 
-interface IModuleCheck {
+interface ITLDModuleImplementation {
     function isTLDModule() external returns (bytes4);
 }
