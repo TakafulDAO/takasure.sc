@@ -93,7 +93,6 @@ contract TestDeployProtocol is Script {
             takasureReserve,
             config.takadaoOperator,
             config.kycProvider,
-            config.pauseGuardian,
             config.contributionToken,
             address(bmConsumerMock)
         );
