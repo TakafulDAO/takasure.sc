@@ -239,6 +239,7 @@ contract PrejoinModule is
         address entryModuleAddress,
         bool isReferralDiscountEnabled
     ) external {
+        _onlyModuleState(ModuleState.Enabled);
         _onlyDAOAdmin();
         AddressCheck._notZeroAddress(tDAOAddress);
         AddressCheck._notZeroAddress(entryModuleAddress);

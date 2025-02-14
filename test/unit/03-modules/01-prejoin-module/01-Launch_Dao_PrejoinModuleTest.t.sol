@@ -161,7 +161,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
         prejoinModule.updateLaunchDate(block.timestamp + 32_000_000);
 
         vm.prank(daoAdmin);
-        vm.expectRevert(PrejoinModule.PrejoinModule__DAOAlreadyLaunched.selector);
+        vm.expectRevert(PrejoinModule.PrejoinModule__WrongModuleState.selector);
         prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         vm.prank(daoAdmin);
