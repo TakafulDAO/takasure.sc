@@ -24,6 +24,7 @@ contract TestDeployProtocol is Script {
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
     bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
+    bytes32 public constant MODULE_MANAGER = keccak256("MODULE_MANAGER");
 
     address takasureReserveImplementation;
     address userRouterImplementation;
@@ -107,12 +108,7 @@ contract TestDeployProtocol is Script {
             )
         );
 
-        _setContracts(
-            prejoinModuleAddress,
-            entryModuleAddress,
-            memberModuleAddress,
-            revenueModuleAddress
-        );
+        _setContracts(entryModuleAddress, memberModuleAddress, revenueModuleAddress);
 
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
         tsToken = address(creditToken);
@@ -130,6 +126,12 @@ contract TestDeployProtocol is Script {
         contributionTokenAddress = TakasureReserve(takasureReserve)
             .getReserveValues()
             .contributionToken;
+
+        vm.prank(config.takadaoOperator);
+        PrejoinModule(prejoinModuleAddress).grantRole(MODULE_MANAGER, address(moduleManager));
+
+        vm.prank(moduleManager.owner());
+        moduleManager.addModule(prejoinModuleAddress, ModuleState.Enabled);
 
         return (
             tsToken,
@@ -183,13 +185,7 @@ contract TestDeployProtocol is Script {
             prejoinModuleImplementation,
             abi.encodeCall(
                 PrejoinModule.initialize,
-                (
-                    _takadaoOperator,
-                    _kycProvider,
-                    _pauseGuardian,
-                    _contributionToken,
-                    _bmConsumerMock
-                )
+                (_takadaoOperator, _kycProvider, _contributionToken, _bmConsumerMock)
             )
         );
 
@@ -216,7 +212,6 @@ contract TestDeployProtocol is Script {
     }
 
     function _setContracts(
-        address _prejoinModuleAddress,
         address _entryModuleAddress,
         address _memberModuleAddress,
         address _revenueModuleAddress
@@ -225,7 +220,6 @@ contract TestDeployProtocol is Script {
         bmConsumerMock.setNewRequester(_entryModuleAddress);
 
         // Set modules contracts in TakasureReserve
-        moduleManager.addModule(_prejoinModuleAddress, ModuleState.Enabled);
         moduleManager.addModule(_entryModuleAddress, ModuleState.Enabled);
         moduleManager.addModule(_memberModuleAddress, ModuleState.Enabled);
         moduleManager.addModule(_revenueModuleAddress, ModuleState.Enabled);

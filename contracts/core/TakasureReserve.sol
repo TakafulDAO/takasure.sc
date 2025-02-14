@@ -28,7 +28,7 @@ contract TakasureReserve is
     AccessControlUpgradeable,
     PausableUpgradeable
 {
-    IModuleManager private moduleManager;
+    IModuleManager public moduleManager;
 
     Reserve private reserve;
     CashFlowVars private cashFlowVars;

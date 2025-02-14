@@ -19,11 +19,10 @@ import {IEntryModule} from "contracts/interfaces/IEntryModule.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
-import {tDAO, PrepaidMember} from "contracts/types/TakasureTypes.sol";
+import {tDAO, PrepaidMember, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
@@ -36,7 +35,6 @@ contract PrejoinModule is
     UUPSUpgradeable,
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
-    PausableUpgradeable,
     ParentRewards,
     TLDModuleImplementation
 {
@@ -56,6 +54,8 @@ contract PrejoinModule is
 
     string private tDAOName;
 
+    ModuleState private moduleState;
+
     /*//////////////////////////////////////////////////////////////
                               FIXED RATIOS
     //////////////////////////////////////////////////////////////*/
@@ -74,8 +74,8 @@ contract PrejoinModule is
 
     bytes32 private constant OPERATOR = keccak256("OPERATOR");
     bytes32 private constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-    bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
     bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
+    bytes32 internal constant MODULE_MANAGER = keccak256("MODULE_MANAGER");
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
@@ -135,6 +135,7 @@ contract PrejoinModule is
     error PrejoinModule__tDAONotReadyYet();
     error PrejoinModule__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
     error PrejoinModule__NotAuthorizedCaller();
+    error PrejoinModule__WrongModuleState();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -144,21 +145,27 @@ contract PrejoinModule is
     function initialize(
         address _operator,
         address _KYCProvider,
-        address _pauseGuardian,
         address _usdcAddress,
         address _benefitMultiplierConsumer
     ) external initializer {
         AddressCheck._notZeroAddress(_operator);
         AddressCheck._notZeroAddress(_KYCProvider);
-        AddressCheck._notZeroAddress(_pauseGuardian);
         AddressCheck._notZeroAddress(_usdcAddress);
         AddressCheck._notZeroAddress(_benefitMultiplierConsumer);
         _initDependencies();
 
-        _grantRoles(_operator, _KYCProvider, _pauseGuardian);
+        _grantRoles(_operator, _KYCProvider);
 
         operator = _operator;
         usdc = IERC20(_usdcAddress);
+    }
+
+    /**
+     * @notice Set the module state
+     * @dev Only callable from the Module Manager
+     */
+    function setContractState(ModuleState newState) external override onlyRole(MODULE_MANAGER) {
+        moduleState = newState;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -184,7 +191,7 @@ contract PrejoinModule is
         uint256 launchDate,
         uint256 objectiveAmount,
         address _bmConsumer
-    ) external whenNotPaused onlyRole(OPERATOR) {
+    ) external onlyRole(OPERATOR) {
         require(bytes(DAOName).length != 0, PrejoinModule__MustHaveName());
         require(
             !(Strings.equal(nameToDAOData[DAOName].name, DAOName)),
@@ -249,6 +256,8 @@ contract PrejoinModule is
         nameToDAOData[tDAOName].DAOAddress = tDAOAddress;
         nameToDAOData[tDAOName].entryModule = entryModuleAddress;
         nameToDAOData[tDAOName].launchDate = block.timestamp;
+
+        moduleState = ModuleState.Disabled;
 
         emit OnDAOLaunched(tDAOAddress);
     }
@@ -339,6 +348,7 @@ contract PrejoinModule is
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
     function setKYCStatus(address child) external onlyRole(KYC_PROVIDER) {
+        _onlyModuleState(ModuleState.Enabled);
         AddressCheck._notZeroAddress(child);
         // Initial checks
         // Can not KYC a member that is already KYCed
@@ -385,7 +395,8 @@ contract PrejoinModule is
      * @dev The member must have a parent
      * @dev The member must have a tDAO assigned
      */
-    function joinDAO(address newMember) external whenNotPaused nonReentrant {
+    function joinDAO(address newMember) external nonReentrant {
+        _onlyModuleState(ModuleState.Disabled);
         // Initial checks
         require(isMemberKYCed[newMember], PrejoinModule__NotKYCed());
 
@@ -495,14 +506,6 @@ contract PrejoinModule is
         emit OnNewCCIPReceiverContract(oldCCIPReceiverContract, _ccipReceiverContract);
     }
 
-    function pause() external onlyRole(PAUSE_GUARDIAN) {
-        _pause();
-    }
-
-    function unpause() external onlyRole(PAUSE_GUARDIAN) {
-        _unpause();
-    }
-
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
@@ -579,14 +582,12 @@ contract PrejoinModule is
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __ReentrancyGuardTransient_init();
-        __Pausable_init();
     }
 
-    function _grantRoles(address _operator, address _KYCProvider, address _pauseGuardian) internal {
+    function _grantRoles(address _operator, address _KYCProvider) internal {
         _grantRole(DEFAULT_ADMIN_ROLE, _operator);
         _grantRole(OPERATOR, _operator);
         _grantRole(KYC_PROVIDER, _KYCProvider);
-        _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
     }
 
     function _getBenefitMultiplierFromOracle(address _member) internal {
@@ -601,7 +602,8 @@ contract PrejoinModule is
         address _parent,
         address _newMember,
         uint256 _couponAmount
-    ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
+    ) internal nonReentrant returns (uint256 _finalFee, uint256 _discount) {
+        _onlyModuleState(ModuleState.Enabled);
         // If the DAO pre join is enabled it means the DAO is not deployed yet
         require(nameToDAOData[tDAOName].preJoinEnabled, PrejoinModule__tDAONotReadyYet());
 
@@ -774,6 +776,7 @@ contract PrejoinModule is
     }
 
     function _refund(address _member) internal {
+        _onlyModuleState(ModuleState.Enabled);
         require(
             nameToDAOData[tDAOName].prepaidMembers[_member].contributionBeforeFee != 0,
             PrejoinModule__HasNotPaid()
@@ -837,8 +840,9 @@ contract PrejoinModule is
         );
     }
 
-    ///@dev required by the Protocol to build this contract as module
-    function _isTLDModule() internal override {}
+    function _onlyModuleState(ModuleState _state) internal view {
+        require(moduleState == _state, PrejoinModule__WrongModuleState());
+    }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}

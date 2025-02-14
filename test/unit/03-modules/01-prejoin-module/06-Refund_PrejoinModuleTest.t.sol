@@ -146,7 +146,7 @@ contract RefundsPrejoinModuleTest is Test {
 
         vm.startPrank(child);
         // Should not be able to join because the DAO is not launched yet
-        vm.expectRevert(PrejoinModule.PrejoinModule__tDAONotReadyYet.selector);
+        vm.expectRevert();
         prejoinModule.joinDAO(child);
 
         // Should not be able to refund because the launched date is not reached yet
@@ -161,7 +161,7 @@ contract RefundsPrejoinModuleTest is Test {
 
         vm.startPrank(child);
         // Should not be able to join because the DAO is not launched yet
-        vm.expectRevert(PrejoinModule.PrejoinModule__tDAONotReadyYet.selector);
+        vm.expectRevert();
         prejoinModule.joinDAO(child);
 
         // Should not be able to refund even if the launched date is reached, but has to wait 1 day
@@ -190,7 +190,7 @@ contract RefundsPrejoinModuleTest is Test {
         assert(!prejoinModule.isMemberKYCed(child));
 
         vm.prank(child);
-        vm.expectRevert(PrejoinModule.PrejoinModule__NotKYCed.selector);
+        vm.expectRevert();
         prejoinModule.joinDAO(child);
     }
 

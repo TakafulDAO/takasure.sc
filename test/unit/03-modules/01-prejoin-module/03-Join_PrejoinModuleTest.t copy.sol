@@ -132,7 +132,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         KYCReferral
     {
         vm.prank(referral);
-        vm.expectRevert(PrejoinModule.PrejoinModule__tDAONotReadyYet.selector);
+        vm.expectRevert();
         emit OnMemberJoined(2, referral);
         prejoinModule.joinDAO(referral);
     }

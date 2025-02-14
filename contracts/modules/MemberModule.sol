@@ -19,7 +19,7 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
-import {Reserve, Member, MemberState, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
@@ -43,6 +43,7 @@ contract MemberModule is
 
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
+    ModuleState private moduleState;
 
     error MemberModule__InvalidDate();
 
@@ -60,9 +61,21 @@ contract MemberModule is
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
         address takadaoOperator = takasureReserve.takadaoOperator();
+        address moduleManager = takasureReserve.moduleManager();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
+        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+    }
+
+    /**
+     * @notice Set the module state
+     * @dev Only callable from the Module Manager
+     */
+    function setContractState(
+        ModuleState newState
+    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+        moduleState = newState;
     }
 
     /**
@@ -70,11 +83,13 @@ contract MemberModule is
      * @dev To be called by anyone
      */
     function cancelMembership(address memberWallet) external {
+        _onlyModuleState(ModuleState.Enabled);
         AddressCheck._notZeroAddress(memberWallet);
         _cancelMembership(memberWallet);
     }
 
     function payRecurringContribution(address memberWallet) external nonReentrant {
+        _onlyModuleState(ModuleState.Enabled);
         (Reserve memory reserve, Member memory activeMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
@@ -135,6 +150,7 @@ contract MemberModule is
     }
 
     function defaultMember(address memberWallet) external {
+        _onlyModuleState(ModuleState.Enabled);
         Member memory member = _getMembersValuesHook(takasureReserve, memberWallet);
 
         require(member.memberState == MemberState.Active, ModuleErrors.Module__WrongMemberState());
@@ -180,8 +196,9 @@ contract MemberModule is
         }
     }
 
-    ///@dev required by the Protocol to build this contract as module
-    function _isTLDModule() internal override {}
+    function _onlyModuleState(ModuleState _state) internal view {
+        require(moduleState == _state, ModuleErrors.Module__WrongModuleState());
+    }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(

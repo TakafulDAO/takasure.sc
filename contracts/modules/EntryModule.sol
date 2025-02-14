@@ -19,7 +19,7 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
-import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
@@ -44,6 +44,7 @@ contract EntryModule is
 
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
+    ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
     uint256 private transient feeAmount;
@@ -74,11 +75,21 @@ contract EntryModule is
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
         address takadaoOperator = takasureReserve.takadaoOperator();
+        address moduleManager = takasureReserve.moduleManager();
         prejoinModule = _prejoinModule;
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
+        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
         _grantRole(ModuleConstants.KYC_PROVIDER, takasureReserve.kycProvider());
+    }
+
+    /**
+     * @notice Set the module state
+     * @dev Only callable from the Module Manager
+     */
+    function setContractState(ModuleState newState) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+        moduleState = newState;
     }
 
     /**
@@ -99,6 +110,7 @@ contract EntryModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
+        _onlyModuleState(ModuleState.Enabled);
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             membersWallet
@@ -137,6 +149,7 @@ contract EntryModule is
      * @dev It reverts if the member is already KYCed
      */
     function setKYCStatus(address memberWallet) external onlyRole(ModuleConstants.KYC_PROVIDER) {
+        _onlyModuleState(ModuleState.Enabled);
         AddressCheck._notZeroAddress(memberWallet);
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
@@ -305,6 +318,7 @@ contract EntryModule is
     }
 
     function _refund(address _memberWallet) internal {
+        _onlyModuleState(ModuleState.Enabled);
         (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
             takasureReserve,
             _memberWallet
@@ -569,8 +583,9 @@ contract EntryModule is
         );
     }
 
-    ///@dev required by the Protocol to build this contract as module
-    function _isTLDModule() internal override {}
+    function _onlyModuleState(ModuleState _state) internal view {
+        require(moduleState == _state, ModuleErrors.Module__WrongModuleState());
+    }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(

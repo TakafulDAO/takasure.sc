@@ -5,14 +5,14 @@
  * @author Maikel Ordaz
  * @notice This contract is intended to be inherited by every module in the Takasure protocol
  */
+import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
 abstract contract TLDModuleImplementation {
-    function isTLDModule() external returns (bytes4) {
-        _isTLDModule();
+    function setContractState(ModuleState newState) external virtual;
+
+    function isTLDModule() external pure returns (bytes4) {
         return bytes4(keccak256("isTLDModule()"));
     }
-
-    function _isTLDModule() internal virtual;
 }

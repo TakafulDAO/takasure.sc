@@ -13,8 +13,9 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
-import {Reserve, RevenueType, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -32,6 +33,7 @@ contract RevenueModule is
     ITakasureReserve private takasureReserve;
 
     Reserve private reserve;
+    ModuleState private moduleState;
 
     error RevenueModule__WrongRevenueType();
 
@@ -42,10 +44,22 @@ contract RevenueModule is
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         address takadaoOperator = takasureReserve.takadaoOperator();
         address daoMultisig = takasureReserve.daoMultisig();
+        address moduleManager = takasureReserve.moduleManager();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
         _grantRole(ModuleConstants.DAO_MULTISIG, daoMultisig);
+        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
+    }
+
+    /**
+     * @notice Set the module state
+     * @dev Only callable from the Module Manager
+     */
+    function setContractState(
+        ModuleState newState
+    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+        moduleState = newState;
     }
 
     /**
@@ -169,8 +183,9 @@ contract RevenueModule is
         takasureReserve.setCashFlowValuesFromModule(cashFlowVars);
     }
 
-    ///@dev required by the Protocol to build this contract as module
-    function _isTLDModule() internal override {}
+    function _onlyModuleState(ModuleState _state) internal view {
+        require(moduleState == _state, ModuleErrors.Module__WrongModuleState());
+    }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
