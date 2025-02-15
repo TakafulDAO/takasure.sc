@@ -130,7 +130,7 @@ contract TestDeployProtocol is Script {
         PrejoinModule(prejoinModuleAddress).grantRole(MODULE_MANAGER, address(moduleManager));
 
         vm.prank(moduleManager.owner());
-        moduleManager.addModule(prejoinModuleAddress, ModuleState.Enabled);
+        moduleManager.addModule(prejoinModuleAddress);
 
         return (
             tsToken,
@@ -218,9 +218,9 @@ contract TestDeployProtocol is Script {
         bmConsumerMock.setNewRequester(_entryModuleAddress);
 
         // Set modules contracts in TakasureReserve
-        moduleManager.addModule(_entryModuleAddress, ModuleState.Enabled);
-        moduleManager.addModule(_memberModuleAddress, ModuleState.Enabled);
-        moduleManager.addModule(_revenueModuleAddress, ModuleState.Enabled);
+        moduleManager.addModule(_entryModuleAddress);
+        moduleManager.addModule(_memberModuleAddress);
+        moduleManager.addModule(_revenueModuleAddress);
     }
 
     function _assignRoles(

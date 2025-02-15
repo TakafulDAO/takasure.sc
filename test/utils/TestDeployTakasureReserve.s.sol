@@ -203,9 +203,9 @@ contract TestDeployTakasureReserve is Script {
         bmConsumerMock.setNewRequester(_entryModule);
 
         // Set modules contracts in TakasureReserve
-        moduleManager.addModule(_entryModule, ModuleState.Enabled);
-        moduleManager.addModule(_memberModule, ModuleState.Enabled);
-        moduleManager.addModule(_revenueModule, ModuleState.Enabled);
+        moduleManager.addModule(_entryModule);
+        moduleManager.addModule(_memberModule);
+        moduleManager.addModule(_revenueModule);
     }
 
     function _assignRoles(

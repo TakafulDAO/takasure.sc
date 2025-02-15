@@ -31,7 +31,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    event OnNewModule(address newModuleAddr, ModuleState newModuleStatus);
+    event OnNewModule(address newModuleAddr);
     event OnModuleStateChanged(ModuleState oldState, ModuleState newState);
 
     error ModuleManager__AddressZeroNotAllowed();
@@ -49,27 +49,22 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
     /**
      * @notice A function to add a new module
      * @param newModule The new module address
-     * @param state Can only be DISABLED or ENABLED
      */
-    function addModule(address newModule, ModuleState state) external onlyOwner nonReentrant {
+    function addModule(address newModule) external onlyOwner nonReentrant {
         // New module can not be address 0, can not be already a module, and the status must be disabled or enabled
         require(newModule != address(0), ModuleManager__AddressZeroNotAllowed());
         require(
             addressToModule[newModule].moduleAddress == address(0),
             ModuleManager__AlreadyModule()
         );
-        require(
-            state == ModuleState.Disabled || state == ModuleState.Enabled,
-            ModuleManager__WrongInitialState()
-        );
 
         addressToModule[newModule].moduleAddress = newModule;
-        addressToModule[newModule].moduleState = state;
+        addressToModule[newModule].moduleState = ModuleState.Enabled;
 
         _checkIsModule(newModule);
-        ITLDModuleImplementation(newModule).setContractState(state);
+        ITLDModuleImplementation(newModule).setContractState(ModuleState.Enabled);
 
-        emit OnNewModule(newModule, state);
+        emit OnNewModule(newModule);
     }
 
     /**
