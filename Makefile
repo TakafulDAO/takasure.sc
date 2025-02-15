@@ -29,7 +29,7 @@ build-certora:; forge build --contracts ./certora/
 
 test :; forge test 
 
-coverage-report :; forge coverage --skip ReferralGatewayInvariantTest.t.sol --ir-minimum --report debug > coverage-report.txt
+coverage-report :; forge coverage --ir-minimum --report debug > coverage-report.txt
 
 snapshot :; forge snapshot
 
