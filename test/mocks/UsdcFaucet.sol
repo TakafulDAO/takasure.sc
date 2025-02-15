@@ -1,14 +1,14 @@
 //SPDX-License-Identifier: GNU GPLv3
 
 /**
- * @title TLDCcipSender
+ * @title UsdcFaucet
  * @author Maikel Ordaz
  * @notice This contract will:
- *          - Interact with the CCIP pprotocol
- *          - Encode the data to send
- *          - Send data to the Receiver contract
- *          - Deployed in Avax (Mainnet and Fuji), Base (Mainnet and Sepolia), Ethereum (Mainnet and Sepolia),
- *            Optimism (Mainnet and Sepolia), Polygon (Mainnet and Amoy)
+ *          - Help the dev team to get the test USDC tokens in different chains
+ *          - Deployed in Ethereum Sepolia
+ *          - For Ethereum sepolia will be a direct transfer
+ *          - For other chains will be a CCIP transfer
+ *          - The limit is only the contract balance
  * @dev Upgradeable contract with UUPS pattern
  */
 
@@ -41,6 +41,7 @@ contract UsdcFaucet is Ownable2Step {
     error UsdcFaucet__NothingToWithdraw();
     error UsdcFaucet__AddressZeroNotAllowed();
     error UsdcFaucet__NotAllowedChain();
+    error UsdcFaucet__NotEnoughUsdcBalance();
 
     modifier notZeroAddress(address addressToCheck) {
         require(addressToCheck != address(0), UsdcFaucet__AddressZeroNotAllowed());
@@ -60,6 +61,10 @@ contract UsdcFaucet is Ownable2Step {
         string calldata destinationChain,
         address receiver
     ) external returns (bytes32 messageId) {
+        require(
+            amountToTransfer <= usdc.balanceOf(address(this)),
+            UsdcFaucet__NotEnoughUsdcBalance()
+        );
         Client.EVM2AnyMessage memory message = _buildCCIPMessage({
             _amount: amountToTransfer,
             _receiver: receiver
