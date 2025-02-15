@@ -128,8 +128,8 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
         try ITLDModuleImplementation(_newModule).isTLDModule() returns (bytes4 funcSelector) {
             if (funcSelector != ITLDModuleImplementation.isTLDModule.selector)
                 revert ModuleManager__NotModule();
-        } catch (bytes memory reason) {
-            if (reason.length == 0) revert ModuleManager__NotModule();
+        } catch (bytes memory) {
+            revert ModuleManager__NotModule();
         }
     }
 }
