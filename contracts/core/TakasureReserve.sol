@@ -46,7 +46,7 @@ contract TakasureReserve is
     bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
 
-    mapping(uint16 month => uint256 montCashFlow) public monthToCashFlow;
+    mapping(uint16 month => uint256 monthCashFlow) public monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) public dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
 
     mapping(address member => Member) private members;
