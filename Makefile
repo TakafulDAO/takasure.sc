@@ -133,10 +133,10 @@ takasure-add-bm-consumer:
 ccip-sender-add-usdc:
 	@forge script scripts/contract-interactions/ccip/sender/AddSupportedToken.s.sol:AddSupportedToken $(NETWORK_ARGS)
 
-#Interactions with TLDCcipReceiver Contract
-ccip-receiver-add-chains:
-	@forge script scripts/contract-interactions/ccip/receiver/AddAllowedChains.s.sol:AddAllowedChains $(NETWORK_ARGS)
+ccip-sender-set-receiver:
+	@forge script scripts/contract-interactions/ccip/sender/SetNewReceiverContract.s.sol:SetNewReceiverContract $(NETWORK_ARGS)
 
+#Interactions with TLDCcipReceiver Contract
 ccip-receiver-add-senders:
 	@forge script scripts/contract-interactions/ccip/receiver/AddAllowedSenders.s.sol:AddAllowedSenders $(NETWORK_ARGS)
 
