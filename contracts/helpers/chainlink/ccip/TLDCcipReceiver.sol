@@ -25,8 +25,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     IERC20 public immutable usdc;
     address public protocolGateway;
 
-    mapping(uint64 chainSelector => bool) public isSourceChainAllowed;
-    mapping(address sender => bool) public isSenderAllowed;
+    mapping(uint64 chainSelector => mapping(address sender => bool)) public isSenderAllowedByChain;
     mapping(bytes32 messageId => Client.Any2EVMMessage message) public messageContentsById;
     mapping(address user => Client.Any2EVMMessage message) public messageByUser;
     mapping(address user => bytes32 messageId) public messageIdByUser;
@@ -72,9 +71,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
      */
     modifier onlyAllowedSource(uint64 _sourceChainSelector, address _sender) {
         require(
-            _sourceChainSelector != 0 &&
-                isSourceChainAllowed[_sourceChainSelector] &&
-                isSenderAllowed[_sender],
+            isSenderAllowedByChain[_sourceChainSelector][_sender],
             TLDCcipReceiver__NotAllowedSource()
         );
         _;
@@ -106,23 +103,14 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Allows the owner to enable/disable a source chain to the list of allowed chains.
-     * @param sourceChainSelector The chain selector of the source chain.
-     */
-    function toggleAllowedSourceChain(uint64 sourceChainSelector) external onlyOwner {
-        require(sourceChainSelector != 0, TLDCcipReceiver__NotAllowedSource());
-        bool enable = !isSourceChainAllowed[sourceChainSelector];
-        isSourceChainAllowed[sourceChainSelector] = enable;
-    }
-
-    /**
      * @notice Allows the owner to enable/disable a sender to the list of allowed senders.
-     * @param sender The address of the sender.
+     * @param chainSelector source chain
+     * @param sender The address of the sender contract.
      */
-    function toggleAllowedSender(address sender) external onlyOwner {
+    function toggleAllowedSender(uint64 chainSelector, address sender) external onlyOwner {
         require(sender != address(0), TLDCcipReceiver__NotAllowedSource());
-        bool enable = !isSenderAllowed[sender];
-        isSenderAllowed[sender] = enable;
+        bool enable = !isSenderAllowedByChain[chainSelector][sender];
+        isSenderAllowedByChain[chainSelector][sender] = enable;
     }
 
     /**

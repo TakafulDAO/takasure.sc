@@ -115,6 +115,12 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         emit OnBackendProviderSet(_backendProvider);
     }
 
+    function setReceiverContract(
+        address _receiverContract
+    ) external onlyOwner notZeroAddress(_receiverContract) {
+        receiverContract = _receiverContract;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 PAYMENT
     //////////////////////////////////////////////////////////////*/
