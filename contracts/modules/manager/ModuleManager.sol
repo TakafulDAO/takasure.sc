@@ -36,7 +36,6 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
 
     error ModuleManager__AddressZeroNotAllowed();
     error ModuleManager__AlreadyModule();
-    error ModuleManager__WrongInitialState();
     error ModuleManager__NotModule();
     error ModuleManager__WrongState();
 
