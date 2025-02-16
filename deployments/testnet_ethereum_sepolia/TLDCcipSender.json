@@ -135,6 +135,15 @@
         },
         {
             "type": "function",
+            "name": "setReceiverContract",
+            "inputs": [
+                { "name": "_receiverContract", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "transferOwnership",
             "inputs": [{ "name": "newOwner", "type": "address", "internalType": "address" }],
             "outputs": [],
@@ -152,14 +161,7 @@
         },
         {
             "type": "function",
-            "name": "withdraw",
-            "inputs": [{ "name": "beneficiary", "type": "address", "internalType": "address" }],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
-            "name": "withdrawToken",
+            "name": "withdrawLink",
             "inputs": [{ "name": "beneficiary", "type": "address", "internalType": "address" }],
             "outputs": [],
             "stateMutability": "nonpayable"
@@ -295,15 +297,6 @@
         },
         { "type": "error", "name": "TLDCcipSender__AddressZeroNotAllowed", "inputs": [] },
         { "type": "error", "name": "TLDCcipSender__AlreadySupportedToken", "inputs": [] },
-        {
-            "type": "error",
-            "name": "TLDCcipSender__FailedToWithdrawEth",
-            "inputs": [
-                { "name": "owner", "type": "address", "internalType": "address" },
-                { "name": "target", "type": "address", "internalType": "address" },
-                { "name": "value", "type": "uint256", "internalType": "uint256" }
-            ]
-        },
         { "type": "error", "name": "TLDCcipSender__NotAuthorized", "inputs": [] },
         {
             "type": "error",

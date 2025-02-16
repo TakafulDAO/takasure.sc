@@ -1,5 +1,5 @@
 {
-    "address": "0x3a54B21a75Dc9Fd65cee803fC7A8682117B0fd38",
+    "address": "0xbCBBB405Dd3e6f9c3F2e95355FFf34550E16E04B",
     "abi": [
         {
             "type": "constructor",
@@ -82,15 +82,11 @@
         },
         {
             "type": "function",
-            "name": "isSenderAllowed",
-            "inputs": [{ "name": "sender", "type": "address", "internalType": "address" }],
-            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "isSourceChainAllowed",
-            "inputs": [{ "name": "chainSelector", "type": "uint64", "internalType": "uint64" }],
+            "name": "isSenderAllowedByChain",
+            "inputs": [
+                { "name": "chainSelector", "type": "uint64", "internalType": "uint64" },
+                { "name": "sender", "type": "address", "internalType": "address" }
+            ],
             "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
             "stateMutability": "view"
         },
@@ -218,15 +214,9 @@
         {
             "type": "function",
             "name": "toggleAllowedSender",
-            "inputs": [{ "name": "sender", "type": "address", "internalType": "address" }],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
-            "name": "toggleAllowedSourceChain",
             "inputs": [
-                { "name": "sourceChainSelector", "type": "uint64", "internalType": "uint64" }
+                { "name": "chainSelector", "type": "uint64", "internalType": "uint64" },
+                { "name": "sender", "type": "address", "internalType": "address" }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
