@@ -3,32 +3,35 @@ autonumber
 
 actor Backend
 
-Backend -> ReferralGateway: setKYCStatus(member, tDAOName)
+Backend -> PrejoinModule: setKYCStatus(member, tDAOName)
 
-alt member address is valid
+alt Module is enabled
+    alt Member address is valid
+        alt Member is not KYC verified
+            alt Member has paid contribution
 
-    alt Member is not KYC verified
-
-        alt Member has paid contribution
-
-            ReferralGateway -> ReferralGateway: Set KYC status to true
+                PrejoinModule -> PrejoinModule: Set KYC status to true
         
-        loop for each valid parent up until 4 layers
-            ReferralGateway --> Parent: Transfer reward
-        end
+                loop for each valid parent up until 4 layers
+                    PrejoinModule --> Parent: Transfer reward
+                end
 
-        ReferralGateway --> Backend: Emit OnParentReward event 
+                PrejoinModule --> Backend: Emit OnParentReward event 
 
-        else Member has not paid contribution
-            ReferralGateway --> Backend: Revert
-        end
+            else Member has not paid contribution
+                PrejoinModule --> Backend: Revert
+            end
 
-    else Member is KYC verified
-        ReferralGateway --> Backend: Revert            
-    end    
+        else Member is KYC verified
+            PrejoinModule --> Backend: Revert            
+        end    
     
-else member address is invalid
-    ReferralGateway --> Backend: Revert    
+    else member address is invalid
+      PrejoinModule --> Backend: Revert    
+    end
+
+else Module is disabled
+    PrejoinModule --> Backend: Revert
 end
 
 @enduml    
