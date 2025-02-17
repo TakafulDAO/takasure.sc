@@ -638,13 +638,13 @@ contract PrejoinModule is
 
                 childToParent[_newMember] = _parent;
 
-                (_finalFee, nameToDAOData[tDAOName].referralReserve) = _parentRewards(
-                    _newMember,
-                    realContribution,
-                    nameToDAOData[tDAOName].referralReserve,
-                    toReferralReserve,
-                    _finalFee
-                );
+                (_finalFee, nameToDAOData[tDAOName].referralReserve) = _parentRewards({
+                    _initialChildToCheck: _newMember,
+                    _contribution: realContribution,
+                    _currentReferralReserve: nameToDAOData[tDAOName].referralReserve,
+                    _toReferralReserve: toReferralReserve,
+                    _currentFee: _finalFee
+                });
             } else {
                 nameToDAOData[tDAOName].referralReserve += toReferralReserve;
             }
