@@ -605,8 +605,6 @@ contract PrejoinModule is
         uint256 _couponAmount
     ) internal nonReentrant returns (uint256 _finalFee, uint256 _discount) {
         _onlyModuleState(ModuleState.Enabled);
-        // If the DAO pre join is enabled it means the DAO is not deployed yet
-        require(nameToDAOData[tDAOName].preJoinEnabled, PrejoinModule__tDAONotReadyYet());
 
         // The prepaid member object is created
         uint256 realContribution;
@@ -707,6 +705,7 @@ contract PrejoinModule is
         address _newMember
     ) internal view {
         // DAO must exist
+
         require(
             nameToDAOData[tDAOName].preJoinEnabled ||
                 nameToDAOData[tDAOName].DAOAddress != address(0),
