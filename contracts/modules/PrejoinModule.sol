@@ -287,6 +287,7 @@ contract PrejoinModule is
     }
 
     function transferToRepool() external {
+        require(moduleState != ModuleState.Deprecated, PrejoinModule__WrongModuleState());
         _onlyDAOAdmin();
         require(nameToDAOData[tDAOName].rePoolAddress != address(0), PrejoinModule__ZeroAddress());
         require(nameToDAOData[tDAOName].toRepool > 0, PrejoinModule__ZeroAmount());
@@ -349,7 +350,12 @@ contract PrejoinModule is
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
     function setKYCStatus(address user) external onlyRole(KYC_PROVIDER) {
-        _onlyModuleState(ModuleState.Enabled);
+        // It will be possible to KYC a member that was left behind in the process
+        // This will allow them to join the DAO
+        require(
+            moduleState == ModuleState.Enabled || moduleState == ModuleState.Disabled,
+            PrejoinModule__WrongModuleState()
+        );
         AddressCheck._notZeroAddress(user);
         // Initial checks
         // Can not KYC a member that is already KYCed
@@ -776,7 +782,10 @@ contract PrejoinModule is
     }
 
     function _refund(address _member) internal {
-        _onlyModuleState(ModuleState.Enabled);
+        require(
+            moduleState == ModuleState.Enabled || moduleState == ModuleState.Disabled,
+            PrejoinModule__WrongModuleState()
+        );
         require(
             nameToDAOData[tDAOName].prepaidMembers[_member].contributionBeforeFee != 0,
             PrejoinModule__HasNotPaid()
