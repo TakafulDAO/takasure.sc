@@ -107,6 +107,7 @@ contract EntryModule is
      */
     function joinPool(
         address membersWallet,
+        address parentWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {

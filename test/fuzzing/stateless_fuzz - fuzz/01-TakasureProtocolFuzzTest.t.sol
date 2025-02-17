@@ -29,6 +29,7 @@ contract TakasureProtocolFuzzTest is Test {
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
+    address public parent = makeAddr("parent");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
@@ -83,7 +84,7 @@ contract TakasureProtocolFuzzTest is Test {
         vm.assume(notOwner != daoMultisig);
 
         vm.prank(alice);
-        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         vm.prank(notOwner);
         vm.expectRevert();

@@ -44,8 +44,12 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
     }
 
-    function joinPool(uint256 contributionBeforeFee, uint256 membershipDuration) external {
-        entryModule.joinPool(msg.sender, contributionBeforeFee, membershipDuration);
+    function joinPool(
+        address parentWallet,
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration
+    ) external {
+        entryModule.joinPool(msg.sender, parentWallet, contributionBeforeFee, membershipDuration);
     }
 
     function refund() external {

@@ -44,6 +44,7 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     address public david = makeAddr("david");
     address public erin = makeAddr("erin");
     address public frank = makeAddr("frank");
+    address public parent = makeAddr("parent");
 
     function setUp() public {
         deployer = new TestDeployProtocol();
@@ -234,7 +235,7 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
 
     function _join(address user, uint256 timesContributionAmount) internal {
         vm.startPrank(user);
-        userRouter.joinPool(timesContributionAmount * CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(parent, timesContributionAmount * CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         // We simulate a request before the KYC

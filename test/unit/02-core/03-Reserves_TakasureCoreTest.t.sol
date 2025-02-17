@@ -30,6 +30,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
+    address public parent = makeAddr("parent");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
@@ -86,7 +87,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     /// @dev Test fund and claim reserves are calculated correctly
     function testTakasureCore_fundAndClaimReserves() public {
         vm.prank(alice);
-        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 initialReserveRatio = reserve.initialReserveRatio;
@@ -135,7 +136,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
 
             vm.prank(lotOfUsers[i]);
-            userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
         // Each day 10 users will join with the contribution amount
 
@@ -209,7 +210,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
 
             vm.prank(lotOfUsers[i]);
-            userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         // We simulate a request before the KYC
@@ -278,7 +279,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
 
             vm.prank(lotOfUsers[i]);
-            userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+            userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
         }
 
         // We simulate a request before the KYC

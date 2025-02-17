@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 interface IEntryModule {
     function joinPool(
         address membersWallet,
+        address parentWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external;

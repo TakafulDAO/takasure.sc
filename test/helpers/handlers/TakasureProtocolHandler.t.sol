@@ -16,6 +16,7 @@ contract TakasureProtocolHandler is Test {
     MemberModule memberModule;
     UserRouter userRouter;
     ERC20 usdc;
+    address public parent = makeAddr("parent");
 
     uint256 constant MIN_DEPOSIT = 25e6; // 25 USDC
     uint256 constant MAX_DEPOSIT = 2025e5; // 202.50 USDC
@@ -57,7 +58,7 @@ contract TakasureProtocolHandler is Test {
         vm.startPrank(msg.sender);
         usdc.approve(address(entryModule), contributionAmount);
 
-        userRouter.joinPool(contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
+        userRouter.joinPool(parent, contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
         vm.stopPrank();
     }
 

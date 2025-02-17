@@ -34,6 +34,7 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
+    address public parent = makeAddr("parent");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
@@ -100,7 +101,7 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
     {
         vm.startPrank(alice);
         usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
-        userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         // We simulate a request before the KYC
@@ -124,7 +125,7 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
     {
         vm.startPrank(alice);
         usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
-        userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         // We simulate a request before the KYC

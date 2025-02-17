@@ -418,6 +418,7 @@ contract PrejoinModule is
         // Finally, we join the prepaidMember to the tDAO
         IEntryModule(nameToDAOData[tDAOName].entryModule).joinPool(
             newMember,
+            childToParent[newMember],
             nameToDAOData[tDAOName].prepaidMembers[newMember].contributionBeforeFee,
             membershipDuration
         );

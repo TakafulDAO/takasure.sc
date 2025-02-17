@@ -35,6 +35,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
+    address public parent = makeAddr("parent");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USD
     uint256 public constant YEAR = 365 days;
@@ -85,7 +86,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
 
-        userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -137,11 +138,11 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         Member memory aliceAfterRefund = takasureReserve.getMemberFromAddress(alice);
 
         vm.startPrank(bob);
-        userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        userRouter.joinPool(CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         Member memory aliceAfterSecondJoin = takasureReserve.getMemberFromAddress(alice);
