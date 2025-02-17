@@ -345,26 +345,26 @@ contract PrejoinModule is
 
     /**
      * @notice Set the KYC status of a member
-     * @param child The address of the member
+     * @param user The address of the member
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
-    function setKYCStatus(address child) external onlyRole(KYC_PROVIDER) {
+    function setKYCStatus(address user) external onlyRole(KYC_PROVIDER) {
         _onlyModuleState(ModuleState.Enabled);
-        AddressCheck._notZeroAddress(child);
+        AddressCheck._notZeroAddress(user);
         // Initial checks
         // Can not KYC a member that is already KYCed
-        require(!isMemberKYCed[child], PrejoinModule__MemberAlreadyKYCed());
+        require(!isMemberKYCed[user], PrejoinModule__MemberAlreadyKYCed());
 
         // The member must have already pre-paid
         require(
-            nameToDAOData[tDAOName].prepaidMembers[child].contributionBeforeFee != 0,
+            nameToDAOData[tDAOName].prepaidMembers[user].contributionBeforeFee != 0,
             PrejoinModule__HasNotPaid()
         );
 
         // Update the KYC status
-        isMemberKYCed[child] = true;
+        isMemberKYCed[user] = true;
 
-        address parent = childToParent[child];
+        address parent = childToParent[user];
 
         for (uint256 i; i < uint256(MAX_TIER); ++i) {
             if (parent == address(0)) break;
@@ -373,20 +373,20 @@ contract PrejoinModule is
 
             uint256 parentReward = nameToDAOData[tDAOName]
                 .prepaidMembers[parent]
-                .parentRewardsByChild[child];
+                .parentRewardsByChild[user];
 
             // Reset the rewards for this child
-            nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[child] = 0;
+            nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[user] = 0;
 
             usdc.safeTransfer(parent, parentReward);
 
-            emit OnParentRewarded(parent, layer, child, parentReward);
+            emit OnParentRewarded(parent, layer, user, parentReward);
 
             // We update the parent address to check the next parent
             parent = childToParent[parent];
         }
 
-        emit OnMemberKYCVerified(child);
+        emit OnMemberKYCVerified(user);
     }
 
     /**
