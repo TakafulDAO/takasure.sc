@@ -54,6 +54,7 @@ contract EntryModule is
     uint256 private transient discount;
     address private prejoinModule;
     address private couponPool;
+    address private ccipReceiverContract;
 
     mapping(address child => address parent) public childToParent;
     mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
@@ -108,6 +109,11 @@ contract EntryModule is
     function setCouponPoolAddress(address _couponPool) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
         AddressCheck._notZeroAddress(_couponPool);
         couponPool = _couponPool;
+    }
+
+    function setCCIPReceiverContract(address _ccipReceiverContract) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+        AddressCheck._notZeroAddress(_ccipReceiverContract);
+        ccipReceiverContract = _ccipReceiverContract;
     }
 
     /**
@@ -737,11 +743,26 @@ contract EntryModule is
         }
 
         // Store temporarily the contribution in this contract, this way will be available for refunds
-        contributionToken.safeTransferFrom(
-            _memberWallet,
-            address(this),
-            _amountToTransferFromMember
-        );
+        if (_amountToTransferFromMember > 0) {
+            if (msg.sender == ccipReceiverContract) {
+                contributionToken.safeTransferFrom(ccipReceiverContract, address(this), _amountToTransferFromMember);
+
+                // Note: This is a temporary solution to test the CCIP integration in the testnet
+                // This is because in testnet we are using a different USDC contract for easier testing
+                // IERC20(0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d).safeTransferFrom(
+                //     ccipReceiverContract,
+                //     address(this),
+                //     amountToTransfer
+                // );
+            } else {
+                contributionToken.safeTransferFrom(
+                    _memberWallet,
+                    address(this),
+                    _amountToTransferFromMember
+                );
+            }
+
+
 
         // Transfer the coupon amount to this contract
         if (_couponAmount > 0) {
@@ -754,7 +775,7 @@ contract EntryModule is
             takasureReserve.feeClaimAddress(),
             feeAmount
         );
-    }
+    }}
 
     function _onlyModuleState(ModuleState _state) internal view {
         require(moduleState == _state, ModuleErrors.Module__WrongModuleState());
