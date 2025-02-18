@@ -51,6 +51,9 @@ contract EntryModule is
     uint256 private transient contributionAfterFee;
     address private prejoinModule;
 
+    uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
+    uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
+
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
     error EntryModule__AlreadyJoinedPendingForKYC();

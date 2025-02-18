@@ -90,13 +90,13 @@ struct tDAO {
 }
 
 struct Reserve {
-    bool referralDiscount;
     uint8 serviceFee; // Default 22%, max 100%
     uint8 bmaFundReserveShare; // Default 70%
     uint8 fundMarketExpendsAddShare; // Default 20%
     uint8 riskMultiplier; // Default to 2%
     bool isOptimizerEnabled; // Default true
     bool allowCustomDuration; // Default false
+    bool referralDiscount;
     address daoToken;
     address contributionToken;
     uint256 memberIdCounter;
@@ -117,4 +117,5 @@ struct Reserve {
     uint256 ECRes; // Default 0
     uint256 UCRes; // Default 0
     uint256 surplus; // Default 0
+    uint256 referralReserve; // In USDC, six decimals
 }
