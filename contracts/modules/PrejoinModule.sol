@@ -26,7 +26,7 @@ import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValues
 import {tDAO, PrepaidMember, ModuleState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
 
@@ -150,10 +150,10 @@ contract PrejoinModule is
         address _usdcAddress,
         address _benefitMultiplierConsumer
     ) external initializer {
-        AddressCheck._notZeroAddress(_operator);
-        AddressCheck._notZeroAddress(_KYCProvider);
-        AddressCheck._notZeroAddress(_usdcAddress);
-        AddressCheck._notZeroAddress(_benefitMultiplierConsumer);
+        AddressAndStates._notZeroAddress(_operator);
+        AddressAndStates._notZeroAddress(_KYCProvider);
+        AddressAndStates._notZeroAddress(_usdcAddress);
+        AddressAndStates._notZeroAddress(_benefitMultiplierConsumer);
         _initDependencies();
 
         _grantRoles(_operator, _KYCProvider);
@@ -241,10 +241,10 @@ contract PrejoinModule is
         address entryModuleAddress,
         bool isReferralDiscountEnabled
     ) external {
-        _onlyModuleState(ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         _onlyDAOAdmin();
-        AddressCheck._notZeroAddress(tDAOAddress);
-        AddressCheck._notZeroAddress(entryModuleAddress);
+        AddressAndStates._notZeroAddress(tDAOAddress);
+        AddressAndStates._notZeroAddress(entryModuleAddress);
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             PrejoinModule__DAOAlreadyLaunched()
@@ -284,7 +284,7 @@ contract PrejoinModule is
      */
     function enableRepool(address rePoolAddress) external {
         _onlyDAOAdmin();
-        AddressCheck._notZeroAddress(rePoolAddress);
+        AddressAndStates._notZeroAddress(rePoolAddress);
         require(nameToDAOData[tDAOName].DAOAddress != address(0), PrejoinModule__tDAONotReadyYet());
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
 
@@ -361,7 +361,7 @@ contract PrejoinModule is
             moduleState == ModuleState.Enabled || moduleState == ModuleState.Disabled,
             PrejoinModule__WrongModuleState()
         );
-        AddressCheck._notZeroAddress(user);
+        AddressAndStates._notZeroAddress(user);
         // Initial checks
         // Can not KYC a member that is already KYCed
         require(!isMemberKYCed[user], PrejoinModule__MemberAlreadyKYCed());
@@ -408,7 +408,7 @@ contract PrejoinModule is
      * @dev The member must have a tDAO assigned
      */
     function joinDAO(address newMember) external nonReentrant {
-        _onlyModuleState(ModuleState.Disabled);
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Disabled);
         // Initial checks
         require(isMemberKYCed[newMember], PrejoinModule__NotKYCed());
 
@@ -476,7 +476,7 @@ contract PrejoinModule is
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
     ) external onlyRole(OPERATOR) {
-        AddressCheck._notZeroAddress(newBenefitMultiplierConsumer);
+        AddressAndStates._notZeroAddress(newBenefitMultiplierConsumer);
         address oldBenefitMultiplierConsumer = address(nameToDAOData[tDAOName].bmConsumer);
         nameToDAOData[tDAOName].bmConsumer = IBenefitMultiplierConsumer(
             newBenefitMultiplierConsumer
@@ -489,7 +489,7 @@ contract PrejoinModule is
     }
 
     function setNewOperator(address newOperator) external onlyRole(OPERATOR) {
-        AddressCheck._notZeroAddress(newOperator);
+        AddressAndStates._notZeroAddress(newOperator);
         address oldOperator = operator;
 
         // Setting the new operator address
@@ -505,14 +505,14 @@ contract PrejoinModule is
     }
 
     function setCouponPoolAddress(address _couponPool) external onlyRole(OPERATOR) {
-        AddressCheck._notZeroAddress(_couponPool);
+        AddressAndStates._notZeroAddress(_couponPool);
         address oldCouponPool = couponPool;
         couponPool = _couponPool;
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
     }
 
     function setCCIPReceiverContract(address _ccipReceiverContract) external onlyRole(OPERATOR) {
-        AddressCheck._notZeroAddress(_ccipReceiverContract);
+        AddressAndStates._notZeroAddress(_ccipReceiverContract);
         address oldCCIPReceiverContract = ccipReceiverContract;
         ccipReceiverContract = _ccipReceiverContract;
         emit OnNewCCIPReceiverContract(oldCCIPReceiverContract, _ccipReceiverContract);
@@ -615,7 +615,7 @@ contract PrejoinModule is
         address _newMember,
         uint256 _couponAmount
     ) internal nonReentrant returns (uint256 _finalFee, uint256 _discount) {
-        _onlyModuleState(ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
         // The prepaid member object is created
         uint256 realContribution;
@@ -850,10 +850,6 @@ contract PrejoinModule is
             hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
             PrejoinModule__NotAuthorizedCaller()
         );
-    }
-
-    function _onlyModuleState(ModuleState _state) internal view {
-        require(moduleState == _state, PrejoinModule__WrongModuleState());
     }
 
     ///@dev required by the OZ UUPS module

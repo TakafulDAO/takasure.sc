@@ -26,7 +26,7 @@ import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/Rese
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
-import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -115,14 +115,14 @@ contract EntryModule is
     function setCouponPoolAddress(
         address _couponPool
     ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        AddressCheck._notZeroAddress(_couponPool);
+        AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
 
     function setCCIPReceiverContract(
         address _ccipReceiverContract
     ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        AddressCheck._notZeroAddress(_ccipReceiverContract);
+        AddressAndStates._notZeroAddress(_ccipReceiverContract);
         ccipReceiverContract = _ccipReceiverContract;
     }
 
@@ -146,7 +146,7 @@ contract EntryModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        _onlyModuleState(ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             membersWallet
@@ -190,7 +190,7 @@ contract EntryModule is
         uint256 membershipDuration,
         uint256 couponAmount
     ) external nonReentrant {
-        _onlyModuleState(ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         _onlyCouponRedeemerOrCcipReceiver;
 
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
@@ -212,6 +212,8 @@ contract EntryModule is
             benefitMultiplier,
             couponAmount
         );
+
+        if (couponAmount > 0) emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
     }
 
     /**
@@ -223,8 +225,8 @@ contract EntryModule is
      * @dev It reverts if the member is already KYCed
      */
     function setKYCStatus(address memberWallet) external onlyRole(ModuleConstants.KYC_PROVIDER) {
-        _onlyModuleState(ModuleState.Enabled);
-        AddressCheck._notZeroAddress(memberWallet);
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._notZeroAddress(memberWallet);
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
@@ -289,7 +291,7 @@ contract EntryModule is
      * @param memberWallet address to be refunded
      */
     function refund(address memberWallet) external {
-        AddressCheck._notZeroAddress(memberWallet);
+        AddressAndStates._notZeroAddress(memberWallet);
         _refund(memberWallet);
     }
 
@@ -492,7 +494,7 @@ contract EntryModule is
     }
 
     function _refund(address _memberWallet) internal {
-        _onlyModuleState(ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
             takasureReserve,
             _memberWallet
@@ -793,10 +795,6 @@ contract EntryModule is
                 feeAmount
             );
         }
-    }
-
-    function _onlyModuleState(ModuleState _state) internal view {
-        require(moduleState == _state, ModuleErrors.Module__WrongModuleState());
     }
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {

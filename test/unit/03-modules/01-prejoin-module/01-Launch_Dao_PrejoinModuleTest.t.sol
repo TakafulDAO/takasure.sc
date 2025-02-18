@@ -10,7 +10,7 @@ import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 contract LaunchDaoPrejoinModuleTest is Test {
     TestDeployProtocol deployer;
@@ -127,11 +127,11 @@ contract LaunchDaoPrejoinModuleTest is Test {
         prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         vm.prank(daoAdmin);
-        vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
         prejoinModule.launchDAO(address(0), entryModuleAddress, true);
 
         vm.prank(daoAdmin);
-        vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
         prejoinModule.launchDAO(address(takasureReserve), address(0), true);
 
         vm.prank(daoAdmin);
@@ -161,7 +161,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
         prejoinModule.updateLaunchDate(block.timestamp + 32_000_000);
 
         vm.prank(daoAdmin);
-        vm.expectRevert(PrejoinModule.PrejoinModule__WrongModuleState.selector);
+        vm.expectRevert(AddressAndStates.Module__WrongModuleState.selector);
         prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         vm.prank(daoAdmin);
@@ -174,7 +174,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
         address newRePoolAddress = makeAddr("rePoolAddress");
 
         vm.prank(daoAdmin);
-        vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
         prejoinModule.enableRepool(address(0));
 
         vm.prank(daoAdmin);

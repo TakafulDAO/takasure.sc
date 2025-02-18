@@ -10,7 +10,7 @@ import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 contract RevertsPrejoinModuleTest is Test {
     TestDeployProtocol deployer;

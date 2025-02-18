@@ -24,7 +24,7 @@ import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConst
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
-import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -53,7 +53,7 @@ contract MemberModule is
     }
 
     function initialize(address _takasureReserveAddress) external initializer {
-        AddressCheck._notZeroAddress(_takasureReserveAddress);
+        AddressAndStates._notZeroAddress(_takasureReserveAddress);
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __ReentrancyGuardTransient_init();
@@ -83,13 +83,13 @@ contract MemberModule is
      * @dev To be called by anyone
      */
     function cancelMembership(address memberWallet) external {
-        _onlyModuleState(ModuleState.Enabled);
-        AddressCheck._notZeroAddress(memberWallet);
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._notZeroAddress(memberWallet);
         _cancelMembership(memberWallet);
     }
 
     function payRecurringContribution(address memberWallet) external nonReentrant {
-        _onlyModuleState(ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         (Reserve memory reserve, Member memory activeMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
@@ -150,7 +150,7 @@ contract MemberModule is
     }
 
     function defaultMember(address memberWallet) external {
-        _onlyModuleState(ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         Member memory member = _getMembersValuesHook(takasureReserve, memberWallet);
 
         require(member.memberState == MemberState.Active, ModuleErrors.Module__WrongMemberState());
@@ -194,10 +194,6 @@ contract MemberModule is
         } else {
             revert ModuleErrors.Module__TooEarlyToCancel();
         }
-    }
-
-    function _onlyModuleState(ModuleState _state) internal view {
-        require(moduleState == _state, ModuleErrors.Module__WrongModuleState());
     }
 
     ///@dev required by the OZ UUPS module

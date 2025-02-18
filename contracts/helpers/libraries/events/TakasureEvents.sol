@@ -82,4 +82,5 @@ library TakasureEvents {
     event OnAllowCustomDuration(bool allowCustomDuration);
     event OnMemberCanceled(uint256 indexed memberId, address indexed member);
     event OnMemberDefaulted(uint256 indexed memberId, address indexed member);
+    event OnCouponRedeemed(address indexed member, uint256 indexed couponAmount);
 }

@@ -10,7 +10,7 @@ import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 contract PrepaysPrejoinModuleTest is Test {
     TestDeployProtocol deployer;
@@ -212,7 +212,7 @@ contract PrepaysPrejoinModuleTest is Test {
 
     function testKYCAnAddress() public createDao referralPrepays {
         vm.prank(KYCProvider);
-        vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
         prejoinModule.setKYCStatus(address(0));
 
         assert(!prejoinModule.isMemberKYCed(referral));

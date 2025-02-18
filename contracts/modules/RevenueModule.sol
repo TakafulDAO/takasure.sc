@@ -183,10 +183,6 @@ contract RevenueModule is
         takasureReserve.setCashFlowValuesFromModule(cashFlowVars);
     }
 
-    function _onlyModuleState(ModuleState _state) internal view {
-        require(moduleState == _state, ModuleErrors.Module__WrongModuleState());
-    }
-
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation

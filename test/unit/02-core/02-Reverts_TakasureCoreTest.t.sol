@@ -9,7 +9,7 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 contract Reverts_TakasureCoreTest is StdCheats, Test {
     TestDeployProtocol deployer;
@@ -73,7 +73,7 @@ contract Reverts_TakasureCoreTest is StdCheats, Test {
     /// @dev `setNewContributionToken` must revert if the address is zero
     function testTakasureCore_setNewContributionTokenMustRevertIfAddressZero() public {
         vm.prank(admin);
-        vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
         takasureReserve.setNewContributionToken(address(0));
     }
 
@@ -87,7 +87,7 @@ contract Reverts_TakasureCoreTest is StdCheats, Test {
     /// @dev `setNewFeeClaimAddress` must revert if the address is zero
     function testTakasureCore_setNewFeeClaimAddressMustRevertIfAddressZero() public {
         vm.prank(admin);
-        vm.expectRevert(AddressCheck.TakasureProtocol__ZeroAddress.selector);
+        vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
         takasureReserve.setNewFeeClaimAddress(address(0));
     }
 

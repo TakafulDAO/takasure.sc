@@ -18,7 +18,7 @@ import {TSToken} from "contracts/token/TSToken.sol";
 import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
 
@@ -171,7 +171,7 @@ contract TakasureReserve is
 
     function setModuleManagerContract(address newModuleManagerContract) external {
         _onlyDaoOrTakadao();
-        AddressCheck._notZeroAddress(newModuleManagerContract);
+        AddressAndStates._notZeroAddress(newModuleManagerContract);
         moduleManager = IModuleManager(newModuleManagerContract);
     }
 
@@ -215,12 +215,12 @@ contract TakasureReserve is
     }
 
     function setNewContributionToken(address newContributionToken) external onlyRole(DAO_MULTISIG) {
-        AddressCheck._notZeroAddress(newContributionToken);
+        AddressAndStates._notZeroAddress(newContributionToken);
         reserve.contributionToken = newContributionToken;
     }
 
     function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(TAKADAO_OPERATOR) {
-        AddressCheck._notZeroAddress(newFeeClaimAddress);
+        AddressAndStates._notZeroAddress(newFeeClaimAddress);
         feeClaimAddress = newFeeClaimAddress;
     }
 
@@ -228,7 +228,7 @@ contract TakasureReserve is
         address newBenefitMultiplierConsumerAddress
     ) external {
         _onlyDaoOrTakadao();
-        AddressCheck._notZeroAddress(newBenefitMultiplierConsumerAddress);
+        AddressAndStates._notZeroAddress(newBenefitMultiplierConsumerAddress);
         address oldBenefitMultiplierConsumer = address(bmConsumer);
         bmConsumer = newBenefitMultiplierConsumerAddress;
 
