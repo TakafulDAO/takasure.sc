@@ -90,6 +90,7 @@ struct tDAO {
 }
 
 struct Reserve {
+    bool referralDiscount;
     uint8 serviceFee; // Default 22%, max 100%
     uint8 bmaFundReserveShare; // Default 70%
     uint8 fundMarketExpendsAddShare; // Default 20%
