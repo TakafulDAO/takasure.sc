@@ -334,8 +334,8 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         uint256 bobBMA = reserve.benefitMultiplierAdjuster;
 
         uint256 expectedInitialBMA = 100;
-        uint256 expectedAliceBMA = 90;
-        uint256 expectedBobBMA = 88;
+        uint256 expectedAliceBMA = 88;
+        uint256 expectedBobBMA = 86;
 
         assertEq(initialBMA, expectedInitialBMA);
         assertEq(aliceBMA, expectedAliceBMA);

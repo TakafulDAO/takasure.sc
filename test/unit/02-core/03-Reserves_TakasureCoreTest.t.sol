@@ -106,20 +106,20 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         uint256 finalClaimReserve = reserve.totalClaimReserve;
         uint256 finalFundReserve = reserve.totalFundReserve;
 
-        uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 22% = 5.5USDC
+        uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 27% = 6.75USDC
 
-        uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 5.5USDC = 19.5USDC
+        uint256 deposited = CONTRIBUTION_AMOUNT - fee; // 25USDC - 6.75USDC = 18.25USDC
 
-        uint256 toFundReserveBeforeExpends = (deposited * initialReserveRatio) / 100; // 19.5USDC * 40% = 7.8USDC
-        uint256 marketExpends = (toFundReserveBeforeExpends * fundMarketExpendsShare) / 100; // 7.8USDC * 20% = 1.56USDC
-        uint256 expectedFinalClaimReserve = deposited - toFundReserveBeforeExpends; // 19.5USDC - 7.8USDC = 11.7USDC
-        uint256 expectedFinalFundReserve = toFundReserveBeforeExpends - marketExpends; // 7.8USDC - 1.56USDC = 6.24USDC
+        uint256 toFundReserveBeforeExpends = (deposited * initialReserveRatio) / 100; // 18.25USDC * 40% = 7.3USDC
+        uint256 marketExpends = (toFundReserveBeforeExpends * fundMarketExpendsShare) / 100; // 7.3USDC * 20% = 1.46USDC
+        uint256 expectedFinalClaimReserve = deposited - toFundReserveBeforeExpends; // 18.25USDC - 7.3USDC = 10.95USDC
+        uint256 expectedFinalFundReserve = toFundReserveBeforeExpends - marketExpends; // 7.3USDC - 1.46USDC = 5.84USDC
         assertEq(initialClaimReserve, 0);
         assertEq(initialFundReserve, 0);
         assertEq(finalClaimReserve, expectedFinalClaimReserve);
-        assertEq(finalClaimReserve, 117e5);
+        assertEq(finalClaimReserve, 1095e4);
         assertEq(finalFundReserve, expectedFinalFundReserve);
-        assertEq(finalFundReserve, 624e4);
+        assertEq(finalFundReserve, 584e4);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -320,7 +320,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Month 13 0USDC => Total 3490.5USDC
 
         cash = takasureReserve.getCashLast12Months();
-        assertEq(cash, 34905e5);
+        assertEq(cash, 326675e4);
 
         // Thirteenth month 10 people joins
         for (uint256 i = 180; i < 190; i++) {
@@ -332,7 +332,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Month 2 to 13 take all => Total 3685.5USDC
 
         cash = takasureReserve.getCashLast12Months();
-        assertEq(cash, 36855e5);
+        assertEq(cash, 344925e4);
 
         vm.warp(block.timestamp + 30 days);
         vm.roll(block.number + 1);
@@ -343,7 +343,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Month 14 0USDC => Total 3100.5USDC
 
         cash = takasureReserve.getCashLast12Months();
-        assertEq(cash, 31005e5);
+        assertEq(cash, 290175e4);
 
         // Fourteenth month 10 people joins
         for (uint256 i = 190; i < 200; i++) {
@@ -356,7 +356,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Month 3 to 14 take all => Total 3295.5USDC
 
         cash = takasureReserve.getCashLast12Months();
-        assertEq(cash, 32955e5);
+        assertEq(cash, 308425e4);
 
         vm.warp(block.timestamp + 30 days);
         vm.roll(block.number + 1);
@@ -367,7 +367,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Month 15 0USDC => Total 2710.5USDC
 
         cash = takasureReserve.getCashLast12Months();
-        assertEq(cash, 27105e5);
+        assertEq(cash, 253675e4);
 
         // Last 2 days 2 people joins
         for (uint256 i = 200; i < 202; i++) {
@@ -384,7 +384,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
 
         cash = takasureReserve.getCashLast12Months();
 
-        assertEq(cash, 27105e5);
+        assertEq(cash, 253675e4);
 
         // If no one joins for the next 12 months, the cash should be 0
         // As the months are counted with 30 days, the 12 months should be 360 days

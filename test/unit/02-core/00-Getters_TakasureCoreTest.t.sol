@@ -34,7 +34,7 @@ contract Getters_TakasureCoreTest is StdCheats, Test {
 
     function testTakasureCore_getServiceFee() public view {
         Reserve memory reserve = takasureReserve.getReserveValues();
-        uint8 expectedServiceFee = 22;
+        uint8 expectedServiceFee = 27;
         assertEq(reserve.serviceFee, expectedServiceFee);
     }
 

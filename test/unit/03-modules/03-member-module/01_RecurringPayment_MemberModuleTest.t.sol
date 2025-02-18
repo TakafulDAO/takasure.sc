@@ -96,7 +96,7 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
     }
 
     function testMemberModule_payRecurringContributionThrough5Years() public {
-        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 22) / 100;
+        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 27) / 100;
 
         for (uint256 i = 0; i < 5; i++) {
             Member memory testMember = takasureReserve.getMemberFromAddress(alice);

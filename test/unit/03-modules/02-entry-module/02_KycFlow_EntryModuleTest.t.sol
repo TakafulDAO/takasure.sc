@@ -96,7 +96,7 @@ contract KycFlow_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
             alice,
             0,
             CONTRIBUTION_AMOUNT,
-            ((CONTRIBUTION_AMOUNT * 22) / 100),
+            ((CONTRIBUTION_AMOUNT * 27) / 100),
             5 * YEAR,
             1
         );
@@ -142,7 +142,7 @@ contract KycFlow_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
             alice,
             BENEFIT_MULTIPLIER_FROM_CONSUMER,
             CONTRIBUTION_AMOUNT,
-            ((CONTRIBUTION_AMOUNT * 22) / 100),
+            ((CONTRIBUTION_AMOUNT * 27) / 100),
             5 * YEAR,
             1
         );
