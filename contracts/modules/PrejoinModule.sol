@@ -65,7 +65,7 @@ contract PrejoinModule is
     uint8 private constant SERVICE_FEE_RATIO = 27;
     uint256 private constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
-    uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution TO Referral Reserve
+    uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
     uint256 private constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
     uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
