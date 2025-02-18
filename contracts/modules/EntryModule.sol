@@ -355,10 +355,7 @@ contract EntryModule is
         address _parent
     ) internal returns (Reserve memory, uint256) {
         // The prepaid member object is created
-        uint256 realContribution;
-
-        if (_couponAmount > _contribution) realContribution = _couponAmount;
-        else realContribution = _contribution;
+        uint256 realContribution = _getRealContributionAfterCoupon(_contribution, _couponAmount);
 
         uint256 toReferralReserve;
         uint256 _referralDiscount;
@@ -386,6 +383,14 @@ contract EntryModule is
         }
 
         return (_reserve, _referralDiscount);
+    }
+
+    function _getRealContributionAfterCoupon(
+        uint256 _contribution,
+        uint256 _couponAmount
+    ) internal pure returns (uint256 realContribution_) {
+        if (_couponAmount > _contribution) realContribution_ = _couponAmount;
+        else realContribution_ = _contribution;
     }
 
     function _parentRewards(
