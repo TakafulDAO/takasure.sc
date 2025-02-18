@@ -62,6 +62,7 @@ contract EntryModule is
 
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
+    bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
@@ -70,6 +71,7 @@ contract EntryModule is
     error EntryModule__MemberAlreadyKYCed();
     error EntryModule__NothingToRefund();
     error EntryModule__TooEarlytoRefund();
+    error EntryModule__NotAuthorizedCaller();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -181,6 +183,8 @@ contract EntryModule is
         uint256 couponAmount
     ) external nonReentrant {
         _onlyModuleState(ModuleState.Enabled);
+        _onlyCouponRedeemerOrCcipReceiver;
+        
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             membersWallet
@@ -779,6 +783,13 @@ contract EntryModule is
 
     function _onlyModuleState(ModuleState _state) internal view {
         require(moduleState == _state, ModuleErrors.Module__WrongModuleState());
+    }
+
+    function _onlyCouponRedeemerOrCcipReceiver() internal view {
+        require(
+            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            EntryModule__NotAuthorizedCaller()
+        );
     }
 
     ///@dev required by the OZ UUPS module
