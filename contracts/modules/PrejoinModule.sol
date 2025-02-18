@@ -723,6 +723,12 @@ contract PrejoinModule is
             PrejoinModule__tDAONotReadyYet()
         );
 
+        // We check if the member already exists
+        require(
+            nameToDAOData[tDAOName].prepaidMembers[_newMember].contributionBeforeFee == 0,
+            PrejoinModule__AlreadyMember()
+        );
+
         require(
             _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
             PrejoinModule__ContributionOutOfRange()
@@ -730,14 +736,6 @@ contract PrejoinModule is
 
         if (_parent != address(0))
             require(isMemberKYCed[_parent], PrejoinModule__ParentMustKYCFirst());
-
-        if (nameToDAOData[tDAOName].preJoinEnabled) {
-            // We check if the member already exists
-            require(
-                nameToDAOData[tDAOName].prepaidMembers[_newMember].contributionBeforeFee == 0,
-                PrejoinModule__AlreadyMember()
-            );
-        }
     }
 
     function _parentRewards(
