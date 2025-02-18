@@ -13,6 +13,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasurePool} from "contracts/interfaces/ITakasurePool.sol";
+import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {IEntryModule} from "contracts/interfaces/IEntryModule.sol";
 
@@ -21,8 +22,9 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 
-import {tDAO, PrepaidMember, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {tDAO, PrepaidMember, ModuleState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {AddressCheck} from "contracts/helpers/libraries/checks/AddressCheck.sol";
@@ -36,7 +38,8 @@ contract PrejoinModule is
     AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     ParentRewards,
-    TLDModuleImplementation
+    TLDModuleImplementation,
+    ReserveAndMemberValuesHook
 {
     using SafeERC20 for IERC20;
 
@@ -258,9 +261,16 @@ contract PrejoinModule is
         nameToDAOData[tDAOName].entryModule = entryModuleAddress;
         nameToDAOData[tDAOName].launchDate = block.timestamp;
 
-        moduleState = ModuleState.Disabled;
+        Reserve memory reserve = _getReservesValuesHook(ITakasureReserve(tDAOAddress));
+
+        reserve.referralDiscount = isReferralDiscountEnabled;
+
+        _setReservesValuesHook(ITakasureReserve(tDAOAddress), reserve);
 
         emit OnDAOLaunched(tDAOAddress);
+
+        // At last we disable the module, this way the payments will be stopped
+        moduleState = ModuleState.Disabled;
     }
 
     /**
