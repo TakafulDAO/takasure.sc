@@ -94,7 +94,9 @@ contract TestDeployProtocol is Script {
             config.takadaoOperator,
             config.kycProvider,
             config.contributionToken,
-            address(bmConsumerMock)
+            address(bmConsumerMock),
+            makeAddr("ccipReceiverContract"),
+            makeAddr("couponPool")
         );
 
         // Deploy router
@@ -161,12 +163,19 @@ contract TestDeployProtocol is Script {
         );
     }
 
+    address prejoinModuleImplementation;
+    address entryModuleImplementation;
+    address memberModuleImplementation;
+    address revenueModuleImplementation;
+
     function _deployModules(
         address _takasureReserve,
         address _takadaoOperator,
         address _kycProvider,
         address _contributionToken,
-        address _bmConsumerMock
+        address _bmConsumerMock,
+        address _ccipReceiver,
+        address _couponPool
     )
         internal
         returns (
@@ -177,7 +186,7 @@ contract TestDeployProtocol is Script {
         )
     {
         // Deploy PrejoinModule
-        address prejoinModuleImplementation = address(new PrejoinModule());
+        prejoinModuleImplementation = address(new PrejoinModule());
 
         prejoinModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             prejoinModuleImplementation,
@@ -188,21 +197,24 @@ contract TestDeployProtocol is Script {
         );
 
         // Deploy EntryModule
-        address entryModuleImplementation = address(new EntryModule());
+        entryModuleImplementation = address(new EntryModule());
         entryModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             entryModuleImplementation,
-            abi.encodeCall(EntryModule.initialize, (_takasureReserve, prejoinModuleAddress_))
+            abi.encodeCall(
+                EntryModule.initialize,
+                (_takasureReserve, prejoinModuleAddress_, _ccipReceiver, _couponPool)
+            )
         );
 
         // Deploy MemberModule
-        address memberModuleImplementation = address(new MemberModule());
+        memberModuleImplementation = address(new MemberModule());
         memberModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             memberModuleImplementation,
             abi.encodeCall(MemberModule.initialize, (_takasureReserve))
         );
 
         // Deploy RevenueModule
-        address revenueModuleImplementation = address(new RevenueModule());
+        revenueModuleImplementation = address(new RevenueModule());
         revenueModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             revenueModuleImplementation,
             abi.encodeCall(RevenueModule.initialize, (_takasureReserve))

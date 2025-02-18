@@ -93,7 +93,9 @@ contract TestDeployTakasureReserve is Script {
 
         (entryModule, memberModule, revenueModule) = _deployModules(
             takasureReserve,
-            address(referralGatewayProxy)
+            address(referralGatewayProxy),
+            makeAddr("ccipReceiverContract"),
+            makeAddr("couponPool")
         );
 
         // Deploy router
@@ -170,13 +172,18 @@ contract TestDeployTakasureReserve is Script {
 
     function _deployModules(
         address _takasureReserve,
-        address _prejoinModule
+        address _prejoinModule,
+        address _ccipReceiver,
+        address _couponPool
     ) internal returns (address entryModule, address memberModule, address revenueModule) {
         // Deploy EntryModule
         address entryModuleImplementation = address(new EntryModule());
         entryModule = UnsafeUpgrades.deployUUPSProxy(
             entryModuleImplementation,
-            abi.encodeCall(EntryModule.initialize, (_takasureReserve, _prejoinModule))
+            abi.encodeCall(
+                EntryModule.initialize,
+                (_takasureReserve, _prejoinModule, _ccipReceiver, _couponPool)
+            )
         );
 
         // Deploy MemberModule

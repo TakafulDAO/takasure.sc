@@ -80,7 +80,9 @@ contract EntryModule is
 
     function initialize(
         address _takasureReserveAddress,
-        address _prejoinModule
+        address _prejoinModule,
+        address _ccipReceiverContract,
+        address _couponPool
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -91,6 +93,8 @@ contract EntryModule is
         address takadaoOperator = takasureReserve.takadaoOperator();
         address moduleManager = takasureReserve.moduleManager();
         prejoinModule = _prejoinModule;
+        ccipReceiverContract = _ccipReceiverContract;
+        couponPool = _couponPool;
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
