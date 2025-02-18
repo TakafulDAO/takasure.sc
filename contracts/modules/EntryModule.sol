@@ -18,6 +18,7 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
+import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
 import {Reserve, Member, MemberState, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -38,7 +39,8 @@ contract EntryModule is
     ReentrancyGuardTransientUpgradeable,
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
-    MemberPaymentFlow
+    MemberPaymentFlow,
+    ParentRewards
 {
     using SafeERC20 for IERC20;
 
@@ -50,6 +52,10 @@ contract EntryModule is
     uint256 private transient feeAmount;
     uint256 private transient contributionAfterFee;
     address private prejoinModule;
+
+    mapping(address child => address parent) public childToParent;
+    mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
+    mapping(address parent => mapping(uint256 layer => uint256 reward)) public parentRewardsByLayer;
 
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
@@ -91,7 +97,9 @@ contract EntryModule is
      * @notice Set the module state
      * @dev Only callable from the Module Manager
      */
-    function setContractState(ModuleState newState) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+    function setContractState(
+        ModuleState newState
+    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
         moduleState = newState;
     }
 
@@ -141,7 +149,8 @@ contract EntryModule is
                 parentWallet,
                 contributionBeforeFee,
                 membershipDuration,
-                benefitMultiplier
+                benefitMultiplier,
+                0
             );
         }
     }
@@ -277,7 +286,8 @@ contract EntryModule is
         address _parentWallet,
         uint256 _contributionBeforeFee,
         uint256 _membershipDuration,
-        uint256 _benefitMultiplier
+        uint256 _benefitMultiplier,
+        uint256 _couponAmount
     ) internal {
         require(
             _newMember.memberState == MemberState.Inactive,
@@ -304,6 +314,16 @@ contract EntryModule is
                 _parentWallet: _parentWallet, // The parent wallet
                 _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
             });
+
+            uint256 _discount;
+
+            (_reserve, _discount) = _calculateReferralRewards(
+                _reserve,
+                _contributionBeforeFee,
+                _couponAmount,
+                _membersWallet,
+                _parentWallet
+            );
         } else {
             // Flow 2: Join (with flow 1) -> Refund -> Join
             // If is refunded, the member exist already, but was previously refunded
@@ -325,6 +345,89 @@ contract EntryModule is
         _transferContributionToModule({_memberWallet: _membersWallet});
 
         _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
+    }
+
+    function _calculateReferralRewards(
+        Reserve memory _reserve,
+        uint256 _contribution,
+        uint256 _couponAmount,
+        address _child,
+        address _parent
+    ) internal returns (Reserve memory, uint256) {
+        // The prepaid member object is created
+        uint256 realContribution;
+
+        if (_couponAmount > _contribution) realContribution = _couponAmount;
+        else realContribution = _contribution;
+
+        uint256 toReferralReserve;
+        uint256 _referralDiscount;
+
+        if (_reserve.referralDiscount) {
+            toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
+
+            if (_parent != address(0)) {
+                _referralDiscount =
+                    ((realContribution - _couponAmount) * REFERRAL_DISCOUNT_RATIO) /
+                    100;
+
+                childToParent[_child] = _parent;
+
+                (feeAmount, _reserve.referralReserve) = _parentRewards({
+                    _initialChildToCheck: _child,
+                    _contribution: realContribution,
+                    _currentReferralReserve: _reserve.referralReserve,
+                    _toReferralReserve: toReferralReserve,
+                    _currentFee: feeAmount
+                });
+            } else {
+                _reserve.referralReserve += toReferralReserve;
+            }
+        }
+
+        return (_reserve, _referralDiscount);
+    }
+
+    function _parentRewards(
+        address _initialChildToCheck,
+        uint256 _contribution,
+        uint256 _currentReferralReserve,
+        uint256 _toReferralReserve,
+        uint256 _currentFee
+    ) internal override returns (uint256, uint256) {
+        address currentChildToCheck = _initialChildToCheck;
+        uint256 newReferralReserveBalance = _currentReferralReserve + _toReferralReserve;
+        uint256 parentRewardsAccumulated;
+
+        for (int256 i; i < MAX_TIER; ++i) {
+            if (childToParent[currentChildToCheck] == address(0)) {
+                break;
+            }
+
+            parentRewardsByChild[childToParent[currentChildToCheck]][_initialChildToCheck] =
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            parentRewardsByLayer[childToParent[currentChildToCheck]][uint256(i + 1)] +=
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            parentRewardsAccumulated +=
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            currentChildToCheck = childToParent[currentChildToCheck];
+        }
+
+        if (newReferralReserveBalance > parentRewardsAccumulated) {
+            newReferralReserveBalance -= parentRewardsAccumulated;
+        } else {
+            uint256 reserveShortfall = parentRewardsAccumulated - newReferralReserveBalance;
+            _currentFee -= reserveShortfall;
+            newReferralReserveBalance = 0;
+        }
+
+        return (_currentFee, newReferralReserveBalance);
     }
 
     function _refund(address _memberWallet) internal {
