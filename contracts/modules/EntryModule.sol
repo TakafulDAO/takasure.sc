@@ -53,6 +53,7 @@ contract EntryModule is
     uint256 private transient contributionAfterFee;
     uint256 private transient discount;
     address private prejoinModule;
+    address private couponPool;
 
     mapping(address child => address parent) public childToParent;
     mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
@@ -104,6 +105,11 @@ contract EntryModule is
         moduleState = newState;
     }
 
+    function setCouponPoolAddress(address _couponPool) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+        AddressCheck._notZeroAddress(_couponPool);
+        couponPool = _couponPool;
+    }
+
     /**
      * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
@@ -111,6 +117,7 @@ contract EntryModule is
      * @param membersWallet address of the member
      * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
+     * @param parentWallet address of the parent
      * @dev it reverts if the contribution is less than the minimum threshold defaultes to `minimumThreshold`
      * @dev it reverts if the member is already active
      * @dev the contribution amount will be round down so the last four decimals will be zero. This means
@@ -154,6 +161,39 @@ contract EntryModule is
                 0
             );
         }
+    }
+
+    /**
+     * @notice Called by backend or CCIP protocol to allow new members to join the pool
+     * @param couponAmount in six decimals
+     */
+    function joinPoolOnBehalfOf(
+        address membersWallet,
+        address parentWallet,
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration,
+        uint256 couponAmount
+    ) external nonReentrant {
+        _onlyModuleState(ModuleState.Enabled);
+        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
+            takasureReserve,
+            membersWallet
+        );
+
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(membersWallet);
+
+        _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
+
+        _join(
+            reserve,
+            newMember,
+            membersWallet,
+            parentWallet,
+            contributionBeforeFee,
+            membershipDuration,
+            benefitMultiplier,
+            couponAmount
+        );
     }
 
     /**
@@ -318,7 +358,6 @@ contract EntryModule is
 
             (_reserve) = _calculateReferralRewards(
                 _reserve,
-                _contributionBeforeFee,
                 _couponAmount,
                 _membersWallet,
                 _parentWallet
@@ -343,20 +382,19 @@ contract EntryModule is
         // The member will pay the contribution, but will remain inactive until the KYC is verified
         // This means the proformas wont be updated, the amounts wont be added to the reserves,
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-        _transferContributionToModule({_memberWallet: _membersWallet});
+        _transferContributionToModule({_memberWallet: _membersWallet, _couponAmount: _couponAmount});
 
         _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
     }
 
     function _calculateReferralRewards(
         Reserve memory _reserve,
-        uint256 _contribution,
         uint256 _couponAmount,
         address _child,
         address _parent
     ) internal returns (Reserve memory) {
         // The prepaid member object is created
-        uint256 realContribution = _getRealContributionAfterCoupon(_contribution, _couponAmount);
+        uint256 realContribution = _getRealContributionAfterCoupon(_couponAmount);
 
         uint256 toReferralReserve;
 
@@ -364,9 +402,7 @@ contract EntryModule is
             toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
 
             if (_parent != address(0)) {
-                discount =
-                    ((realContribution - _couponAmount) * REFERRAL_DISCOUNT_RATIO) /
-                    100;
+                discount = ((realContribution - _couponAmount) * REFERRAL_DISCOUNT_RATIO) / 100;
 
                 childToParent[_child] = _parent;
 
@@ -386,11 +422,10 @@ contract EntryModule is
     }
 
     function _getRealContributionAfterCoupon(
-        uint256 _contribution,
         uint256 _couponAmount
-    ) internal pure returns (uint256 realContribution_) {
-        if (_couponAmount > _contribution) realContribution_ = _couponAmount;
-        else realContribution_ = _contribution;
+    ) internal view returns (uint256 realContribution_) {
+        if (_couponAmount > normalizedContributionBeforeFee) realContribution_ = _couponAmount;
+        else realContribution_ = normalizedContributionBeforeFee;
     }
 
     function _parentRewards(
@@ -690,11 +725,28 @@ contract EntryModule is
         }
     }
 
-    function _transferContributionToModule(address _memberWallet) internal {
+    function _transferContributionToModule(address _memberWallet, uint256 _couponAmount) internal {
         IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
 
+        uint256 _amountToTransferFromMember;
+
+        if (_couponAmount > 0) {
+            _amountToTransferFromMember = contributionAfterFee - discount - _couponAmount;
+        } else {
+            _amountToTransferFromMember = contributionAfterFee - discount;
+        }
+
         // Store temporarily the contribution in this contract, this way will be available for refunds
-        contributionToken.safeTransferFrom(_memberWallet, address(this), contributionAfterFee - discount);
+        contributionToken.safeTransferFrom(
+            _memberWallet,
+            address(this),
+            _amountToTransferFromMember
+        );
+
+        // Transfer the coupon amount to this contract
+        if (_couponAmount > 0) {
+            contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
+        }
 
         // Transfer the service fee to the fee claim address
         contributionToken.safeTransferFrom(
