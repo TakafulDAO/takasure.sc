@@ -12,7 +12,6 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ITakasurePool} from "contracts/interfaces/ITakasurePool.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {IEntryModule} from "contracts/interfaces/IEntryModule.sol";
@@ -246,10 +245,6 @@ contract PrejoinModule is
         _onlyDAOAdmin();
         AddressCheck._notZeroAddress(tDAOAddress);
         AddressCheck._notZeroAddress(entryModuleAddress);
-        require(
-            ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender),
-            PrejoinModule__onlyDAOAdmin()
-        );
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             PrejoinModule__DAOAlreadyLaunched()
