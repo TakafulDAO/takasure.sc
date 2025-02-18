@@ -108,12 +108,16 @@ contract EntryModule is
         moduleState = newState;
     }
 
-    function setCouponPoolAddress(address _couponPool) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    function setCouponPoolAddress(
+        address _couponPool
+    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
         AddressCheck._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
 
-    function setCCIPReceiverContract(address _ccipReceiverContract) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    function setCCIPReceiverContract(
+        address _ccipReceiverContract
+    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
         AddressCheck._notZeroAddress(_ccipReceiverContract);
         ccipReceiverContract = _ccipReceiverContract;
     }
@@ -184,7 +188,7 @@ contract EntryModule is
     ) external nonReentrant {
         _onlyModuleState(ModuleState.Enabled);
         _onlyCouponRedeemerOrCcipReceiver;
-        
+
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             membersWallet
@@ -392,7 +396,10 @@ contract EntryModule is
         // The member will pay the contribution, but will remain inactive until the KYC is verified
         // This means the proformas wont be updated, the amounts wont be added to the reserves,
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-        _transferContributionToModule({_memberWallet: _membersWallet, _couponAmount: _couponAmount});
+        _transferContributionToModule({
+            _memberWallet: _membersWallet,
+            _couponAmount: _couponAmount
+        });
 
         _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
     }
@@ -749,7 +756,11 @@ contract EntryModule is
         // Store temporarily the contribution in this contract, this way will be available for refunds
         if (_amountToTransferFromMember > 0) {
             if (msg.sender == ccipReceiverContract) {
-                contributionToken.safeTransferFrom(ccipReceiverContract, address(this), _amountToTransferFromMember);
+                contributionToken.safeTransferFrom(
+                    ccipReceiverContract,
+                    address(this),
+                    _amountToTransferFromMember
+                );
 
                 // Note: This is a temporary solution to test the CCIP integration in the testnet
                 // This is because in testnet we are using a different USDC contract for easier testing
@@ -766,20 +777,19 @@ contract EntryModule is
                 );
             }
 
+            // Transfer the coupon amount to this contract
+            if (_couponAmount > 0) {
+                contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
+            }
 
-
-        // Transfer the coupon amount to this contract
-        if (_couponAmount > 0) {
-            contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
+            // Transfer the service fee to the fee claim address
+            contributionToken.safeTransferFrom(
+                _memberWallet,
+                takasureReserve.feeClaimAddress(),
+                feeAmount
+            );
         }
-
-        // Transfer the service fee to the fee claim address
-        contributionToken.safeTransferFrom(
-            _memberWallet,
-            takasureReserve.feeClaimAddress(),
-            feeAmount
-        );
-    }}
+    }
 
     function _onlyModuleState(ModuleState _state) internal view {
         require(moduleState == _state, ModuleErrors.Module__WrongModuleState());
