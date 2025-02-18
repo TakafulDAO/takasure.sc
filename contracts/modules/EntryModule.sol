@@ -51,6 +51,7 @@ contract EntryModule is
     uint256 private transient normalizedContributionBeforeFee;
     uint256 private transient feeAmount;
     uint256 private transient contributionAfterFee;
+    uint256 private transient discount;
     address private prejoinModule;
 
     mapping(address child => address parent) public childToParent;
@@ -315,15 +316,15 @@ contract EntryModule is
                 _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
             });
 
-            uint256 _discount;
-
-            (_reserve, _discount) = _calculateReferralRewards(
+            (_reserve) = _calculateReferralRewards(
                 _reserve,
                 _contributionBeforeFee,
                 _couponAmount,
                 _membersWallet,
                 _parentWallet
             );
+
+            _newMember.discount = discount;
         } else {
             // Flow 2: Join (with flow 1) -> Refund -> Join
             // If is refunded, the member exist already, but was previously refunded
@@ -353,18 +354,17 @@ contract EntryModule is
         uint256 _couponAmount,
         address _child,
         address _parent
-    ) internal returns (Reserve memory, uint256) {
+    ) internal returns (Reserve memory) {
         // The prepaid member object is created
         uint256 realContribution = _getRealContributionAfterCoupon(_contribution, _couponAmount);
 
         uint256 toReferralReserve;
-        uint256 _referralDiscount;
 
         if (_reserve.referralDiscount) {
             toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
 
             if (_parent != address(0)) {
-                _referralDiscount =
+                discount =
                     ((realContribution - _couponAmount) * REFERRAL_DISCOUNT_RATIO) /
                     100;
 
@@ -382,7 +382,7 @@ contract EntryModule is
             }
         }
 
-        return (_reserve, _referralDiscount);
+        return (_reserve);
     }
 
     function _getRealContributionAfterCoupon(
@@ -510,6 +510,7 @@ contract EntryModule is
             membershipStartTime: block.timestamp,
             lastPaidYearStartDate: block.timestamp,
             contribution: normalizedContributionBeforeFee,
+            discount: discount,
             claimAddAmount: claimAddAmount,
             totalContributions: normalizedContributionBeforeFee,
             totalServiceFee: feeAmount,
@@ -608,7 +609,7 @@ contract EntryModule is
         // If the caller is from the prejoin module, the transfer will be done by the prejoin module
         // to the takasure reserve. Otherwise, the transfer will be done by this contract
         if (msg.sender != prejoinModule) {
-            _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee);
+            _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee - discount);
         }
     }
 
@@ -693,7 +694,7 @@ contract EntryModule is
         IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
 
         // Store temporarily the contribution in this contract, this way will be available for refunds
-        contributionToken.safeTransferFrom(_memberWallet, address(this), contributionAfterFee);
+        contributionToken.safeTransferFrom(_memberWallet, address(this), contributionAfterFee - discount);
 
         // Transfer the service fee to the fee claim address
         contributionToken.safeTransferFrom(
