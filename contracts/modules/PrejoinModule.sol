@@ -428,7 +428,6 @@ contract PrejoinModule is
             membershipDuration
         );
 
-        // TODO: Check if this is the correct amount to transfer
         usdc.safeTransfer(
             nameToDAOData[tDAOName].DAOAddress,
             nameToDAOData[tDAOName].prepaidMembers[newMember].contributionAfterFee
