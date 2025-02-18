@@ -414,7 +414,7 @@ contract PrejoinModule is
 
         require(
             nameToDAOData[tDAOName].DAOAddress != address(0) &&
-                nameToDAOData[tDAOName].launchDate <= block.timestamp,
+                !nameToDAOData[tDAOName].preJoinEnabled,
             PrejoinModule__tDAONotReadyYet()
         );
 
