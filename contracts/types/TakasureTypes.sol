@@ -62,6 +62,7 @@ struct Member {
     uint256 totalServiceFee; // in stablecoin currency in Wei
     uint256 creditTokensBalance; // 18 decimals
     address wallet;
+    address parent;
     MemberState memberState;
     uint256 memberSurplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
     bool isKYCVerified; // Can not be true if isRefunded is true

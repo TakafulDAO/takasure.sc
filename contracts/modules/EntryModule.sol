@@ -126,6 +126,7 @@ contract EntryModule is
                 reserve,
                 newMember,
                 membersWallet,
+                parentWallet,
                 membershipDuration,
                 benefitMultiplier
             );
@@ -134,6 +135,7 @@ contract EntryModule is
                 reserve,
                 newMember,
                 membersWallet,
+                parentWallet,
                 contributionBeforeFee,
                 membershipDuration,
                 benefitMultiplier
@@ -228,6 +230,7 @@ contract EntryModule is
         Reserve memory _reserve,
         Member memory _newMember,
         address _membersWallet,
+        address _parentWallet,
         uint256 _membershipDuration,
         uint256 _benefitMultiplier
     ) internal {
@@ -239,6 +242,7 @@ contract EntryModule is
             _membershipDuration: _membershipDuration, // From the input
             _isKYCVerified: true, // All members from prejoin are KYCed
             _memberWallet: _membersWallet, // The member wallet
+            _parentWallet: _parentWallet, // The parent wallet
             _memberState: MemberState.Active // Set to inactive until the KYC is verified
         });
 
@@ -267,6 +271,7 @@ contract EntryModule is
         Reserve memory _reserve,
         Member memory _newMember,
         address _membersWallet,
+        address _parentWallet,
         uint256 _contributionBeforeFee,
         uint256 _membershipDuration,
         uint256 _benefitMultiplier
@@ -293,6 +298,7 @@ contract EntryModule is
                 _membershipDuration: _membershipDuration, // From the input
                 _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
                 _memberWallet: _membersWallet, // The member wallet
+                _parentWallet: _parentWallet, // The parent wallet
                 _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
             });
         } else {
@@ -372,6 +378,7 @@ contract EntryModule is
         uint256 _membershipDuration,
         bool _isKYCVerified,
         address _memberWallet,
+        address _parentWallet,
         MemberState _memberState
     ) internal returns (Member memory) {
         uint256 userMembershipDuration;
@@ -397,6 +404,7 @@ contract EntryModule is
             totalServiceFee: feeAmount,
             creditTokensBalance: 0,
             wallet: _memberWallet,
+            parent: _parentWallet,
             memberState: _memberState,
             memberSurplus: 0, // Todo
             isKYCVerified: _isKYCVerified,
