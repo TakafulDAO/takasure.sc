@@ -153,7 +153,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     {
         // Try-catch to avoid reverting the tx, emit event instead
         // Try catch to be able to call the external function
-        try this.processMessage(any2EvmMessage) {} catch (bytes memory err) {
+        try this.processMessage(any2EvmMessage) {} catch (bytes memory) {
             failedMessages.set(any2EvmMessage.messageId, uint256(StatusCode.FAILED));
 
             messageContentsById[any2EvmMessage.messageId] = any2EvmMessage;
@@ -162,8 +162,6 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
             address user = _getNewMemberAddress(any2EvmMessage.data);
             messageByUser[user] = any2EvmMessage;
             messageIdByUser[user] = any2EvmMessage.messageId;
-
-            emit OnMessageFailed(any2EvmMessage.messageId, err);
 
             return;
         }
@@ -248,8 +246,11 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
         // Low level call to the referral gateway
-        (bool success, ) = protocolGateway.call(any2EvmMessage.data);
-        require(success, TLDCcipReceiver__CallFailed());
+        (bool success, bytes memory data) = protocolGateway.call(any2EvmMessage.data);
+        if (!success) {
+            emit OnMessageFailed(any2EvmMessage.messageId, data);
+            revert TLDCcipReceiver__CallFailed();
+        }
         emit OnMessageReceived(
             any2EvmMessage.messageId,
             any2EvmMessage.sourceChainSelector,
