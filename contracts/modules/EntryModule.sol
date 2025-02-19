@@ -270,6 +270,27 @@ contract EntryModule is
 
         newMember.creditTokensBalance += mintedTokens;
 
+        // Reward the parents
+        address parent = childToParent[memberWallet];
+
+        for (uint256 i; i < uint256(MAX_TIER); ++i) {
+            if (parent == address(0)) break;
+
+            uint256 layer = i + 1;
+
+            uint256 parentReward = parentRewardsByChild[parent][memberWallet];
+
+            // Reset the rewards for this child
+            parentRewardsByChild[parent][memberWallet] = 0;
+
+            IERC20(reserve.contributionToken).safeTransfer(parent, parentReward);
+
+            emit TakasureEvents.OnParentRewarded(parent, layer, memberWallet, parentReward);
+
+            // We update the parent address to check the next parent
+            parent = childToParent[parent];
+        }
+
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
         emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
 
@@ -333,7 +354,6 @@ contract EntryModule is
 
         _newMember.creditTokensBalance += mintedTokens;
 
-        emit TakasureEvents.OnMemberKycVerified(_newMember.memberId, _membersWallet);
         emit TakasureEvents.OnMemberJoined(_newMember.memberId, _membersWallet);
 
         _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
@@ -590,7 +610,8 @@ contract EntryModule is
             normalizedContributionBeforeFee,
             feeAmount,
             userMembershipDuration,
-            block.timestamp
+            block.timestamp,
+            _isKYCVerified
         );
 
         return newMember;

@@ -18,7 +18,7 @@ library AddressAndStates {
         require(_address != address(0), TakasureProtocol__ZeroAddress());
     }
 
-    function _onlyModuleState(ModuleState _currentState, ModuleState _neededState) internal view {
+    function _onlyModuleState(ModuleState _currentState, ModuleState _neededState) internal pure {
         require(_currentState == _neededState, Module__WrongModuleState());
     }
 }

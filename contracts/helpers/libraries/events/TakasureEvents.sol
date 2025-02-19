@@ -17,7 +17,8 @@ library TakasureEvents {
         uint256 contributionBeforeFee,
         uint256 serviceFee,
         uint256 membershipDuration,
-        uint256 membershipStartTime
+        uint256 membershipStartTime,
+        bool isKycVerified
     ); // Emited when a new member is created
     event OnMemberUpdated(
         uint256 indexed memberId,
@@ -83,4 +84,10 @@ library TakasureEvents {
     event OnMemberCanceled(uint256 indexed memberId, address indexed member);
     event OnMemberDefaulted(uint256 indexed memberId, address indexed member);
     event OnCouponRedeemed(address indexed member, uint256 indexed couponAmount);
+    event OnParentRewarded(
+        address indexed parent,
+        uint256 indexed layer,
+        address indexed child,
+        uint256 reward
+    );
 }

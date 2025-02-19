@@ -98,7 +98,8 @@ contract KycFlow_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
             CONTRIBUTION_AMOUNT,
             ((CONTRIBUTION_AMOUNT * 27) / 100),
             5 * YEAR,
-            1
+            1,
+            false
         );
 
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
