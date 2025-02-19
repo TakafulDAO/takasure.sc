@@ -246,18 +246,18 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
         // Low level call to the referral gateway
-        (bool success, bytes memory data) = protocolGateway.call(any2EvmMessage.data);
-        if (!success) {
-            emit OnMessageFailed(any2EvmMessage.messageId, data);
-            revert TLDCcipReceiver__CallFailed();
+        (bool success, bytes memory returnData) = protocolGateway.call(any2EvmMessage.data);
+        if (success) {
+            emit OnMessageReceived(
+                any2EvmMessage.messageId,
+                any2EvmMessage.sourceChainSelector,
+                abi.decode(any2EvmMessage.sender, (address)),
+                any2EvmMessage.data,
+                any2EvmMessage.destTokenAmounts[0].amount
+            );
+        } else {
+            emit OnMessageFailed(any2EvmMessage.messageId, returnData);
         }
-        emit OnMessageReceived(
-            any2EvmMessage.messageId,
-            any2EvmMessage.sourceChainSelector,
-            abi.decode(any2EvmMessage.sender, (address)),
-            any2EvmMessage.data,
-            any2EvmMessage.destTokenAmounts[0].amount
-        );
     }
 
     function _getNewMemberAddress(bytes memory _data) internal pure returns (address _newMember) {
