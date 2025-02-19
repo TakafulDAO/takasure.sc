@@ -8,9 +8,9 @@ import {TSToken} from "contracts/token/TSToken.sol";
 import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
 import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
-import {BenefitMultiplierConsumer} from "contracts/chainlink/functions/BenefitMultiplierConsumer.sol";
+import {BenefitMultiplierConsumer} from "contracts/helpers/chainlink/functions/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract DeployTakasureReserve is Script {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -96,13 +96,13 @@ contract DeployTakasureReserve is Script {
         benefitMultiplierConsumer.setNewRequester(entryModule);
 
         // Set EntryModule as a module in TakasurePool
-        TakasureReserve(takasureReserve).setNewModuleContract(entryModule);
+        // TakasureReserve(takasureReserve).setNewModuleContract(entryModule);
 
         // Set MemberModule as a module in TakasurePool
-        TakasureReserve(takasureReserve).setNewModuleContract(memberModule);
+        // TakasureReserve(takasureReserve).setNewModuleContract(memberModule);
 
         // Set RevenueModule as a module in TakasurePool
-        TakasureReserve(takasureReserve).setNewModuleContract(revenueModule);
+        // TakasureReserve(takasureReserve).setNewModuleContract(revenueModule);
 
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
 

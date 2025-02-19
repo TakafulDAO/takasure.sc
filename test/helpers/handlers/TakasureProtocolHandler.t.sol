@@ -3,10 +3,10 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
-import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
-import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {UserRouter} from "contracts/router/UserRouter.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {MemberState} from "contracts/types/TakasureTypes.sol";
 
@@ -16,6 +16,7 @@ contract TakasureProtocolHandler is Test {
     MemberModule memberModule;
     UserRouter userRouter;
     ERC20 usdc;
+    address public parent = makeAddr("parent");
 
     uint256 constant MIN_DEPOSIT = 25e6; // 25 USDC
     uint256 constant MAX_DEPOSIT = 2025e5; // 202.50 USDC
@@ -57,7 +58,7 @@ contract TakasureProtocolHandler is Test {
         vm.startPrank(msg.sender);
         usdc.approve(address(entryModule), contributionAmount);
 
-        userRouter.joinPool(contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
+        userRouter.joinPool(parent, contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
         vm.stopPrank();
     }
 
@@ -69,4 +70,7 @@ contract TakasureProtocolHandler is Test {
         // console2.log("Date updated by", time / 1 days, "days");
         // console2.log("=====================================");
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

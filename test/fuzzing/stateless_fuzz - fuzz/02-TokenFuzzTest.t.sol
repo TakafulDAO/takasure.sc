@@ -3,31 +3,46 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {MemberModule} from "contracts/modules/MemberModule.sol";
 
 contract TokenFuzzTest is Test {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     TSToken daoToken;
     EntryModule entryModule;
+    MemberModule memberModule;
     address daoTokenAddress;
     address takasureReserveProxy;
     address entryModuleAddress;
+    address memberModuleAddress;
 
     address public user = makeAddr("user");
     uint256 public constant MINT_AMOUNT = 1 ether;
 
     function setUp() public {
-        deployer = new TestDeployTakasureReserve();
-        (daoTokenAddress, , takasureReserveProxy, entryModuleAddress, , , , , , , ) = deployer
-            .run();
+        deployer = new TestDeployProtocol();
+        (
+            daoTokenAddress,
+            ,
+            takasureReserveProxy,
+            ,
+            entryModuleAddress,
+            memberModuleAddress,
+            ,
+            ,
+            ,
+            ,
+
+        ) = deployer.run();
 
         daoToken = TSToken(daoTokenAddress);
         takasureReserve = TakasureReserve(takasureReserveProxy);
         entryModule = EntryModule(entryModuleAddress);
+        memberModule = MemberModule(memberModuleAddress);
     }
 
     function test_fuzz_onlyTakasurePoolIsBurnerAndMinter(
@@ -37,6 +52,8 @@ contract TokenFuzzTest is Test {
         // The input addresses must not be the same as the takasurePool address
         vm.assume(notMinter != entryModuleAddress);
         vm.assume(notBurner != entryModuleAddress);
+        vm.assume(notMinter != memberModuleAddress);
+        vm.assume(notBurner != memberModuleAddress);
 
         // Roles to check
         bytes32 MINTER_ROLE = keccak256("MINTER_ROLE");

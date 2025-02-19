@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
-import {TLDCcipSender} from "contracts/chainlink/ccip/TLDCcipSender.sol";
+import {TLDCcipSender} from "contracts/helpers/chainlink/ccip/TLDCcipSender.sol";
 import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 
 contract AddSupportedToken is Script, GetContractAddress {

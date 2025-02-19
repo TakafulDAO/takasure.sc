@@ -1,0 +1,69 @@
+@startuml Payments
+autonumber
+
+actor Prepayer
+
+Prepayer -> PrejoinModule: prePayment(contribution, parent)
+
+alt Module is enabled
+    alt preJoinEnabled == true
+        alt DAO is already launched
+            alt Contribution is in range
+                alt If parent is a valid address must be KYCed
+                    alt Is not member
+
+                        PrejoinModule --> PrejoinModule: apply prejoin discount
+
+                        alt referralDiscount == true                
+                            alt valid parent
+                                PrejoinModule --> PrejoinModule: apply referral discount
+                                PrejoinModule --> PrejoinModule: assign child to parent
+                                PrejoinModule --> PrejoinModule: calculate parent reward
+                            else invalid parent
+                                PrejoinModule --> PrejoinModule: increase Referral Reserve
+                            end
+
+                        alt Invariant checks pass
+                            PrejoinModule --> PrejoinModule: update repool balance
+                            PrejoinModule --> PrejoinModule: update DAO variables
+
+                            alt Caller is CCIP receiver contract
+                                CCIPReceiver --> PrejoinModule: Transfer contribution
+                            else Caller is not CCIP receiver contract
+                                Prepayer --> PrejoinModule: Transfer Contribution
+                            end
+
+                            PrejoinModule --> Operator: Transfer Fee
+                            PrejoinModule --> PrejoinModule: create new member
+                            PrejoinModule --> BMOracle: Request BM
+                            PrejoinModule --> Prepayer: Emit OnPrepayment event
+
+                        else Invariant fails
+                            PrejoinModule --> Prepayer: Revert
+                        end
+
+                    else Is member
+                        PrejoinModule --> Prepayer: Revert
+                    end
+
+                else Parent is not KYCed
+                    PrejoinModule --> Prepayer: Revert
+                end
+
+            else Contribution is out of range
+                PrejoinModule --> Prepayer: Revert
+            end
+
+        else DAO is not launched
+            PrejoinModule --> Prepayer: Revert
+        end
+
+    else preJoinEnabled == false
+        PrejoinModule -> Prepayer: Revert
+    end
+
+else Module is disabled
+    Prepayer -> PrejoinModule: Revert
+end
+
+@enduml    

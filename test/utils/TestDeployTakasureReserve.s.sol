@@ -3,19 +3,22 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
-import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
-import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
-import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {RevenueModule} from "contracts/modules/RevenueModule.sol";
+import {UserRouter} from "contracts/router/UserRouter.sol";
+import {ModuleManager} from "contracts/modules/manager/ModuleManager.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
+import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 contract TestDeployTakasureReserve is Script {
     BenefitMultiplierConsumerMock bmConsumerMock;
+    ModuleManager moduleManager;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -65,6 +68,8 @@ contract TestDeployTakasureReserve is Script {
             address(bmConsumerMock)
         );
 
+        moduleManager = new ModuleManager();
+
         // Deploy TakasureReserve
         takasureReserveImplementation = address(new TakasureReserve());
         takasureReserve = UnsafeUpgrades.deployUUPSProxy(
@@ -79,13 +84,19 @@ contract TestDeployTakasureReserve is Script {
                     config.kycProvider,
                     config.pauseGuardian,
                     config.tokenAdmin,
+                    address(moduleManager),
                     config.tokenName,
                     config.tokenSymbol
                 )
             )
         );
 
-        (entryModule, memberModule, revenueModule) = _deployModules(takasureReserve);
+        (entryModule, memberModule, revenueModule) = _deployModules(
+            takasureReserve,
+            address(referralGatewayProxy),
+            makeAddr("ccipReceiverContract"),
+            makeAddr("couponPool")
+        );
 
         // Deploy router
         userRouterImplementation = address(new UserRouter());
@@ -94,7 +105,7 @@ contract TestDeployTakasureReserve is Script {
             abi.encodeCall(UserRouter.initialize, (takasureReserve, entryModule, memberModule))
         );
 
-        _setContracts(bmConsumerMock, entryModule, memberModule, revenueModule, takasureReserve);
+        _setContracts(entryModule, memberModule, revenueModule);
 
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
         tsToken = address(creditToken);
@@ -160,13 +171,19 @@ contract TestDeployTakasureReserve is Script {
     }
 
     function _deployModules(
-        address _takasureReserve
+        address _takasureReserve,
+        address _prejoinModule,
+        address _ccipReceiver,
+        address _couponPool
     ) internal returns (address entryModule, address memberModule, address revenueModule) {
         // Deploy EntryModule
         address entryModuleImplementation = address(new EntryModule());
         entryModule = UnsafeUpgrades.deployUUPSProxy(
             entryModuleImplementation,
-            abi.encodeCall(EntryModule.initialize, (_takasureReserve))
+            abi.encodeCall(
+                EntryModule.initialize,
+                (_takasureReserve, _prejoinModule, _ccipReceiver, _couponPool)
+            )
         );
 
         // Deploy MemberModule
@@ -185,19 +202,17 @@ contract TestDeployTakasureReserve is Script {
     }
 
     function _setContracts(
-        BenefitMultiplierConsumerMock _benefitMultiplierConsumerMock,
         address _entryModule,
         address _memberModule,
-        address _revenueModule,
-        address _takasureReserve
+        address _revenueModule
     ) internal {
         // Setting EntryModule as a requester in BenefitMultiplierConsumer
-        _benefitMultiplierConsumerMock.setNewRequester(_entryModule);
+        bmConsumerMock.setNewRequester(_entryModule);
 
         // Set modules contracts in TakasureReserve
-        TakasureReserve(_takasureReserve).setNewModuleContract(_entryModule);
-        TakasureReserve(_takasureReserve).setNewModuleContract(_memberModule);
-        TakasureReserve(_takasureReserve).setNewModuleContract(_revenueModule);
+        moduleManager.addModule(_entryModule);
+        moduleManager.addModule(_memberModule);
+        moduleManager.addModule(_revenueModule);
     }
 
     function _assignRoles(
@@ -221,4 +236,7 @@ contract TestDeployTakasureReserve is Script {
         _creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
         _creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

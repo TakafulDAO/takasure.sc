@@ -3,17 +3,17 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
-import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
-import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract TakasureProtocolFuzzTest is Test {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     EntryModule entryModule;
@@ -29,21 +29,22 @@ contract TakasureProtocolFuzzTest is Test {
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
+    address public parent = makeAddr("parent");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
-        deployer = new TestDeployTakasureReserve();
+        deployer = new TestDeployProtocol();
         (
             ,
             bmConsumerMock,
             takasureReserveProxy,
+            ,
             entryModuleAddress,
             memberModuleAddress,
             ,
             userRouterAddress,
-            ,
             contributionTokenAddress,
             ,
             helperConfig
@@ -83,7 +84,7 @@ contract TakasureProtocolFuzzTest is Test {
         vm.assume(notOwner != daoMultisig);
 
         vm.prank(alice);
-        userRouter.joinPool(CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         vm.prank(notOwner);
         vm.expectRevert();

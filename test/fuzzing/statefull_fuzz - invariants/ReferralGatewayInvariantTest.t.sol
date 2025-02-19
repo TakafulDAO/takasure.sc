@@ -8,7 +8,7 @@ import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ReferralGatewayHandler} from "test/helpers/handlers/ReferralGatewayHandler.t.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 
 contract ReferralGatewayInvariantTest is StdInvariant, Test {
@@ -57,7 +57,6 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         vm.startPrank(daoAdmin);
         takasureReserve.setNewContributionToken(contributionTokenAddress);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        takasureReserve.setNewReferralGateway(referralGatewayAddress);
         vm.stopPrank();
 
         vm.prank(bmConsumerMock.admin());

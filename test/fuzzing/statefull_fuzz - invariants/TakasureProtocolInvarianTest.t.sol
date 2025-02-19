@@ -3,16 +3,16 @@
 pragma solidity 0.8.28;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
-import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
-import {UserRouter} from "contracts/takasure/router/UserRouter.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {UserRouter} from "contracts/router/UserRouter.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureProtocolHandler} from "test/helpers/handlers/TakasureProtocolHandler.t.sol";
 
 contract TakasureProtocolInvariantTest is StdInvariant, Test {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     EntryModule entryModule;
     MemberModule memberModule;
@@ -28,16 +28,16 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
 
     function setUp() public {
-        deployer = new TestDeployTakasureReserve();
+        deployer = new TestDeployProtocol();
         (
             ,
             ,
             takasureReserveProxy,
+            ,
             entryModuleAddress,
             memberModuleAddress,
             ,
             userRouterAddress,
-            ,
             contributionTokenAddress,
             ,
 
@@ -105,4 +105,7 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
     //     takasurePool.getReserveValues();
     //     takasurePool.getDaoTokenAddress();
     // }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

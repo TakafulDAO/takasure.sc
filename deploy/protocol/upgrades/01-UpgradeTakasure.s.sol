@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract UpgradeTakasure is Script, GetContractAddress {
     function run() external returns (address) {

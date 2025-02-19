@@ -6,7 +6,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
-import {TLDCcipSender} from "contracts/chainlink/ccip/TLDCcipSender.sol";
+import {TLDCcipSender} from "contracts/helpers/chainlink/ccip/TLDCcipSender.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract UpgradeTLDCcipSender is Script, GetContractAddress {
