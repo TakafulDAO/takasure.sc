@@ -233,10 +233,6 @@ contract EntryModule is
         );
 
         require(!newMember.isKYCVerified, EntryModule__MemberAlreadyKYCed());
-        require(
-            newMember.memberState == MemberState.Inactive,
-            ModuleErrors.Module__WrongMemberState()
-        );
         require(newMember.contribution > 0, EntryModule__NoContribution());
 
         // This means the user exists and payed contribution but is not KYCed yet, we update the values
