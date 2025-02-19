@@ -32,6 +32,9 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     address public receiverContract;
     address public backendProvider;
 
+    uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
+    uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
+
     mapping(address token => bool supportedTokens) public isSupportedToken;
 
     /*//////////////////////////////////////////////////////////////
@@ -48,6 +51,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     error TLDCcipSender__NothingToWithdraw();
     error TLDCcipSender__AddressZeroNotAllowed();
     error TLDCcipSender__NotAuthorized();
+    error TLDCcipSender__ContributionOutOfRange();
 
     modifier notZeroAddress(address addressToCheck) {
         require(addressToCheck != address(0), TLDCcipSender__AddressZeroNotAllowed());
@@ -147,6 +151,10 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 couponAmount
     ) external returns (bytes32 messageId) {
         require(isSupportedToken[tokenToTransfer], TLDCcipSender__NotSupportedToken());
+        require(
+            contribution >= MINIMUM_CONTRIBUTION && contribution <= MAXIMUM_CONTRIBUTION,
+            TLDCcipSender__ContributionOutOfRange()
+        );
 
         if (couponAmount > 0)
             require(msg.sender == backendProvider, TLDCcipSender__NotAuthorized());
