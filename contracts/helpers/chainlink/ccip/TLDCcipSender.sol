@@ -148,6 +148,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 contribution,
         string calldata tDAOName,
         address parent,
+        address newMember,
         uint256 couponAmount
     ) external returns (bytes32 messageId) {
         require(isSupportedToken[tokenToTransfer], TLDCcipSender__NotSupportedToken());
@@ -166,6 +167,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             _contributionAmount: contribution,
             _tDAOName: tDAOName,
             _parent: parent,
+            _newMember: newMember,
             _couponAmount: couponAmount
         });
 
@@ -209,6 +211,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 _contributionAmount,
         string calldata _tDAOName,
         address _parent,
+        address _newMember,
         uint256 _couponAmount
     ) internal view returns (Client.EVM2AnyMessage memory _message) {
         // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
@@ -219,7 +222,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             _contribution: _contributionAmount,
             _tDAOName: _tDAOName,
             _parent: _parent,
-            _newMember: msg.sender,
+            _newMember: _newMember,
             _couponAmount: _couponAmount
         });
     }
