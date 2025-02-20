@@ -119,6 +119,7 @@
                 { "name": "contribution", "type": "uint256", "internalType": "uint256" },
                 { "name": "tDAOName", "type": "string", "internalType": "string" },
                 { "name": "parent", "type": "address", "internalType": "address" },
+                { "name": "newMember", "type": "address", "internalType": "address" },
                 { "name": "couponAmount", "type": "uint256", "internalType": "uint256" }
             ],
             "outputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }],
@@ -297,6 +298,7 @@
         },
         { "type": "error", "name": "TLDCcipSender__AddressZeroNotAllowed", "inputs": [] },
         { "type": "error", "name": "TLDCcipSender__AlreadySupportedToken", "inputs": [] },
+        { "type": "error", "name": "TLDCcipSender__ContributionOutOfRange", "inputs": [] },
         { "type": "error", "name": "TLDCcipSender__NotAuthorized", "inputs": [] },
         {
             "type": "error",
