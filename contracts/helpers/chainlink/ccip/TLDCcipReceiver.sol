@@ -248,12 +248,17 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         // Low level call to the referral gateway
         (bool success, bytes memory returnData) = protocolGateway.call(any2EvmMessage.data);
         if (success) {
+            uint256 amountReceived;
+
+            if (any2EvmMessage.destTokenAmounts.length > 0)
+                amountReceived = any2EvmMessage.destTokenAmounts[0].amount;
+
             emit OnMessageReceived(
                 any2EvmMessage.messageId,
                 any2EvmMessage.sourceChainSelector,
                 abi.decode(any2EvmMessage.sender, (address)),
                 any2EvmMessage.data,
-                any2EvmMessage.destTokenAmounts[0].amount
+                amountReceived
             );
         } else {
             emit OnMessageFailed(any2EvmMessage.messageId, returnData);
