@@ -245,7 +245,8 @@
                     "indexed": true,
                     "internalType": "bytes32"
                 },
-                { "name": "reason", "type": "bytes", "indexed": false, "internalType": "bytes" }
+                { "name": "reason", "type": "bytes", "indexed": false, "internalType": "bytes" },
+                { "name": "user", "type": "address", "indexed": false, "internalType": "address" }
             ],
             "anonymous": false
         },
