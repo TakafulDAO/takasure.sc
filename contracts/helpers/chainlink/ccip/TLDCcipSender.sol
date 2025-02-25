@@ -45,6 +45,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     event OnBackendProviderSet(address backendProvider);
     event OnTokensTransferred(bytes32 indexed messageId, uint256 indexed tokenAmount, uint256 fees);
 
+    error TLDCcipSender__NotZeroTransfer();
     error TLDCcipSender__AlreadySupportedToken();
     error TLDCcipSender__NotSupportedToken();
     error TLDCcipSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
@@ -151,6 +152,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         address newMember,
         uint256 couponAmount
     ) external returns (bytes32 messageId) {
+        require(amountToTransfer > 0, TLDCcipSender__NotZeroTransfer());
         require(isSupportedToken[tokenToTransfer], TLDCcipSender__NotSupportedToken());
         require(
             contribution >= MINIMUM_CONTRIBUTION && contribution <= MAXIMUM_CONTRIBUTION,
