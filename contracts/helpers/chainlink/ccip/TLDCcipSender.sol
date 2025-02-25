@@ -250,10 +250,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 _ccipFees,
         Client.EVM2AnyMessage memory _message
     ) internal returns (bytes32 _messageId) {
-        if (_amountToTransfer > 0) {
-            IERC20(_tokenToTransfer).safeTransferFrom(_newMember, address(this), _amountToTransfer);
-            IERC20(_tokenToTransfer).approve(address(router), _amountToTransfer);
-        }
+        IERC20(_tokenToTransfer).safeTransferFrom(_newMember, address(this), _amountToTransfer);
+        IERC20(_tokenToTransfer).approve(address(router), _amountToTransfer);
 
         // Send the message through the router and store the returned message ID
         _messageId = router.ccipSend(destinationChainSelector, _message);
@@ -273,13 +271,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 _couponAmount
     ) internal view returns (Client.EVM2AnyMessage memory) {
         // Set the token amounts
-        Client.EVMTokenAmount[] memory tokenAmounts;
-        if (_amount > 0) {
-            tokenAmounts = new Client.EVMTokenAmount[](1);
-            tokenAmounts[0] = Client.EVMTokenAmount({token: _token, amount: _amount});
-        } else {
-            tokenAmounts = new Client.EVMTokenAmount[](0);
-        }
+        Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
+        tokenAmounts[0] = Client.EVMTokenAmount({token: _token, amount: _amount});
 
         // Function to call in the receiver contract
         // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
