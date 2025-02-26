@@ -212,7 +212,8 @@
                     "indexed": true,
                     "internalType": "uint256"
                 },
-                { "name": "fees", "type": "uint256", "indexed": false, "internalType": "uint256" }
+                { "name": "fees", "type": "uint256", "indexed": true, "internalType": "uint256" },
+                { "name": "user", "type": "address", "indexed": false, "internalType": "address" }
             ],
             "anonymous": false
         },
@@ -309,6 +310,7 @@
             ]
         },
         { "type": "error", "name": "TLDCcipSender__NotSupportedToken", "inputs": [] },
+        { "type": "error", "name": "TLDCcipSender__NotZeroTransfer", "inputs": [] },
         { "type": "error", "name": "TLDCcipSender__NothingToWithdraw", "inputs": [] },
         { "type": "error", "name": "UUPSUnauthorizedCallContext", "inputs": [] },
         {
