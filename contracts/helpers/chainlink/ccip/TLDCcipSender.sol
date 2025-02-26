@@ -43,7 +43,12 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     event OnNewSupportedToken(address token);
     event OnBackendProviderSet(address backendProvider);
-    event OnTokensTransferred(bytes32 indexed messageId, uint256 indexed tokenAmount, uint256 fees);
+    event OnTokensTransferred(
+        bytes32 indexed messageId,
+        uint256 indexed tokenAmount,
+        uint256 indexed fees,
+        address user
+    );
 
     error TLDCcipSender__NotZeroTransfer();
     error TLDCcipSender__AlreadySupportedToken();
@@ -259,7 +264,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         _messageId = router.ccipSend(destinationChainSelector, _message);
 
         // Emit an event with message details
-        emit OnTokensTransferred(_messageId, _amountToTransfer, _ccipFees);
+        emit OnTokensTransferred(_messageId, _amountToTransfer, _ccipFees, _newMember);
     }
 
     function _buildCCIPMessage(
