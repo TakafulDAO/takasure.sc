@@ -14,6 +14,7 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {MockCCIPRouter} from "@chainlink/contracts-ccip/src/v0.8/ccip/test/mocks/MockRouter.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {BurnMintERC677} from "@chainlink/contracts-ccip/src/v0.8/shared/token/ERC677/BurnMintERC677.sol";
 
 contract TLDCcipTest is Test {
     TestDeployProtocol deployer;
@@ -25,6 +26,7 @@ contract TLDCcipTest is Test {
     BenefitMultiplierConsumerMock bmConsumerMock;
     TakasureReserve takasureReserve;
     MockCCIPRouter ccipRouter;
+    BurnMintERC677 public link;
     IUSDC usdc;
     address takasureReserveAddress;
     address prejoinModuleAddress;
@@ -32,12 +34,17 @@ contract TLDCcipTest is Test {
     address senderAddress;
     address usdcAddress;
     address admin;
-    address linkAddress = makeAddr("linkAddress");
+    address linkAddress;
     address senderOwner = makeAddr("senderOwner");
     address backend = makeAddr("backend");
+    address user = makeAddr("user");
+    uint64 public chainSelector = 16015286601757825753;
+    uint256 public constant LINK_INITIAL_AMOUNT = 100e18; // 100 LINK
+    uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 LINK
 
     event OnNewSupportedToken(address token);
     event OnBackendProviderSet(address backendProvider);
+    event OnTokensTransferred(bytes32 indexed messageId, uint256 indexed tokenAmount, uint256 fees);
     event OnProtocolGatewayChanged(
         address indexed oldProtocolGateway,
         address indexed newProtocolGateway
@@ -59,23 +66,11 @@ contract TLDCcipTest is Test {
 
         ) = deployer.run();
 
-        // HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
-
         prejoinModule = PrejoinModule(prejoinModuleAddress);
         takasureReserve = TakasureReserve(takasureReserveAddress);
         usdc = IUSDC(usdcAddress);
-
-        // admin = config.daoMultisig;
-
-        // vm.startPrank(admin);
-        // takasureReserve.setNewContributionToken(address(usdc));
-        // takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        // vm.stopPrank();
-
-        // vm.startPrank(bmConsumerMock.admin());
-        // bmConsumerMock.setNewRequester(takasureReserveAddress);
-        // bmConsumerMock.setNewRequester(prejoinModuleAddress);
-        // vm.stopPrank();
+        link = new BurnMintERC677("ChainLink Token", "LINK", 18, 10 ** 27);
+        linkAddress = address(link);
 
         ccipRouter = new MockCCIPRouter();
 
@@ -90,7 +85,7 @@ contract TLDCcipTest is Test {
                     address(ccipRouter),
                     linkAddress,
                     address(receiver),
-                    3478487238524512106,
+                    chainSelector,
                     senderOwner,
                     backend
                 )
@@ -98,10 +93,13 @@ contract TLDCcipTest is Test {
         );
 
         sender = TLDCcipSender(senderAddress);
+
+        deal(linkAddress, senderAddress, LINK_INITIAL_AMOUNT);
+        deal(usdcAddress, user, USDC_INITIAL_AMOUNT);
     }
 
     function testGetChainSelector() public view {
-        assertEq(sender.destinationChainSelector(), 3478487238524512106);
+        assertEq(sender.destinationChainSelector(), chainSelector);
     }
 
     function testSenderSetSupportedToken() public {
@@ -183,9 +181,46 @@ contract TLDCcipTest is Test {
         sender.setReceiverContract(linkAddress);
     }
 
-    function testReceiverSetAllowedSender() public {
-        uint64 chainSelector = 3478487238524512106;
+    function testSenderWithdrawLink() public {
+        assertEq(link.balanceOf(senderAddress), LINK_INITIAL_AMOUNT);
+        assertEq(link.balanceOf(backend), 0);
 
+        vm.prank(senderOwner);
+        sender.withdrawLink(backend);
+
+        assertEq(link.balanceOf(senderAddress), 0);
+        assertEq(link.balanceOf(backend), LINK_INITIAL_AMOUNT);
+    }
+
+    modifier withdraw() {
+        vm.prank(senderOwner);
+        sender.withdrawLink(backend);
+        _;
+    }
+
+    function testSenderWithdrawLinkRevertsIfNotOwner() public {
+        assertEq(link.balanceOf(senderAddress), LINK_INITIAL_AMOUNT);
+        assertEq(link.balanceOf(backend), 0);
+
+        vm.prank(backend);
+        vm.expectRevert();
+        sender.withdrawLink(backend);
+
+        assertEq(link.balanceOf(senderAddress), LINK_INITIAL_AMOUNT);
+        assertEq(link.balanceOf(backend), 0);
+    }
+
+    function testSenderWithdrawLinkRevertsIfAddressIsZero() public {
+        assertEq(link.balanceOf(senderAddress), LINK_INITIAL_AMOUNT);
+
+        vm.prank(senderOwner);
+        vm.expectRevert(TLDCcipSender.TLDCcipSender__AddressZeroNotAllowed.selector);
+        sender.withdrawLink(address(0));
+
+        assertEq(link.balanceOf(senderAddress), LINK_INITIAL_AMOUNT);
+    }
+
+    function testReceiverSetAllowedSender() public {
         assert(!receiver.isSenderAllowedByChain(chainSelector, senderAddress));
 
         vm.prank(receiver.owner());
@@ -199,20 +234,118 @@ contract TLDCcipTest is Test {
         assert(!receiver.isSenderAllowedByChain(chainSelector, senderAddress));
     }
 
-    function testReceiverSetAllowedSenderRevertsIfNotOwner() public {
-        uint64 chainSelector = 3478487238524512106;
+    modifier setAllowedSender() {
+        vm.prank(receiver.owner());
+        receiver.toggleAllowedSender(chainSelector, senderAddress);
+        _;
+    }
 
+    function testReceiverSetAllowedSenderRevertsIfNotOwner() public {
         vm.prank(backend);
         vm.expectRevert();
         receiver.toggleAllowedSender(chainSelector, senderAddress);
     }
 
     function testReceiverSetAllowedSenderRevertsIfSenderAddressIsZero() public {
-        uint64 chainSelector = 3478487238524512106;
-
         vm.prank(receiver.owner());
         vm.expectRevert(TLDCcipReceiver.TLDCcipReceiver__NotAllowedSource.selector);
         receiver.toggleAllowedSender(chainSelector, address(0));
+    }
+
+    function testSenderSendMesageRevertsIfNotSupportedToken() public {
+        uint256 amountToTransfer = 100e6;
+        uint256 gasLimit = 1000000;
+        uint256 contribution = 100e6;
+        string memory dao = "dao";
+
+        vm.prank(user);
+        vm.expectRevert(TLDCcipSender.TLDCcipSender__NotSupportedToken.selector);
+        sender.sendMessage(
+            amountToTransfer,
+            usdcAddress,
+            gasLimit,
+            contribution,
+            dao,
+            address(0),
+            0
+        );
+    }
+
+    function testSenderSendMesageRevertsIfWrongContribution() public setToken {
+        uint256 amountToTransfer = 100e6;
+        uint256 gasLimit = 1000000;
+        uint256 minContribution = 20e6;
+        uint256 maxContribution = 300e6;
+        string memory dao = "dao";
+
+        vm.startPrank(user);
+        vm.expectRevert(TLDCcipSender.TLDCcipSender__ContributionOutOfRange.selector);
+        sender.sendMessage(
+            amountToTransfer,
+            usdcAddress,
+            gasLimit,
+            minContribution,
+            dao,
+            address(0),
+            0
+        );
+
+        vm.expectRevert(TLDCcipSender.TLDCcipSender__ContributionOutOfRange.selector);
+        sender.sendMessage(
+            amountToTransfer,
+            usdcAddress,
+            gasLimit,
+            maxContribution,
+            dao,
+            address(0),
+            0
+        );
+        vm.stopPrank();
+    }
+
+    function testSenderSendMesageRevertsIfThereIsCouponAndCallerIsNotBackend() public setToken {
+        uint256 amountToTransfer = 100e6;
+        uint256 gasLimit = 1000000;
+        uint256 contribution = 100e6;
+        string memory dao = "dao";
+        uint256 coupon = 50e6;
+
+        vm.prank(user);
+        vm.expectRevert(TLDCcipSender.TLDCcipSender__NotAuthorized.selector);
+        sender.sendMessage(
+            amountToTransfer,
+            usdcAddress,
+            gasLimit,
+            contribution,
+            dao,
+            address(0),
+            coupon
+        );
+    }
+
+    function testSenderSuccessSendMesage() public setToken setAllowedSender {
+        uint256 amountToTransfer = 100e6;
+        uint256 gasLimit = 1000000;
+        uint256 contribution = 100e6;
+        string memory dao = "dao";
+
+        bytes32 messageId = 0xc24676baca638347568b7192ea3009e0e5481fe20ce3dcdab4a2168241020d9f;
+
+        vm.startPrank(user);
+        usdc.approve(senderAddress, amountToTransfer);
+
+        vm.expectEmit(true, true, false, true, address(sender));
+        emit OnTokensTransferred(messageId, amountToTransfer, 0);
+        sender.sendMessage(
+            amountToTransfer,
+            usdcAddress,
+            gasLimit,
+            contribution,
+            dao,
+            address(0),
+            0
+        );
+        vm.stopPrank();
     }
 
     function testReceiverSetProtocolGateway() public {
