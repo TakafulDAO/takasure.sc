@@ -13,6 +13,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {MockCCIPRouter} from "@chainlink/contracts-ccip/src/v0.8/ccip/test/mocks/MockRouter.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {BurnMintERC677} from "@chainlink/contracts-ccip/src/v0.8/shared/token/ERC677/BurnMintERC677.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 
 contract TLDCcipTest is Test {
     TestDeployProtocol deployer;
@@ -22,6 +23,7 @@ contract TLDCcipTest is Test {
     BenefitMultiplierConsumerMock bmConsumerMock;
     TakasureReserve takasureReserve;
     MockCCIPRouter ccipRouter;
+    HelperConfig helperConfig;
     BurnMintERC677 public link;
     IUSDC usdc;
     address takasureReserveAddress;
@@ -37,6 +39,7 @@ contract TLDCcipTest is Test {
     uint64 public chainSelector = 16015286601757825753;
     uint256 public constant LINK_INITIAL_AMOUNT = 100e18; // 100 LINK
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 LINK
+    string tDaoName = "TheLifeDao";
 
     event OnNewSupportedToken(address token);
     event OnBackendProviderSet(address backendProvider);
@@ -59,8 +62,10 @@ contract TLDCcipTest is Test {
             ,
             usdcAddress,
             ,
-
+            helperConfig
         ) = deployer.run();
+
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         prejoinModule = PrejoinModule(prejoinModuleAddress);
         takasureReserve = TakasureReserve(takasureReserveAddress);
@@ -92,6 +97,28 @@ contract TLDCcipTest is Test {
 
         deal(linkAddress, senderAddress, LINK_INITIAL_AMOUNT);
         deal(usdcAddress, user, USDC_INITIAL_AMOUNT);
+
+        admin = config.daoMultisig;
+
+        // Config mocks
+        vm.startPrank(admin);
+        takasureReserve.setNewContributionToken(address(usdc));
+        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
+        prejoinModule.setCCIPReceiverContract(address(receiver));
+        vm.stopPrank();
+
+        vm.startPrank(bmConsumerMock.admin());
+        bmConsumerMock.setNewRequester(address(takasureReserve));
+        bmConsumerMock.setNewRequester(prejoinModuleAddress);
+        vm.stopPrank();
+    }
+
+    modifier createDao() {
+        vm.startPrank(admin);
+        prejoinModule.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
+        prejoinModule.setDAOName(tDaoName);
+        vm.stopPrank();
+        _;
     }
 
     function testGetChainSelector() public view {
@@ -323,21 +350,21 @@ contract TLDCcipTest is Test {
         uint256 amountToTransfer = 100e6;
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
-        string memory dao = "dao";
 
-        bytes32 messageId = 0xc24676baca638347568b7192ea3009e0e5481fe20ce3dcdab4a2168241020d9f;
+        bytes32 messageId = 0xe01b2be933401960d637314fd27f4fdf2caa6639d0f9ac6f78e7f21fe77c25d6;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);
 
         vm.expectEmit(true, true, false, true, address(sender));
         emit OnTokensTransferred(messageId, amountToTransfer, 0);
+
         sender.sendMessage(
             amountToTransfer,
             usdcAddress,
             gasLimit,
             contribution,
-            dao,
+            tDaoName,
             address(0),
             0
         );
