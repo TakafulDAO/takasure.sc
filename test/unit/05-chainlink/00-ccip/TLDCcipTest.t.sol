@@ -4,8 +4,6 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
-import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
-import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TLDCcipSender} from "contracts/helpers/chainlink/ccip/TLDCcipSender.sol";
 import {TLDCcipReceiver} from "contracts/helpers/chainlink/ccip/TLDCcipReceiver.sol";
 import {PrejoinModule} from "contracts/modules/PrejoinModule.sol";
@@ -20,8 +18,6 @@ contract TLDCcipTest is Test {
     TestDeployProtocol deployer;
     TLDCcipSender sender;
     TLDCcipReceiver receiver;
-    CcipHelperConfig ccipHelperConfig;
-    HelperConfig helperConfig;
     PrejoinModule prejoinModule;
     BenefitMultiplierConsumerMock bmConsumerMock;
     TakasureReserve takasureReserve;
