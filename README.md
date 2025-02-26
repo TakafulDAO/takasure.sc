@@ -78,6 +78,10 @@ Use `forge build` or `make build`
 Use `forge test` or `make test`
 Use `forge coverage --ir-minimum` to get the coverage report
 
+For special test cases related to chainlink services be aware of the following:
+- For chainlink functions there is no available tool to test it in Foundry. You can use the script `scripts/chainlink-functions/requestSepolia.js` to test the functions behaviour and output.
+- For chainlink ccip there are some tests to check events, errors and settings, but the main functionality was tested in live environments, please check the `deployments` folder to find the testnet deployment for the Receiver and the Sender contracts, and interact with them to check the functionality. This is one of the ways recommended in the Chainlink documentation to test the functionality of the contracts.
+
 > [!TIP]
 > To run a specific test use `forge test --mt <TEST_NAME>`
 
