@@ -15,6 +15,12 @@ contract IsModule is TLDModuleImplementation {
     function setContractState(ModuleState newState) external override {
         moduleState = newState;
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }
 
-contract IsNotModule {}
+contract IsNotModule {
+    // To avoid this contract to be count in coverage
+    function test() external {}
+}
