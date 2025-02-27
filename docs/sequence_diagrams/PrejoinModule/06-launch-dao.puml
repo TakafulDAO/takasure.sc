@@ -1,0 +1,23 @@
+@startuml Launch activation
+autonumber
+
+actor Deployer
+actor DaoAdmin
+
+Deployer -> DAO: Deploy
+DaoAdmin -> PrejoinModule: launcDAO(DAOAddress, isReferralDiscountEbnabled)
+
+alt Module is enabled
+    alt Valid admin and DAO
+        PrejoinModule --> PrejoinModule: Set DAO variables
+        PrejoinModule --> PrejoinModule: Disable prejoin
+
+    else Invalid admin or DAO
+        PrejoinModule -> DaoAdmin: Revert
+    end
+
+else Module is disabled
+    PrejoinModule --> DaoAdmin: Revert
+end
+
+@enduml    
