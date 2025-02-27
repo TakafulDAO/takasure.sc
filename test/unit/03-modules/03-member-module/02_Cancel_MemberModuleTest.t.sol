@@ -100,7 +100,19 @@ contract Cancel_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         userRouter.defaultMember(alice);
     }
 
-    function testMemberModule_cancelMembership() public {
+    function testMemberModule_cancelMembershipThroughModule() public {
+        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
+        assert(Alice.memberState == MemberState.Defaulted);
+
+        vm.expectEmit(true, true, false, false, address(memberModule));
+        emit TakasureEvents.OnMemberCanceled(Alice.memberId, alice);
+        memberModule.cancelMembership(alice);
+
+        Alice = takasureReserve.getMemberFromAddress(alice);
+        assert(Alice.memberState == MemberState.Canceled);
+    }
+
+    function testMemberModule_cancelMembershipThroughRouter() public {
         Member memory Alice = takasureReserve.getMemberFromAddress(alice);
         assert(Alice.memberState == MemberState.Defaulted);
 
