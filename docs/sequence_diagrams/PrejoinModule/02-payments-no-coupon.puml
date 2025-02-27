@@ -3,7 +3,7 @@ autonumber
 
 actor Prepayer
 
-Prepayer -> PrejoinModule: prePayment(contribution, parent)
+Prepayer -> PrejoinModule: payContribution(contribution, parent)
 
 alt Module is enabled
     alt preJoinEnabled == true
