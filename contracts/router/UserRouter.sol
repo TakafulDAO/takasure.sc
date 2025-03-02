@@ -78,7 +78,7 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
     }
 
-    function setentryModule(
+    function setEntryModule(
         address _entryModule
     ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
         entryModule = IEntryModule(_entryModule);

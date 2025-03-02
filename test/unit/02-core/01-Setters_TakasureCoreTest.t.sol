@@ -10,6 +10,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
+import {Member, Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 
 contract Setters_TakasureCoreTest is StdCheats, Test {
     TestDeployProtocol deployer;
@@ -121,5 +122,83 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         takasureReserve.setAllowCustomDuration(true);
 
         assertEq(true, takasureReserve.getReserveValues().allowCustomDuration);
+    }
+
+    function testTakasureCore_setModuleManagerContract() public {
+        vm.prank(admin);
+        takasureReserve.setModuleManagerContract(alice);
+
+        assertEq(alice, address(takasureReserve.moduleManager()));
+
+        vm.prank(alice);
+        vm.expectRevert(TakasureReserve.TakasureReserve__OnlyDaoOrTakadao.selector);
+        takasureReserve.setModuleManagerContract(admin);
+    }
+
+    function testTakasureCore_onlyModuleFunctions() public {
+        Member memory member;
+        Reserve memory reserve;
+        CashFlowVars memory cashFlowVars;
+
+        vm.startPrank(admin);
+        vm.expectRevert(TakasureReserve.TakasureReserve__UnallowedAccess.selector);
+        takasureReserve.setMemberValuesFromModule(member);
+
+        vm.expectRevert(TakasureReserve.TakasureReserve__UnallowedAccess.selector);
+        takasureReserve.setReserveValuesFromModule(reserve);
+
+        vm.expectRevert(TakasureReserve.TakasureReserve__UnallowedAccess.selector);
+        takasureReserve.setCashFlowValuesFromModule(cashFlowVars);
+
+        vm.expectRevert(TakasureReserve.TakasureReserve__UnallowedAccess.selector);
+        takasureReserve.setMonthToCashFlowValuesFromModule(0, 0);
+
+        vm.expectRevert(TakasureReserve.TakasureReserve__UnallowedAccess.selector);
+        takasureReserve.setDayToCashFlowValuesFromModule(0, 0, 0);
+
+        vm.expectRevert(TakasureReserve.TakasureReserve__UnallowedAccess.selector);
+        takasureReserve.memberSurplus(member);
+        vm.stopPrank();
+    }
+
+    function testTakasureCore_setNewFundMarketExpendsShare() public {
+        vm.prank(admin);
+        takasureReserve.setNewFundMarketExpendsShare(10);
+
+        vm.prank(admin);
+        vm.expectRevert(TakasureReserve.TakasureReserve__WrongFundMarketExpendsShare.selector);
+        takasureReserve.setNewFundMarketExpendsShare(36);
+
+        vm.prank(alice);
+        vm.expectRevert();
+        takasureReserve.setNewFundMarketExpendsShare(10);
+    }
+
+    function testTakasureCore_setNewKycProviderAddress() public {
+        vm.prank(admin);
+        takasureReserve.setNewKycProviderAddress(alice);
+
+        assertEq(alice, address(takasureReserve.kycProvider()));
+
+        vm.prank(alice);
+        vm.expectRevert();
+        takasureReserve.setNewKycProviderAddress(admin);
+    }
+
+    function testTakasureCore_setNewPauseGuardianAddress() public {
+        vm.prank(admin);
+        takasureReserve.setNewPauseGuardianAddress(alice);
+
+        vm.prank(alice);
+        vm.expectRevert(TakasureReserve.TakasureReserve__OnlyDaoOrTakadao.selector);
+        takasureReserve.setNewPauseGuardianAddress(admin);
+
+        vm.prank(alice);
+        takasureReserve.pause();
+        assert(takasureReserve.paused());
+
+        vm.prank(alice);
+        takasureReserve.unpause();
+        assert(!takasureReserve.paused());
     }
 }
