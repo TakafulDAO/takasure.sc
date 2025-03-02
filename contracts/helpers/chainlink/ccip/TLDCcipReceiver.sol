@@ -53,7 +53,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         bytes data,
         uint256 tokenAmount
     );
-    event OnMessageFailed(bytes32 indexed messageId, bytes reason);
+    event OnMessageFailed(bytes32 indexed messageId, bytes reason, address user);
     event OnMessageRecovered(bytes32 indexed messageId);
     event OnTokensRecovered(address indexed user, uint256 amount);
 
@@ -256,7 +256,8 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
                 any2EvmMessage.destTokenAmounts[0].amount
             );
         } else {
-            emit OnMessageFailed(any2EvmMessage.messageId, returnData);
+            address _userAddress = _getNewMemberAddress(any2EvmMessage.data);
+            emit OnMessageFailed(any2EvmMessage.messageId, returnData, _userAddress);
         }
     }
 

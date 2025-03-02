@@ -1,5 +1,5 @@
 {
-    "address": "0x2fD1e67fA58293e405391f77676d6a8fe9991665",
+    "address": "0xB9890916a68458f6cBe43Fdb928bCdD2D261A4Ba",
     "abi": [
         {
             "type": "constructor",
@@ -245,7 +245,8 @@
                     "indexed": true,
                     "internalType": "bytes32"
                 },
-                { "name": "reason", "type": "bytes", "indexed": false, "internalType": "bytes" }
+                { "name": "reason", "type": "bytes", "indexed": false, "internalType": "bytes" },
+                { "name": "user", "type": "address", "indexed": false, "internalType": "address" }
             ],
             "anonymous": false
         },
