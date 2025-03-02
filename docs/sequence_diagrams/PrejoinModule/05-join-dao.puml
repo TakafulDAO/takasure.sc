@@ -3,20 +3,25 @@ autonumber
 
 actor User
 
-User -> ReferralGateway: joinDao(newMember, DAOName)
+User -> PrejoinModule: joinDao(newMember)
 
-alt newMember is KYC
-    
-    alt Valid DAO
-        ReferralGateway --> DAO: preJoins
-        ReferralGateway --> DAO: transfer contribution
+alt Module is disabled
+    alt newMember is KYC    
+        alt Valid DAO
 
-    else Invalid DAO
-        ReferralGateway --> User: Revert
+            PrejoinModule --> EntryModule: joinPool
+            PrejoinModule --> DAO: transfer contribution
+
+        else Invalid DAO
+            PrejoinModule --> User: Revert
+        end
+
+    else newMember is not KYC
+        PrejoinModule --> User: Revert
     end
 
-else newMember is not KYC
-    ReferralGateway --> User: Revert
+else Module is enabled
+    PrejoinModule --> User: Revert
 end
 
 @enduml
