@@ -43,7 +43,12 @@ contract TLDCcipTest is Test {
 
     event OnNewSupportedToken(address token);
     event OnBackendProviderSet(address backendProvider);
-    event OnTokensTransferred(bytes32 indexed messageId, uint256 indexed tokenAmount, uint256 fees);
+    event OnTokensTransferred(
+        bytes32 indexed messageId,
+        uint256 indexed tokenAmount,
+        uint256 indexed fees,
+        address user
+    );
     event OnProtocolGatewayChanged(
         address indexed oldProtocolGateway,
         address indexed newProtocolGateway
@@ -290,7 +295,29 @@ contract TLDCcipTest is Test {
             contribution,
             dao,
             address(0),
+            user,
             0
+        );
+    }
+
+    function testSenderSendMesageRevertsIfNoContribution() public setToken {
+        uint256 amountToTransfer = 0;
+        uint256 gasLimit = 1000000;
+        uint256 contribution = 50e6;
+        uint256 coupon = 50e6;
+        string memory dao = "dao";
+
+        vm.prank(backend);
+        vm.expectRevert(TLDCcipSender.TLDCcipSender__ZeroTransferNotAllowed.selector);
+        sender.sendMessage(
+            amountToTransfer,
+            usdcAddress,
+            gasLimit,
+            contribution,
+            dao,
+            address(0),
+            user,
+            coupon
         );
     }
 
@@ -310,6 +337,7 @@ contract TLDCcipTest is Test {
             minContribution,
             dao,
             address(0),
+            user,
             0
         );
 
@@ -321,9 +349,30 @@ contract TLDCcipTest is Test {
             maxContribution,
             dao,
             address(0),
+            user,
             0
         );
         vm.stopPrank();
+    }
+
+    function testSenderSendMesageRevertsIfTransferMoreThanContribution() public setToken {
+        uint256 amountToTransfer = 100e6;
+        uint256 gasLimit = 1000000;
+        uint256 contribution = 50e6;
+        string memory dao = "dao";
+
+        vm.prank(user);
+        vm.expectRevert(TLDCcipSender.TLDCcipSender__WrongTransferAmount.selector);
+        sender.sendMessage(
+            amountToTransfer,
+            usdcAddress,
+            gasLimit,
+            contribution,
+            dao,
+            address(0),
+            user,
+            0
+        );
     }
 
     function testSenderSendMesageRevertsIfThereIsCouponAndCallerIsNotBackend() public setToken {
@@ -342,6 +391,7 @@ contract TLDCcipTest is Test {
             contribution,
             dao,
             address(0),
+            user,
             coupon
         );
     }
@@ -356,8 +406,8 @@ contract TLDCcipTest is Test {
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);
 
-        vm.expectEmit(true, true, false, true, address(sender));
-        emit OnTokensTransferred(messageId, amountToTransfer, 0);
+        vm.expectEmit(true, true, true, true, address(sender));
+        emit OnTokensTransferred(messageId, amountToTransfer, 0, user);
 
         sender.sendMessage(
             amountToTransfer,
@@ -366,6 +416,7 @@ contract TLDCcipTest is Test {
             contribution,
             tDaoName,
             address(0),
+            user,
             0
         );
         vm.stopPrank();
