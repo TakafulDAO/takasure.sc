@@ -50,7 +50,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         address user
     );
 
-    error TLDCcipSender__NotZeroTransfer();
+    error TLDCcipSender__ZeroTransferNotAllowed();
     error TLDCcipSender__AlreadySupportedToken();
     error TLDCcipSender__NotSupportedToken();
     error TLDCcipSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
@@ -157,7 +157,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         address newMember,
         uint256 couponAmount
     ) external returns (bytes32 messageId) {
-        require(amountToTransfer > 0, TLDCcipSender__NotZeroTransfer());
+        require(amountToTransfer > 0, TLDCcipSender__ZeroTransferNotAllowed());
         require(isSupportedToken[tokenToTransfer], TLDCcipSender__NotSupportedToken());
         require(
             contribution >= MINIMUM_CONTRIBUTION && contribution <= MAXIMUM_CONTRIBUTION,
