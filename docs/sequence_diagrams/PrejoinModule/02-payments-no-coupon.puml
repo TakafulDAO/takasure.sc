@@ -1,4 +1,4 @@
-@startuml Payments
+@startuml Payments without coupon
 autonumber
 
 actor Prepayer

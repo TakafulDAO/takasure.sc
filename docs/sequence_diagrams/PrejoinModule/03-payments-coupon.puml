@@ -1,4 +1,4 @@
-@startuml Payments
+@startuml Payments with coupons
 autonumber
 
 actor Backend
