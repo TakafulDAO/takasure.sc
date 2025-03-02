@@ -43,8 +43,14 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     event OnNewSupportedToken(address token);
     event OnBackendProviderSet(address backendProvider);
-    event OnTokensTransferred(bytes32 indexed messageId, uint256 indexed tokenAmount, uint256 fees);
+    event OnTokensTransferred(
+        bytes32 indexed messageId,
+        uint256 indexed tokenAmount,
+        uint256 indexed fees,
+        address user
+    );
 
+    error TLDCcipSender__ZeroTransferNotAllowed();
     error TLDCcipSender__AlreadySupportedToken();
     error TLDCcipSender__NotSupportedToken();
     error TLDCcipSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
@@ -52,6 +58,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     error TLDCcipSender__AddressZeroNotAllowed();
     error TLDCcipSender__NotAuthorized();
     error TLDCcipSender__ContributionOutOfRange();
+    error TLDCcipSender__WrongTransferAmount();
 
     modifier notZeroAddress(address addressToCheck) {
         require(addressToCheck != address(0), TLDCcipSender__AddressZeroNotAllowed());
@@ -148,13 +155,16 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 contribution,
         string calldata tDAOName,
         address parent,
+        address newMember,
         uint256 couponAmount
     ) external returns (bytes32 messageId) {
+        require(amountToTransfer > 0, TLDCcipSender__ZeroTransferNotAllowed());
         require(isSupportedToken[tokenToTransfer], TLDCcipSender__NotSupportedToken());
         require(
             contribution >= MINIMUM_CONTRIBUTION && contribution <= MAXIMUM_CONTRIBUTION,
             TLDCcipSender__ContributionOutOfRange()
         );
+        require(amountToTransfer <= contribution, TLDCcipSender__WrongTransferAmount());
 
         if (couponAmount > 0)
             require(msg.sender == backendProvider, TLDCcipSender__NotAuthorized());
@@ -166,12 +176,14 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             _contributionAmount: contribution,
             _tDAOName: tDAOName,
             _parent: parent,
+            _newMember: newMember,
             _couponAmount: couponAmount
         });
 
         uint256 ccipFees = _feeChecks(message);
 
         messageId = _sendMessage({
+            _newMember: newMember,
             _amountToTransfer: amountToTransfer,
             _tokenToTransfer: tokenToTransfer,
             _ccipFees: ccipFees,
@@ -209,6 +221,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 _contributionAmount,
         string calldata _tDAOName,
         address _parent,
+        address _newMember,
         uint256 _couponAmount
     ) internal view returns (Client.EVM2AnyMessage memory _message) {
         // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
@@ -219,7 +232,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             _contribution: _contributionAmount,
             _tDAOName: _tDAOName,
             _parent: _parent,
-            _newMember: msg.sender,
+            _newMember: _newMember,
             _couponAmount: _couponAmount
         });
     }
@@ -240,19 +253,20 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     }
 
     function _sendMessage(
+        address _newMember,
         uint256 _amountToTransfer,
         address _tokenToTransfer,
         uint256 _ccipFees,
         Client.EVM2AnyMessage memory _message
     ) internal returns (bytes32 _messageId) {
-        IERC20(_tokenToTransfer).safeTransferFrom(msg.sender, address(this), _amountToTransfer);
+        IERC20(_tokenToTransfer).safeTransferFrom(_newMember, address(this), _amountToTransfer);
         IERC20(_tokenToTransfer).approve(address(router), _amountToTransfer);
 
         // Send the message through the router and store the returned message ID
         _messageId = router.ccipSend(destinationChainSelector, _message);
 
         // Emit an event with message details
-        emit OnTokensTransferred(_messageId, _amountToTransfer, _ccipFees);
+        emit OnTokensTransferred(_messageId, _amountToTransfer, _ccipFees, _newMember);
     }
 
     function _buildCCIPMessage(

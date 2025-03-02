@@ -119,6 +119,7 @@
                 { "name": "contribution", "type": "uint256", "internalType": "uint256" },
                 { "name": "tDAOName", "type": "string", "internalType": "string" },
                 { "name": "parent", "type": "address", "internalType": "address" },
+                { "name": "newMember", "type": "address", "internalType": "address" },
                 { "name": "couponAmount", "type": "uint256", "internalType": "uint256" }
             ],
             "outputs": [{ "name": "messageId", "type": "bytes32", "internalType": "bytes32" }],
@@ -211,7 +212,8 @@
                     "indexed": true,
                     "internalType": "uint256"
                 },
-                { "name": "fees", "type": "uint256", "indexed": false, "internalType": "uint256" }
+                { "name": "fees", "type": "uint256", "indexed": true, "internalType": "uint256" },
+                { "name": "user", "type": "address", "indexed": false, "internalType": "address" }
             ],
             "anonymous": false
         },
@@ -297,6 +299,7 @@
         },
         { "type": "error", "name": "TLDCcipSender__AddressZeroNotAllowed", "inputs": [] },
         { "type": "error", "name": "TLDCcipSender__AlreadySupportedToken", "inputs": [] },
+        { "type": "error", "name": "TLDCcipSender__ContributionOutOfRange", "inputs": [] },
         { "type": "error", "name": "TLDCcipSender__NotAuthorized", "inputs": [] },
         {
             "type": "error",
@@ -307,6 +310,7 @@
             ]
         },
         { "type": "error", "name": "TLDCcipSender__NotSupportedToken", "inputs": [] },
+        { "type": "error", "name": "TLDCcipSender__NotZeroTransfer", "inputs": [] },
         { "type": "error", "name": "TLDCcipSender__NothingToWithdraw", "inputs": [] },
         { "type": "error", "name": "UUPSUnauthorizedCallContext", "inputs": [] },
         {
