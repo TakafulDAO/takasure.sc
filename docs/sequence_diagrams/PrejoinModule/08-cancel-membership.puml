@@ -1,0 +1,32 @@
+@startuml Cancel membership
+autonumber
+
+actor Caller
+
+Caller -> MemberModule: cancelMembership(memberWallet)
+
+alt Module is enabled
+    alt memberWallet is not address zero
+        alt memberWallet is Defaulted member        
+            alt Timestamp is higher than a year from last payment plus grace period
+
+                MemberModule --> MemberModule: update member status to Canceled
+                MemberModule --> Caller: Emit OnMemberCanceled event
+
+            else Timestamp is lower than a year from last payment plus grace period
+                MemberModule --> Caller: Revert
+            end
+
+        else memberWallet is not Defaulted member
+            MemberModule -> Caller: Revert
+        end
+
+    else memberWallet is address zero
+        MemberModule -> Caller: Revert
+    end
+
+else Module is disabled
+    Caller -> MemberModule: Revert
+end
+
+@enduml    
