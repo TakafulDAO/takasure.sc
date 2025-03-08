@@ -13,22 +13,43 @@ import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
+import {ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 
 pragma solidity 0.8.28;
 
-contract RevShareModule is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
+contract RevShareModule is
+    Initializable,
+    UUPSUpgradeable,
+    AccessControlUpgradeable,
+    TLDModuleImplementation
+{
     ITakasureReserve private takasureReserve;
+
+    ModuleState private moduleState;
 
     function initialize(address _takasureReserveAddress) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        address takadaoOperator = takasureReserve.daoMultisig();
+        address takadaoOperator = takasureReserve.takadaoOperator();
+        address moduleManager = takasureReserve.moduleManager();
 
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
+    }
+
+    /**
+     * @notice Set the module state
+     *  @dev Only callble from the Module Manager
+     */
+    function setContractState(
+        ModuleState newState
+    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+        moduleState = newState;
     }
 
     function _authorizeUpgrade(
