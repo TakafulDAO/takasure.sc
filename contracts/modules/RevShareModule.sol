@@ -29,7 +29,7 @@ contract RevShareModule is
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
-        disableInitializers();
+        _disableInitializers();
     }
 
     function initialize(address _operator, address _moduleManager) external initializer {

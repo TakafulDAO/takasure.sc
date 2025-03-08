@@ -39,7 +39,7 @@ contract RevenueModule is
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
-        disableInitializers();
+        _disableInitializers();
     }
 
     function initialize(address _takasureReserveAddress) external initializer {
