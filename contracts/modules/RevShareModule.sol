@@ -10,6 +10,14 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 pragma solidity 0.8.28;
 
-contract RevShareModule {}
+contract RevShareModule is Initializable, UUPSUpgradeable {
+    function initialize() external initializer {
+        __UUPSUpgradeable_init();
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override {}
+}
