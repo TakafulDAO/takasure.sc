@@ -27,6 +27,11 @@ contract RevShareModule is
 {
     ModuleState private moduleState;
 
+    /// @custom:oz-upgrades-unsafe-allow-constructor
+    constructor() {
+        disableInitializers();
+    }
+
     function initialize(address _operator, address _moduleManager) external initializer {
         AddressAndStates._notZeroAddress(_operator);
         AddressAndStates._notZeroAddress(_moduleManager);
