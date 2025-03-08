@@ -9,14 +9,13 @@
  *      2. It will mint a new NFT per each 250USDC expends by a coupon buyer
  * @dev Upgradeable contract with UUPS pattern
  */
-import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
 
@@ -26,20 +25,17 @@ contract RevShareModule is
     AccessControlUpgradeable,
     TLDModuleImplementation
 {
-    ITakasureReserve private takasureReserve;
-
     ModuleState private moduleState;
 
-    function initialize(address _takasureReserveAddress) external initializer {
+    function initialize(address _operator, address _moduleManager) external initializer {
+        AddressAndStates._notZeroAddress(_operator);
+        AddressAndStates._notZeroAddress(_moduleManager);
+
         __UUPSUpgradeable_init();
         __AccessControl_init();
 
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        address takadaoOperator = takasureReserve.takadaoOperator();
-        address moduleManager = takasureReserve.moduleManager();
-
-        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
+        _grantRole(ModuleConstants.TAKADAO_OPERATOR, _operator);
+        _grantRole(ModuleConstants.MODULE_MANAGER, _moduleManager);
     }
 
     /**
