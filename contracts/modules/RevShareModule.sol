@@ -11,12 +11,14 @@
  */
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 pragma solidity 0.8.28;
 
-contract RevShareModule is Initializable, UUPSUpgradeable {
+contract RevShareModule is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     function initialize() external initializer {
         __UUPSUpgradeable_init();
+        __AccessControl_init();
     }
 
     function _authorizeUpgrade(address newImplementation) internal override {}
