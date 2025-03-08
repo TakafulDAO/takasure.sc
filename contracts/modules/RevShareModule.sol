@@ -9,17 +9,29 @@
  *      2. It will mint a new NFT per each 250USDC expends by a coupon buyer
  * @dev Upgradeable contract with UUPS pattern
  */
+import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+
 pragma solidity 0.8.28;
 
 contract RevShareModule is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
-    function initialize() external initializer {
+    ITakasureReserve private takasureReserve;
+
+    function initialize(address _takasureReserveAddress) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
+
+        takasureReserve = ITakasureReserve(_takasureReserveAddress);
+        address takadaoOperator = takasureReserve.daoMultisig();
+
+        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
 }
