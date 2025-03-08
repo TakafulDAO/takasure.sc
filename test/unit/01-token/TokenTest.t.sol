@@ -28,7 +28,7 @@ contract TokenTest is Test {
         // deployer = new TestDeployTakasure();
         // (daoToken, proxy, , ) = deployer.run();
         deployer = new TestDeployProtocol();
-        (, , takasureReserveProxy, , entryModuleAddress, , , , , , ) = deployer.run();
+        (, , takasureReserveProxy, , entryModuleAddress, , , , , , , ) = deployer.run();
 
         entryModule = EntryModule(entryModuleAddress);
 

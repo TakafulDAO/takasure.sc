@@ -49,6 +49,7 @@ contract RefundsPrejoinModuleTest is Test {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig

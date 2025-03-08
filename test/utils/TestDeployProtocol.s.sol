@@ -9,6 +9,7 @@ import {PrejoinModule} from "contracts/modules/PrejoinModule.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
+import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
@@ -42,6 +43,7 @@ contract TestDeployProtocol is Script {
             address entryModuleAddress,
             address memberModuleAddress,
             address revenueModuleAddress,
+            address revShareModuleAddress,
             address routerAddress,
             address contributionTokenAddress,
             address kycProvider,
@@ -88,7 +90,8 @@ contract TestDeployProtocol is Script {
             prejoinModuleAddress,
             entryModuleAddress,
             memberModuleAddress,
-            revenueModuleAddress
+            revenueModuleAddress,
+            revShareModuleAddress
         ) = _deployModules(
             takasureReserve,
             config.takadaoOperator,
@@ -96,7 +99,8 @@ contract TestDeployProtocol is Script {
             config.contributionToken,
             address(bmConsumerMock),
             makeAddr("ccipReceiverContract"),
-            makeAddr("couponPool")
+            makeAddr("couponPool"),
+            address(moduleManager)
         );
 
         // Deploy router
@@ -142,6 +146,7 @@ contract TestDeployProtocol is Script {
             entryModuleAddress,
             memberModuleAddress,
             revenueModuleAddress,
+            revShareModuleAddress,
             routerAddress,
             contributionTokenAddress,
             kycProvider,
@@ -167,6 +172,7 @@ contract TestDeployProtocol is Script {
     address entryModuleImplementation;
     address memberModuleImplementation;
     address revenueModuleImplementation;
+    address revShareModuleImplementation;
 
     function _deployModules(
         address _takasureReserve,
@@ -175,14 +181,16 @@ contract TestDeployProtocol is Script {
         address _contributionToken,
         address _bmConsumerMock,
         address _ccipReceiver,
-        address _couponPool
+        address _couponPool,
+        address _moduleManagerAddress
     )
         internal
         returns (
             address prejoinModuleAddress_,
             address entryModuleAddress_,
             address memberModuleAddress_,
-            address revenueModuleAddress_
+            address revenueModuleAddress_,
+            address revShareModuleAddress_
         )
     {
         // Deploy PrejoinModule
@@ -218,6 +226,13 @@ contract TestDeployProtocol is Script {
         revenueModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             revenueModuleImplementation,
             abi.encodeCall(RevenueModule.initialize, (_takasureReserve))
+        );
+
+        // Deploy RevShareModule
+        revShareModuleImplementation = address(new RevShareModule());
+        revShareModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
+            revShareModuleImplementation,
+            abi.encodeCall(RevShareModule.initialize, (_takadaoOperator, _moduleManagerAddress))
         );
     }
 

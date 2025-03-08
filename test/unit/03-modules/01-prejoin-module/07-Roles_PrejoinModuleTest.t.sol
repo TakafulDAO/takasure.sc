@@ -47,6 +47,7 @@ contract RolesPrejoinModuleTest is Test {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig

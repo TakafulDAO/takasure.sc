@@ -50,6 +50,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig

@@ -36,6 +36,7 @@ contract TokenFuzzTest is Test {
             ,
             ,
             ,
+            ,
 
         ) = deployer.run();
 

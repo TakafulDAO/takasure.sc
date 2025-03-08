@@ -58,6 +58,7 @@ contract GrandparentsPrejoinModuleTest is Test {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig

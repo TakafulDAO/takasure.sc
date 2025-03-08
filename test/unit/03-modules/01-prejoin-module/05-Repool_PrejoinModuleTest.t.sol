@@ -47,6 +47,7 @@ contract RepoolPrejoinModuleTest is Test {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig
