@@ -4,7 +4,8 @@
  * @title EntryModule
  * @author Maikel Ordaz
  * @notice This contract manage all the process to become a member
- * @dev It will interact with the TakasureReserve contract to update the values
+ * @dev Important notes:
+ *      1. Prejoiners must join from the prejoin module
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
