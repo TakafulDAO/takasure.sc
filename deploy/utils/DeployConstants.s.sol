@@ -155,11 +155,11 @@ abstract contract DeployConstants {
 
     SenderOwner public senderOwner =
         SenderOwner({
-            avaxMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
-            baseMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
-            ethMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
-            opMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
-            polMainnetSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1, // TODO: Change for mainnet deploy
+            avaxMainnetSenderOwner: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
+            baseMainnetSenderOwner: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
+            ethMainnetSenderOwner: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
+            opMainnetSenderOwner: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
+            polMainnetSenderOwner: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
             avaxFujiSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
             baseSepoliaSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
             ethSepoliaSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
@@ -184,12 +184,12 @@ abstract contract DeployConstants {
 
     CouponProvider public couponProvider =
         CouponProvider({
-            arbMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
-            avaxMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
-            baseMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
-            ethMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
-            opMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
-            polMainnetCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3, // TODO: Change for mainnet deploy
+            arbMainnetCouponProvider: 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe,
+            avaxMainnetCouponProvider: 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe,
+            baseMainnetCouponProvider: 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe,
+            ethMainnetCouponProvider: 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe,
+            opMainnetCouponProvider: 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe,
+            polMainnetCouponProvider: 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe,
             arbSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
             avaxFujiCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
             baseSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
