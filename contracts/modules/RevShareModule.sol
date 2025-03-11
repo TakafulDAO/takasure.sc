@@ -11,6 +11,7 @@
  */
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
@@ -23,9 +24,12 @@ contract RevShareModule is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
-    TLDModuleImplementation
+    TLDModuleImplementation,
+    ERC721Upgradeable
 {
     ModuleState private moduleState;
+
+    uint256 public constant TOTAL_SUPPLY = 18_000;
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
@@ -38,6 +42,7 @@ contract RevShareModule is
 
         __UUPSUpgradeable_init();
         __AccessControl_init();
+        __ERC721_init("RevShareNFT", "RSNFT");
 
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, _operator);
         _grantRole(ModuleConstants.MODULE_MANAGER, _moduleManager);
