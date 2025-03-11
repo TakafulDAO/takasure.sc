@@ -22,7 +22,7 @@ contract RevShareModuleTest is Test {
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
     }
 
-    function testRevShareModuleDeployment() public {
+    function testRevShareModuleDeployment() public view {
         assert(revShareModuleAddress != address(0));
         assertEq(address(revShareModule), revShareModuleAddress);
     }
