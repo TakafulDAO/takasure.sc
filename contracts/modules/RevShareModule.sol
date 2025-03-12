@@ -20,6 +20,7 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {Member} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
@@ -36,21 +37,26 @@ contract RevShareModule is
 
     ModuleState private moduleState;
 
+    uint256 public constant MAX_CONTRIBUTION = 250e6; // 250 USDC
     uint16 public constant TOTAL_SUPPLY = 18_000;
     uint16 public latestTokenId;
 
     bool private prejoinActive;
 
+    mapping(address member => bool alreadyClaimed) public claimedNFTs;
+
     event OnTakasureReserveSet(address indexed takasureReserve);
 
     error RevShareModule__MaxSupplyReached();
     error RevShareModule__PrejoinStillActive();
+    error RevShareModule__NotAllowedToMint();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
         _disableInitializers();
     }
 
+    // TODO: Initialize the URI when set, skip for now just for easier testing
     function initialize(
         address _operator,
         address _moduleManager,
@@ -104,7 +110,28 @@ contract RevShareModule is
 
     function mint() external {
         require(latestTokenId < TOTAL_SUPPLY, RevShareModule__MaxSupplyReached());
+
+        // Check if the caller must be KYCed and paid the maximum contribution
+        if (prejoinActive) {
+            // If prejoin is active check in the Prejoin Module
+            (uint256 contributionBeforeFee, , , ) = prejoinModule.getPrepaidMember(msg.sender);
+            require(
+                prejoinModule.isMemberKYCed(msg.sender) &&
+                    contributionBeforeFee == MAX_CONTRIBUTION,
+                RevShareModule__NotAllowedToMint()
+            );
+        } else {
+            // Otherwise check in the Takasure Reserve
+            Member memory member = takasureReserve.getMemberFromAddress(msg.sender);
+            require(
+                member.isKYCVerified && member.contribution == MAX_CONTRIBUTION,
+                RevShareModule__NotAllowedToMint()
+            );
+        }
+
         ++latestTokenId;
+        claimedNFTs[msg.sender] = true;
+        _safeMint(msg.sender, latestTokenId);
     }
 
     /**

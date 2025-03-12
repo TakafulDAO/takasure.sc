@@ -14,4 +14,5 @@ interface IPrejoinModule {
             uint256 feeToOperator,
             uint256 discount
         );
+    function isMemberKYCed(address member) external view returns (bool);
 }
