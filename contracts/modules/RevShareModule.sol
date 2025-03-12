@@ -44,10 +44,14 @@ contract RevShareModule is
     ModuleState private moduleState;
 
     uint256 public constant MAX_CONTRIBUTION = 250e6; // 250 USDC
-    uint16 public constant TOTAL_SUPPLY = 18_000;
-    uint16 public latestTokenId;
+    uint256 public constant TOTAL_SUPPLY = 18_000;
+    uint256 private constant DECIMAL_CORRECTION = 1e6;
+    uint256 public latestTokenId;
 
     bool private prejoinActive;
+
+    uint256 public userRevShareRate;
+    uint256 public takadaoRevShareRate;
 
     mapping(address member => bool alreadyClaimed) public claimedNFTs;
     mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer;
@@ -58,7 +62,7 @@ contract RevShareModule is
 
     event OnCouponBuyerAllowed(address indexed buyer, uint256 amount);
     event OnTakasureReserveSet(address indexed takasureReserve);
-    event OnRevShareNFTMinted(address indexed member, uint16 tokenId);
+    event OnRevShareNFTMinted(address indexed member, uint256 tokenId);
 
     error RevShareModule__MaxSupplyReached();
     error RevShareModule__PrejoinStillActive();
@@ -139,6 +143,14 @@ contract RevShareModule is
         emit OnCouponBuyerAllowed(buyer, amount);
     }
 
+    function setUserRevShareRate() external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+        _userRevShareRate();
+    }
+
+    function setTakadaoRevShareRate() external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+        _takadaoRevShareRate();
+    }
+
     /*//////////////////////////////////////////////////////////////
                                   MINT
     //////////////////////////////////////////////////////////////*/
@@ -178,13 +190,12 @@ contract RevShareModule is
             RevShareModule__NotAllowedToMint()
         );
 
-        uint16 firstTokenId = latestTokenId + 1;
-        uint16 lastTokenId = firstTokenId +
-            uint16((couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION));
+        uint256 firstTokenId = latestTokenId + 1;
+        uint256 lastTokenId = firstTokenId + (couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION);
 
         latestTokenId = lastTokenId;
 
-        for (uint16 i = firstTokenId; i <= lastTokenId; ++i) {
+        for (uint256 i = firstTokenId; i <= lastTokenId; ++i) {
             claimedNFTs[msg.sender] = true;
             _safeMint(msg.sender, i);
 
@@ -195,6 +206,28 @@ contract RevShareModule is
     /*//////////////////////////////////////////////////////////////
                             REVENUE REWARDS
     //////////////////////////////////////////////////////////////*/
+
+    function claimRevenueRewards() external {}
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Precompute the user and Takadao revenue share rates
+     */
+    function _userRevShareRate() internal {
+        // userRevShareRate = (1 / TOTAL_SUPPLY) * 100;
+        userRevShareRate = (100 * DECIMAL_CORRECTION) / TOTAL_SUPPLY;
+    }
+
+    /**
+     * @notice Precompute the user and Takadao revenue share rates
+     */
+    function _takadaoRevShareRate() internal {
+        // takadaoRevShareRate = (TOTAL_SUPPLY - Minted / TOTAL_SUPPLY) * 100;
+        takadaoRevShareRate = ((TOTAL_SUPPLY - latestTokenId) * DECIMAL_CORRECTION) / TOTAL_SUPPLY;
+    }
 
     /**
      * @notice Needed override
