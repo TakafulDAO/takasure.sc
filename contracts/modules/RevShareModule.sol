@@ -12,6 +12,8 @@
 import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 import {IPrejoinModule} from "contracts/interfaces/IPrejoinModule.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
@@ -21,6 +23,7 @@ import {ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Member} from "contracts/types/TakasureTypes.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
 
@@ -31,9 +34,12 @@ contract RevShareModule is
     TLDModuleImplementation,
     ERC721Upgradeable
 {
+    using SafeERC20 for IERC20;
+
     IModuleManager private moduleManager;
     IPrejoinModule private prejoinModule;
     ITakasureReserve private takasureReserve;
+    IERC20 private usdc;
 
     ModuleState private moduleState;
 
@@ -46,6 +52,11 @@ contract RevShareModule is
     mapping(address member => bool alreadyClaimed) public claimedNFTs;
     mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer;
 
+    /*//////////////////////////////////////////////////////////////
+                            EVENTS & ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    event OnCouponBuyerAllowed(address indexed buyer, uint256 amount);
     event OnTakasureReserveSet(address indexed takasureReserve);
     event OnRevShareNFTMinted(address indexed member, uint16 tokenId);
 
@@ -62,7 +73,8 @@ contract RevShareModule is
     function initialize(
         address _operator,
         address _moduleManager,
-        address _prejoinModule
+        address _prejoinModule,
+        address _usdc
     ) external initializer {
         AddressAndStates._notZeroAddress(_operator);
         AddressAndStates._notZeroAddress(_moduleManager);
@@ -76,9 +88,14 @@ contract RevShareModule is
 
         moduleManager = IModuleManager(_moduleManager);
         prejoinModule = IPrejoinModule(_prejoinModule);
+        usdc = IERC20(_usdc);
 
         prejoinActive = true;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTINGS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Set the module state
@@ -109,6 +126,22 @@ contract RevShareModule is
 
         emit OnTakasureReserveSet(_takasureReserve);
     }
+
+    function allowCouponBuyer(
+        address buyer,
+        uint256 amount
+    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+        AddressAndStates._notZeroAddress(buyer);
+
+        couponAmountsByBuyer[buyer] += amount;
+        claimedNFTs[buyer] = false;
+
+        emit OnCouponBuyerAllowed(buyer, amount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                  MINT
+    //////////////////////////////////////////////////////////////*/
 
     function mint() external {
         require(latestTokenId < TOTAL_SUPPLY, RevShareModule__MaxSupplyReached());
@@ -158,6 +191,10 @@ contract RevShareModule is
             emit OnRevShareNFTMinted(msg.sender, i);
         }
     }
+
+    /*//////////////////////////////////////////////////////////////
+                            REVENUE REWARDS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Needed override
