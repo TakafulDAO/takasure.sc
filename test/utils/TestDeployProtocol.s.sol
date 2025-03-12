@@ -232,7 +232,10 @@ contract TestDeployProtocol is Script {
         revShareModuleImplementation = address(new RevShareModule());
         revShareModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             revShareModuleImplementation,
-            abi.encodeCall(RevShareModule.initialize, (_takadaoOperator, _moduleManagerAddress))
+            abi.encodeCall(
+                RevShareModule.initialize,
+                (_takadaoOperator, _moduleManagerAddress, prejoinModuleAddress_)
+            )
         );
     }
 
