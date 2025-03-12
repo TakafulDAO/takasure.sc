@@ -36,10 +36,14 @@ contract RevShareModule is
 
     ModuleState private moduleState;
 
+    uint16 public constant TOTAL_SUPPLY = 18_000;
+    uint16 public latestTokenId;
+
     bool private prejoinActive;
 
     event OnTakasureReserveSet(address indexed takasureReserve);
 
+    error RevShareModule__MaxSupplyReached();
     error RevShareModule__PrejoinStillActive();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
@@ -96,6 +100,11 @@ contract RevShareModule is
         takasureReserve = ITakasureReserve(_takasureReserve);
 
         emit OnTakasureReserveSet(_takasureReserve);
+    }
+
+    function mint() external {
+        require(latestTokenId < TOTAL_SUPPLY, RevShareModule__MaxSupplyReached());
+        ++latestTokenId;
     }
 
     /**
