@@ -44,8 +44,10 @@ contract RevShareModule is
     bool private prejoinActive;
 
     mapping(address member => bool alreadyClaimed) public claimedNFTs;
+    mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer;
 
     event OnTakasureReserveSet(address indexed takasureReserve);
+    event OnRevShareNFTMinted(address indexed member, uint16 tokenId);
 
     error RevShareModule__MaxSupplyReached();
     error RevShareModule__PrejoinStillActive();
@@ -132,6 +134,29 @@ contract RevShareModule is
         ++latestTokenId;
         claimedNFTs[msg.sender] = true;
         _safeMint(msg.sender, latestTokenId);
+
+        emit OnRevShareNFTMinted(msg.sender, latestTokenId);
+    }
+
+    function batchMint() external {
+        require(latestTokenId < TOTAL_SUPPLY, RevShareModule__MaxSupplyReached());
+        require(
+            couponAmountsByBuyer[msg.sender] >= MAX_CONTRIBUTION,
+            RevShareModule__NotAllowedToMint()
+        );
+
+        uint16 firstTokenId = latestTokenId + 1;
+        uint16 lastTokenId = firstTokenId +
+            uint16((couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION));
+
+        latestTokenId = lastTokenId;
+
+        for (uint16 i = firstTokenId; i <= lastTokenId; ++i) {
+            claimedNFTs[msg.sender] = true;
+            _safeMint(msg.sender, i);
+
+            emit OnRevShareNFTMinted(msg.sender, i);
+        }
     }
 
     /**
