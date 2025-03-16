@@ -63,7 +63,6 @@ contract EntryModule is
 
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
-    bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
@@ -817,7 +816,7 @@ contract EntryModule is
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
             EntryModule__NotAuthorizedCaller()
         );
     }

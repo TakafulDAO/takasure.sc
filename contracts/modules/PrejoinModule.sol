@@ -22,6 +22,7 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 
 import {tDAO, PrepaidMember, ModuleState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -75,9 +76,6 @@ contract PrejoinModule is
     //////////////////////////////////////////////////////////////*/
 
     bytes32 private constant OPERATOR = keccak256("OPERATOR");
-    bytes32 private constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-    bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
-    bytes32 internal constant MODULE_MANAGER = keccak256("MODULE_MANAGER");
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
@@ -166,7 +164,9 @@ contract PrejoinModule is
      * @notice Set the module state
      * @dev Only callable from the Module Manager
      */
-    function setContractState(ModuleState newState) external override onlyRole(MODULE_MANAGER) {
+    function setContractState(
+        ModuleState newState
+    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
         moduleState = newState;
     }
 
@@ -354,7 +354,7 @@ contract PrejoinModule is
      * @param user The address of the member
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
-    function setKYCStatus(address user) external onlyRole(KYC_PROVIDER) {
+    function setKYCStatus(address user) external onlyRole(ModuleConstants.KYC_PROVIDER) {
         // It will be possible to KYC a member that was left behind in the process
         // This will allow them to join the DAO
         require(
@@ -599,7 +599,7 @@ contract PrejoinModule is
     function _grantRoles(address _operator, address _KYCProvider) internal {
         _grantRole(DEFAULT_ADMIN_ROLE, _operator);
         _grantRole(OPERATOR, _operator);
-        _grantRole(KYC_PROVIDER, _KYCProvider);
+        _grantRole(ModuleConstants.KYC_PROVIDER, _KYCProvider);
     }
 
     function _getBenefitMultiplierFromOracle(address _member) internal {
@@ -847,7 +847,8 @@ contract PrejoinModule is
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) ||
+                msg.sender == ccipReceiverContract,
             PrejoinModule__NotAuthorizedCaller()
         );
     }
