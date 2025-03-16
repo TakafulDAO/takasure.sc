@@ -41,6 +41,8 @@ contract RevShareModule is
     ITakasureReserve private takasureReserve;
     IERC20 private usdc; // Revenue token
 
+    address private takadaoOperator;
+
     ModuleState private moduleState;
 
     uint256 public constant MAX_CONTRIBUTION = 250e6; // 250 USDC
@@ -99,6 +101,7 @@ contract RevShareModule is
         moduleManager = IModuleManager(_moduleManager);
         prejoinModule = IPrejoinModule(_prejoinModule);
         usdc = IERC20(_usdc);
+        takadaoOperator = _operator;
 
         prejoinActive = true;
 
@@ -178,6 +181,7 @@ contract RevShareModule is
 
         // Update the revenues
         _updateRevenue(msg.sender);
+        _updateRevenue(takadaoOperator);
 
         ++latestTokenId;
         claimedNFTs[msg.sender] = true;
@@ -193,6 +197,10 @@ contract RevShareModule is
             RevShareModule__NotAllowedToMint()
         );
 
+        // Update the revenues
+        _updateRevenue(msg.sender);
+        _updateRevenue(takadaoOperator);
+
         uint256 firstTokenId = latestTokenId + 1;
         uint256 lastTokenId = firstTokenId + (couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION);
 
@@ -206,10 +214,12 @@ contract RevShareModule is
         }
     }
 
-    // Todo: override transfer? It will simulate a withdraw
-    // function transfer(uint256 amount) external {
-    //     _updateRevenue(msg.sender);
-    // }
+    function transferFrom(address from, address to, uint256 tokenId) public override {
+        _updateRevenue(from);
+        _updateRevenue(to);
+
+        super.transferFrom(from, to, tokenId);
+    }
 
     /*//////////////////////////////////////////////////////////////
                              CLAIM REVENUE
@@ -260,6 +270,18 @@ contract RevShareModule is
         // TODO: Check the 1e6
         return (((balanceOf(_user) * (_revenuePerNFT() - userRevenuePerNFTPaid[_user])) / 1e6) +
             revenues[_user]);
+    }
+
+    function _safeTransfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory data
+    ) internal override {
+        _updateRevenue(from);
+        _updateRevenue(to);
+
+        super._safeTransfer(from, to, tokenId, data);
     }
 
     /**
