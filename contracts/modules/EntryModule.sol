@@ -10,6 +10,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
+import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 
@@ -45,6 +46,7 @@ contract EntryModule is
 {
     using SafeERC20 for IERC20;
 
+    IRevShareModule private revShareModule;
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
     ModuleState private moduleState;
@@ -126,6 +128,13 @@ contract EntryModule is
         ccipReceiverContract = _ccipReceiverContract;
     }
 
+    function setRevShareModule(
+        address _revShareModule
+    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+        AddressAndStates._notZeroAddress(_revShareModule);
+        revShareModule = IRevShareModule(_revShareModule);
+    }
+
     /**
      * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
@@ -188,7 +197,8 @@ contract EntryModule is
         address parentWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration,
-        uint256 couponAmount
+        uint256 couponAmount,
+        address couponBuyer
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         _onlyCouponRedeemerOrCcipReceiver;
@@ -213,7 +223,10 @@ contract EntryModule is
             couponAmount
         );
 
-        if (couponAmount > 0) emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        if (couponAmount > 0) {
+            revShareModule.couponRedeemedAmountsByBuyer(couponBuyer);
+            emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        }
     }
 
     /**
