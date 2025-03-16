@@ -10,7 +10,6 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
-import {IPrejoinModule} from "contracts/interfaces/IPrejoinModule.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -39,7 +38,6 @@ contract RevShareModule is
     using SafeERC20 for IERC20;
 
     IModuleManager private moduleManager;
-    IPrejoinModule private prejoinModule;
     ITakasureReserve private takasureReserve;
     IERC20 private usdc; // Revenue token
 
@@ -54,8 +52,6 @@ contract RevShareModule is
     uint256 private revenueRate;
     uint256 private lastUpdatedTimestamp; // Last time the rewards were updated
     uint256 private revenuePerNFTOwned;
-
-    bool private prejoinActive;
 
     uint256 public latestTokenId;
 
@@ -76,7 +72,6 @@ contract RevShareModule is
     event OnRevShareNFTMinted(address indexed member, uint256 tokenId);
 
     error RevShareModule__MaxSupplyReached();
-    error RevShareModule__PrejoinStillActive();
     error RevShareModule__NotAllowedToMint();
     error RevShareModule__NoRevenueToClaim();
     error RevShareModule__NotNFTOwner();
@@ -90,11 +85,13 @@ contract RevShareModule is
     function initialize(
         address _operator,
         address _moduleManager,
-        address _prejoinModule,
+        address _takasureReserve,
         address _usdc
     ) external initializer {
         AddressAndStates._notZeroAddress(_operator);
         AddressAndStates._notZeroAddress(_moduleManager);
+        AddressAndStates._notZeroAddress(_takasureReserve);
+        AddressAndStates._notZeroAddress(_usdc);
 
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -105,13 +102,13 @@ contract RevShareModule is
         _grantRole(ModuleConstants.MODULE_MANAGER, _moduleManager);
 
         moduleManager = IModuleManager(_moduleManager);
-        prejoinModule = IPrejoinModule(_prejoinModule);
+        takasureReserve = ITakasureReserve(_takasureReserve);
         usdc = IERC20(_usdc);
         takadaoOperator = _operator;
 
-        prejoinActive = true;
-
         revenueRate = 1;
+
+        emit OnTakasureReserveSet(_takasureReserve);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -126,26 +123,6 @@ contract RevShareModule is
         ModuleState newState
     ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
         moduleState = newState;
-    }
-
-    /**
-     * @notice Set the Takasure Reserve contract when deployed
-     */
-    function setTakasureReserve(
-        address _takasureReserve
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        AddressAndStates._notZeroAddress(_takasureReserve);
-
-        // To avoid unexpected behavior we need to ensure the prejoin is already disabled
-        require(
-            !moduleManager.isActiveModule(address(prejoinModule)),
-            RevShareModule__PrejoinStillActive()
-        );
-
-        prejoinActive = false;
-        takasureReserve = ITakasureReserve(_takasureReserve);
-
-        emit OnTakasureReserveSet(_takasureReserve);
     }
 
     function allowCouponBuyer(
@@ -167,22 +144,11 @@ contract RevShareModule is
         require(latestTokenId < TOTAL_SUPPLY, RevShareModule__MaxSupplyReached());
 
         // Check if the caller must be KYCed and paid the maximum contribution
-        if (prejoinActive) {
-            // If prejoin is active check in the Prejoin Module
-            (uint256 contributionBeforeFee, , , ) = prejoinModule.getPrepaidMember(msg.sender);
-            require(
-                prejoinModule.isMemberKYCed(msg.sender) &&
-                    contributionBeforeFee == MAX_CONTRIBUTION,
-                RevShareModule__NotAllowedToMint()
-            );
-        } else {
-            // Otherwise check in the Takasure Reserve
-            Member memory member = takasureReserve.getMemberFromAddress(msg.sender);
-            require(
-                member.isKYCVerified && member.contribution == MAX_CONTRIBUTION,
-                RevShareModule__NotAllowedToMint()
-            );
-        }
+        Member memory member = takasureReserve.getMemberFromAddress(msg.sender);
+        require(
+            member.isKYCVerified && member.contribution == MAX_CONTRIBUTION,
+            RevShareModule__NotAllowedToMint()
+        );
 
         // Update the revenues
         _updateRevenue(msg.sender);
@@ -227,7 +193,11 @@ contract RevShareModule is
         }
     }
 
-    function transferFrom(address from, address to, uint256 tokenId) public override(ERC721Upgradeable, IERC721) {
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public override(ERC721Upgradeable, IERC721) {
         _updateRevenue(from);
         _updateRevenue(to);
 
@@ -238,9 +208,9 @@ contract RevShareModule is
                              CLAIM REVENUE
     //////////////////////////////////////////////////////////////*/
 
-    function claimRevenue() external {       
+    function claimRevenue() external {
         require(balanceOf(msg.sender) > 0, RevShareModule__NotNFTOwner());
-        
+
         // Update the revenues
         _updateRevenue(msg.sender);
 
@@ -287,7 +257,7 @@ contract RevShareModule is
 
         uint256 activeNFTs;
 
-        for (uint256 i; i < bal; ++i){
+        for (uint256 i; i < bal; ++i) {
             uint256 tokenId = tokenOfOwnerByIndex(msg.sender, i);
             if (isNFTActive[tokenId]) ++activeNFTs;
         }
@@ -309,20 +279,32 @@ contract RevShareModule is
     }
 
     /// @notice Needed override
-    function _update(address to, uint256 tokenId, address auth) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) returns (address) {
+    function _update(
+        address to,
+        uint256 tokenId,
+        address auth
+    ) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) returns (address) {
         return super._update(to, tokenId, auth);
     }
 
     /// @notice Needed override
-    function _increaseBalance(address account, uint128 amount) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) {
+    function _increaseBalance(
+        address account,
+        uint128 amount
+    ) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) {
         super._increaseBalance(account, amount);
     }
 
-    
     /// @notice Needed override
     function supportsInterface(
         bytes4 interfaceId
-    ) public view virtual override(ERC721Upgradeable, ERC721EnumerableUpgradeable, AccessControlUpgradeable) returns (bool) {
+    )
+        public
+        view
+        virtual
+        override(ERC721Upgradeable, ERC721EnumerableUpgradeable, AccessControlUpgradeable)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
     }
 

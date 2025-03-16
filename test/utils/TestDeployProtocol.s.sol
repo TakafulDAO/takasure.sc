@@ -28,6 +28,7 @@ contract TestDeployProtocol is Script {
     bytes32 public constant MODULE_MANAGER = keccak256("MODULE_MANAGER");
 
     address takasureReserveImplementation;
+    address takasureReserve;
     address userRouterImplementation;
 
     string root;
@@ -38,7 +39,7 @@ contract TestDeployProtocol is Script {
         returns (
             address tsToken,
             BenefitMultiplierConsumerMock,
-            address takasureReserve,
+            address takasureReserveAddress,
             address prejoinModuleAddress,
             address entryModuleAddress,
             address memberModuleAddress,
@@ -67,7 +68,7 @@ contract TestDeployProtocol is Script {
 
         // Deploy TakasureReserve
         takasureReserveImplementation = address(new TakasureReserve());
-        takasureReserve = UnsafeUpgrades.deployUUPSProxy(
+        takasureReserveAddress = UnsafeUpgrades.deployUUPSProxy(
             takasureReserveImplementation,
             abi.encodeCall(
                 TakasureReserve.initialize,
@@ -86,6 +87,8 @@ contract TestDeployProtocol is Script {
             )
         );
 
+        takasureReserve = takasureReserveAddress;
+
         (
             prejoinModuleAddress,
             entryModuleAddress,
@@ -93,7 +96,6 @@ contract TestDeployProtocol is Script {
             revenueModuleAddress,
             revShareModuleAddress
         ) = _deployModules(
-            takasureReserve,
             config.takadaoOperator,
             config.kycProvider,
             config.contributionToken,
@@ -118,13 +120,7 @@ contract TestDeployProtocol is Script {
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
         tsToken = address(creditToken);
 
-        _assignRoles(
-            takasureReserve,
-            config.daoMultisig,
-            creditToken,
-            entryModuleAddress,
-            memberModuleAddress
-        );
+        _assignRoles(config.daoMultisig, creditToken, entryModuleAddress, memberModuleAddress);
 
         vm.stopBroadcast();
 
@@ -175,7 +171,6 @@ contract TestDeployProtocol is Script {
     address revShareModuleImplementation;
 
     function _deployModules(
-        address _takasureReserve,
         address _takadaoOperator,
         address _kycProvider,
         address _contributionToken,
@@ -210,7 +205,7 @@ contract TestDeployProtocol is Script {
             entryModuleImplementation,
             abi.encodeCall(
                 EntryModule.initialize,
-                (_takasureReserve, prejoinModuleAddress_, _ccipReceiver, _couponPool)
+                (takasureReserve, prejoinModuleAddress_, _ccipReceiver, _couponPool)
             )
         );
 
@@ -218,14 +213,14 @@ contract TestDeployProtocol is Script {
         memberModuleImplementation = address(new MemberModule());
         memberModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             memberModuleImplementation,
-            abi.encodeCall(MemberModule.initialize, (_takasureReserve))
+            abi.encodeCall(MemberModule.initialize, (takasureReserve))
         );
 
         // Deploy RevenueModule
         revenueModuleImplementation = address(new RevenueModule());
         revenueModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             revenueModuleImplementation,
-            abi.encodeCall(RevenueModule.initialize, (_takasureReserve))
+            abi.encodeCall(RevenueModule.initialize, (takasureReserve))
         );
 
         // Deploy RevShareModule
@@ -234,7 +229,7 @@ contract TestDeployProtocol is Script {
             revShareModuleImplementation,
             abi.encodeCall(
                 RevShareModule.initialize,
-                (_takadaoOperator, _moduleManagerAddress, prejoinModuleAddress_, _contributionToken)
+                (_takadaoOperator, _moduleManagerAddress, takasureReserve, _contributionToken)
             )
         );
     }
@@ -254,14 +249,13 @@ contract TestDeployProtocol is Script {
     }
 
     function _assignRoles(
-        address _takasureReserve,
         address _daoMultisig,
         TSToken _creditToken,
         address _entryModuleAddress,
         address _memberModuleAddress
     ) internal {
         // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
-        TakasureReserve(_takasureReserve).grantRole(0x00, _daoMultisig);
+        TakasureReserve(takasureReserve).grantRole(0x00, _daoMultisig);
         // And the modules as burner and minters
         _creditToken.grantRole(MINTER_ROLE, _entryModuleAddress);
         _creditToken.grantRole(MINTER_ROLE, _memberModuleAddress);
@@ -269,7 +263,7 @@ contract TestDeployProtocol is Script {
         _creditToken.grantRole(BURNER_ROLE, _memberModuleAddress);
 
         // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
-        TakasureReserve(_takasureReserve).renounceRole(0x00, msg.sender);
+        TakasureReserve(takasureReserve).renounceRole(0x00, msg.sender);
         // And the burner and minter admins
         _creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
         _creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
