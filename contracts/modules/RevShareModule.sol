@@ -39,19 +39,24 @@ contract RevShareModule is
     IModuleManager private moduleManager;
     IPrejoinModule private prejoinModule;
     ITakasureReserve private takasureReserve;
-    IERC20 private usdc;
+    IERC20 private usdc; // Revenue token
 
     ModuleState private moduleState;
 
     uint256 public constant MAX_CONTRIBUTION = 250e6; // 250 USDC
     uint256 public constant TOTAL_SUPPLY = 18_000;
     uint256 private constant DECIMAL_CORRECTION = 1e6;
-    uint256 public latestTokenId;
+
+    uint256 private revenueRate;
+    uint256 private lastUpdatedTimestamp; // Last time the rewards were updated
+    uint256 private revenuePerNFTOwned;
 
     bool private prejoinActive;
 
-    uint256 public userRevShareRate;
-    uint256 public takadaoRevShareRate;
+    uint256 public latestTokenId;
+
+    mapping(address => uint256) public userRevenuePerNFTPaid;
+    mapping(address => uint256) public revenues;
 
     mapping(address member => bool alreadyClaimed) public claimedNFTs;
     mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer;
@@ -67,6 +72,7 @@ contract RevShareModule is
     error RevShareModule__MaxSupplyReached();
     error RevShareModule__PrejoinStillActive();
     error RevShareModule__NotAllowedToMint();
+    error RevShareModule__NoRevenueToClaim();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
@@ -95,6 +101,8 @@ contract RevShareModule is
         usdc = IERC20(_usdc);
 
         prejoinActive = true;
+
+        revenueRate = 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -143,14 +151,6 @@ contract RevShareModule is
         emit OnCouponBuyerAllowed(buyer, amount);
     }
 
-    function setUserRevShareRate() external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        _userRevShareRate();
-    }
-
-    function setTakadaoRevShareRate() external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        _takadaoRevShareRate();
-    }
-
     /*//////////////////////////////////////////////////////////////
                                   MINT
     //////////////////////////////////////////////////////////////*/
@@ -175,6 +175,9 @@ contract RevShareModule is
                 RevShareModule__NotAllowedToMint()
             );
         }
+
+        // Update the revenues
+        _updateRevenue(msg.sender);
 
         ++latestTokenId;
         claimedNFTs[msg.sender] = true;
@@ -203,30 +206,60 @@ contract RevShareModule is
         }
     }
 
+    // Todo: override transfer? It will simulate a withdraw
+    // function transfer(uint256 amount) external {
+    //     _updateRevenue(msg.sender);
+    // }
+
     /*//////////////////////////////////////////////////////////////
-                            REVENUE REWARDS
+                             CLAIM REVENUE
     //////////////////////////////////////////////////////////////*/
 
-    function claimRevenueRewards() external {}
+    function claimRevenue() external {
+        // Update the revenues
+        _updateRevenue(msg.sender);
+
+        uint256 revenue = revenues[msg.sender];
+
+        require(revenue > 0, RevShareModule__NoRevenueToClaim());
+
+        revenues[msg.sender] = 0;
+        usdc.safeTransfer(msg.sender, revenue);
+    }
+
+    function getRevenuePerNFT() external view returns (uint256) {
+        return _revenuePerNFT();
+    }
+
+    /**
+     * @notice How much a user have earned in total
+     */
+    function getRevenueEarnedByUser(address user) external view returns (uint256) {
+        return _revenueEarnedByUser(user);
+    }
 
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @notice Precompute the user and Takadao revenue share rates
-     */
-    function _userRevShareRate() internal {
-        // userRevShareRate = (1 / TOTAL_SUPPLY) * 100;
-        userRevShareRate = (100 * DECIMAL_CORRECTION) / TOTAL_SUPPLY;
+    function _updateRevenue(address _user) internal {
+        revenuePerNFTOwned = _revenuePerNFT();
+        lastUpdatedTimestamp = block.timestamp;
+
+        revenues[_user] = _revenueEarnedByUser(_user);
+        userRevenuePerNFTPaid[_user] = revenuePerNFTOwned;
     }
 
-    /**
-     * @notice Precompute the user and Takadao revenue share rates
-     */
-    function _takadaoRevShareRate() internal {
-        // takadaoRevShareRate = (TOTAL_SUPPLY - Minted / TOTAL_SUPPLY) * 100;
-        takadaoRevShareRate = ((TOTAL_SUPPLY - latestTokenId) * DECIMAL_CORRECTION) / TOTAL_SUPPLY;
+    function _revenuePerNFT() internal view returns (uint256) {
+        // TODO: Check the 1e6
+        return (revenuePerNFTOwned +
+            ((revenueRate * (block.timestamp - lastUpdatedTimestamp) * 1e6) / TOTAL_SUPPLY));
+    }
+
+    function _revenueEarnedByUser(address _user) internal view returns (uint256) {
+        // TODO: Check the 1e6
+        return (((balanceOf(_user) * (_revenuePerNFT() - userRevenuePerNFTPaid[_user])) / 1e6) +
+            revenues[_user]);
     }
 
     /**
