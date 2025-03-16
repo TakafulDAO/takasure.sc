@@ -16,6 +16,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {ERC721EnumerableUpgradeable, ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
@@ -31,6 +32,7 @@ contract RevShareModule is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
+    ReentrancyGuardTransientUpgradeable,
     TLDModuleImplementation,
     ERC721Upgradeable,
     ERC721EnumerableUpgradeable
@@ -106,6 +108,7 @@ contract RevShareModule is
 
         __UUPSUpgradeable_init();
         __AccessControl_init();
+        __ReentrancyGuardTransient_init();
         __ERC721_init("RevShareNFT", "RSNFT");
         __ERC721Enumerable_init();
 
@@ -163,7 +166,7 @@ contract RevShareModule is
                                   MINT
     //////////////////////////////////////////////////////////////*/
 
-    function mint() external {
+    function mint() external nonReentrant {
         require(latestTokenId < TOTAL_SUPPLY, RevShareModule__MaxSupplyReached());
 
         // Check if the caller must be KYCed and paid the maximum contribution
@@ -187,7 +190,7 @@ contract RevShareModule is
         emit OnRevShareNFTMinted(msg.sender, latestTokenId);
     }
 
-    function batchMint() external {
+    function batchMint() external nonReentrant {
         require(latestTokenId < TOTAL_SUPPLY, RevShareModule__MaxSupplyReached());
         require(
             couponAmountsByBuyer[msg.sender] >= MAX_CONTRIBUTION,
