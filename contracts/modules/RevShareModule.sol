@@ -137,7 +137,7 @@ contract RevShareModule is
     function increaseCouponAmountByBuyer(
         address buyer,
         uint256 amount
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    ) external onlyRole(ModuleConstants.COUPON_REDEEMER) {
         AddressAndStates._notZeroAddress(buyer);
         require(amount > 0, RevShareModule__NotZeroAmount());
 
