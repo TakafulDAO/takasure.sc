@@ -209,8 +209,13 @@ contract RevShareModule is
         _updateRevenue(msg.sender);
         _updateRevenue(takadaoOperator);
 
+        // Check how many NFTs the coupon buyer can mint
+        uint256 maxNFTsAllowed = couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION;
+        // In case the coupon buyer have already minted some NFTs, we take that into account
+        uint256 currentAllowedToMint = maxNFTsAllowed - balanceOf(msg.sender);
+
         uint256 firstTokenId = latestTokenId + 1;
-        uint256 lastTokenId = latestTokenId + (couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION);
+        uint256 lastTokenId = latestTokenId + currentAllowedToMint;
 
         latestTokenId = lastTokenId;
 
