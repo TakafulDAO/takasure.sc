@@ -62,7 +62,8 @@ contract RevShareModule is
     mapping(address => uint256) public userRevenuePerNFTPaid;
     mapping(address => uint256) public revenues;
 
-    mapping(address member => bool alreadyClaimed) public claimedNFTs;
+    // Tracks if a member has claimed the NFTs, it does not track coupon buyers
+    mapping(address member => bool) public claimedNFTs;
     mapping(uint256 tokenId => bool active) public isNFTActive;
     mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer;
 
@@ -154,7 +155,6 @@ contract RevShareModule is
         AddressAndStates._notZeroAddress(buyer);
 
         couponAmountsByBuyer[buyer] += amount;
-        claimedNFTs[buyer] = false;
 
         emit OnCouponBuyerAllowed(buyer, amount);
     }
@@ -210,13 +210,12 @@ contract RevShareModule is
         _updateRevenue(takadaoOperator);
 
         uint256 firstTokenId = latestTokenId + 1;
-        uint256 lastTokenId = firstTokenId + (couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION);
+        uint256 lastTokenId = latestTokenId + (couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION);
 
         latestTokenId = lastTokenId;
 
         // Non NFT will be active for coupon buyers until 250 USDC in coupons are redeemed
         for (uint256 i = firstTokenId; i <= lastTokenId; ++i) {
-            claimedNFTs[msg.sender] = true;
             _safeMint(msg.sender, i);
 
             emit OnRevShareNFTMinted(msg.sender, i);
