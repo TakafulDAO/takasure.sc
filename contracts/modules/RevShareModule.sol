@@ -61,27 +61,35 @@ contract RevShareModule is
     // Tracks if a member has claimed the NFTs, it does not track coupon buyers
     mapping(address member => bool) public claimedNFTs;
     mapping(uint256 tokenId => bool active) public isNFTActive;
-    mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer;
+    // Track coupon amount related values
+    mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer; // How much a coupon buyer has spent
+    mapping(address couponBuyer => uint256 couponRedeemedAmount)
+        public couponRedeemedAmountsByBuyer; // How much a coupon buyer has redeemed. It will be reset when the coupon mints new NFTs
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    event OnCouponBuyerAllowed(address indexed buyer, uint256 amount);
+    event OnCouponAmountByBuyerIncreased(address indexed buyer, uint256 amount);
+    event OnCouponAmountRedeemedByBuyerIncreased(address indexed buyer, uint256 amount);
     event OnTakasureReserveSet(address indexed takasureReserve);
     event OnRevShareNFTMinted(address indexed member, uint256 tokenId);
+    event OnRevShareNFTActivated(address indexed member, uint256 tokenId);
 
     error RevShareModule__MaxSupplyReached();
     error RevShareModule__NotAllowedToMint();
     error RevShareModule__NoRevenueToClaim();
     error RevShareModule__NotNFTOwner();
+    error RevShareModule__NotZeroAmount();
+    error RevShareModule__NotEnoughRedeemedAmount();
+    error RevShareModule__MintNFTFirst();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
         _disableInitializers();
     }
 
-    // TODO: Initialize the URI when set, skip for now just for easier testing
+    // TODO: Initialize the URI when set, skip for now just for easier testing, but needed for production
     function initialize(
         address _operator,
         address _moduleManager,
@@ -125,15 +133,30 @@ contract RevShareModule is
         moduleState = newState;
     }
 
-    function allowCouponBuyer(
+    // TODO: Instead of operator, can be the backend
+    function increaseCouponAmountByBuyer(
         address buyer,
         uint256 amount
     ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
         AddressAndStates._notZeroAddress(buyer);
+        require(amount > 0, RevShareModule__NotZeroAmount());
 
         couponAmountsByBuyer[buyer] += amount;
 
-        emit OnCouponBuyerAllowed(buyer, amount);
+        emit OnCouponAmountByBuyerIncreased(buyer, amount);
+    }
+
+    // TODO: Instead of operator, can be the backend or the entry module
+    function increaseCouponRedeemedAmountByBuyer(
+        address buyer,
+        uint256 amount
+    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+        AddressAndStates._notZeroAddress(buyer);
+        require(amount > 0, RevShareModule__NotZeroAmount());
+
+        couponRedeemedAmountsByBuyer[buyer] += amount;
+
+        emit OnCouponAmountRedeemedByBuyerIncreased(buyer, amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -202,6 +225,36 @@ contract RevShareModule is
         _updateRevenue(to);
 
         super.transferFrom(from, to, tokenId);
+    }
+
+    function activateNFT() external {
+        require(
+            couponRedeemedAmountsByBuyer[msg.sender] >= MAX_CONTRIBUTION,
+            RevShareModule__NotEnoughRedeemedAmount()
+        );
+
+        uint256 bal = balanceOf(msg.sender);
+
+        require(bal > 0, RevShareModule__MintNFTFirst());
+
+        uint256 redeemed = couponRedeemedAmountsByBuyer[msg.sender];
+        uint256 tokensToActivate = redeemed / MAX_CONTRIBUTION;
+        couponRedeemedAmountsByBuyer[msg.sender] -= tokensToActivate * MAX_CONTRIBUTION;
+
+        uint256 activeNFTs;
+
+        for (uint256 i; i < bal; ++i) {
+            uint256 tokenId = tokenOfOwnerByIndex(msg.sender, i);
+
+            if (!isNFTActive[tokenId]) {
+                isNFTActive[tokenId] = true;
+                ++activeNFTs;
+
+                emit OnRevShareNFTActivated(msg.sender, tokenId);
+
+                if (activeNFTs == tokensToActivate) break;
+            }
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
