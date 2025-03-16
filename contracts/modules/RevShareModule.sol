@@ -41,9 +41,10 @@ contract RevShareModule is
     ITakasureReserve private takasureReserve;
     IERC20 private usdc; // Revenue token
 
-    address private takadaoOperator;
-
     ModuleState private moduleState;
+
+    address private takadaoOperator;
+    address private entryModule;
 
     uint256 public constant MAX_CONTRIBUTION = 250e6; // 250 USDC
     uint256 public constant TOTAL_SUPPLY = 18_000;
@@ -83,6 +84,7 @@ contract RevShareModule is
     error RevShareModule__NotZeroAmount();
     error RevShareModule__NotEnoughRedeemedAmount();
     error RevShareModule__MintNFTFirst();
+    error RevShareModule__NotAllowed();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
@@ -94,6 +96,7 @@ contract RevShareModule is
         address _operator,
         address _moduleManager,
         address _takasureReserve,
+        address _entryModule,
         address _usdc
     ) external initializer {
         AddressAndStates._notZeroAddress(_operator);
@@ -113,6 +116,7 @@ contract RevShareModule is
         takasureReserve = ITakasureReserve(_takasureReserve);
         usdc = IERC20(_usdc);
         takadaoOperator = _operator;
+        entryModule = _entryModule;
 
         revenueRate = 1;
 
@@ -133,7 +137,6 @@ contract RevShareModule is
         moduleState = newState;
     }
 
-    // TODO: Instead of operator, can be the backend
     function increaseCouponAmountByBuyer(
         address buyer,
         uint256 amount
@@ -146,11 +149,8 @@ contract RevShareModule is
         emit OnCouponAmountByBuyerIncreased(buyer, amount);
     }
 
-    // TODO: Instead of operator, can be the backend or the entry module
-    function increaseCouponRedeemedAmountByBuyer(
-        address buyer,
-        uint256 amount
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    function increaseCouponRedeemedAmountByBuyer(address buyer, uint256 amount) external {
+        require(msg.sender == entryModule, RevShareModule__NotAllowed());
         AddressAndStates._notZeroAddress(buyer);
         require(amount > 0, RevShareModule__NotZeroAmount());
 
