@@ -13,10 +13,11 @@ import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 import {IPrejoinModule} from "contracts/interfaces/IPrejoinModule.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {ERC721EnumerableUpgradeable, ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
@@ -32,7 +33,8 @@ contract RevShareModule is
     UUPSUpgradeable,
     AccessControlUpgradeable,
     TLDModuleImplementation,
-    ERC721Upgradeable
+    ERC721Upgradeable,
+    ERC721EnumerableUpgradeable
 {
     using SafeERC20 for IERC20;
 
@@ -61,6 +63,7 @@ contract RevShareModule is
     mapping(address => uint256) public revenues;
 
     mapping(address member => bool alreadyClaimed) public claimedNFTs;
+    mapping(uint256 tokenId => bool active) public isNFTActive;
     mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer;
 
     /*//////////////////////////////////////////////////////////////
@@ -75,6 +78,7 @@ contract RevShareModule is
     error RevShareModule__PrejoinStillActive();
     error RevShareModule__NotAllowedToMint();
     error RevShareModule__NoRevenueToClaim();
+    error RevShareModule__NotNFTOwner();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
@@ -94,6 +98,7 @@ contract RevShareModule is
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __ERC721_init("RevShareNFT", "RSNFT");
+        __ERC721Enumerable_init();
 
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, _operator);
         _grantRole(ModuleConstants.MODULE_MANAGER, _moduleManager);
@@ -184,6 +189,9 @@ contract RevShareModule is
         _updateRevenue(takadaoOperator);
 
         ++latestTokenId;
+
+        // All NFTs minted by normal users are active from the start
+        isNFTActive[latestTokenId] = true;
         claimedNFTs[msg.sender] = true;
         _safeMint(msg.sender, latestTokenId);
 
@@ -206,6 +214,7 @@ contract RevShareModule is
 
         latestTokenId = lastTokenId;
 
+        // Non NFT will be active for coupon buyers until 250 USDC in coupons are redeemed
         for (uint256 i = firstTokenId; i <= lastTokenId; ++i) {
             claimedNFTs[msg.sender] = true;
             _safeMint(msg.sender, i);
@@ -214,7 +223,7 @@ contract RevShareModule is
         }
     }
 
-    function transferFrom(address from, address to, uint256 tokenId) public override {
+    function transferFrom(address from, address to, uint256 tokenId) public override(ERC721Upgradeable, IERC721) {
         _updateRevenue(from);
         _updateRevenue(to);
 
@@ -225,7 +234,9 @@ contract RevShareModule is
                              CLAIM REVENUE
     //////////////////////////////////////////////////////////////*/
 
-    function claimRevenue() external {
+    function claimRevenue() external {       
+        require(balanceOf(msg.sender) > 0, RevShareModule__NotNFTOwner());
+        
         // Update the revenues
         _updateRevenue(msg.sender);
 
@@ -268,7 +279,16 @@ contract RevShareModule is
 
     function _revenueEarnedByUser(address _user) internal view returns (uint256) {
         // TODO: Check the 1e6
-        return (((balanceOf(_user) * (_revenuePerNFT() - userRevenuePerNFTPaid[_user])) / 1e6) +
+        uint256 bal = balanceOf(msg.sender);
+
+        uint256 activeNFTs;
+
+        for (uint256 i; i < bal; ++i){
+            uint256 tokenId = tokenOfOwnerByIndex(msg.sender, i);
+            if (isNFTActive[tokenId]) ++activeNFTs;
+        }
+
+        return (((activeNFTs * (_revenuePerNFT() - userRevenuePerNFTPaid[_user])) / 1e6) +
             revenues[_user]);
     }
 
@@ -284,12 +304,21 @@ contract RevShareModule is
         super._safeTransfer(from, to, tokenId, data);
     }
 
-    /**
-     * @notice Needed override
-     */
+    /// @notice Needed override
+    function _update(address to, uint256 tokenId, address auth) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) returns (address) {
+        return super._update(to, tokenId, auth);
+    }
+
+    /// @notice Needed override
+    function _increaseBalance(address account, uint128 amount) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) {
+        super._increaseBalance(account, amount);
+    }
+
+    
+    /// @notice Needed override
     function supportsInterface(
         bytes4 interfaceId
-    ) public view virtual override(ERC721Upgradeable, AccessControlUpgradeable) returns (bool) {
+    ) public view virtual override(ERC721Upgradeable, ERC721EnumerableUpgradeable, AccessControlUpgradeable) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
