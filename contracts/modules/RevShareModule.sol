@@ -87,6 +87,7 @@ contract RevShareModule is
     error RevShareModule__NotEnoughRedeemedAmount();
     error RevShareModule__MintNFTFirst();
     error RevShareModule__NotAllowed();
+    error RevShareModule__NotActiveToken();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
@@ -224,6 +225,8 @@ contract RevShareModule is
         address to,
         uint256 tokenId
     ) public override(ERC721Upgradeable, IERC721) {
+        require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
+
         _updateRevenue(from);
         _updateRevenue(to);
 
