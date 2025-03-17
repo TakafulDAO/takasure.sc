@@ -310,8 +310,9 @@
             ]
         },
         { "type": "error", "name": "TLDCcipSender__NotSupportedToken", "inputs": [] },
-        { "type": "error", "name": "TLDCcipSender__NotZeroTransfer", "inputs": [] },
         { "type": "error", "name": "TLDCcipSender__NothingToWithdraw", "inputs": [] },
+        { "type": "error", "name": "TLDCcipSender__WrongTransferAmount", "inputs": [] },
+        { "type": "error", "name": "TLDCcipSender__ZeroTransferNotAllowed", "inputs": [] },
         { "type": "error", "name": "UUPSUnauthorizedCallContext", "inputs": [] },
         {
             "type": "error",
