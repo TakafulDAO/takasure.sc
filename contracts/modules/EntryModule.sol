@@ -224,7 +224,7 @@ contract EntryModule is
         );
 
         if (couponAmount > 0) {
-            revShareModule.couponRedeemedAmountsByBuyer(couponBuyer);
+            revShareModule.increaseCouponRedeemedAmountByBuyer(couponBuyer, membersWallet, couponAmount);
             emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
         }
     }

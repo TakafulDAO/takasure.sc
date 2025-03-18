@@ -64,11 +64,11 @@ contract RevShareModule is
     // Tracks if a member has claimed the NFTs, it does not track coupon buyers
     mapping(address member => bool) public claimedNFTs;
     mapping(uint256 tokenId => bool active) public isNFTActive;
-    // Track coupon amount related values
+    // Track coupon related values
     mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer; // How much a coupon buyer has spent
     mapping(address couponBuyer => uint256 couponRedeemedAmount)
         public couponRedeemedAmountsByBuyer; // How much a coupon buyer has redeemed. It will be reset when the coupon mints new NFTs
-
+    mapping(address member => bool usedCoupon) private isCouponJoiner;
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -88,6 +88,7 @@ contract RevShareModule is
     error RevShareModule__MintNFTFirst();
     error RevShareModule__NotAllowed();
     error RevShareModule__NotActiveToken();
+    error RevShareModule__AlreadySetCoupon();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
@@ -153,12 +154,19 @@ contract RevShareModule is
         emit OnCouponAmountByBuyerIncreased(buyer, amount);
     }
 
-    function increaseCouponRedeemedAmountByBuyer(address buyer, uint256 amount) external {
+    function increaseCouponRedeemedAmountByBuyer(
+        address buyer,
+        address member,
+        uint256 amount
+    ) external {
         require(msg.sender == entryModule, RevShareModule__NotAllowed());
         AddressAndStates._notZeroAddress(buyer);
+        AddressAndStates._notZeroAddress(member);
         require(amount > 0, RevShareModule__NotZeroAmount());
+        require(!isCouponJoiner[member], RevShareModule__AlreadySetCoupon());
 
         couponRedeemedAmountsByBuyer[buyer] += amount;
+        isCouponJoiner[member] = true;
 
         emit OnCouponAmountRedeemedByBuyerIncreased(buyer, amount);
     }
@@ -170,10 +178,13 @@ contract RevShareModule is
     function mint() external nonReentrant {
         require(latestTokenId < TOTAL_SUPPLY, RevShareModule__MaxSupplyReached());
 
-        // Check if the caller must be KYCed and paid the maximum contribution
+        // The caller must be a member with max contribution, KYCed, not joined using coupon and not claimed NFTs
         Member memory member = takasureReserve.getMemberFromAddress(msg.sender);
         require(
-            member.isKYCVerified && member.contribution == MAX_CONTRIBUTION,
+            member.isKYCVerified &&
+                member.contribution == MAX_CONTRIBUTION &&
+                !isCouponJoiner[msg.sender] &&
+                !claimedNFTs[msg.sender],
             RevShareModule__NotAllowedToMint()
         );
 
