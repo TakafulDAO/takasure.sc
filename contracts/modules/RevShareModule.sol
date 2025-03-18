@@ -162,7 +162,6 @@ contract RevShareModule is
         require(msg.sender == entryModule, RevShareModule__NotAllowed());
         AddressAndStates._notZeroAddress(buyer);
         AddressAndStates._notZeroAddress(member);
-        require(amount > 0, RevShareModule__NotZeroAmount());
         require(!isCouponJoiner[member], RevShareModule__AlreadySetCoupon());
 
         couponRedeemedAmountsByBuyer[buyer] += amount;
