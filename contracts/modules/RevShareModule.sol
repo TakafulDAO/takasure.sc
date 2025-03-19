@@ -53,8 +53,8 @@ contract RevShareModule is
     uint256 private constant DECIMAL_CORRECTION = 1e6;
 
     uint256 private revenueRate;
-    uint256 private lastUpdatedTimestamp; // Last time the rewards were updated
-    uint256 private revenuePerNFTOwned;
+    uint256 public lastUpdatedTimestamp; // Last time the rewards were updated
+    uint256 public revenuePerNFTOwned;
 
     uint256 public latestTokenId;
 
@@ -114,6 +114,7 @@ contract RevShareModule is
         __ERC721_init("RevShareNFT", "RSNFT");
         __ERC721Enumerable_init();
 
+        _grantRole(0x00, _operator);
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, _operator);
         _grantRole(ModuleConstants.MODULE_MANAGER, _moduleManager);
 
@@ -124,6 +125,7 @@ contract RevShareModule is
         entryModule = _entryModule;
 
         revenueRate = 1;
+        lastUpdatedTimestamp = block.timestamp;
 
         emit OnTakasureReserveSet(_takasureReserve);
     }
@@ -208,10 +210,6 @@ contract RevShareModule is
             RevShareModule__NotAllowedToMint()
         );
 
-        // Update the revenues
-        _updateRevenue(msg.sender);
-        _updateRevenue(takadaoOperator);
-
         // Check how many NFTs the coupon buyer can mint
         uint256 maxNFTsAllowed = couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION;
         // In case the coupon buyer have already minted some NFTs, we take that into account
@@ -252,6 +250,10 @@ contract RevShareModule is
         uint256 bal = balanceOf(msg.sender);
 
         require(bal > 0, RevShareModule__MintNFTFirst());
+
+        // Update the revenues
+        _updateRevenue(msg.sender);
+        _updateRevenue(takadaoOperator);
 
         uint256 redeemed = couponRedeemedAmountsByBuyer[msg.sender];
         uint256 tokensToActivate = redeemed / MAX_CONTRIBUTION;
