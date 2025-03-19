@@ -42,6 +42,8 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
 
     event OnRevShareNFTMinted(address indexed member, uint256 tokenId);
     event OnRevShareNFTActivated(address indexed couponBuyer, uint256 tokenId);
+    event OnCouponAmountByBuyerIncreased(address indexed buyer, uint256 amount);
+    event OnCouponAmountRedeemedByBuyerIncreased(address indexed buyer, uint256 amount);
 
     function setUp() public {
         deployer = new TestDeployProtocol();
@@ -108,22 +110,22 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
         _kyc(joiner);
         _kyc(joinerMax);
 
-        vm.prank(couponRedeemer);
-        revShareModule.increaseCouponAmountByBuyer(couponBuyer, 5 * MAX_CONTRIBUTION);
+        // vm.prank(couponRedeemer);
+        // revShareModule.increaseCouponAmountByBuyer(couponBuyer, 5 * MAX_CONTRIBUTION);
 
-        vm.prank(address(entryModule));
-        revShareModule.increaseCouponRedeemedAmountByBuyer(
-            couponBuyer,
-            couponJoiner,
-            NO_MAX_COUPON
-        );
+        // vm.prank(address(entryModule));
+        // revShareModule.increaseCouponRedeemedAmountByBuyer(
+        //     couponBuyer,
+        //     couponJoiner,
+        //     NO_MAX_COUPON
+        // );
 
-        vm.prank(address(entryModule));
-        revShareModule.increaseCouponRedeemedAmountByBuyer(
-            couponBuyer,
-            couponJoinerMax,
-            MAX_CONTRIBUTION
-        );
+        // vm.prank(address(entryModule));
+        // revShareModule.increaseCouponRedeemedAmountByBuyer(
+        //     couponBuyer,
+        //     couponJoinerMax,
+        //     MAX_CONTRIBUTION
+        // );
 
         vm.warp(1 days);
         vm.roll(block.number + 1);
@@ -156,12 +158,130 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
         entryModule.setKYCStatus(_joiner);
     }
 
-    function testRevShareModule_constants() public view {
+    function testRevShareModule_initialValues() public view {
         assertEq(revShareModule.MAX_CONTRIBUTION(), MAX_CONTRIBUTION);
         assertEq(revShareModule.TOTAL_SUPPLY(), 18_000);
+        assertEq(revShareModule.lastUpdatedTimestamp(), 1);
+        assertEq(revShareModule.latestTokenId(), 0);
     }
 
-    function testRevShareModule_MintMustRevertIfNoKycEvenIfMaxContrbution() public {
+    function testRevShareModule_increaseCouponAmountByBuyerRevertsIfCallerIsWrong() public {
+        vm.prank(joinerMaxNoKyc);
+        vm.expectRevert();
+        revShareModule.increaseCouponAmountByBuyer(couponBuyer, 5 * MAX_CONTRIBUTION);
+    }
+
+    function testRevShareModule_increaseCouponAmountByBuyerRevertsIfBuyerIsAddressZero() public {
+        vm.prank(couponRedeemer);
+        vm.expectRevert();
+        revShareModule.increaseCouponAmountByBuyer(address(0), 5 * MAX_CONTRIBUTION);
+    }
+
+    function testRevShareModule_increaseCouponAmountByBuyerRevertsIfCouponIsZero() public {
+        vm.prank(couponRedeemer);
+        vm.expectRevert(RevShareModule.RevShareModule__NotZeroAmount.selector);
+        revShareModule.increaseCouponAmountByBuyer(couponBuyer, 0);
+    }
+
+    function testRevShareModule_increaseCouponAmountByBuyer() public {
+        assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 0);
+
+        vm.prank(couponRedeemer);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnCouponAmountByBuyerIncreased(couponBuyer, 5 * MAX_CONTRIBUTION);
+        revShareModule.increaseCouponAmountByBuyer(couponBuyer, 5 * MAX_CONTRIBUTION);
+
+        assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 5 * MAX_CONTRIBUTION);
+    }
+
+    modifier increaseCouponAmountByBuyer() {
+        vm.startPrank(couponRedeemer);
+        revShareModule.increaseCouponAmountByBuyer(couponBuyer, 5 * MAX_CONTRIBUTION);
+        vm.stopPrank();
+        _;
+    }
+
+    function testRevShareModule_increaseCouponRedeemedAmountByBuyerRevertIfWrongCaller()
+        public
+        increaseCouponAmountByBuyer
+    {
+        vm.prank(joinerMaxNoKyc);
+        vm.expectRevert(RevShareModule.RevShareModule__NotAllowed.selector);
+        revShareModule.increaseCouponRedeemedAmountByBuyer(
+            couponBuyer,
+            couponJoiner,
+            NO_MAX_COUPON
+        );
+    }
+
+    function testRevShareModule_increaseCouponRedeemedAmountByBuyerRevertsIfBuyerIsAddressZero()
+        public
+        increaseCouponAmountByBuyer
+    {
+        vm.prank(address(entryModule));
+        vm.expectRevert();
+        revShareModule.increaseCouponRedeemedAmountByBuyer(address(0), couponJoiner, NO_MAX_COUPON);
+    }
+
+    function testRevShareModule_increaseCouponRedeemedAmountByBuyerRevertsIfJoinerIsAddressZero()
+        public
+        increaseCouponAmountByBuyer
+    {
+        vm.prank(address(entryModule));
+        vm.expectRevert();
+        revShareModule.increaseCouponRedeemedAmountByBuyer(couponBuyer, address(0), NO_MAX_COUPON);
+    }
+
+    function testRevShareModule_increaseCouponRedeemedAmountByBuyer()
+        public
+        increaseCouponAmountByBuyer
+    {
+        assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
+
+        vm.prank(address(entryModule));
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnCouponAmountRedeemedByBuyerIncreased(couponBuyer, MAX_CONTRIBUTION);
+        revShareModule.increaseCouponRedeemedAmountByBuyer(
+            couponBuyer,
+            couponJoinerMax,
+            MAX_CONTRIBUTION
+        );
+
+        assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), MAX_CONTRIBUTION);
+    }
+
+    modifier increaseCouponRedeemedAmountByBuyer() {
+        vm.prank(address(entryModule));
+        revShareModule.increaseCouponRedeemedAmountByBuyer(
+            couponBuyer,
+            couponJoiner,
+            NO_MAX_COUPON
+        );
+
+        vm.prank(address(entryModule));
+        revShareModule.increaseCouponRedeemedAmountByBuyer(
+            couponBuyer,
+            couponJoinerMax,
+            MAX_CONTRIBUTION
+        );
+        _;
+    }
+
+    function testRevShareModule_increaseCouponRedeemedAmountByBuyerRevertsIfReddemedTheSameCoupon()
+        public
+        increaseCouponAmountByBuyer
+        increaseCouponRedeemedAmountByBuyer
+    {
+        vm.prank(address(entryModule));
+        vm.expectRevert(RevShareModule.RevShareModule__AlreadySetCoupon.selector);
+        revShareModule.increaseCouponRedeemedAmountByBuyer(
+            couponBuyer,
+            couponJoiner,
+            NO_MAX_COUPON
+        );
+    }
+
+    function testRevShareModule_MintMustRevertIfNoKycEvenIfMaxContribution() public {
         vm.prank(joinerMaxNoKyc);
         vm.expectRevert(RevShareModule.RevShareModule__NotAllowedToMint.selector);
         revShareModule.mint();
@@ -206,7 +326,19 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
         assertApproxEqAbs(revShareModule.userRevenuePerNFTPaid(joinerMax), 48e5, 100);
     }
 
-    function testRevShareModule_batchMint() public {
+    modifier mint() {
+        vm.prank(joinerMax);
+        revShareModule.mint();
+        _;
+    }
+
+    function testRevShareModule_mintRevertsIfAlreadyClaimed() public mint {
+        vm.prank(joinerMax);
+        vm.expectRevert(RevShareModule.RevShareModule__NotAllowedToMint.selector);
+        revShareModule.mint();
+    }
+
+    function testRevShareModule_batchMint() public increaseCouponAmountByBuyer {
         uint256 latestTokenId_initialState = revShareModule.latestTokenId();
         bool isNft1Active_initialState = revShareModule.isNFTActive(1);
         bool isNft2Active_initialState = revShareModule.isNFTActive(2);
@@ -245,19 +377,18 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
         assertEq(revShareModule.balanceOf(couponBuyer), 5);
     }
 
-    modifier mint() {
-        vm.prank(joinerMax);
-        revShareModule.mint();
-        _;
-    }
-
     modifier batchMint() {
         vm.prank(couponBuyer);
         revShareModule.batchMint();
         _;
     }
 
-    function testRevShareModule_activateToken() public batchMint {
+    function testRevShareModule_activateToken()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+        increaseCouponRedeemedAmountByBuyer
+    {
         uint256 lastUpdatedTimestamp_initialState = revShareModule.lastUpdatedTimestamp();
         bool isNftActive_initialState = revShareModule.isNFTActive(1);
         uint256 userRevenue_initialState = revShareModule.revenues(couponBuyer);
@@ -288,9 +419,63 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
         _;
     }
 
-    function testRevShareModule_transferInactiveNftReverts() public batchMint activateNft {
+    function testRevShareModule_transferInactiveNftReverts()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+    {
         vm.prank(couponBuyer);
         vm.expectRevert(RevShareModule.RevShareModule__NotActiveToken.selector);
-        revShareModule.transfer(joinerMax, 2);
+        revShareModule.transfer(joinerMax, 1);
+    }
+
+    function testRevShareModule_transferFromInactiveNftReverts()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+    {
+        vm.prank(couponBuyer);
+        revShareModule.setApprovalForAll(revShareModuleAddress, true);
+
+        vm.prank(revShareModuleAddress);
+        vm.expectRevert(RevShareModule.RevShareModule__NotActiveToken.selector);
+        revShareModule.transferFrom(couponBuyer, joinerMax, 1);
+    }
+
+    function testRevShareModule_transferNft()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+        increaseCouponRedeemedAmountByBuyer
+        activateNft
+    {
+        assertEq(revShareModule.balanceOf(couponBuyer), 5);
+        assertEq(revShareModule.balanceOf(joinerMax), 0);
+
+        vm.prank(couponBuyer);
+        revShareModule.transfer(joinerMax, 1);
+
+        assertEq(revShareModule.balanceOf(couponBuyer), 4);
+        assertEq(revShareModule.balanceOf(joinerMax), 1);
+    }
+
+    function testRevShareModule_transferFromNft()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+        increaseCouponRedeemedAmountByBuyer
+        activateNft
+    {
+        assertEq(revShareModule.balanceOf(couponBuyer), 5);
+        assertEq(revShareModule.balanceOf(joinerMax), 0);
+
+        vm.prank(couponBuyer);
+        revShareModule.setApprovalForAll(revShareModuleAddress, true);
+
+        vm.prank(revShareModuleAddress);
+        revShareModule.transferFrom(couponBuyer, joinerMax, 1);
+
+        assertEq(revShareModule.balanceOf(couponBuyer), 4);
+        assertEq(revShareModule.balanceOf(joinerMax), 1);
     }
 }
