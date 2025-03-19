@@ -77,7 +77,7 @@ contract RevShareModule is
     event OnCouponAmountRedeemedByBuyerIncreased(address indexed buyer, uint256 amount);
     event OnTakasureReserveSet(address indexed takasureReserve);
     event OnRevShareNFTMinted(address indexed member, uint256 tokenId);
-    event OnRevShareNFTActivated(address indexed member, uint256 tokenId);
+    event OnRevShareNFTActivated(address indexed couponBuyer, uint256 tokenId);
 
     error RevShareModule__MaxSupplyReached();
     error RevShareModule__NotAllowedToMint();
@@ -228,6 +228,15 @@ contract RevShareModule is
         }
     }
 
+    function transfer(address to, uint256 tokenId) public {
+        require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
+
+        _updateRevenue(msg.sender);
+        _updateRevenue(to);
+
+        _safeTransfer(msg.sender, to, tokenId, "");
+    }
+
     function transferFrom(
         address from,
         address to,
@@ -335,18 +344,6 @@ contract RevShareModule is
 
         return (((activeNFTs * (_revenuePerNFT() - userRevenuePerNFTPaid[_user])) / 1e6) +
             revenues[_user]);
-    }
-
-    function _safeTransfer(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes memory data
-    ) internal override {
-        _updateRevenue(from);
-        _updateRevenue(to);
-
-        super._safeTransfer(from, to, tokenId, data);
     }
 
     /// @notice Needed override
