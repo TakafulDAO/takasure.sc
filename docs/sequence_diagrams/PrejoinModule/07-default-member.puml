@@ -1,0 +1,27 @@
+@startuml Defaults
+autonumber
+
+actor Caller
+
+Caller -> MemberModule: defaultMember(memberWallet)
+
+alt Module is enabled
+    alt memberWallet is Active member
+        alt Timestamp is higher than a year from last payment
+
+            MemberModule --> MemberModule: update member status to Defaulted
+            MemberModule --> Caller: Emit OnMemberDefaulted event
+
+        else Timestamp is lower than a year from last payment
+            MemberModule --> Caller: Revert
+        end
+
+    else memberWallet is not Active member
+        MemberModule -> Caller: Revert
+    end
+
+else Module is disabled
+    Caller -> MemberModule: Revert
+end
+
+@enduml    
