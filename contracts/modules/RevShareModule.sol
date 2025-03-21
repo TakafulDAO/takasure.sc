@@ -78,6 +78,7 @@ contract RevShareModule is
     event OnTakasureReserveSet(address indexed takasureReserve);
     event OnRevShareNFTMinted(address indexed member, uint256 tokenId);
     event OnRevShareNFTActivated(address indexed couponBuyer, uint256 tokenId);
+    event OnRevenueClaimed(address indexed member, uint256 amount);
 
     error RevShareModule__MaxSupplyReached();
     error RevShareModule__NotAllowedToMint();
@@ -289,7 +290,12 @@ contract RevShareModule is
     //////////////////////////////////////////////////////////////*/
 
     function claimRevenue() external {
-        require(balanceOf(msg.sender) > 0, RevShareModule__NotNFTOwner());
+        uint256 bal;
+
+        if (msg.sender == takadaoOperator) bal = TOTAL_SUPPLY - latestTokenId;
+        else bal = balanceOf(msg.sender);
+
+        require(bal > 0, RevShareModule__NotNFTOwner());
 
         // Update the revenues
         _updateRevenue(msg.sender);
@@ -300,6 +306,8 @@ contract RevShareModule is
 
         revenues[msg.sender] = 0;
         usdc.safeTransfer(msg.sender, revenue);
+
+        emit OnRevenueClaimed(msg.sender, revenue);
     }
 
     function getRevenuePerNFT() external view returns (uint256) {
@@ -326,24 +334,31 @@ contract RevShareModule is
     }
 
     function _revenuePerNFT() internal view returns (uint256) {
-        // TODO: Check the 1e6
         return (revenuePerNFTOwned +
-            ((revenueRate * (block.timestamp - lastUpdatedTimestamp) * 1e6) / TOTAL_SUPPLY));
+            ((revenueRate * (block.timestamp - lastUpdatedTimestamp) * DECIMAL_CORRECTION) /
+                TOTAL_SUPPLY));
     }
 
     function _revenueEarnedByUser(address _user) internal view returns (uint256) {
-        // TODO: Check the 1e6
-        uint256 bal = balanceOf(msg.sender);
+        uint256 bal;
+
+        if (msg.sender == takadaoOperator) bal = TOTAL_SUPPLY - latestTokenId;
+        else bal = balanceOf(msg.sender);
 
         uint256 activeNFTs;
 
-        for (uint256 i; i < bal; ++i) {
-            uint256 tokenId = tokenOfOwnerByIndex(msg.sender, i);
-            if (isNFTActive[tokenId]) ++activeNFTs;
+        if (msg.sender == takadaoOperator) {
+            activeNFTs = bal;
+        } else {
+            for (uint256 i; i < bal; ++i) {
+                uint256 tokenId = tokenOfOwnerByIndex(msg.sender, i);
+
+                if (isNFTActive[tokenId]) ++activeNFTs;
+            }
         }
 
-        return (((activeNFTs * (_revenuePerNFT() - userRevenuePerNFTPaid[_user])) / 1e6) +
-            revenues[_user]);
+        return (((activeNFTs * (_revenuePerNFT() - userRevenuePerNFTPaid[_user])) /
+            DECIMAL_CORRECTION) + revenues[_user]);
     }
 
     /// @notice Needed override
