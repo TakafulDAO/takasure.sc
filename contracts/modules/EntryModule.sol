@@ -4,11 +4,13 @@
  * @title EntryModule
  * @author Maikel Ordaz
  * @notice This contract manage all the process to become a member
- * @dev It will interact with the TakasureReserve contract to update the values
+ * @dev Important notes:
+ *      1. Prejoiners must join from the prejoin module
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
+import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 
@@ -44,6 +46,7 @@ contract EntryModule is
 {
     using SafeERC20 for IERC20;
 
+    IRevShareModule private revShareModule;
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
     ModuleState private moduleState;
@@ -62,7 +65,6 @@ contract EntryModule is
 
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
-    bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
@@ -124,6 +126,13 @@ contract EntryModule is
     ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
         AddressAndStates._notZeroAddress(_ccipReceiverContract);
         ccipReceiverContract = _ccipReceiverContract;
+    }
+
+    function setRevShareModule(
+        address _revShareModule
+    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+        AddressAndStates._notZeroAddress(_revShareModule);
+        revShareModule = IRevShareModule(_revShareModule);
     }
 
     /**
@@ -188,7 +197,8 @@ contract EntryModule is
         address parentWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration,
-        uint256 couponAmount
+        uint256 couponAmount,
+        address couponBuyer
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         _onlyCouponRedeemerOrCcipReceiver;
@@ -213,7 +223,10 @@ contract EntryModule is
             couponAmount
         );
 
-        if (couponAmount > 0) emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        if (couponAmount > 0) {
+            revShareModule.increaseCouponRedeemedAmountByBuyer(couponBuyer, membersWallet, couponAmount);
+            emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        }
     }
 
     /**
@@ -816,7 +829,7 @@ contract EntryModule is
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
             EntryModule__NotAuthorizedCaller()
         );
     }

@@ -65,6 +65,7 @@ contract TLDCcipTest is Test {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig
@@ -401,7 +402,7 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0xe01b2be933401960d637314fd27f4fdf2caa6639d0f9ac6f78e7f21fe77c25d6;
+        bytes32 messageId = 0x9d5ed52fc4ea78c62958bef7687b7b4f43f3d15e19a36c5772ad03202a84dcee;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);

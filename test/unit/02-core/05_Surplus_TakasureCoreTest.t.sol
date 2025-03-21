@@ -56,6 +56,7 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             entryModuleAddress,
             memberModuleAddress,
             ,
+            ,
             userRouterAddress,
             contributionTokenAddress,
             ,

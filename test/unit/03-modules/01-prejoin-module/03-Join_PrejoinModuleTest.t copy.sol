@@ -51,6 +51,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig

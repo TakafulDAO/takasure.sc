@@ -37,6 +37,7 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
             entryModuleAddress,
             memberModuleAddress,
             ,
+            ,
             userRouterAddress,
             contributionTokenAddress,
             ,
