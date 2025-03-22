@@ -229,7 +229,7 @@ contract RevShareModule is
         }
     }
 
-    function transfer(address to, uint256 tokenId) public {
+    function transfer(address to, uint256 tokenId) external {
         require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
 
         _updateRevenue(msg.sender);
