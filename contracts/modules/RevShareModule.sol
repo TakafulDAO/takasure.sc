@@ -49,14 +49,12 @@ contract RevShareModule is
     address private entryModule;
 
     uint256 public constant MAX_CONTRIBUTION = 250e6; // 250 USDC
-    uint256 public constant TOTAL_SUPPLY = 18_000;
+    uint256 public constant MAX_SUPPLY = 18_000;
     uint256 private constant DECIMAL_CORRECTION = 1e6;
 
     uint256 private revenueRate;
     uint256 public lastUpdatedTimestamp; // Last time the rewards were updated
     uint256 public revenuePerNFTOwned;
-
-    uint256 public latestTokenId;
 
     mapping(address => uint256) public userRevenuePerNFTPaid;
     mapping(address => uint256) public revenues;
@@ -178,7 +176,7 @@ contract RevShareModule is
     //////////////////////////////////////////////////////////////*/
 
     function mint() external nonReentrant {
-        require(latestTokenId < TOTAL_SUPPLY, RevShareModule__MaxSupplyReached());
+        require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
 
         // The caller must be a member with max contribution, KYCed, not joined using coupon and not claimed NFTs
         Member memory member = takasureReserve.getMemberFromAddress(msg.sender);
@@ -190,22 +188,24 @@ contract RevShareModule is
             RevShareModule__NotAllowedToMint()
         );
 
+        uint256 currentTokenId = totalSupply();
+        uint256 newTokenId = currentTokenId + 1;
+
         // Update the revenues
         _updateRevenue(msg.sender);
         _updateRevenue(takadaoOperator);
 
-        ++latestTokenId;
+        _safeMint(msg.sender, newTokenId);
 
         // All NFTs minted by normal users are active from the start
-        isNFTActive[latestTokenId] = true;
+        isNFTActive[newTokenId] = true;
         claimedNFTs[msg.sender] = true;
-        _safeMint(msg.sender, latestTokenId);
 
-        emit OnRevShareNFTMinted(msg.sender, latestTokenId);
+        emit OnRevShareNFTMinted(msg.sender, newTokenId);
     }
 
     function batchMint() external nonReentrant {
-        require(latestTokenId < TOTAL_SUPPLY, RevShareModule__MaxSupplyReached());
+        require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
         require(
             couponAmountsByBuyer[msg.sender] >= MAX_CONTRIBUTION,
             RevShareModule__NotAllowedToMint()
@@ -216,13 +216,13 @@ contract RevShareModule is
         // In case the coupon buyer have already minted some NFTs, we take that into account
         uint256 currentAllowedToMint = maxNFTsAllowed - balanceOf(msg.sender);
 
-        uint256 firstTokenId = latestTokenId + 1;
-        uint256 lastTokenId = latestTokenId + currentAllowedToMint;
+        uint256 currentTokenId = totalSupply();
 
-        latestTokenId = lastTokenId;
+        uint256 firstNewTokenId = currentTokenId + 1;
+        uint256 lastNewTokenId = currentTokenId + currentAllowedToMint;
 
         // Non NFT will be active for coupon buyers until 250 USDC in coupons are redeemed
-        for (uint256 i = firstTokenId; i <= lastTokenId; ++i) {
+        for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
             _safeMint(msg.sender, i);
 
             emit OnRevShareNFTMinted(msg.sender, i);
@@ -292,7 +292,7 @@ contract RevShareModule is
     function claimRevenue() external {
         uint256 bal;
 
-        if (msg.sender == takadaoOperator) bal = TOTAL_SUPPLY - latestTokenId;
+        if (msg.sender == takadaoOperator) bal = MAX_SUPPLY - totalSupply();
         else bal = balanceOf(msg.sender);
 
         require(bal > 0, RevShareModule__NotNFTOwner());
@@ -336,13 +336,13 @@ contract RevShareModule is
     function _revenuePerNFT() internal view returns (uint256) {
         return (revenuePerNFTOwned +
             ((revenueRate * (block.timestamp - lastUpdatedTimestamp) * DECIMAL_CORRECTION) /
-                TOTAL_SUPPLY));
+                MAX_SUPPLY));
     }
 
     function _revenueEarnedByUser(address _user) internal view returns (uint256) {
         uint256 bal;
 
-        if (msg.sender == takadaoOperator) bal = TOTAL_SUPPLY - latestTokenId;
+        if (msg.sender == takadaoOperator) bal = MAX_SUPPLY - totalSupply();
         else bal = balanceOf(msg.sender);
 
         uint256 activeNFTs;

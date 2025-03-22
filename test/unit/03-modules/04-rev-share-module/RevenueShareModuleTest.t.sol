@@ -154,9 +154,9 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
 
     function testRevShareModule_initialValues() public view {
         assertEq(revShareModule.MAX_CONTRIBUTION(), MAX_CONTRIBUTION);
-        assertEq(revShareModule.TOTAL_SUPPLY(), 18_000);
+        assertEq(revShareModule.MAX_SUPPLY(), 18_000);
         assertEq(revShareModule.lastUpdatedTimestamp(), 1);
-        assertEq(revShareModule.latestTokenId(), 0);
+        assertEq(revShareModule.totalSupply(), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -297,7 +297,7 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
 
     function testRevShareModule_mint() public {
         uint256 lastUpdatedTimestamp_initialState = revShareModule.lastUpdatedTimestamp();
-        uint256 latestTokenId_initialState = revShareModule.latestTokenId();
+        uint256 latestTokenId_initialState = revShareModule.totalSupply();
         bool isNftActive_initialState = revShareModule.isNFTActive(latestTokenId_initialState + 1);
         bool joinerClaimed_initialState = revShareModule.claimedNFTs(joinerMax);
         uint256 joinerBalance_initialState = revShareModule.balanceOf(joinerMax);
@@ -313,9 +313,9 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
         revShareModule.mint();
 
         assert(revShareModule.lastUpdatedTimestamp() > lastUpdatedTimestamp_initialState);
-        assertEq(revShareModule.latestTokenId(), latestTokenId_initialState + 1);
+        assertEq(revShareModule.totalSupply(), latestTokenId_initialState + 1);
         assert(!isNftActive_initialState);
-        assert(revShareModule.isNFTActive(revShareModule.latestTokenId()));
+        assert(revShareModule.isNFTActive(revShareModule.totalSupply()));
         assert(!joinerClaimed_initialState);
         assert(revShareModule.claimedNFTs(joinerMax));
         assertEq(joinerBalance_initialState, 0);
@@ -351,7 +351,7 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
     }
 
     function testRevShareModule_batchMint() public increaseCouponAmountByBuyer {
-        uint256 latestTokenId_initialState = revShareModule.latestTokenId();
+        uint256 latestTokenId_initialState = revShareModule.totalSupply();
         bool isNft1Active_initialState = revShareModule.isNFTActive(1);
         bool isNft2Active_initialState = revShareModule.isNFTActive(2);
         bool isNft3Active_initialState = revShareModule.isNFTActive(3);
@@ -374,7 +374,7 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
 
         revShareModule.batchMint();
 
-        assertEq(revShareModule.latestTokenId(), latestTokenId_initialState + 5);
+        assertEq(revShareModule.totalSupply(), latestTokenId_initialState + 5);
         assert(!isNft1Active_initialState);
         assert(!isNft2Active_initialState);
         assert(!isNft3Active_initialState);
