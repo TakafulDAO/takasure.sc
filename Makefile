@@ -36,6 +36,10 @@ snapshot :; forge snapshot
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
 # Protocol deployments
+protocol-modules-deploy-manager:
+	@forge clean
+	@forge script deploy/protocol/modules/00-manager/DeployModuleManager.s.sol:DeployModuleManager $(NETWORK_ARGS)
+
 protoco-deploy-referral:
 	@forge clean
 	@forge script deploy/protocol/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
