@@ -40,6 +40,10 @@ protocol-modules-deploy-manager:
 	@forge clean
 	@forge script deploy/protocol/modules/00-manager/DeployModuleManager.s.sol:DeployModuleManager $(NETWORK_ARGS)
 
+protocol-modules-deploy-entry:
+	@forge clean
+	@forge script deploy/protocol/modules/01-DeployEntryModule.s.sol:DeployEntryModule $(NETWORK_ARGS)
+
 protoco-deploy-referral:
 	@forge clean
 	@forge script deploy/protocol/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
