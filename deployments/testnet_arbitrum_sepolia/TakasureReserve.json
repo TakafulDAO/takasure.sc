@@ -1,0 +1,1064 @@
+{
+    "address": "0x031842F4773E02Ed0e1ca04dFD2cec5dBf710740",
+    "abi": [
+        { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
+        {
+            "type": "function",
+            "name": "DEFAULT_ADMIN_ROLE",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "UPGRADE_INTERFACE_VERSION",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "bmConsumer",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "daoMultisig",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "dayToCashFlow",
+            "inputs": [
+                { "name": "month", "type": "uint16", "internalType": "uint16" },
+                { "name": "day", "type": "uint8", "internalType": "uint8" }
+            ],
+            "outputs": [{ "name": "dayCashFlow", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "feeClaimAddress",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getCashFlowValues",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "tuple",
+                    "internalType": "struct CashFlowVars",
+                    "components": [
+                        {
+                            "name": "dayDepositTimestamp",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "monthDepositTimestamp",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "monthReference", "type": "uint16", "internalType": "uint16" },
+                        { "name": "dayReference", "type": "uint8", "internalType": "uint8" }
+                    ]
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getCashLast12Months",
+            "inputs": [],
+            "outputs": [{ "name": "cash_", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getMemberFromAddress",
+            "inputs": [{ "name": "member", "type": "address", "internalType": "address" }],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "tuple",
+                    "internalType": "struct Member",
+                    "components": [
+                        { "name": "memberId", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "benefitMultiplier",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "membershipDuration",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "membershipStartTime",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "lastPaidYearStartDate",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "contribution", "type": "uint256", "internalType": "uint256" },
+                        { "name": "discount", "type": "uint256", "internalType": "uint256" },
+                        { "name": "claimAddAmount", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "totalContributions",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "totalServiceFee", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "creditTokensBalance",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "wallet", "type": "address", "internalType": "address" },
+                        { "name": "parent", "type": "address", "internalType": "address" },
+                        {
+                            "name": "memberState",
+                            "type": "uint8",
+                            "internalType": "enum MemberState"
+                        },
+                        { "name": "memberSurplus", "type": "uint256", "internalType": "uint256" },
+                        { "name": "isKYCVerified", "type": "bool", "internalType": "bool" },
+                        { "name": "isRefunded", "type": "bool", "internalType": "bool" },
+                        { "name": "lastEcr", "type": "uint256", "internalType": "uint256" },
+                        { "name": "lastUcr", "type": "uint256", "internalType": "uint256" }
+                    ]
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getMemberFromId",
+            "inputs": [{ "name": "memberId", "type": "uint256", "internalType": "uint256" }],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getReserveValues",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "tuple",
+                    "internalType": "struct Reserve",
+                    "components": [
+                        { "name": "serviceFee", "type": "uint8", "internalType": "uint8" },
+                        { "name": "bmaFundReserveShare", "type": "uint8", "internalType": "uint8" },
+                        {
+                            "name": "fundMarketExpendsAddShare",
+                            "type": "uint8",
+                            "internalType": "uint8"
+                        },
+                        { "name": "riskMultiplier", "type": "uint8", "internalType": "uint8" },
+                        { "name": "isOptimizerEnabled", "type": "bool", "internalType": "bool" },
+                        { "name": "allowCustomDuration", "type": "bool", "internalType": "bool" },
+                        { "name": "referralDiscount", "type": "bool", "internalType": "bool" },
+                        { "name": "daoToken", "type": "address", "internalType": "address" },
+                        {
+                            "name": "contributionToken",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        { "name": "memberIdCounter", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "minimumThreshold",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "maximumThreshold",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "initialReserveRatio",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "dynamicReserveRatio",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "benefitMultiplierAdjuster",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "totalContributions",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "totalClaimReserve",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "totalFundReserve",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "totalFundCost", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "totalFundRevenues",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "proFormaFundReserve",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "proFormaClaimReserve",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "lossRatio", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "lossRatioThreshold",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "ECRes", "type": "uint256", "internalType": "uint256" },
+                        { "name": "UCRes", "type": "uint256", "internalType": "uint256" },
+                        { "name": "surplus", "type": "uint256", "internalType": "uint256" },
+                        { "name": "referralReserve", "type": "uint256", "internalType": "uint256" }
+                    ]
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getRoleAdmin",
+            "inputs": [{ "name": "role", "type": "bytes32", "internalType": "bytes32" }],
+            "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "grantRole",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "account", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "hasRole",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "account", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "initialize",
+            "inputs": [
+                { "name": "_contributionToken", "type": "address", "internalType": "address" },
+                { "name": "_feeClaimAddress", "type": "address", "internalType": "address" },
+                { "name": "_daoOperator", "type": "address", "internalType": "address" },
+                { "name": "_takadaoOperator", "type": "address", "internalType": "address" },
+                { "name": "_kycProvider", "type": "address", "internalType": "address" },
+                { "name": "_pauseGuardian", "type": "address", "internalType": "address" },
+                { "name": "_tokenAdmin", "type": "address", "internalType": "address" },
+                { "name": "_moduleManager", "type": "address", "internalType": "address" },
+                { "name": "_tokenName", "type": "string", "internalType": "string" },
+                { "name": "_tokenSymbol", "type": "string", "internalType": "string" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "kycProvider",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "memberSurplus",
+            "inputs": [
+                {
+                    "name": "newMemberValues",
+                    "type": "tuple",
+                    "internalType": "struct Member",
+                    "components": [
+                        { "name": "memberId", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "benefitMultiplier",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "membershipDuration",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "membershipStartTime",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "lastPaidYearStartDate",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "contribution", "type": "uint256", "internalType": "uint256" },
+                        { "name": "discount", "type": "uint256", "internalType": "uint256" },
+                        { "name": "claimAddAmount", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "totalContributions",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "totalServiceFee", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "creditTokensBalance",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "wallet", "type": "address", "internalType": "address" },
+                        { "name": "parent", "type": "address", "internalType": "address" },
+                        {
+                            "name": "memberState",
+                            "type": "uint8",
+                            "internalType": "enum MemberState"
+                        },
+                        { "name": "memberSurplus", "type": "uint256", "internalType": "uint256" },
+                        { "name": "isKYCVerified", "type": "bool", "internalType": "bool" },
+                        { "name": "isRefunded", "type": "bool", "internalType": "bool" },
+                        { "name": "lastEcr", "type": "uint256", "internalType": "uint256" },
+                        { "name": "lastUcr", "type": "uint256", "internalType": "uint256" }
+                    ]
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "moduleManager",
+            "inputs": [],
+            "outputs": [
+                { "name": "", "type": "address", "internalType": "contract IModuleManager" }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "monthToCashFlow",
+            "inputs": [{ "name": "month", "type": "uint16", "internalType": "uint16" }],
+            "outputs": [{ "name": "monthCashFlow", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "pause",
+            "inputs": [],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "paused",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "proxiableUUID",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "renounceRole",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "callerConfirmation", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "revokeRole",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "account", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setAllowCustomDuration",
+            "inputs": [{ "name": "_allowCustomDuration", "type": "bool", "internalType": "bool" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setCashFlowValuesFromModule",
+            "inputs": [
+                {
+                    "name": "newCashFlowVars",
+                    "type": "tuple",
+                    "internalType": "struct CashFlowVars",
+                    "components": [
+                        {
+                            "name": "dayDepositTimestamp",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "monthDepositTimestamp",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "monthReference", "type": "uint16", "internalType": "uint16" },
+                        { "name": "dayReference", "type": "uint8", "internalType": "uint8" }
+                    ]
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setDayToCashFlowValuesFromModule",
+            "inputs": [
+                { "name": "month", "type": "uint16", "internalType": "uint16" },
+                { "name": "day", "type": "uint8", "internalType": "uint8" },
+                { "name": "dayCashFlow", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setMemberValuesFromModule",
+            "inputs": [
+                {
+                    "name": "newMember",
+                    "type": "tuple",
+                    "internalType": "struct Member",
+                    "components": [
+                        { "name": "memberId", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "benefitMultiplier",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "membershipDuration",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "membershipStartTime",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "lastPaidYearStartDate",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "contribution", "type": "uint256", "internalType": "uint256" },
+                        { "name": "discount", "type": "uint256", "internalType": "uint256" },
+                        { "name": "claimAddAmount", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "totalContributions",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "totalServiceFee", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "creditTokensBalance",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "wallet", "type": "address", "internalType": "address" },
+                        { "name": "parent", "type": "address", "internalType": "address" },
+                        {
+                            "name": "memberState",
+                            "type": "uint8",
+                            "internalType": "enum MemberState"
+                        },
+                        { "name": "memberSurplus", "type": "uint256", "internalType": "uint256" },
+                        { "name": "isKYCVerified", "type": "bool", "internalType": "bool" },
+                        { "name": "isRefunded", "type": "bool", "internalType": "bool" },
+                        { "name": "lastEcr", "type": "uint256", "internalType": "uint256" },
+                        { "name": "lastUcr", "type": "uint256", "internalType": "uint256" }
+                    ]
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setModuleManagerContract",
+            "inputs": [
+                { "name": "newModuleManagerContract", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setMonthToCashFlowValuesFromModule",
+            "inputs": [
+                { "name": "month", "type": "uint16", "internalType": "uint16" },
+                { "name": "monthCashFlow", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setNewBenefitMultiplierConsumerAddress",
+            "inputs": [
+                {
+                    "name": "newBenefitMultiplierConsumerAddress",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setNewContributionToken",
+            "inputs": [
+                { "name": "newContributionToken", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setNewFeeClaimAddress",
+            "inputs": [
+                { "name": "newFeeClaimAddress", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setNewFundMarketExpendsShare",
+            "inputs": [
+                { "name": "newFundMarketExpendsAddShare", "type": "uint8", "internalType": "uint8" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setNewKycProviderAddress",
+            "inputs": [
+                { "name": "newKycProviderAddress", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setNewMaximumThreshold",
+            "inputs": [
+                { "name": "newMaximumThreshold", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setNewMinimumThreshold",
+            "inputs": [
+                { "name": "newMinimumThreshold", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setNewPauseGuardianAddress",
+            "inputs": [
+                { "name": "newPauseGuardianAddress", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setNewServiceFee",
+            "inputs": [{ "name": "newServiceFee", "type": "uint8", "internalType": "uint8" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setReserveValuesFromModule",
+            "inputs": [
+                {
+                    "name": "newReserve",
+                    "type": "tuple",
+                    "internalType": "struct Reserve",
+                    "components": [
+                        { "name": "serviceFee", "type": "uint8", "internalType": "uint8" },
+                        { "name": "bmaFundReserveShare", "type": "uint8", "internalType": "uint8" },
+                        {
+                            "name": "fundMarketExpendsAddShare",
+                            "type": "uint8",
+                            "internalType": "uint8"
+                        },
+                        { "name": "riskMultiplier", "type": "uint8", "internalType": "uint8" },
+                        { "name": "isOptimizerEnabled", "type": "bool", "internalType": "bool" },
+                        { "name": "allowCustomDuration", "type": "bool", "internalType": "bool" },
+                        { "name": "referralDiscount", "type": "bool", "internalType": "bool" },
+                        { "name": "daoToken", "type": "address", "internalType": "address" },
+                        {
+                            "name": "contributionToken",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        { "name": "memberIdCounter", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "minimumThreshold",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "maximumThreshold",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "initialReserveRatio",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "dynamicReserveRatio",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "benefitMultiplierAdjuster",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "totalContributions",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "totalClaimReserve",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "totalFundReserve",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "totalFundCost", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "totalFundRevenues",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "proFormaFundReserve",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "proFormaClaimReserve",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "lossRatio", "type": "uint256", "internalType": "uint256" },
+                        {
+                            "name": "lossRatioThreshold",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        { "name": "ECRes", "type": "uint256", "internalType": "uint256" },
+                        { "name": "UCRes", "type": "uint256", "internalType": "uint256" },
+                        { "name": "surplus", "type": "uint256", "internalType": "uint256" },
+                        { "name": "referralReserve", "type": "uint256", "internalType": "uint256" }
+                    ]
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "supportsInterface",
+            "inputs": [{ "name": "interfaceId", "type": "bytes4", "internalType": "bytes4" }],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "takadaoOperator",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "unpause",
+            "inputs": [],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "upgradeToAndCall",
+            "inputs": [
+                { "name": "newImplementation", "type": "address", "internalType": "address" },
+                { "name": "data", "type": "bytes", "internalType": "bytes" }
+            ],
+            "outputs": [],
+            "stateMutability": "payable"
+        },
+        {
+            "type": "event",
+            "name": "Initialized",
+            "inputs": [
+                { "name": "version", "type": "uint64", "indexed": false, "internalType": "uint64" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnAllowCustomDuration",
+            "inputs": [
+                {
+                    "name": "allowCustomDuration",
+                    "type": "bool",
+                    "indexed": false,
+                    "internalType": "bool"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnBenefitMultiplierConsumerChanged",
+            "inputs": [
+                {
+                    "name": "newBenefitMultiplierConsumer",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "oldBenefitMultiplierConsumer",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnFundSurplusUpdated",
+            "inputs": [
+                { "name": "surplus", "type": "uint256", "indexed": true, "internalType": "uint256" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnInitialReserveValues",
+            "inputs": [
+                {
+                    "name": "initialReserveRatio",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "dynamicReserveRatio",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "benefitMultiplierAdjuster",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "serviceFee",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "bmaFundReserveShare",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "isOptimizerEnabled",
+                    "type": "bool",
+                    "indexed": false,
+                    "internalType": "bool"
+                },
+                {
+                    "name": "contributionToken",
+                    "type": "address",
+                    "indexed": false,
+                    "internalType": "address"
+                },
+                {
+                    "name": "daoToken",
+                    "type": "address",
+                    "indexed": false,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnMemberSurplusUpdated",
+            "inputs": [
+                {
+                    "name": "memberId",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                { "name": "surplus", "type": "uint256", "indexed": true, "internalType": "uint256" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewMarketExpendsFundReserveAddShare",
+            "inputs": [
+                {
+                    "name": "newMarketExpendsFundReserveAddShare",
+                    "type": "uint8",
+                    "indexed": true,
+                    "internalType": "uint8"
+                },
+                {
+                    "name": "oldMarketExpendsFundReserveAddShare",
+                    "type": "uint8",
+                    "indexed": true,
+                    "internalType": "uint8"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewMaximumThreshold",
+            "inputs": [
+                {
+                    "name": "maximumThreshold",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewMinimumThreshold",
+            "inputs": [
+                {
+                    "name": "minimumThreshold",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnServiceFeeChanged",
+            "inputs": [
+                {
+                    "name": "newServiceFee",
+                    "type": "uint8",
+                    "indexed": true,
+                    "internalType": "uint8"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "Paused",
+            "inputs": [
+                {
+                    "name": "account",
+                    "type": "address",
+                    "indexed": false,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "RoleAdminChanged",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+                {
+                    "name": "previousAdminRole",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                },
+                {
+                    "name": "newAdminRole",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "RoleGranted",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+                {
+                    "name": "account",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                { "name": "sender", "type": "address", "indexed": true, "internalType": "address" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "RoleRevoked",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+                {
+                    "name": "account",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                { "name": "sender", "type": "address", "indexed": true, "internalType": "address" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "Unpaused",
+            "inputs": [
+                {
+                    "name": "account",
+                    "type": "address",
+                    "indexed": false,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "Upgraded",
+            "inputs": [
+                {
+                    "name": "implementation",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        { "type": "error", "name": "AccessControlBadConfirmation", "inputs": [] },
+        {
+            "type": "error",
+            "name": "AccessControlUnauthorizedAccount",
+            "inputs": [
+                { "name": "account", "type": "address", "internalType": "address" },
+                { "name": "neededRole", "type": "bytes32", "internalType": "bytes32" }
+            ]
+        },
+        {
+            "type": "error",
+            "name": "AddressEmptyCode",
+            "inputs": [{ "name": "target", "type": "address", "internalType": "address" }]
+        },
+        {
+            "type": "error",
+            "name": "ERC1967InvalidImplementation",
+            "inputs": [{ "name": "implementation", "type": "address", "internalType": "address" }]
+        },
+        { "type": "error", "name": "ERC1967NonPayable", "inputs": [] },
+        { "type": "error", "name": "EnforcedPause", "inputs": [] },
+        { "type": "error", "name": "ExpectedPause", "inputs": [] },
+        { "type": "error", "name": "FailedCall", "inputs": [] },
+        { "type": "error", "name": "InvalidInitialization", "inputs": [] },
+        { "type": "error", "name": "NotInitializing", "inputs": [] },
+        { "type": "error", "name": "TakasureProtocol__ZeroAddress", "inputs": [] },
+        { "type": "error", "name": "TakasureReserve__OnlyDaoOrTakadao", "inputs": [] },
+        { "type": "error", "name": "TakasureReserve__UnallowedAccess", "inputs": [] },
+        { "type": "error", "name": "TakasureReserve__WrongFundMarketExpendsShare", "inputs": [] },
+        { "type": "error", "name": "TakasureReserve__WrongServiceFee", "inputs": [] },
+        { "type": "error", "name": "UUPSUnauthorizedCallContext", "inputs": [] },
+        {
+            "type": "error",
+            "name": "UUPSUnsupportedProxiableUUID",
+            "inputs": [{ "name": "slot", "type": "bytes32", "internalType": "bytes32" }]
+        },
+        { "type": "error", "name": "WrongTimestamps", "inputs": [] }
+    ]
+  }
