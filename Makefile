@@ -52,6 +52,10 @@ protocol-modules-deploy-revenue:
 	@forge clean
 	@forge script deploy/protocol/modules/03-DeployRevenueModule.s.sol:DeployRevenueModule $(NETWORK_ARGS)
 
+protocol-router-deploy:
+	@forge clean
+	@forge script deploy/protocol/router/DeployUserRouter.s.sol:DeployUserRouter $(NETWORK_ARGS)
+
 protoco-deploy-referral:
 	@forge clean
 	@forge script deploy/protocol/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
