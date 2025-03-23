@@ -48,6 +48,10 @@ protocol-modules-deploy-member:
 	@forge clean
 	@forge script deploy/protocol/modules/02-DeployMemberModule.s.sol:DeployMemberModule $(NETWORK_ARGS)
 
+protocol-modules-deploy-revenue:
+	@forge clean
+	@forge script deploy/protocol/modules/03-DeployRevenueModule.s.sol:DeployRevenueModule $(NETWORK_ARGS)
+
 protoco-deploy-referral:
 	@forge clean
 	@forge script deploy/protocol/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
