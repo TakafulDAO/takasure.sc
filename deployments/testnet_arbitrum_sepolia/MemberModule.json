@@ -1,0 +1,403 @@
+{
+    "address": "0x8a4a87b54F2b1458Bae22D978608130be3185357",
+    "abi": [
+        { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
+        {
+            "type": "function",
+            "name": "DEFAULT_ADMIN_ROLE",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "UPGRADE_INTERFACE_VERSION",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "cancelMembership",
+            "inputs": [{ "name": "memberWallet", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "defaultMember",
+            "inputs": [{ "name": "memberWallet", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "getRoleAdmin",
+            "inputs": [{ "name": "role", "type": "bytes32", "internalType": "bytes32" }],
+            "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "grantRole",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "account", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "hasRole",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "account", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "initialize",
+            "inputs": [
+                { "name": "_takasureReserveAddress", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "isTLDModule",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "bytes4", "internalType": "bytes4" }],
+            "stateMutability": "pure"
+        },
+        {
+            "type": "function",
+            "name": "payRecurringContribution",
+            "inputs": [{ "name": "memberWallet", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "proxiableUUID",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "renounceRole",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "callerConfirmation", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "revokeRole",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+                { "name": "account", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setContractState",
+            "inputs": [{ "name": "newState", "type": "uint8", "internalType": "enum ModuleState" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "supportsInterface",
+            "inputs": [{ "name": "interfaceId", "type": "bytes4", "internalType": "bytes4" }],
+            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "upgradeToAndCall",
+            "inputs": [
+                { "name": "newImplementation", "type": "address", "internalType": "address" },
+                { "name": "data", "type": "bytes", "internalType": "bytes" }
+            ],
+            "outputs": [],
+            "stateMutability": "payable"
+        },
+        {
+            "type": "event",
+            "name": "Initialized",
+            "inputs": [
+                { "name": "version", "type": "uint64", "indexed": false, "internalType": "uint64" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnMemberCanceled",
+            "inputs": [
+                {
+                    "name": "memberId",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                { "name": "member", "type": "address", "indexed": true, "internalType": "address" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnMemberDefaulted",
+            "inputs": [
+                {
+                    "name": "memberId",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                { "name": "member", "type": "address", "indexed": true, "internalType": "address" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewBenefitMultiplierAdjuster",
+            "inputs": [
+                {
+                    "name": "benefitMultiplierAdjuster",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewDynamicReserveRatio",
+            "inputs": [
+                {
+                    "name": "dynamicReserveRatio",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewLossRatio",
+            "inputs": [
+                {
+                    "name": "lossRatio",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewProFormaValues",
+            "inputs": [
+                {
+                    "name": "proFormaFundReserve",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "proFormaClaimReserve",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewReserveValues",
+            "inputs": [
+                {
+                    "name": "totalContributions",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "totalClaimReserve",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "totalFundReserve",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "totalFundExpenditures",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnRecurringPayment",
+            "inputs": [
+                {
+                    "name": "member",
+                    "type": "address",
+                    "indexed": false,
+                    "internalType": "address"
+                },
+                {
+                    "name": "memberId",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "lastPaidYearDate",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "latestContribution",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "updatedTotalServiceFee",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "RoleAdminChanged",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+                {
+                    "name": "previousAdminRole",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                },
+                {
+                    "name": "newAdminRole",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "RoleGranted",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+                {
+                    "name": "account",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                { "name": "sender", "type": "address", "indexed": true, "internalType": "address" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "RoleRevoked",
+            "inputs": [
+                { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+                {
+                    "name": "account",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                { "name": "sender", "type": "address", "indexed": true, "internalType": "address" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "Upgraded",
+            "inputs": [
+                {
+                    "name": "implementation",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        { "type": "error", "name": "AccessControlBadConfirmation", "inputs": [] },
+        {
+            "type": "error",
+            "name": "AccessControlUnauthorizedAccount",
+            "inputs": [
+                { "name": "account", "type": "address", "internalType": "address" },
+                { "name": "neededRole", "type": "bytes32", "internalType": "bytes32" }
+            ]
+        },
+        {
+            "type": "error",
+            "name": "AddressEmptyCode",
+            "inputs": [{ "name": "target", "type": "address", "internalType": "address" }]
+        },
+        {
+            "type": "error",
+            "name": "ERC1967InvalidImplementation",
+            "inputs": [{ "name": "implementation", "type": "address", "internalType": "address" }]
+        },
+        { "type": "error", "name": "ERC1967NonPayable", "inputs": [] },
+        { "type": "error", "name": "FailedCall", "inputs": [] },
+        { "type": "error", "name": "InvalidInitialization", "inputs": [] },
+        { "type": "error", "name": "MemberModule__InvalidDate", "inputs": [] },
+        { "type": "error", "name": "Module__MintFailed", "inputs": [] },
+        { "type": "error", "name": "Module__TooEarlyToCancel", "inputs": [] },
+        { "type": "error", "name": "Module__TooEarlyToDefault", "inputs": [] },
+        { "type": "error", "name": "Module__WrongMemberState", "inputs": [] },
+        { "type": "error", "name": "Module__WrongModuleState", "inputs": [] },
+        { "type": "error", "name": "NotInitializing", "inputs": [] },
+        { "type": "error", "name": "ReentrancyGuardReentrantCall", "inputs": [] },
+        {
+            "type": "error",
+            "name": "SafeERC20FailedOperation",
+            "inputs": [{ "name": "token", "type": "address", "internalType": "address" }]
+        },
+        { "type": "error", "name": "TakasureProtocol__ZeroAddress", "inputs": [] },
+        { "type": "error", "name": "UUPSUnauthorizedCallContext", "inputs": [] },
+        {
+            "type": "error",
+            "name": "UUPSUnsupportedProxiableUUID",
+            "inputs": [{ "name": "slot", "type": "bytes32", "internalType": "bytes32" }]
+        },
+        { "type": "error", "name": "WrongTimestamps", "inputs": [] }
+    ]
+  }
