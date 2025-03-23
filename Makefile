@@ -40,44 +40,60 @@ protocol-modules-deploy-manager:
 	@forge clean
 	@forge script deploy/protocol/modules/00-manager/DeployModuleManager.s.sol:DeployModuleManager $(NETWORK_ARGS)
 
+protocol-modules-deploy-prejoin:
+	@forge clean
+	@forge script deploy/protocol/modules/01-DeployPrejoinModule.s.sol:DeployPrejoinModule $(NETWORK_ARGS)
+
 protocol-modules-deploy-entry:
 	@forge clean
-	@forge script deploy/protocol/modules/01-DeployEntryModule.s.sol:DeployEntryModule $(NETWORK_ARGS)
+	@forge script deploy/protocol/modules/02-DeployEntryModule.s.sol:DeployEntryModule $(NETWORK_ARGS)
 
 protocol-modules-deploy-member:
 	@forge clean
-	@forge script deploy/protocol/modules/02-DeployMemberModule.s.sol:DeployMemberModule $(NETWORK_ARGS)
+	@forge script deploy/protocol/modules/03-DeployMemberModule.s.sol:DeployMemberModule $(NETWORK_ARGS)
 
 protocol-modules-deploy-revenue:
 	@forge clean
-	@forge script deploy/protocol/modules/03-DeployRevenueModule.s.sol:DeployRevenueModule $(NETWORK_ARGS)
+	@forge script deploy/protocol/modules/04-DeployRevenueModule.s.sol:DeployRevenueModule $(NETWORK_ARGS)
 
 protocol-router-deploy:
 	@forge clean
 	@forge script deploy/protocol/router/DeployUserRouter.s.sol:DeployUserRouter $(NETWORK_ARGS)
 
-protoco-deploy-referral:
-	@forge clean
-	@forge script deploy/protocol/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
-	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
-
-protocol-deploy-all:
-	@forge clean
-	@forge script deploy/protocol/01-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
-
-protocol-deploy-takasure-reserve:
+protocol-core-deploy-takasure-reserve:
 	@forge clean
 	@forge script deploy/protocol/01-core/DeployTakasureReserve.s.sol:DeployTakasureReserve $(NETWORK_ARGS)
 
 # Protocol upgrades
-protocol-upgrade-referral:
+protocol-modules-upgrade-prejoin:
 	@forge clean
-	@forge script deploy/protocol/upgrades/00-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
-	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
+	@forge script deploy/protocol/upgrades/00-UpgradePrejoinModule.s.sol:UpgradePrejoinModule $(NETWORK_ARGS)
+	@cp contracts/modules/PrejoinModule.sol contracts/version_previous_contracts/PrejoinModuleV1.sol
 
-protocol-upgrade-takasure:
+protocol-modules-upgrade-entry:
 	@forge clean
-	@forge script deploy/protocol/upgrades/01-UpgradeTakasure.s.sol:UpgradeTakasure $(NETWORK_ARGS)
+	@forge script deploy/protocol/upgrades/01-UpgradeEntryModule.s.sol:UpgradeEntryModule $(NETWORK_ARGS)
+	@cp contracts/modules/EntryModule.sol contracts/version_previous_contracts/EntryModuleV1.sol
+
+protocol-modules-upgrade-member:
+	@forge clean
+	@forge script deploy/protocol/upgrades/02-UpgradeMemberModule.s.sol:UpgradeMemberModule $(NETWORK_ARGS)
+	@cp contracts/modules/MemberModule.sol contracts/version_previous_contracts/MemberModuleV1.sol
+
+protocol-modules-upgrade-revenue:
+	@forge clean
+	@forge script deploy/protocol/upgrades/03-UpgradeRevenueModule.s.sol:UpgradeRevenueModule $(NETWORK_ARGS)
+	@cp contracts/modules/RevenueModule.sol contracts/version_previous_contracts/RevenueModuleV1.sol
+
+protocol-router-upgrade:
+	@forge clean
+	@forge script deploy/protocol/upgrades/router/UpgradeUserRouter.s.sol:UpgradeUserRouter $(NETWORK_ARGS)
+	@cp contracts/router/UserRouter.sol contracts/version_previous_contracts/UserRouterV1.sol
+
+protocol-core-upgrade-takasure-reserve:
+	@forge clean
+	@forge script deploy/protocol/upgrades/core/UpgradeTakasureReserve.s.sol:UpgradeTakasureReserve $(NETWORK_ARGS)
+	@cp contracts/core/TakasureReserve.sol contracts/version_previous_contracts/TakasureReserveV1.sol
 
 # Defender
 defender-prepare-upgrade:
