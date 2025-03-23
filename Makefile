@@ -49,9 +49,9 @@ protocol-deploy-all:
 	@forge clean
 	@forge script deploy/protocol/01-DeployAll.s.sol:DeployAll $(NETWORK_ARGS)
 
-protocol-deploy-takasure:
+protocol-deploy-takasure-reserve:
 	@forge clean
-	@forge script deploy/protocol/02-DeployTakasure.s.sol:DeployTakasure $(NETWORK_ARGS)
+	@forge script deploy/protocol/01-core/DeployTakasureReserve.s.sol:DeployTakasureReserve $(NETWORK_ARGS)
 
 # Protocol upgrades
 protocol-upgrade-referral:
