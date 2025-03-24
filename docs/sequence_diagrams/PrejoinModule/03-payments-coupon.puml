@@ -9,7 +9,7 @@ alt Module is enabled
     alt preJoinEnabled == true
         PrejoinModule --> PrejoinModule: substract coupon amount from payment amount
         alt Contribution is in range
-            alt If parent is a valid address must be KYCed
+            alt Parent is KYCed
                 alt Is not member
 
                     PrejoinModule --> PrejoinModule: apply prejoin discount
