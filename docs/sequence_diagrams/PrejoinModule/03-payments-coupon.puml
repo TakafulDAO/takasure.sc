@@ -8,57 +8,52 @@ Backend -> PrejoinModule: payContributionOnBehalfOf(contribution, parent, newMem
 alt Module is enabled
     alt preJoinEnabled == true
         PrejoinModule --> PrejoinModule: substract coupon amount from payment amount
-        alt DAO is already launched
-            alt Contribution is in range
-                alt If parent is a valid address must be KYCed
-                    alt Is not member
+        alt Contribution is in range
+            alt If parent is a valid address must be KYCed
+                alt Is not member
 
-                        PrejoinModule --> PrejoinModule: apply prejoin discount
+                    PrejoinModule --> PrejoinModule: apply prejoin discount
 
-                        alt referralDiscount == true                
-                            alt valid parent
-                                PrejoinModule --> PrejoinModule: apply referral discount
-                                PrejoinModule --> PrejoinModule: assign child to parent
-                                PrejoinModule --> PrejoinModule: calculate parent reward
-                            else invalid parent
-                                PrejoinModule --> PrejoinModule: increase Referral Reserve
-                            end
+                    alt referralDiscount == true                
+                        alt valid parent
+                            PrejoinModule --> PrejoinModule: apply referral discount
+                            PrejoinModule --> PrejoinModule: assign child to parent
+                            PrejoinModule --> PrejoinModule: calculate parent reward
+                        else invalid parent
+                            PrejoinModule --> PrejoinModule: increase Referral Reserve
+                        end
+                    end
+
+                    alt Invariant checks pass
+                        PrejoinModule --> PrejoinModule: update repool balance
+                        PrejoinModule --> PrejoinModule: update DAO variables
+
+                        alt Caller is CCIP receiver contract
+                            CCIPReceiver --> PrejoinModule: Transfer contribution
+                        else Caller is not CCIP receiver contract
+                            CouponPool --> PrejoinModule: Transfer Contribution
                         end
 
-                        alt Invariant checks pass
-                            PrejoinModule --> PrejoinModule: update repool balance
-                            PrejoinModule --> PrejoinModule: update DAO variables
+                        PrejoinModule --> Operator: Transfer Fee
+                        PrejoinModule --> PrejoinModule: create new member
+                        PrejoinModule --> BMOracle: Request BM
+                        PrejoinModule --> Backend: Emit OnPrepayment event
 
-                            alt Caller is CCIP receiver contract
-                                CCIPReceiver --> PrejoinModule: Transfer contribution
-                            else Caller is not CCIP receiver contract
-                                CouponPool --> PrejoinModule: Transfer Contribution
-                            end
-
-                            PrejoinModule --> Operator: Transfer Fee
-                            PrejoinModule --> PrejoinModule: create new member
-                            PrejoinModule --> BMOracle: Request BM
-                            PrejoinModule --> Backend: Emit OnPrepayment event
-
-                        else Invariant fails
-                            PrejoinModule --> Backend: Revert
-                        end
-
-                        PrejoinModule --> Backend: Emit OnCouponRedeemed event
-
-                    else Is member
+                    else Invariant fails
                         PrejoinModule --> Backend: Revert
                     end
 
-                else Parent is not KYCed
+                    PrejoinModule --> Backend: Emit OnCouponRedeemed event
+
+                else Is member
                     PrejoinModule --> Backend: Revert
                 end
 
-            else Contribution is out of range
+            else Parent is not KYCed
                 PrejoinModule --> Backend: Revert
             end
 
-        else DAO is not launched
+        else Contribution is out of range
             PrejoinModule --> Backend: Revert
         end
 
