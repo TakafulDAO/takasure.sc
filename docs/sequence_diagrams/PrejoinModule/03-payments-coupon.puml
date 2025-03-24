@@ -23,6 +23,7 @@ alt Module is enabled
                             else invalid parent
                                 PrejoinModule --> PrejoinModule: increase Referral Reserve
                             end
+                        end
 
                         alt Invariant checks pass
                             PrejoinModule --> PrejoinModule: update repool balance
