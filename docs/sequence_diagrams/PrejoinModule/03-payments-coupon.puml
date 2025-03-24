@@ -10,7 +10,7 @@ alt Module is enabled
         PrejoinModule --> PrejoinModule: substract coupon amount from payment amount
         alt Contribution is in range
             alt Parent is KYCed
-                alt Is not member
+                alt Is not existing member
 
                     PrejoinModule --> PrejoinModule: apply prejoin discount
 
@@ -45,7 +45,7 @@ alt Module is enabled
 
                     PrejoinModule --> Backend: Emit OnCouponRedeemed event
 
-                else Is member
+                else Is existing member
                     PrejoinModule --> Backend: Revert
                 end
 
