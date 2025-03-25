@@ -27,13 +27,7 @@ alt Module is enabled
                     alt Invariant checks pass
                         PrejoinModule --> PrejoinModule: update repool balance
                         PrejoinModule --> PrejoinModule: update DAO variables
-
-                        alt Caller is CCIP receiver contract
-                            CCIPReceiver --> PrejoinModule: Transfer contribution
-                        else Caller is not CCIP receiver contract
-                            CouponPool --> PrejoinModule: Transfer Contribution
-                        end
-
+                        CouponPool --> PrejoinModule: Transfer Contribution
                         PrejoinModule --> Operator: Transfer Fee
                         PrejoinModule --> PrejoinModule: create new member
                         PrejoinModule --> BMOracle: Request BM
@@ -62,7 +56,7 @@ alt Module is enabled
     end
 
 else Module is disabled
-    Backend -> PrejoinModule: Revert
+    PrejoinModule -> Backend: Revert
 end
 
 @enduml    
