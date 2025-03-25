@@ -53,7 +53,7 @@ alt Module is enabled
     end
 
 else Module is disabled
-    Prepayer -> PrejoinModule: Revert
+    PrejoinModule -> Prepayer : Revert
 end
 
 @enduml    

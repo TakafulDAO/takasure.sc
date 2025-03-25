@@ -21,7 +21,7 @@ alt Module is enabled
     end
 
 else Module is disabled
-    Caller -> MemberModule: Revert
+    MemberModule -> Caller: Revert
 end
 
 @enduml    
