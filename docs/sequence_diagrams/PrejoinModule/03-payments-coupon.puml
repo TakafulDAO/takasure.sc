@@ -15,11 +15,11 @@ alt Module is enabled
                     PrejoinModule --> PrejoinModule: apply prejoin discount
 
                     alt referralDiscount == true                
-                        alt valid parent
+                        alt parent != address(0)
                             PrejoinModule --> PrejoinModule: apply referral discount
                             PrejoinModule --> PrejoinModule: assign child to parent
                             PrejoinModule --> PrejoinModule: calculate parent reward
-                        else invalid parent
+                        else parent == address(0)
                             PrejoinModule --> PrejoinModule: increase Referral Reserve
                         end
                     end
