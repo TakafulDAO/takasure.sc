@@ -1,0 +1,38 @@
+@startuml CCIP payments
+autonumber
+
+actor Caller
+
+Caller -> TLDCcipSender: sendMessage(amountToTransfer, tokenToTransfer, gasLimit, contribution, tDAOName, parent, couponAmount)
+
+alt Token is supported
+    alt contribution is in range
+        alt Coupon is greater than 0
+            alt Caller is not allowed
+                TLDCcipSender -> Caller: Revert
+            end
+        end
+
+        TLDCcipSender --> TLDCcipSender: build message 
+
+        alt Not enough Link for Fees
+            TLDCcipSender -> Caller: Revert
+        end
+
+        Caller -> TLDCcipSender: transfer funds
+        TLDCcipSender -> Router: send message and funds
+        TLDCcipSender -> Caller: Emit OnTokensTransferred event
+        Router -> TLDCcipReceiver: sendMessage and funds
+        TLDCcipReceiver -> PrejoinModule: Perform payment
+
+        ref over PrejoinModule: payment
+
+    else contribution is not in range
+        TLDCcipSender -> Caller: Revert
+    end
+
+else Token is not supported
+    TLDCcipSender -> Caller: Revert
+end
+
+@enduml    
