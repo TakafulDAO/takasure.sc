@@ -7,54 +7,44 @@ Prepayer -> PrejoinModule: payContribution(contribution, parent)
 
 alt Module is enabled
     alt preJoinEnabled == true
-        alt DAO is already launched
-            alt Contribution is in range
-                alt If parent is a valid address must be KYCed
-                    alt Is not member
+        alt Contribution is in range
+            alt Parent is KYCed
+                alt Is not existing member
 
-                        PrejoinModule --> PrejoinModule: apply prejoin discount
+                    PrejoinModule --> PrejoinModule: apply prejoin discount
 
-                        alt referralDiscount == true                
-                            alt valid parent
-                                PrejoinModule --> PrejoinModule: apply referral discount
-                                PrejoinModule --> PrejoinModule: assign child to parent
-                                PrejoinModule --> PrejoinModule: calculate parent reward
-                            else invalid parent
-                                PrejoinModule --> PrejoinModule: increase Referral Reserve
-                            end
-
-                        alt Invariant checks pass
-                            PrejoinModule --> PrejoinModule: update repool balance
-                            PrejoinModule --> PrejoinModule: update DAO variables
-
-                            alt Caller is CCIP receiver contract
-                                CCIPReceiver --> PrejoinModule: Transfer contribution
-                            else Caller is not CCIP receiver contract
-                                Prepayer --> PrejoinModule: Transfer Contribution
-                            end
-
-                            PrejoinModule --> Operator: Transfer Fee
-                            PrejoinModule --> PrejoinModule: create new member
-                            PrejoinModule --> BMOracle: Request BM
-                            PrejoinModule --> Prepayer: Emit OnPrepayment event
-
-                        else Invariant fails
-                            PrejoinModule --> Prepayer: Revert
+                    alt referralDiscount == true                
+                        alt parent != address(0)
+                            PrejoinModule --> PrejoinModule: apply referral discount
+                            PrejoinModule --> PrejoinModule: assign child to parent
+                            PrejoinModule --> PrejoinModule: calculate parent reward
+                        else parent == address(0)
+                            PrejoinModule --> PrejoinModule: increase Referral Reserve
                         end
-
-                    else Is member
-                        PrejoinModule --> Prepayer: Revert
                     end
 
-                else Parent is not KYCed
+                    alt Invariant checks pass
+                        PrejoinModule --> PrejoinModule: update repool balance
+                        PrejoinModule --> PrejoinModule: update DAO variables
+                        Prepayer --> PrejoinModule: Transfer Contribution
+                        PrejoinModule --> Operator: Transfer Fee
+                        PrejoinModule --> PrejoinModule: create new member
+                        PrejoinModule --> BMOracle: Request BM
+                        PrejoinModule --> Prepayer: Emit OnPrepayment event
+
+                    else Invariant fails
+                            PrejoinModule --> Prepayer: Revert
+                    end
+
+                else Is existing member
                     PrejoinModule --> Prepayer: Revert
                 end
 
-            else Contribution is out of range
+            else Parent is not KYCed
                 PrejoinModule --> Prepayer: Revert
             end
 
-        else DAO is not launched
+        else Contribution is out of range
             PrejoinModule --> Prepayer: Revert
         end
 
