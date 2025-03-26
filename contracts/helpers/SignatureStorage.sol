@@ -11,4 +11,8 @@ contract SignatureStorage is EIP712 {
     error SignatureStorage__InvalidSigner();
 
     constructor() EIP712("TheLifeDAO", "1") {}
+
+    function getMessageHash(bytes32 messageHash) external view returns (bytes32) {
+        return _hashTypedDataV4(messageHash);
+    }
 }
