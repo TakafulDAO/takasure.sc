@@ -22,6 +22,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/RevenueModuleV1.sol:RevenueModuleV1
 contract RevenueModule is
     Initializable,
     UUPSUpgradeable,
