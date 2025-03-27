@@ -67,22 +67,22 @@ protocol-core-deploy-takasure-reserve:
 # Protocol upgrades
 protocol-modules-upgrade-prejoin:
 	@forge clean
-	@forge script deploy/protocol/upgrades/00-UpgradePrejoinModule.s.sol:UpgradePrejoinModule $(NETWORK_ARGS)
+	@forge script deploy/protocol/upgrades/modules/00-UpgradePrejoinModule.s.sol:UpgradePrejoinModule $(NETWORK_ARGS)
 	@cp contracts/modules/PrejoinModule.sol contracts/version_previous_contracts/PrejoinModuleV1.sol
 
 protocol-modules-upgrade-entry:
 	@forge clean
-	@forge script deploy/protocol/upgrades/01-UpgradeEntryModule.s.sol:UpgradeEntryModule $(NETWORK_ARGS)
+	@forge script deploy/protocol/upgrades/modules/01-UpgradeEntryModule.s.sol:UpgradeEntryModule $(NETWORK_ARGS)
 	@cp contracts/modules/EntryModule.sol contracts/version_previous_contracts/EntryModuleV1.sol
 
 protocol-modules-upgrade-member:
 	@forge clean
-	@forge script deploy/protocol/upgrades/02-UpgradeMemberModule.s.sol:UpgradeMemberModule $(NETWORK_ARGS)
+	@forge script deploy/protocol/upgrades/modules/02-UpgradeMemberModule.s.sol:UpgradeMemberModule $(NETWORK_ARGS)
 	@cp contracts/modules/MemberModule.sol contracts/version_previous_contracts/MemberModuleV1.sol
 
 protocol-modules-upgrade-revenue:
 	@forge clean
-	@forge script deploy/protocol/upgrades/03-UpgradeRevenueModule.s.sol:UpgradeRevenueModule $(NETWORK_ARGS)
+	@forge script deploy/protocol/upgrades/modules/03-UpgradeRevenueModule.s.sol:UpgradeRevenueModule $(NETWORK_ARGS)
 	@cp contracts/modules/RevenueModule.sol contracts/version_previous_contracts/RevenueModuleV1.sol
 
 protocol-router-upgrade:
