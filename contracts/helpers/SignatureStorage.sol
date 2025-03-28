@@ -51,6 +51,7 @@ contract SignatureStorage is EIP712, AccessControl {
             _isValidSignature(signer, _hashTypedDataV4(messageHash), signature),
             SignatureStorage__InvalidSigner()
         );
+
         signatureToSigner[signature] = signer;
         signatureToMessageHash[signature] = messageHash;
 

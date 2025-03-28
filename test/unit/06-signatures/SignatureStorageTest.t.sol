@@ -65,4 +65,15 @@ contract SignatureStorageTest is Test {
         assertEq(signatureStorage.signatureToSigner(signature), signer);
         assertEq(signatureStorage.signatureToMessageHash(signature), messageHash);
     }
+
+    function testStoreSignatureRevertsIfSignatureAlreadyStored() public {
+        bytes memory signature = _signMessage(messageHash);
+
+        vm.startPrank(signatureStorageRole);
+        signatureStorage.storeSignature(signature, messageHash, signer);
+
+        vm.expectRevert(SignatureStorage.SignatureStorage__AlreadyStored.selector);
+        signatureStorage.storeSignature(signature, messageHash, signer);
+        vm.stopPrank();
+    }
 }
