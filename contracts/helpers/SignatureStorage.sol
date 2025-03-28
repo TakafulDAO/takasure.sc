@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract SignatureStorage is EIP712, AccessControl {
@@ -33,7 +32,6 @@ contract SignatureStorage is EIP712, AccessControl {
         bytes32 messageHash,
         address signer
     ) external onlyRole(SIGNATURE_STORAGE_ROLE) {
-        AddressAndStates._notZeroAddress(signer);
         require(
             _isValidSignature(signer, _hashTypedDataV4(messageHash), signature),
             SignatureStorage__InvalidSigner()
