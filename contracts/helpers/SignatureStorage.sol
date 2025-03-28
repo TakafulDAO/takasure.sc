@@ -5,20 +5,32 @@ pragma solidity 0.8.28;
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract SignatureStorage is EIP712 {
+contract SignatureStorage is EIP712, AccessControl {
+    bytes32 public constant SIGNATURE_STORAGE_ROLE = keccak256("SIGNATURE_STORAGE_ROLE");
+
     mapping(bytes signature => address signer) public signatureToSigner;
     mapping(bytes signature => bytes32 messageHash) public signatureToMessageHash;
 
+    event OnSignatureStored(
+        bytes indexed signature,
+        address indexed signer,
+        bytes32 indexed messageHash
+    );
+
     error SignatureStorage__InvalidSigner();
 
-    constructor() EIP712("TheLifeDAO", "1") {}
+    constructor(address _signatureStorageRole) EIP712("TheLifeDAO", "1") {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(SIGNATURE_STORAGE_ROLE, _signatureStorageRole);
+    }
 
     function storeSignature(
         bytes calldata signature,
         bytes32 messageHash,
         address signer
-    ) external {
+    ) external onlyRole(SIGNATURE_STORAGE_ROLE) {
         AddressAndStates._notZeroAddress(signer);
         require(
             _isValidSignature(signer, _hashTypedDataV4(messageHash), signature),
@@ -26,6 +38,8 @@ contract SignatureStorage is EIP712 {
         );
         signatureToSigner[signature] = signer;
         signatureToMessageHash[signature] = messageHash;
+
+        emit OnSignatureStored(signature, signer, messageHash);
     }
 
     function getMessageHash(bytes32 messageHash) external view returns (bytes32) {
