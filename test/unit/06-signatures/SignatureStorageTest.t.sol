@@ -40,7 +40,7 @@ contract SignatureStorageTest is Test {
         bytes memory signature = _signMessage(messageHash);
 
         vm.prank(signatureStorageRole);
-        vm.expectRevert();
+        vm.expectRevert(SignatureStorage.SignatureStorage__InvalidSigner.selector);
         signatureStorage.storeSignature(signature, messageHash, address(0));
     }
 
