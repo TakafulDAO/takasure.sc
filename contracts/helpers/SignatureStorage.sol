@@ -22,6 +22,8 @@ contract SignatureStorage is EIP712, AccessControl {
     error SignatureStorage__InvalidSigner();
 
     constructor(address _signatureStorageRole) EIP712("TheLifeDAO", "1") {
+        require(_signatureStorageRole != address(0));
+
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(SIGNATURE_STORAGE_ROLE, _signatureStorageRole);
     }
