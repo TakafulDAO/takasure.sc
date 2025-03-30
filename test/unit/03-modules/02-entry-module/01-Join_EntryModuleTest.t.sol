@@ -28,6 +28,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     address kycService;
     address takadao;
     address entryModuleAddress;
+    address revShareModuleAddress;
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -48,7 +49,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
             entryModuleAddress,
             ,
             ,
-            ,
+            revShareModuleAddress,
             userRouterAddress,
             contributionTokenAddress,
             ,
@@ -84,8 +85,10 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         entryModule.updateBmAddress();
+        entryModule.setRevShareModule(revShareModuleAddress);
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////

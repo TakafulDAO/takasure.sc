@@ -86,6 +86,7 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
         entryModule.updateBmAddress();
         entryModule.setCouponPoolAddress(couponPool);
         entryModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
+        entryModule.setRevShareModule(revShareModuleAddress);
         revShareModule.grantRole(keccak256("COUPON_REDEEMER"), address(couponRedeemer));
         vm.stopPrank();
 

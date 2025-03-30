@@ -8,7 +8,6 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
-import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
@@ -23,7 +22,6 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     BenefitMultiplierConsumerMock bmConsumerMock;
     EntryModule entryModule;
     MemberModule memberModule;
-    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
@@ -31,7 +29,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     address takadao;
     address entryModuleAddress;
     address memberModuleAddress;
-    address userRouterAddress;
+    address revShareModuleAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
@@ -50,8 +48,8 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
             entryModuleAddress,
             memberModuleAddress,
             ,
+            revShareModuleAddress,
             ,
-            userRouterAddress,
             contributionTokenAddress,
             ,
             helperConfig
@@ -59,7 +57,6 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
 
         entryModule = EntryModule(entryModuleAddress);
         memberModule = MemberModule(memberModuleAddress);
-        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -76,8 +73,10 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         entryModule.updateBmAddress();
+        entryModule.setRevShareModule(revShareModuleAddress);
+        vm.stopPrank();
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
@@ -87,7 +86,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
 
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        entryModule.joinPool(alice, parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -139,11 +138,11 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         Member memory aliceAfterRefund = takasureReserve.getMemberFromAddress(alice);
 
         vm.startPrank(bob);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        entryModule.joinPool(bob, parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        entryModule.joinPool(alice, parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         Member memory aliceAfterSecondJoin = takasureReserve.getMemberFromAddress(alice);

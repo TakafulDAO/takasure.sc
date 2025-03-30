@@ -8,7 +8,6 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
-import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
@@ -18,7 +17,6 @@ contract TakasureProtocolFuzzTest is Test {
     HelperConfig helperConfig;
     EntryModule entryModule;
     MemberModule memberModule;
-    UserRouter userRouter;
     BenefitMultiplierConsumerMock bmConsumerMock;
     address takasureReserveProxy;
     address contributionTokenAddress;
@@ -26,7 +24,7 @@ contract TakasureProtocolFuzzTest is Test {
     address takadao;
     address entryModuleAddress;
     address memberModuleAddress;
-    address userRouterAddress;
+    address revShareModuleAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public parent = makeAddr("parent");
@@ -44,8 +42,8 @@ contract TakasureProtocolFuzzTest is Test {
             entryModuleAddress,
             memberModuleAddress,
             ,
+            revShareModuleAddress,
             ,
-            userRouterAddress,
             contributionTokenAddress,
             ,
             helperConfig
@@ -53,7 +51,6 @@ contract TakasureProtocolFuzzTest is Test {
 
         entryModule = EntryModule(entryModuleAddress);
         memberModule = MemberModule(memberModuleAddress);
-        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -77,15 +74,17 @@ contract TakasureProtocolFuzzTest is Test {
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         entryModule.updateBmAddress();
+        entryModule.setRevShareModule(revShareModuleAddress);
+        vm.stopPrank();
     }
 
     function test_fuzz_ownerCanSetKycstatus(address notOwner) public {
         vm.assume(notOwner != daoMultisig);
 
         vm.prank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        entryModule.joinPool(alice, parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         vm.prank(notOwner);
         vm.expectRevert();

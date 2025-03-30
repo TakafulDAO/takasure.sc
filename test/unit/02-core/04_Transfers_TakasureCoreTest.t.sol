@@ -26,6 +26,8 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
     address kycService;
     address takadao;
     address entryModuleAddress;
+    address revShareModuleAddress;
+
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -44,7 +46,7 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
             entryModuleAddress,
             ,
             ,
-            ,
+            revShareModuleAddress,
             userRouterAddress,
             contributionTokenAddress,
             ,
@@ -76,8 +78,10 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         entryModule.updateBmAddress();
+        entryModule.setRevShareModule(revShareModuleAddress);
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -126,14 +130,25 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         uint8 serviceFee = reserve.serviceFee;
         address serviceFeeReceiver = takasureReserve.feeClaimAddress();
         uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
+        uint256 revShareBalanceBefore = usdc.balanceOf(revShareModuleAddress);
 
         vm.prank(alice);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
+        uint256 revShareBalanceAfter = usdc.balanceOf(revShareModuleAddress);
 
-        uint256 feeColected = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
+        uint256 expectedFeeToRevShare = (CONTRIBUTION_AMOUNT * 13) / 100;
+        uint256 expectedFeeToServiceFeeReceiver = ((CONTRIBUTION_AMOUNT * serviceFee) / 100) -
+            expectedFeeToRevShare;
+        uint256 previousFee = ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
 
-        assertEq(serviceFeeReceiverBalanceAfter, serviceFeeReceiverBalanceBefore + feeColected);
+        assert(revShareBalanceBefore == 0);
+        assert(serviceFeeReceiverBalanceBefore == 0);
+        assertEq(revShareBalanceAfter, revShareBalanceBefore + expectedFeeToRevShare);
+        assertEq(
+            serviceFeeReceiverBalanceAfter,
+            serviceFeeReceiverBalanceBefore + expectedFeeToServiceFeeReceiver
+        );
     }
 }

@@ -8,7 +8,6 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
-import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
@@ -23,7 +22,6 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     BenefitMultiplierConsumerMock bmConsumerMock;
     EntryModule entryModule;
     MemberModule memberModule;
-    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
@@ -31,7 +29,7 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     address takadao;
     address entryModuleAddress;
     address memberModuleAddress;
-    address userRouterAddress;
+    address revShareModuleAddress;
     IUSDC usdc;
     uint256 public constant USDC_INITIAL_AMOUNT = 500e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
@@ -56,8 +54,8 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             entryModuleAddress,
             memberModuleAddress,
             ,
+            revShareModuleAddress,
             ,
-            userRouterAddress,
             contributionTokenAddress,
             ,
             helperConfig
@@ -65,7 +63,6 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
 
         entryModule = EntryModule(entryModuleAddress);
         memberModule = MemberModule(memberModuleAddress);
-        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -76,14 +73,18 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
+        // _configureContracts();
+
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(entryModuleAddress));
 
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         entryModule.updateBmAddress();
+        entryModule.setRevShareModule(revShareModuleAddress);
+        vm.stopPrank();
     }
 
     modifier tokensTo(address user) {
@@ -236,7 +237,7 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
 
     function _join(address user, uint256 timesContributionAmount) internal {
         vm.startPrank(user);
-        userRouter.joinPool(parent, timesContributionAmount * CONTRIBUTION_AMOUNT, 5 * YEAR);
+        entryModule.joinPool(user, parent, timesContributionAmount * CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         // We simulate a request before the KYC
