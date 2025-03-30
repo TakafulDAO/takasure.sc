@@ -65,6 +65,7 @@ contract EntryModule is
 
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
+    uint256 private constant TO_REV_SHARE = 13; // 13% of contribution to RevShare module
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
@@ -783,8 +784,9 @@ contract EntryModule is
 
         uint256 _amountToTransferFromMember;
 
-        if (_couponAmount > 0) {
-            _amountToTransferFromMember = contributionAfterFee - discount - _couponAmount;
+        if (_couponAmount > 0) { 
+            if (_couponAmount < contributionAfterFee) 
+            _amountToTransferFromMember = contributionAfterFee - _couponAmount - discount;       
         } else {
             _amountToTransferFromMember = contributionAfterFee - discount;
         }
@@ -818,11 +820,21 @@ contract EntryModule is
                 contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
             }
 
+            // Calculate mount to be transferred to the RevShare module
+            uint256 toRevShare = (normalizedContributionBeforeFee * TO_REV_SHARE) / 100;
+
+            // Transfer the RevShare amount to the RevShare module
+            contributionToken.safeTransferFrom(
+                _memberWallet,
+                address(revShareModule),
+                toRevShare
+            );
+
             // Transfer the service fee to the fee claim address
             contributionToken.safeTransferFrom(
                 _memberWallet,
                 takasureReserve.feeClaimAddress(),
-                feeAmount
+                feeAmount - toRevShare
             );
         }
     }
