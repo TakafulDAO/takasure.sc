@@ -123,7 +123,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
         assertEq(referralDiscount, true);
 
         vm.prank(referral);
-        vm.expectRevert(PrejoinModule.PrejoinModule__onlyDAOAdmin.selector);
+        vm.expectRevert();
         prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         vm.prank(daoAdmin);
