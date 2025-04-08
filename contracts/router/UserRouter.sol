@@ -16,6 +16,7 @@ import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConst
 
 pragma solidity 0.8.28;
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/UserRouterV1.sol:UserRouterV1
 contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
     ITakasureReserve private takasureReserve;
     IEntryModule private entryModule;

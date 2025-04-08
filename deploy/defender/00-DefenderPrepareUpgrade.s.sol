@@ -3,11 +3,11 @@
 pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
+import {PejoinModule} from "contracts/modules/PrejoinModule.sol";
 import {Defender, Options, ApprovalProcessResponse} from "openzeppelin-foundry-upgrades/Defender.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
-contract DefenderPrepareUpgrade is Script {
+contract DefenderPreparePrejoinModuleUpgrade is Script {
     function run() external {
         ApprovalProcessResponse memory approvalProcess = Defender.getDeployApprovalProcess();
         console2.log("Approval process id", approvalProcess.approvalProcessId);
@@ -22,6 +22,6 @@ contract DefenderPrepareUpgrade is Script {
         opts.defender.relayerId = vm.envString(relayerKey);
         opts.defender.upgradeApprovalProcessId = approvalProcess.approvalProcessId;
 
-        Upgrades.prepareUpgrade("ReferralGateway.sol", opts);
+        Upgrades.prepareUpgrade("PrejoinModule.sol", opts);
     }
 }

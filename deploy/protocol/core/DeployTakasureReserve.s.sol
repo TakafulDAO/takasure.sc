@@ -2,13 +2,15 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2} from "forge-std/Script.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
-contract DeployTakasure is Script {
-    function run() external returns (address proxy) {
+contract DeployTakasureReserve is Script, GetContractAddress {
+    function run() external returns (address takasureReserveProxy) {
+        address moduleManager = _getContractAddress(block.chainid, "ModuleManager");
+
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -23,10 +25,12 @@ contract DeployTakasure is Script {
             "No address 0 allowed"
         );
 
+        require(moduleManager != address(0), "Deploy ModuleManager first");
+
         vm.startBroadcast();
 
-        // Deploy TakasurePool
-        proxy = Upgrades.deployUUPSProxy(
+        // Deploy TakasureReserve
+        takasureReserveProxy = Upgrades.deployUUPSProxy(
             "TakasureReserve.sol",
             abi.encodeCall(
                 TakasureReserve.initialize,
@@ -38,6 +42,7 @@ contract DeployTakasure is Script {
                     config.kycProvider,
                     config.pauseGuardian,
                     config.tokenAdmin,
+                    moduleManager,
                     config.tokenName,
                     config.tokenSymbol
                 )
@@ -46,6 +51,6 @@ contract DeployTakasure is Script {
 
         vm.stopBroadcast();
 
-        return (proxy);
+        return (takasureReserveProxy);
     }
 }

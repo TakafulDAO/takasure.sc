@@ -4,15 +4,15 @@ pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {BenefitMultiplierConsumer} from "contracts/helpers/chainlink/functions/BenefitMultiplierConsumer.sol";
-import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
+import {PrejoinModule} from "contracts/modules/PrejoinModule.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 
-contract DeployReferralGateway is Script, DeployConstants {
+contract DeployPrejoinModule is Script, DeployConstants {
     using stdJson for string;
 
-    function run() external returns (address proxy) {
+    function run() external returns (address prejoinModuleProxy) {
         uint256 chainId = block.chainid;
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
@@ -44,25 +44,23 @@ contract DeployReferralGateway is Script, DeployConstants {
         bmConsumer.setBMSourceRequestCode(bmFetchScript);
 
         // Deploy TakasurePool
-        proxy = Upgrades.deployUUPSProxy(
-            "ReferralGateway.sol",
+        prejoinModuleProxy = Upgrades.deployUUPSProxy(
+            "PrejoinModule.sol",
             abi.encodeCall(
-                ReferralGateway.initialize,
+                PrejoinModule.initialize,
                 (
                     config.takadaoOperator,
                     config.kycProvider,
-                    config.pauseGuardian,
                     config.contributionToken,
                     address(bmConsumer)
                 )
             )
         );
 
-        // Setting TakasurePool as a requester in BenefitMultiplierConsumer
-        bmConsumer.setNewRequester(proxy);
+        bmConsumer.setNewRequester(prejoinModuleProxy);
 
         vm.stopBroadcast();
 
-        return (proxy);
+        return (prejoinModuleProxy);
     }
 }

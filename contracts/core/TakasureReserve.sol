@@ -22,6 +22,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/TakasureReserveV1.sol:TakasureReserveV1
 contract TakasureReserve is
     Initializable,
     UUPSUpgradeable,
