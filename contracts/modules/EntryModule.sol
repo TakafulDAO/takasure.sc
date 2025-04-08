@@ -191,7 +191,7 @@ contract EntryModule is
         uint256 couponAmount
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        _onlyCouponRedeemerOrCcipReceiver;
+        _onlyCouponRedeemerOrCcipReceiver();
 
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,

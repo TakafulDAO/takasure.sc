@@ -49,13 +49,6 @@
         },
         {
             "type": "function",
-            "name": "fixContributionAmount",
-            "inputs": [{ "name": "tDAOName", "type": "string", "internalType": "string" }],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
             "name": "getDAOData",
             "inputs": [{ "name": "tDAOName", "type": "string", "internalType": "string" }],
             "outputs": [
@@ -275,6 +268,15 @@
         },
         {
             "type": "function",
+            "name": "setCCIPReceiverContract",
+            "inputs": [
+                { "name": "_ccipReceiverContract", "type": "address", "internalType": "address" }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "setCouponPoolAddress",
             "inputs": [{ "name": "_couponPool", "type": "address", "internalType": "address" }],
             "outputs": [],
@@ -449,6 +451,25 @@
             "name": "OnMemberKYCVerified",
             "inputs": [
                 { "name": "member", "type": "address", "indexed": true, "internalType": "address" }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnNewCCIPReceiverContract",
+            "inputs": [
+                {
+                    "name": "oldCCIPReceiverContract",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "newCCIPReceiverContract",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
             ],
             "anonymous": false
         },
@@ -730,6 +751,7 @@
         { "type": "error", "name": "ReferralGateway__InvalidLaunchDate", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__MemberAlreadyKYCed", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__MustHaveName", "inputs": [] },
+        { "type": "error", "name": "ReferralGateway__NotAuthorizedCaller", "inputs": [] },
         {
             "type": "error",
             "name": "ReferralGateway__NotEnoughFunds",
