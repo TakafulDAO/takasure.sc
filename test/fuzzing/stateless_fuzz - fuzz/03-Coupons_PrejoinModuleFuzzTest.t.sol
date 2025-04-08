@@ -39,7 +39,7 @@ contract CouponCodeAndCcipFuzzTest is Test {
         // Deployer
         deployer = new TestDeployProtocol();
         // Deploy contracts
-        (, bmConsumerMock, , prejoinModuleAddress, , , , , usdcAddress, , helperConfig) = deployer
+        (, bmConsumerMock, , prejoinModuleAddress, , , , , , usdcAddress, , helperConfig) = deployer
             .run();
 
         // Get config values
@@ -97,6 +97,5 @@ contract CouponCodeAndCcipFuzzTest is Test {
             couponUser,
             couponAmount
         );
-
     }
 }
