@@ -373,7 +373,7 @@ contract ReferralGateway is
         address newMember,
         uint256 couponAmount
     ) external returns (uint256 finalFee, uint256 discount) {
-        _onlyCouponRedeemerOrCcipReceiver;
+        _onlyCouponRedeemerOrCcipReceiver();
 
         (finalFee, discount) = _payContribution(
             contribution,

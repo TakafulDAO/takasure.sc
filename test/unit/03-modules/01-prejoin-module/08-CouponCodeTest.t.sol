@@ -182,7 +182,7 @@ contract CouponCodeTest is Test {
     }
 
     //======== no coupon ========//
-    function testShouldNootRevertIfThereIsNoCouponPool() public setCouponPoolAndCouponRedeemer {
+    function testShouldNotRevertIfThereIsNoCouponPool() public setCouponPoolAndCouponRedeemer {
         vm.prank(child);
         (uint256 feeToOp, uint256 discount) = prejoinModule.payContribution(
             CONTRIBUTION_AMOUNT,
