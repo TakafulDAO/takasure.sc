@@ -205,13 +205,7 @@ contract TestDeployTakasureReserve is Script {
                 revShareModuleImplementation,
                 abi.encodeCall(
                     RevShareModule.initialize,
-                    (
-                        _takadaoOperator,
-                        _takadaoOperator,
-                        _moduleManagerAddress,
-                        _takasureReserve,
-                        _contributionToken
-                    )
+                    (_takadaoOperator, _takadaoOperator, _moduleManagerAddress, _contributionToken)
                 )
             );
         }

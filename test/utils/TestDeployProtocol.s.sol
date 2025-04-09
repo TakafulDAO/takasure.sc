@@ -210,13 +210,7 @@ contract TestDeployProtocol is Script {
             revShareModuleImplementation,
             abi.encodeCall(
                 RevShareModule.initialize,
-                (
-                    _takadaoOperator,
-                    _kycProvider,
-                    _moduleManagerAddress,
-                    takasureReserve,
-                    _contributionToken
-                )
+                (_takadaoOperator, _kycProvider, _moduleManagerAddress, _contributionToken)
             )
         );
 

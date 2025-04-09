@@ -9,7 +9,6 @@
  *      2. It will mint a new NFT per each 250USDC expends by a coupon buyer
  * @dev Upgradeable contract with UUPS pattern
  */
-import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -37,7 +36,6 @@ contract RevShareModule is
 {
     using SafeERC20 for IERC20;
 
-    ITakasureReserve private takasureReserve;
     IERC20 private usdc; // Revenue token
 
     enum Operation {
@@ -49,7 +47,7 @@ contract RevShareModule is
 
     address private takadaoOperator;
 
-    uint256 public constant MAX_CONTRIBUTION = 250e6; // 250 USDC
+    uint256 public constant NFT_PRICE = 250e6; // 250 USDC, this is the max contribution
     uint256 public constant MAX_SUPPLY = 18_000;
     uint256 private constant DECIMAL_CORRECTION = 1e6;
 
@@ -75,7 +73,6 @@ contract RevShareModule is
 
     event OnCouponAmountByBuyerIncreased(address indexed buyer, uint256 amount);
     event OnCouponAmountRedeemedByBuyerIncreased(address indexed buyer, uint256 amount);
-    event OnTakasureReserveSet(address indexed takasureReserve);
     event OnRevShareNFTMinted(address indexed member, uint256 tokenId);
     event OnRevShareNFTActivated(address indexed couponBuyer, uint256 tokenId);
     event OnRevenueClaimed(address indexed member, uint256 amount);
@@ -85,11 +82,9 @@ contract RevShareModule is
     error RevShareModule__NoRevenueToClaim();
     error RevShareModule__NotNFTOwner();
     error RevShareModule__NotZeroAmount();
-    error RevShareModule__NotEnoughRedeemedAmount();
     error RevShareModule__MintNFTFirst();
     error RevShareModule__NotAllowed();
     error RevShareModule__NotActiveToken();
-    error RevShareModule__AlreadySetCoupon();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
@@ -102,12 +97,10 @@ contract RevShareModule is
         address _operator,
         address _minter,
         address _moduleManager,
-        address _takasureReserve,
         address _usdc
     ) external initializer {
         AddressAndStates._notZeroAddress(_operator);
         AddressAndStates._notZeroAddress(_moduleManager);
-        AddressAndStates._notZeroAddress(_takasureReserve);
         AddressAndStates._notZeroAddress(_usdc);
 
         __UUPSUpgradeable_init();
@@ -121,14 +114,11 @@ contract RevShareModule is
         _grantRole(ModuleConstants.MODULE_MANAGER, _moduleManager);
         _grantRole(MINTER_ROLE, _minter);
 
-        takasureReserve = ITakasureReserve(_takasureReserve);
         usdc = IERC20(_usdc);
         takadaoOperator = _operator;
 
         revenueRate = 1;
         lastUpdatedTimestamp = block.timestamp;
-
-        emit OnTakasureReserveSet(_takasureReserve);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -199,7 +189,7 @@ contract RevShareModule is
 
         // If the new coupon amount is less than the max contribution, we only increase the coupon amount
         // in case the coupon buyer will purchase more coupons in the future
-        if (totalCouponAmount < MAX_CONTRIBUTION) {
+        if (totalCouponAmount < NFT_PRICE) {
             couponAmountsByBuyer[couponBuyer] = totalCouponAmount;
             emit OnCouponAmountByBuyerIncreased(couponBuyer, couponAmount);
 
@@ -208,10 +198,10 @@ contract RevShareModule is
         }
 
         // Check how many NFTs the coupon buyer can mint
-        uint256 maxNFTsAllowed = totalCouponAmount / MAX_CONTRIBUTION; // 550 / 250 = 2.2 => 2 NFTs
+        uint256 maxNFTsAllowed = totalCouponAmount / NFT_PRICE; // 550 / 250 = 2.2 => 2 NFTs
 
         // Update the coupon amount for the coupon buyer with the remaining amount, not used for minting
-        couponAmountsByBuyer[couponBuyer] = totalCouponAmount - (maxNFTsAllowed * MAX_CONTRIBUTION);
+        couponAmountsByBuyer[couponBuyer] = totalCouponAmount - (maxNFTsAllowed * NFT_PRICE);
 
         uint256 currentTokenId = totalSupply();
 
@@ -340,7 +330,7 @@ contract RevShareModule is
         uint256 newRedeemedAmount = currentRedeemedAmount + _amount;
 
         // If the new redeemed amount is less than the max contribution, we only increase the redeemed amount
-        if (newRedeemedAmount < MAX_CONTRIBUTION) {
+        if (newRedeemedAmount < NFT_PRICE) {
             couponRedeemedAmountsByBuyer[_couponBuyer] = newRedeemedAmount;
             emit OnCouponAmountRedeemedByBuyerIncreased(_couponBuyer, _amount);
 
@@ -348,7 +338,7 @@ contract RevShareModule is
             return;
         }
 
-        couponRedeemedAmountsByBuyer[_couponBuyer] = newRedeemedAmount - MAX_CONTRIBUTION;
+        couponRedeemedAmountsByBuyer[_couponBuyer] = newRedeemedAmount - NFT_PRICE;
 
         // Update the revenues
         _updateRevenue(_couponBuyer);
