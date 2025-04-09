@@ -40,6 +40,11 @@ contract RevShareModule is
     ITakasureReserve private takasureReserve;
     IERC20 private usdc; // Revenue token
 
+    enum Operation {
+        SINGLE_MINT,
+        ACTIVATE_NFT
+    }
+
     ModuleState private moduleState;
 
     address private takadaoOperator;
@@ -152,32 +157,32 @@ contract RevShareModule is
         emit OnCouponAmountByBuyerIncreased(buyer, amount);
     }
 
-    function increaseCouponRedeemedAmountByBuyer(
-        address buyer,
-        address member,
-        uint256 amount
-    ) external {
-        AddressAndStates._notZeroAddress(buyer);
-        AddressAndStates._notZeroAddress(member);
-
-        couponRedeemedAmountsByBuyer[buyer] += amount;
-
-        emit OnCouponAmountRedeemedByBuyerIncreased(buyer, amount);
-    }
-
     /*//////////////////////////////////////////////////////////////
                                   MINT
     //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Mint single token to a user or activate an existing token from a coupon buyer
+     * @param operation The operation to perform, either mint or activate
+     * @param member The address of the member to mint a single NFT
+     * @param couponBuyer The address of the coupon buyer to activate the NFT, only if possible
      * @dev Only callable by someone with the MINTER_ROLE
      */
-    function mintOrActivate(address member) external onlyRole(MINTER_ROLE) {
-        _singleMint(member);
+    function mintOrActivate(
+        Operation operation,
+        address member,
+        address couponBuyer,
+        uint256 amount
+    ) external onlyRole(MINTER_ROLE) {
+        if (operation == Operation.SINGLE_MINT) {
+            _singleMint(member);
+        } else {
+            _activateNFT(couponBuyer, amount);
+        }
     }
 
     function _singleMint(address _member) internal nonReentrant {
+        AddressAndStates._notZeroAddress(_member);
         require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
         require(!claimedNFTs[_member], RevShareModule__NotAllowedToMint());
 
@@ -195,6 +200,37 @@ contract RevShareModule is
         claimedNFTs[_member] = true;
 
         emit OnRevShareNFTMinted(_member, newTokenId);
+    }
+
+    function _activateNFT(address _couponBuyer, uint256 _amount) internal {
+        AddressAndStates._notZeroAddress(_couponBuyer);
+        uint256 bal = balanceOf(_couponBuyer);
+        require(bal > 0, RevShareModule__MintNFTFirst());
+
+        uint256 currentRedeemedAmount = couponRedeemedAmountsByBuyer[_couponBuyer];
+        uint256 newRedeemedAmount = currentRedeemedAmount + _amount;
+
+        // If the new redeemed amount is less than the max contribution, we only increase the redeemed amount
+        if (newRedeemedAmount < MAX_CONTRIBUTION) {
+            couponRedeemedAmountsByBuyer[_couponBuyer] = newRedeemedAmount;
+            emit OnCouponAmountRedeemedByBuyerIncreased(_couponBuyer, _amount);
+        } else {
+            couponAmountsByBuyer[_couponBuyer] = newRedeemedAmount - MAX_CONTRIBUTION;
+
+            // Update the revenues
+            _updateRevenue(_couponBuyer);
+            _updateRevenue(takadaoOperator);
+
+            // It is only possible to activate one NFT at a time, so we break the loop after finding the first inactive one
+            for (uint256 i; i < bal; ++i) {
+                uint256 tokenId = tokenOfOwnerByIndex(_couponBuyer, i);
+                if (!isNFTActive[tokenId]) {
+                    isNFTActive[tokenId] = true;
+                    emit OnRevShareNFTActivated(_couponBuyer, tokenId);
+                    break;
+                }
+            }
+        }
     }
 
     // function batchMint() external nonReentrant {
