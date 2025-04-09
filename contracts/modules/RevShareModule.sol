@@ -256,6 +256,50 @@ contract RevShareModule is
         super.transferFrom(from, to, tokenId);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                             CLAIM REVENUE
+    //////////////////////////////////////////////////////////////*/
+
+    function claimRevenue() external {
+        uint256 bal;
+
+        if (msg.sender == takadaoOperator) bal = MAX_SUPPLY - totalSupply();
+        else bal = balanceOf(msg.sender);
+
+        require(bal > 0, RevShareModule__NotNFTOwner());
+
+        // Update the revenues
+        _updateRevenue(msg.sender);
+
+        uint256 revenue = revenues[msg.sender];
+
+        require(revenue > 0, RevShareModule__NoRevenueToClaim());
+
+        revenues[msg.sender] = 0;
+        usdc.safeTransfer(msg.sender, revenue);
+
+        emit OnRevenueClaimed(msg.sender, revenue);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
+
+    function getRevenuePerNFT() external view returns (uint256) {
+        return _revenuePerNFT();
+    }
+
+    /**
+     * @notice How much a user have earned in total
+     */
+    function getRevenueEarnedByUser(address user) external view returns (uint256) {
+        return _revenueEarnedByUser(user);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Mint a single token to a user
      * @param _member The address of the member to mint a single NFT
@@ -320,46 +364,6 @@ contract RevShareModule is
             }
         }
     }
-
-    // /*//////////////////////////////////////////////////////////////
-    //                          CLAIM REVENUE
-    // //////////////////////////////////////////////////////////////*/
-
-    // function claimRevenue() external {
-    //     uint256 bal;
-
-    //     if (msg.sender == takadaoOperator) bal = MAX_SUPPLY - totalSupply();
-    //     else bal = balanceOf(msg.sender);
-
-    //     require(bal > 0, RevShareModule__NotNFTOwner());
-
-    //     // Update the revenues
-    //     _updateRevenue(msg.sender);
-
-    //     uint256 revenue = revenues[msg.sender];
-
-    //     require(revenue > 0, RevShareModule__NoRevenueToClaim());
-
-    //     revenues[msg.sender] = 0;
-    //     usdc.safeTransfer(msg.sender, revenue);
-
-    //     emit OnRevenueClaimed(msg.sender, revenue);
-    // }
-
-    // function getRevenuePerNFT() external view returns (uint256) {
-    //     return _revenuePerNFT();
-    // }
-
-    // /**
-    //  * @notice How much a user have earned in total
-    //  */
-    // function getRevenueEarnedByUser(address user) external view returns (uint256) {
-    //     return _revenueEarnedByUser(user);
-    // }
-
-    // /*//////////////////////////////////////////////////////////////
-    //                        INTERNAL FUNCTIONS
-    // //////////////////////////////////////////////////////////////*/
 
     function _updateRevenue(address _user) internal {
         revenuePerNFTOwned = _revenuePerNFT();
