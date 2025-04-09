@@ -176,7 +176,7 @@ contract RevShareModuleTest is Test {
         assertEq(revShareModule.balanceOf(joinerMax), 1);
         assertEq(revShareModule.tokenOfOwnerByIndex(joinerMax, 0), 1);
         assertEq(userRevenue_initialState, 0);
-        // assertEq(revShareModule.revenues(joinerMax), 0); // todo: check this
+        assertEq(revShareModule.revenues(joinerMax), 0);
         assertEq(revenuePerNFTOwned_initialState, 0);
         assertApproxEqAbs(revShareModule.revenuePerNFTOwned(), 48e5, 100);
         assertEq(userRevenuePerNftPaid_initialState, 0);
@@ -356,7 +356,7 @@ contract RevShareModuleTest is Test {
         assert(revShareModule.lastUpdatedTimestamp() > lastUpdatedTimestamp_initialState);
         assertEq(revenuePerNFTOwned_initialState, 0);
         assertEq(userRevenue_initialState, 0);
-        // assertEq(revShareModule.revenues(couponBuyer), 0); // todo: check this
+        assertEq(revShareModule.revenues(couponBuyer), 0);
         assertApproxEqAbs(revShareModule.revenuePerNFTOwned(), 48e5, 100);
         assertEq(userRevenuePerNftPaid_initialState, 0);
         assertApproxEqAbs(revShareModule.userRevenuePerNFTPaid(couponBuyer), 48e5, 100);
@@ -494,116 +494,114 @@ contract RevShareModuleTest is Test {
                              CLAIM REVENUE
     //////////////////////////////////////////////////////////////*/
 
-    // function testRevShareModule_claimRevenueRevertsIfNoToken() public {
-    //     vm.prank(joinerMax);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NotNFTOwner.selector);
-    //     revShareModule.claimRevenue();
-    // }
+    function testRevShareModule_claimRevenueRevertsIfNoToken() public {
+        vm.prank(joinerMax);
+        vm.expectRevert(RevShareModule.RevShareModule__NotNFTOwner.selector);
+        revShareModule.claimRevenue();
+    }
 
-    // function testRevShareModule_claimRevenueRevertsIfNoRevenue() public mint {
-    //     vm.prank(joinerMax);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NoRevenueToClaim.selector);
-    //     revShareModule.claimRevenue();
+    function testRevShareModule_claimRevenueRevertsIfNoRevenue() public singleMint {
+        vm.prank(joinerMax);
+        vm.expectRevert(RevShareModule.RevShareModule__NoRevenueToClaim.selector);
+        revShareModule.claimRevenue();
 
-    //     assertEq(revShareModule.getRevenueEarnedByUser(joinerMax), 0);
-    // }
+        assertEq(revShareModule.getRevenueEarnedByUser(joinerMax), 0);
+    }
 
-    // function testRevShareModule_claimRevenueSuccessfully() public mint {
-    //     uint256 initialRevenuePerNFT = revShareModule.getRevenuePerNFT();
-    //     uint256 initialUserRevenue = revShareModule.revenues(joinerMax);
-    //     uint256 initialRevenueEarnedByUser = revShareModule.getRevenueEarnedByUser(joinerMax);
-    //     uint256 initialUserBalance = usdc.balanceOf(joinerMax);
-    //     uint256 initialContractBalance = usdc.balanceOf(revShareModuleAddress);
-    //     uint256 expectedTransferRevenue = 4;
+    // Todo: check this
+    function testRevShareModule_claimRevenueSuccessfully() public singleMint {
+        uint256 initialRevenuePerNFT = revShareModule.getRevenuePerNFT();
+        uint256 initialUserBalance = usdc.balanceOf(joinerMax);
+        uint256 initialContractBalance = usdc.balanceOf(revShareModuleAddress);
+        uint256 expectedTransferRevenue = 4;
 
-    //     vm.warp(2 days);
-    //     vm.roll(block.number + 1);
+        vm.warp(2 days);
+        vm.roll(block.number + 1);
 
-    //     vm.prank(joinerMax);
+        vm.prank(joinerMax);
 
-    //     vm.expectEmit(true, true, false, false, address(usdc));
-    //     emit Transfer(address(revShareModule), joinerMax, expectedTransferRevenue);
+        vm.expectEmit(true, true, false, false, address(usdc));
+        emit Transfer(address(revShareModule), joinerMax, expectedTransferRevenue);
 
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnRevenueClaimed(joinerMax, expectedTransferRevenue);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevenueClaimed(joinerMax, expectedTransferRevenue);
 
-    //     revShareModule.claimRevenue();
+        revShareModule.claimRevenue();
 
-    //     uint256 finalRevenuePerNFT = revShareModule.getRevenuePerNFT();
-    //     uint256 finalUserRevenue = revShareModule.revenues(joinerMax);
-    //     uint256 finalRevenueEarnedByUser = revShareModule.getRevenueEarnedByUser(joinerMax);
-    //     uint256 finalUserBalance = usdc.balanceOf(joinerMax);
-    //     uint256 finalContractBalance = usdc.balanceOf(revShareModuleAddress);
+        uint256 finalRevenuePerNFT = revShareModule.getRevenuePerNFT();
+        uint256 finalUserBalance = usdc.balanceOf(joinerMax);
+        uint256 finalContractBalance = usdc.balanceOf(revShareModuleAddress);
 
-    //     assertEq(finalContractBalance, initialContractBalance - expectedTransferRevenue);
-    //     assertEq(finalUserBalance, initialUserBalance + expectedTransferRevenue);
-    // }
+        assertApproxEqAbs(initialRevenuePerNFT, 48e5, 100);
+        assertApproxEqAbs(finalRevenuePerNFT, 96e5, 100);
+        assertEq(finalContractBalance, initialContractBalance - expectedTransferRevenue);
+        assertEq(finalUserBalance, initialUserBalance + expectedTransferRevenue);
+    }
 
-    // modifier claimRevenue() {
-    //     vm.warp(2 days);
-    //     vm.roll(block.number + 1);
+    modifier claimRevenue() {
+        vm.warp(2 days);
+        vm.roll(block.number + 1);
 
-    //     vm.prank(joinerMax);
-    //     revShareModule.claimRevenue();
-    //     _;
-    // }
+        vm.prank(joinerMax);
+        revShareModule.claimRevenue();
+        _;
+    }
 
-    // function testRevShareModule_claimRevenueRevertsIfClaimedAndNoTimePassed()
-    //     public
-    //     mint
-    //     claimRevenue
-    // {
-    //     vm.prank(joinerMax);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NoRevenueToClaim.selector);
-    //     revShareModule.claimRevenue();
-    // }
+    function testRevShareModule_claimRevenueRevertsIfClaimedAndNoTimePassed()
+        public
+        singleMint
+        claimRevenue
+    {
+        vm.prank(joinerMax);
+        vm.expectRevert(RevShareModule.RevShareModule__NoRevenueToClaim.selector);
+        revShareModule.claimRevenue();
+    }
 
-    // function testRevShareModule_claimRevenueAfterSomeTime() public mint claimRevenue {
-    //     vm.warp(3 days);
-    //     vm.roll(block.number + 1);
+    function testRevShareModule_claimRevenueAfterSomeTime() public singleMint claimRevenue {
+        vm.warp(3 days);
+        vm.roll(block.number + 1);
 
-    //     vm.prank(joinerMax);
-    //     revShareModule.claimRevenue();
-    // }
+        vm.prank(joinerMax);
+        revShareModule.claimRevenue();
+    }
 
-    // function testRevShareModule_claimRevenueMoreThanOneActive()
-    //     public
-    //     mint
-    //     increaseCouponAmountByBuyer
-    //     batchMint
-    //     increaseCouponRedeemedAmountByBuyer
-    //     activateNft
-    // {
-    //     uint256 expectedTransferRevenue = 4e6;
+    function testRevShareModule_claimRevenueMoreThanOneActive()
+        public
+        singleMint
+        increaseCouponAmountByBuyer
+        batchMint
+        activateNft
+    {
+        uint256 expectedTransferRevenue = 4e6;
 
-    //     vm.warp(2 days);
-    //     vm.roll(block.number + 1);
+        vm.warp(2 days);
+        vm.roll(block.number + 1);
 
-    //     vm.startPrank(joinerMax);
-    //     // Can claim
-    //     vm.expectEmit(true, true, false, false, address(usdc));
-    //     emit Transfer(address(revShareModule), joinerMax, expectedTransferRevenue);
+        vm.startPrank(joinerMax);
+        // Can claim
+        vm.expectEmit(true, true, false, false, address(usdc));
+        emit Transfer(address(revShareModule), joinerMax, expectedTransferRevenue);
 
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnRevenueClaimed(joinerMax, expectedTransferRevenue);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevenueClaimed(joinerMax, expectedTransferRevenue);
 
-    //     revShareModule.claimRevenue();
+        revShareModule.claimRevenue();
 
-    //     // But can not claim again if no time passed
-    //     vm.expectRevert(RevShareModule.RevShareModule__NoRevenueToClaim.selector);
-    //     revShareModule.claimRevenue();
-    //     vm.stopPrank();
+        // But can not claim again if no time passed
+        vm.expectRevert(RevShareModule.RevShareModule__NoRevenueToClaim.selector);
+        revShareModule.claimRevenue();
+        vm.stopPrank();
 
-    //     // But others can claim
-    //     vm.prank(couponBuyer);
-    //     vm.expectEmit(true, true, false, false, address(usdc));
-    //     emit Transfer(address(revShareModule), couponBuyer, expectedTransferRevenue);
+        // But others can claim
+        vm.prank(couponBuyer);
+        vm.expectEmit(true, true, false, false, address(usdc));
+        emit Transfer(address(revShareModule), couponBuyer, expectedTransferRevenue);
 
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnRevenueClaimed(couponBuyer, expectedTransferRevenue);
-    //     revShareModule.claimRevenue();
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevenueClaimed(couponBuyer, expectedTransferRevenue);
+        revShareModule.claimRevenue();
 
-    //     vm.prank(takadao);
-    //     revShareModule.claimRevenue();
-    // }
+        vm.prank(takadao);
+        revShareModule.claimRevenue();
+    }
 }

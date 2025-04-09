@@ -23,6 +23,8 @@ import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConst
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import {console2} from "forge-std/Test.sol";
+
 pragma solidity 0.8.28;
 
 contract RevShareModule is
@@ -359,6 +361,7 @@ contract RevShareModule is
     }
 
     function _updateRevenue(address _user) internal {
+        console2.log("AQUIIIIII");
         revenuePerNFTOwned = _revenuePerNFT();
         lastUpdatedTimestamp = block.timestamp;
 
@@ -375,16 +378,16 @@ contract RevShareModule is
     function _revenueEarnedByUser(address _user) internal view returns (uint256) {
         uint256 bal;
 
-        if (msg.sender == takadaoOperator) bal = MAX_SUPPLY - totalSupply();
-        else bal = balanceOf(msg.sender);
+        if (_user == takadaoOperator) bal = MAX_SUPPLY - totalSupply();
+        else bal = balanceOf(_user);
 
         uint256 activeNFTs;
 
-        if (msg.sender == takadaoOperator) {
+        if (_user == takadaoOperator) {
             activeNFTs = bal;
         } else {
             for (uint256 i; i < bal; ++i) {
-                uint256 tokenId = tokenOfOwnerByIndex(msg.sender, i);
+                uint256 tokenId = tokenOfOwnerByIndex(_user, i);
 
                 if (isNFTActive[tokenId]) ++activeNFTs;
             }
