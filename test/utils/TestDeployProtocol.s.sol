@@ -115,7 +115,12 @@ contract TestDeployProtocol is Script {
             )
         );
 
-        _setContracts(entryModuleAddress, memberModuleAddress, revenueModuleAddress);
+        _setContracts(
+            entryModuleAddress,
+            memberModuleAddress,
+            revenueModuleAddress,
+            revShareModuleAddress
+        );
 
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
         tsToken = address(creditToken);
@@ -243,7 +248,8 @@ contract TestDeployProtocol is Script {
     function _setContracts(
         address _entryModuleAddress,
         address _memberModuleAddress,
-        address _revenueModuleAddress
+        address _revenueModuleAddress,
+        address _revShareModuleAddress
     ) internal {
         // Setting EntryModule as a requester in BenefitMultiplierConsumer
         bmConsumerMock.setNewRequester(_entryModuleAddress);
@@ -252,6 +258,7 @@ contract TestDeployProtocol is Script {
         moduleManager.addModule(_entryModuleAddress);
         moduleManager.addModule(_memberModuleAddress);
         moduleManager.addModule(_revenueModuleAddress);
+        moduleManager.addModule(_revShareModuleAddress);
     }
 
     function _assignRoles(

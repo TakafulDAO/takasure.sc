@@ -9,7 +9,6 @@
  *      2. It will mint a new NFT per each 250USDC expends by a coupon buyer
  * @dev Upgradeable contract with UUPS pattern
  */
-import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -39,7 +38,6 @@ contract RevShareModule is
 {
     using SafeERC20 for IERC20;
 
-    IModuleManager private moduleManager;
     ITakasureReserve private takasureReserve;
     IERC20 private usdc; // Revenue token
 
@@ -115,7 +113,6 @@ contract RevShareModule is
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, _operator);
         _grantRole(ModuleConstants.MODULE_MANAGER, _moduleManager);
 
-        moduleManager = IModuleManager(_moduleManager);
         takasureReserve = ITakasureReserve(_takasureReserve);
         usdc = IERC20(_usdc);
         takadaoOperator = _operator;
