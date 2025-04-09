@@ -10,7 +10,6 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
-import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 
@@ -46,7 +45,6 @@ contract EntryModule is
 {
     using SafeERC20 for IERC20;
 
-    IRevShareModule private revShareModule;
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
     ModuleState private moduleState;
@@ -58,6 +56,7 @@ contract EntryModule is
     address private prejoinModule;
     address private couponPool;
     address private ccipReceiverContract;
+    address private revShareModule;
 
     mapping(address child => address parent) public childToParent;
     mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
@@ -85,7 +84,8 @@ contract EntryModule is
         address _takasureReserveAddress,
         address _prejoinModule,
         address _ccipReceiverContract,
-        address _couponPool
+        address _couponPool,
+        address _revShareModule
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -98,6 +98,7 @@ contract EntryModule is
         prejoinModule = _prejoinModule;
         ccipReceiverContract = _ccipReceiverContract;
         couponPool = _couponPool;
+        revShareModule = _revShareModule;        
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
@@ -127,13 +128,6 @@ contract EntryModule is
     ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
         AddressAndStates._notZeroAddress(_ccipReceiverContract);
         ccipReceiverContract = _ccipReceiverContract;
-    }
-
-    function setRevShareModule(
-        address _revShareModule
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        AddressAndStates._notZeroAddress(_revShareModule);
-        revShareModule = IRevShareModule(_revShareModule);
     }
 
     /**
@@ -198,8 +192,7 @@ contract EntryModule is
         address parentWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration,
-        uint256 couponAmount,
-        address couponBuyer
+        uint256 couponAmount
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         _onlyCouponRedeemerOrCcipReceiver();
@@ -225,7 +218,6 @@ contract EntryModule is
         );
 
         if (couponAmount > 0) {
-            revShareModule.increaseCouponRedeemedAmountByBuyer(couponBuyer, membersWallet, couponAmount);
             emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
         }
     }
