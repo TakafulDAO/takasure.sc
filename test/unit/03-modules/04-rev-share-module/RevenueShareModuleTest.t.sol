@@ -130,65 +130,80 @@ contract RevShareModuleTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                  MINT
+                              SINGLE MINT
     //////////////////////////////////////////////////////////////*/
 
-    // function testRevShareModule_mintMustRevertIfNoKycEvenIfMaxContribution() public {
-    //     vm.prank(joinerMaxNoKyc);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NotAllowedToMint.selector);
-    //     revShareModule.mint();
-    // }
+    function testRevShareModule_mintMustRevertIfMemberIsAddressZero() public {
+        vm.prank(minter);
+        vm.expectRevert();
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.SINGLE_MINT,
+            address(0),
+            address(0),
+            0
+        );
+    }
 
-    // function testRevShareModule_mintMustRevertIfNoMaxContribution() public {
-    //     vm.prank(joiner);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NotAllowedToMint.selector);
-    //     revShareModule.mint();
-    // }
+    function testRevShareModule_mintSingleNft() public {
+        uint256 lastUpdatedTimestamp_initialState = revShareModule.lastUpdatedTimestamp();
+        uint256 latestTokenId_initialState = revShareModule.totalSupply();
+        bool isNftActive_initialState = revShareModule.isNFTActive(latestTokenId_initialState + 1);
+        bool joinerClaimed_initialState = revShareModule.claimedNFTs(joinerMax);
+        uint256 joinerBalance_initialState = revShareModule.balanceOf(joinerMax);
+        uint256 revenuePerNFTOwned_initialState = revShareModule.revenuePerNFTOwned();
+        uint256 userRevenue_initialState = revShareModule.revenues(joinerMax);
+        uint256 userRevenuePerNftPaid_initialState = revShareModule.userRevenuePerNFTPaid(
+            joinerMax
+        );
 
-    // function testRevShareModule_mint() public {
-    //     uint256 lastUpdatedTimestamp_initialState = revShareModule.lastUpdatedTimestamp();
-    //     uint256 latestTokenId_initialState = revShareModule.totalSupply();
-    //     bool isNftActive_initialState = revShareModule.isNFTActive(latestTokenId_initialState + 1);
-    //     bool joinerClaimed_initialState = revShareModule.claimedNFTs(joinerMax);
-    //     uint256 joinerBalance_initialState = revShareModule.balanceOf(joinerMax);
-    //     uint256 revenuePerNFTOwned_initialState = revShareModule.revenuePerNFTOwned();
-    //     uint256 userRevenue_initialState = revShareModule.revenues(joinerMax);
-    //     uint256 userRevenuePerNftPaid_initialState = revShareModule.userRevenuePerNFTPaid(
-    //         joinerMax
-    //     );
+        vm.prank(minter);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevShareNFTMinted(joinerMax, latestTokenId_initialState + 1);
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.SINGLE_MINT,
+            joinerMax,
+            address(0),
+            0
+        );
 
-    //     vm.prank(joinerMax);
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnRevShareNFTMinted(joinerMax, latestTokenId_initialState + 1);
-    //     revShareModule.mint();
+        assert(revShareModule.lastUpdatedTimestamp() > lastUpdatedTimestamp_initialState);
+        assertEq(revShareModule.totalSupply(), latestTokenId_initialState + 1);
+        assert(!isNftActive_initialState);
+        assert(revShareModule.isNFTActive(revShareModule.totalSupply()));
+        assert(!joinerClaimed_initialState);
+        assert(revShareModule.claimedNFTs(joinerMax));
+        assertEq(joinerBalance_initialState, 0);
+        assertEq(revShareModule.balanceOf(joinerMax), 1);
+        assertEq(revShareModule.tokenOfOwnerByIndex(joinerMax, 0), 1);
+        assertEq(userRevenue_initialState, 0);
+        // assertEq(revShareModule.revenues(joinerMax), 0); // todo: check this
+        assertEq(revenuePerNFTOwned_initialState, 0);
+        assertApproxEqAbs(revShareModule.revenuePerNFTOwned(), 48e5, 100);
+        assertEq(userRevenuePerNftPaid_initialState, 0);
+        assertApproxEqAbs(revShareModule.userRevenuePerNFTPaid(joinerMax), 48e5, 100);
+    }
 
-    //     assert(revShareModule.lastUpdatedTimestamp() > lastUpdatedTimestamp_initialState);
-    //     assertEq(revShareModule.totalSupply(), latestTokenId_initialState + 1);
-    //     assert(!isNftActive_initialState);
-    //     assert(revShareModule.isNFTActive(revShareModule.totalSupply()));
-    //     assert(!joinerClaimed_initialState);
-    //     assert(revShareModule.claimedNFTs(joinerMax));
-    //     assertEq(joinerBalance_initialState, 0);
-    //     assertEq(revShareModule.balanceOf(joinerMax), 1);
-    //     assertEq(userRevenue_initialState, 0);
-    //     assertEq(revShareModule.revenues(joinerMax), 0);
-    //     assertEq(revenuePerNFTOwned_initialState, 0);
-    //     assertApproxEqAbs(revShareModule.revenuePerNFTOwned(), 48e5, 100);
-    //     assertEq(userRevenuePerNftPaid_initialState, 0);
-    //     assertApproxEqAbs(revShareModule.userRevenuePerNFTPaid(joinerMax), 48e5, 100);
-    // }
+    modifier singleMint() {
+        vm.prank(minter);
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.SINGLE_MINT,
+            joinerMax,
+            address(0),
+            0
+        );
+        _;
+    }
 
-    // modifier mint() {
-    //     vm.prank(joinerMax);
-    //     revShareModule.mint();
-    //     _;
-    // }
-
-    // function testRevShareModule_mintRevertsIfAlreadyClaimed() public mint {
-    //     vm.prank(joinerMax);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NotAllowedToMint.selector);
-    //     revShareModule.mint();
-    // }
+    function testRevShareModule_mintRevertsIfAlreadyClaimed() public singleMint {
+        vm.prank(minter);
+        vm.expectRevert(RevShareModule.RevShareModule__NotAllowedToMint.selector);
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.SINGLE_MINT,
+            joinerMax,
+            address(0),
+            0
+        );
+    }
 
     // /*//////////////////////////////////////////////////////////////
     //                            BATCH MINT
