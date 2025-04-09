@@ -174,6 +174,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
         uint256 prejoinModuleInitialBalance = usdc.balanceOf(address(prejoinModule));
         uint256 takasureReserveInitialBalance = usdc.balanceOf(address(takasureReserve));
+        uint256 entryModuleInitialBalance = usdc.balanceOf(address(entryModule));
         (, uint256 referredContributionAfterFee, , ) = prejoinModule.getPrepaidMember(child);
         uint256 expectedContributionAfterFee = CONTRIBUTION_AMOUNT -
             ((CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100);
@@ -195,14 +196,18 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
         uint256 prejoinModuleFinalBalance = usdc.balanceOf(address(prejoinModule));
         uint256 takasureReserveFinalBalance = usdc.balanceOf(address(takasureReserve));
+        uint256 entryModuleFinalBalance = usdc.balanceOf(address(entryModule));
 
+        assert(prejoinModuleFinalBalance < prejoinModuleInitialBalance);
         assertEq(
             prejoinModuleFinalBalance,
             prejoinModuleInitialBalance - referredContributionAfterFee
         );
+        assert(takasureReserveFinalBalance > takasureReserveInitialBalance);
         assertEq(
             takasureReserveFinalBalance,
             takasureReserveInitialBalance + referredContributionAfterFee
         );
+        assertEq(entryModuleFinalBalance, entryModuleInitialBalance);
     }
 }
