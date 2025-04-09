@@ -1,0 +1,27 @@
+@startuml Join Dao
+autonumber
+
+actor User
+
+User -> PrejoinModule: joinDao(newMember)
+
+alt Module is disabled
+    alt newMember is KYC    
+        alt Valid DAO
+
+            PrejoinModule --> EntryModule: joinPool
+            PrejoinModule --> DAO: transfer contribution
+
+        else Invalid DAO
+            PrejoinModule --> User: Revert
+        end
+
+    else newMember is not KYC
+        PrejoinModule --> User: Revert
+    end
+
+else Module is enabled
+    PrejoinModule --> User: Revert
+end
+
+@enduml
