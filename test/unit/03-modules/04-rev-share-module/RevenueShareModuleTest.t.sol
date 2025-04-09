@@ -205,64 +205,91 @@ contract RevShareModuleTest is Test {
         );
     }
 
-    // /*//////////////////////////////////////////////////////////////
-    //                            BATCH MINT
-    // //////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                               BATCH MINT
+    //////////////////////////////////////////////////////////////*/
 
-    // function testRevShareModule_batchMintRevertIfNoCouponRedeemed() public {
-    //     vm.prank(couponBuyer);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NotAllowedToMint.selector);
-    //     revShareModule.batchMint();
-    // }
+    function testRevShareModule_batchMintRevertIfIsAddressZero() public {
+        vm.prank(minter);
+        vm.expectRevert();
+        revShareModule.batchMint(address(0), NFT_PRICE);
+    }
 
-    // function testRevShareModule_batchMint() public increaseCouponAmountByBuyer {
-    //     uint256 latestTokenId_initialState = revShareModule.totalSupply();
-    //     bool isNft1Active_initialState = revShareModule.isNFTActive(1);
-    //     bool isNft2Active_initialState = revShareModule.isNFTActive(2);
-    //     bool isNft3Active_initialState = revShareModule.isNFTActive(3);
-    //     bool isNft4Active_initialState = revShareModule.isNFTActive(4);
-    //     bool isNft5Active_initialState = revShareModule.isNFTActive(5);
-    //     uint256 couponBuyerBalance_initialState = revShareModule.balanceOf(couponBuyer);
+    function testRevShareModule_batchMintRevertIfThereIsNothingToMint() public {
+        vm.prank(minter);
+        vm.expectRevert(RevShareModule.RevShareModule__NotZeroAmount.selector);
+        revShareModule.batchMint(couponBuyer, 0);
+    }
 
-    //     vm.prank(couponBuyer);
+    function testRevShareModule_batchMintIncreaseCouponAmountIfNotEnoughToBuy() public {
+        assertEq(revShareModule.balanceOf(couponBuyer), 0);
+        assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 0);
 
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnRevShareNFTMinted(couponBuyer, 1);
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnRevShareNFTMinted(couponBuyer, 2);
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnRevShareNFTMinted(couponBuyer, 3);
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnRevShareNFTMinted(couponBuyer, 4);
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnRevShareNFTMinted(couponBuyer, 5);
+        vm.prank(minter);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnCouponAmountByBuyerIncreased(couponBuyer, 100e6);
+        revShareModule.batchMint(couponBuyer, 100e6);
 
-    //     revShareModule.batchMint();
+        assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 100e6);
+        assertEq(revShareModule.balanceOf(couponBuyer), 0);
 
-    //     assertEq(revShareModule.totalSupply(), latestTokenId_initialState + 5);
-    //     assert(!isNft1Active_initialState);
-    //     assert(!isNft2Active_initialState);
-    //     assert(!isNft3Active_initialState);
-    //     assert(!isNft4Active_initialState);
-    //     assert(!isNft5Active_initialState);
-    //     assert(!revShareModule.isNFTActive(1));
-    //     assert(!revShareModule.isNFTActive(2));
-    //     assert(!revShareModule.isNFTActive(3));
-    //     assert(!revShareModule.isNFTActive(4));
-    //     assert(!revShareModule.isNFTActive(5));
-    //     assertEq(couponBuyerBalance_initialState, 0);
-    //     assertEq(revShareModule.balanceOf(couponBuyer), 5);
-    // }
+        vm.prank(minter);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnCouponAmountByBuyerIncreased(couponBuyer, 50e6);
+        revShareModule.batchMint(couponBuyer, 50e6);
 
-    // modifier batchMint() {
-    //     vm.prank(couponBuyer);
-    //     revShareModule.batchMint();
-    //     _;
-    // }
+        assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 150e6);
+        assertEq(revShareModule.balanceOf(couponBuyer), 0);
+    }
 
-    // /*//////////////////////////////////////////////////////////////
-    //                             ACTIVATE
-    // //////////////////////////////////////////////////////////////*/
+    function testRevShareModule_batchMintTokens() public increaseCouponAmountByBuyer {
+        uint256 amountRedeemed = (5 * NFT_PRICE) + 100e6; //
+        assertEq(revShareModule.balanceOf(couponBuyer), 0);
+        assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), amountRedeemed);
+
+        vm.prank(minter);
+
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevShareNFTMinted(couponBuyer, 1);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevShareNFTMinted(couponBuyer, 2);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevShareNFTMinted(couponBuyer, 3);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevShareNFTMinted(couponBuyer, 4);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevShareNFTMinted(couponBuyer, 5);
+
+        revShareModule.batchMint(couponBuyer, 0);
+
+        assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 100e6);
+        assertEq(revShareModule.balanceOf(couponBuyer), 5);
+
+        vm.prank(minter);
+
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevShareNFTMinted(couponBuyer, 6);
+        revShareModule.batchMint(couponBuyer, 150e6);
+
+        assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 0);
+        assertEq(revShareModule.balanceOf(couponBuyer), 6);
+        assert(!revShareModule.isNFTActive(1));
+        assert(!revShareModule.isNFTActive(2));
+        assert(!revShareModule.isNFTActive(3));
+        assert(!revShareModule.isNFTActive(4));
+        assert(!revShareModule.isNFTActive(5));
+        assert(!revShareModule.isNFTActive(6));
+    }
+
+    modifier batchMint() {
+        vm.prank(minter);
+        revShareModule.batchMint(couponBuyer, 0);
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                ACTIVATE
+    //////////////////////////////////////////////////////////////*/
 
     // function testRevShareModule_activateTokenRevertsIfNoCouponIsRedeemed()
     //     public

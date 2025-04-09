@@ -182,10 +182,10 @@ contract RevShareModule is
         uint256 couponAmount
     ) external nonReentrant onlyRole(MINTER_ROLE) {
         AddressAndStates._notZeroAddress(couponBuyer);
-        require(couponAmount > 0, RevShareModule__NotZeroAmount());
         require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
 
         uint256 totalCouponAmount = couponAmountsByBuyer[couponBuyer] + couponAmount;
+        require(totalCouponAmount > 0, RevShareModule__NotZeroAmount());
 
         // If the new coupon amount is less than the max contribution, we only increase the coupon amount
         // in case the coupon buyer will purchase more coupons in the future
@@ -210,9 +210,9 @@ contract RevShareModule is
 
         // Non NFT will be active for coupon buyers until 250 USDC in coupons are redeemed
         for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
-            _safeMint(msg.sender, i);
+            _safeMint(couponBuyer, i);
 
-            emit OnRevShareNFTMinted(msg.sender, i);
+            emit OnRevShareNFTMinted(couponBuyer, i);
         }
     }
 
