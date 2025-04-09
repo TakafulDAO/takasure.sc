@@ -321,40 +321,6 @@ contract RevShareModule is
         }
     }
 
-    // function activateNFT() external {
-    //     require(
-    //         couponRedeemedAmountsByBuyer[msg.sender] >= MAX_CONTRIBUTION,
-    //         RevShareModule__NotEnoughRedeemedAmount()
-    //     );
-
-    //     uint256 bal = balanceOf(msg.sender);
-
-    //     require(bal > 0, RevShareModule__MintNFTFirst());
-
-    //     // Update the revenues
-    //     _updateRevenue(msg.sender);
-    //     _updateRevenue(takadaoOperator);
-
-    //     uint256 redeemed = couponRedeemedAmountsByBuyer[msg.sender];
-    //     uint256 tokensToActivate = redeemed / MAX_CONTRIBUTION;
-    //     couponRedeemedAmountsByBuyer[msg.sender] -= tokensToActivate * MAX_CONTRIBUTION;
-
-    //     uint256 activeNFTs;
-
-    //     for (uint256 i; i < bal; ++i) {
-    //         uint256 tokenId = tokenOfOwnerByIndex(msg.sender, i);
-
-    //         if (!isNFTActive[tokenId]) {
-    //             isNFTActive[tokenId] = true;
-    //             ++activeNFTs;
-
-    //             emit OnRevShareNFTActivated(msg.sender, tokenId);
-
-    //             if (activeNFTs == tokensToActivate) break;
-    //         }
-    //     }
-    // }
-
     // /*//////////////////////////////////////////////////////////////
     //                          CLAIM REVENUE
     // //////////////////////////////////////////////////////////////*/
