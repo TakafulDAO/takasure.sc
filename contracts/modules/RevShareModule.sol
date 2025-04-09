@@ -227,6 +227,36 @@ contract RevShareModule is
     }
 
     /**
+     * @notice Transfer override function. Only active NFTs can be transferred
+     * @dev The revenues are updated for both the sender and the receiver
+     */
+    function transfer(address to, uint256 tokenId) external {
+        require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
+
+        _updateRevenue(msg.sender);
+        _updateRevenue(to);
+
+        _safeTransfer(msg.sender, to, tokenId, "");
+    }
+
+    /**
+     * @notice Transfer from override function. Only active NFTs can be transferred
+     * @dev The revenues are updated for both the sender and the receiver
+     */
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public override(ERC721Upgradeable, IERC721) {
+        require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
+
+        _updateRevenue(from);
+        _updateRevenue(to);
+
+        super.transferFrom(from, to, tokenId);
+    }
+
+    /**
      * @notice Mint a single token to a user
      * @param _member The address of the member to mint a single NFT
      * @dev All NFTs minted to normal members are active from the start
@@ -290,28 +320,6 @@ contract RevShareModule is
             }
         }
     }
-
-    // function transfer(address to, uint256 tokenId) external {
-    //     require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
-
-    //     _updateRevenue(msg.sender);
-    //     _updateRevenue(to);
-
-    //     _safeTransfer(msg.sender, to, tokenId, "");
-    // }
-
-    // function transferFrom(
-    //     address from,
-    //     address to,
-    //     uint256 tokenId
-    // ) public override(ERC721Upgradeable, IERC721) {
-    //     require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
-
-    //     _updateRevenue(from);
-    //     _updateRevenue(to);
-
-    //     super.transferFrom(from, to, tokenId);
-    // }
 
     // function activateNFT() external {
     //     require(
