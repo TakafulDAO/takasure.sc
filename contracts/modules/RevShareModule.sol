@@ -46,7 +46,6 @@ contract RevShareModule is
     ModuleState private moduleState;
 
     address private takadaoOperator;
-    address private entryModule;
 
     uint256 public constant MAX_CONTRIBUTION = 250e6; // 250 USDC
     uint256 public constant MAX_SUPPLY = 18_000;
@@ -99,7 +98,6 @@ contract RevShareModule is
         address _operator,
         address _moduleManager,
         address _takasureReserve,
-        address _entryModule,
         address _usdc
     ) external initializer {
         AddressAndStates._notZeroAddress(_operator);
@@ -121,7 +119,6 @@ contract RevShareModule is
         takasureReserve = ITakasureReserve(_takasureReserve);
         usdc = IERC20(_usdc);
         takadaoOperator = _operator;
-        entryModule = _entryModule;
 
         revenueRate = 1;
         lastUpdatedTimestamp = block.timestamp;
@@ -160,7 +157,6 @@ contract RevShareModule is
         address member,
         uint256 amount
     ) external {
-        require(msg.sender == entryModule, RevShareModule__NotAllowed());
         AddressAndStates._notZeroAddress(buyer);
         AddressAndStates._notZeroAddress(member);
         require(!isCouponJoiner[member], RevShareModule__AlreadySetCoupon());
