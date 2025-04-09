@@ -74,7 +74,6 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
 
         vm.startPrank(takadao);
         entryModule.updateBmAddress();
-        entryModule.setRevShareModule(revShareModuleAddress);
         vm.stopPrank();
 
         // For easier testing there is a minimal USDC mock contract without restrictions

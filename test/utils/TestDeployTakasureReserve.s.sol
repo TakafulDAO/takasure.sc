@@ -7,6 +7,7 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
+import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {ModuleManager} from "contracts/modules/manager/ModuleManager.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
@@ -40,6 +41,7 @@ contract TestDeployTakasureReserve is Script {
             address entryModule,
             address memberModule,
             address revenueModule,
+            address revShareModule,
             address router,
             address referralGatewayProxy,
             address contributionTokenAddress,
@@ -91,11 +93,14 @@ contract TestDeployTakasureReserve is Script {
             )
         );
 
-        (entryModule, memberModule, revenueModule) = _deployModules(
+        (entryModule, memberModule, revenueModule, revShareModule) = _deployModules(
             takasureReserve,
             address(referralGatewayProxy),
             makeAddr("ccipReceiverContract"),
-            makeAddr("couponPool")
+            makeAddr("couponPool"),
+            config.takadaoOperator,
+            address(moduleManager),
+            config.contributionToken
         );
 
         // Deploy router
@@ -125,6 +130,7 @@ contract TestDeployTakasureReserve is Script {
             entryModule,
             memberModule,
             revenueModule,
+            revShareModule,
             router,
             referralGatewayProxy,
             contributionTokenAddress,
@@ -174,31 +180,57 @@ contract TestDeployTakasureReserve is Script {
         address _takasureReserve,
         address _prejoinModule,
         address _ccipReceiver,
-        address _couponPool
-    ) internal returns (address entryModule, address memberModule, address revenueModule) {
-        // Deploy EntryModule
-        address entryModuleImplementation = address(new EntryModule());
-        entryModule = UnsafeUpgrades.deployUUPSProxy(
-            entryModuleImplementation,
-            abi.encodeCall(
-                EntryModule.initialize,
-                (_takasureReserve, _prejoinModule, _ccipReceiver, _couponPool)
-            )
-        );
-
-        // Deploy MemberModule
-        address memberModuleImplementation = address(new MemberModule());
-        memberModule = UnsafeUpgrades.deployUUPSProxy(
-            memberModuleImplementation,
-            abi.encodeCall(MemberModule.initialize, (_takasureReserve))
-        );
-
-        // Deploy RevenueModule
-        address revenueModuleImplementation = address(new RevenueModule());
-        revenueModule = UnsafeUpgrades.deployUUPSProxy(
-            revenueModuleImplementation,
-            abi.encodeCall(RevenueModule.initialize, (_takasureReserve))
-        );
+        address _couponPool,
+        address _takadaoOperator,
+        address _moduleManagerAddress,
+        address _contributionToken
+    )
+        internal
+        returns (
+            address entryModule,
+            address memberModule,
+            address revenueModule,
+            address revShareModule
+        )
+    {
+        {
+            // Deploy RevShareModule
+            address revShareModuleImplementation = address(new RevShareModule());
+            revShareModule = UnsafeUpgrades.deployUUPSProxy(
+                revShareModuleImplementation,
+                abi.encodeCall(
+                    RevShareModule.initialize,
+                    (_takadaoOperator, _moduleManagerAddress, _takasureReserve, _contributionToken)
+                )
+            );
+        }
+        {
+            // Deploy EntryModule
+            address entryModuleImplementation = address(new EntryModule());
+            entryModule = UnsafeUpgrades.deployUUPSProxy(
+                entryModuleImplementation,
+                abi.encodeCall(
+                    EntryModule.initialize,
+                    (_takasureReserve, _prejoinModule, _ccipReceiver, _couponPool, revShareModule)
+                )
+            );
+        }
+        {
+            // Deploy MemberModule
+            address memberModuleImplementation = address(new MemberModule());
+            memberModule = UnsafeUpgrades.deployUUPSProxy(
+                memberModuleImplementation,
+                abi.encodeCall(MemberModule.initialize, (_takasureReserve))
+            );
+        }
+        {
+            // Deploy RevenueModule
+            address revenueModuleImplementation = address(new RevenueModule());
+            revenueModule = UnsafeUpgrades.deployUUPSProxy(
+                revenueModuleImplementation,
+                abi.encodeCall(RevenueModule.initialize, (_takasureReserve))
+            );
+        }
     }
 
     function _setContracts(

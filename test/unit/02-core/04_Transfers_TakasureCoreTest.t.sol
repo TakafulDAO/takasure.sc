@@ -80,7 +80,6 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
 
         vm.startPrank(takadao);
         entryModule.updateBmAddress();
-        entryModule.setRevShareModule(revShareModuleAddress);
         vm.stopPrank();
     }
 

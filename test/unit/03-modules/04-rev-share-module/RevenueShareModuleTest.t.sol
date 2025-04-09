@@ -86,7 +86,6 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
         entryModule.updateBmAddress();
         entryModule.setCouponPoolAddress(couponPool);
         entryModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        entryModule.setRevShareModule(revShareModuleAddress);
         revShareModule.grantRole(keccak256("COUPON_REDEEMER"), address(couponRedeemer));
         vm.stopPrank();
 
@@ -134,14 +133,7 @@ contract RevShareModuleTest is Test, SimulateDonResponse {
     }
 
     function _joinWithCoupon(address _joiner, uint256 _contribution, uint256 _coupon) internal {
-        entryModule.joinPoolOnBehalfOf(
-            _joiner,
-            address(0),
-            _contribution,
-            (5 * YEAR),
-            _coupon,
-            couponBuyer
-        );
+        entryModule.joinPoolOnBehalfOf(_joiner, address(0), _contribution, (5 * YEAR), _coupon);
     }
 
     function _kyc(address _joiner) internal {

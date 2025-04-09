@@ -74,7 +74,6 @@ contract Cancel_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(takadao);
         entryModule.updateBmAddress();
-        entryModule.setRevShareModule(revShareModuleAddress);
         vm.stopPrank();
 
         // For easier testing there is a minimal USDC mock contract without restrictions

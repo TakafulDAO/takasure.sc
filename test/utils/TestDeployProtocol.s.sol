@@ -199,13 +199,29 @@ contract TestDeployProtocol is Script {
             )
         );
 
+        // Deploy RevShareModule
+        revShareModuleImplementation = address(new RevShareModule());
+        revShareModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
+            revShareModuleImplementation,
+            abi.encodeCall(
+                RevShareModule.initialize,
+                (_takadaoOperator, _moduleManagerAddress, takasureReserve, _contributionToken)
+            )
+        );
+
         // Deploy EntryModule
         entryModuleImplementation = address(new EntryModule());
         entryModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             entryModuleImplementation,
             abi.encodeCall(
                 EntryModule.initialize,
-                (takasureReserve, prejoinModuleAddress_, _ccipReceiver, _couponPool)
+                (
+                    takasureReserve,
+                    prejoinModuleAddress_,
+                    _ccipReceiver,
+                    _couponPool,
+                    revShareModuleAddress_
+                )
             )
         );
 
@@ -221,22 +237,6 @@ contract TestDeployProtocol is Script {
         revenueModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             revenueModuleImplementation,
             abi.encodeCall(RevenueModule.initialize, (takasureReserve))
-        );
-
-        // Deploy RevShareModule
-        revShareModuleImplementation = address(new RevShareModule());
-        revShareModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
-            revShareModuleImplementation,
-            abi.encodeCall(
-                RevShareModule.initialize,
-                (
-                    _takadaoOperator,
-                    _moduleManagerAddress,
-                    takasureReserve,
-                    entryModuleAddress_,
-                    _contributionToken
-                )
-            )
         );
     }
 

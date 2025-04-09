@@ -80,7 +80,6 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(takadao);
         entryModule.updateBmAddress();
-        entryModule.setRevShareModule(revShareModuleAddress);
         vm.stopPrank();
     }
 
