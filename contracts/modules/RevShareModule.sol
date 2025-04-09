@@ -22,7 +22,6 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {Member} from "contracts/types/TakasureTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
@@ -65,7 +64,6 @@ contract RevShareModule is
     mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer; // How much a coupon buyer has spent
     mapping(address couponBuyer => uint256 couponRedeemedAmount)
         public couponRedeemedAmountsByBuyer; // How much a coupon buyer has redeemed. It will be reset when the coupon mints new NFTs
-    mapping(address member => bool usedCoupon) private isCouponJoiner;
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -134,7 +132,7 @@ contract RevShareModule is
 
     /**
      * @notice Set the module state
-     *  @dev Only callble from the Module Manager
+     *  @dev Only callable from the Module Manager
      */
     function setContractState(
         ModuleState newState
@@ -161,10 +159,8 @@ contract RevShareModule is
     ) external {
         AddressAndStates._notZeroAddress(buyer);
         AddressAndStates._notZeroAddress(member);
-        require(!isCouponJoiner[member], RevShareModule__AlreadySetCoupon());
 
         couponRedeemedAmountsByBuyer[buyer] += amount;
-        isCouponJoiner[member] = true;
 
         emit OnCouponAmountRedeemedByBuyerIncreased(buyer, amount);
     }
@@ -173,155 +169,154 @@ contract RevShareModule is
                                   MINT
     //////////////////////////////////////////////////////////////*/
 
-    function mint() external nonReentrant {
-        require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
+    /**
+     * @notice Mint single token to a user or activate an existing token from a coupon buyer
+     * @dev Only callable by someone with the MINTER_ROLE
+     */
+    function mintOrActivate(address member) external onlyRole(MINTER_ROLE) {
+        _singleMint(member);
+    }
 
-        // The caller must be a member with max contribution, KYCed, not joined using coupon and not claimed NFTs
-        Member memory member = takasureReserve.getMemberFromAddress(msg.sender);
-        require(
-            member.isKYCVerified &&
-                member.contribution == MAX_CONTRIBUTION &&
-                !isCouponJoiner[msg.sender] &&
-                !claimedNFTs[msg.sender],
-            RevShareModule__NotAllowedToMint()
-        );
+    function _singleMint(address _member) internal nonReentrant {
+        require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
+        require(!claimedNFTs[_member], RevShareModule__NotAllowedToMint());
 
         uint256 currentTokenId = totalSupply();
         uint256 newTokenId = currentTokenId + 1;
 
         // Update the revenues
-        _updateRevenue(msg.sender);
+        _updateRevenue(_member);
         _updateRevenue(takadaoOperator);
 
-        _safeMint(msg.sender, newTokenId);
+        _safeMint(_member, newTokenId);
 
-        // All NFTs minted by normal users are active from the start
+        // All NFTs minted to normal members are active from the start
         isNFTActive[newTokenId] = true;
-        claimedNFTs[msg.sender] = true;
+        claimedNFTs[_member] = true;
 
-        emit OnRevShareNFTMinted(msg.sender, newTokenId);
+        emit OnRevShareNFTMinted(_member, newTokenId);
     }
 
-    function batchMint() external nonReentrant {
-        require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
-        require(
-            couponAmountsByBuyer[msg.sender] >= MAX_CONTRIBUTION,
-            RevShareModule__NotAllowedToMint()
-        );
+    // function batchMint() external nonReentrant {
+    //     require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
+    //     require(
+    //         couponAmountsByBuyer[msg.sender] >= MAX_CONTRIBUTION,
+    //         RevShareModule__NotAllowedToMint()
+    //     );
 
-        // Check how many NFTs the coupon buyer can mint
-        uint256 maxNFTsAllowed = couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION;
-        // In case the coupon buyer have already minted some NFTs, we take that into account
-        uint256 currentAllowedToMint = maxNFTsAllowed - balanceOf(msg.sender);
+    //     // Check how many NFTs the coupon buyer can mint
+    //     uint256 maxNFTsAllowed = couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION;
+    //     // In case the coupon buyer have already minted some NFTs, we take that into account
+    //     uint256 currentAllowedToMint = maxNFTsAllowed - balanceOf(msg.sender);
 
-        uint256 currentTokenId = totalSupply();
+    //     uint256 currentTokenId = totalSupply();
 
-        uint256 firstNewTokenId = currentTokenId + 1;
-        uint256 lastNewTokenId = currentTokenId + currentAllowedToMint;
+    //     uint256 firstNewTokenId = currentTokenId + 1;
+    //     uint256 lastNewTokenId = currentTokenId + currentAllowedToMint;
 
-        // Non NFT will be active for coupon buyers until 250 USDC in coupons are redeemed
-        for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
-            _safeMint(msg.sender, i);
+    //     // Non NFT will be active for coupon buyers until 250 USDC in coupons are redeemed
+    //     for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
+    //         _safeMint(msg.sender, i);
 
-            emit OnRevShareNFTMinted(msg.sender, i);
-        }
-    }
+    //         emit OnRevShareNFTMinted(msg.sender, i);
+    //     }
+    // }
 
-    function transfer(address to, uint256 tokenId) external {
-        require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
+    // function transfer(address to, uint256 tokenId) external {
+    //     require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
 
-        _updateRevenue(msg.sender);
-        _updateRevenue(to);
+    //     _updateRevenue(msg.sender);
+    //     _updateRevenue(to);
 
-        _safeTransfer(msg.sender, to, tokenId, "");
-    }
+    //     _safeTransfer(msg.sender, to, tokenId, "");
+    // }
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override(ERC721Upgradeable, IERC721) {
-        require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
+    // function transferFrom(
+    //     address from,
+    //     address to,
+    //     uint256 tokenId
+    // ) public override(ERC721Upgradeable, IERC721) {
+    //     require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
 
-        _updateRevenue(from);
-        _updateRevenue(to);
+    //     _updateRevenue(from);
+    //     _updateRevenue(to);
 
-        super.transferFrom(from, to, tokenId);
-    }
+    //     super.transferFrom(from, to, tokenId);
+    // }
 
-    function activateNFT() external {
-        require(
-            couponRedeemedAmountsByBuyer[msg.sender] >= MAX_CONTRIBUTION,
-            RevShareModule__NotEnoughRedeemedAmount()
-        );
+    // function activateNFT() external {
+    //     require(
+    //         couponRedeemedAmountsByBuyer[msg.sender] >= MAX_CONTRIBUTION,
+    //         RevShareModule__NotEnoughRedeemedAmount()
+    //     );
 
-        uint256 bal = balanceOf(msg.sender);
+    //     uint256 bal = balanceOf(msg.sender);
 
-        require(bal > 0, RevShareModule__MintNFTFirst());
+    //     require(bal > 0, RevShareModule__MintNFTFirst());
 
-        // Update the revenues
-        _updateRevenue(msg.sender);
-        _updateRevenue(takadaoOperator);
+    //     // Update the revenues
+    //     _updateRevenue(msg.sender);
+    //     _updateRevenue(takadaoOperator);
 
-        uint256 redeemed = couponRedeemedAmountsByBuyer[msg.sender];
-        uint256 tokensToActivate = redeemed / MAX_CONTRIBUTION;
-        couponRedeemedAmountsByBuyer[msg.sender] -= tokensToActivate * MAX_CONTRIBUTION;
+    //     uint256 redeemed = couponRedeemedAmountsByBuyer[msg.sender];
+    //     uint256 tokensToActivate = redeemed / MAX_CONTRIBUTION;
+    //     couponRedeemedAmountsByBuyer[msg.sender] -= tokensToActivate * MAX_CONTRIBUTION;
 
-        uint256 activeNFTs;
+    //     uint256 activeNFTs;
 
-        for (uint256 i; i < bal; ++i) {
-            uint256 tokenId = tokenOfOwnerByIndex(msg.sender, i);
+    //     for (uint256 i; i < bal; ++i) {
+    //         uint256 tokenId = tokenOfOwnerByIndex(msg.sender, i);
 
-            if (!isNFTActive[tokenId]) {
-                isNFTActive[tokenId] = true;
-                ++activeNFTs;
+    //         if (!isNFTActive[tokenId]) {
+    //             isNFTActive[tokenId] = true;
+    //             ++activeNFTs;
 
-                emit OnRevShareNFTActivated(msg.sender, tokenId);
+    //             emit OnRevShareNFTActivated(msg.sender, tokenId);
 
-                if (activeNFTs == tokensToActivate) break;
-            }
-        }
-    }
+    //             if (activeNFTs == tokensToActivate) break;
+    //         }
+    //     }
+    // }
 
-    /*//////////////////////////////////////////////////////////////
-                             CLAIM REVENUE
-    //////////////////////////////////////////////////////////////*/
+    // /*//////////////////////////////////////////////////////////////
+    //                          CLAIM REVENUE
+    // //////////////////////////////////////////////////////////////*/
 
-    function claimRevenue() external {
-        uint256 bal;
+    // function claimRevenue() external {
+    //     uint256 bal;
 
-        if (msg.sender == takadaoOperator) bal = MAX_SUPPLY - totalSupply();
-        else bal = balanceOf(msg.sender);
+    //     if (msg.sender == takadaoOperator) bal = MAX_SUPPLY - totalSupply();
+    //     else bal = balanceOf(msg.sender);
 
-        require(bal > 0, RevShareModule__NotNFTOwner());
+    //     require(bal > 0, RevShareModule__NotNFTOwner());
 
-        // Update the revenues
-        _updateRevenue(msg.sender);
+    //     // Update the revenues
+    //     _updateRevenue(msg.sender);
 
-        uint256 revenue = revenues[msg.sender];
+    //     uint256 revenue = revenues[msg.sender];
 
-        require(revenue > 0, RevShareModule__NoRevenueToClaim());
+    //     require(revenue > 0, RevShareModule__NoRevenueToClaim());
 
-        revenues[msg.sender] = 0;
-        usdc.safeTransfer(msg.sender, revenue);
+    //     revenues[msg.sender] = 0;
+    //     usdc.safeTransfer(msg.sender, revenue);
 
-        emit OnRevenueClaimed(msg.sender, revenue);
-    }
+    //     emit OnRevenueClaimed(msg.sender, revenue);
+    // }
 
-    function getRevenuePerNFT() external view returns (uint256) {
-        return _revenuePerNFT();
-    }
+    // function getRevenuePerNFT() external view returns (uint256) {
+    //     return _revenuePerNFT();
+    // }
 
-    /**
-     * @notice How much a user have earned in total
-     */
-    function getRevenueEarnedByUser(address user) external view returns (uint256) {
-        return _revenueEarnedByUser(user);
-    }
+    // /**
+    //  * @notice How much a user have earned in total
+    //  */
+    // function getRevenueEarnedByUser(address user) external view returns (uint256) {
+    //     return _revenueEarnedByUser(user);
+    // }
 
-    /*//////////////////////////////////////////////////////////////
-                           INTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
+    // /*//////////////////////////////////////////////////////////////
+    //                        INTERNAL FUNCTIONS
+    // //////////////////////////////////////////////////////////////*/
 
     function _updateRevenue(address _user) internal {
         revenuePerNFTOwned = _revenuePerNFT();
@@ -389,6 +384,7 @@ contract RevShareModule is
         return super.supportsInterface(interfaceId);
     }
 
+    /// @notice Needed override
     function _authorizeUpgrade(
         address newImplementation
     ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}

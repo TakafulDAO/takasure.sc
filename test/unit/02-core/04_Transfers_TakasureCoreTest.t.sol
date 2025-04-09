@@ -140,7 +140,6 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         uint256 expectedFeeToRevShare = (CONTRIBUTION_AMOUNT * 13) / 100;
         uint256 expectedFeeToServiceFeeReceiver = ((CONTRIBUTION_AMOUNT * serviceFee) / 100) -
             expectedFeeToRevShare;
-        uint256 previousFee = ((CONTRIBUTION_AMOUNT * serviceFee) / 100);
 
         assert(revShareBalanceBefore == 0);
         assert(serviceFeeReceiverBalanceBefore == 0);
