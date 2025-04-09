@@ -176,6 +176,11 @@ contract TestDeployTakasureReserve is Script {
         );
     }
 
+    address revShareModuleImplementation;
+    address entryModuleImplementation;
+    address memberModuleImplementation;
+    address revenueModuleImplementation;
+
     function _deployModules(
         address _takasureReserve,
         address _prejoinModule,
@@ -195,18 +200,24 @@ contract TestDeployTakasureReserve is Script {
     {
         {
             // Deploy RevShareModule
-            address revShareModuleImplementation = address(new RevShareModule());
+            revShareModuleImplementation = address(new RevShareModule());
             revShareModule = UnsafeUpgrades.deployUUPSProxy(
                 revShareModuleImplementation,
                 abi.encodeCall(
                     RevShareModule.initialize,
-                    (_takadaoOperator, _moduleManagerAddress, _takasureReserve, _contributionToken)
+                    (
+                        _takadaoOperator,
+                        _takadaoOperator,
+                        _moduleManagerAddress,
+                        _takasureReserve,
+                        _contributionToken
+                    )
                 )
             );
         }
         {
             // Deploy EntryModule
-            address entryModuleImplementation = address(new EntryModule());
+            entryModuleImplementation = address(new EntryModule());
             entryModule = UnsafeUpgrades.deployUUPSProxy(
                 entryModuleImplementation,
                 abi.encodeCall(
@@ -217,7 +228,7 @@ contract TestDeployTakasureReserve is Script {
         }
         {
             // Deploy MemberModule
-            address memberModuleImplementation = address(new MemberModule());
+            memberModuleImplementation = address(new MemberModule());
             memberModule = UnsafeUpgrades.deployUUPSProxy(
                 memberModuleImplementation,
                 abi.encodeCall(MemberModule.initialize, (_takasureReserve))
@@ -225,7 +236,7 @@ contract TestDeployTakasureReserve is Script {
         }
         {
             // Deploy RevenueModule
-            address revenueModuleImplementation = address(new RevenueModule());
+            revenueModuleImplementation = address(new RevenueModule());
             revenueModule = UnsafeUpgrades.deployUUPSProxy(
                 revenueModuleImplementation,
                 abi.encodeCall(RevenueModule.initialize, (_takasureReserve))

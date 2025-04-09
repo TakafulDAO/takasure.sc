@@ -53,6 +53,8 @@ contract RevShareModule is
     uint256 public lastUpdatedTimestamp; // Last time the rewards were updated
     uint256 public revenuePerNFTOwned;
 
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
     mapping(address => uint256) public userRevenuePerNFTPaid;
     mapping(address => uint256) public revenues;
 
@@ -92,8 +94,10 @@ contract RevShareModule is
     }
 
     // TODO: Initialize the URI when set, skip for now just for easier testing, but needed for production
+    // ? New role for the backend here?
     function initialize(
         address _operator,
+        address _minter,
         address _moduleManager,
         address _takasureReserve,
         address _usdc
@@ -112,6 +116,7 @@ contract RevShareModule is
         _grantRole(0x00, _operator);
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, _operator);
         _grantRole(ModuleConstants.MODULE_MANAGER, _moduleManager);
+        _grantRole(MINTER_ROLE, _minter);
 
         takasureReserve = ITakasureReserve(_takasureReserve);
         usdc = IERC20(_usdc);
