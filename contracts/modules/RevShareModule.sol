@@ -181,6 +181,56 @@ contract RevShareModule is
         }
     }
 
+    /**
+     * @notice Mint multiple tokens to a coupon buyer
+     * @param couponBuyer The address of the coupon buyer to mint the NFTs
+     * @param couponAmount The amount of USDC bought by the coupon buyer
+     * @dev Only callable by someone with the MINTER_ROLE
+     */
+    function batchMint(
+        address couponBuyer,
+        uint256 couponAmount
+    ) external nonReentrant onlyRole(MINTER_ROLE) {
+        AddressAndStates._notZeroAddress(couponBuyer);
+        require(couponAmount > 0, RevShareModule__NotZeroAmount());
+        require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
+
+        uint256 totalCouponAmount = couponAmountsByBuyer[couponBuyer] + couponAmount;
+
+        // If the new coupon amount is less than the max contribution, we only increase the coupon amount
+        // in case the coupon buyer will purchase more coupons in the future
+        if (totalCouponAmount < MAX_CONTRIBUTION) {
+            couponAmountsByBuyer[couponBuyer] = totalCouponAmount;
+            emit OnCouponAmountByBuyerIncreased(couponBuyer, couponAmount);
+
+            // We finish execution
+            return;
+        }
+
+        // Check how many NFTs the coupon buyer can mint
+        uint256 maxNFTsAllowed = totalCouponAmount / MAX_CONTRIBUTION; // 550 / 250 = 2.2 => 2 NFTs
+
+        // Update the coupon amount for the coupon buyer with the remaining amount, not used for minting
+        couponAmountsByBuyer[couponBuyer] = totalCouponAmount - (maxNFTsAllowed * MAX_CONTRIBUTION);
+
+        uint256 currentTokenId = totalSupply();
+
+        uint256 firstNewTokenId = currentTokenId + 1;
+        uint256 lastNewTokenId = currentTokenId + maxNFTsAllowed;
+
+        // Non NFT will be active for coupon buyers until 250 USDC in coupons are redeemed
+        for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
+            _safeMint(msg.sender, i);
+
+            emit OnRevShareNFTMinted(msg.sender, i);
+        }
+    }
+
+    /**
+     * @notice Mint a single token to a user
+     * @param _member The address of the member to mint a single NFT
+     * @dev All NFTs minted to normal members are active from the start
+     */
     function _mintSingle(address _member) internal nonReentrant {
         AddressAndStates._notZeroAddress(_member);
         require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
@@ -202,6 +252,11 @@ contract RevShareModule is
         emit OnRevShareNFTMinted(_member, newTokenId);
     }
 
+    /**
+     * @notice Activate a single token from a coupon buyer
+     * @param _couponBuyer The address of the coupon buyer to activate the NFT
+     * @param _amount The amount of USDC redeemed by the coupon buyer
+     */
     function _activateSingle(address _couponBuyer, uint256 _amount) internal {
         AddressAndStates._notZeroAddress(_couponBuyer);
         uint256 bal = balanceOf(_couponBuyer);
@@ -214,49 +269,27 @@ contract RevShareModule is
         if (newRedeemedAmount < MAX_CONTRIBUTION) {
             couponRedeemedAmountsByBuyer[_couponBuyer] = newRedeemedAmount;
             emit OnCouponAmountRedeemedByBuyerIncreased(_couponBuyer, _amount);
-        } else {
-            couponAmountsByBuyer[_couponBuyer] = newRedeemedAmount - MAX_CONTRIBUTION;
 
-            // Update the revenues
-            _updateRevenue(_couponBuyer);
-            _updateRevenue(takadaoOperator);
+            // We finish execution
+            return;
+        }
 
-            // It is only possible to activate one NFT at a time, so we break the loop after finding the first inactive one
-            for (uint256 i; i < bal; ++i) {
-                uint256 tokenId = tokenOfOwnerByIndex(_couponBuyer, i);
-                if (!isNFTActive[tokenId]) {
-                    isNFTActive[tokenId] = true;
-                    emit OnRevShareNFTActivated(_couponBuyer, tokenId);
-                    break;
-                }
+        couponRedeemedAmountsByBuyer[_couponBuyer] = newRedeemedAmount - MAX_CONTRIBUTION;
+
+        // Update the revenues
+        _updateRevenue(_couponBuyer);
+        _updateRevenue(takadaoOperator);
+
+        // It is only possible to activate one NFT at a time, so we break the loop after finding the first inactive one
+        for (uint256 i; i < bal; ++i) {
+            uint256 tokenId = tokenOfOwnerByIndex(_couponBuyer, i);
+            if (!isNFTActive[tokenId]) {
+                isNFTActive[tokenId] = true;
+                emit OnRevShareNFTActivated(_couponBuyer, tokenId);
+                break;
             }
         }
     }
-
-    // function batchMint() external nonReentrant {
-    //     require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
-    //     require(
-    //         couponAmountsByBuyer[msg.sender] >= MAX_CONTRIBUTION,
-    //         RevShareModule__NotAllowedToMint()
-    //     );
-
-    //     // Check how many NFTs the coupon buyer can mint
-    //     uint256 maxNFTsAllowed = couponAmountsByBuyer[msg.sender] / MAX_CONTRIBUTION;
-    //     // In case the coupon buyer have already minted some NFTs, we take that into account
-    //     uint256 currentAllowedToMint = maxNFTsAllowed - balanceOf(msg.sender);
-
-    //     uint256 currentTokenId = totalSupply();
-
-    //     uint256 firstNewTokenId = currentTokenId + 1;
-    //     uint256 lastNewTokenId = currentTokenId + currentAllowedToMint;
-
-    //     // Non NFT will be active for coupon buyers until 250 USDC in coupons are redeemed
-    //     for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
-    //         _safeMint(msg.sender, i);
-
-    //         emit OnRevShareNFTMinted(msg.sender, i);
-    //     }
-    // }
 
     // function transfer(address to, uint256 tokenId) external {
     //     require(isNFTActive[tokenId], RevShareModule__NotActiveToken());
