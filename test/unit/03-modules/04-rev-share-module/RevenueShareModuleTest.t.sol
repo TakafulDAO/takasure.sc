@@ -291,55 +291,146 @@ contract RevShareModuleTest is Test {
                                 ACTIVATE
     //////////////////////////////////////////////////////////////*/
 
-    // function testRevShareModule_activateTokenRevertsIfNoCouponIsRedeemed()
-    //     public
-    //     increaseCouponAmountByBuyer
-    //     batchMint
-    // {
-    //     vm.prank(couponBuyer);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NotEnoughRedeemedAmount.selector);
-    //     revShareModule.activateNFT();
-    // }
+    function testRevShareModule_activateTokenRevertsIfBuyerIsAddressZero() public {
+        vm.prank(minter);
+        vm.expectRevert();
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.ACTIVATE_NFT,
+            address(0),
+            address(0),
+            0
+        );
+    }
 
-    // function testRevShareModule_activateToken()
-    //     public
-    //     increaseCouponAmountByBuyer
-    //     batchMint
-    //     increaseCouponRedeemedAmountByBuyer
-    // {
-    //     uint256 lastUpdatedTimestamp_initialState = revShareModule.lastUpdatedTimestamp();
-    //     bool isNftActive_initialState = revShareModule.isNFTActive(1);
-    //     uint256 userRevenue_initialState = revShareModule.revenues(couponBuyer);
-    //     uint256 revenuePerNFTOwned_initialState = revShareModule.revenuePerNFTOwned();
-    //     uint256 userRevenuePerNftPaid_initialState = revShareModule.userRevenuePerNFTPaid(
-    //         couponBuyer
-    //     );
+    function testRevShareModule_activateTokenRevertsIfBuyerDoesNotHaveNfts() public {
+        vm.prank(minter);
+        vm.expectRevert(RevShareModule.RevShareModule__MintNFTFirst.selector);
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.ACTIVATE_NFT,
+            address(0),
+            couponBuyer,
+            0
+        );
+    }
 
-    //     vm.prank(couponBuyer);
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnRevShareNFTActivated(couponBuyer, 1);
-    //     revShareModule.activateNFT();
+    function testRevShareModule_activateTokenIncreaseRedeemedAmountIfNotEnoughToActivate()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+    {
+        assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
 
-    //     assert(revShareModule.lastUpdatedTimestamp() > lastUpdatedTimestamp_initialState);
-    //     assert(!isNftActive_initialState);
-    //     assert(revShareModule.isNFTActive(1));
-    //     assertEq(userRevenue_initialState, 0);
-    //     assertEq(revShareModule.revenues(couponBuyer), 0);
-    //     assertEq(revenuePerNFTOwned_initialState, 0);
-    //     assertApproxEqAbs(revShareModule.revenuePerNFTOwned(), 48e5, 100);
-    //     assertEq(userRevenuePerNftPaid_initialState, 0);
-    //     assertApproxEqAbs(revShareModule.userRevenuePerNFTPaid(couponBuyer), 48e5, 100);
-    // }
+        vm.prank(minter);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnCouponAmountRedeemedByBuyerIncreased(couponBuyer, 100e6);
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.ACTIVATE_NFT,
+            address(0),
+            couponBuyer,
+            100e6
+        );
 
-    // modifier activateNft() {
-    //     vm.prank(couponBuyer);
-    //     revShareModule.activateNFT();
-    //     _;
-    // }
+        assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 100e6);
+    }
 
-    // /*//////////////////////////////////////////////////////////////
-    //                            TRANSFERS
-    // //////////////////////////////////////////////////////////////*/
+    function testRevShareModule_activateToken() public increaseCouponAmountByBuyer batchMint {
+        uint256 lastUpdatedTimestamp_initialState = revShareModule.lastUpdatedTimestamp();
+        uint256 revenuePerNFTOwned_initialState = revShareModule.revenuePerNFTOwned();
+        uint256 userRevenue_initialState = revShareModule.revenues(couponBuyer);
+        uint256 userRevenuePerNftPaid_initialState = revShareModule.userRevenuePerNFTPaid(
+            couponBuyer
+        );
+        assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
+        assert(!revShareModule.isNFTActive(1));
+
+        vm.prank(minter);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnRevShareNFTActivated(couponBuyer, 1);
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.ACTIVATE_NFT,
+            address(0),
+            couponBuyer,
+            NFT_PRICE
+        );
+
+        assert(revShareModule.lastUpdatedTimestamp() > lastUpdatedTimestamp_initialState);
+        assertEq(revenuePerNFTOwned_initialState, 0);
+        assertEq(userRevenue_initialState, 0);
+        // assertEq(revShareModule.revenues(couponBuyer), 0); // todo: check this
+        assertApproxEqAbs(revShareModule.revenuePerNFTOwned(), 48e5, 100);
+        assertEq(userRevenuePerNftPaid_initialState, 0);
+        assertApproxEqAbs(revShareModule.userRevenuePerNFTPaid(couponBuyer), 48e5, 100);
+        assert(revShareModule.isNFTActive(1));
+        assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
+    }
+
+    function testRevShareModule_activateTokenActivatesOnlyOneAndRewriteCouponsRedeemed()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+    {
+        assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
+        assert(!revShareModule.isNFTActive(1));
+
+        vm.prank(minter);
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.ACTIVATE_NFT,
+            address(0),
+            couponBuyer,
+            100e6
+        );
+
+        assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 100e6);
+        assert(!revShareModule.isNFTActive(1));
+
+        vm.prank(minter);
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.ACTIVATE_NFT,
+            address(0),
+            couponBuyer,
+            NFT_PRICE
+        );
+
+        assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 100e6);
+        assert(revShareModule.isNFTActive(1));
+    }
+
+    function testRevShareModule_activateTokenActivatesInOrder()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+    {
+        for (uint256 i = 1; i <= revShareModule.balanceOf(couponBuyer); i++) {
+            assert(!revShareModule.isNFTActive(i));
+
+            vm.prank(minter);
+            vm.expectEmit(true, false, false, false, address(revShareModule));
+            emit OnRevShareNFTActivated(couponBuyer, i);
+            revShareModule.mintOrActivate(
+                RevShareModule.Operation.ACTIVATE_NFT,
+                address(0),
+                couponBuyer,
+                NFT_PRICE
+            );
+
+            assert(revShareModule.isNFTActive(i));
+        }
+    }
+
+    modifier activateNft() {
+        vm.prank(minter);
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.ACTIVATE_NFT,
+            address(0),
+            couponBuyer,
+            NFT_PRICE
+        );
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               TRANSFERS
+    //////////////////////////////////////////////////////////////*/
 
     // function testRevShareModule_transferInactiveNftReverts()
     //     public

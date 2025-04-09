@@ -85,6 +85,7 @@ contract RevShareModule is
     error RevShareModule__MintNFTFirst();
     error RevShareModule__NotAllowed();
     error RevShareModule__NotActiveToken();
+    error RevShareModule__OperationNotAllowed();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
@@ -166,8 +167,10 @@ contract RevShareModule is
     ) external onlyRole(MINTER_ROLE) {
         if (operation == Operation.SINGLE_MINT) {
             _mintSingle(member);
-        } else {
+        } else if (operation == Operation.ACTIVATE_NFT) {
             _activateSingle(couponBuyer, amount);
+        } else {
+            revert RevShareModule__OperationNotAllowed();
         }
     }
 
