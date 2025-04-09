@@ -27,7 +27,7 @@ contract RevShareModuleTest is Test {
     address joiner = makeAddr("joiner");
     address joinerMax = makeAddr("joinerMax");
     address joinerMaxNoKyc = makeAddr("joinerMaxNoKyc");
-    uint256 public constant MAX_CONTRIBUTION = 250e6; // 250 USDC
+    uint256 public constant NFT_PRICE = 250e6; // 250 USDC
     uint256 public constant NO_MAX_CONTRIBUTION = 25e6; // 25 USDC
     uint256 public constant NO_MAX_COUPON = 200e6; // 200 USDC
     uint256 public constant YEAR = 365 days;
@@ -73,16 +73,19 @@ contract RevShareModuleTest is Test {
         vm.roll(block.number + 1);
     }
 
-    // /*//////////////////////////////////////////////////////////////
-    //                               INIT
-    // //////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                  INIT
+    //////////////////////////////////////////////////////////////*/
 
-    // function testRevShareModule_initialValues() public view {
-    //     assertEq(revShareModule.MAX_CONTRIBUTION(), MAX_CONTRIBUTION);
-    //     assertEq(revShareModule.MAX_SUPPLY(), 18_000);
-    //     assertEq(revShareModule.lastUpdatedTimestamp(), 1);
-    //     assertEq(revShareModule.totalSupply(), 0);
-    // }
+    function testRevShareModule_initialValues() public view {
+        assertEq(revShareModule.NFT_PRICE(), NFT_PRICE);
+        assertEq(revShareModule.MAX_SUPPLY(), 18_000);
+        assertEq(revShareModule.lastUpdatedTimestamp(), 1);
+        assertEq(revShareModule.totalSupply(), 0);
+        assert(revShareModule.hasRole(revShareModule.MINTER_ROLE(), minter));
+        assert(revShareModule.hasRole(0x00, takadao));
+        assert(revShareModule.hasRole(keccak256("TAKADAO_OPERATOR"), takadao));
+    }
 
     // /*//////////////////////////////////////////////////////////////
     //                         INCREASE COUPON
