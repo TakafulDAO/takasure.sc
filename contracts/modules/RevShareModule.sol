@@ -175,13 +175,13 @@ contract RevShareModule is
         uint256 amount
     ) external onlyRole(MINTER_ROLE) {
         if (operation == Operation.SINGLE_MINT) {
-            _singleMint(member);
+            _mintSingle(member);
         } else {
-            _activateNFT(couponBuyer, amount);
+            _activateSingle(couponBuyer, amount);
         }
     }
 
-    function _singleMint(address _member) internal nonReentrant {
+    function _mintSingle(address _member) internal nonReentrant {
         AddressAndStates._notZeroAddress(_member);
         require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
         require(!claimedNFTs[_member], RevShareModule__NotAllowedToMint());
@@ -202,7 +202,7 @@ contract RevShareModule is
         emit OnRevShareNFTMinted(_member, newTokenId);
     }
 
-    function _activateNFT(address _couponBuyer, uint256 _amount) internal {
+    function _activateSingle(address _couponBuyer, uint256 _amount) internal {
         AddressAndStates._notZeroAddress(_couponBuyer);
         uint256 bal = balanceOf(_couponBuyer);
         require(bal > 0, RevShareModule__MintNFTFirst());
