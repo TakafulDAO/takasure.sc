@@ -87,129 +87,51 @@ contract RevShareModuleTest is Test {
         assert(revShareModule.hasRole(keccak256("TAKADAO_OPERATOR"), takadao));
     }
 
-    // /*//////////////////////////////////////////////////////////////
-    //                         INCREASE COUPON
-    // //////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                            INCREASE COUPON
+    //////////////////////////////////////////////////////////////*/
 
-    // function testRevShareModule_increaseCouponAmountByBuyerRevertsIfCallerIsWrong() public {
-    //     vm.prank(joinerMaxNoKyc);
-    //     vm.expectRevert();
-    //     revShareModule.increaseCouponAmountByBuyer(couponBuyer, 5 * MAX_CONTRIBUTION);
-    // }
+    function testRevShareModule_increaseCouponAmountByBuyerRevertsIfCallerIsWrong() public {
+        vm.prank(joinerMaxNoKyc);
+        vm.expectRevert();
+        revShareModule.increaseCouponAmountByBuyer(couponBuyer, 5 * NFT_PRICE);
+    }
 
-    // function testRevShareModule_increaseCouponAmountByBuyerRevertsIfBuyerIsAddressZero() public {
-    //     vm.prank(couponRedeemer);
-    //     vm.expectRevert();
-    //     revShareModule.increaseCouponAmountByBuyer(address(0), 5 * MAX_CONTRIBUTION);
-    // }
+    function testRevShareModule_increaseCouponAmountByBuyerRevertsIfBuyerIsAddressZero() public {
+        vm.prank(minter);
+        vm.expectRevert();
+        revShareModule.increaseCouponAmountByBuyer(address(0), 5 * NFT_PRICE);
+    }
 
-    // function testRevShareModule_increaseCouponAmountByBuyerRevertsIfCouponIsZero() public {
-    //     vm.prank(couponRedeemer);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NotZeroAmount.selector);
-    //     revShareModule.increaseCouponAmountByBuyer(couponBuyer, 0);
-    // }
+    function testRevShareModule_increaseCouponAmountByBuyerRevertsIfCouponIsZero() public {
+        vm.prank(minter);
+        vm.expectRevert(RevShareModule.RevShareModule__NotZeroAmount.selector);
+        revShareModule.increaseCouponAmountByBuyer(couponBuyer, 0);
+    }
 
-    // function testRevShareModule_increaseCouponAmountByBuyer() public {
-    //     assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 0);
+    function testRevShareModule_increaseCouponAmountByBuyer() public {
+        assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 0);
 
-    //     vm.prank(couponRedeemer);
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnCouponAmountByBuyerIncreased(couponBuyer, 5 * MAX_CONTRIBUTION);
-    //     revShareModule.increaseCouponAmountByBuyer(couponBuyer, 5 * MAX_CONTRIBUTION);
+        uint256 amountToIncrease = (5 * NFT_PRICE) + 100e6;
 
-    //     assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 5 * MAX_CONTRIBUTION);
-    // }
+        vm.prank(minter);
+        vm.expectEmit(true, false, false, false, address(revShareModule));
+        emit OnCouponAmountByBuyerIncreased(couponBuyer, amountToIncrease); // 1350USDC
+        revShareModule.increaseCouponAmountByBuyer(couponBuyer, amountToIncrease);
 
-    // modifier increaseCouponAmountByBuyer() {
-    //     vm.startPrank(couponRedeemer);
-    //     revShareModule.increaseCouponAmountByBuyer(couponBuyer, 5 * MAX_CONTRIBUTION);
-    //     vm.stopPrank();
-    //     _;
-    // }
+        assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), amountToIncrease);
+    }
 
-    // function testRevShareModule_increaseCouponRedeemedAmountByBuyerRevertIfWrongCaller()
-    //     public
-    //     increaseCouponAmountByBuyer
-    // {
-    //     vm.prank(joinerMaxNoKyc);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NotAllowed.selector);
-    //     revShareModule.increaseCouponRedeemedAmountByBuyer(
-    //         couponBuyer,
-    //         couponJoiner,
-    //         NO_MAX_COUPON
-    //     );
-    // }
+    modifier increaseCouponAmountByBuyer() {
+        vm.startPrank(minter);
+        revShareModule.increaseCouponAmountByBuyer(couponBuyer, (5 * NFT_PRICE) + 100e6);
+        vm.stopPrank();
+        _;
+    }
 
-    // function testRevShareModule_increaseCouponRedeemedAmountByBuyerRevertsIfBuyerIsAddressZero()
-    //     public
-    //     increaseCouponAmountByBuyer
-    // {
-    //     vm.prank(address(entryModule));
-    //     vm.expectRevert();
-    //     revShareModule.increaseCouponRedeemedAmountByBuyer(address(0), couponJoiner, NO_MAX_COUPON);
-    // }
-
-    // function testRevShareModule_increaseCouponRedeemedAmountByBuyerRevertsIfJoinerIsAddressZero()
-    //     public
-    //     increaseCouponAmountByBuyer
-    // {
-    //     vm.prank(address(entryModule));
-    //     vm.expectRevert();
-    //     revShareModule.increaseCouponRedeemedAmountByBuyer(couponBuyer, address(0), NO_MAX_COUPON);
-    // }
-
-    // function testRevShareModule_increaseCouponRedeemedAmountByBuyer()
-    //     public
-    //     increaseCouponAmountByBuyer
-    // {
-    //     assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
-
-    //     vm.prank(address(entryModule));
-    //     vm.expectEmit(true, false, false, false, address(revShareModule));
-    //     emit OnCouponAmountRedeemedByBuyerIncreased(couponBuyer, MAX_CONTRIBUTION);
-    //     revShareModule.increaseCouponRedeemedAmountByBuyer(
-    //         couponBuyer,
-    //         couponJoinerMax,
-    //         MAX_CONTRIBUTION
-    //     );
-
-    //     assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), MAX_CONTRIBUTION);
-    // }
-
-    // modifier increaseCouponRedeemedAmountByBuyer() {
-    //     vm.prank(address(entryModule));
-    //     revShareModule.increaseCouponRedeemedAmountByBuyer(
-    //         couponBuyer,
-    //         couponJoiner,
-    //         NO_MAX_COUPON
-    //     );
-
-    //     vm.prank(address(entryModule));
-    //     revShareModule.increaseCouponRedeemedAmountByBuyer(
-    //         couponBuyer,
-    //         couponJoinerMax,
-    //         MAX_CONTRIBUTION
-    //     );
-    //     _;
-    // }
-
-    // function testRevShareModule_increaseCouponRedeemedAmountByBuyerRevertsIfReddemedTheSameCoupon()
-    //     public
-    //     increaseCouponAmountByBuyer
-    //     increaseCouponRedeemedAmountByBuyer
-    // {
-    //     vm.prank(address(entryModule));
-    //     vm.expectRevert(RevShareModule.RevShareModule__AlreadySetCoupon.selector);
-    //     revShareModule.increaseCouponRedeemedAmountByBuyer(
-    //         couponBuyer,
-    //         couponJoiner,
-    //         NO_MAX_COUPON
-    //     );
-    // }
-
-    // /*//////////////////////////////////////////////////////////////
-    //                               MINT
-    // //////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                                  MINT
+    //////////////////////////////////////////////////////////////*/
 
     // function testRevShareModule_mintMustRevertIfNoKycEvenIfMaxContribution() public {
     //     vm.prank(joinerMaxNoKyc);

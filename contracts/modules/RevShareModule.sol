@@ -92,7 +92,6 @@ contract RevShareModule is
     }
 
     // TODO: Initialize the URI when set, skip for now just for easier testing, but needed for production
-    // ? New role for the backend here?
     function initialize(
         address _operator,
         address _minter,
@@ -112,6 +111,7 @@ contract RevShareModule is
         _grantRole(0x00, _operator);
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, _operator);
         _grantRole(ModuleConstants.MODULE_MANAGER, _moduleManager);
+        _grantRole(ModuleConstants.COUPON_REDEEMER, _minter);
         _grantRole(MINTER_ROLE, _minter);
 
         usdc = IERC20(_usdc);
