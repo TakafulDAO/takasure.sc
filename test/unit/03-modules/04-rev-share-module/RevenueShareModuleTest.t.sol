@@ -432,69 +432,67 @@ contract RevShareModuleTest is Test {
                                TRANSFERS
     //////////////////////////////////////////////////////////////*/
 
-    // function testRevShareModule_transferInactiveNftReverts()
-    //     public
-    //     increaseCouponAmountByBuyer
-    //     batchMint
-    // {
-    //     vm.prank(couponBuyer);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NotActiveToken.selector);
-    //     revShareModule.transfer(joinerMax, 1);
-    // }
+    function testRevShareModule_transferInactiveNftReverts()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+    {
+        vm.prank(couponBuyer);
+        vm.expectRevert(RevShareModule.RevShareModule__NotActiveToken.selector);
+        revShareModule.transfer(joinerMax, 1);
+    }
 
-    // function testRevShareModule_transferFromInactiveNftReverts()
-    //     public
-    //     increaseCouponAmountByBuyer
-    //     batchMint
-    // {
-    //     vm.prank(couponBuyer);
-    //     revShareModule.setApprovalForAll(revShareModuleAddress, true);
+    function testRevShareModule_transferFromInactiveNftReverts()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+    {
+        vm.prank(couponBuyer);
+        revShareModule.setApprovalForAll(revShareModuleAddress, true);
 
-    //     vm.prank(revShareModuleAddress);
-    //     vm.expectRevert(RevShareModule.RevShareModule__NotActiveToken.selector);
-    //     revShareModule.transferFrom(couponBuyer, joinerMax, 1);
-    // }
+        vm.prank(revShareModuleAddress);
+        vm.expectRevert(RevShareModule.RevShareModule__NotActiveToken.selector);
+        revShareModule.transferFrom(couponBuyer, joinerMax, 1);
+    }
 
-    // function testRevShareModule_transferNft()
-    //     public
-    //     increaseCouponAmountByBuyer
-    //     batchMint
-    //     increaseCouponRedeemedAmountByBuyer
-    //     activateNft
-    // {
-    //     assertEq(revShareModule.balanceOf(couponBuyer), 5);
-    //     assertEq(revShareModule.balanceOf(joinerMax), 0);
+    function testRevShareModule_transferNft()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+        activateNft
+    {
+        assertEq(revShareModule.balanceOf(couponBuyer), 5);
+        assertEq(revShareModule.balanceOf(joinerMax), 0);
 
-    //     vm.prank(couponBuyer);
-    //     revShareModule.transfer(joinerMax, 1);
+        vm.prank(couponBuyer);
+        revShareModule.transfer(joinerMax, 1);
 
-    //     assertEq(revShareModule.balanceOf(couponBuyer), 4);
-    //     assertEq(revShareModule.balanceOf(joinerMax), 1);
-    // }
+        assertEq(revShareModule.balanceOf(couponBuyer), 4);
+        assertEq(revShareModule.balanceOf(joinerMax), 1);
+    }
 
-    // function testRevShareModule_transferFromNft()
-    //     public
-    //     increaseCouponAmountByBuyer
-    //     batchMint
-    //     increaseCouponRedeemedAmountByBuyer
-    //     activateNft
-    // {
-    //     assertEq(revShareModule.balanceOf(couponBuyer), 5);
-    //     assertEq(revShareModule.balanceOf(joinerMax), 0);
+    function testRevShareModule_transferFromNft()
+        public
+        increaseCouponAmountByBuyer
+        batchMint
+        activateNft
+    {
+        assertEq(revShareModule.balanceOf(couponBuyer), 5);
+        assertEq(revShareModule.balanceOf(joinerMax), 0);
 
-    //     vm.prank(couponBuyer);
-    //     revShareModule.setApprovalForAll(revShareModuleAddress, true);
+        vm.prank(couponBuyer);
+        revShareModule.setApprovalForAll(revShareModuleAddress, true);
 
-    //     vm.prank(revShareModuleAddress);
-    //     revShareModule.transferFrom(couponBuyer, joinerMax, 1);
+        vm.prank(revShareModuleAddress);
+        revShareModule.transferFrom(couponBuyer, joinerMax, 1);
 
-    //     assertEq(revShareModule.balanceOf(couponBuyer), 4);
-    //     assertEq(revShareModule.balanceOf(joinerMax), 1);
-    // }
+        assertEq(revShareModule.balanceOf(couponBuyer), 4);
+        assertEq(revShareModule.balanceOf(joinerMax), 1);
+    }
 
-    // /*//////////////////////////////////////////////////////////////
-    //                          CLAIM REVENUE
-    // //////////////////////////////////////////////////////////////*/
+    /*//////////////////////////////////////////////////////////////
+                             CLAIM REVENUE
+    //////////////////////////////////////////////////////////////*/
 
     // function testRevShareModule_claimRevenueRevertsIfNoToken() public {
     //     vm.prank(joinerMax);
