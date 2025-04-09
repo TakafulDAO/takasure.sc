@@ -243,11 +243,11 @@ contract RevShareModule is
         _updateRevenue(_member);
         _updateRevenue(takadaoOperator);
 
-        _safeMint(_member, newTokenId);
-
         // All NFTs minted to normal members are active from the start
         isNFTActive[newTokenId] = true;
         claimedNFTs[_member] = true;
+
+        _safeMint(_member, newTokenId);
 
         emit OnRevShareNFTMinted(_member, newTokenId);
     }
