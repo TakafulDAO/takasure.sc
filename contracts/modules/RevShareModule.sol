@@ -109,7 +109,7 @@ contract RevShareModule is
         __ERC721_init("RevShareNFT", "RSNFT");
         __ERC721Enumerable_init();
 
-        _grantRole(0x00, _operator);
+        _grantRole(DEFAULT_ADMIN_ROLE, _operator);
         _grantRole(ModuleConstants.TAKADAO_OPERATOR, _operator);
         _grantRole(ModuleConstants.MODULE_MANAGER, _moduleManager);
         _grantRole(ModuleConstants.COUPON_REDEEMER, _minter);
