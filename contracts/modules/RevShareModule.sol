@@ -23,8 +23,6 @@ import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConst
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {console2} from "forge-std/Test.sol";
-
 pragma solidity 0.8.28;
 
 contract RevShareModule is
@@ -171,8 +169,6 @@ contract RevShareModule is
             _mintSingle(member);
         } else if (operation == Operation.ACTIVATE_NFT) {
             _activateSingle(couponBuyer, amount);
-        } else {
-            revert RevShareModule__OperationNotAllowed();
         }
     }
 
@@ -361,7 +357,6 @@ contract RevShareModule is
     }
 
     function _updateRevenue(address _user) internal {
-        console2.log("AQUIIIIII");
         revenuePerNFTOwned = _revenuePerNFT();
         lastUpdatedTimestamp = block.timestamp;
 

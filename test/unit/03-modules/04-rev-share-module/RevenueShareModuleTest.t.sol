@@ -4,33 +4,22 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
-import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract RevShareModuleTest is Test {
     TestDeployProtocol deployer;
-    TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     RevShareModule revShareModule;
     IUSDC usdc;
-    address admin;
     address takadao;
     address minter;
-    address takasureReserveProxy;
     address contributionTokenAddress;
     address revShareModuleAddress;
     address couponBuyer = makeAddr("couponBuyer");
-    address couponJoiner = makeAddr("couponJoiner");
-    address couponJoinerMax = makeAddr("couponJoinerMax");
-    address joiner = makeAddr("joiner");
     address joinerMax = makeAddr("joinerMax");
-    address joinerMaxNoKyc = makeAddr("joinerMaxNoKyc");
     uint256 public constant NFT_PRICE = 250e6; // 250 USDC
-    uint256 public constant NO_MAX_CONTRIBUTION = 25e6; // 25 USDC
-    uint256 public constant NO_MAX_COUPON = 200e6; // 200 USDC
-    uint256 public constant YEAR = 365 days;
 
     event OnRevShareNFTMinted(address indexed member, uint256 tokenId);
     event OnRevShareNFTActivated(address indexed couponBuyer, uint256 tokenId);
@@ -41,29 +30,15 @@ contract RevShareModuleTest is Test {
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (
-            ,
-            ,
-            takasureReserveProxy,
-            ,
-            ,
-            ,
-            ,
-            revShareModuleAddress,
-            ,
-            contributionTokenAddress,
-            ,
-            helperConfig
-        ) = deployer.run();
+        (, , , , , , , revShareModuleAddress, , contributionTokenAddress, , helperConfig) = deployer
+            .run();
 
         revShareModule = RevShareModule(revShareModuleAddress);
 
-        takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        admin = config.daoMultisig;
         minter = config.kycProvider;
         takadao = config.takadaoOperator;
 
@@ -92,7 +67,7 @@ contract RevShareModuleTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testRevShareModule_increaseCouponAmountByBuyerRevertsIfCallerIsWrong() public {
-        vm.prank(joinerMaxNoKyc);
+        vm.prank(joinerMax);
         vm.expectRevert();
         revShareModule.increaseCouponAmountByBuyer(couponBuyer, 5 * NFT_PRICE);
     }
@@ -508,7 +483,6 @@ contract RevShareModuleTest is Test {
         assertEq(revShareModule.getRevenueEarnedByUser(joinerMax), 0);
     }
 
-    // Todo: check this
     function testRevShareModule_claimRevenueSuccessfully() public singleMint {
         uint256 initialRevenuePerNFT = revShareModule.getRevenuePerNFT();
         uint256 initialUserBalance = usdc.balanceOf(joinerMax);
