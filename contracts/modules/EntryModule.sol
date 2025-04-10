@@ -4,7 +4,8 @@
  * @title EntryModule
  * @author Maikel Ordaz
  * @notice This contract manage all the process to become a member
- * @dev It will interact with the TakasureReserve contract to update the values
+ * @dev Important notes:
+ *      1. Prejoiners must join from the prejoin module
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -55,6 +56,7 @@ contract EntryModule is
     address private prejoinModule;
     address private couponPool;
     address private ccipReceiverContract;
+    address private revShareModule;
 
     mapping(address child => address parent) public childToParent;
     mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
@@ -62,7 +64,7 @@ contract EntryModule is
 
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
-    bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
+    uint256 private constant TO_REV_SHARE = 13; // 13% of contribution to RevShare module
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
@@ -82,7 +84,8 @@ contract EntryModule is
         address _takasureReserveAddress,
         address _prejoinModule,
         address _ccipReceiverContract,
-        address _couponPool
+        address _couponPool,
+        address _revShareModule
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -95,6 +98,7 @@ contract EntryModule is
         prejoinModule = _prejoinModule;
         ccipReceiverContract = _ccipReceiverContract;
         couponPool = _couponPool;
+        revShareModule = _revShareModule;        
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
@@ -213,7 +217,9 @@ contract EntryModule is
             couponAmount
         );
 
-        if (couponAmount > 0) emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        if (couponAmount > 0) {
+            emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        }
     }
 
     /**
@@ -770,8 +776,9 @@ contract EntryModule is
 
         uint256 _amountToTransferFromMember;
 
-        if (_couponAmount > 0) {
-            _amountToTransferFromMember = contributionAfterFee - discount - _couponAmount;
+        if (_couponAmount > 0) { 
+            if (_couponAmount < contributionAfterFee) 
+            _amountToTransferFromMember = contributionAfterFee - _couponAmount - discount;       
         } else {
             _amountToTransferFromMember = contributionAfterFee - discount;
         }
@@ -805,18 +812,28 @@ contract EntryModule is
                 contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
             }
 
+            // Calculate mount to be transferred to the RevShare module
+            uint256 toRevShare = (normalizedContributionBeforeFee * TO_REV_SHARE) / 100;
+
+            // Transfer the RevShare amount to the RevShare module
+            contributionToken.safeTransferFrom(
+                _memberWallet,
+                address(revShareModule),
+                toRevShare
+            );
+
             // Transfer the service fee to the fee claim address
             contributionToken.safeTransferFrom(
                 _memberWallet,
                 takasureReserve.feeClaimAddress(),
-                feeAmount
+                feeAmount - toRevShare
             );
         }
     }
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
             EntryModule__NotAuthorizedCaller()
         );
     }

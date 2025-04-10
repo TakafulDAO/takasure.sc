@@ -39,6 +39,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
             ,
             ,
             ,
+            ,
             referralGatewayAddress,
             contributionTokenAddress,
             ,

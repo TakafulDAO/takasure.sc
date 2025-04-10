@@ -39,7 +39,7 @@ contract CouponCodeAndCcipTest is Test {
         // Deployer
         deployer = new TestDeployProtocol();
         // Deploy contracts
-        (, bmConsumerMock, , prejoinModuleAddress, , , , , usdcAddress, , helperConfig) = deployer
+        (, bmConsumerMock, , prejoinModuleAddress, , , , , , usdcAddress, , helperConfig) = deployer
             .run();
 
         // Get config values

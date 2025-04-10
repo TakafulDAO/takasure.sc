@@ -40,6 +40,7 @@ contract PrejoinModuleInvariantTest is StdInvariant, Test {
             ,
             ,
             ,
+            ,
             contributionTokenAddress,
             ,
             helperConfig

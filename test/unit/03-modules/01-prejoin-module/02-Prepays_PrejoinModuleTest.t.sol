@@ -62,6 +62,7 @@ contract PrepaysPrejoinModuleTest is Test {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig
