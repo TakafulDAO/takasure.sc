@@ -48,6 +48,7 @@ contract RevertsPrejoinModuleTest is Test {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig
