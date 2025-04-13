@@ -49,6 +49,8 @@ contract RevShareModule is
 
     uint256 public constant NFT_PRICE = 250e6; // 250 USDC, this is the max contribution
     uint256 public constant MAX_SUPPLY = 18_000;
+    uint256 public constant TAKADAO_BALANCE = 9_180; // Not minted, but we'll assume it is minted for the revenue calculation
+    uint256 public constant PIONEERS_MAX_SUPPLY = 8_820; // Tokens to mint
     uint256 private constant DECIMAL_CORRECTION = 1e6;
 
     uint256 private revenueRate;
@@ -183,7 +185,7 @@ contract RevShareModule is
         uint256 couponAmount
     ) external nonReentrant onlyRole(MINTER_ROLE) {
         AddressAndStates._notZeroAddress(couponBuyer);
-        require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
+        require(totalSupply() < PIONEERS_MAX_SUPPLY, RevShareModule__MaxSupplyReached());
 
         uint256 totalCouponAmount = couponAmountsByBuyer[couponBuyer] + couponAmount;
         require(totalCouponAmount > 0, RevShareModule__NotZeroAmount());
@@ -254,7 +256,7 @@ contract RevShareModule is
     function claimRevenue() external {
         uint256 bal;
 
-        if (msg.sender == takadaoOperator) bal = MAX_SUPPLY - totalSupply();
+        if (msg.sender == takadaoOperator) bal = TAKADAO_BALANCE;
         else bal = balanceOf(msg.sender);
 
         require(bal > 0, RevShareModule__NotNFTOwner());
@@ -298,7 +300,7 @@ contract RevShareModule is
      */
     function _mintSingle(address _member) internal nonReentrant {
         AddressAndStates._notZeroAddress(_member);
-        require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
+        require(totalSupply() < PIONEERS_MAX_SUPPLY, RevShareModule__MaxSupplyReached());
         require(!claimedNFTs[_member], RevShareModule__NotAllowedToMint());
 
         uint256 currentTokenId = totalSupply();
@@ -373,7 +375,7 @@ contract RevShareModule is
     function _revenueEarnedByUser(address _user) internal view returns (uint256) {
         uint256 bal;
 
-        if (_user == takadaoOperator) bal = MAX_SUPPLY - totalSupply();
+        if (_user == takadaoOperator) bal = TAKADAO_BALANCE;
         else bal = balanceOf(_user);
 
         uint256 activeNFTs;
