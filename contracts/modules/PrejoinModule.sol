@@ -30,7 +30,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-/// @custom:oz-upgrades-from contracts/version_previous_contracts/PrejoinModuleV1.sol:PrejoinModuleV1
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/ReferralGatewayV1.sol:ReferralGatewayV1
 contract PrejoinModule is
     Initializable,
     UUPSUpgradeable,
