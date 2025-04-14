@@ -74,7 +74,7 @@ contract PrejoinModule is
                                  ROLES
     //////////////////////////////////////////////////////////////*/
 
-    bytes32 private constant OPERATOR = keccak256("OPERATOR");
+    bytes32 private constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
     bytes32 private constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
     bytes32 internal constant MODULE_MANAGER = keccak256("MODULE_MANAGER");
@@ -192,7 +192,7 @@ contract PrejoinModule is
         uint256 launchDate,
         uint256 objectiveAmount,
         address _bmConsumer
-    ) external onlyRole(OPERATOR) {
+    ) external onlyRole(TAKADAO_OPERATOR) {
         require(bytes(DAOName).length != 0, PrejoinModule__MustHaveName());
         require(
             !(Strings.equal(nameToDAOData[DAOName].name, DAOName)),
@@ -215,7 +215,7 @@ contract PrejoinModule is
     /**
      * @notice Update the DAO estimated launch date
      */
-    function updateLaunchDate(uint256 launchDate) external onlyRole(OPERATOR) {
+    function updateLaunchDate(uint256 launchDate) external onlyRole(TAKADAO_OPERATOR) {
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             PrejoinModule__DAOAlreadyLaunched()
@@ -229,7 +229,7 @@ contract PrejoinModule is
      * @notice Method to be called after a tDAO is deployed
      * @param tDAOAddress The address of the tDAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
-     * @dev Only callable from the OPERATOR
+     * @dev Only callable from the TAKADAO_OPERATOR
      * @dev The tDAOAddress must be different from 0
      * @dev It will disable the preJoinEnabled status of the DAO
      */
@@ -237,7 +237,7 @@ contract PrejoinModule is
         address tDAOAddress,
         address entryModuleAddress,
         bool isReferralDiscountEnabled
-    ) external onlyRole(OPERATOR) {
+    ) external onlyRole(TAKADAO_OPERATOR) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(tDAOAddress);
         AddressAndStates._notZeroAddress(entryModuleAddress);
@@ -267,7 +267,7 @@ contract PrejoinModule is
     /**
      * @notice Switch the referralDiscount status of a DAO
      */
-    function switchReferralDiscount() external onlyRole(OPERATOR) {
+    function switchReferralDiscount() external onlyRole(TAKADAO_OPERATOR) {
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
 
         emit OnReferralDiscountSwitched(nameToDAOData[tDAOName].referralDiscount);
@@ -277,7 +277,7 @@ contract PrejoinModule is
      * @notice Assign a rePool address to a tDAO name
      * @param rePoolAddress The address of the rePool
      */
-    function enableRepool(address rePoolAddress) external onlyRole(OPERATOR) {
+    function enableRepool(address rePoolAddress) external onlyRole(TAKADAO_OPERATOR) {
         AddressAndStates._notZeroAddress(rePoolAddress);
         require(nameToDAOData[tDAOName].DAOAddress != address(0), PrejoinModule__tDAONotReadyYet());
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
@@ -285,7 +285,7 @@ contract PrejoinModule is
         emit OnRepoolEnabled(rePoolAddress);
     }
 
-    function transferToRepool() external onlyRole(OPERATOR) {
+    function transferToRepool() external onlyRole(TAKADAO_OPERATOR) {
         require(moduleState != ModuleState.Deprecated, PrejoinModule__WrongModuleState());
         require(nameToDAOData[tDAOName].rePoolAddress != address(0), PrejoinModule__ZeroAddress());
         require(nameToDAOData[tDAOName].toRepool > 0, PrejoinModule__ZeroAmount());
@@ -449,9 +449,9 @@ contract PrejoinModule is
     /**
      * @notice Refund a prepaid member if the DAO is not deployed at launch date
      * @param member The address of the member
-     * @dev Intended to be called by the OPERATOR in spetial cases
+     * @dev Intended to be called by the TAKADAO_OPERATOR in spetial cases
      */
-    function refundByAdmin(address member) external onlyRole(OPERATOR) {
+    function refundByAdmin(address member) external onlyRole(TAKADAO_OPERATOR) {
         _refund(member);
     }
 
@@ -459,7 +459,7 @@ contract PrejoinModule is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function setUsdcAddress(address _usdcAddress) external onlyRole(OPERATOR) {
+    function setUsdcAddress(address _usdcAddress) external onlyRole(TAKADAO_OPERATOR) {
         address oldUsdc = address(usdc);
         usdc = IERC20(_usdcAddress);
 
@@ -468,7 +468,7 @@ contract PrejoinModule is
 
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
-    ) external onlyRole(OPERATOR) {
+    ) external onlyRole(TAKADAO_OPERATOR) {
         AddressAndStates._notZeroAddress(newBenefitMultiplierConsumer);
         address oldBenefitMultiplierConsumer = address(nameToDAOData[tDAOName].bmConsumer);
         nameToDAOData[tDAOName].bmConsumer = IBenefitMultiplierConsumer(
@@ -481,7 +481,7 @@ contract PrejoinModule is
         );
     }
 
-    function setNewOperator(address newOperator) external onlyRole(OPERATOR) {
+    function setNewOperator(address newOperator) external onlyRole(TAKADAO_OPERATOR) {
         AddressAndStates._notZeroAddress(newOperator);
         address oldOperator = operator;
 
@@ -489,22 +489,24 @@ contract PrejoinModule is
         operator = newOperator;
 
         // Fixing the roles
-        _grantRole(OPERATOR, newOperator);
-        _revokeRole(OPERATOR, msg.sender);
+        _grantRole(TAKADAO_OPERATOR, newOperator);
+        _revokeRole(TAKADAO_OPERATOR, msg.sender);
 
         usdc.safeTransferFrom(oldOperator, newOperator, usdc.balanceOf(oldOperator));
 
         emit OnNewOperator(oldOperator, newOperator);
     }
 
-    function setCouponPoolAddress(address _couponPool) external onlyRole(OPERATOR) {
+    function setCouponPoolAddress(address _couponPool) external onlyRole(TAKADAO_OPERATOR) {
         AddressAndStates._notZeroAddress(_couponPool);
         address oldCouponPool = couponPool;
         couponPool = _couponPool;
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
     }
 
-    function setCCIPReceiverContract(address _ccipReceiverContract) external onlyRole(OPERATOR) {
+    function setCCIPReceiverContract(
+        address _ccipReceiverContract
+    ) external onlyRole(TAKADAO_OPERATOR) {
         AddressAndStates._notZeroAddress(_ccipReceiverContract);
         address oldCCIPReceiverContract = ccipReceiverContract;
         ccipReceiverContract = _ccipReceiverContract;
@@ -589,7 +591,7 @@ contract PrejoinModule is
 
     function _grantRoles(address _operator, address _KYCProvider) internal {
         _grantRole(DEFAULT_ADMIN_ROLE, _operator);
-        _grantRole(OPERATOR, _operator);
+        _grantRole(TAKADAO_OPERATOR, _operator);
         _grantRole(KYC_PROVIDER, _KYCProvider);
     }
 
@@ -840,10 +842,12 @@ contract PrejoinModule is
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(TAKADAO_OPERATOR) {}
 
     /// @dev this function can be removed when the contract is deployed
-    function setDAOName(string calldata newDAOName) external onlyRole(OPERATOR) {
+    function setDAOName(string calldata newDAOName) external onlyRole(TAKADAO_OPERATOR) {
         tDAOName = newDAOName;
     }
 }
