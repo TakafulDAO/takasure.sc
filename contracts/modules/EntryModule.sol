@@ -126,6 +126,9 @@ contract EntryModule is
         ccipReceiverContract = _ccipReceiverContract;
     }
 
+    // @audit: fix to 9690
+    // bytes32 public constant ROUTER = keccak256("ROUTER");
+
     /**
      * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
      *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
@@ -147,6 +150,8 @@ contract EntryModule is
         uint256 membershipDuration
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        // @audit: fix to 9690
+        // require(msg.sender == prejoinModule || hasRole(ROUTER,msg.sender) || msg.sender == membersWallet, EntryModule__NotAuthorizedCaller());
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             membersWallet
@@ -165,7 +170,7 @@ contract EntryModule is
                 membershipDuration,
                 benefitMultiplier
             );
-        } else {
+        } else { 
             _join(
                 reserve,
                 newMember,
@@ -176,7 +181,7 @@ contract EntryModule is
                 benefitMultiplier,
                 0
             );
-        }
+        }             
     }
 
     /**
@@ -234,6 +239,8 @@ contract EntryModule is
 
         require(!newMember.isKYCVerified, EntryModule__MemberAlreadyKYCed());
         require(newMember.contribution > 0, EntryModule__NoContribution());
+        // @audit: fix to 9687
+        // require(newMember.contribution > 0 && !newMember.isRefunded, EntryModule__NoContribution());
 
         // This means the user exists and payed contribution but is not KYCed yet, we update the values
         _calculateAmountAndFees(newMember.contribution, reserve.serviceFee);
@@ -324,6 +331,8 @@ contract EntryModule is
         uint256 _membershipDuration,
         uint256 _benefitMultiplier
     ) internal {
+        // @audit: fix to 9681
+        // require(_newMember.wallet == address(0), EntryModule__AlreadyJoinedPendingForKYC());
         _newMember = _createNewMember({
             _newMemberId: ++_reserve.memberIdCounter,
             _allowCustomDuration: _reserve.allowCustomDuration,
