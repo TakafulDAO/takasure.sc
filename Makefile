@@ -60,6 +60,10 @@ protocol-upgrade-takasure:
 	@forge script deploy/protocol/upgrades/01-UpgradeTakasure.s.sol:UpgradeTakasure $(NETWORK_ARGS)
 
 # Defender
+defender-validate-upgrade:
+	@forge clean
+	@forge script deploy/defender/00-DefenderValidateUpgrade.s.sol:DefenderValidateUpgrade 
+
 defender-prepare-upgrade:
 	@forge clean
 	@forge script deploy/defender/01-DefenderPrepareUpgrade.s.sol:DefenderPrepareUpgrade $(NETWORK_ARGS)
