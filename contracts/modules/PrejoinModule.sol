@@ -30,7 +30,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-/// @custom:oz-upgrades-from contracts/version_previous_contracts/PrejoinModuleV1.sol:PrejoinModuleV1
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/ReferralGatewayV1.sol:ReferralGatewayV1
 contract PrejoinModule is
     Initializable,
     UUPSUpgradeable,
@@ -122,7 +122,6 @@ contract PrejoinModule is
     );
 
     error PrejoinModule__ZeroAddress();
-    error PrejoinModule__onlyDAOAdmin();
     error PrejoinModule__MustHaveName();
     error PrejoinModule__InvalidLaunchDate();
     error PrejoinModule__AlreadyExists();
@@ -205,7 +204,7 @@ contract PrejoinModule is
         nameToDAOData[DAOName].name = DAOName;
         nameToDAOData[DAOName].preJoinEnabled = isPreJoinEnabled;
         nameToDAOData[DAOName].referralDiscount = isReferralDiscountEnabled;
-        nameToDAOData[DAOName].DAOAdmin = msg.sender;
+        nameToDAOData[DAOName].DAOAdmin = operator;
         nameToDAOData[DAOName].launchDate = launchDate;
         nameToDAOData[DAOName].objectiveAmount = objectiveAmount;
         nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
@@ -216,8 +215,7 @@ contract PrejoinModule is
     /**
      * @notice Update the DAO estimated launch date
      */
-    function updateLaunchDate(uint256 launchDate) external {
-        _onlyDAOAdmin();
+    function updateLaunchDate(uint256 launchDate) external onlyRole(OPERATOR) {
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             PrejoinModule__DAOAlreadyLaunched()
@@ -231,8 +229,7 @@ contract PrejoinModule is
      * @notice Method to be called after a tDAO is deployed
      * @param tDAOAddress The address of the tDAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
-     * @dev Only the DAOAdmin can call this method, the DAOAdmin is the one that created the DAO and must have
-     *      the role of DAO_MULTISIG in the DAO
+     * @dev Only callable from the OPERATOR
      * @dev The tDAOAddress must be different from 0
      * @dev It will disable the preJoinEnabled status of the DAO
      */
@@ -240,9 +237,8 @@ contract PrejoinModule is
         address tDAOAddress,
         address entryModuleAddress,
         bool isReferralDiscountEnabled
-    ) external {
+    ) external onlyRole(OPERATOR) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        _onlyDAOAdmin();
         AddressAndStates._notZeroAddress(tDAOAddress);
         AddressAndStates._notZeroAddress(entryModuleAddress);
         require(
@@ -271,8 +267,7 @@ contract PrejoinModule is
     /**
      * @notice Switch the referralDiscount status of a DAO
      */
-    function switchReferralDiscount() external {
-        _onlyDAOAdmin();
+    function switchReferralDiscount() external onlyRole(OPERATOR) {
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
 
         emit OnReferralDiscountSwitched(nameToDAOData[tDAOName].referralDiscount);
@@ -282,8 +277,7 @@ contract PrejoinModule is
      * @notice Assign a rePool address to a tDAO name
      * @param rePoolAddress The address of the rePool
      */
-    function enableRepool(address rePoolAddress) external {
-        _onlyDAOAdmin();
+    function enableRepool(address rePoolAddress) external onlyRole(OPERATOR) {
         AddressAndStates._notZeroAddress(rePoolAddress);
         require(nameToDAOData[tDAOName].DAOAddress != address(0), PrejoinModule__tDAONotReadyYet());
         nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
@@ -291,9 +285,8 @@ contract PrejoinModule is
         emit OnRepoolEnabled(rePoolAddress);
     }
 
-    function transferToRepool() external {
+    function transferToRepool() external onlyRole(OPERATOR) {
         require(moduleState != ModuleState.Deprecated, PrejoinModule__WrongModuleState());
-        _onlyDAOAdmin();
         require(nameToDAOData[tDAOName].rePoolAddress != address(0), PrejoinModule__ZeroAddress());
         require(nameToDAOData[tDAOName].toRepool > 0, PrejoinModule__ZeroAmount());
 
@@ -562,7 +555,6 @@ contract PrejoinModule is
         returns (
             bool preJoinEnabled,
             bool referralDiscount,
-            address DAOAdmin,
             address DAOAddress,
             uint256 launchDate,
             uint256 objectiveAmount,
@@ -575,7 +567,6 @@ contract PrejoinModule is
     {
         preJoinEnabled = nameToDAOData[tDAOName].preJoinEnabled;
         referralDiscount = nameToDAOData[tDAOName].referralDiscount;
-        DAOAdmin = nameToDAOData[tDAOName].DAOAdmin;
         DAOAddress = nameToDAOData[tDAOName].DAOAddress;
         launchDate = nameToDAOData[tDAOName].launchDate;
         objectiveAmount = nameToDAOData[tDAOName].objectiveAmount;
@@ -839,10 +830,6 @@ contract PrejoinModule is
         usdc.safeTransfer(_member, amountToRefund);
 
         emit OnRefund(_member, amountToRefund);
-    }
-
-    function _onlyDAOAdmin() internal view {
-        require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, PrejoinModule__onlyDAOAdmin());
     }
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {

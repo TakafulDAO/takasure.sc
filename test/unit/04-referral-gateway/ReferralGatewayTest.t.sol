@@ -260,7 +260,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(referralDiscount, true);
 
         vm.prank(referral);
-        vm.expectRevert(ReferralGateway.ReferralGateway__onlyDAOAdmin.selector);
+        vm.expectRevert();
         referralGateway.launchDAO(tDaoName, address(takasureReserve), true);
 
         vm.prank(daoAdmin);

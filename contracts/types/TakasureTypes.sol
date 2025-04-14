@@ -77,7 +77,7 @@ struct tDAO {
     string name;
     bool preJoinEnabled;
     bool referralDiscount;
-    address DAOAdmin; // The one that can modify the DAO settings
+    address DAOAdmin; // Deprecated. DAOAdmin == Operator
     address DAOAddress; // To be assigned when the tDAO is deployed
     uint256 launchDate; // In seconds. An estimated launch date of the DAO
     uint256 objectiveAmount; // In USDC, six decimals

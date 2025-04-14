@@ -151,7 +151,6 @@ contract ReferralGateway is
     );
 
     error ReferralGateway__ZeroAddress();
-    error ReferralGateway__onlyDAOAdmin();
     error ReferralGateway__MustHaveName();
     error ReferralGateway__InvalidLaunchDate();
     error ReferralGateway__AlreadyExists();
@@ -244,8 +243,10 @@ contract ReferralGateway is
     /**
      * @notice Update the DAO estimated launch date
      */
-    function updateLaunchDate(string calldata tDAOName, uint256 launchDate) external {
-        _onlyDAOAdmin(tDAOName);
+    function updateLaunchDate(
+        string calldata tDAOName,
+        uint256 launchDate
+    ) external onlyRole(OPERATOR) {
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             ReferralGateway__DAOAlreadyLaunched()
@@ -269,13 +270,8 @@ contract ReferralGateway is
         string calldata tDAOName,
         address tDAOAddress,
         bool isReferralDiscountEnabled
-    ) external {
-        _onlyDAOAdmin(tDAOName);
+    ) external onlyRole(OPERATOR) {
         _notZeroAddress(tDAOAddress);
-        require(
-            ITakasurePool(tDAOAddress).hasRole(keccak256("DAO_MULTISIG"), msg.sender),
-            ReferralGateway__onlyDAOAdmin()
-        );
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             ReferralGateway__DAOAlreadyLaunched()
@@ -292,8 +288,7 @@ contract ReferralGateway is
     /**
      * @notice Switch the referralDiscount status of a DAO
      */
-    function switchReferralDiscount(string calldata tDAOName) external {
-        _onlyDAOAdmin(tDAOName);
+    function switchReferralDiscount(string calldata tDAOName) external onlyRole(OPERATOR) {
         nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
 
         emit OnReferralDiscountSwitched(tDAOName, nameToDAOData[tDAOName].referralDiscount);
@@ -304,8 +299,10 @@ contract ReferralGateway is
      * @param tDAOName The name of the tDAO
      * @param rePoolAddress The address of the rePool
      */
-    function enableRepool(string calldata tDAOName, address rePoolAddress) external {
-        _onlyDAOAdmin(tDAOName);
+    function enableRepool(
+        string calldata tDAOName,
+        address rePoolAddress
+    ) external onlyRole(OPERATOR) {
         _notZeroAddress(rePoolAddress);
         require(
             nameToDAOData[tDAOName].DAOAddress != address(0),
@@ -316,8 +313,7 @@ contract ReferralGateway is
         emit OnRepoolEnabled(tDAOName, rePoolAddress);
     }
 
-    function transferToRepool(string calldata tDAOName) external {
-        _onlyDAOAdmin(tDAOName);
+    function transferToRepool(string calldata tDAOName) external onlyRole(OPERATOR) {
         require(
             nameToDAOData[tDAOName].rePoolAddress != address(0),
             ReferralGateway__ZeroAddress()
@@ -934,10 +930,6 @@ contract ReferralGateway is
 
     function _notZeroAddress(address _address) internal pure {
         require(_address != address(0), ReferralGateway__ZeroAddress());
-    }
-
-    function _onlyDAOAdmin(string calldata tDAOName) internal view {
-        require(nameToDAOData[tDAOName].DAOAdmin == msg.sender, ReferralGateway__onlyDAOAdmin());
     }
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {

@@ -103,7 +103,6 @@ contract PrejoinModuleInvariantTest is StdInvariant, Test {
             ,
             ,
             ,
-            ,
             uint256 currentAmount,
             ,
             ,
