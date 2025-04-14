@@ -154,7 +154,7 @@ contract RevertsPrejoinModuleTest is Test {
         prejoinModule.updateLaunchDate(block.timestamp + 32_000_000);
 
         vm.prank(daoAdmin);
-        vm.exppectRevert(PrejoinModule.PrejoinModule__InvalidLaunchDate.selector);
+        vm.expectRevert(PrejoinModule.PrejoinModule__InvalidLaunchDate.selector);
         prejoinModule.updateLaunchDate(launchDate - 1);
     }
 
