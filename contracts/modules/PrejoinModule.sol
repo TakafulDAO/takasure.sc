@@ -242,6 +242,10 @@ contract PrejoinModule is
         AddressAndStates._notZeroAddress(tDAOAddress);
         AddressAndStates._notZeroAddress(entryModuleAddress);
         require(
+            nameToDAOData[tDAOName].launchDate <= block.timestamp,
+            PrejoinModule__InvalidLaunchDate()
+        );
+        require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             PrejoinModule__DAOAlreadyLaunched()
         );
