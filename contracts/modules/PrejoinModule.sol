@@ -204,7 +204,7 @@ contract PrejoinModule is
         nameToDAOData[DAOName].name = DAOName;
         nameToDAOData[DAOName].preJoinEnabled = isPreJoinEnabled;
         nameToDAOData[DAOName].referralDiscount = isReferralDiscountEnabled;
-        nameToDAOData[DAOName].DAOAdmin = msg.sender;
+        nameToDAOData[DAOName].DAOAdmin = operator;
         nameToDAOData[DAOName].launchDate = launchDate;
         nameToDAOData[DAOName].objectiveAmount = objectiveAmount;
         nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
@@ -229,8 +229,7 @@ contract PrejoinModule is
      * @notice Method to be called after a tDAO is deployed
      * @param tDAOAddress The address of the tDAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
-     * @dev Only the DAOAdmin can call this method, the DAOAdmin is the one that created the DAO and must have
-     *      the role of DAO_MULTISIG in the DAO
+     * @dev Only callable from the OPERATOR
      * @dev The tDAOAddress must be different from 0
      * @dev It will disable the preJoinEnabled status of the DAO
      */
@@ -556,7 +555,6 @@ contract PrejoinModule is
         returns (
             bool preJoinEnabled,
             bool referralDiscount,
-            address DAOAdmin,
             address DAOAddress,
             uint256 launchDate,
             uint256 objectiveAmount,
@@ -569,7 +567,6 @@ contract PrejoinModule is
     {
         preJoinEnabled = nameToDAOData[tDAOName].preJoinEnabled;
         referralDiscount = nameToDAOData[tDAOName].referralDiscount;
-        DAOAdmin = nameToDAOData[tDAOName].DAOAdmin;
         DAOAddress = nameToDAOData[tDAOName].DAOAddress;
         launchDate = nameToDAOData[tDAOName].launchDate;
         objectiveAmount = nameToDAOData[tDAOName].objectiveAmount;
