@@ -96,8 +96,8 @@ contract MemberModule is
         );
 
         require(
-            activeMember.memberState == MemberState.Active &&
-                activeMember.memberState != MemberState.Defaulted,
+            activeMember.memberState == MemberState.Active ||
+                activeMember.memberState == MemberState.Defaulted,
             ModuleErrors.Module__WrongMemberState()
         );
 
@@ -123,6 +123,8 @@ contract MemberModule is
         activeMember.totalServiceFee += feeAmount;
         activeMember.lastEcr = 0;
         activeMember.lastUcr = 0;
+        if (activeMember.memberState == MemberState.Defaulted)
+            activeMember.memberState = MemberState.Active;
 
         // And we pay the contribution
         uint256 mintedTokens;
@@ -163,7 +165,7 @@ contract MemberModule is
             // Update the state, this will allow to cancel the membership
             member.memberState = MemberState.Defaulted;
 
-            emit TakasureEvents.OnMemberDefaulted(member.memberId, msg.sender);
+            emit TakasureEvents.OnMemberDefaulted(member.memberId, memberWallet);
 
             _setMembersValuesHook(takasureReserve, member);
         } else {
