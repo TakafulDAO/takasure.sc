@@ -91,7 +91,7 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
         vm.stopPrank();
     }
 

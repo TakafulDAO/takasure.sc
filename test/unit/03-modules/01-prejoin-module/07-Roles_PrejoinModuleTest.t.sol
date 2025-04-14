@@ -104,7 +104,7 @@ contract RolesPrejoinModuleTest is Test {
 
     modifier KYCReferral() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         _;
     }
 
@@ -127,7 +127,7 @@ contract RolesPrejoinModuleTest is Test {
         assert(!prejoinModule.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
         // Current KYCProvider can KYC a member
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(child);
+        prejoinModule.approveKYC(child);
         // Grant, revoke and renounce roles
         vm.startPrank(takadao);
         prejoinModule.grantRole(keccak256("OPERATOR"), newOperator);

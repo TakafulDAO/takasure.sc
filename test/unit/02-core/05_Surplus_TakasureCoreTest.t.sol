@@ -242,7 +242,7 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
-        entryModule.setKYCStatus(user);
+        entryModule.approveKYC(user);
         vm.stopPrank();
     }
 }
