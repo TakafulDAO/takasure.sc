@@ -156,7 +156,7 @@ contract RepoolPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.enableRepool(rePoolAddress);
 
-        (, , , , , , , , , uint256 toRepool, ) = prejoinModule.getDAOData();
+        (, , , , , , , , uint256 toRepool, ) = prejoinModule.getDAOData();
 
         assert(toRepool > 0);
         assertEq(usdc.balanceOf(rePoolAddress), 0);
@@ -164,7 +164,7 @@ contract RepoolPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.transferToRepool();
 
-        (, , , , , , , , , uint256 newRepoolBalance, ) = prejoinModule.getDAOData();
+        (, , , , , , , , uint256 newRepoolBalance, ) = prejoinModule.getDAOData();
 
         assertEq(newRepoolBalance, 0);
         assertEq(usdc.balanceOf(rePoolAddress), toRepool);

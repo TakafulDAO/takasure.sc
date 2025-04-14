@@ -130,7 +130,6 @@ contract RevertsPrejoinModuleTest is Test {
         (
             bool prejoinEnabled,
             ,
-            address DAOAdmin,
             address DAOAddress,
             uint256 launchDate,
             uint256 objectiveAmount,
@@ -142,7 +141,6 @@ contract RevertsPrejoinModuleTest is Test {
         ) = prejoinModule.getDAOData();
 
         assertEq(prejoinEnabled, true);
-        assertEq(DAOAdmin, daoAdmin);
         assertEq(DAOAddress, address(0));
         assertEq(launchDate, block.timestamp + 31_536_000);
         assertEq(objectiveAmount, 100e6);
