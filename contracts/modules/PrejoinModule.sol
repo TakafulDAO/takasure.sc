@@ -347,7 +347,7 @@ contract PrejoinModule is
      * @param user The address of the member
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
-    function setKYCStatus(address user) external onlyRole(KYC_PROVIDER) {
+    function approveKYC(address user) external onlyRole(KYC_PROVIDER) {
         // It will be possible to KYC a member that was left behind in the process
         // This will allow them to join the DAO
         require(

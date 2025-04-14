@@ -224,7 +224,7 @@ contract EntryModule is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function setKYCStatus(address memberWallet) external onlyRole(ModuleConstants.KYC_PROVIDER) {
+    function approveKYC(address memberWallet) external onlyRole(ModuleConstants.KYC_PROVIDER) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(memberWallet);
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
