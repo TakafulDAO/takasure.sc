@@ -123,7 +123,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
 
         vm.prank(alice);
         // And tries to join again but fails
-        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
     }
 
@@ -213,7 +213,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         entryModule.setKYCStatus(alice);
 
         vm.prank(alice);
-        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // Second check bob join -> bob join again must revert
@@ -242,7 +242,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         entryModule.setKYCStatus(charlie);
 
         vm.prank(charlie);
-        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // Fourth check david join -> 14 days passes -> refund david -> david join -> david join again must revert

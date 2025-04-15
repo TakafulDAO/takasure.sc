@@ -208,7 +208,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         prejoinModule.joinDAO(child);
 
-        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         entryModule.joinPool(child, address(0), CONTRIBUTION_AMOUNT, 5 * 365 days);
         vm.stopPrank();
     }
