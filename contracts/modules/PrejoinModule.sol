@@ -122,9 +122,7 @@ contract PrejoinModule is
     );
 
     error PrejoinModule__ZeroAddress();
-    error PrejoinModule__MustHaveName();
     error PrejoinModule__InvalidLaunchDate();
-    error PrejoinModule__AlreadyExists();
     error PrejoinModule__DAOAlreadyLaunched();
     error PrejoinModule__ZeroAmount();
     error PrejoinModule__ContributionOutOfRange();
@@ -175,7 +173,6 @@ contract PrejoinModule is
 
     /**
      * @notice Create a new DAO
-     * @param DAOName The name of the DAO
      * @param isPreJoinEnabled The pre-join status of the DAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
      * @param launchDate An estimated launch date of the DAO
@@ -186,28 +183,22 @@ contract PrejoinModule is
      * @dev The objective amount can be 0, if the DAO is already launched or the objective amount is not defined
      */
     function createDAO(
-        string calldata DAOName,
         bool isPreJoinEnabled,
         bool isReferralDiscountEnabled,
         uint256 launchDate,
         uint256 objectiveAmount,
         address _bmConsumer
     ) external onlyRole(OPERATOR) {
-        require(bytes(DAOName).length != 0, PrejoinModule__MustHaveName());
-        require(
-            !(Strings.equal(nameToDAOData[DAOName].name, DAOName)),
-            PrejoinModule__AlreadyExists()
-        );
         require(launchDate > block.timestamp, PrejoinModule__InvalidLaunchDate());
 
         // Create the new DAO
-        nameToDAOData[DAOName].name = DAOName;
-        nameToDAOData[DAOName].preJoinEnabled = isPreJoinEnabled;
-        nameToDAOData[DAOName].referralDiscount = isReferralDiscountEnabled;
-        nameToDAOData[DAOName].DAOAdmin = operator;
-        nameToDAOData[DAOName].launchDate = launchDate;
-        nameToDAOData[DAOName].objectiveAmount = objectiveAmount;
-        nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
+        nameToDAOData[tDAOName].name = tDAOName;
+        nameToDAOData[tDAOName].preJoinEnabled = isPreJoinEnabled;
+        nameToDAOData[tDAOName].referralDiscount = isReferralDiscountEnabled;
+        nameToDAOData[tDAOName].DAOAdmin = operator;
+        nameToDAOData[tDAOName].launchDate = launchDate;
+        nameToDAOData[tDAOName].objectiveAmount = objectiveAmount;
+        nameToDAOData[tDAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
 
         emit OnNewDAO(isPreJoinEnabled, isReferralDiscountEnabled, launchDate, objectiveAmount);
     }

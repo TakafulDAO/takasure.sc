@@ -143,7 +143,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
      * @param tokenToTransfer The address of the token to be transferred. Must be in the list of supported tokens.
      * @param gasLimit gas allowed by the user to be the maximum spend in the destination blockchain by the CCIP protocol
      * @param contribution The amount of the contribution to be paid in the TLD contract.
-     * @param tDAOName The name of the DAO to point in the TLD contract.
      * @param parent The address of the parent if the caller has a referral.
      * @param couponAmount The amount of the coupon if the caller has one.
      * @return messageId The ID of the message that was sent.
@@ -153,7 +152,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         address tokenToTransfer,
         uint256 gasLimit,
         uint256 contribution,
-        string calldata tDAOName,
         address parent,
         address newMember,
         uint256 couponAmount
@@ -174,7 +172,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             _tokenToTransfer: tokenToTransfer,
             _gasLimit: gasLimit,
             _contributionAmount: contribution,
-            _tDAOName: tDAOName,
             _parent: parent,
             _newMember: newMember,
             _couponAmount: couponAmount
@@ -219,7 +216,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         address _tokenToTransfer,
         uint256 _gasLimit,
         uint256 _contributionAmount,
-        string calldata _tDAOName,
         address _parent,
         address _newMember,
         uint256 _couponAmount
@@ -230,7 +226,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             _amount: _amountToTransfer,
             _gasLimit: _gasLimit,
             _contribution: _contributionAmount,
-            _tDAOName: _tDAOName,
             _parent: _parent,
             _newMember: _newMember,
             _couponAmount: _couponAmount
@@ -274,7 +269,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 _amount,
         uint256 _gasLimit,
         uint256 _contribution,
-        string calldata _tDAOName,
         address _parent,
         address _newMember,
         uint256 _couponAmount
@@ -284,11 +278,10 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         tokenAmounts[0] = Client.EVMTokenAmount({token: _token, amount: _amount});
 
         // Function to call in the receiver contract
-        // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
+        // payContributionOnBehalfOf(uint256 contribution, address parent, address newMember, uint256 couponAmount)
         bytes memory dataToSend = abi.encodeWithSignature(
-            "payContributionOnBehalfOf(uint256,string,address,address,uint256)",
+            "payContributionOnBehalfOf(uint256,address,address,uint256)",
             _contribution,
-            _tDAOName,
             _parent,
             _newMember,
             _couponAmount
