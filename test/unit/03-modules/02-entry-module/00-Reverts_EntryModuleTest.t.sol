@@ -219,7 +219,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         // Second check bob join -> bob join again must revert
         vm.startPrank(bob);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.expectRevert(EntryModule.EntryModule__AlreadyJoinedPendingForKYC.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
@@ -255,7 +255,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(david);
         userRouter.refund();
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.expectRevert(EntryModule.EntryModule__AlreadyJoinedPendingForKYC.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
     }
