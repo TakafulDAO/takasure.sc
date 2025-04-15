@@ -109,10 +109,8 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(address(usdc));
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
@@ -129,14 +127,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
         vm.prank(member);
         usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
-
-        // Join the dao
-        // vm.prank(member);
-        // entryModule.joinPool(msg.sender, CONTRIBUTION_AMOUNT, 5);
-        // // We simulate a request before the KYC
-        // _successResponse(address(bmConsumerMock));
-        // vm.prank(daoAdmin);
-        // entryModule.setKYCStatus(member);
     }
 
     function testSetNewContributionToken() public {
