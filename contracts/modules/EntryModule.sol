@@ -25,7 +25,6 @@ import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConst
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -151,6 +150,7 @@ contract EntryModule is
             takasureReserve,
             membersWallet
         );
+        if (!newMember.isRefunded) require(newMember.wallet == address(0), EntryModule__AlreadyJoined());
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(membersWallet);
 
@@ -324,7 +324,6 @@ contract EntryModule is
         uint256 _membershipDuration,
         uint256 _benefitMultiplier
     ) internal {
-        require(_newMember.wallet == address(0), EntryModule__AlreadyJoined());
         _newMember = _createNewMember({
             _newMemberId: ++_reserve.memberIdCounter,
             _allowCustomDuration: _reserve.allowCustomDuration,
@@ -368,10 +367,6 @@ contract EntryModule is
         uint256 _couponAmount
     ) internal {
         require(
-            _newMember.memberState == MemberState.Inactive,
-            ModuleErrors.Module__WrongMemberState()
-        );
-        require(
             _contributionBeforeFee >= _reserve.minimumThreshold &&
                 _contributionBeforeFee <= _reserve.maximumThreshold,
             EntryModule__ContributionOutOfRange()
@@ -379,7 +374,6 @@ contract EntryModule is
 
         if (!_newMember.isRefunded) {
             // Flow 1: Join -> KYC
-            require(_newMember.wallet == address(0), EntryModule__AlreadyJoined());
             // If is not refunded, it is a completele new member, we create it
             _newMember = _createNewMember({
                 _newMemberId: ++_reserve.memberIdCounter,
