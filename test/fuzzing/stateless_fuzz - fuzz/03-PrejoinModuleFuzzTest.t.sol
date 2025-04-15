@@ -9,7 +9,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract CouponCodeAndCcipFuzzTest is Test {
+contract PrejoinModuleFuzzTest is Test {
     TestDeployProtocol deployer;
     PrejoinModule prejoinModule;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -97,6 +97,5 @@ contract CouponCodeAndCcipFuzzTest is Test {
             couponUser,
             couponAmount
         );
-
     }
 }
