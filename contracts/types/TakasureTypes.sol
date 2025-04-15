@@ -56,11 +56,11 @@ struct Member {
     uint256 membershipDuration; // in years
     uint256 membershipStartTime; // in seconds
     uint256 lastPaidYearStartDate; // in seconds
-    uint256 contribution; // in stablecoin currency in Wei
+    uint256 contribution; // Six decimals
     uint256 discount;
-    uint256 claimAddAmount; // amount deposited in the claim reserve, in stablecoin currency in Wei, and without fees
-    uint256 totalContributions; // in stablecoin currency in Wei. This is the total contribution made by the member
-    uint256 totalServiceFee; // in stablecoin currency in Wei
+    uint256 claimAddAmount; // amount deposited in the claim reserve, six decimals, and without fees
+    uint256 totalContributions; // in stablecoin currency. Six decimals. This is the total contribution made by the member
+    uint256 totalServiceFee; // in stablecoin currency six decimals
     uint256 creditTokensBalance; // 18 decimals
     address wallet;
     address parent;
@@ -91,7 +91,7 @@ struct tDAO {
 }
 
 struct Reserve {
-    uint8 serviceFee; // Default 22%, max 100%
+    uint8 serviceFee; // Default 27%, max 35%
     uint8 bmaFundReserveShare; // Default 70%
     uint8 fundMarketExpendsAddShare; // Default 20%
     uint8 riskMultiplier; // Default to 2%

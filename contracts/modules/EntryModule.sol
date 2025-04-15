@@ -127,9 +127,7 @@ contract EntryModule is
     }
 
     /**
-     * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
-     *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
-     *         member will be active.
+     * @notice Allow new members to join the pool. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.
      * @param membersWallet address of the member
      * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
@@ -217,9 +215,7 @@ contract EntryModule is
     }
 
     /**
-     * @notice Set the KYC status of a member. If the member does not exist, it will be created as inactive
-     *         until the contribution is paid with joinPool. If the member has already joined the pool, then
-     *         the contribution will be paid and the member will be active.
+     * @notice Approves the KYC for a member.
      * @param memberWallet address of the member
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
@@ -333,10 +329,10 @@ contract EntryModule is
             _isKYCVerified: true, // All members from prejoin are KYCed
             _memberWallet: _membersWallet, // The member wallet
             _parentWallet: _parentWallet, // The parent wallet
-            _memberState: MemberState.Active // Set to inactive until the KYC is verified
+            _memberState: MemberState.Active // All members from prejoin are active
         });
 
-        // Then the everyting needed will be updated, proformas, reserves, cash flow,
+        // Then everyting needed will be updated, proformas, reserves, cash flow,
         // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
         uint256 mintedTokens;
 
@@ -526,9 +522,6 @@ contract EntryModule is
         uint256 limitTimestamp = membershipStartTime + (14 days);
         require(currentTimestamp >= limitTimestamp, EntryModule__TooEarlytoRefund());
 
-        // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
-        // when first KYC and then join the pool. So the previous check is enough
-
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmount = _member.contribution;
         uint256 serviceFeeAmount = _member.totalServiceFee;
@@ -545,7 +538,6 @@ contract EntryModule is
     }
 
     function _calculateAmountAndFees(uint256 _contributionBeforeFee, uint256 _fee) internal {
-        // Then we pay the contribution
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
         normalizedContributionBeforeFee =
@@ -592,7 +584,7 @@ contract EntryModule is
             wallet: _memberWallet,
             parent: _parentWallet,
             memberState: _memberState,
-            memberSurplus: 0, // Todo
+            memberSurplus: 0,
             isKYCVerified: _isKYCVerified,
             isRefunded: false,
             lastEcr: 0,
@@ -681,7 +673,7 @@ contract EntryModule is
         address _takasureReserve,
         uint256 _contributionAfterFee
     ) internal override {
-        // If the caller is from the prejoin module, the transfer will be done by the prejoin module
+        // If the caller is the prejoin module, the transfer will be done by the prejoin module
         // to the takasure reserve. Otherwise, the transfer will be done by this contract
         if (msg.sender != prejoinModule) {
             _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee - discount);
@@ -784,14 +776,6 @@ contract EntryModule is
                     address(this),
                     _amountToTransferFromMember
                 );
-
-                // Note: This is a temporary solution to test the CCIP integration in the testnet
-                // This is because in testnet we are using a different USDC contract for easier testing
-                // IERC20(0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d).safeTransferFrom(
-                //     ccipReceiverContract,
-                //     address(this),
-                //     amountToTransfer
-                // );
             } else {
                 contributionToken.safeTransferFrom(
                     _memberWallet,
