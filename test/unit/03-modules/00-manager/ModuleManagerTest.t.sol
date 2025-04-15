@@ -16,6 +16,7 @@ contract ModuleManagerTest is Test {
     address moduleManagerOwner = makeAddr("moduleManagerOwner");
 
     enum State {
+        Unset,
         Disabled,
         Enabled,
         Paused,
@@ -89,7 +90,7 @@ contract ModuleManagerTest is Test {
 
     function testChangeStateFromNonModuleReverts() public {
         vm.prank(moduleManagerOwner);
-        vm.expectRevert(ModuleManager.ModuleManager__NotModule.selector);
+        vm.expectRevert(ModuleManager.ModuleManager__WrongState.selector);
         moduleManager.changeModuleState(address(isModule), ModuleState.Enabled);
     }
 
