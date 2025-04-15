@@ -66,7 +66,7 @@ contract EntryModule is
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
-    error EntryModule__AlreadyJoinedPendingForKYC();
+    error EntryModule__AlreadyJoined();
     error EntryModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error EntryModule__MemberAlreadyKYCed();
     error EntryModule__NothingToRefund();
@@ -324,6 +324,7 @@ contract EntryModule is
         uint256 _membershipDuration,
         uint256 _benefitMultiplier
     ) internal {
+        require(_newMember.wallet == address(0), EntryModule__AlreadyJoined());
         _newMember = _createNewMember({
             _newMemberId: ++_reserve.memberIdCounter,
             _allowCustomDuration: _reserve.allowCustomDuration,
@@ -378,7 +379,7 @@ contract EntryModule is
 
         if (!_newMember.isRefunded) {
             // Flow 1: Join -> KYC
-            require(_newMember.wallet == address(0), EntryModule__AlreadyJoinedPendingForKYC());
+            require(_newMember.wallet == address(0), EntryModule__AlreadyJoined());
             // If is not refunded, it is a completele new member, we create it
             _newMember = _createNewMember({
                 _newMemberId: ++_reserve.memberIdCounter,
