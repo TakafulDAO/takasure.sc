@@ -63,6 +63,7 @@ contract EntryModule is
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
     bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
+    bytes32 private constant ROUTER = keccak256("ROUTER");
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
@@ -147,6 +148,7 @@ contract EntryModule is
         uint256 membershipDuration
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        require(msg.sender == prejoinModule || hasRole(ROUTER, msg.sender) || msg.sender == membersWallet, EntryModule__NotAuthorizedCaller());
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             membersWallet
