@@ -113,7 +113,6 @@ contract PrejoinModule is
         address indexed oldBenefitMultiplierConsumer
     );
     event OnRefund(address indexed member, uint256 indexed amount);
-    event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
     event OnNewCCIPReceiverContract(
@@ -458,13 +457,6 @@ contract PrejoinModule is
     /*//////////////////////////////////////////////////////////////
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
-
-    function setUsdcAddress(address _usdcAddress) external onlyRole(OPERATOR) {
-        address oldUsdc = address(usdc);
-        usdc = IERC20(_usdcAddress);
-
-        emit OnUsdcAddressChanged(oldUsdc, _usdcAddress);
-    }
 
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
