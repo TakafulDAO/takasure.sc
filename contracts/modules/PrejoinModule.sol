@@ -181,7 +181,6 @@ contract PrejoinModule is
      * @param launchDate An estimated launch date of the DAO
      * @param objectiveAmount The objective amount of the DAO
      * @dev The launch date must be in seconds
-     * @dev The launch date can be 0, if the DAO is already launched or the launch date is not defined
      * @dev The objective amount must be in USDC, six decimals
      * @dev The objective amount can be 0, if the DAO is already launched or the objective amount is not defined
      */
@@ -447,7 +446,7 @@ contract PrejoinModule is
     }
 
     /**
-     * @notice Refund a prepaid member if the DAO is not deployed at launch date
+     * @notice Admin can refund a prepaid member
      * @param member The address of the member
      * @dev Intended to be called by the OPERATOR in spetial cases
      */
