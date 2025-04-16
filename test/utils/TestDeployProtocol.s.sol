@@ -25,6 +25,7 @@ contract TestDeployProtocol is Script {
     bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
     bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
     bytes32 public constant MODULE_MANAGER = keccak256("MODULE_MANAGER");
+    bytes32 public constant ROUTER = keccak256("ROUTER");
 
     address takasureReserveImplementation;
     address userRouterImplementation;
@@ -128,8 +129,10 @@ contract TestDeployProtocol is Script {
             .getReserveValues()
             .contributionToken;
 
-        vm.prank(config.takadaoOperator);
+        vm.startPrank(config.takadaoOperator);
         PrejoinModule(prejoinModuleAddress).grantRole(MODULE_MANAGER, address(moduleManager));
+        EntryModule(entryModuleAddress).grantRole(ROUTER, routerAddress);
+        vm.stopPrank();
 
         vm.prank(moduleManager.owner());
         moduleManager.addModule(prejoinModuleAddress);
