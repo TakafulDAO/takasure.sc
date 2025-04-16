@@ -101,7 +101,6 @@ contract GrandparentsPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.setDAOName(tDaoName);
         prejoinModule.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
         vm.stopPrank();
         _;

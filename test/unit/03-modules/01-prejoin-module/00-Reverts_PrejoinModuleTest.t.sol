@@ -104,9 +104,6 @@ contract RevertsPrejoinModuleTest is Test {
                                CREATE DAO
     //////////////////////////////////////////////////////////////*/
     function testCreateANewDao() public {
-        vm.prank(takadao);
-        prejoinModule.setDAOName(tDaoName);
-
         vm.prank(referral);
         vm.expectRevert();
         prejoinModule.createDAO(
@@ -155,7 +152,6 @@ contract RevertsPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.setDAOName(tDaoName);
         prejoinModule.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
         vm.stopPrank();
         _;
