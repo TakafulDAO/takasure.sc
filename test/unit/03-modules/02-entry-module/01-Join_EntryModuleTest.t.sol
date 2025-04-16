@@ -108,7 +108,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         uint256 totalContributions = takasureReserve.getReserveValues().totalContributions;
 
@@ -140,7 +140,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         assertEq(memberIdCounterAfterBob, memberIdCounterAfterAlice + 1);
     }
 
-    function testEntryModule_setKYCStatus() public {
+    function testEntryModule_approveKYC() public {
         vm.prank(alice);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
@@ -152,7 +152,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         assert(!member.isKYCVerified);
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         member = takasureReserve.getMemberFromAddress(alice);
 
@@ -167,7 +167,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         _;
     }
@@ -217,7 +217,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(bob);
+        entryModule.approveKYC(bob);
         _;
     }
 
@@ -249,7 +249,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         uint256 initialProFormaClaimReserve = reserve.proFormaClaimReserve;
 
         vm.prank(admin);
-        entryModule.setKYCStatus(bob);
+        entryModule.approveKYC(bob);
 
         reserve = takasureReserve.getReserveValues();
 
@@ -276,7 +276,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 aliceDRR = reserve.dynamicReserveRatio;
@@ -288,7 +288,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(bob);
+        entryModule.approveKYC(bob);
 
         reserve = takasureReserve.getReserveValues();
         uint256 bobDRR = reserve.dynamicReserveRatio;
@@ -316,7 +316,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 aliceBMA = reserve.benefitMultiplierAdjuster;
@@ -328,7 +328,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(bob);
+        entryModule.approveKYC(bob);
 
         reserve = takasureReserve.getReserveValues();
         uint256 bobBMA = reserve.benefitMultiplierAdjuster;
@@ -363,7 +363,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         uint256 contractCreditTokenBalanceAfter = creditTokenInstance.balanceOf(
             address(takasureReserve)

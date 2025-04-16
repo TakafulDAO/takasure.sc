@@ -32,7 +32,11 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
     //////////////////////////////////////////////////////////////*/
 
     event OnNewModule(address newModuleAddr);
-    event OnModuleStateChanged(ModuleState oldState, ModuleState newState);
+    event OnModuleStateChanged(
+        address indexed moduleAddress,
+        ModuleState oldState,
+        ModuleState newState
+    );
 
     error ModuleManager__AddressZeroNotAllowed();
     error ModuleManager__AlreadyModule();
@@ -84,7 +88,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
 
         ITLDModuleImplementation(module).setContractState(newState);
 
-        emit OnModuleStateChanged(oldState, newState);
+        emit OnModuleStateChanged(module, oldState, newState);
     }
 
     /*//////////////////////////////////////////////////////////////

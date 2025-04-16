@@ -154,7 +154,7 @@ contract KycFlow_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.expectEmit(true, true, false, false, address(entryModule));
         emit TakasureEvents.OnMemberJoined(memberIdAfterJoin, alice);
 
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 memberIdAfterKyc = reserve.memberIdCounter;

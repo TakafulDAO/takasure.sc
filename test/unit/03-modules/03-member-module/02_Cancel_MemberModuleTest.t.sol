@@ -91,7 +91,7 @@ contract Cancel_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
         vm.stopPrank();
 
         vm.warp(block.timestamp + YEAR + 31 days);

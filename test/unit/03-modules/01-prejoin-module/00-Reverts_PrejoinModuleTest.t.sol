@@ -66,10 +66,8 @@ contract RevertsPrejoinModuleTest is Test {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(address(usdc));
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
@@ -87,17 +85,6 @@ contract RevertsPrejoinModuleTest is Test {
         usdc.approve(address(prejoinModule), USDC_INITIAL_AMOUNT);
         vm.prank(member);
         usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
-    }
-
-    function testSetNewContributionToken() public {
-        assertEq(address(prejoinModule.usdc()), usdcAddress);
-
-        address newUSDC = makeAddr("newUSDC");
-
-        vm.prank(daoAdmin);
-        prejoinModule.setUsdcAddress(newUSDC);
-
-        assertEq(address(prejoinModule.usdc()), newUSDC);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -130,7 +117,6 @@ contract RevertsPrejoinModuleTest is Test {
         (
             bool prejoinEnabled,
             ,
-            address DAOAdmin,
             address DAOAddress,
             uint256 launchDate,
             uint256 objectiveAmount,
@@ -142,7 +128,6 @@ contract RevertsPrejoinModuleTest is Test {
         ) = prejoinModule.getDAOData();
 
         assertEq(prejoinEnabled, true);
-        assertEq(DAOAdmin, daoAdmin);
         assertEq(DAOAddress, address(0));
         assertEq(launchDate, block.timestamp + 31_536_000);
         assertEq(objectiveAmount, 100e6);
@@ -154,6 +139,10 @@ contract RevertsPrejoinModuleTest is Test {
 
         vm.prank(daoAdmin);
         prejoinModule.updateLaunchDate(block.timestamp + 32_000_000);
+
+        vm.prank(daoAdmin);
+        vm.expectRevert(PrejoinModule.PrejoinModule__InvalidLaunchDate.selector);
+        prejoinModule.updateLaunchDate(launchDate - 1);
     }
 
     modifier createDao() {

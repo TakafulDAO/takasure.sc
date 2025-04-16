@@ -76,10 +76,8 @@ contract GrandparentsPrejoinModuleTest is Test {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(address(usdc));
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
@@ -133,7 +131,7 @@ contract GrandparentsPrejoinModuleTest is Test {
         vm.prank(parentTier1);
         prejoinModule.payContribution(CONTRIBUTION_AMOUNT, address(0));
         vm.prank(takadao);
-        prejoinModule.setKYCStatus(parentTier1);
+        prejoinModule.approveKYC(parentTier1);
 
         // Parent 2 prepay referred by parent 1
         uint256 parentTier2Contribution = 5 * CONTRIBUTION_AMOUNT;
@@ -145,7 +143,7 @@ contract GrandparentsPrejoinModuleTest is Test {
         vm.prank(takadao);
         vm.expectEmit(true, true, true, true, address(prejoinModule));
         emit OnParentRewarded(parentTier1, 1, parentTier2, expectedParentOneReward);
-        prejoinModule.setKYCStatus(parentTier2);
+        prejoinModule.approveKYC(parentTier2);
 
         // Parent 3 prepay referred by parent 2
         uint256 parentTier3Contribution = 2 * CONTRIBUTION_AMOUNT;
@@ -162,7 +160,7 @@ contract GrandparentsPrejoinModuleTest is Test {
         emit OnParentRewarded(parentTier2, 1, parentTier3, expectedParentTwoReward);
         vm.expectEmit(true, true, true, true, address(prejoinModule));
         emit OnParentRewarded(parentTier1, 2, parentTier3, expectedParentOneReward);
-        prejoinModule.setKYCStatus(parentTier3);
+        prejoinModule.approveKYC(parentTier3);
 
         // Parent 4 prepay referred by parent 3
         uint256 parentTier4Contribution = 7 * CONTRIBUTION_AMOUNT;
@@ -184,7 +182,7 @@ contract GrandparentsPrejoinModuleTest is Test {
         emit OnParentRewarded(parentTier2, 2, parentTier4, expectedParentTwoReward);
         vm.expectEmit(true, true, true, true, address(prejoinModule));
         emit OnParentRewarded(parentTier1, 3, parentTier4, expectedParentOneReward);
-        prejoinModule.setKYCStatus(parentTier4);
+        prejoinModule.approveKYC(parentTier4);
 
         // Child without referee prepay referred by parent 4
         uint256 childWithoutRefereeContribution = 4 * CONTRIBUTION_AMOUNT;
@@ -216,7 +214,7 @@ contract GrandparentsPrejoinModuleTest is Test {
         emit OnParentRewarded(parentTier2, 3, childWithoutReferee, expectedParentTwoReward);
         vm.expectEmit(true, true, true, true, address(prejoinModule));
         emit OnParentRewarded(parentTier1, 4, childWithoutReferee, expectedParentOneReward);
-        prejoinModule.setKYCStatus(childWithoutReferee);
+        prejoinModule.approveKYC(childWithoutReferee);
     }
 
     function testLayersCorrectlyAssigned() public createDao {
@@ -244,7 +242,7 @@ contract GrandparentsPrejoinModuleTest is Test {
         vm.prank(parentTier1);
         prejoinModule.payContribution(CONTRIBUTION_AMOUNT, address(0));
         vm.prank(takadao);
-        prejoinModule.setKYCStatus(parentTier1);
+        prejoinModule.approveKYC(parentTier1);
 
         // Now parent 1 refer parent 2, this refer parent 3, this refer parent 4 and this refer the child
 
@@ -265,7 +263,7 @@ contract GrandparentsPrejoinModuleTest is Test {
 
         // Parent 3 prepay referred by parent 2
         vm.prank(takadao);
-        prejoinModule.setKYCStatus(parentTier2);
+        prejoinModule.approveKYC(parentTier2);
 
         uint256 parentTier3Contribution = 2 * CONTRIBUTION_AMOUNT;
         // The expected parent 2 reward ratio will be 4% of the parent 2 contribution
@@ -285,7 +283,7 @@ contract GrandparentsPrejoinModuleTest is Test {
 
         // Parent 4 prepay referred by parent 3
         vm.prank(takadao);
-        prejoinModule.setKYCStatus(parentTier3);
+        prejoinModule.approveKYC(parentTier3);
 
         uint256 parentTier4Contribution = 7 * CONTRIBUTION_AMOUNT;
         // The expected parent 3 reward ratio will be 4% of the parent 4 contribution
@@ -309,7 +307,7 @@ contract GrandparentsPrejoinModuleTest is Test {
 
         // Child without referee prepay referred by parent 4
         vm.prank(takadao);
-        prejoinModule.setKYCStatus(parentTier4);
+        prejoinModule.approveKYC(parentTier4);
 
         // The expected parent 4 reward ratio will be 4% of the child without referee contribution
         uint256 expectedParentFourReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;

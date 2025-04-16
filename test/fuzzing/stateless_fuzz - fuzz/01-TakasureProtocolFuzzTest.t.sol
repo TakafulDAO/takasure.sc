@@ -80,7 +80,7 @@ contract TakasureProtocolFuzzTest is Test {
         entryModule.updateBmAddress();
     }
 
-    function test_fuzz_ownerCanSetKycstatus(address notOwner) public {
+    function test_fuzz_ownerCanapproveKYC(address notOwner) public {
         vm.assume(notOwner != daoMultisig);
 
         vm.prank(alice);
@@ -88,7 +88,7 @@ contract TakasureProtocolFuzzTest is Test {
 
         vm.prank(notOwner);
         vm.expectRevert();
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
     }
 
     function test_fuzz_onlyDaoAndTakadaoCanSetNewBenefitMultiplier(address notAuthorized) public {

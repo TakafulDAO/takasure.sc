@@ -69,10 +69,8 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(address(usdc));
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
@@ -108,7 +106,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
     modifier KYCReferral() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         _;
     }
 
@@ -121,7 +119,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
     modifier referredIsKYC() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(child);
+        prejoinModule.approveKYC(child);
         _;
     }
 
@@ -144,6 +142,11 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         KYCReferral
         referredPrepays
     {
+        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+
+        vm.warp(launchDate);
+        vm.roll(block.number + 1);
+
         vm.prank(daoAdmin);
         prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
@@ -164,7 +167,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        (, , , , , , , , , , uint256 referralReserve) = prejoinModule.getDAOData();
+        (, , , , , , , , , uint256 referralReserve) = prejoinModule.getDAOData();
         // Current Referral balance must be
         // For referral prepayment: Contribution * 5% = 25 * 5% = 1.25
         // For referred prepayment: 2*(Contribution * 5%) - (Contribution * 4%) =>
@@ -179,7 +182,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
         assertEq(referredContributionAfterFee, expectedContributionAfterFee);
 
-        (, , , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
 
         vm.warp(launchDate + 1);
         vm.roll(block.number + 1);

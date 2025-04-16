@@ -67,10 +67,8 @@ contract RefundsPrejoinModuleTest is Test {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(address(usdc));
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
@@ -106,7 +104,7 @@ contract RefundsPrejoinModuleTest is Test {
 
     modifier KYCReferral() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         _;
     }
 
@@ -119,7 +117,7 @@ contract RefundsPrejoinModuleTest is Test {
 
     modifier referredIsKYC() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(child);
+        prejoinModule.approveKYC(child);
         _;
     }
 
@@ -154,7 +152,7 @@ contract RefundsPrejoinModuleTest is Test {
         prejoinModule.refundIfDAOIsNotLaunched(child);
         vm.stopPrank();
 
-        (, , , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
@@ -212,7 +210,6 @@ contract RefundsPrejoinModuleTest is Test {
             ,
             ,
             ,
-            ,
             uint256 launchDate,
             ,
             uint256 currentAmount,
@@ -244,7 +241,7 @@ contract RefundsPrejoinModuleTest is Test {
 
         assertEq(usdc.balanceOf(address(prejoinModule)), newExpectedContractBalance);
 
-        (, , , , , , currentAmount, , , toRepool, referralReserve) = prejoinModule.getDAOData();
+        (, , , , , currentAmount, , , toRepool, referralReserve) = prejoinModule.getDAOData();
 
         assertEq(currentAmount, 1825e4); // The new currentAmount should be 36.5 - (25 - 25 * 27%) = 36.5 - (25 - 6.75) = 36.5 - 18.25 = 18.25
         assertEq(referralReserve, 0); // The new rr should be 1.5 - (22.5 - 18.25) = 1.5 - 4.25 = 0
@@ -280,7 +277,7 @@ contract RefundsPrejoinModuleTest is Test {
         assertEq(usdc.balanceOf(address(child)), childBalanceBeforeRefund + amountToRefundToChild);
         assertEq(usdc.balanceOf(address(prejoinModule)), 0);
 
-        (, , , , , , currentAmount, , , toRepool, referralReserve) = prejoinModule.getDAOData();
+        (, , , , , currentAmount, , , toRepool, referralReserve) = prejoinModule.getDAOData();
 
         assertEq(currentAmount, 0);
         assertEq(toRepool, 0);
@@ -295,7 +292,7 @@ contract RefundsPrejoinModuleTest is Test {
         referredPrepays
         referredIsKYC
     {
-        (, , , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);

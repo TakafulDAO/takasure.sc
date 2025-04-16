@@ -91,7 +91,7 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
         vm.stopPrank();
     }
 
@@ -136,5 +136,26 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
                     totalServiceFeeBeforePayment + expectedServiceIncrease
             );
         }
+    }
+
+    function testMemberModule_defaultedMembersCanPayContribution() public {
+        vm.warp(block.timestamp + YEAR + 15 days);
+        vm.roll(block.number + 1);
+
+        vm.expectEmit(true, true, false, false, address(memberModule));
+        emit TakasureEvents.OnMemberDefaulted(1, alice);
+        userRouter.defaultMember(alice);
+
+        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
+        assert(Alice.memberState == MemberState.Defaulted);
+
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(alice);
+        userRouter.payRecurringContribution();
+
+        Alice = takasureReserve.getMemberFromAddress(alice);
+        assert(Alice.memberState == MemberState.Active);
     }
 }
