@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 /// @notice Common constants used in the protocol
 /// @dev Constants are gas efficient alternatives to their literal values
 library ModuleConstants {
-    bytes32 internal constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
+    bytes32 internal constant OPERATOR = keccak256("OPERATOR");
     bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 internal constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 internal constant MODULE_MANAGER = keccak256("MODULE_MANAGER");

@@ -65,7 +65,7 @@ contract MemberModule is
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
-        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
     }
 
     /**
@@ -199,5 +199,5 @@ contract MemberModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
 }

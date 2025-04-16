@@ -42,7 +42,7 @@ contract TakasureReserve is
 
     uint256 private RPOOL; // todo: define this value
 
-    bytes32 internal constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
+    bytes32 internal constant OPERATOR = keccak256("OPERATOR");
     bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
 
@@ -84,7 +84,7 @@ contract TakasureReserve is
         __AccessControl_init();
         __Pausable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
+        _grantRole(OPERATOR, _takadaoOperator);
         _grantRole(DAO_MULTISIG, _daoOperator);
         _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
 
@@ -175,7 +175,7 @@ contract TakasureReserve is
         moduleManager = IModuleManager(newModuleManagerContract);
     }
 
-    function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
+    function setNewServiceFee(uint8 newServiceFee) external onlyRole(OPERATOR) {
         require(newServiceFee <= 35, TakasureReserve__WrongServiceFee());
         reserve.serviceFee = newServiceFee;
 
@@ -219,7 +219,7 @@ contract TakasureReserve is
         reserve.contributionToken = newContributionToken;
     }
 
-    function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(TAKADAO_OPERATOR) {
+    function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(OPERATOR) {
         AddressAndStates._notZeroAddress(newFeeClaimAddress);
         feeClaimAddress = newFeeClaimAddress;
     }
@@ -450,7 +450,7 @@ contract TakasureReserve is
 
     function _onlyDaoOrTakadao() internal view {
         require(
-            hasRole(TAKADAO_OPERATOR, msg.sender) ||
+            hasRole(OPERATOR, msg.sender) ||
                 hasRole(DAO_MULTISIG, msg.sender) ||
                 hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
             TakasureReserve__OnlyDaoOrTakadao()
