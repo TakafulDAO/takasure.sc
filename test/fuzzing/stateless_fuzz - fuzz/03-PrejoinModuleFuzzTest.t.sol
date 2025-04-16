@@ -9,7 +9,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract CouponCodeAndCcipFuzzTest is Test {
+contract PrejoinModuleFuzzTest is Test {
     TestDeployProtocol deployer;
     PrejoinModule prejoinModule;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -82,7 +82,7 @@ contract CouponCodeAndCcipFuzzTest is Test {
         vm.stopPrank();
     }
 
-    // Fuzz to test to check the caller can only be the coupon redeemer or the ccip receiver contract
+    // Fuzz to test to check the caller on pay contribution on behalf of
     function testPayContributionOnBehalfOfRevertsIfCallerIsWrong(address caller) public {
         vm.assume(caller != couponRedeemer);
         vm.assume(caller != ccipReceiverContract);
@@ -97,6 +97,28 @@ contract CouponCodeAndCcipFuzzTest is Test {
             couponUser,
             couponAmount
         );
+    }
 
+    // Fuzz to test to check the caller refund if dao is not launched
+    function testRefundIfDaoIsNotLaunchedRevertsIfCallerIsWrong(address caller) public {
+        vm.assume(caller != couponUser);
+        vm.assume(caller != operator);
+
+        vm.prank(couponRedeemer);
+        prejoinModule.payContributionOnBehalfOf(
+            CONTRIBUTION_AMOUNT,
+            address(0),
+            couponUser,
+            CONTRIBUTION_AMOUNT
+        );
+
+        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+
+        vm.warp(launchDate);
+        vm.roll(block.number + 1);
+
+        vm.prank(caller);
+        vm.expectRevert(PrejoinModule.PrejoinModule__NotAuthorizedCaller.selector);
+        prejoinModule.refundIfDAOIsNotLaunched(couponUser);
     }
 }

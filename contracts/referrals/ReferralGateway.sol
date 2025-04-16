@@ -387,7 +387,7 @@ contract ReferralGateway is
      * @param child The address of the member
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
-    function setKYCStatus(
+    function approveKYC(
         address child,
         string calldata tDAOName
     ) external whenNotPaused onlyRole(KYC_PROVIDER) {

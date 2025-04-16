@@ -104,7 +104,7 @@ contract RefundsPrejoinModuleTest is Test {
 
     modifier KYCReferral() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         _;
     }
 
@@ -117,7 +117,7 @@ contract RefundsPrejoinModuleTest is Test {
 
     modifier referredIsKYC() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(child);
+        prejoinModule.approveKYC(child);
         _;
     }
 

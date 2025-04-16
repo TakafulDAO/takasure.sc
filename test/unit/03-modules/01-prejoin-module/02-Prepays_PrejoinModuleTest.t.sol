@@ -211,25 +211,25 @@ contract PrepaysPrejoinModuleTest is Test {
     function testKYCAnAddress() public createDao referralPrepays {
         vm.prank(KYCProvider);
         vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
-        prejoinModule.setKYCStatus(address(0));
+        prejoinModule.approveKYC(address(0));
 
         assert(!prejoinModule.isMemberKYCed(referral));
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         assert(prejoinModule.isMemberKYCed(referral));
     }
 
     function testMustRevertIfKYCTwiceSameAddress() public createDao referralPrepays {
         vm.startPrank(KYCProvider);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         vm.expectRevert(PrejoinModule.PrejoinModule__MemberAlreadyKYCed.selector);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         vm.stopPrank();
     }
 
     modifier KYCReferral() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         _;
     }
 

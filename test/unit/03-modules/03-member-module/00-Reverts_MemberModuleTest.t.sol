@@ -108,7 +108,7 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         vm.warp(block.timestamp + 396 days);
         vm.roll(block.number + 1);
@@ -132,7 +132,7 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         for (uint256 i = 0; i < 5; i++) {
             vm.warp(block.timestamp + YEAR);

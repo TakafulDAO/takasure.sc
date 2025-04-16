@@ -63,6 +63,7 @@ contract EntryModule is
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
     bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
+    bytes32 private constant ROUTER = keccak256("ROUTER");
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
@@ -147,6 +148,7 @@ contract EntryModule is
         uint256 membershipDuration
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        require(msg.sender == prejoinModule || hasRole(ROUTER, msg.sender) || msg.sender == membersWallet, EntryModule__NotAuthorizedCaller());
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             membersWallet
@@ -224,7 +226,7 @@ contract EntryModule is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function setKYCStatus(address memberWallet) external onlyRole(ModuleConstants.KYC_PROVIDER) {
+    function approveKYC(address memberWallet) external onlyRole(ModuleConstants.KYC_PROVIDER) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(memberWallet);
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
@@ -233,7 +235,7 @@ contract EntryModule is
         );
 
         require(!newMember.isKYCVerified, EntryModule__MemberAlreadyKYCed());
-        require(newMember.contribution > 0, EntryModule__NoContribution());
+        require(newMember.contribution > 0 && !newMember.isRefunded , EntryModule__NoContribution());
 
         // This means the user exists and payed contribution but is not KYCed yet, we update the values
         _calculateAmountAndFees(newMember.contribution, reserve.serviceFee);
