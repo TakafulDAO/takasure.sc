@@ -144,6 +144,11 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         KYCReferral
         referredPrepays
     {
+        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+
+        vm.warp(launchDate);
+        vm.roll(block.number + 1);
+
         vm.prank(daoAdmin);
         prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
