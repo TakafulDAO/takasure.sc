@@ -108,7 +108,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
     modifier KYCReferral() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         _;
     }
 
@@ -121,7 +121,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
     modifier referredIsKYC() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(child);
+        prejoinModule.approveKYC(child);
         _;
     }
 
