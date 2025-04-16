@@ -72,7 +72,6 @@ contract RefundIssue_9687 is StdCheats, Test, SimulateDonResponse {
         vm.stopPrank();
 
         vm.startPrank(admin);
-        takasureReserve.setNewContributionToken(address(usdc));
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
         prejoinModule.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
         prejoinModule.setDAOName(tDaoName);
@@ -94,7 +93,7 @@ contract RefundIssue_9687 is StdCheats, Test, SimulateDonResponse {
     function testEntryModule_refundIssueViaPrejoin1() public {
         deal(address(usdc), address(entryModule), USDC_INITIAL_AMOUNT);
 
-        (, , , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
 
         vm.warp(launchDate + 1);
         vm.roll(block.number + 1);
@@ -170,6 +169,6 @@ contract RefundIssue_9687 is StdCheats, Test, SimulateDonResponse {
 
         vm.prank(kycService);
         vm.expectRevert();
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
     }
 }
