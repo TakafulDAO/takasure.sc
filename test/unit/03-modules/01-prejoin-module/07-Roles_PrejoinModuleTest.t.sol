@@ -120,26 +120,26 @@ contract RolesPrejoinModuleTest is Test {
         address newOperator = makeAddr("newOperator");
         address newKYCProvider = makeAddr("newKYCProvider");
         // Current addresses with roles
-        assert(prejoinModule.hasRole(keccak256("TAKADAO_OPERATOR"), takadao));
+        assert(prejoinModule.hasRole(keccak256("OPERATOR"), takadao));
         assert(prejoinModule.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
         // New addresses without roles
-        assert(!prejoinModule.hasRole(keccak256("TAKADAO_OPERATOR"), newOperator));
+        assert(!prejoinModule.hasRole(keccak256("OPERATOR"), newOperator));
         assert(!prejoinModule.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
         // Current KYCProvider can KYC a member
         vm.prank(KYCProvider);
         prejoinModule.setKYCStatus(child);
         // Grant, revoke and renounce roles
         vm.startPrank(takadao);
-        prejoinModule.grantRole(keccak256("TAKADAO_OPERATOR"), newOperator);
+        prejoinModule.grantRole(keccak256("OPERATOR"), newOperator);
         prejoinModule.grantRole(keccak256("KYC_PROVIDER"), newKYCProvider);
-        prejoinModule.revokeRole(keccak256("TAKADAO_OPERATOR"), takadao);
+        prejoinModule.revokeRole(keccak256("OPERATOR"), takadao);
         prejoinModule.revokeRole(keccak256("KYC_PROVIDER"), KYCProvider);
         vm.stopPrank();
         // New addresses with roles
-        assert(prejoinModule.hasRole(keccak256("TAKADAO_OPERATOR"), newOperator));
+        assert(prejoinModule.hasRole(keccak256("OPERATOR"), newOperator));
         assert(prejoinModule.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
         // Old addresses without roles
-        assert(!prejoinModule.hasRole(keccak256("TAKADAO_OPERATOR"), takadao));
+        assert(!prejoinModule.hasRole(keccak256("OPERATOR"), takadao));
         assert(!prejoinModule.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
     }
 

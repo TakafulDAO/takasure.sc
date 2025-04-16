@@ -98,7 +98,7 @@ contract EntryModule is
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
-        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
         _grantRole(ModuleConstants.KYC_PROVIDER, takasureReserve.kycProvider());
     }
 
@@ -114,14 +114,14 @@ contract EntryModule is
 
     function setCouponPoolAddress(
         address _couponPool
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    ) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
 
     function setCCIPReceiverContract(
         address _ccipReceiverContract
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    ) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._notZeroAddress(_ccipReceiverContract);
         ccipReceiverContract = _ccipReceiverContract;
     }
@@ -312,7 +312,7 @@ contract EntryModule is
         _refund(memberWallet);
     }
 
-    function updateBmAddress() external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
@@ -824,5 +824,5 @@ contract EntryModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
 }
