@@ -107,7 +107,6 @@ contract TLDCcipTest is Test {
 
         // Config mocks
         vm.startPrank(admin);
-        takasureReserve.setNewContributionToken(address(usdc));
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
         prejoinModule.setCCIPReceiverContract(address(receiver));
         vm.stopPrank();

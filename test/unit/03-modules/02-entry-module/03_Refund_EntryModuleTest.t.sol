@@ -126,13 +126,13 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         // Cannot KYC someone who has been refunded until pays again
         vm.prank(kycService);
         vm.expectRevert(EntryModule.EntryModule__NoContribution.selector);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         vm.prank(alice);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         vm.prank(kycService);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
     }
 
     function testEntryModule_sameIdIfJoinsAgainAfterRefund() public {

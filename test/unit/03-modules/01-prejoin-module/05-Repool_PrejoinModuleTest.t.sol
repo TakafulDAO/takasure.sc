@@ -65,10 +65,8 @@ contract RepoolPrejoinModuleTest is Test {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(address(usdc));
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
