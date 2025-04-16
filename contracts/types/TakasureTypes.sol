@@ -4,6 +4,7 @@ import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplie
 pragma solidity 0.8.28;
 
 enum ModuleState {
+    Unset,
     Disabled,
     Enabled,
     Paused,
