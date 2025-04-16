@@ -446,6 +446,10 @@ contract PrejoinModule is
      */
     function refundIfDAOIsNotLaunched(address member) external {
         require(
+            member == msg.sender || hasRole(OPERATOR, msg.sender),
+            PrejoinModule__NotAuthorizedCaller()
+        );
+        require(
             nameToDAOData[tDAOName].launchDate < block.timestamp &&
                 nameToDAOData[tDAOName].DAOAddress == address(0),
             PrejoinModule__tDAONotReadyYet()
