@@ -217,6 +217,10 @@ contract PrejoinModule is
      */
     function updateLaunchDate(uint256 launchDate) external onlyRole(OPERATOR) {
         require(
+            launchDate > nameToDAOData[tDAOName].launchDate,
+            PrejoinModule__InvalidLaunchDate()
+        );
+        require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             PrejoinModule__DAOAlreadyLaunched()
         );
