@@ -59,7 +59,7 @@ contract PrejoinModule is
     ModuleState private moduleState;
 
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
-    mapping(address member => bool) public isMemberCouponRedeemer;
+    mapping(address member => bool) private isMemberCouponRedeemer;
 
     /*//////////////////////////////////////////////////////////////
                               FIXED RATIOS
@@ -846,8 +846,6 @@ contract PrejoinModule is
             // We transfer the amount to the member
             usdc.safeTransfer(_member, amountToRefund);
         }
-
-        usdc.safeTransfer(_member, amountToRefund);
 
         emit OnRefund(_member, amountToRefund);
     }

@@ -58,6 +58,9 @@ contract EntryModule is
     mapping(address child => address parent) public childToParent;
     mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
     mapping(address parent => mapping(uint256 layer => uint256 reward)) public parentRewardsByLayer;
+    // Set to true when new members use coupons to pay their contributions. It does not matter the amount
+    mapping(address member => bool) private isMemberCouponRedeemer; 
+
 
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
@@ -212,9 +215,12 @@ contract EntryModule is
             membershipDuration,
             benefitMultiplier,
             couponAmount
-        );
+        );  
 
-        if (couponAmount > 0) emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        if (couponAmount > 0) {
+            isMemberCouponRedeemer[membersWallet] = true;
+            emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        }
     }
 
     /**
@@ -538,7 +544,16 @@ contract EntryModule is
         // Update the member values
         _member.isRefunded = true;
         // Transfer the amount to refund
-        IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
+
+        if (isMemberCouponRedeemer[_memberWallet]) {
+            // Reset the coupon redeemer status, this way the member can redeem again
+            isMemberCouponRedeemer[_memberWallet] = false;
+            // We transfer the coupon amount to the coupon pool
+            IERC20(_reserve.contributionToken).safeTransfer(couponPool, amountToRefund);
+        } else {
+            // We transfer the amount to the member
+            IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
+        }
 
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
 
