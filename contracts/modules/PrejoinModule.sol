@@ -58,6 +58,9 @@ contract PrejoinModule is
 
     ModuleState private moduleState;
 
+    // Set to true when new members use coupons to pay their contributions. It does not matter the amount
+    mapping(address member => bool) public isMemberCouponRedeemer;
+
     /*//////////////////////////////////////////////////////////////
                               FIXED RATIOS
     //////////////////////////////////////////////////////////////*/
@@ -346,7 +349,10 @@ contract PrejoinModule is
 
         (finalFee, discount) = _payContribution(contribution, parent, newMember, couponAmount);
 
-        if (couponAmount > 0) emit OnCouponRedeemed(newMember, couponAmount);
+        if (couponAmount > 0) {
+            isMemberCouponRedeemer[newMember] = true;
+            emit OnCouponRedeemed(newMember, couponAmount);
+        }
     }
 
     /**
@@ -830,6 +836,16 @@ contract PrejoinModule is
         delete nameToDAOData[tDAOName].prepaidMembers[_member];
 
         isMemberKYCed[_member] = false;
+
+        if (isMemberCouponRedeemer[_member]) {
+            // Reset the coupon redeemer status, this way the member can redeem again
+            isMemberCouponRedeemer[_member] = false;
+            // We transfer the coupon amount to the coupon pool
+            usdc.safeTransfer(couponPool, amountToRefund);
+        } else {
+            // We transfer the amount to the member
+            usdc.safeTransfer(_member, amountToRefund);
+        }
 
         usdc.safeTransfer(_member, amountToRefund);
 
