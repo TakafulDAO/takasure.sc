@@ -20,10 +20,9 @@ import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValues
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
-import {Reserve, Member, MemberState, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
-import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -717,53 +716,6 @@ contract EntryModule is
                 bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
                 revert EntryModule__BenefitMultiplierRequestFailed(errorResponse);
             }
-        }
-    }
-
-    function _monthAndDayFromCall()
-        internal
-        view
-        returns (uint16 currentMonth_, uint8 currentDay_)
-    {
-        CashFlowVars memory cashFlowVars = takasureReserve.getCashFlowValues();
-        uint256 currentTimestamp = block.timestamp;
-        uint256 lastDayDepositTimestamp = cashFlowVars.dayDepositTimestamp;
-        uint256 lastMonthDepositTimestamp = cashFlowVars.monthDepositTimestamp;
-
-        // Calculate how many days and months have passed since the last deposit and the current timestamp
-        uint256 daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
-            currentTimestamp,
-            lastDayDepositTimestamp
-        );
-        uint256 monthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(
-            currentTimestamp,
-            lastMonthDepositTimestamp
-        );
-
-        if (monthsPassed == 0) {
-            // If  no months have passed, current month is the reference
-            currentMonth_ = cashFlowVars.monthReference;
-            if (daysPassed == 0) {
-                // If no days have passed, current day is the reference
-                currentDay_ = cashFlowVars.dayReference;
-            } else {
-                // If you are in a new day, calculate the days passed
-                currentDay_ = uint8(daysPassed) + cashFlowVars.dayReference;
-            }
-        } else {
-            // If you are in a new month, calculate the months passed
-            currentMonth_ = uint16(monthsPassed) + cashFlowVars.monthReference;
-            // Calculate the timestamp when this new month started
-            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp +
-                (monthsPassed * ModuleConstants.MONTH);
-            // And calculate the days passed in this new month using the new month timestamp
-            daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
-                currentTimestamp,
-                timestampThisMonthStarted
-            );
-            // The current day is the days passed in this new month
-            uint8 initialDay = 1;
-            currentDay_ = uint8(daysPassed) + initialDay;
         }
     }
 
