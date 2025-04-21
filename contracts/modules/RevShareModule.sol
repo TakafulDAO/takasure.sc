@@ -48,9 +48,11 @@ contract RevShareModule is
     address private takadaoOperator;
 
     uint256 public constant NFT_PRICE = 250e6; // 250 USDC, this is the max contribution
+    // Tokens 9181 to 18_000 are reserved for coupon buyers
     uint256 public constant MAX_SUPPLY = 18_000;
-    uint256 public constant TAKADAO_BALANCE = 9_180; // Not minted, but we'll assume it is minted for the revenue calculation
-    uint256 public constant PIONEERS_MAX_SUPPLY = 8_820; // Tokens to mint
+    // Not minted, but we'll assume it is minted for the revenue calculation
+    // Tokens 1 to 9180 are reserved for Takadao
+    uint256 private constant TAKADAO_BALANCE = 9_180;
     uint256 private constant DECIMAL_CORRECTION = 1e6;
 
     uint256 private revenueRate;
@@ -64,7 +66,7 @@ contract RevShareModule is
 
     // Tracks if a member has claimed the NFTs, it does not track coupon buyers
     mapping(address member => bool) public claimedNFTs;
-    mapping(uint256 tokenId => bool active) public isNFTActive;
+    mapping(uint256 tokenId => bool active) private isNFTActive;
     // Track coupon related values
     mapping(address couponBuyer => uint256 couponAmount) public couponAmountsByBuyer; // How much a coupon buyer has spent
     mapping(address couponBuyer => uint256 couponRedeemedAmount)
@@ -87,7 +89,6 @@ contract RevShareModule is
     error RevShareModule__MintNFTFirst();
     error RevShareModule__NotAllowed();
     error RevShareModule__NotActiveToken();
-    error RevShareModule__OperationNotAllowed();
 
     /// @custom:oz-upgrades-unsafe-allow-constructor
     constructor() {
@@ -185,7 +186,7 @@ contract RevShareModule is
         uint256 couponAmount
     ) external nonReentrant onlyRole(MINTER_ROLE) {
         AddressAndStates._notZeroAddress(couponBuyer);
-        require(totalSupply() < PIONEERS_MAX_SUPPLY, RevShareModule__MaxSupplyReached());
+        require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
 
         uint256 totalCouponAmount = couponAmountsByBuyer[couponBuyer] + couponAmount;
         require(totalCouponAmount > 0, RevShareModule__NotZeroAmount());
@@ -249,17 +250,23 @@ contract RevShareModule is
         super.transferFrom(from, to, tokenId);
     }
 
+    function balanceOf(
+        address owner
+    ) public view override(ERC721Upgradeable, IERC721) returns (uint256) {
+        if (owner == takadaoOperator) return TAKADAO_BALANCE;
+        return super.balanceOf(owner);
+    }
+
+    function totalSupply() public view override returns (uint256) {
+        return super.totalSupply() + TAKADAO_BALANCE;
+    }
+
     /*//////////////////////////////////////////////////////////////
                              CLAIM REVENUE
     //////////////////////////////////////////////////////////////*/
 
     function claimRevenue() external {
-        uint256 bal;
-
-        if (msg.sender == takadaoOperator) bal = TAKADAO_BALANCE;
-        else bal = balanceOf(msg.sender);
-
-        require(bal > 0, RevShareModule__NotNFTOwner());
+        require(balanceOf(msg.sender) > 0, RevShareModule__NotNFTOwner());
 
         // Update the revenues
         _updateRevenue(msg.sender);
@@ -277,6 +284,11 @@ contract RevShareModule is
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
+
+    function isActive(uint256 tokenId) external view returns (bool) {
+        if (tokenId > 0 && tokenId <= TAKADAO_BALANCE) return true;
+        return isNFTActive[tokenId];
+    }
 
     function getRevenuePerNFT() external view returns (uint256) {
         return _revenuePerNFT();
@@ -300,7 +312,7 @@ contract RevShareModule is
      */
     function _mintSingle(address _member) internal nonReentrant {
         AddressAndStates._notZeroAddress(_member);
-        require(totalSupply() < PIONEERS_MAX_SUPPLY, RevShareModule__MaxSupplyReached());
+        require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
         require(!claimedNFTs[_member], RevShareModule__NotAllowedToMint());
 
         uint256 currentTokenId = totalSupply();
@@ -373,10 +385,7 @@ contract RevShareModule is
     }
 
     function _revenueEarnedByUser(address _user) internal view returns (uint256) {
-        uint256 bal;
-
-        if (_user == takadaoOperator) bal = TAKADAO_BALANCE;
-        else bal = balanceOf(_user);
+        uint256 bal = balanceOf(_user);
 
         uint256 activeNFTs;
 
