@@ -22,6 +22,11 @@ contract RevShareModuleTest is Test {
     uint256 public constant NFT_PRICE = 250e6; // 250 USDC
 
     event OnRevShareNFTMinted(address indexed member, uint256 tokenId);
+    event OnBatchRevShareNFTMinted(
+        address indexed couponBuyer,
+        uint256 initialTokenId,
+        uint256 lastTokenId
+    );
     event OnRevShareNFTActivated(address indexed couponBuyer, uint256 tokenId);
     event OnCouponAmountByBuyerIncreased(address indexed buyer, uint256 amount);
     event OnCouponAmountRedeemedByBuyerIncreased(address indexed buyer, uint256 amount);
@@ -223,27 +228,16 @@ contract RevShareModuleTest is Test {
         assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), amountRedeemed);
 
         vm.prank(minter);
-
         vm.expectEmit(true, false, false, false, address(revShareModule));
-        emit OnRevShareNFTMinted(couponBuyer, 1);
-        vm.expectEmit(true, false, false, false, address(revShareModule));
-        emit OnRevShareNFTMinted(couponBuyer, 2);
-        vm.expectEmit(true, false, false, false, address(revShareModule));
-        emit OnRevShareNFTMinted(couponBuyer, 3);
-        vm.expectEmit(true, false, false, false, address(revShareModule));
-        emit OnRevShareNFTMinted(couponBuyer, 4);
-        vm.expectEmit(true, false, false, false, address(revShareModule));
-        emit OnRevShareNFTMinted(couponBuyer, 5);
-
+        emit OnBatchRevShareNFTMinted(couponBuyer, 9181, 9185);
         revShareModule.batchMint(couponBuyer, 0);
 
         assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 100e6);
         assertEq(revShareModule.balanceOf(couponBuyer), 5);
 
         vm.prank(minter);
-
         vm.expectEmit(true, false, false, false, address(revShareModule));
-        emit OnRevShareNFTMinted(couponBuyer, 6);
+        emit OnBatchRevShareNFTMinted(couponBuyer, 9186, 9186);
         revShareModule.batchMint(couponBuyer, 150e6);
 
         assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 0);
