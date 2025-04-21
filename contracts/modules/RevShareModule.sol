@@ -157,9 +157,10 @@ contract RevShareModule is
 
     /**
      * @notice Mint single token to a user or activate an existing token from a coupon buyer
-     * @param operation The operation to perform, either mint or activate
-     * @param member The address of the member to mint a single NFT
-     * @param couponBuyer The address of the coupon buyer to activate the NFT, only if possible
+     * @param operation The operation to perform, either SINGLE_MINT or ACTIVATE_NFT
+     * @param member The address of the member to mint a single NFT. This is only used for SINGLE_MINT
+     * @param couponBuyer The address of the coupon buyer to activate the NFT, only if possible. This is only used for ACTIVATE_NFT
+     * @param amount The amount of USDC redeemed by the coupon buyer. This is only used for ACTIVATE_NFT
      * @dev Only callable by someone with the MINTER_ROLE
      */
     function mintOrActivate(
