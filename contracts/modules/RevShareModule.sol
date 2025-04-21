@@ -77,7 +77,12 @@ contract RevShareModule is
 
     event OnCouponAmountByBuyerIncreased(address indexed buyer, uint256 amount);
     event OnCouponAmountRedeemedByBuyerIncreased(address indexed buyer, uint256 amount);
-    event OnRevShareNFTMinted(address indexed member, uint256 tokenId);
+    event OnRevShareNFTMinted(address indexed owner, uint256 tokenId);
+    event OnBatchRevShareNFTMinted(
+        address indexed couponBuyer,
+        uint256 initialTokenId,
+        uint256 lastTokenId
+    );
     event OnRevShareNFTActivated(address indexed couponBuyer, uint256 tokenId);
     event OnRevenueClaimed(address indexed member, uint256 amount);
 
@@ -216,9 +221,9 @@ contract RevShareModule is
         // Non NFT will be active for coupon buyers until 250 USDC in coupons are redeemed
         for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
             _safeMint(couponBuyer, i);
-
-            emit OnRevShareNFTMinted(couponBuyer, i);
         }
+
+        emit OnBatchRevShareNFTMinted(couponBuyer, firstNewTokenId, lastNewTokenId);
     }
 
     /**
