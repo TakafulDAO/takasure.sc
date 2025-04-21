@@ -1,0 +1,32 @@
+@startuml Single Mint Sequence Diagram
+autonumber
+
+actor NewMember
+actor Minter
+
+NewMember -> EntryModule: joinPool
+Minter -> Subgraph: Fetch NewMember contribution
+
+alt NewMember joins with max contribution
+    Minter -> RevShareModule: mintOrActivate(SINGLE_MINT, NewMember, 0, 0)
+
+    alt Enough NFTs left to mint
+        alt NewMember has not minted before
+            RevShareModule --> RevShareModule: Update NewMember revenues
+            RevShareModule --> RevShareModule: Update Takadao revenues
+            RevShareModule --> RevShareModule: Set NFT as active
+            RevSareModule --> RevShareModule: Set NewMember as minter
+            RevShareModule --> NewMember: Mint and transfer one active NFT
+            RevShaeModule --> Minter: Emit OnRevShareMinted event
+
+        else NewMember has minted before
+            RevShareModule --> Minter: Revert
+        end
+
+    else Not enough NFTs left to mint
+        RevShareModule --> Minter: Revert
+    end
+end
+
+
+@enduml    

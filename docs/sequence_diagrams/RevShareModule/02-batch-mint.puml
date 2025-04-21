@@ -1,0 +1,29 @@
+@startuml Batch Mint Sequence Diagram
+autonumber
+
+actor CouponBuyer
+actor Takadao
+actor Minter
+
+CouponBuyer -> Takadao: buy coupon
+Minter -> RevShareModule: batchMint(CouponBuyer, CouponAmount)
+
+alt Enough NFTs left to mint
+
+    alt Accumulated CouponAmount equal or greater than NFT price
+        RevShareModule --> RevShareModule: Update accumulated coupon amount with leftover coupon amount
+        RevShareModule --> RevShareModule: Get max amount of NFTs to mint
+        RevShareModule --> CouponBuyer: Mint NFTs and transfer inactive NFTs
+        RevShareModule --> Minter: Emit OnBatchRevShareNFTMinted
+
+    else Accumulated CouponAmount less than NFT price
+        RevShareModule --> RevShareModule: Increase accumulated coupon amount
+        RevShareModule -> Minter: Emit OnCouponAmountByBuyerIncreased
+    end
+
+else Not enough NFTs left to mint
+    RevShareModule --> Minter: Revert
+end
+
+
+@enduml    

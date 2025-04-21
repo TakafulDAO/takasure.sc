@@ -1,0 +1,31 @@
+@startuml Activate NFT Sequence Diagram
+autonumber
+
+actor NewMember
+actor CouponBuyer
+actor Minter
+
+NewMember -> EntryModule: joinPool with coupon
+
+Minter -> RevShareModule: mintOrActivate(ACTIVATE_NFT, NewMember, CouponBuyer, CouponAmount)
+
+alt CouponBuyer have NFTs
+
+    alt CouponAmount redeemed greater or equal to NFT price
+
+        RevShareModule -->RevShareModule: Update coupon amount redeemed
+        RevShareModule --> RevShareModule: Update CouponBuyer revenues
+        RevShareModule --> RevShareModule: Update Takadao revenues
+        RevShareModule -->CouponBuyer: Activate next in line NFT
+        RevShareModule --> Minter: Emit OnRevShareNFTActivated 
+
+    else CouponAmount redeemed less than NFT price
+        RevShareModule --> RevShareModule: Increse coupon amount redeemed
+        RevShareModule --> Minter: Emit OnCouponAmountRedeemedByBuyerIncreased
+    end
+
+else CouponBuyer don't have NFTs
+    RevShareModule --> Minter: Revert, needs to mint NFT first
+end
+
+@enduml    
