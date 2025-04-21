@@ -56,7 +56,7 @@ contract RevShareModuleTest is Test {
         assertEq(revShareModule.NFT_PRICE(), NFT_PRICE);
         assertEq(revShareModule.MAX_SUPPLY(), 18_000);
         assertEq(revShareModule.lastUpdatedTimestamp(), 1);
-        assertEq(revShareModule.totalSupply(), 0);
+        assertEq(revShareModule.totalSupply(), 9180);
         assert(revShareModule.hasRole(revShareModule.MINTER_ROLE(), minter));
         assert(revShareModule.hasRole(0x00, takadao));
         assert(revShareModule.hasRole(keccak256("TAKADAO_OPERATOR"), takadao));
@@ -122,7 +122,7 @@ contract RevShareModuleTest is Test {
     function testRevShareModule_mintSingleNft() public {
         uint256 lastUpdatedTimestamp_initialState = revShareModule.lastUpdatedTimestamp();
         uint256 latestTokenId_initialState = revShareModule.totalSupply();
-        bool isNftActive_initialState = revShareModule.isNFTActive(latestTokenId_initialState + 1);
+        bool isActive_initialState = revShareModule.isActive(latestTokenId_initialState + 1);
         bool joinerClaimed_initialState = revShareModule.claimedNFTs(joinerMax);
         uint256 joinerBalance_initialState = revShareModule.balanceOf(joinerMax);
         uint256 revenuePerNFTOwned_initialState = revShareModule.revenuePerNFTOwned();
@@ -143,13 +143,13 @@ contract RevShareModuleTest is Test {
 
         assert(revShareModule.lastUpdatedTimestamp() > lastUpdatedTimestamp_initialState);
         assertEq(revShareModule.totalSupply(), latestTokenId_initialState + 1);
-        assert(!isNftActive_initialState);
-        assert(revShareModule.isNFTActive(revShareModule.totalSupply()));
+        assert(!isActive_initialState);
+        assert(revShareModule.isActive(revShareModule.totalSupply()));
         assert(!joinerClaimed_initialState);
         assert(revShareModule.claimedNFTs(joinerMax));
         assertEq(joinerBalance_initialState, 0);
         assertEq(revShareModule.balanceOf(joinerMax), 1);
-        assertEq(revShareModule.tokenOfOwnerByIndex(joinerMax, 0), 1);
+        assertEq(revShareModule.tokenOfOwnerByIndex(joinerMax, 0), 9181);
         assertEq(userRevenue_initialState, 0);
         assertEq(revShareModule.revenues(joinerMax), 0);
         assertEq(revenuePerNFTOwned_initialState, 0);
@@ -248,12 +248,12 @@ contract RevShareModuleTest is Test {
 
         assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 0);
         assertEq(revShareModule.balanceOf(couponBuyer), 6);
-        assert(!revShareModule.isNFTActive(1));
-        assert(!revShareModule.isNFTActive(2));
-        assert(!revShareModule.isNFTActive(3));
-        assert(!revShareModule.isNFTActive(4));
-        assert(!revShareModule.isNFTActive(5));
-        assert(!revShareModule.isNFTActive(6));
+        assert(!revShareModule.isActive(9181));
+        assert(!revShareModule.isActive(9182));
+        assert(!revShareModule.isActive(9183));
+        assert(!revShareModule.isActive(9184));
+        assert(!revShareModule.isActive(9185));
+        assert(!revShareModule.isActive(9186));
     }
 
     modifier batchMint() {
@@ -316,11 +316,11 @@ contract RevShareModuleTest is Test {
             couponBuyer
         );
         assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
-        assert(!revShareModule.isNFTActive(1));
+        assert(!revShareModule.isActive(9181));
 
         vm.prank(minter);
         vm.expectEmit(true, false, false, false, address(revShareModule));
-        emit OnRevShareNFTActivated(couponBuyer, 1);
+        emit OnRevShareNFTActivated(couponBuyer, 9181);
         revShareModule.mintOrActivate(
             RevShareModule.Operation.ACTIVATE_NFT,
             address(0),
@@ -335,7 +335,7 @@ contract RevShareModuleTest is Test {
         assertApproxEqAbs(revShareModule.revenuePerNFTOwned(), 48e5, 100);
         assertEq(userRevenuePerNftPaid_initialState, 0);
         assertApproxEqAbs(revShareModule.userRevenuePerNFTPaid(couponBuyer), 48e5, 100);
-        assert(revShareModule.isNFTActive(1));
+        assert(revShareModule.isActive(9181));
         assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
     }
 
@@ -345,7 +345,7 @@ contract RevShareModuleTest is Test {
         batchMint
     {
         assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
-        assert(!revShareModule.isNFTActive(1));
+        assert(!revShareModule.isActive(9181));
 
         vm.prank(minter);
         revShareModule.mintOrActivate(
@@ -356,7 +356,7 @@ contract RevShareModuleTest is Test {
         );
 
         assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 100e6);
-        assert(!revShareModule.isNFTActive(1));
+        assert(!revShareModule.isActive(9181));
 
         vm.prank(minter);
         revShareModule.mintOrActivate(
@@ -367,7 +367,7 @@ contract RevShareModuleTest is Test {
         );
 
         assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 100e6);
-        assert(revShareModule.isNFTActive(1));
+        assert(revShareModule.isActive(9181));
     }
 
     function testRevShareModule_activateTokenActivatesInOrder()
@@ -375,8 +375,8 @@ contract RevShareModuleTest is Test {
         increaseCouponAmountByBuyer
         batchMint
     {
-        for (uint256 i = 1; i <= revShareModule.balanceOf(couponBuyer); i++) {
-            assert(!revShareModule.isNFTActive(i));
+        for (uint256 i = 9181; i <= revShareModule.balanceOf(couponBuyer); i++) {
+            assert(!revShareModule.isActive(i));
 
             vm.prank(minter);
             vm.expectEmit(true, false, false, false, address(revShareModule));
@@ -388,7 +388,7 @@ contract RevShareModuleTest is Test {
                 NFT_PRICE
             );
 
-            assert(revShareModule.isNFTActive(i));
+            assert(revShareModule.isActive(i));
         }
     }
 
@@ -401,6 +401,33 @@ contract RevShareModuleTest is Test {
             NFT_PRICE
         );
         _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                BALANCES
+    //////////////////////////////////////////////////////////////*/
+
+    function testRevShareModule_balanceOf() public increaseCouponAmountByBuyer {
+        assertEq(revShareModule.totalSupply(), 9180);
+        assertEq(revShareModule.balanceOf(joinerMax), 0);
+        assertEq(revShareModule.balanceOf(couponBuyer), 0);
+        assertEq(revShareModule.balanceOf(takadao), 9180);
+
+        vm.startPrank(minter);
+        revShareModule.mintOrActivate(
+            RevShareModule.Operation.SINGLE_MINT,
+            joinerMax,
+            address(0),
+            0
+        );
+
+        revShareModule.batchMint(couponBuyer, 0);
+        vm.stopPrank();
+
+        assertEq(revShareModule.totalSupply(), 9186);
+        assertEq(revShareModule.balanceOf(joinerMax), 1);
+        assertEq(revShareModule.balanceOf(couponBuyer), 5);
+        assertEq(revShareModule.balanceOf(takadao), 9180);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -440,7 +467,7 @@ contract RevShareModuleTest is Test {
         assertEq(revShareModule.balanceOf(joinerMax), 0);
 
         vm.prank(couponBuyer);
-        revShareModule.transfer(joinerMax, 1);
+        revShareModule.transfer(joinerMax, 9181);
 
         assertEq(revShareModule.balanceOf(couponBuyer), 4);
         assertEq(revShareModule.balanceOf(joinerMax), 1);
@@ -459,7 +486,7 @@ contract RevShareModuleTest is Test {
         revShareModule.setApprovalForAll(revShareModuleAddress, true);
 
         vm.prank(revShareModuleAddress);
-        revShareModule.transferFrom(couponBuyer, joinerMax, 1);
+        revShareModule.transferFrom(couponBuyer, joinerMax, 9181);
 
         assertEq(revShareModule.balanceOf(couponBuyer), 4);
         assertEq(revShareModule.balanceOf(joinerMax), 1);
