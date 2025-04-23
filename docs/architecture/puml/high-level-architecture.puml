@@ -35,10 +35,12 @@ System(utils, "Utils") {
     Container(helpers, "Helpers")
 }
 
-System_Ext(prejoinModule,"Prejoin Module", "Manages prejoins")
-System_Ext(entryModule,"Entry Module", "Manages joins")
-System_Ext(memberModule,"Member Module", "Manages members")
-System_Ext(revenueModule,"Revenue Module", "Manages external revenue")
+System(moduleContracts,"") {
+    Container(prejoinModule,"Prejoin Module", "Manages prejoins")
+    Container(entryModule,"Entry Module", "Manages joins")
+    Container(memberModule,"Member Module", "Manages members")
+    Container(revenueModule,"Revenue Module", "Manages external revenue")
+}
 
 Rel_D(user, routerLogic, "Call", $tags="sync")
 Rel_D(user, modulesLogic, "Call", $tags="sync")
@@ -52,5 +54,6 @@ Rel_D(modulesLogic, hooks, "Ask and send state", $tags="sync")
 Rel_D(hooksLogic, reserveState, "Get and set state", $tags="sync")
 Rel_L(modules, reserveState, "Execute", $tags="sync")
 Rel_D(modulesLogic, utils, "Use", $tags="sync")
+Rel_D(modulesManager, moduleContracts, "Add/Manage", $tags="sync")
 
 @enduml
