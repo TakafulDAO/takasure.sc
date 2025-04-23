@@ -95,7 +95,7 @@ contract RevShareModule is
     error RevShareModule__NotAllowed();
     error RevShareModule__NotActiveToken();
 
-    /// @custom:oz-upgrades-unsafe-allow-constructor
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
