@@ -27,6 +27,7 @@ import {tDAO, PrepaidMember, ModuleState, Reserve} from "contracts/types/Takasur
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 
 pragma solidity 0.8.28;
 
@@ -612,11 +613,15 @@ contract PrejoinModule is
     ) internal nonReentrant returns (uint256 _finalFee, uint256 _discount) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
+        uint256 normalizedContribution = (_contribution /
+            ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC;
+
         // The prepaid member object is created
         uint256 realContribution;
 
-        if (_couponAmount > _contribution) realContribution = _couponAmount;
-        else realContribution = _contribution;
+        if (_couponAmount > normalizedContribution) realContribution = _couponAmount;
+        else realContribution = normalizedContribution;
 
         _payContributionChecks(realContribution, _parent, _newMember);
 
