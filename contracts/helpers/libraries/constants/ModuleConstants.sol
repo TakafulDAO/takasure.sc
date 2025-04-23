@@ -9,9 +9,13 @@ library ModuleConstants {
     bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 internal constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
     bytes32 internal constant MODULE_MANAGER = keccak256("MODULE_MANAGER");
+    bytes32 internal constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
 
     uint256 internal constant MONTH = 30 days;
     uint256 internal constant DAY = 1 days;
+
+    uint256 internal constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
+    uint256 internal constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
 
     uint256 internal constant DECIMALS_PRECISION = 1e12;
 
