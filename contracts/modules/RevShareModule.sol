@@ -22,6 +22,7 @@ import {ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.28;
 
@@ -46,6 +47,7 @@ contract RevShareModule is
     ModuleState private moduleState;
 
     address private takadaoOperator;
+    string public baseURI; // Base URI for the NFTs
 
     uint256 public constant NFT_PRICE = 250e6; // 250 USDC, this is the max contribution
     // Tokens 9181 to 18_000 are reserved for coupon buyers
@@ -85,6 +87,7 @@ contract RevShareModule is
     );
     event OnRevShareNFTActivated(address indexed couponBuyer, uint256 tokenId);
     event OnRevenueClaimed(address indexed member, uint256 amount);
+    event OnBaseURISet(string indexed oldBaseUri, string indexed newBaseURI);
 
     error RevShareModule__MaxSupplyReached();
     error RevShareModule__NotAllowedToMint();
@@ -100,12 +103,12 @@ contract RevShareModule is
         _disableInitializers();
     }
 
-    // TODO: Initialize the URI when set, skip for now just for easier testing, but needed for production
     function initialize(
         address _operator,
         address _minter,
         address _moduleManager,
-        address _usdc
+        address _usdc,
+        string calldata _initialBaseURI
     ) external initializer {
         AddressAndStates._notZeroAddress(_operator);
         AddressAndStates._notZeroAddress(_moduleManager);
@@ -128,6 +131,9 @@ contract RevShareModule is
 
         revenueRate = 1;
         lastUpdatedTimestamp = block.timestamp;
+
+        baseURI = _initialBaseURI;
+        emit OnBaseURISet("", _initialBaseURI);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -154,6 +160,12 @@ contract RevShareModule is
         couponAmountsByBuyer[buyer] += amount;
 
         emit OnCouponAmountByBuyerIncreased(buyer, amount);
+    }
+
+    function setBaseURI(string calldata _newBaseURI) external onlyRole(MINTER_ROLE) {
+        string memory oldBaseURI = baseURI;
+        baseURI = _newBaseURI;
+        emit OnBaseURISet(oldBaseURI, _newBaseURI);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -307,6 +319,29 @@ contract RevShareModule is
         return _revenueEarnedByUser(user);
     }
 
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        if (tokenId >= TAKADAO_BALANCE) {
+            _requireOwned(tokenId);
+        }
+
+        string memory str = Strings.toString(tokenId);
+        uint256 length = bytes(str).length;
+
+        if (length >= 5) {
+            return str; // already 5 digits or more
+        }
+
+        // Add (5 - length) zeros in front
+        string memory zeros;
+        for (uint256 i = 0; i < 5 - length; i++) {
+            zeros = string.concat(zeros, "0");
+        }
+
+        string memory paddedTokenId = string.concat(zeros, str);
+
+        return bytes(baseURI).length > 0 ? string.concat(baseURI, paddedTokenId, ".png") : "";
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -407,6 +442,10 @@ contract RevShareModule is
 
         return (((activeNFTs * (_revenuePerNFT() - userRevenuePerNFTPaid[_user])) /
             DECIMAL_CORRECTION) + revenues[_user]);
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return baseURI;
     }
 
     /// @notice Needed override
