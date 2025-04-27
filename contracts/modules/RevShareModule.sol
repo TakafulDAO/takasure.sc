@@ -356,20 +356,19 @@ contract RevShareModule is
         require(totalSupply() < MAX_SUPPLY, RevShareModule__MaxSupplyReached());
         require(!claimedNFTs[_member], RevShareModule__NotAllowedToMint());
 
-        uint256 currentTokenId = totalSupply();
-        uint256 newTokenId = currentTokenId + 1;
+        uint256 tokenId = totalSupply();
 
         // Update the revenues
         _updateRevenue(_member);
         _updateRevenue(takadaoOperator);
 
         // All NFTs minted to normal members are active from the start
-        isNFTActive[newTokenId] = true;
+        isNFTActive[tokenId] = true;
         claimedNFTs[_member] = true;
 
-        _safeMint(_member, newTokenId);
+        _safeMint(_member, tokenId);
 
-        emit OnRevShareNFTMinted(_member, newTokenId);
+        emit OnRevShareNFTMinted(_member, tokenId);
     }
 
     /**
