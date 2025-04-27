@@ -33,6 +33,7 @@ contract TestDeployProtocol is Script {
 
     string root;
     string scriptPath;
+    string baseUri = "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/";
 
     function run()
         external
@@ -210,7 +211,7 @@ contract TestDeployProtocol is Script {
             revShareModuleImplementation,
             abi.encodeCall(
                 RevShareModule.initialize,
-                (_takadaoOperator, _kycProvider, _moduleManagerAddress, _contributionToken)
+                (_takadaoOperator, _kycProvider, _moduleManagerAddress, _contributionToken, baseUri)
             )
         );
 

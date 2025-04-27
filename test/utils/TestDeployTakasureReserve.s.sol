@@ -32,6 +32,8 @@ contract TestDeployTakasureReserve is Script {
     string root;
     string scriptPath;
 
+    string baseUri = "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/";
+
     function run()
         external
         returns (
@@ -205,7 +207,13 @@ contract TestDeployTakasureReserve is Script {
                 revShareModuleImplementation,
                 abi.encodeCall(
                     RevShareModule.initialize,
-                    (_takadaoOperator, _takadaoOperator, _moduleManagerAddress, _contributionToken)
+                    (
+                        _takadaoOperator,
+                        _takadaoOperator,
+                        _moduleManagerAddress,
+                        _contributionToken,
+                        baseUri
+                    )
                 )
             );
         }
