@@ -225,17 +225,20 @@ contract RevShareModule is
         // Update the coupon amount for the coupon buyer with the remaining amount, not used for minting
         couponAmountsByBuyer[couponBuyer] = totalCouponAmount - (maxNFTsAllowed * NFT_PRICE);
 
-        uint256 currentTokenId = totalSupply();
+        uint256 firstNewTokenId = totalSupply();
 
-        uint256 firstNewTokenId = currentTokenId + 1;
-        uint256 lastNewTokenId = currentTokenId + maxNFTsAllowed;
+        if (maxNFTsAllowed == 1) {
+            _safeMint(couponBuyer, firstNewTokenId);
+            emit OnRevShareNFTMinted(couponBuyer, firstNewTokenId);
+        } else {
+            uint256 lastNewTokenId = firstNewTokenId + maxNFTsAllowed;
 
-        // Non NFT will be active for coupon buyers until 250 USDC in coupons are redeemed
-        for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
-            _safeMint(couponBuyer, i);
+            for (uint256 i = firstNewTokenId; i < lastNewTokenId; ++i) {
+                _safeMint(couponBuyer, i);
+            }
+
+            emit OnBatchRevShareNFTMinted(couponBuyer, firstNewTokenId, lastNewTokenId);
         }
-
-        emit OnBatchRevShareNFTMinted(couponBuyer, firstNewTokenId, lastNewTokenId);
     }
 
     /**
@@ -304,7 +307,7 @@ contract RevShareModule is
     //////////////////////////////////////////////////////////////*/
 
     function isActive(uint256 tokenId) external view returns (bool) {
-        if (tokenId > 0 && tokenId <= TAKADAO_BALANCE) return true;
+        if (tokenId < TAKADAO_BALANCE) return true;
         return isNFTActive[tokenId];
     }
 

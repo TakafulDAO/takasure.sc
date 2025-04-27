@@ -242,13 +242,13 @@ contract RevShareModuleTest is Test {
     }
 
     function testRevShareModule_batchMintTokens() public increaseCouponAmountByBuyer {
-        uint256 amountRedeemed = (5 * NFT_PRICE) + 100e6; //
+        uint256 amountRedeemed = (5 * NFT_PRICE) + 100e6;
         assertEq(revShareModule.balanceOf(couponBuyer), 0);
         assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), amountRedeemed);
 
         vm.prank(minter);
         vm.expectEmit(true, false, false, false, address(revShareModule));
-        emit OnBatchRevShareNFTMinted(couponBuyer, 9181, 9185);
+        emit OnBatchRevShareNFTMinted(couponBuyer, 9180, 9184);
         revShareModule.batchMint(couponBuyer, 0);
 
         assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 100e6);
@@ -256,17 +256,17 @@ contract RevShareModuleTest is Test {
 
         vm.prank(minter);
         vm.expectEmit(true, false, false, false, address(revShareModule));
-        emit OnBatchRevShareNFTMinted(couponBuyer, 9186, 9186);
+        emit OnRevShareNFTMinted(couponBuyer, 9185);
         revShareModule.batchMint(couponBuyer, 150e6);
 
         assertEq(revShareModule.couponAmountsByBuyer(couponBuyer), 0);
         assertEq(revShareModule.balanceOf(couponBuyer), 6);
+        assert(!revShareModule.isActive(9180));
         assert(!revShareModule.isActive(9181));
         assert(!revShareModule.isActive(9182));
         assert(!revShareModule.isActive(9183));
         assert(!revShareModule.isActive(9184));
         assert(!revShareModule.isActive(9185));
-        assert(!revShareModule.isActive(9186));
     }
 
     modifier batchMint() {
@@ -329,11 +329,11 @@ contract RevShareModuleTest is Test {
             couponBuyer
         );
         assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
-        assert(!revShareModule.isActive(9181));
+        assert(!revShareModule.isActive(9180));
 
         vm.prank(minter);
         vm.expectEmit(true, false, false, false, address(revShareModule));
-        emit OnRevShareNFTActivated(couponBuyer, 9181);
+        emit OnRevShareNFTActivated(couponBuyer, 9180);
         revShareModule.mintOrActivate(
             RevShareModule.Operation.ACTIVATE_NFT,
             address(0),
@@ -348,7 +348,7 @@ contract RevShareModuleTest is Test {
         assertApproxEqAbs(revShareModule.revenuePerNFTOwned(), 48e5, 100);
         assertEq(userRevenuePerNftPaid_initialState, 0);
         assertApproxEqAbs(revShareModule.userRevenuePerNFTPaid(couponBuyer), 48e5, 100);
-        assert(revShareModule.isActive(9181));
+        assert(revShareModule.isActive(9180));
         assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
     }
 
@@ -358,7 +358,7 @@ contract RevShareModuleTest is Test {
         batchMint
     {
         assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 0);
-        assert(!revShareModule.isActive(9181));
+        assert(!revShareModule.isActive(9180));
 
         vm.prank(minter);
         revShareModule.mintOrActivate(
@@ -369,7 +369,7 @@ contract RevShareModuleTest is Test {
         );
 
         assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 100e6);
-        assert(!revShareModule.isActive(9181));
+        assert(!revShareModule.isActive(9180));
 
         vm.prank(minter);
         revShareModule.mintOrActivate(
@@ -380,7 +380,7 @@ contract RevShareModuleTest is Test {
         );
 
         assertEq(revShareModule.couponRedeemedAmountsByBuyer(couponBuyer), 100e6);
-        assert(revShareModule.isActive(9181));
+        assert(revShareModule.isActive(9180));
     }
 
     function testRevShareModule_activateTokenActivatesInOrder()
@@ -480,7 +480,7 @@ contract RevShareModuleTest is Test {
         assertEq(revShareModule.balanceOf(joinerMax), 0);
 
         vm.prank(couponBuyer);
-        revShareModule.transfer(joinerMax, 9181);
+        revShareModule.transfer(joinerMax, 9180);
 
         assertEq(revShareModule.balanceOf(couponBuyer), 4);
         assertEq(revShareModule.balanceOf(joinerMax), 1);
@@ -499,7 +499,7 @@ contract RevShareModuleTest is Test {
         revShareModule.setApprovalForAll(revShareModuleAddress, true);
 
         vm.prank(revShareModuleAddress);
-        revShareModule.transferFrom(couponBuyer, joinerMax, 9181);
+        revShareModule.transferFrom(couponBuyer, joinerMax, 9180);
 
         assertEq(revShareModule.balanceOf(couponBuyer), 4);
         assertEq(revShareModule.balanceOf(joinerMax), 1);
