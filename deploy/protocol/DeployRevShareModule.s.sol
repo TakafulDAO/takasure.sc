@@ -14,6 +14,9 @@ contract DeployRevShareModule is Script {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
 
+        string
+            memory baseUri = "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/";
+
         vm.startBroadcast();
         proxy = Upgrades.deployUUPSProxy(
             "RevShareModule.sol",
@@ -23,7 +26,8 @@ contract DeployRevShareModule is Script {
                     config.takadaoOperator,
                     config.kycProvider,
                     address(new ModuleManager()),
-                    config.contributionToken
+                    config.contributionToken,
+                    baseUri
                 )
             )
         );
