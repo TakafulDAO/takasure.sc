@@ -49,6 +49,10 @@ protocol-deploy-takasure:
 	@forge clean
 	@forge script deploy/protocol/02-DeployTakasure.s.sol:DeployTakasure $(NETWORK_ARGS)
 
+protocol-deploy-revshare:
+	@forge clean
+	@forge script deploy/protocol/DeployRevShareModule.s.sol:DeployRevShareModule $(NETWORK_ARGS)
+
 # Protocol upgrades
 protocol-upgrade-referral:
 	@forge clean
