@@ -156,12 +156,12 @@ contract RevShareModuleTest is Test {
         assert(revShareModule.lastUpdatedTimestamp() > lastUpdatedTimestamp_initialState);
         assertEq(revShareModule.totalSupply(), latestTokenId_initialState + 1);
         assert(!isActive_initialState);
-        assert(revShareModule.isActive(revShareModule.totalSupply()));
+        assert(revShareModule.isActive(revShareModule.totalSupply() - 1));
         assert(!joinerClaimed_initialState);
         assert(revShareModule.claimedNFTs(joinerMax));
         assertEq(joinerBalance_initialState, 0);
         assertEq(revShareModule.balanceOf(joinerMax), 1);
-        assertEq(revShareModule.tokenOfOwnerByIndex(joinerMax, 0), 9181);
+        assertEq(revShareModule.tokenOfOwnerByIndex(joinerMax, 0), 9180);
         assertEq(userRevenue_initialState, 0);
         assertEq(revShareModule.revenues(joinerMax), 0);
         assertEq(revenuePerNFTOwned_initialState, 0);
@@ -185,11 +185,11 @@ contract RevShareModuleTest is Test {
         uint256 tokenId = revShareModule.totalSupply();
 
         vm.expectRevert();
-        revShareModule.tokenURI(tokenId + 1);
+        revShareModule.tokenURI(tokenId);
 
         assertEq(
-            revShareModule.tokenURI(tokenId),
-            "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/09181.png"
+            revShareModule.tokenURI(tokenId - 1),
+            "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/09180.png"
         );
     }
 
