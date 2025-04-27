@@ -67,6 +67,13 @@ contract RevShareModuleTest is Test {
         assert(revShareModule.hasRole(keccak256("TAKADAO_OPERATOR"), takadao));
     }
 
+    function testRevShareModule_takadaoNftsBaseUris() public view {
+        assertEq(
+            revShareModule.tokenURI(0),
+            "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/00000.png"
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                             INCREASE COUPON
     //////////////////////////////////////////////////////////////*/
@@ -172,6 +179,18 @@ contract RevShareModuleTest is Test {
             0
         );
         _;
+    }
+
+    function testRevShareModule_baseUriForMintedNft() public singleMint {
+        uint256 tokenId = revShareModule.totalSupply();
+
+        vm.expectRevert();
+        revShareModule.tokenURI(tokenId + 1);
+
+        assertEq(
+            revShareModule.tokenURI(tokenId),
+            "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/09181.png"
+        );
     }
 
     function testRevShareModule_mintRevertsIfAlreadyClaimed() public singleMint {
