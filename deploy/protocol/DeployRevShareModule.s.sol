@@ -26,11 +26,12 @@ contract DeployRevShareModule is Script {
                     config.takadaoOperator,
                     config.kycProvider,
                     address(new ModuleManager()),
-                    config.contributionToken,
-                    baseUri
+                    config.contributionToken
                 )
             )
         );
+
+        RevShareModule(proxy).setBaseURI(baseUri);
         vm.stopBroadcast();
     }
 }

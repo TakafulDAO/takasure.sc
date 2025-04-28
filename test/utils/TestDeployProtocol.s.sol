@@ -134,8 +134,10 @@ contract TestDeployProtocol is Script {
             .getReserveValues()
             .contributionToken;
 
-        vm.prank(config.takadaoOperator);
+        vm.startPrank(config.takadaoOperator);
         PrejoinModule(prejoinModuleAddress).grantRole(MODULE_MANAGER, address(moduleManager));
+        RevShareModule(revShareModuleAddress).setBaseURI(baseUri);
+        vm.stopPrank();
 
         vm.prank(moduleManager.owner());
         moduleManager.addModule(prejoinModuleAddress);
@@ -211,7 +213,7 @@ contract TestDeployProtocol is Script {
             revShareModuleImplementation,
             abi.encodeCall(
                 RevShareModule.initialize,
-                (_takadaoOperator, _kycProvider, _moduleManagerAddress, _contributionToken, baseUri)
+                (_takadaoOperator, _kycProvider, _moduleManagerAddress, _contributionToken)
             )
         );
 

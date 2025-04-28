@@ -125,6 +125,9 @@ contract TestDeployTakasureReserve is Script {
             .getReserveValues()
             .contributionToken;
 
+        vm.prank(config.takadaoOperator);
+        RevShareModule(revShareModule).setBaseURI(baseUri);
+
         return (
             tsToken,
             bmConsumerMock,
@@ -207,13 +210,7 @@ contract TestDeployTakasureReserve is Script {
                 revShareModuleImplementation,
                 abi.encodeCall(
                     RevShareModule.initialize,
-                    (
-                        _takadaoOperator,
-                        _takadaoOperator,
-                        _moduleManagerAddress,
-                        _contributionToken,
-                        baseUri
-                    )
+                    (_takadaoOperator, _takadaoOperator, _moduleManagerAddress, _contributionToken)
                 )
             );
         }
