@@ -107,8 +107,7 @@ contract RevShareModule is
         address _operator,
         address _minter,
         address _moduleManager,
-        address _usdc,
-        string calldata _initialBaseURI
+        address _usdc
     ) external initializer {
         AddressAndStates._notZeroAddress(_operator);
         AddressAndStates._notZeroAddress(_moduleManager);
@@ -131,9 +130,6 @@ contract RevShareModule is
 
         revenueRate = 1;
         lastUpdatedTimestamp = block.timestamp;
-
-        baseURI = _initialBaseURI;
-        emit OnBaseURISet("", _initialBaseURI);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -162,7 +158,9 @@ contract RevShareModule is
         emit OnCouponAmountByBuyerIncreased(buyer, amount);
     }
 
-    function setBaseURI(string calldata _newBaseURI) external onlyRole(MINTER_ROLE) {
+    function setBaseURI(
+        string calldata _newBaseURI
+    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
         string memory oldBaseURI = baseURI;
         baseURI = _newBaseURI;
         emit OnBaseURISet(oldBaseURI, _newBaseURI);
