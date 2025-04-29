@@ -20,8 +20,14 @@ async function generateMetadata() {
         const tokenStr = tokenId.toString().padStart(5, "0")
         const metadata = {
             description: "TLD Pioneer",
+            external_url: "https://thelifedao.io/en",
             image: `${baseUrl}/${tokenStr}.png`,
             name: "TLD Astronaut",
+            content: {
+                mime: "image/png",
+                uri: `${baseUrl}/${tokenStr}.png`,
+            },
+            atributes: [],
         }
         const filePath = path.join(outputFolder, `${tokenStr}.json`)
 
