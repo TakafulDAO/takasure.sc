@@ -327,14 +327,15 @@ contract RevShareModule is
 
         string memory str = Strings.toString(tokenId);
         uint256 length = bytes(str).length;
+        uint256 maxIdLength = 5; // 5 digits
 
-        if (length >= 5) {
-            return str; // already 5 digits or more
+        if (length == maxIdLength) {
+            return str; // already 5 digits
         }
 
-        // Add (5 - length) zeros in front
+        // Add (maxIdLength - length) zeros in front
         string memory zeros;
-        for (uint256 i = 0; i < 5 - length; i++) {
+        for (uint256 i; i < maxIdLength - length; ++i) {
             zeros = string.concat(zeros, "0");
         }
 
