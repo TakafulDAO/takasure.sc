@@ -340,7 +340,7 @@ contract RevShareModule is
 
         string memory paddedTokenId = string.concat(zeros, str);
 
-        return bytes(baseURI).length > 0 ? string.concat(baseURI, paddedTokenId, ".png") : "";
+        return bytes(baseURI).length > 0 ? string.concat(baseURI, paddedTokenId, ".json") : "";
     }
 
     /*//////////////////////////////////////////////////////////////
