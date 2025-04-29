@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@chainlink/functions-toolkit": "^0.2.8",
+    "archiver": "^7.0.1",
     "dotenv": "^16.4.5",
     "ethers": "^5.7.2",
     "prettier": "^3.2.5",
