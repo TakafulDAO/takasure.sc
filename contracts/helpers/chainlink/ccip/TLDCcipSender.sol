@@ -37,6 +37,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     mapping(address token => bool supportedTokens) public isSupportedToken;
 
+    bool private prejoinPhase;
+
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -49,6 +51,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 indexed fees,
         address user
     );
+    event OnPrejoinPhaseSet(bool prejoinPhase);
 
     error TLDCcipSender__ZeroTransferNotAllowed();
     error TLDCcipSender__AlreadySupportedToken();
@@ -130,6 +133,11 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         address _receiverContract
     ) external onlyOwner notZeroAddress(_receiverContract) {
         receiverContract = _receiverContract;
+    }
+
+    function setPrejoinPhase(bool _prejoinPhase) external onlyOwner {
+        prejoinPhase = _prejoinPhase;
+        emit OnPrejoinPhaseSet(_prejoinPhase);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -283,16 +291,30 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
         tokenAmounts[0] = Client.EVMTokenAmount({token: _token, amount: _amount});
 
+        bytes memory dataToSend;
+
         // Function to call in the receiver contract
-        // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
-        bytes memory dataToSend = abi.encodeWithSignature(
-            "payContributionOnBehalfOf(uint256,string,address,address,uint256)",
-            _contribution,
-            _tDAOName,
-            _parent,
-            _newMember,
-            _couponAmount
-        );
+        if (prejoinPhase) {
+            // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
+            dataToSend = abi.encodeWithSignature(
+                "payContributionOnBehalfOf(uint256,string,address,address,uint256)",
+                _contribution,
+                _tDAOName,
+                _parent,
+                _newMember,
+                _couponAmount
+            );
+        } else {
+            // joinPoolOnBehalfOf(address membersWallet, address parentWallet, uint256 contributionBeforeFee, uint256 membershipDuration, uint256 couponAmount)
+            dataToSend = abi.encodeWithSignature(
+                "joinPoolOnBehalfOf(address,address,uint256,uint256,uint256)",
+                _newMember,
+                _parent,
+                _contribution,
+                365 days,
+                _couponAmount
+            );
+        }
 
         // EVM2AnyMessage struct
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
