@@ -70,7 +70,7 @@ contract RevShareModuleTest is Test {
     function testRevShareModule_takadaoNftsBaseUris() public view {
         assertEq(
             revShareModule.tokenURI(0),
-            "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/00000.png"
+            "https://ipfs.io/ipfs/QmUq7yXHJehe7DCK1ASkPDm79U8H2aRDb4v79i52ijbrB4/00000.json"
         );
     }
 
@@ -189,7 +189,7 @@ contract RevShareModuleTest is Test {
 
         assertEq(
             revShareModule.tokenURI(tokenId - 1),
-            "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/09180.png"
+            "https://ipfs.io/ipfs/QmUq7yXHJehe7DCK1ASkPDm79U8H2aRDb4v79i52ijbrB4/09180.json"
         );
     }
 

@@ -15,7 +15,7 @@ contract DeployRevShareModule is Script {
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
 
         string
-            memory baseUri = "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/";
+            memory baseUri = "https://ipfs.io/ipfs/QmUq7yXHJehe7DCK1ASkPDm79U8H2aRDb4v79i52ijbrB4/";
 
         vm.startBroadcast();
         proxy = Upgrades.deployUUPSProxy(

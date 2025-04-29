@@ -32,7 +32,7 @@ contract TestDeployTakasureReserve is Script {
     string root;
     string scriptPath;
 
-    string baseUri = "https://ipfs.io/ipfs/QmYLyTRp3uUN8ryGw2NaLPoudicgSJDr4E5DGTn8tLj8gP/";
+    string baseUri = "https://ipfs.io/ipfs/QmUq7yXHJehe7DCK1ASkPDm79U8H2aRDb4v79i52ijbrB4/";
 
     function run()
         external
