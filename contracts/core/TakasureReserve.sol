@@ -445,9 +445,7 @@ contract TakasureReserve is
 
     function _onlyDaoOrTakadao() internal view {
         require(
-            hasRole(TAKADAO_OPERATOR, msg.sender) ||
-                hasRole(DAO_MULTISIG, msg.sender) ||
-                hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            hasRole(TAKADAO_OPERATOR, msg.sender) || hasRole(DAO_MULTISIG, msg.sender),
             TakasureReserve__OnlyDaoOrTakadao()
         );
     }
