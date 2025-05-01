@@ -37,6 +37,11 @@ contract RevenueModule is
 
     error RevenueModule__WrongRevenueType();
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(address _takasureReserveAddress) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
