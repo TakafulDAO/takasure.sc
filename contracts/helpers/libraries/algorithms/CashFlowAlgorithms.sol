@@ -37,7 +37,7 @@ library CashFlowAlgorithms {
             uint256 toFundReserve,
             uint256 toClaimReserve,
             uint256 marketExpenditure
-        ) = _updateReserveBalaces(_contributionAfterFee, _reserve);
+        ) = _updateReserveBalances(_contributionAfterFee, _reserve);
 
         _reserve.totalFundReserve += toFundReserve;
         _reserve.totalClaimReserve += toClaimReserve;
@@ -84,7 +84,7 @@ library CashFlowAlgorithms {
         );
     }
 
-    function _updateReserveBalaces(
+    function _updateReserveBalances(
         uint256 _contributionAfterFee,
         Reserve memory _reserve
     )
