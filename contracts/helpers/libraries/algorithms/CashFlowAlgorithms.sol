@@ -17,7 +17,7 @@ import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol"
 pragma solidity 0.8.28;
 
 library CashFlowAlgorithms {
-    uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
+    uint256 private constant MONTH = 30 days;
     uint256 private constant DAY = 1 days;
 
     function _updateNewReserveValues(
