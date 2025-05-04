@@ -158,7 +158,7 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         takasureReserve.setNewFundMarketExpendsShare(10);
 
         vm.prank(admin);
-        vm.expectRevert(TakasureReserve.TakasureReserve__WrongFundMarketExpendsShare.selector);
+        vm.expectRevert(TakasureReserve.TakasureReserve__WrongValue.selector);
         takasureReserve.setNewFundMarketExpendsShare(36);
 
         vm.prank(alice);
