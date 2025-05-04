@@ -11,6 +11,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
     TestDeployProtocol deployer;
@@ -131,7 +132,6 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
     {
         vm.prank(referral);
         vm.expectRevert();
-        emit OnMemberJoined(2, referral);
         prejoinModule.joinDAO(referral);
     }
 
@@ -152,7 +152,6 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
         vm.prank(child);
         vm.expectRevert(PrejoinModule.PrejoinModule__NotKYCed.selector);
-        emit OnMemberJoined(2, child);
         prejoinModule.joinDAO(child);
     }
 
@@ -206,5 +205,14 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
             takasureReserveFinalBalance,
             takasureReserveInitialBalance + referredContributionAfterFee
         );
+
+        // Cannot join again
+        vm.startPrank(child);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
+        prejoinModule.joinDAO(child);
+
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
+        entryModule.joinPool(child, address(0), CONTRIBUTION_AMOUNT, 5 * 365 days);
+        vm.stopPrank();
     }
 }
