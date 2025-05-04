@@ -77,6 +77,8 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         uint256 balance = balanceOf(account);
         require(value <= balance, Token__BurnAmountExceedsBalance(balance, value));
 
+        _approve(account, msg.sender, value);
+
         emit OnTokenBurned(account, value);
 
         super.burnFrom(account, value);
