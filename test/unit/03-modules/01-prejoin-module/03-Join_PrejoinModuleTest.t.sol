@@ -69,10 +69,8 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(address(usdc));
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
@@ -108,7 +106,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
     modifier KYCReferral() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         _;
     }
 
@@ -121,7 +119,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
     modifier referredIsKYC() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(child);
+        prejoinModule.approveKYC(child);
         _;
     }
 
@@ -144,6 +142,11 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         KYCReferral
         referredPrepays
     {
+        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+
+        vm.warp(launchDate);
+        vm.roll(block.number + 1);
+
         vm.prank(daoAdmin);
         prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 

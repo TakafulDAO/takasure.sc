@@ -214,11 +214,6 @@ contract TakasureReserve is
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
     }
 
-    function setNewContributionToken(address newContributionToken) external onlyRole(DAO_MULTISIG) {
-        AddressAndStates._notZeroAddress(newContributionToken);
-        reserve.contributionToken = newContributionToken;
-    }
-
     function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(OPERATOR) {
         AddressAndStates._notZeroAddress(newFeeClaimAddress);
         feeClaimAddress = newFeeClaimAddress;

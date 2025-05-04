@@ -113,7 +113,6 @@ contract PrejoinModule is
         address indexed oldBenefitMultiplierConsumer
     );
     event OnRefund(address indexed member, uint256 indexed amount);
-    event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
     event OnNewCCIPReceiverContract(
@@ -217,6 +216,10 @@ contract PrejoinModule is
      */
     function updateLaunchDate(uint256 launchDate) external onlyRole(OPERATOR) {
         require(
+            launchDate > nameToDAOData[tDAOName].launchDate,
+            PrejoinModule__InvalidLaunchDate()
+        );
+        require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             PrejoinModule__DAOAlreadyLaunched()
         );
@@ -241,6 +244,10 @@ contract PrejoinModule is
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(tDAOAddress);
         AddressAndStates._notZeroAddress(entryModuleAddress);
+        require(
+            nameToDAOData[tDAOName].launchDate <= block.timestamp,
+            PrejoinModule__InvalidLaunchDate()
+        );
         require(
             nameToDAOData[tDAOName].DAOAddress == address(0),
             PrejoinModule__DAOAlreadyLaunched()
@@ -347,7 +354,7 @@ contract PrejoinModule is
      * @param user The address of the member
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
-    function setKYCStatus(address user) external onlyRole(KYC_PROVIDER) {
+    function approveKYC(address user) external onlyRole(KYC_PROVIDER) {
         // It will be possible to KYC a member that was left behind in the process
         // This will allow them to join the DAO
         require(
@@ -438,6 +445,10 @@ contract PrejoinModule is
      */
     function refundIfDAOIsNotLaunched(address member) external {
         require(
+            member == msg.sender || hasRole(OPERATOR, msg.sender),
+            PrejoinModule__NotAuthorizedCaller()
+        );
+        require(
             nameToDAOData[tDAOName].launchDate < block.timestamp &&
                 nameToDAOData[tDAOName].DAOAddress == address(0),
             PrejoinModule__tDAONotReadyYet()
@@ -458,13 +469,6 @@ contract PrejoinModule is
     /*//////////////////////////////////////////////////////////////
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
-
-    function setUsdcAddress(address _usdcAddress) external onlyRole(OPERATOR) {
-        address oldUsdc = address(usdc);
-        usdc = IERC20(_usdcAddress);
-
-        emit OnUsdcAddressChanged(oldUsdc, _usdcAddress);
-    }
 
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
