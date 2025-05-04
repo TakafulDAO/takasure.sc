@@ -132,6 +132,7 @@ contract TestDeployProtocol is Script {
         vm.startPrank(config.takadaoOperator);
         PrejoinModule(prejoinModuleAddress).grantRole(MODULE_MANAGER, address(moduleManager));
         EntryModule(entryModuleAddress).grantRole(ROUTER, routerAddress);
+        MemberModule(memberModuleAddress).grantRole(ROUTER, routerAddress);
         vm.stopPrank();
 
         vm.prank(moduleManager.owner());

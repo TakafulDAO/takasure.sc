@@ -63,7 +63,6 @@ contract EntryModule is
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
     bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
-    bytes32 private constant ROUTER = keccak256("ROUTER");
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
@@ -72,7 +71,6 @@ contract EntryModule is
     error EntryModule__MemberAlreadyKYCed();
     error EntryModule__NothingToRefund();
     error EntryModule__TooEarlytoRefund();
-    error EntryModule__NotAuthorizedCaller();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -148,7 +146,7 @@ contract EntryModule is
         uint256 membershipDuration
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        require(msg.sender == prejoinModule || hasRole(ROUTER, msg.sender) || msg.sender == membersWallet, EntryModule__NotAuthorizedCaller());
+        require(msg.sender == prejoinModule || hasRole(ModuleConstants.ROUTER, msg.sender) || msg.sender == membersWallet, ModuleErrors.Module__NotAuthorizedCaller());
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             membersWallet
@@ -819,7 +817,7 @@ contract EntryModule is
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
             hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
-            EntryModule__NotAuthorizedCaller()
+            ModuleErrors.Module__NotAuthorizedCaller()
         );
     }
 
