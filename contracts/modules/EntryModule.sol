@@ -509,7 +509,7 @@ contract EntryModule is
             takasureReserve,
             _memberWallet
         );
-        require(_memberWallet == msg.sender || hasRole(ROUTER, msg.sender) || hasRole(ModuleConstants.TAKADAO_OPERATOR, msg.sender), EntryModule__NotAuthorizedCaller());
+        require(_memberWallet == msg.sender || hasRole(ROUTER, msg.sender) || hasRole(ModuleConstants.OPERATOR, msg.sender), EntryModule__NotAuthorizedCaller());
 
         // The member should not be KYCed neither already refunded
         require(!_member.isKYCVerified, EntryModule__MemberAlreadyKYCed());
