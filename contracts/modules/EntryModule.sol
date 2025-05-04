@@ -20,10 +20,9 @@ import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValues
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
-import {Reserve, Member, MemberState, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
-import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -58,6 +57,9 @@ contract EntryModule is
     mapping(address child => address parent) public childToParent;
     mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
     mapping(address parent => mapping(uint256 layer => uint256 reward)) public parentRewardsByLayer;
+    // Set to true when new members use coupons to pay their contributions. It does not matter the amount
+    mapping(address member => bool) private isMemberCouponRedeemer; 
+
 
     uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
     uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
@@ -212,9 +214,12 @@ contract EntryModule is
             membershipDuration,
             benefitMultiplier,
             couponAmount
-        );
+        );  
 
-        if (couponAmount > 0) emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        if (couponAmount > 0) {
+            isMemberCouponRedeemer[membersWallet] = true;
+            emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        }
     }
 
     /**
@@ -503,6 +508,10 @@ contract EntryModule is
         return (_currentFee, newReferralReserveBalance);
     }
 
+    /**
+     * @notice All refunds for users that used coupons will be restored in the coupon pool
+     *         The user will need to reach custommer support to get the corresponding amount
+     */
     function _refund(address _memberWallet) internal {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
@@ -529,7 +538,16 @@ contract EntryModule is
         // Update the member values
         _member.isRefunded = true;
         // Transfer the amount to refund
-        IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
+
+        if (isMemberCouponRedeemer[_memberWallet]) {
+            // Reset the coupon redeemer status, this way the member can redeem again
+            isMemberCouponRedeemer[_memberWallet] = false;
+            // We transfer the coupon amount to the coupon pool
+            IERC20(_reserve.contributionToken).safeTransfer(couponPool, amountToRefund);
+        } else {
+            // We transfer the amount to the member
+            IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
+        }
 
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
 
@@ -706,53 +724,6 @@ contract EntryModule is
                 bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
                 revert EntryModule__BenefitMultiplierRequestFailed(errorResponse);
             }
-        }
-    }
-
-    function _monthAndDayFromCall()
-        internal
-        view
-        returns (uint16 currentMonth_, uint8 currentDay_)
-    {
-        CashFlowVars memory cashFlowVars = takasureReserve.getCashFlowValues();
-        uint256 currentTimestamp = block.timestamp;
-        uint256 lastDayDepositTimestamp = cashFlowVars.dayDepositTimestamp;
-        uint256 lastMonthDepositTimestamp = cashFlowVars.monthDepositTimestamp;
-
-        // Calculate how many days and months have passed since the last deposit and the current timestamp
-        uint256 daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
-            currentTimestamp,
-            lastDayDepositTimestamp
-        );
-        uint256 monthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(
-            currentTimestamp,
-            lastMonthDepositTimestamp
-        );
-
-        if (monthsPassed == 0) {
-            // If  no months have passed, current month is the reference
-            currentMonth_ = cashFlowVars.monthReference;
-            if (daysPassed == 0) {
-                // If no days have passed, current day is the reference
-                currentDay_ = cashFlowVars.dayReference;
-            } else {
-                // If you are in a new day, calculate the days passed
-                currentDay_ = uint8(daysPassed) + cashFlowVars.dayReference;
-            }
-        } else {
-            // If you are in a new month, calculate the months passed
-            currentMonth_ = uint16(monthsPassed) + cashFlowVars.monthReference;
-            // Calculate the timestamp when this new month started
-            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp +
-                (monthsPassed * ModuleConstants.MONTH);
-            // And calculate the days passed in this new month using the new month timestamp
-            daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
-                currentTimestamp,
-                timestampThisMonthStarted
-            );
-            // The current day is the days passed in this new month
-            uint8 initialDay = 1;
-            currentDay_ = uint8(daysPassed) + initialDay;
         }
     }
 
