@@ -51,7 +51,7 @@ contract Reverts_TakasureCoreTest is StdCheats, Test {
     function testTakasureCore_setNewServiceFeeMustRevertIfHigherThan35() public {
         uint8 newServiceFee = 36;
         vm.prank(admin);
-        vm.expectRevert(TakasureReserve.TakasureReserve__WrongServiceFee.selector);
+        vm.expectRevert(TakasureReserve.TakasureReserve__WrongValue.selector);
         takasureReserve.setNewServiceFee(newServiceFee);
     }
 
