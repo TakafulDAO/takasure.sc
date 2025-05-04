@@ -55,7 +55,7 @@ struct Member {
     uint256 benefitMultiplier;
     uint256 membershipDuration; // in years
     uint256 membershipStartTime; // in seconds
-    uint256 lastPaidYearStartDate; // in seconds
+    uint256 lastPaidYear;
     uint256 contribution; // in stablecoin currency in Wei
     uint256 discount;
     uint256 claimAddAmount; // amount deposited in the claim reserve, in stablecoin currency in Wei, and without fees

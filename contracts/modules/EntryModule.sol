@@ -584,7 +584,7 @@ contract EntryModule is
             benefitMultiplier: _benefitMultiplier,
             membershipDuration: userMembershipDuration,
             membershipStartTime: block.timestamp,
-            lastPaidYearStartDate: block.timestamp,
+            lastPaidYear: 0,
             contribution: normalizedContributionBeforeFee,
             discount: discount,
             claimAddAmount: claimAddAmount,

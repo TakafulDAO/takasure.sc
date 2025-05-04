@@ -101,32 +101,30 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
         for (uint256 i = 0; i < 5; i++) {
             Member memory testMember = takasureReserve.getMemberFromAddress(alice);
 
-            uint256 lastYearStartDateBefore = testMember.lastPaidYearStartDate;
             uint256 totalContributionBeforePayment = testMember.totalContributions;
             uint256 totalServiceFeeBeforePayment = testMember.totalServiceFee;
 
             vm.warp(block.timestamp + YEAR);
             vm.roll(block.number + 1);
 
-            vm.startPrank(alice);
+            vm.prank(alice);
             vm.expectEmit(true, true, true, true, address(memberModule));
             emit TakasureEvents.OnRecurringPayment(
                 alice,
                 testMember.memberId,
-                lastYearStartDateBefore + 365 days,
+                i + 1,
                 CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
             userRouter.payRecurringContribution();
-            vm.stopPrank();
 
             testMember = takasureReserve.getMemberFromAddress(alice);
 
-            uint256 lastYearStartDateAfter = testMember.lastPaidYearStartDate;
+            uint256 lastPaidYear = testMember.lastPaidYear;
             uint256 totalContributionAfterPayment = testMember.totalContributions;
             uint256 totalServiceFeeAfterPayment = testMember.totalServiceFee;
 
-            assert(lastYearStartDateAfter == lastYearStartDateBefore + 365 days);
+            assert(lastPaidYear == i + 1);
             assert(
                 totalContributionAfterPayment ==
                     totalContributionBeforePayment + CONTRIBUTION_AMOUNT

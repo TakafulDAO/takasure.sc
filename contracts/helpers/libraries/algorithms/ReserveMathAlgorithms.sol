@@ -198,12 +198,17 @@ library ReserveMathAlgorithms {
         uint256 year = 365;
         uint256 decimalCorrection = 1e3;
         uint256 ecr;
+        uint256 membershipTerm;
 
-        // Time passed since the membership started
-        uint256 membershipTerm = _calculateDaysPassed(
-            currentTimestamp,
-            member.lastPaidYearStartDate
-        );
+        if (currentTimestamp <= member.membershipStartTime + (member.lastPaidYear * year))
+            // Time passed since the membership started
+            membershipTerm = _calculateDaysPassed(currentTimestamp, member.membershipStartTime);
+            // Time passed since the last year paid
+        else
+            membershipTerm = _calculateDaysPassed(
+                currentTimestamp,
+                member.membershipStartTime + (member.lastPaidYear * year)
+            );
 
         if (membershipTerm > year) {
             // Thihs means the user is in the grace period and waiting for payment, we skip it
