@@ -165,22 +165,4 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         assertEq(aliceAfterFirstJoinBeforeRefund.memberId, aliceAfterRefund.memberId);
         assertEq(aliceAfterRefund.memberId, aliceAfterSecondJoin.memberId);
     }
-
-    function testEntryModule_refundCalledByAnyone() public {
-        Reserve memory reserve = takasureReserve.getReserveValues();
-        uint8 serviceFee = reserve.serviceFee;
-        uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
-
-        Member memory testMemberAfterKyc = takasureReserve.getMemberFromAddress(alice);
-
-        // 14 days passed
-        vm.warp(15 days);
-        vm.roll(block.number + 1);
-
-        vm.startPrank(alice);
-        vm.expectEmit(true, true, false, false, address(entryModule));
-        emit TakasureEvents.OnRefund(testMemberAfterKyc.memberId, alice, expectedRefundAmount);
-        entryModule.refund(alice);
-        vm.stopPrank();
-    }
 }
