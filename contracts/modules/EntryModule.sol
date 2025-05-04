@@ -508,6 +508,10 @@ contract EntryModule is
         return (_currentFee, newReferralReserveBalance);
     }
 
+    /**
+     * @notice All refunds for users that used coupons will be restored in the coupon pool
+     *         The user will need to reach custommer support to get the corresponding amount
+     */
     function _refund(address _memberWallet) internal {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
