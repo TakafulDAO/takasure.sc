@@ -40,14 +40,14 @@ contract TakasureReserve is
     address public daoMultisig;
     address private pauseGuardian;
 
-    uint256 private RPOOL; // todo: define this value
+    uint256 private RPOOL;
 
     bytes32 internal constant OPERATOR = keccak256("OPERATOR");
     bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
 
     mapping(uint16 month => uint256 monthCashFlow) public monthToCashFlow;
-    mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) public dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
+    mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) public dayToCashFlow;
 
     mapping(address member => Member) private members;
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
@@ -345,13 +345,13 @@ contract TakasureReserve is
 
         // Then make the iterations, according the month and day this function is called
         if (_currentMonth < 13) {
-            // Less than a complete year, iterate through every month passed
+            // If less than a complete year, iterate through every month passed
             // Return everything stored in the mappings until now
             for (uint8 i = 1; i <= _currentMonth; ++i) {
                 cash += monthToCashFlow[i];
             }
         } else {
-            // More than a complete year has passed, iterate the last 11 completed months
+            // If more than a complete year, iterate the last 11 completed months
             // This happens since month 13
             uint16 monthBackCounter;
             uint16 monthsInYear = 12;
@@ -386,7 +386,6 @@ contract TakasureReserve is
      * @return totalECRes_ the total earned contribution reserve. Six decimals
      * @return totalUCRes_ the total unearned contribution reserve. Six decimals
      */
-    // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
     function _totalECResAndUCResUnboundedLoop()
         internal
         returns (uint256 totalECRes_, uint256 totalUCRes_)
