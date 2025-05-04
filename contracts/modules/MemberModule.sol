@@ -45,6 +45,8 @@ contract MemberModule is
     IBenefitMultiplierConsumer private bmConsumer;
     ModuleState private moduleState;
 
+    uint256 private constant YEAR = 365 days;
+
     error MemberModule__InvalidDate();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -104,13 +106,17 @@ contract MemberModule is
         uint256 currentTimestamp = block.timestamp;
         uint256 membershipStartTime = activeMember.membershipStartTime;
         uint256 membershipDuration = activeMember.membershipDuration;
-        uint256 lastPaidYearStartDate = activeMember.lastPaidYearStartDate;
-        uint256 year = 365 days;
+        uint256 lastPaidYearStartDate = activeMember.membershipStartTime +
+            (YEAR * activeMember.lastPaidYear);
+
         uint256 gracePeriod = 30 days;
 
+        // Cannot pay if the membership expired
+        // Cannot pay if the current timestamp is greater than the last paid year + grace period
+        // Cannot pay more than 1 year in advance
         require(
             currentTimestamp <= membershipStartTime + membershipDuration &&
-                currentTimestamp < lastPaidYearStartDate + year + gracePeriod,
+                currentTimestamp < lastPaidYearStartDate + YEAR + gracePeriod,
             MemberModule__InvalidDate()
         );
 
@@ -118,7 +124,7 @@ contract MemberModule is
         uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
 
         // Update the values
-        activeMember.lastPaidYearStartDate += 365 days;
+        ++activeMember.lastPaidYear;
         activeMember.totalContributions += contributionBeforeFee;
         activeMember.totalServiceFee += feeAmount;
         activeMember.lastEcr = 0;
@@ -142,7 +148,7 @@ contract MemberModule is
         emit TakasureEvents.OnRecurringPayment(
             memberWallet,
             activeMember.memberId,
-            activeMember.lastPaidYearStartDate,
+            activeMember.lastPaidYear,
             contributionBeforeFee,
             activeMember.totalServiceFee
         );
@@ -158,8 +164,8 @@ contract MemberModule is
         require(member.memberState == MemberState.Active, ModuleErrors.Module__WrongMemberState());
 
         uint256 currentTimestamp = block.timestamp;
-        uint256 lastPaidYearStartDate = member.lastPaidYearStartDate;
-        uint256 limitTimestamp = member.membershipStartTime + lastPaidYearStartDate;
+        uint256 lastPaidYearStartDate = member.membershipStartTime + (YEAR * member.lastPaidYear);
+        uint256 limitTimestamp = lastPaidYearStartDate + YEAR;
 
         if (currentTimestamp >= limitTimestamp) {
             // Update the state, this will allow to cancel the membership
@@ -184,7 +190,7 @@ contract MemberModule is
         // To cancel the member should be defaulted and at least 30 days have passed from the new year
         uint256 currentTimestamp = block.timestamp;
         uint256 limitTimestamp = member.membershipStartTime +
-            member.lastPaidYearStartDate +
+            (YEAR * member.lastPaidYear) +
             (30 days);
 
         if (currentTimestamp >= limitTimestamp) {
