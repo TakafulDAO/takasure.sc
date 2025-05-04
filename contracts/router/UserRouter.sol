@@ -17,7 +17,6 @@ import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConst
 pragma solidity 0.8.28;
 
 contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
-    ITakasureReserve private takasureReserve;
     IEntryModule private entryModule;
     IMemberModule private memberModule;
 
@@ -34,11 +33,10 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         __UUPSUpgradeable_init();
         __AccessControl_init();
 
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
         entryModule = IEntryModule(_entryModule);
         memberModule = IMemberModule(_memberModule);
 
-        address takadaoOperator = takasureReserve.takadaoOperator();
+        address takadaoOperator = ITakasureReserve(_takasureReserveAddress).takadaoOperator();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
@@ -70,12 +68,6 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
 
     function defaultMember(address memberWallet) external {
         memberModule.defaultMember(memberWallet);
-    }
-
-    function setTakasureReserve(
-        address _takasureReserveAddress
-    ) external onlyRole(ModuleConstants.OPERATOR) {
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
     }
 
     function setEntryModule(address _entryModule) external onlyRole(ModuleConstants.OPERATOR) {
