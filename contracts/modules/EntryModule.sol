@@ -538,6 +538,7 @@ contract EntryModule is
 
         // Update the member values
         _member.isRefunded = true;
+        _member.memberState = MemberState.Inactive;
         // Transfer the amount to refund
         IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
 
