@@ -177,7 +177,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.warp(15 days);
         vm.roll(block.number + 1);
 
-        vm.startPrank(bob);
+        vm.startPrank(alice);
         vm.expectEmit(true, true, false, false, address(entryModule));
         emit TakasureEvents.OnRefund(testMemberAfterKyc.memberId, alice, expectedRefundAmount);
         entryModule.refund(alice);
