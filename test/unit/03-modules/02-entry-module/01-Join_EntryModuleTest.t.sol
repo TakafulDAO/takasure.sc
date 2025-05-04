@@ -375,10 +375,10 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         assertEq(contractCreditTokenBalanceBefore, 0);
         assertEq(aliceCreditTokenBalanceBefore, 0);
 
-        assertEq(contractCreditTokenBalanceAfter, CONTRIBUTION_AMOUNT * 10 ** 12);
-        assertEq(aliceCreditTokenBalanceAfter, 0);
+        assertEq(contractCreditTokenBalanceAfter, 0);
+        assertEq(aliceCreditTokenBalanceAfter, CONTRIBUTION_AMOUNT * 10 ** 12);
 
-        assertEq(member.creditTokensBalance, contractCreditTokenBalanceAfter);
+        assertEq(member.creditTokensBalance, aliceCreditTokenBalanceAfter);
     }
 
     function testGasBenchMark_joinPoolThroughUserRouter() public {
