@@ -42,6 +42,7 @@ contract TokenTest is Test {
     function testToken_mintUpdateBalanceAndEmitEvent() public {
         // Get users balance from the mapping and the balanceOf function to check if they match up
         uint256 userBalanceBefore = daoToken.balanceOf(user);
+        assertEq(daoToken.totalSupply(), 0);
 
         vm.prank(address(entryModule));
 
@@ -56,6 +57,7 @@ contract TokenTest is Test {
         assert(userBalanceAfter > userBalanceBefore);
 
         assertEq(userBalanceAfter, MINT_AMOUNT);
+        assertEq(daoToken.totalSupply(), MINT_AMOUNT);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -82,9 +84,13 @@ contract TokenTest is Test {
     function testToken_burnFromUpdateBalanceAndEmitEvent() public {
         uint256 burnAmount = MINT_AMOUNT / 2;
 
+        assertEq(daoToken.totalSupply(), 0);
+
         // Mint some tokens to the user
         vm.prank(address(entryModule));
         daoToken.mint(user, MINT_AMOUNT);
+
+        assertEq(daoToken.totalSupply(), MINT_AMOUNT);
 
         vm.prank(user);
         daoToken.approve(address(entryModule), MINT_AMOUNT);
@@ -96,8 +102,11 @@ contract TokenTest is Test {
         vm.expectEmit(true, true, false, false, address(daoToken));
         emit OnTokenBurned(user, burnAmount);
         daoToken.burnFrom(user, burnAmount);
+
         uint256 balanceAfter = daoToken.balanceOf(address(entryModule));
+
         assert(balanceBefore > balanceAfter);
+        assertEq(daoToken.totalSupply(), MINT_AMOUNT - burnAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
