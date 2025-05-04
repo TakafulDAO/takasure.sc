@@ -76,12 +76,7 @@ contract PrejoinModule is
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    event OnNewDAO(
-        bool indexed preJoinEnabled,
-        bool indexed referralDiscount,
-        uint256 launchDate,
-        uint256 objectiveAmount
-    );
+    event OnNewDAO(bool indexed referralDiscount, uint256 launchDate, uint256 objectiveAmount);
     event OnDAOLaunchDateUpdated(uint256 indexed launchDate);
     event OnDAOLaunched(address indexed DAOAddress);
     event OnReferralDiscountSwitched(bool indexed referralDiscount);
@@ -170,7 +165,6 @@ contract PrejoinModule is
     /**
      * @notice Create a new DAO
      * @param DAOName The name of the DAO
-     * @param isPreJoinEnabled The pre-join status of the DAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
      * @param launchDate An estimated launch date of the DAO
      * @param objectiveAmount The objective amount of the DAO
@@ -180,7 +174,6 @@ contract PrejoinModule is
      */
     function createDAO(
         string calldata DAOName,
-        bool isPreJoinEnabled,
         bool isReferralDiscountEnabled,
         uint256 launchDate,
         uint256 objectiveAmount,
@@ -195,14 +188,14 @@ contract PrejoinModule is
 
         // Create the new DAO
         nameToDAOData[DAOName].name = DAOName;
-        nameToDAOData[DAOName].preJoinEnabled = isPreJoinEnabled;
+        nameToDAOData[DAOName].preJoinEnabled = true;
         nameToDAOData[DAOName].referralDiscount = isReferralDiscountEnabled;
         nameToDAOData[DAOName].DAOAdmin = operator;
         nameToDAOData[DAOName].launchDate = launchDate;
         nameToDAOData[DAOName].objectiveAmount = objectiveAmount;
         nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
 
-        emit OnNewDAO(isPreJoinEnabled, isReferralDiscountEnabled, launchDate, objectiveAmount);
+        emit OnNewDAO(isReferralDiscountEnabled, launchDate, objectiveAmount);
     }
 
     /**
