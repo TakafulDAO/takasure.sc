@@ -59,6 +59,9 @@ contract PrejoinModule is
 
     ModuleState private moduleState;
 
+    // Set to true when new members use coupons to pay their contributions. It does not matter the amount
+    mapping(address member => bool) private isMemberCouponRedeemer;
+
     /*//////////////////////////////////////////////////////////////
                               FIXED RATIOS
     //////////////////////////////////////////////////////////////*/
@@ -172,7 +175,6 @@ contract PrejoinModule is
      * @param launchDate An estimated launch date of the DAO
      * @param objectiveAmount The objective amount of the DAO
      * @dev The launch date must be in seconds
-     * @dev The launch date can be 0, if the DAO is already launched or the launch date is not defined
      * @dev The objective amount must be in USDC, six decimals
      * @dev The objective amount can be 0, if the DAO is already launched or the objective amount is not defined
      */
@@ -342,7 +344,10 @@ contract PrejoinModule is
 
         (finalFee, discount) = _payContribution(contribution, parent, newMember, couponAmount);
 
-        if (couponAmount > 0) emit OnCouponRedeemed(newMember, couponAmount);
+        if (couponAmount > 0) {
+            isMemberCouponRedeemer[newMember] = true;
+            emit OnCouponRedeemed(newMember, couponAmount);
+        }
     }
 
     /**
@@ -452,7 +457,7 @@ contract PrejoinModule is
     }
 
     /**
-     * @notice Refund a prepaid member if the DAO is not deployed at launch date
+     * @notice Admin can refund a prepaid member
      * @param member The address of the member
      * @dev Intended to be called by the OPERATOR in spetial cases
      */
@@ -831,7 +836,15 @@ contract PrejoinModule is
 
         isMemberKYCed[_member] = false;
 
-        usdc.safeTransfer(_member, amountToRefund);
+        if (isMemberCouponRedeemer[_member]) {
+            // Reset the coupon redeemer status, this way the member can redeem again
+            isMemberCouponRedeemer[_member] = false;
+            // We transfer the coupon amount to the coupon pool
+            usdc.safeTransfer(couponPool, amountToRefund);
+        } else {
+            // We transfer the amount to the member
+            usdc.safeTransfer(_member, amountToRefund);
+        }
 
         emit OnRefund(_member, amountToRefund);
     }

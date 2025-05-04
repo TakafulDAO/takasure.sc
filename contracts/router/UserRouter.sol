@@ -41,7 +41,7 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         address takadaoOperator = takasureReserve.takadaoOperator();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
     }
 
     function joinPool(
@@ -74,24 +74,20 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
 
     function setTakasureReserve(
         address _takasureReserveAddress
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    ) external onlyRole(ModuleConstants.OPERATOR) {
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
     }
 
-    function setEntryModule(
-        address _entryModule
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    function setEntryModule(address _entryModule) external onlyRole(ModuleConstants.OPERATOR) {
         entryModule = IEntryModule(_entryModule);
     }
 
-    function setMemberModule(
-        address _memberModule
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    function setMemberModule(address _memberModule) external onlyRole(ModuleConstants.OPERATOR) {
         memberModule = IMemberModule(_memberModule);
     }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
 }

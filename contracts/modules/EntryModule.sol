@@ -20,12 +20,10 @@ import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValues
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
-import {Reserve, Member, MemberState, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
-import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -59,12 +57,15 @@ contract EntryModule is
     mapping(address child => address parent) public childToParent;
     mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
     mapping(address parent => mapping(uint256 layer => uint256 reward)) public parentRewardsByLayer;
+    // Set to true when new members use coupons to pay their contributions. It does not matter the amount
+    mapping(address member => bool) private isMemberCouponRedeemer; 
+
 
     bytes32 private constant ROUTER = keccak256("ROUTER");
 
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
-    error EntryModule__AlreadyJoinedPendingForKYC();
+    error EntryModule__AlreadyJoined();
     error EntryModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error EntryModule__MemberAlreadyKYCed();
     error EntryModule__NothingToRefund();
@@ -96,7 +97,7 @@ contract EntryModule is
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
-        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
         _grantRole(ModuleConstants.KYC_PROVIDER, takasureReserve.kycProvider());
     }
 
@@ -112,22 +113,20 @@ contract EntryModule is
 
     function setCouponPoolAddress(
         address _couponPool
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    ) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
 
     function setCCIPReceiverContract(
         address _ccipReceiverContract
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    ) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._notZeroAddress(_ccipReceiverContract);
         ccipReceiverContract = _ccipReceiverContract;
     }
 
     /**
-     * @notice Allow new members to join the pool. If the member is not KYCed, it will be created as inactive
-     *         until the KYC is verified.If the member is already KYCed, the contribution will be paid and the
-     *         member will be active.
+     * @notice Allow new members to join the pool. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.
      * @param membersWallet address of the member
      * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
@@ -150,6 +149,7 @@ contract EntryModule is
             takasureReserve,
             membersWallet
         );
+        if (!newMember.isRefunded) require(newMember.wallet == address(0), EntryModule__AlreadyJoined());
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(membersWallet);
 
@@ -196,6 +196,7 @@ contract EntryModule is
             takasureReserve,
             membersWallet
         );
+        if (!newMember.isRefunded) require(newMember.wallet == address(0), EntryModule__AlreadyJoined());
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(membersWallet);
 
@@ -210,15 +211,16 @@ contract EntryModule is
             membershipDuration,
             benefitMultiplier,
             couponAmount
-        );
+        );  
 
-        if (couponAmount > 0) emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        if (couponAmount > 0) {
+            isMemberCouponRedeemer[membersWallet] = true;
+            emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+        }
     }
 
     /**
-     * @notice Set the KYC status of a member. If the member does not exist, it will be created as inactive
-     *         until the contribution is paid with joinPool. If the member has already joined the pool, then
-     *         the contribution will be paid and the member will be active.
+     * @notice Approves the KYC for a member.
      * @param memberWallet address of the member
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
@@ -311,7 +313,7 @@ contract EntryModule is
         _refund(memberWallet);
     }
 
-    function updateBmAddress() external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
@@ -332,10 +334,10 @@ contract EntryModule is
             _isKYCVerified: true, // All members from prejoin are KYCed
             _memberWallet: _membersWallet, // The member wallet
             _parentWallet: _parentWallet, // The parent wallet
-            _memberState: MemberState.Active // Set to inactive until the KYC is verified
+            _memberState: MemberState.Active // All members from prejoin are active
         });
 
-        // Then the everyting needed will be updated, proformas, reserves, cash flow,
+        // Then everyting needed will be updated, proformas, reserves, cash flow,
         // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
         uint256 mintedTokens;
 
@@ -366,10 +368,6 @@ contract EntryModule is
         uint256 _couponAmount
     ) internal {
         require(
-            _newMember.memberState == MemberState.Inactive,
-            ModuleErrors.Module__WrongMemberState()
-        );
-        require(
             _contributionBeforeFee >= _reserve.minimumThreshold &&
                 _contributionBeforeFee <= _reserve.maximumThreshold,
             EntryModule__ContributionOutOfRange()
@@ -377,7 +375,6 @@ contract EntryModule is
 
         if (!_newMember.isRefunded) {
             // Flow 1: Join -> KYC
-            require(_newMember.wallet == address(0), EntryModule__AlreadyJoinedPendingForKYC());
             // If is not refunded, it is a completele new member, we create it
             _newMember = _createNewMember({
                 _newMemberId: ++_reserve.memberIdCounter,
@@ -508,12 +505,17 @@ contract EntryModule is
         return (_currentFee, newReferralReserveBalance);
     }
 
+    /**
+     * @notice All refunds for users that used coupons will be restored in the coupon pool
+     *         The user will need to reach custommer support to get the corresponding amount
+     */
     function _refund(address _memberWallet) internal {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
             takasureReserve,
             _memberWallet
         );
+        require(_memberWallet == msg.sender || hasRole(ROUTER, msg.sender) || hasRole(ModuleConstants.OPERATOR, msg.sender), EntryModule__NotAuthorizedCaller());
 
         // The member should not be KYCed neither already refunded
         require(!_member.isKYCVerified, EntryModule__MemberAlreadyKYCed());
@@ -525,9 +527,6 @@ contract EntryModule is
         uint256 limitTimestamp = membershipStartTime + (14 days);
         require(currentTimestamp >= limitTimestamp, EntryModule__TooEarlytoRefund());
 
-        // No need to check if contribution amounnt is 0, as the member only is created with the contribution 0
-        // when first KYC and then join the pool. So the previous check is enough
-
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmount = _member.contribution;
         uint256 serviceFeeAmount = _member.totalServiceFee;
@@ -536,7 +535,16 @@ contract EntryModule is
         // Update the member values
         _member.isRefunded = true;
         // Transfer the amount to refund
-        IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
+
+        if (isMemberCouponRedeemer[_memberWallet]) {
+            // Reset the coupon redeemer status, this way the member can redeem again
+            isMemberCouponRedeemer[_memberWallet] = false;
+            // We transfer the coupon amount to the coupon pool
+            IERC20(_reserve.contributionToken).safeTransfer(couponPool, amountToRefund);
+        } else {
+            // We transfer the amount to the member
+            IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
+        }
 
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
 
@@ -544,7 +552,6 @@ contract EntryModule is
     }
 
     function _calculateAmountAndFees(uint256 _contributionBeforeFee, uint256 _fee) internal {
-        // Then we pay the contribution
         // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
         // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
         normalizedContributionBeforeFee =
@@ -591,7 +598,7 @@ contract EntryModule is
             wallet: _memberWallet,
             parent: _parentWallet,
             memberState: _memberState,
-            memberSurplus: 0, // Todo
+            memberSurplus: 0,
             isKYCVerified: _isKYCVerified,
             isRefunded: false,
             lastEcr: 0,
@@ -680,7 +687,7 @@ contract EntryModule is
         address _takasureReserve,
         uint256 _contributionAfterFee
     ) internal override {
-        // If the caller is from the prejoin module, the transfer will be done by the prejoin module
+        // If the caller is the prejoin module, the transfer will be done by the prejoin module
         // to the takasure reserve. Otherwise, the transfer will be done by this contract
         if (msg.sender != prejoinModule) {
             _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee - discount);
@@ -717,53 +724,6 @@ contract EntryModule is
         }
     }
 
-    function _monthAndDayFromCall()
-        internal
-        view
-        returns (uint16 currentMonth_, uint8 currentDay_)
-    {
-        CashFlowVars memory cashFlowVars = takasureReserve.getCashFlowValues();
-        uint256 currentTimestamp = block.timestamp;
-        uint256 lastDayDepositTimestamp = cashFlowVars.dayDepositTimestamp;
-        uint256 lastMonthDepositTimestamp = cashFlowVars.monthDepositTimestamp;
-
-        // Calculate how many days and months have passed since the last deposit and the current timestamp
-        uint256 daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
-            currentTimestamp,
-            lastDayDepositTimestamp
-        );
-        uint256 monthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(
-            currentTimestamp,
-            lastMonthDepositTimestamp
-        );
-
-        if (monthsPassed == 0) {
-            // If  no months have passed, current month is the reference
-            currentMonth_ = cashFlowVars.monthReference;
-            if (daysPassed == 0) {
-                // If no days have passed, current day is the reference
-                currentDay_ = cashFlowVars.dayReference;
-            } else {
-                // If you are in a new day, calculate the days passed
-                currentDay_ = uint8(daysPassed) + cashFlowVars.dayReference;
-            }
-        } else {
-            // If you are in a new month, calculate the months passed
-            currentMonth_ = uint16(monthsPassed) + cashFlowVars.monthReference;
-            // Calculate the timestamp when this new month started
-            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp +
-                (monthsPassed * ModuleConstants.MONTH);
-            // And calculate the days passed in this new month using the new month timestamp
-            daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
-                currentTimestamp,
-                timestampThisMonthStarted
-            );
-            // The current day is the days passed in this new month
-            uint8 initialDay = 1;
-            currentDay_ = uint8(daysPassed) + initialDay;
-        }
-    }
-
     function _transferContributionToModule(address _memberWallet, uint256 _couponAmount) internal {
         IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
 
@@ -783,14 +743,6 @@ contract EntryModule is
                     address(this),
                     _amountToTransferFromMember
                 );
-
-                // Note: This is a temporary solution to test the CCIP integration in the testnet
-                // This is because in testnet we are using a different USDC contract for easier testing
-                // IERC20(0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d).safeTransferFrom(
-                //     ccipReceiverContract,
-                //     address(this),
-                //     amountToTransfer
-                // );
             } else {
                 contributionToken.safeTransferFrom(
                     _memberWallet,
@@ -823,5 +775,5 @@ contract EntryModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
 }
