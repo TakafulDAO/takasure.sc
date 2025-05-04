@@ -81,7 +81,11 @@ contract RevenueModule is
 
         address contributionToken = reserve.contributionToken;
 
-        IERC20(contributionToken).safeTransferFrom(msg.sender, address(this), newRevenue);
+        IERC20(contributionToken).safeTransferFrom(
+            msg.sender,
+            address(takasureReserve),
+            newRevenue
+        );
 
         takasureReserve.setReserveValuesFromModule(reserveValues);
 
