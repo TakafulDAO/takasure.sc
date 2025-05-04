@@ -34,7 +34,7 @@ library TakasureEvents {
     event OnRecurringPayment(
         address member,
         uint256 indexed memberId,
-        uint256 indexed lastPaidYearDate,
+        uint256 indexed lastPaidYear,
         uint256 indexed latestContribution,
         uint256 updatedTotalServiceFee
     );
