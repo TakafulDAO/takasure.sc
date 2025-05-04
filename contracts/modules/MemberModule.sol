@@ -174,7 +174,10 @@ contract MemberModule is
     }
 
     function _cancelMembership(address _memberWallet) internal {
-        Member memory member = _getMembersValuesHook(takasureReserve, _memberWallet);
+        (Reserve memory reserve, Member memory member) = _getReserveAndMemberValuesHook(
+            takasureReserve,
+            _memberWallet
+        );
 
         require(
             member.memberState == MemberState.Defaulted,
@@ -189,6 +192,8 @@ contract MemberModule is
 
         if (currentTimestamp >= limitTimestamp) {
             member.memberState = MemberState.Canceled;
+            ITSToken(reserve.daoToken).burnFrom(_memberWallet, member.creditTokensBalance);
+            member.creditTokensBalance = 0;
 
             emit TakasureEvents.OnMemberCanceled(member.memberId, _memberWallet);
 
