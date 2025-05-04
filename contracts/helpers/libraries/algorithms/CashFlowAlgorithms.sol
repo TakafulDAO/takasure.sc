@@ -17,7 +17,7 @@ import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol"
 pragma solidity 0.8.28;
 
 library CashFlowAlgorithms {
-    uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
+    uint256 private constant MONTH = 30 days;
     uint256 private constant DAY = 1 days;
 
     function _updateNewReserveValues(
@@ -37,7 +37,7 @@ library CashFlowAlgorithms {
             uint256 toFundReserve,
             uint256 toClaimReserve,
             uint256 marketExpenditure
-        ) = _updateReserveBalaces(_contributionAfterFee, _reserve);
+        ) = _updateReserveBalances(_contributionAfterFee, _reserve);
 
         _reserve.totalFundReserve += toFundReserve;
         _reserve.totalClaimReserve += toClaimReserve;
@@ -84,7 +84,7 @@ library CashFlowAlgorithms {
         );
     }
 
-    function _updateReserveBalaces(
+    function _updateReserveBalances(
         uint256 _contributionAfterFee,
         Reserve memory _reserve
     )
