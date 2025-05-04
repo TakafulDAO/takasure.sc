@@ -59,6 +59,10 @@ contract MemberPaymentFlow {
         return (_reserve, mintedTokens_);
     }
 
+    /**
+     * @notice This function will transfer the contribution from the module to the reserves
+     * @dev Override in module if the transfer is handled differently
+     */
     function _transferContribution(
         IERC20 _contributionToken,
         address _memberWallet,
