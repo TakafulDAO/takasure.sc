@@ -61,9 +61,6 @@ contract EntryModule is
     mapping(address member => bool) private isMemberCouponRedeemer; 
 
 
-    uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
-    uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
-    bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
     bytes32 private constant ROUTER = keccak256("ROUTER");
 
     error EntryModule__NoContribution();
@@ -437,10 +434,10 @@ contract EntryModule is
         uint256 toReferralReserve;
 
         if (_reserve.referralDiscount) {
-            toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
+            toReferralReserve = (realContribution * ModuleConstants.REFERRAL_RESERVE) / 100;
 
             if (_parent != address(0)) {
-                discount = ((realContribution - _couponAmount) * REFERRAL_DISCOUNT_RATIO) / 100;
+                discount = ((realContribution - _couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
 
                 childToParent[_child] = _parent;
 
@@ -770,7 +767,7 @@ contract EntryModule is
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
             EntryModule__NotAuthorizedCaller()
         );
     }
