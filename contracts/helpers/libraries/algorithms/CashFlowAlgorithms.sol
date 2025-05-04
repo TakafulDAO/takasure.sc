@@ -291,14 +291,14 @@ library CashFlowAlgorithms {
     }
 
     function _mintDaoTokens(
-        ITakasureReserve _takasureReserve,
+        address _daoToken,
+        address _memberWallet,
         uint256 _contributionBeforeFee
     ) internal returns (uint256 mintedTokens_) {
         // Mint needed DAO Tokens
-        Reserve memory _reserve = _takasureReserve.getReserveValues();
         mintedTokens_ = _contributionBeforeFee * ModuleConstants.DECIMALS_PRECISION; // 6 decimals to 18 decimals
 
-        bool success = ITSToken(_reserve.daoToken).mint(address(_takasureReserve), mintedTokens_);
+        bool success = ITSToken(_daoToken).mint(_memberWallet, mintedTokens_);
         require(success, ModuleErrors.Module__MintFailed());
     }
 }

@@ -52,7 +52,8 @@ abstract contract MemberPaymentFlow {
 
         // Mint the DAO Tokens
         uint256 mintedTokens_ = CashFlowAlgorithms._mintDaoTokens(
-            _takasureReserve,
+            _reserve.daoToken,
+            _memberWallet,
             _contributionBeforeFee
         );
 
