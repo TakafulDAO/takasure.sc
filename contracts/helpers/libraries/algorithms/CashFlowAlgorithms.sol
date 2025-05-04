@@ -296,7 +296,7 @@ library CashFlowAlgorithms {
     ) internal returns (uint256 mintedTokens_) {
         // Mint needed DAO Tokens
         Reserve memory _reserve = _takasureReserve.getReserveValues();
-        mintedTokens_ = _contributionBeforeFee * ModuleConstants.DECIMALS_PRECISION; // 6 decimals to 18 decimals
+        mintedTokens_ = _contributionBeforeFee * ModuleConstants.DECIMALS_CONVERSION_FACTOR; // 6 decimals to 18 decimals
 
         bool success = ITSToken(_reserve.daoToken).mint(address(_takasureReserve), mintedTokens_);
         require(success, ModuleErrors.Module__MintFailed());
