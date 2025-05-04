@@ -256,9 +256,8 @@ contract TakasureReserve is
         uint256 totalSurplus = _calculateSurplus();
         uint256 userCreditTokensBalance = newMemberValues.creditTokensBalance;
         address daoToken = reserve.daoToken;
-        uint256 totalCreditTokens = IERC20(daoToken).balanceOf(address(this)) +
-            userCreditTokensBalance;
-        uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
+        uint256 userSurplus = (totalSurplus * userCreditTokensBalance) /
+            IERC20(daoToken).totalSupply();
         members[newMemberValues.wallet].memberSurplus = userSurplus;
         emit TakasureEvents.OnMemberSurplusUpdated(
             members[newMemberValues.wallet].memberId,
