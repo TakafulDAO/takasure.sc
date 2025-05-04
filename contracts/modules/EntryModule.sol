@@ -369,7 +369,7 @@ contract EntryModule is
         uint256 _couponAmount
     ) internal {
         require(
-            _newMember.memberState == MemberState.Inactive,
+            _newMember.memberState == MemberState.Inactive || _newMember.memberState == MemberState.Canceled,
             ModuleErrors.Module__WrongMemberState()
         );
         require(
