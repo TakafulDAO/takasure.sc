@@ -26,6 +26,7 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     error Token__NotZeroAddress();
     error Token__MustBeMoreThanZero();
     error Token__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
+    error Token__BurnsNotAllowed();
 
     modifier mustBeMoreThanZero(uint256 _amount) {
         require(_amount > 0, Token__MustBeMoreThanZero());
@@ -64,18 +65,24 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Burn Takasure powered tokens
-     * @param amountToBurn The amount of tokens to burn
+     * @notice Burn Takasure powered tokens from a member on certain conditions
+     * @param account The address to burn tokens from
+     * @param value The amount of tokens to burn
      * @dev Reverts if the amount to burn is more than the sender's balance
      */
-    function burn(
-        uint256 amountToBurn
-    ) public override nonReentrant onlyRole(BURNER_ROLE) mustBeMoreThanZero(amountToBurn) {
-        uint256 balance = balanceOf(msg.sender);
-        require(amountToBurn <= balance, Token__BurnAmountExceedsBalance(balance, amountToBurn));
+    function burnFrom(
+        address account,
+        uint256 value
+    ) public override onlyRole(BURNER_ROLE) mustBeMoreThanZero(value) {
+        uint256 balance = balanceOf(account);
+        require(value <= balance, Token__BurnAmountExceedsBalance(balance, value));
 
-        emit OnTokenBurned(msg.sender, amountToBurn);
+        emit OnTokenBurned(account, value);
 
-        super.burn(amountToBurn);
+        super.burnFrom(account, value);
+    }
+
+    function burn(uint256) public pure override {
+        revert Token__BurnsNotAllowed();
     }
 }
