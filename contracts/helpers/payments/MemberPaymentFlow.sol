@@ -21,7 +21,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
-abstract contract MemberPaymentFlow {
+contract MemberPaymentFlow {
     using SafeERC20 for IERC20;
 
     /**
@@ -59,6 +59,10 @@ abstract contract MemberPaymentFlow {
         return (_reserve, mintedTokens_);
     }
 
+    /**
+     * @notice This function will transfer the contribution from the module to the reserves
+     * @dev Override in module if the transfer is handled differently
+     */
     function _transferContribution(
         IERC20 _contributionToken,
         address _memberWallet,
