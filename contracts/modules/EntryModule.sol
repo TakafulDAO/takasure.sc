@@ -197,6 +197,7 @@ contract EntryModule is
             takasureReserve,
             membersWallet
         );
+        if (!newMember.isRefunded) require(newMember.wallet == address(0), EntryModule__AlreadyJoined());
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(membersWallet);
 
