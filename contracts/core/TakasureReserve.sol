@@ -239,6 +239,17 @@ contract TakasureReserve is
         kycProvider = newKycProviderAddress;
     }
 
+    function setNewOperatorAddress(address newOperatorAddress) external {
+        _onlyDaoOrTakadao();
+        address oldOperator = takadaoOperator;
+        takadaoOperator = newOperatorAddress;
+
+        _grantRole(TAKADAO_OPERATOR, newOperatorAddress);
+        _revokeRole(TAKADAO_OPERATOR, oldOperator);
+
+        emit TakasureEvents.OnOperatorChanged(newOperatorAddress, oldOperator);
+    }
+
     function setNewPauseGuardianAddress(address newPauseGuardianAddress) external {
         _onlyDaoOrTakadao();
         address oldPauseGuardian = pauseGuardian;
