@@ -127,7 +127,7 @@ contract EntryModule is
 
     /**
      * @notice Allow new members to join the pool. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.
-     * @param membersWallet address of the member
+     * @param memberWallet address of the member
      * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
      * @param parentWallet address of the parent
@@ -138,20 +138,20 @@ contract EntryModule is
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
     function joinPool(
-        address membersWallet,
+        address memberWallet,
         address parentWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        require(msg.sender == prejoinModule || hasRole(ROUTER, msg.sender) || msg.sender == membersWallet, EntryModule__NotAuthorizedCaller());
+        require(msg.sender == prejoinModule || hasRole(ROUTER, msg.sender) || msg.sender == memberWallet, EntryModule__NotAuthorizedCaller());
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
-            membersWallet
+            memberWallet
         );
         if (!newMember.isRefunded) require(newMember.wallet == address(0), EntryModule__AlreadyJoined());
 
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(membersWallet);
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
         _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
 
@@ -159,7 +159,7 @@ contract EntryModule is
             _joinFromPrejoinModule(
                 reserve,
                 newMember,
-                membersWallet,
+                memberWallet,
                 parentWallet,
                 membershipDuration,
                 benefitMultiplier
@@ -168,7 +168,7 @@ contract EntryModule is
             _join(
                 reserve,
                 newMember,
-                membersWallet,
+                memberWallet,
                 parentWallet,
                 contributionBeforeFee,
                 membershipDuration,
@@ -183,7 +183,7 @@ contract EntryModule is
      * @param couponAmount in six decimals
      */
     function joinPoolOnBehalfOf(
-        address membersWallet,
+        address memberWallet,
         address parentWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration,
@@ -194,18 +194,18 @@ contract EntryModule is
 
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
-            membersWallet
+            memberWallet
         );
         if (!newMember.isRefunded) require(newMember.wallet == address(0), EntryModule__AlreadyJoined());
 
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(membersWallet);
+        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
         _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
 
         _join(
             reserve,
             newMember,
-            membersWallet,
+            memberWallet,
             parentWallet,
             contributionBeforeFee,
             membershipDuration,
@@ -214,8 +214,8 @@ contract EntryModule is
         );  
 
         if (couponAmount > 0) {
-            isMemberCouponRedeemer[membersWallet] = true;
-            emit TakasureEvents.OnCouponRedeemed(membersWallet, couponAmount);
+            isMemberCouponRedeemer[memberWallet] = true;
+            emit TakasureEvents.OnCouponRedeemed(memberWallet, couponAmount);
         }
     }
 
@@ -320,7 +320,7 @@ contract EntryModule is
     function _joinFromPrejoinModule(
         Reserve memory _reserve,
         Member memory _newMember,
-        address _membersWallet,
+        address _memberWallet,
         address _parentWallet,
         uint256 _membershipDuration,
         uint256 _benefitMultiplier
@@ -332,7 +332,7 @@ contract EntryModule is
             _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
             _membershipDuration: _membershipDuration, // From the input
             _isKYCVerified: true, // All members from prejoin are KYCed
-            _memberWallet: _membersWallet, // The member wallet
+            _memberWallet: _memberWallet, // The member wallet
             _parentWallet: _parentWallet, // The parent wallet
             _memberState: MemberState.Active // All members from prejoin are active
         });
@@ -344,14 +344,14 @@ contract EntryModule is
         (_reserve, mintedTokens) = _memberPaymentFlow({
             _contributionBeforeFee: _newMember.contribution,
             _contributionAfterFee: contributionAfterFee,
-            _memberWallet: _membersWallet,
+            _memberWallet: _memberWallet,
             _reserve: _reserve,
             _takasureReserve: takasureReserve
         });
 
         _newMember.creditTokensBalance += mintedTokens;
 
-        emit TakasureEvents.OnMemberJoined(_newMember.memberId, _membersWallet);
+        emit TakasureEvents.OnMemberJoined(_newMember.memberId, _memberWallet);
 
         _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
         takasureReserve.memberSurplus(_newMember);
@@ -360,7 +360,7 @@ contract EntryModule is
     function _join(
         Reserve memory _reserve,
         Member memory _newMember,
-        address _membersWallet,
+        address _memberWallet,
         address _parentWallet,
         uint256 _contributionBeforeFee,
         uint256 _membershipDuration,
@@ -383,7 +383,7 @@ contract EntryModule is
                 _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
                 _membershipDuration: _membershipDuration, // From the input
                 _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
-                _memberWallet: _membersWallet, // The member wallet
+                _memberWallet: _memberWallet, // The member wallet
                 _parentWallet: _parentWallet, // The parent wallet
                 _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
             });
@@ -391,7 +391,7 @@ contract EntryModule is
             (_reserve) = _calculateReferralRewards(
                 _reserve,
                 _couponAmount,
-                _membersWallet,
+                _memberWallet,
                 _parentWallet
             );
 
@@ -403,7 +403,7 @@ contract EntryModule is
                 _drr: _reserve.dynamicReserveRatio,
                 _benefitMultiplier: _benefitMultiplier,
                 _membershipDuration: _membershipDuration, // From the input
-                _memberWallet: _membersWallet, // The member wallet
+                _memberWallet: _memberWallet, // The member wallet
                 _memberState: MemberState.Inactive, // Set to inactive until the KYC is verified
                 _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
                 _isRefunded: false, // Reset to false as the user repays the contribution
@@ -415,7 +415,7 @@ contract EntryModule is
         // This means the proformas wont be updated, the amounts wont be added to the reserves,
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
         _transferContributionToModule({
-            _memberWallet: _membersWallet,
+            _memberWallet: _memberWallet,
             _couponAmount: _couponAmount
         });
 
