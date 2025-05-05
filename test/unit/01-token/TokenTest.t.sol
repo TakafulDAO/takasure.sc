@@ -7,12 +7,14 @@ import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 
 contract TokenTest is Test {
     TestDeployProtocol deployer;
     TSToken daoToken;
     TakasureReserve takasureReserve;
     EntryModule entryModule;
+    HelperConfig helperConfig;
     address takasureReserveProxy;
     address entryModuleAddress;
 
@@ -23,12 +25,16 @@ contract TokenTest is Test {
 
     event OnTokenMinted(address indexed to, uint256 indexed amount);
     event OnTokenBurned(address indexed from, uint256 indexed amount);
+    event OnTransferAllowedSet(bool transferAllowed);
 
     function setUp() public {
         // deployer = new TestDeployTakasure();
         // (daoToken, proxy, , ) = deployer.run();
         deployer = new TestDeployProtocol();
-        (, , takasureReserveProxy, , entryModuleAddress, , , , , , ) = deployer.run();
+        (, , takasureReserveProxy, , entryModuleAddress, , , , , , helperConfig) = deployer.run();
+
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        admin = config.daoMultisig;
 
         entryModule = EntryModule(entryModuleAddress);
 
@@ -126,5 +132,93 @@ contract TokenTest is Test {
             )
         );
         daoToken.burn(MINT_AMOUNT);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               TRANSFERS
+    //////////////////////////////////////////////////////////////*/
+
+    function testToken_setTransferAllowed() public {
+        assert(!daoToken.transferAllowed());
+
+        vm.prank(admin);
+        vm.expectEmit(false, false, false, false, address(daoToken));
+        emit OnTransferAllowedSet(true);
+        daoToken.setTransferAllowed(true);
+
+        assert(daoToken.transferAllowed());
+    }
+
+    function testToken_mustRevertIfTransferNotAllowed() public {
+        vm.prank(address(entryModule));
+        daoToken.mint(user, MINT_AMOUNT);
+
+        address alice = makeAddr("alice");
+
+        vm.prank(user);
+        vm.expectRevert(TSToken.Token__TransferNotAllowed.selector);
+        daoToken.transfer(alice, MINT_AMOUNT);
+    }
+
+    function testToken_mustRevertIfTransferFromNotAllowed() public {
+        vm.prank(address(entryModule));
+        daoToken.mint(user, MINT_AMOUNT);
+
+        address alice = makeAddr("alice");
+        address spender = makeAddr("spender");
+
+        vm.prank(user);
+        daoToken.approve(spender, MINT_AMOUNT);
+
+        vm.prank(spender);
+        vm.expectRevert(TSToken.Token__TransferNotAllowed.selector);
+        daoToken.transferFrom(user, alice, MINT_AMOUNT);
+    }
+
+    function testToken_transfer() public {
+        assert(!daoToken.transferAllowed());
+
+        vm.prank(address(entryModule));
+        daoToken.mint(user, MINT_AMOUNT);
+
+        address alice = makeAddr("alice");
+        assert(daoToken.balanceOf(user) == MINT_AMOUNT);
+        assert(daoToken.balanceOf(alice) == 0);
+
+        vm.prank(admin);
+        daoToken.setTransferAllowed(true);
+
+        vm.prank(user);
+        daoToken.transfer(alice, MINT_AMOUNT);
+
+        assert(daoToken.balanceOf(user) == 0);
+        assertEq(daoToken.balanceOf(alice), MINT_AMOUNT);
+    }
+
+    function testToken_transferFrom() public {
+        assert(!daoToken.transferAllowed());
+
+        vm.prank(address(entryModule));
+        daoToken.mint(user, MINT_AMOUNT);
+
+        vm.prank(admin);
+        daoToken.setTransferAllowed(true);
+
+        address spender = makeAddr("spender");
+
+        vm.prank(user);
+        daoToken.approve(spender, MINT_AMOUNT);
+        assert(daoToken.allowance(user, spender) == MINT_AMOUNT);
+
+        address alice = makeAddr("alice");
+        assert(daoToken.balanceOf(user) == MINT_AMOUNT);
+        assert(daoToken.balanceOf(alice) == 0);
+
+        vm.prank(spender);
+        daoToken.transferFrom(user, alice, MINT_AMOUNT);
+
+        assert(daoToken.balanceOf(user) == 0);
+        assertEq(daoToken.balanceOf(alice), MINT_AMOUNT);
+        assert(daoToken.allowance(user, spender) == 0);
     }
 }

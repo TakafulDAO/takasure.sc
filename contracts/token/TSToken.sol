@@ -15,6 +15,8 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
+    bool public transferAllowed;
+
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
@@ -22,10 +24,12 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
 
     event OnTokenMinted(address indexed to, uint256 indexed amount);
     event OnTokenBurned(address indexed from, uint256 indexed amount);
+    event OnTransferAllowedSet(bool transferAllowed);
 
     error Token__NotZeroAddress();
     error Token__MustBeMoreThanZero();
     error Token__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
+    error Token__TransferNotAllowed();
 
     modifier mustBeMoreThanZero(uint256 _amount) {
         require(_amount > 0, Token__MustBeMoreThanZero());
@@ -45,6 +49,16 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         _grantRole(BURNER_ADMIN_ROLE, admin);
         _grantRole(MINTER_ADMIN_ROLE, temporaryAdmin);
         _grantRole(BURNER_ADMIN_ROLE, temporaryAdmin);
+
+        transferAllowed = false;
+    }
+
+    /**
+     * @notice Set the transfer allowed status
+     */
+    function setTransferAllowed(bool _transferAllowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        transferAllowed = _transferAllowed;
+        emit OnTransferAllowedSet(_transferAllowed);
     }
 
     /** @notice Mint Takasure powered tokens
@@ -77,5 +91,15 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         emit OnTokenBurned(msg.sender, amountToBurn);
 
         super.burn(amountToBurn);
+    }
+
+    function transfer(address to, uint256 value) public override returns (bool) {
+        require(transferAllowed, Token__TransferNotAllowed());
+        return super.transfer(to, value);
+    }
+
+    function transferFrom(address from, address to, uint256 value) public override returns (bool) {
+        require(transferAllowed, Token__TransferNotAllowed());
+        return super.transferFrom(from, to, value);
     }
 }
