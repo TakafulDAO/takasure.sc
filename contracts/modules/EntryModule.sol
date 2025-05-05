@@ -527,10 +527,10 @@ contract EntryModule is
         uint256 limitTimestamp = membershipStartTime + (14 days);
         require(currentTimestamp >= limitTimestamp, EntryModule__TooEarlytoRefund());
 
-        // As there is only one contribution, is easy to calculte with the Member struct values
+        // As there is only one contribution, is easy to calculate with the Member struct values
         uint256 contributionAmount = _member.contribution;
-        uint256 serviceFeeAmount = _member.totalServiceFee;
-        uint256 amountToRefund = contributionAmount - serviceFeeAmount;
+        uint256 discountAmount = _member.discount;
+        uint256 amountToRefund = contributionAmount - discountAmount;
 
         // Update the member values
         _member.isRefunded = true;
