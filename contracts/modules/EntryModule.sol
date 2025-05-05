@@ -508,6 +508,7 @@ contract EntryModule is
     /**
      * @notice All refunds for users that used coupons will be restored in the coupon pool
      *         The user will need to reach custommer support to get the corresponding amount
+     *         The fee is not refundable
      */
     function _refund(address _memberWallet) internal {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
