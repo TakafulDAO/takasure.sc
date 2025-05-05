@@ -32,7 +32,6 @@ contract RevenueModule is
 
     ITakasureReserve private takasureReserve;
 
-    Reserve private reserve;
     ModuleState private moduleState;
 
     error RevenueModule__WrongRevenueType();
@@ -73,7 +72,7 @@ contract RevenueModule is
     ) external onlyRole(ModuleConstants.DAO_MULTISIG) {
         require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
-        Reserve memory reserveValues = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
 
         reserve.totalFundRevenues += newRevenue;
         _updateCashMappings(newRevenue);
@@ -87,7 +86,7 @@ contract RevenueModule is
             newRevenue
         );
 
-        takasureReserve.setReserveValuesFromModule(reserveValues);
+        takasureReserve.setReserveValuesFromModule(reserve);
 
         emit TakasureEvents.OnExternalRevenue(newRevenue, reserve.totalFundReserve, revenueType);
     }
