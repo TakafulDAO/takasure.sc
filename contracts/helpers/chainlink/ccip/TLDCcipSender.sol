@@ -172,6 +172,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
         if (couponAmount > 0)
             require(msg.sender == backendProvider, TLDCcipSender__NotAuthorized());
+        else require(msg.sender == newMember, TLDCcipSender__NotAuthorized());
 
         Client.EVM2AnyMessage memory message = _setup({
             _amountToTransfer: amountToTransfer,
