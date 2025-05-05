@@ -49,6 +49,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 indexed fees,
         address user
     );
+    event OnTokenRemoved(address token);
 
     error TLDCcipSender__ZeroTransferNotAllowed();
     error TLDCcipSender__AlreadySupportedToken();
@@ -111,6 +112,18 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         isSupportedToken[token] = true;
 
         emit OnNewSupportedToken(token);
+    }
+
+    /**
+     * @notice Remove a token from the list of supported tokens.
+     * @param token The address of the token to be removed.
+     */
+    function removeSupportedToken(address token) external onlyOwner notZeroAddress(token) {
+        require(isSupportedToken[token], TLDCcipSender__NotSupportedToken());
+
+        isSupportedToken[token] = false;
+
+        emit OnTokenRemoved(token);
     }
 
     /**
