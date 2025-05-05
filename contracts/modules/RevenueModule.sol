@@ -37,6 +37,11 @@ contract RevenueModule is
 
     error RevenueModule__WrongRevenueType();
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(address _takasureReserveAddress) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -47,7 +52,7 @@ contract RevenueModule is
         address moduleManager = takasureReserve.moduleManager();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
         _grantRole(ModuleConstants.DAO_MULTISIG, daoMultisig);
         _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
     }
@@ -186,5 +191,5 @@ contract RevenueModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
 }
