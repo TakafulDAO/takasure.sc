@@ -93,7 +93,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(tDaoName, true, 1743479999, 1e12, address(bmConsumerMock));
+        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
         prejoinModule.setDAOName(tDaoName);
         vm.stopPrank();
         _;
@@ -142,7 +142,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         KYCReferral
         referredPrepays
     {
-        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+        (, , , uint256 launchDate, , , , , ) = prejoinModule.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
@@ -166,7 +166,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        (, , , , , , , , , uint256 referralReserve) = prejoinModule.getDAOData();
+        (, , , , , , , , uint256 referralReserve) = prejoinModule.getDAOData();
         // Current Referral balance must be
         // For referral prepayment: Contribution * 5% = 25 * 5% = 1.25
         // For referred prepayment: 2*(Contribution * 5%) - (Contribution * 4%) =>
@@ -181,7 +181,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
         assertEq(referredContributionAfterFee, expectedContributionAfterFee);
 
-        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+        (, , , uint256 launchDate, , , , , ) = prejoinModule.getDAOData();
 
         vm.warp(launchDate + 1);
         vm.roll(block.number + 1);
