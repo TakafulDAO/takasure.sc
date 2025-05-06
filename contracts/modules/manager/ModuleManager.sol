@@ -49,7 +49,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @param newModule The new module address
      */
     function addModule(address newModule) external onlyOwner nonReentrant {
-        // New module can not be address 0, can not be already a module, and the status must be disabled or enabled
+        // New module can not be address 0, can not be already a module, and the status will be enabled
         require(newModule != address(0), ModuleManager__AddressZeroNotAllowed());
         require(
             addressToModuleState[newModule] == ModuleState.Unset,

@@ -10,7 +10,6 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -22,7 +21,6 @@ import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
-import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -697,8 +695,6 @@ contract EntryModule is
     function _getBenefitMultiplierFromOracle(
         address _member
     ) internal returns (uint256 benefitMultiplier_) {
-        Member memory member = _getMembersValuesHook(takasureReserve, _member);
-
         string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
 
         // First we check if there is already a request id for this member
@@ -715,7 +711,6 @@ contract EntryModule is
 
             if (successRequest) {
                 benefitMultiplier_ = bmConsumer.idToBenefitMultiplier(requestId);
-                member.benefitMultiplier = benefitMultiplier_;
             } else {
                 // If failed we get the error and revert with it
                 bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);

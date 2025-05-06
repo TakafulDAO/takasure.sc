@@ -37,7 +37,6 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
 
     event OnBenefitMultiplierResponse(bytes32 indexed requestId, bytes response, bytes err);
 
-    error OracleConsumer__UnexpectedRequestID(bytes32 requestId);
     error OracleConsumer__NotAddressZero();
 
     /**
