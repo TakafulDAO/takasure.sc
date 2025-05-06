@@ -11,8 +11,8 @@ import {IMemberModule} from "contracts/interfaces/IMemberModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
 
@@ -30,6 +30,10 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         address _entryModule,
         address _memberModule
     ) external initializer {
+        AddressAndStates._notZeroAddress(_takasureReserveAddress);
+        AddressAndStates._notZeroAddress(_entryModule);
+        AddressAndStates._notZeroAddress(_memberModule);
+
         __UUPSUpgradeable_init();
         __AccessControl_init();
 
@@ -71,10 +75,12 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
     }
 
     function setEntryModule(address _entryModule) external onlyRole(ModuleConstants.OPERATOR) {
+        AddressAndStates._notZeroAddress(_entryModule);
         entryModule = IEntryModule(_entryModule);
     }
 
     function setMemberModule(address _memberModule) external onlyRole(ModuleConstants.OPERATOR) {
+        AddressAndStates._notZeroAddress(_memberModule);
         memberModule = IMemberModule(_memberModule);
     }
 
