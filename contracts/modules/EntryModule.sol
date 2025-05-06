@@ -236,9 +236,6 @@ contract EntryModule is
         require(!newMember.isKYCVerified, EntryModule__MemberAlreadyKYCed());
         require(newMember.contribution > 0 && !newMember.isRefunded , EntryModule__NoContribution());
 
-        // This means the user exists and payed contribution but is not KYCed yet, we update the values
-        _calculateAmountAndFees(newMember.contribution, reserve.serviceFee);
-
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
         newMember = _updateMember({
@@ -631,21 +628,32 @@ contract EntryModule is
         Member memory _member
     ) internal returns (Member memory) {
         uint256 userMembershipDuration;
-        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) /
-            100;
 
-        if (_allowCustomDuration) {
-            userMembershipDuration = _membershipDuration;
+        if (_allowCustomDuration) userMembershipDuration = _membershipDuration;
+        else userMembershipDuration = ModuleConstants.DEFAULT_MEMBERSHIP_DURATION;        
+
+        uint256 claimAddAmount;
+        uint256 contribution;
+        uint256 fee;
+
+        if (_isKYCVerified && !_isRefunded) {
+            // Then the call comes from approveKYC, no need to update the claimAddAmount, contribution and fee
+            claimAddAmount = _member.claimAddAmount;
+            contribution = _member.contribution;
+            fee = _member.totalServiceFee;
         } else {
-            userMembershipDuration = ModuleConstants.DEFAULT_MEMBERSHIP_DURATION;
+            // Otherwise it is a refunded member that is rejoining the pool
+            claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) / 100;
+            contribution = normalizedContributionBeforeFee;
+            fee = feeAmount;
         }
 
         _member.benefitMultiplier = _benefitMultiplier;
         _member.membershipDuration = userMembershipDuration;
         _member.membershipStartTime = block.timestamp;
-        _member.contribution = normalizedContributionBeforeFee;
+        _member.contribution = contribution;
         _member.claimAddAmount = claimAddAmount;
-        _member.totalServiceFee = feeAmount;
+        _member.totalServiceFee = fee;
         _member.memberState = _memberState;
         _member.isKYCVerified = _isKYCVerified;
         _member.isRefunded = _isRefunded;
