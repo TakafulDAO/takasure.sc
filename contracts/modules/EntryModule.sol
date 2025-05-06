@@ -730,7 +730,11 @@ contract EntryModule is
         uint256 _amountToTransferFromMember;
 
         if (_couponAmount > 0) {
-            _amountToTransferFromMember = contributionAfterFee - discount - _couponAmount;
+            if (contributionAfterFee > _couponAmount) 
+                _amountToTransferFromMember = contributionAfterFee - discount - _couponAmount;
+            else 
+                _amountToTransferFromMember = 0;
+            
         } else {
             _amountToTransferFromMember = contributionAfterFee - discount;
         }
@@ -751,17 +755,17 @@ contract EntryModule is
                 );
             }
 
-            // Transfer the coupon amount to this contract
-            if (_couponAmount > 0) {
-                contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
-            }
-
             // Transfer the service fee to the fee claim address
             contributionToken.safeTransferFrom(
                 _memberWallet,
                 takasureReserve.feeClaimAddress(),
                 feeAmount
             );
+        }
+
+        // Transfer the coupon amount to this contract
+        if (_couponAmount > 0) {
+            contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
         }
     }
 
