@@ -17,8 +17,6 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
-    bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
-    bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
 
     event OnTokenMinted(address indexed to, uint256 indexed amount);
     event OnTokenBurned(address indexed from, uint256 indexed amount);
@@ -39,12 +37,7 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         string memory tokenSymbol
     ) ERC20(tokenName, tokenSymbol) {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _setRoleAdmin(MINTER_ROLE, MINTER_ADMIN_ROLE);
-        _setRoleAdmin(BURNER_ROLE, BURNER_ADMIN_ROLE);
-        _grantRole(MINTER_ADMIN_ROLE, admin);
-        _grantRole(BURNER_ADMIN_ROLE, admin);
-        _grantRole(MINTER_ADMIN_ROLE, temporaryAdmin);
-        _grantRole(BURNER_ADMIN_ROLE, temporaryAdmin);
+        _grantRole(DEFAULT_ADMIN_ROLE, temporaryAdmin);
     }
 
     /** @notice Mint Takasure powered tokens
