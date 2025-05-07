@@ -13,8 +13,11 @@ pragma solidity 0.8.28;
 import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
 contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
+    IModuleManager private moduleManager;
+
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
@@ -34,9 +37,11 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     constructor(
         address admin,
         address temporaryAdmin,
+        address _moduleManager,
         string memory tokenName,
         string memory tokenSymbol
     ) ERC20(tokenName, tokenSymbol) {
+        moduleManager = IModuleManager(_moduleManager);
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(DEFAULT_ADMIN_ROLE, temporaryAdmin);
     }
@@ -75,7 +80,10 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
 
     function _grantRole(bytes32 role, address account) internal override returns (bool) {
         if (role == MINTER_ROLE || role == BURNER_ROLE) {
-            require(!hasRole(DEFAULT_ADMIN_ROLE, account), Token__InvalidMinterOrBurnerRole());
+            require(
+                !hasRole(DEFAULT_ADMIN_ROLE, account) && moduleManager.isActiveModule(account),
+                Token__InvalidMinterOrBurnerRole()
+            );
         }
         return super._grantRole(role, account);
     }
