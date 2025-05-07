@@ -24,6 +24,7 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     error Token__NotZeroAddress();
     error Token__MustBeMoreThanZero();
     error Token__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
+    error Token__InvalidMinterOrBurnerRole();
 
     modifier mustBeMoreThanZero(uint256 _amount) {
         require(_amount > 0, Token__MustBeMoreThanZero());
@@ -70,5 +71,12 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         emit OnTokenBurned(msg.sender, amountToBurn);
 
         super.burn(amountToBurn);
+    }
+
+    function _grantRole(bytes32 role, address account) internal override returns (bool) {
+        if (role == MINTER_ROLE || role == BURNER_ROLE) {
+            require(!hasRole(DEFAULT_ADMIN_ROLE, account), Token__InvalidMinterOrBurnerRole());
+        }
+        return super._grantRole(role, account);
     }
 }
