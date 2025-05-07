@@ -105,10 +105,16 @@ contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonRespon
         vm.stopPrank();
     }
 
+    function testMemberModule_membersCannotPayInAdvance() public {
+        vm.prank(alice);
+        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
+        userRouter.payRecurringContribution();
+    }
+
     function testMemberModule_payRecurringContributionThrough5Years() public {
         uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 27) / 100;
 
-        for (uint256 i = 0; i < 5; i++) {
+        for (uint256 i = 1; i < 5; i++) {
             Member memory testMember = takasureReserve.getMemberFromAddress(alice);
 
             uint256 totalContributionBeforePayment = testMember.totalContributions;
@@ -122,7 +128,7 @@ contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonRespon
             emit TakasureEvents.OnRecurringPayment(
                 alice,
                 testMember.memberId,
-                i + 1,
+                i,
                 CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
@@ -134,7 +140,7 @@ contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonRespon
             uint256 totalContributionAfterPayment = testMember.totalContributions;
             uint256 totalServiceFeeAfterPayment = testMember.totalServiceFee;
 
-            assert(lastPaidYear == i + 1);
+            assert(lastPaidYear == i);
             assert(
                 totalContributionAfterPayment ==
                     totalContributionBeforePayment + CONTRIBUTION_AMOUNT
@@ -144,6 +150,13 @@ contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonRespon
                     totalServiceFeeBeforePayment + expectedServiceIncrease
             );
         }
+
+        vm.warp(block.timestamp + YEAR);
+        vm.roll(block.number + 1);
+
+        vm.prank(alice);
+        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
+        userRouter.payRecurringContribution();
     }
 
     function testMemberModule_defaultedMembersCanPayContribution() public {
@@ -167,132 +180,22 @@ contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonRespon
         assert(Alice.memberState == MemberState.Active);
     }
 
-    function testMemberModule_membersCanPayRecurringContributionEarly() public {
-        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 27) / 100;
-
-        Member memory testMember = takasureReserve.getMemberFromAddress(alice);
-
-        uint256 totalServiceFeeBeforePayment = testMember.totalServiceFee;
-
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true, address(memberModule));
-        emit TakasureEvents.OnRecurringPayment(
-            alice,
-            testMember.memberId,
-            testMember.lastPaidYear + 1,
-            CONTRIBUTION_AMOUNT,
-            totalServiceFeeBeforePayment + expectedServiceIncrease
-        );
-        userRouter.payRecurringContribution();
-    }
-
-    function testMemberModule_canPayRecurringContributionEarlyWhenOthersPayEarly() public {
-        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 27) / 100;
-
-        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
-        Member memory Bob = takasureReserve.getMemberFromAddress(bob);
-
-        uint256 aliceServiceFeeBeforePayment = Alice.totalServiceFee;
-        uint256 bobServiceFeeBeforePayment = Bob.totalServiceFee;
-
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true, address(memberModule));
-        emit TakasureEvents.OnRecurringPayment(
-            alice,
-            Alice.memberId,
-            Alice.lastPaidYear + 1,
-            CONTRIBUTION_AMOUNT,
-            aliceServiceFeeBeforePayment + expectedServiceIncrease
-        );
-        userRouter.payRecurringContribution();
-
-        vm.warp(block.timestamp + 100 days);
-        vm.roll(block.number + 1);
-
-        vm.prank(bob);
-        vm.expectEmit(true, true, true, true, address(memberModule));
-        emit TakasureEvents.OnRecurringPayment(
-            bob,
-            Bob.memberId,
-            Bob.lastPaidYear + 1,
-            CONTRIBUTION_AMOUNT,
-            bobServiceFeeBeforePayment + expectedServiceIncrease
-        );
-        userRouter.payRecurringContribution();
-    }
-
-    function testMemberModule_canPayRecurringContributionInTimeWhenOthersPayEarly() public {
-        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 27) / 100;
-
-        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
-        Member memory Bob = takasureReserve.getMemberFromAddress(bob);
-
-        uint256 aliceServiceFeeBeforePayment = Alice.totalServiceFee;
-        uint256 bobServiceFeeBeforePayment = Bob.totalServiceFee;
-
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true, address(memberModule));
-        emit TakasureEvents.OnRecurringPayment(
-            alice,
-            Alice.memberId,
-            Alice.lastPaidYear + 1,
-            CONTRIBUTION_AMOUNT,
-            aliceServiceFeeBeforePayment + expectedServiceIncrease
-        );
-        userRouter.payRecurringContribution();
-
-        vm.warp(block.timestamp + YEAR);
-        vm.roll(block.number + 1);
-
-        vm.prank(bob);
-        vm.expectEmit(true, true, true, true, address(memberModule));
-        emit TakasureEvents.OnRecurringPayment(
-            bob,
-            Bob.memberId,
-            Bob.lastPaidYear + 1,
-            CONTRIBUTION_AMOUNT,
-            bobServiceFeeBeforePayment + expectedServiceIncrease
-        );
-        userRouter.payRecurringContribution();
-    }
-
-    function testMemberModule_canPayRecurringContributionInGracePeriodWhenOthersPayEarly() public {
-        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 27) / 100;
-
-        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
-        Member memory Bob = takasureReserve.getMemberFromAddress(bob);
-
-        uint256 aliceServiceFeeBeforePayment = Alice.totalServiceFee;
-        uint256 bobServiceFeeBeforePayment = Bob.totalServiceFee;
-
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true, address(memberModule));
-        emit TakasureEvents.OnRecurringPayment(
-            alice,
-            Alice.memberId,
-            Alice.lastPaidYear + 1,
-            CONTRIBUTION_AMOUNT,
-            aliceServiceFeeBeforePayment + expectedServiceIncrease
-        );
-        userRouter.payRecurringContribution();
-
+    function testMemberModule_cannotPayAfterDefaultPeriod() public {
         vm.warp(block.timestamp + YEAR + 15 days);
         vm.roll(block.number + 1);
 
-        userRouter.defaultMember(bob);
+        vm.expectEmit(true, true, false, false, address(memberModule));
+        emit TakasureEvents.OnMemberDefaulted(1, alice);
+        userRouter.defaultMember(alice);
 
-        vm.warp(block.timestamp + 10 days);
+        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
+        assert(Alice.memberState == MemberState.Defaulted);
+
+        vm.warp(block.timestamp + 15 days);
         vm.roll(block.number + 1);
 
-        vm.prank(bob);
-        vm.expectEmit(true, true, true, true, address(memberModule));
-        emit TakasureEvents.OnRecurringPayment(
-            bob,
-            Bob.memberId,
-            Bob.lastPaidYear + 1,
-            CONTRIBUTION_AMOUNT,
-            bobServiceFeeBeforePayment + expectedServiceIncrease
-        );
+        vm.prank(alice);
+        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
         userRouter.payRecurringContribution();
     }
 }

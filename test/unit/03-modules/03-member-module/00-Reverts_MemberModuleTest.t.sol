@@ -118,36 +118,4 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         userRouter.payRecurringContribution();
         vm.stopPrank();
     }
-
-    /// @dev `payRecurringContribution` must revert if the date is invalid, the membership expired
-    function testMemberModule_payRecurringContributionMustRevertIfDateIsInvalidMembershipExpired()
-        public
-    {
-        vm.startPrank(alice);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.stopPrank();
-
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
-        vm.prank(admin);
-        entryModule.approveKYC(alice);
-
-        for (uint256 i = 0; i < 5; i++) {
-            vm.warp(block.timestamp + YEAR);
-            vm.roll(block.number + 1);
-
-            vm.startPrank(alice);
-            userRouter.payRecurringContribution();
-            vm.stopPrank();
-        }
-
-        vm.warp(block.timestamp + YEAR);
-        vm.roll(block.number + 1);
-
-        vm.startPrank(alice);
-        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
-        userRouter.payRecurringContribution();
-    }
 }
