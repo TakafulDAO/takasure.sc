@@ -286,6 +286,8 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         // Months 1, 2 and 3, one new member joins daily
+        // 90 users 25USDC - fee = 25USDC - 6.75USDC = 18.25USDC
+        // 18.25USDC * 90 = 1642.5USDC
         for (uint256 i; i < 90; i++) {
             vm.prank(admin);
             entryModule.approveKYC(lotOfUsers[i]);
@@ -293,43 +295,113 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             vm.roll(block.number + 1);
         }
 
-        // Months 4 to 12, 10 new members join monthly
-        for (uint256 i = 90; i < 180; i++) {
+        // Month 4 10 people joins
+        // 18.25USDC * 10 = 182.5USDC + 1642.5USDC = 1825USDC
+        for (uint256 i = 90; i < 100; i++) {
             vm.prank(admin);
             entryModule.approveKYC(lotOfUsers[i]);
-
-            // End of the month
-            if (
-                i == 99 ||
-                i == 109 ||
-                i == 119 ||
-                i == 129 ||
-                i == 139 ||
-                i == 149 ||
-                i == 159 ||
-                i == 169 ||
-                i == 179
-            ) {
-                vm.warp(block.timestamp + 30 days);
-                vm.roll(block.number + 1);
-            }
         }
 
-        // Month 1 take 29 days => Total 580USDC
-        // Months 1 to 12 take all => Total 3490.5USDC
-        // Month 13 0USDC => Total 3490.5USDC
+        vm.warp(block.timestamp + 30 days);
+        vm.roll(block.number + 1);
 
+        // Month 5 10 people joins
+        // 18.25USDC * 10 = 182.5USDC + 1825USDC = 2007.5USDC
+        for (uint256 i = 100; i < 110; i++) {
+            vm.prank(admin);
+            entryModule.approveKYC(lotOfUsers[i]);
+        }
+
+        vm.warp(block.timestamp + 30 days);
+        vm.roll(block.number + 1);
+
+        // Month 6 10 people joins
+        // 18.25USDC * 10 = 182.5USDC + 2007.5USDC = 2190USDC
+        for (uint256 i = 110; i < 120; i++) {
+            vm.prank(admin);
+            entryModule.approveKYC(lotOfUsers[i]);
+        }
+
+        vm.warp(block.timestamp + 30 days);
+        vm.roll(block.number + 1);
+
+        // Month 7 10 people joins
+        // 18.25USDC * 10 = 182.5USDC + 2190USDC = 2372.5USDC
+        for (uint256 i = 120; i < 130; i++) {
+            vm.prank(admin);
+            entryModule.approveKYC(lotOfUsers[i]);
+        }
+
+        vm.warp(block.timestamp + 30 days);
+        vm.roll(block.number + 1);
+
+        // Month 8 10 people joins
+        // 18.25USDC * 10 = 182.5USDC + 2372.5USDC = 2555USDC
+        for (uint256 i = 130; i < 140; i++) {
+            vm.prank(admin);
+            entryModule.approveKYC(lotOfUsers[i]);
+        }
+
+        vm.warp(block.timestamp + 30 days);
+        vm.roll(block.number + 1);
+
+        // Month 9 10 people joins
+        // 18.25USDC * 10 = 182.5USDC + 2555USDC = 2737.5USDC
+        for (uint256 i = 140; i < 150; i++) {
+            vm.prank(admin);
+            entryModule.approveKYC(lotOfUsers[i]);
+        }
+
+        vm.warp(block.timestamp + 30 days);
+        vm.roll(block.number + 1);
+
+        // Month 10 10 people joins
+        // 18.25USDC * 10 = 182.5USDC + 2737.5USDC = 2920USDC
+        for (uint256 i = 150; i < 160; i++) {
+            vm.prank(admin);
+            entryModule.approveKYC(lotOfUsers[i]);
+        }
+
+        vm.warp(block.timestamp + 30 days);
+        vm.roll(block.number + 1);
+
+        // Month 11 10 people joins
+        // 18.25USDC * 10 = 182.5USDC + 2920USDC = 3102.5USDC
+        for (uint256 i = 160; i < 170; i++) {
+            vm.prank(admin);
+            entryModule.approveKYC(lotOfUsers[i]);
+        }
+
+        vm.warp(block.timestamp + 30 days);
+        vm.roll(block.number + 1);
+
+        // Month 12 10 people joins
+        // 18.25USDC * 10 = 182.5USDC + 3102.5USDC = 3285USDC
+        for (uint256 i = 170; i < 180; i++) {
+            vm.prank(admin);
+            entryModule.approveKYC(lotOfUsers[i]);
+        }
+
+        // 12 months cash
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 328500e4);
+
+        vm.warp(block.timestamp + 30 days);
+        vm.roll(block.number + 1);
+
+        // First day of the thirteenth month 10 people joins
+        // Should be past cash minus one day of the first month
+        // The first day of the first month was 18.25USDC
+        // 3285USDC - 18.25USDC = 3266.75USDC
         cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 326675e4);
 
         // Thirteenth month 10 people joins
+        // 18.25USDC * 10 = 182.5USDC + 3266.75USDC = 3449.25USDC
         for (uint256 i = 180; i < 190; i++) {
             vm.prank(admin);
             entryModule.approveKYC(lotOfUsers[i]);
         }
-
-        // Month 1 take 29 days => Total 580USDC
-        // Month 2 to 13 take all => Total 3685.5USDC
 
         cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 344925e4);
@@ -337,10 +409,10 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         vm.warp(block.timestamp + 30 days);
         vm.roll(block.number + 1);
 
-        // Month 1 Should not count
-        // Month 2 take 29 days => Total 580USDC
-        // Month 3 to 13 take all => Total 3100.5USDC
-        // Month 14 0USDC => Total 3100.5USDC
+        // 14 month
+        // Previous cash minus month 1
+        // Month 1 was 18.25USDC * 30 days = 547.5USDC
+        // 3449.25USDC - 547.5USDC = 2901.75USDC
 
         cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 290175e4);
@@ -351,44 +423,41 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             entryModule.approveKYC(lotOfUsers[i]);
         }
 
-        // Month 1 should not count
-        // Month 2 take 29 days => Total 580USDC
-        // Month 3 to 14 take all => Total 3295.5USDC
+        // Previous cash + 182.5 = 3084.25USDC
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 308425e4);
+
+        // Join 1 daily
+        // Should always stay the same because the one joining this day
+        // Is the same amount as the day we are removing
+        vm.warp(block.timestamp + 1 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(admin);
+        entryModule.approveKYC(lotOfUsers[200]);
 
         cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 308425e4);
 
-        vm.warp(block.timestamp + 30 days);
+        vm.warp(block.timestamp + 1 days);
         vm.roll(block.number + 1);
 
-        // Month 1 and 2 should not count
-        // Month 3 take 29 days => Total 580USDC
-        // Month 4 to 14 take all => Total 2780USDC
-        // Month 15 0USDC => Total 2710.5USDC
+        vm.prank(admin);
+        entryModule.approveKYC(lotOfUsers[201]);
 
         cash = takasureReserve.getCashLast12Months();
-        assertEq(cash, 253675e4);
+        assertEq(cash, 308425e4);
 
-        // Last 2 days 2 people joins
-        for (uint256 i = 200; i < 202; i++) {
-            vm.prank(admin);
-            entryModule.approveKYC(lotOfUsers[i]);
-
-            vm.warp(block.timestamp + 1 days);
-            vm.roll(block.number + 1);
-        }
-
-        // Month 1 and 2 should not count
-        // Month 3 take 27 days => Total 540USDC
-        // Month 4 to 15 take all => Total 2710.5USDC
+        vm.warp(block.timestamp + 1 days);
+        vm.roll(block.number + 1);
 
         cash = takasureReserve.getCashLast12Months();
-
-        assertEq(cash, 253675e4);
+        assertEq(cash, 306600e4);
 
         // If no one joins for the next 12 months, the cash should be 0
         // As the months are counted with 30 days, the 12 months should be 360 days
         // 1 day after the year should be only 20USDC
+
         vm.warp(block.timestamp + 359 days);
         vm.roll(block.number + 1);
 
