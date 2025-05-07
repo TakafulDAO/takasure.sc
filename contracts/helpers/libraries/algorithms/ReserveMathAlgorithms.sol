@@ -39,7 +39,7 @@ library ReserveMathAlgorithms {
     /**
      * @notice Calculate the pro forma claim reserve, which should be updated on every cash-in operation
      * @param _currentProFormaClaimReserve Current value. Six decimals
-     * @param _memberContribution Net contribution of the member. Six decimals
+     * @param _memberContribution Contribution of the member, without fees. Six decimals
      * @param _serviceFee Service fee. Percentage value, i.e. 20% => input should be 20
      * @param _initialReserveRatio Initial reserve ratio. Percentage value, i.e. 40% => input should be 40
      * @return updatedProFormaClaimReserve_ Updated value. Six decimals
