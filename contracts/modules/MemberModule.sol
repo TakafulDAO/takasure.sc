@@ -104,19 +104,21 @@ contract MemberModule is
         );
 
         uint256 currentTimestamp = block.timestamp;
-        uint256 membershipStartTime = activeMember.membershipStartTime;
-        uint256 membershipDuration = activeMember.membershipDuration;
+        uint256 subscriptionEnds = activeMember.membershipStartTime +
+            activeMember.membershipDuration;
+        uint256 gracePeriod = 30 days;
         uint256 lastPaidYearStartDate = activeMember.membershipStartTime +
             (YEAR * activeMember.lastPaidYear);
-
-        uint256 gracePeriod = 30 days;
+        uint256 lowerBound = lastPaidYearStartDate + YEAR;
+        uint256 upperBound = lowerBound + gracePeriod;
 
         // Cannot pay if the membership expired
+        // Cannot pay in advance
         // Cannot pay if the current timestamp is greater than the last paid year + grace period
-        // Cannot pay more than 1 year in advance
         require(
-            currentTimestamp <= membershipStartTime + membershipDuration &&
-                currentTimestamp < lastPaidYearStartDate + YEAR + gracePeriod,
+            currentTimestamp < subscriptionEnds &&
+                currentTimestamp >= lowerBound &&
+                currentTimestamp < upperBound,
             MemberModule__InvalidDate()
         );
 
