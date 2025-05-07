@@ -9,7 +9,6 @@
 pragma solidity 0.8.28;
 
 import {Member} from "contracts/types/TakasureTypes.sol";
-import {console2} from "forge-std/Test.sol";
 
 library ReserveMathAlgorithms {
     error WrongTimestamps();
@@ -160,7 +159,7 @@ library ReserveMathAlgorithms {
         uint256 _currentBma
     ) internal pure returns (uint256 bma_) {
         if (_lossRatio > _lossRatioThreshold) {
-            bma_ = _currentBma - (_lossRatio - _lossRatioThreshold);
+            bma_ = 100 - (_lossRatio - _lossRatioThreshold);
         } else {
             bma_ = _currentBma;
         }
