@@ -29,11 +29,19 @@ library ReserveMathAlgorithms {
     function _updateProFormaFundReserve(
         uint256 _currentProFormaFundReserve,
         uint256 _memberContribution,
-        uint256 _initialReserveRatio
+        uint256 _initialReserveRatio,
+        uint256 _fundMarketExpendsAddShare
     ) internal pure returns (uint256 updatedProFormaFundReserve_) {
+        uint256 toFundReserveBeforeExpenditures = (_memberContribution * _initialReserveRatio) /
+            100;
+
+        uint256 marketExpenditure_ = (toFundReserveBeforeExpenditures *
+            _fundMarketExpendsAddShare) / 100;
+
         updatedProFormaFundReserve_ =
             _currentProFormaFundReserve +
-            ((_memberContribution * _initialReserveRatio) / 100);
+            toFundReserveBeforeExpenditures -
+            marketExpenditure_;
     }
 
     /**
