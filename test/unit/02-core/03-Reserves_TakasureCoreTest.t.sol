@@ -271,7 +271,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     /// @dev Cash last 12 months more than a  year
     function testTakasureCore_cashMoreThanYear() public {
         uint256 cash;
-        address[202] memory lotOfUsers;
+        address[260] memory lotOfUsers;
         for (uint256 i; i < lotOfUsers.length; i++) {
             lotOfUsers[i] = makeAddr(vm.toString(i));
             deal(address(usdc), lotOfUsers[i], USDC_INITIAL_AMOUNT);
@@ -427,11 +427,14 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 308425e4);
 
-        // Join 1 daily
+        // Join 1 daily for 5 days
         // Should always stay the same because the one joining this day
         // Is the same amount as the day we are removing
         vm.warp(block.timestamp + 1 days);
         vm.roll(block.number + 1);
+
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 306600e4);
 
         vm.prank(admin);
         entryModule.approveKYC(lotOfUsers[200]);
@@ -441,6 +444,9 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
 
         vm.warp(block.timestamp + 1 days);
         vm.roll(block.number + 1);
+
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 306600e4);
 
         vm.prank(admin);
         entryModule.approveKYC(lotOfUsers[201]);
@@ -453,6 +459,57 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
 
         cash = takasureReserve.getCashLast12Months();
         assertEq(cash, 306600e4);
+
+        vm.prank(admin);
+        entryModule.approveKYC(lotOfUsers[202]);
+
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 308425e4);
+
+        vm.warp(block.timestamp + 1 days);
+        vm.roll(block.number + 1);
+
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 306600e4);
+
+        vm.prank(admin);
+        entryModule.approveKYC(lotOfUsers[203]);
+
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 308425e4);
+
+        vm.warp(block.timestamp + 1 days);
+        vm.roll(block.number + 1);
+
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 306600e4);
+
+        vm.prank(admin);
+        entryModule.approveKYC(lotOfUsers[204]);
+
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 308425e4);
+
+        vm.warp(block.timestamp + 1 days);
+        vm.roll(block.number + 1);
+
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 306600e4);
+
+        // Join 1 hourly for 2 days
+        // 48 people join in 2 days
+        // 18.25USDC * 48 = 876USDC + 3066USDC = 3942USDC - (2 days)
+        // Those 2 days are 18.25USDC * 2 = 36.5USDC
+        // 3942USDC - 36.5USDC = 3905.5USDC
+        for (uint256 i = 205; i < 205 + 48; i++) {
+            vm.prank(admin);
+            entryModule.approveKYC(lotOfUsers[i]);
+            vm.warp(block.timestamp + 1 hours);
+            vm.roll(block.number + 1);
+        }
+
+        cash = takasureReserve.getCashLast12Months();
+        assertEq(cash, 390550e4);
 
         // If no one joins for the next 12 months, the cash should be 0
         // As the months are counted with 30 days, the 12 months should be 360 days
