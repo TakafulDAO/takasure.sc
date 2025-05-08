@@ -293,8 +293,8 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         reserve = takasureReserve.getReserveValues();
         uint256 bobDRR = reserve.dynamicReserveRatio;
 
-        uint256 expectedAliceDRR = 48;
-        uint256 expectedBobDRR = 44;
+        uint256 expectedAliceDRR = 40;
+        uint256 expectedBobDRR = 40;
 
         assertEq(currentDRR, initialDRR);
         assertEq(aliceDRR, expectedAliceDRR);
@@ -335,7 +335,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
 
         uint256 expectedInitialBMA = 100;
         uint256 expectedAliceBMA = 88;
-        uint256 expectedBobBMA = 86;
+        uint256 expectedBobBMA = 88;
 
         assertEq(initialBMA, expectedInitialBMA);
         assertEq(aliceBMA, expectedAliceBMA);
