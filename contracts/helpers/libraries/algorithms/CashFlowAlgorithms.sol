@@ -68,7 +68,8 @@ library CashFlowAlgorithms {
         updatedProFormaFundReserve_ = ReserveMathAlgorithms._updateProFormaFundReserve(
             _reserve.proFormaFundReserve,
             _contributionAfterFee,
-            _reserve.initialReserveRatio
+            _reserve.initialReserveRatio,
+            _reserve.fundMarketExpendsAddShare
         );
 
         updatedProFormaClaimReserve_ = ReserveMathAlgorithms._updateProFormaClaimReserve(
