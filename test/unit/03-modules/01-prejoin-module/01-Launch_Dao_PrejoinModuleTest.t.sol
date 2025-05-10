@@ -92,7 +92,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(tDaoName, true, 1743479999, 1e12, address(bmConsumerMock));
+        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
         prejoinModule.setDAOName(tDaoName);
         vm.stopPrank();
         _;
@@ -108,7 +108,6 @@ contract LaunchDaoPrejoinModuleTest is Test {
             bool referralDiscount,
             address DAOAddress,
             uint256 launchDate,
-            uint256 objectiveAmount,
             uint256 currentAmount,
             ,
             address rePoolAddress,
@@ -147,7 +146,6 @@ contract LaunchDaoPrejoinModuleTest is Test {
             referralDiscount,
             DAOAddress,
             launchDate,
-            objectiveAmount,
             currentAmount,
             ,
             rePoolAddress,
@@ -171,7 +169,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.switchReferralDiscount();
 
-        (, referralDiscount, , , , , , , , ) = prejoinModule.getDAOData();
+        (, referralDiscount, , , , , , , ) = prejoinModule.getDAOData();
 
         assert(!referralDiscount);
 
@@ -184,7 +182,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.enableRepool(newRePoolAddress);
 
-        (, , , , , , , rePoolAddress, , ) = prejoinModule.getDAOData();
+        (, , , , , , rePoolAddress, , ) = prejoinModule.getDAOData();
 
         assertEq(rePoolAddress, newRePoolAddress);
     }

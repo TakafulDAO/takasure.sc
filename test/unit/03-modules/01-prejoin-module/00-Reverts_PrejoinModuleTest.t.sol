@@ -97,7 +97,6 @@ contract RevertsPrejoinModuleTest is Test {
             tDaoName,
             true,
             (block.timestamp + 31_536_000),
-            100e6,
             address(bmConsumerMock)
         );
 
@@ -106,7 +105,6 @@ contract RevertsPrejoinModuleTest is Test {
             tDaoName,
             true,
             (block.timestamp + 31_536_000),
-            100e6,
             address(bmConsumerMock)
         );
         prejoinModule.setDAOName(tDaoName);
@@ -117,7 +115,6 @@ contract RevertsPrejoinModuleTest is Test {
             ,
             address DAOAddress,
             uint256 launchDate,
-            uint256 objectiveAmount,
             uint256 currentAmount,
             ,
             ,
@@ -128,7 +125,6 @@ contract RevertsPrejoinModuleTest is Test {
         assertEq(prejoinEnabled, true);
         assertEq(DAOAddress, address(0));
         assertEq(launchDate, block.timestamp + 31_536_000);
-        assertEq(objectiveAmount, 100e6);
         assertEq(currentAmount, 0);
 
         vm.prank(referral);
@@ -145,7 +141,7 @@ contract RevertsPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(tDaoName, true, 1743479999, 1e12, address(bmConsumerMock));
+        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
         prejoinModule.setDAOName(tDaoName);
         vm.stopPrank();
         _;
