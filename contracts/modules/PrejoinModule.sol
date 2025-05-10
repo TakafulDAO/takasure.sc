@@ -190,7 +190,6 @@ contract PrejoinModule is
         nameToDAOData[DAOName].referralDiscount = isReferralDiscountEnabled;
         nameToDAOData[DAOName].DAOAdmin = operator;
         nameToDAOData[DAOName].launchDate = launchDate;
-        nameToDAOData[DAOName].objectiveAmount = 0;
         nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
 
         emit OnNewDAO(isReferralDiscountEnabled, launchDate);
