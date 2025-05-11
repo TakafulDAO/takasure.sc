@@ -174,8 +174,11 @@ library ReserveMathAlgorithms {
         uint256 currentTotalFundCost,
         uint256 currentTotalFundRevenues
     ) internal pure returns (uint256 newLossRatio_) {
-        uint256 decimalCorrection = 1e6;
+        uint256 decimalCorrection = 1e2;
         newLossRatio_ = (currentTotalFundCost * decimalCorrection) / currentTotalFundRevenues;
+        if (newLossRatio_ > 100) {
+            newLossRatio_ = 100;
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
