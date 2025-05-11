@@ -39,6 +39,18 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     bool private isPrejoinEnabled;
 
+    struct MessageBuild {
+        address token;
+        uint256 amount;
+        uint256 gasLimit;
+        uint256 contribution;
+        string tDAOName;
+        address parent;
+        address newMember;
+        uint256 couponAmount;
+        uint256 membershipDuration;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -236,18 +248,19 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 _couponAmount,
         uint256 _membershipDuration
     ) internal view returns (Client.EVM2AnyMessage memory _message) {
-        // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
-        _message = _buildCCIPMessage({
-            _token: _tokenToTransfer,
-            _amount: _amountToTransfer,
-            _gasLimit: _gasLimit,
-            _contribution: _contributionAmount,
-            _tDAOName: _tDAOName,
-            _parent: _parent,
-            _newMember: _newMember,
-            _couponAmount: _couponAmount,
-            _membershipDuration: _membershipDuration
+        MessageBuild memory messageBuild = MessageBuild({
+            token: _tokenToTransfer,
+            amount: _amountToTransfer,
+            gasLimit: _gasLimit,
+            contribution: _contributionAmount,
+            tDAOName: _tDAOName,
+            parent: _parent,
+            newMember: _newMember,
+            couponAmount: _couponAmount,
+            membershipDuration: _membershipDuration
         });
+        // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
+        _message = _buildCCIPMessage(messageBuild);
     }
 
     function _feeChecks(
@@ -283,19 +296,14 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     }
 
     function _buildCCIPMessage(
-        address _token,
-        uint256 _amount,
-        uint256 _gasLimit,
-        uint256 _contribution,
-        string calldata _tDAOName,
-        address _parent,
-        address _newMember,
-        uint256 _couponAmount,
-        uint256 _membershipDuration
+        MessageBuild memory _messageBuild
     ) internal view returns (Client.EVM2AnyMessage memory) {
         // Set the token amounts
         Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
-        tokenAmounts[0] = Client.EVMTokenAmount({token: _token, amount: _amount});
+        tokenAmounts[0] = Client.EVMTokenAmount({
+            token: _messageBuild.token,
+            amount: _messageBuild.amount
+        });
 
         bytes memory dataToSend;
 
@@ -304,21 +312,21 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
             dataToSend = abi.encodeWithSignature(
                 "payContributionOnBehalfOf(uint256,string,address,address,uint256)",
-                _contribution,
-                _tDAOName,
-                _parent,
-                _newMember,
-                _couponAmount
+                _messageBuild.contribution,
+                _messageBuild.tDAOName,
+                _messageBuild.parent,
+                _messageBuild.newMember,
+                _messageBuild.couponAmount
             );
         } else {
             // joinPoolOnBehalfOf(address membersWallet, address parentWallet, uint256 contributionBeforeFee, uint256 membershipDuration, uint256 couponAmount)
             dataToSend = abi.encodeWithSignature(
                 "joinPoolOnBehalfOf(address,address,uint256,uint256,uint256)",
-                _newMember,
-                _parent,
-                _contribution,
-                _membershipDuration,
-                _couponAmount
+                _messageBuild.newMember,
+                _messageBuild.parent,
+                _messageBuild.contribution,
+                _messageBuild.membershipDuration,
+                _messageBuild.couponAmount
             );
         }
 
@@ -328,7 +336,10 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             data: dataToSend,
             tokenAmounts: tokenAmounts,
             extraArgs: Client._argsToBytes(
-                Client.EVMExtraArgsV2({gasLimit: _gasLimit, allowOutOfOrderExecution: true})
+                Client.EVMExtraArgsV2({
+                    gasLimit: _messageBuild.gasLimit,
+                    allowOutOfOrderExecution: true
+                })
             ),
             feeToken: address(linkToken)
         });
