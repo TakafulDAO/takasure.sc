@@ -15,7 +15,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
-    bool public transferAllowed;
+    bool public isTransferAllowed;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -49,16 +49,14 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         _grantRole(BURNER_ADMIN_ROLE, admin);
         _grantRole(MINTER_ADMIN_ROLE, temporaryAdmin);
         _grantRole(BURNER_ADMIN_ROLE, temporaryAdmin);
-
-        transferAllowed = false;
     }
 
     /**
      * @notice Set the transfer allowed status
      */
-    function setTransferAllowed(bool _transferAllowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        transferAllowed = _transferAllowed;
-        emit OnTransferAllowedSet(_transferAllowed);
+    function allowTransfers(bool _isTransferAllowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        isTransferAllowed = _isTransferAllowed;
+        emit OnTransferAllowedSet(_isTransferAllowed);
     }
 
     /** @notice Mint Takasure powered tokens
@@ -94,12 +92,12 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     }
 
     function transfer(address to, uint256 value) public override returns (bool) {
-        require(transferAllowed, Token__TransferNotAllowed());
+        require(isTransferAllowed, Token__TransferNotAllowed());
         return super.transfer(to, value);
     }
 
     function transferFrom(address from, address to, uint256 value) public override returns (bool) {
-        require(transferAllowed, Token__TransferNotAllowed());
+        require(isTransferAllowed, Token__TransferNotAllowed());
         return super.transferFrom(from, to, value);
     }
 }

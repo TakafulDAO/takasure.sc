@@ -138,15 +138,15 @@ contract TokenTest is Test {
                                TRANSFERS
     //////////////////////////////////////////////////////////////*/
 
-    function testToken_setTransferAllowed() public {
-        assert(!daoToken.transferAllowed());
+    function testToken_allowTransfers() public {
+        assert(!daoToken.isTransferAllowed());
 
         vm.prank(admin);
         vm.expectEmit(false, false, false, false, address(daoToken));
         emit OnTransferAllowedSet(true);
-        daoToken.setTransferAllowed(true);
+        daoToken.allowTransfers(true);
 
-        assert(daoToken.transferAllowed());
+        assert(daoToken.isTransferAllowed());
     }
 
     function testToken_mustRevertIfTransferNotAllowed() public {
@@ -176,7 +176,7 @@ contract TokenTest is Test {
     }
 
     function testToken_transfer() public {
-        assert(!daoToken.transferAllowed());
+        assert(!daoToken.isTransferAllowed());
 
         vm.prank(address(entryModule));
         daoToken.mint(user, MINT_AMOUNT);
@@ -186,7 +186,7 @@ contract TokenTest is Test {
         assert(daoToken.balanceOf(alice) == 0);
 
         vm.prank(admin);
-        daoToken.setTransferAllowed(true);
+        daoToken.allowTransfers(true);
 
         vm.prank(user);
         daoToken.transfer(alice, MINT_AMOUNT);
@@ -196,13 +196,13 @@ contract TokenTest is Test {
     }
 
     function testToken_transferFrom() public {
-        assert(!daoToken.transferAllowed());
+        assert(!daoToken.isTransferAllowed());
 
         vm.prank(address(entryModule));
         daoToken.mint(user, MINT_AMOUNT);
 
         vm.prank(admin);
-        daoToken.setTransferAllowed(true);
+        daoToken.allowTransfers(true);
 
         address spender = makeAddr("spender");
 
