@@ -37,7 +37,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     mapping(address token => bool supportedTokens) public isSupportedToken;
 
-    bool private isPrejoinEnabled;
+    bool public isPrejoinEnabled;
 
     struct MessageBuild {
         address token;
@@ -61,7 +61,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         bytes32 indexed messageId,
         uint256 indexed tokenAmount,
         uint256 indexed fees,
-        address user
+        address user,
+        bool isPrejoiner
     );
     event OnPrejoinEnabled(bool isPrejoinEnabled);
 
@@ -292,7 +293,13 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         _messageId = router.ccipSend(destinationChainSelector, _message);
 
         // Emit an event with message details
-        emit OnTokensTransferred(_messageId, _amountToTransfer, _ccipFees, _newMember);
+        emit OnTokensTransferred(
+            _messageId,
+            _amountToTransfer,
+            _ccipFees,
+            _newMember,
+            isPrejoinEnabled
+        );
     }
 
     function _buildCCIPMessage(
