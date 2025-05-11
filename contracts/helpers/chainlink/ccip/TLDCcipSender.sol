@@ -154,6 +154,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
      * @param tDAOName The name of the DAO to point in the TLD contract.
      * @param parent The address of the parent if the caller has a referral.
      * @param couponAmount The amount of the coupon if the caller has one.
+     * @param membershipDuration The duration of the membership in seconds. Only used if prejoin is disabled.
      * @return messageId The ID of the message that was sent.
      */
     function sendMessage(
@@ -164,7 +165,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         string calldata tDAOName,
         address parent,
         address newMember,
-        uint256 couponAmount
+        uint256 couponAmount,
+        uint256 membershipDuration
     ) external returns (bytes32 messageId) {
         require(amountToTransfer > 0, TLDCcipSender__ZeroTransferNotAllowed());
         require(isSupportedToken[tokenToTransfer], TLDCcipSender__NotSupportedToken());
@@ -185,7 +187,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             _tDAOName: tDAOName,
             _parent: parent,
             _newMember: newMember,
-            _couponAmount: couponAmount
+            _couponAmount: couponAmount,
+            _membershipDuration: membershipDuration
         });
 
         uint256 ccipFees = _feeChecks(message);
@@ -230,7 +233,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         string calldata _tDAOName,
         address _parent,
         address _newMember,
-        uint256 _couponAmount
+        uint256 _couponAmount,
+        uint256 _membershipDuration
     ) internal view returns (Client.EVM2AnyMessage memory _message) {
         // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
         _message = _buildCCIPMessage({
@@ -241,7 +245,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             _tDAOName: _tDAOName,
             _parent: _parent,
             _newMember: _newMember,
-            _couponAmount: _couponAmount
+            _couponAmount: _couponAmount,
+            _membershipDuration: _membershipDuration
         });
     }
 
@@ -285,7 +290,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         string calldata _tDAOName,
         address _parent,
         address _newMember,
-        uint256 _couponAmount
+        uint256 _couponAmount,
+        uint256 _membershipDuration
     ) internal view returns (Client.EVM2AnyMessage memory) {
         // Set the token amounts
         Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
@@ -311,7 +317,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
                 _newMember,
                 _parent,
                 _contribution,
-                365 days,
+                _membershipDuration,
                 _couponAmount
             );
         }
