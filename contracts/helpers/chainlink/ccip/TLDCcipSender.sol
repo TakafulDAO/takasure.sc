@@ -37,7 +37,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     mapping(address token => bool supportedTokens) public isSupportedToken;
 
-    bool private prejoinPhase;
+    bool private isPrejoinEnabled;
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
@@ -51,7 +51,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint256 indexed fees,
         address user
     );
-    event OnPrejoinPhaseSet(bool prejoinPhase);
+    event OnPrejoinEnabled(bool isPrejoinEnabled);
 
     error TLDCcipSender__ZeroTransferNotAllowed();
     error TLDCcipSender__AlreadySupportedToken();
@@ -135,9 +135,9 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         receiverContract = _receiverContract;
     }
 
-    function setPrejoinPhase(bool _prejoinPhase) external onlyOwner {
-        prejoinPhase = _prejoinPhase;
-        emit OnPrejoinPhaseSet(_prejoinPhase);
+    function enablePrejoin(bool _isPrejoinEnabled) external onlyOwner {
+        isPrejoinEnabled = _isPrejoinEnabled;
+        emit OnPrejoinEnabled(_isPrejoinEnabled);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -294,7 +294,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         bytes memory dataToSend;
 
         // Function to call in the receiver contract
-        if (prejoinPhase) {
+        if (isPrejoinEnabled) {
             // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
             dataToSend = abi.encodeWithSignature(
                 "payContributionOnBehalfOf(uint256,string,address,address,uint256)",
