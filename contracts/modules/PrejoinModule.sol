@@ -95,7 +95,7 @@ contract PrejoinModule is
         address indexed child,
         uint256 reward
     );
-    event OnParentTransferFailed(
+    event OnParentRewardTransferFailed(
         address indexed parent,
         uint256 indexed layer,
         address indexed child,
@@ -389,7 +389,13 @@ contract PrejoinModule is
                 // Emit the event only if the transfer was successful
                 emit OnParentRewarded(parent, layer, user, parentReward);
             } catch {
-                emit OnParentTransferFailed(parent, layer, user, parentReward);
+                // If the transfer failed, we need to revert the rewards
+                nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[
+                    user
+                ] = parentReward;
+
+                // Emit an event for off-chain monitoring
+                emit OnParentRewardTransferFailed(parent, layer, user, parentReward);
             }
 
             // We update the parent address to check the next parent
