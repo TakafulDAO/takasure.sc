@@ -119,10 +119,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     function setProtocolGateway(address _protocolGateway) external onlyOwner {
         require(_protocolGateway != address(0), TLDCcipReceiver__NotZeroAddress());
 
-        // Get the old protocol gateway address and set the approval to 0
         address oldProtocolGateway = protocolGateway;
-
-        // Set the new protocol gateway address and approve the maximum amount
         protocolGateway = _protocolGateway;
 
         emit OnProtocolGatewayChanged(oldProtocolGateway, _protocolGateway);
