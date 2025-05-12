@@ -280,10 +280,18 @@ contract EntryModule is
             // Reset the rewards for this child
             parentRewardsByChild[parent][memberWallet] = 0;
 
-            IERC20(reserve.contributionToken).safeTransfer(parent, parentReward);
+            try IERC20(reserve.contributionToken).transfer(parent, parentReward) {
+                emit TakasureEvents.OnParentRewarded(parent, layer, memberWallet, parentReward);
+            } catch {
+            parentRewardsByChild[parent][memberWallet] = parentReward;
+            emit TakasureEvents.OnParentRewardTransferFailed(
+                parent,
+                layer,
+                memberWallet,
+                parentReward
+            );
 
-            emit TakasureEvents.OnParentRewarded(parent, layer, memberWallet, parentReward);
-
+            }
             // We update the parent address to check the next parent
             parent = childToParent[parent];
         }
