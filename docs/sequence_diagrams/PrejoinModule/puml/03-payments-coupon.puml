@@ -1,0 +1,62 @@
+@startuml Payments with coupons
+autonumber
+
+actor Backend
+
+Backend -> PrejoinModule: payContributionOnBehalfOf(contribution, parent, newMember, couponAmount)
+
+alt Module is enabled
+    alt preJoinEnabled == true
+        PrejoinModule --> PrejoinModule: substract coupon amount from payment amount
+        alt Contribution is in range
+            alt Parent is KYCed
+                alt Is not existing member
+
+                    PrejoinModule --> PrejoinModule: apply prejoin discount
+
+                    alt referralDiscount == true                
+                        alt parent != address(0)
+                            PrejoinModule --> PrejoinModule: apply referral discount
+                            PrejoinModule --> PrejoinModule: assign child to parent
+                            PrejoinModule --> PrejoinModule: calculate parent reward
+                        else parent == address(0)
+                            PrejoinModule --> PrejoinModule: increase Referral Reserve
+                        end
+                    end
+
+                    alt Invariant checks pass
+                        PrejoinModule --> PrejoinModule: update repool balance
+                        PrejoinModule --> PrejoinModule: update DAO variables
+                        CouponPool --> PrejoinModule: Transfer Contribution
+                        PrejoinModule --> Operator: Transfer Fee
+                        PrejoinModule --> PrejoinModule: create new member
+                        PrejoinModule --> BMOracle: Request BM
+                        PrejoinModule --> Backend: Emit OnPrepayment event
+
+                    else Invariant fails
+                        PrejoinModule --> Backend: Revert
+                    end
+
+                    PrejoinModule --> Backend: Emit OnCouponRedeemed event
+
+                else Is existing member
+                    PrejoinModule --> Backend: Revert
+                end
+
+            else Parent is not KYCed
+                PrejoinModule --> Backend: Revert
+            end
+
+        else Contribution is out of range
+            PrejoinModule --> Backend: Revert
+        end
+
+    else preJoinEnabled == false
+        PrejoinModule -> Backend: Revert
+    end
+
+else Module is disabled
+    PrejoinModule -> Backend: Revert
+end
+
+@enduml    
