@@ -68,7 +68,7 @@ contract CouponCodeAndCcipTest is Test {
         usdc.approve(address(prejoinModule), 1000e6);
 
         vm.startPrank(config.daoMultisig);
-        prejoinModule.createDAO(tDaoName, true, 1743479999, 1e12, address(bmConsumerMock));
+        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
         prejoinModule.setDAOName(tDaoName);
         vm.stopPrank();
 

@@ -76,7 +76,7 @@ contract PrejoinModule is
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    event OnNewDAO(bool indexed referralDiscount, uint256 launchDate, uint256 objectiveAmount);
+    event OnNewDAO(bool indexed referralDiscount, uint256 launchDate);
     event OnDAOLaunchDateUpdated(uint256 indexed launchDate);
     event OnDAOLaunched(address indexed DAOAddress);
     event OnReferralDiscountSwitched(bool indexed referralDiscount);
@@ -167,7 +167,6 @@ contract PrejoinModule is
      * @param DAOName The name of the DAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
      * @param launchDate An estimated launch date of the DAO
-     * @param objectiveAmount The objective amount of the DAO
      * @dev The launch date must be in seconds
      * @dev The objective amount must be in USDC, six decimals
      * @dev The objective amount can be 0, if the DAO is already launched or the objective amount is not defined
@@ -176,7 +175,6 @@ contract PrejoinModule is
         string calldata DAOName,
         bool isReferralDiscountEnabled,
         uint256 launchDate,
-        uint256 objectiveAmount,
         address _bmConsumer
     ) external onlyRole(ModuleConstants.OPERATOR) {
         require(bytes(DAOName).length != 0, PrejoinModule__MustHaveName());
@@ -192,10 +190,9 @@ contract PrejoinModule is
         nameToDAOData[DAOName].referralDiscount = isReferralDiscountEnabled;
         nameToDAOData[DAOName].DAOAdmin = operator;
         nameToDAOData[DAOName].launchDate = launchDate;
-        nameToDAOData[DAOName].objectiveAmount = objectiveAmount;
         nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
 
-        emit OnNewDAO(isReferralDiscountEnabled, launchDate, objectiveAmount);
+        emit OnNewDAO(isReferralDiscountEnabled, launchDate);
     }
 
     /**
@@ -551,7 +548,6 @@ contract PrejoinModule is
             bool referralDiscount,
             address DAOAddress,
             uint256 launchDate,
-            uint256 objectiveAmount,
             uint256 currentAmount,
             uint256 collectedFees,
             address rePoolAddress,
@@ -563,7 +559,6 @@ contract PrejoinModule is
         referralDiscount = nameToDAOData[tDAOName].referralDiscount;
         DAOAddress = nameToDAOData[tDAOName].DAOAddress;
         launchDate = nameToDAOData[tDAOName].launchDate;
-        objectiveAmount = nameToDAOData[tDAOName].objectiveAmount;
         currentAmount = nameToDAOData[tDAOName].currentAmount;
         collectedFees = nameToDAOData[tDAOName].collectedFees;
         rePoolAddress = nameToDAOData[tDAOName].rePoolAddress;
