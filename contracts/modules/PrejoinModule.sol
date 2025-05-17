@@ -23,7 +23,7 @@ import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 
-import {tDAO, PrepaidMember, ModuleState, Reserve} from "contracts/types/TakasureTypes.sol";
+import {tDAO, ModuleState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
