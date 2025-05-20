@@ -95,6 +95,12 @@ contract PrejoinModule is
         address indexed child,
         uint256 reward
     );
+    event OnParentRewardTransferFailed(
+        address indexed parent,
+        uint256 indexed layer,
+        address indexed child,
+        uint256 reward
+    );
     event OnMemberKYCVerified(address indexed member);
     event OnBenefitMultiplierConsumerChanged(
         address indexed newBenefitMultiplierConsumer,
@@ -376,9 +382,18 @@ contract PrejoinModule is
             // Reset the rewards for this child
             nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[user] = 0;
 
-            usdc.safeTransfer(parent, parentReward);
+            try usdc.transfer(parent, parentReward) {
+                // Emit the event only if the transfer was successful
+                emit OnParentRewarded(parent, layer, user, parentReward);
+            } catch {
+                // If the transfer failed, we need to revert the rewards
+                nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[
+                    user
+                ] = parentReward;
 
-            emit OnParentRewarded(parent, layer, user, parentReward);
+                // Emit an event for off-chain monitoring
+                emit OnParentRewardTransferFailed(parent, layer, user, parentReward);
+            }
 
             // We update the parent address to check the next parent
             parent = childToParent[parent];
