@@ -65,10 +65,8 @@ contract RepoolPrejoinModuleTest is Test {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(address(usdc));
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
@@ -90,7 +88,8 @@ contract RepoolPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
+        prejoinModule.setDAOName(tDaoName);
         vm.stopPrank();
         _;
     }
@@ -117,35 +116,40 @@ contract RepoolPrejoinModuleTest is Test {
         vm.prank(parentTier1);
         prejoinModule.payContribution(CONTRIBUTION_AMOUNT, address(0));
         vm.prank(takadao);
-        prejoinModule.setKYCStatus(parentTier1);
+        prejoinModule.approveKYC(parentTier1);
 
         uint256 parentTier2Contribution = 5 * CONTRIBUTION_AMOUNT;
         vm.prank(parentTier2);
         prejoinModule.payContribution(parentTier2Contribution, parentTier1);
 
         vm.prank(takadao);
-        prejoinModule.setKYCStatus(parentTier2);
+        prejoinModule.approveKYC(parentTier2);
 
         uint256 parentTier3Contribution = 2 * CONTRIBUTION_AMOUNT;
         vm.prank(parentTier3);
         prejoinModule.payContribution(parentTier3Contribution, parentTier2);
 
         vm.prank(takadao);
-        prejoinModule.setKYCStatus(parentTier3);
+        prejoinModule.approveKYC(parentTier3);
 
         uint256 parentTier4Contribution = 7 * CONTRIBUTION_AMOUNT;
         vm.prank(parentTier4);
         prejoinModule.payContribution(parentTier4Contribution, parentTier3);
 
         vm.prank(takadao);
-        prejoinModule.setKYCStatus(parentTier4);
+        prejoinModule.approveKYC(parentTier4);
 
         uint256 childWithoutRefereeContribution = 4 * CONTRIBUTION_AMOUNT;
         vm.prank(childWithoutReferee);
         prejoinModule.payContribution(childWithoutRefereeContribution, parentTier4);
 
         vm.prank(takadao);
-        prejoinModule.setKYCStatus(childWithoutReferee);
+        prejoinModule.approveKYC(childWithoutReferee);
+
+        (, , , uint256 launchDate, , , , , ) = prejoinModule.getDAOData();
+
+        vm.warp(launchDate);
+        vm.roll(block.number + 1);
 
         vm.prank(daoAdmin);
         prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
@@ -155,7 +159,7 @@ contract RepoolPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.enableRepool(rePoolAddress);
 
-        (, , , , , , , , uint256 toRepool, ) = prejoinModule.getDAOData();
+        (, , , , , , , uint256 toRepool, ) = prejoinModule.getDAOData();
 
         assert(toRepool > 0);
         assertEq(usdc.balanceOf(rePoolAddress), 0);
@@ -163,7 +167,7 @@ contract RepoolPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.transferToRepool();
 
-        (, , , , , , , , uint256 newRepoolBalance, ) = prejoinModule.getDAOData();
+        (, , , , , , , uint256 newRepoolBalance, ) = prejoinModule.getDAOData();
 
         assertEq(newRepoolBalance, 0);
         assertEq(usdc.balanceOf(rePoolAddress), toRepool);

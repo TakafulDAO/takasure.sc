@@ -17,7 +17,7 @@ pragma solidity 0.8.28;
 import {IRouterClient} from "ccip/contracts/src/v0.8/ccip/interfaces/IRouterClient.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -37,6 +37,20 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     mapping(address token => bool supportedTokens) public isSupportedToken;
 
+    bool public isPrejoinEnabled;
+
+    struct MessageBuild {
+        address token;
+        uint256 amount;
+        uint256 gasLimit;
+        uint256 contribution;
+        string tDAOName;
+        address parent;
+        address newMember;
+        uint256 couponAmount;
+        uint256 membershipDuration;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -47,8 +61,10 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         bytes32 indexed messageId,
         uint256 indexed tokenAmount,
         uint256 indexed fees,
-        address user
+        address user,
+        bool isPrejoiner
     );
+    event OnPrejoinEnabled(bool isPrejoinEnabled);
 
     error TLDCcipSender__ZeroTransferNotAllowed();
     error TLDCcipSender__AlreadySupportedToken();
@@ -72,9 +88,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     /**
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
-     * @param _receiverContract The address of the receiver contract in the destination blockchain.
-     *                          This will be the only receiver
-     * @param _chainSelector The chain selector of the destination chain. From the list of supported chains.
+     * @param _receiverContract Receiver contract in the destination blockchain. This will be the only receiver
+     * @param _chainSelector The chain selector of the destination chain. Only Arbitrum (One, Sepolia) is supported.
      * @param _owner admin address
      * @param _backendProvider The address with privileges to pay contributions with coupon codes
      */
@@ -126,10 +141,20 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         emit OnBackendProviderSet(_backendProvider);
     }
 
+    /**
+     * @notice Set the address of the receiver contract.
+     * @dev The first receiver will be the PrejoinModule. When the DAO is launched we change this to the EntryModule.
+     * @param _receiverContract New receiver contract address.
+     */
     function setReceiverContract(
         address _receiverContract
     ) external onlyOwner notZeroAddress(_receiverContract) {
         receiverContract = _receiverContract;
+    }
+
+    function enablePrejoin(bool _isPrejoinEnabled) external onlyOwner {
+        isPrejoinEnabled = _isPrejoinEnabled;
+        emit OnPrejoinEnabled(_isPrejoinEnabled);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -138,13 +163,15 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     /**
      * @notice Transfer tokens to receiver contract on the destination chain.
-     * @dev Revert if this contract dont have sufficient balance to pay for the fees.
+     * @dev Revert if this contract dont have sufficient LINK balance to pay for the fees.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
      * @param tokenToTransfer The address of the token to be transferred. Must be in the list of supported tokens.
      * @param gasLimit gas allowed by the user to be the maximum spend in the destination blockchain by the CCIP protocol
      * @param contribution The amount of the contribution to be paid in the TLD contract.
+     * @param tDAOName The name of the DAO to point in the TLD contract.
      * @param parent The address of the parent if the caller has a referral.
      * @param couponAmount The amount of the coupon if the caller has one.
+     * @param membershipDuration The duration of the membership in seconds. Only used if prejoin is disabled.
      * @return messageId The ID of the message that was sent.
      */
     function sendMessage(
@@ -152,9 +179,11 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         address tokenToTransfer,
         uint256 gasLimit,
         uint256 contribution,
+        string calldata tDAOName,
         address parent,
         address newMember,
-        uint256 couponAmount
+        uint256 couponAmount,
+        uint256 membershipDuration
     ) external returns (bytes32 messageId) {
         require(amountToTransfer > 0, TLDCcipSender__ZeroTransferNotAllowed());
         require(isSupportedToken[tokenToTransfer], TLDCcipSender__NotSupportedToken());
@@ -166,15 +195,18 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
         if (couponAmount > 0)
             require(msg.sender == backendProvider, TLDCcipSender__NotAuthorized());
+        else require(msg.sender == newMember, TLDCcipSender__NotAuthorized());
 
         Client.EVM2AnyMessage memory message = _setup({
             _amountToTransfer: amountToTransfer,
             _tokenToTransfer: tokenToTransfer,
             _gasLimit: gasLimit,
             _contributionAmount: contribution,
+            _tDAOName: tDAOName,
             _parent: parent,
             _newMember: newMember,
-            _couponAmount: couponAmount
+            _couponAmount: couponAmount,
+            _membershipDuration: membershipDuration
         });
 
         uint256 ccipFees = _feeChecks(message);
@@ -194,7 +226,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     /**
      * @notice Emergency function to withdraw all Link tokens.
-     * @dev This function reverts with a 'Sender__NothingToWithdraw' error if there are no tokens to withdraw.
      * @param beneficiary The address to which the tokens will be sent.
      */
     function withdrawLink(address beneficiary) external onlyOwner notZeroAddress(beneficiary) {
@@ -216,20 +247,25 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         address _tokenToTransfer,
         uint256 _gasLimit,
         uint256 _contributionAmount,
+        string calldata _tDAOName,
         address _parent,
         address _newMember,
-        uint256 _couponAmount
+        uint256 _couponAmount,
+        uint256 _membershipDuration
     ) internal view returns (Client.EVM2AnyMessage memory _message) {
-        // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
-        _message = _buildCCIPMessage({
-            _token: _tokenToTransfer,
-            _amount: _amountToTransfer,
-            _gasLimit: _gasLimit,
-            _contribution: _contributionAmount,
-            _parent: _parent,
-            _newMember: _newMember,
-            _couponAmount: _couponAmount
+        MessageBuild memory messageBuild = MessageBuild({
+            token: _tokenToTransfer,
+            amount: _amountToTransfer,
+            gasLimit: _gasLimit,
+            contribution: _contributionAmount,
+            tDAOName: _tDAOName,
+            parent: _parent,
+            newMember: _newMember,
+            couponAmount: _couponAmount,
+            membershipDuration: _membershipDuration
         });
+        // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
+        _message = _buildCCIPMessage(messageBuild);
     }
 
     function _feeChecks(
@@ -261,31 +297,49 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         _messageId = router.ccipSend(destinationChainSelector, _message);
 
         // Emit an event with message details
-        emit OnTokensTransferred(_messageId, _amountToTransfer, _ccipFees, _newMember);
+        emit OnTokensTransferred(
+            _messageId,
+            _amountToTransfer,
+            _ccipFees,
+            _newMember,
+            isPrejoinEnabled
+        );
     }
 
     function _buildCCIPMessage(
-        address _token,
-        uint256 _amount,
-        uint256 _gasLimit,
-        uint256 _contribution,
-        address _parent,
-        address _newMember,
-        uint256 _couponAmount
+        MessageBuild memory _messageBuild
     ) internal view returns (Client.EVM2AnyMessage memory) {
         // Set the token amounts
         Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
-        tokenAmounts[0] = Client.EVMTokenAmount({token: _token, amount: _amount});
+        tokenAmounts[0] = Client.EVMTokenAmount({
+            token: _messageBuild.token,
+            amount: _messageBuild.amount
+        });
+
+        bytes memory dataToSend;
 
         // Function to call in the receiver contract
-        // payContributionOnBehalfOf(uint256 contribution, address parent, address newMember, uint256 couponAmount)
-        bytes memory dataToSend = abi.encodeWithSignature(
-            "payContributionOnBehalfOf(uint256,address,address,uint256)",
-            _contribution,
-            _parent,
-            _newMember,
-            _couponAmount
-        );
+        if (isPrejoinEnabled) {
+            // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
+            dataToSend = abi.encodeWithSignature(
+                "payContributionOnBehalfOf(uint256,string,address,address,uint256)",
+                _messageBuild.contribution,
+                _messageBuild.tDAOName,
+                _messageBuild.parent,
+                _messageBuild.newMember,
+                _messageBuild.couponAmount
+            );
+        } else {
+            // joinPoolOnBehalfOf(address membersWallet, address parentWallet, uint256 contributionBeforeFee, uint256 membershipDuration, uint256 couponAmount)
+            dataToSend = abi.encodeWithSignature(
+                "joinPoolOnBehalfOf(address,address,uint256,uint256,uint256)",
+                _messageBuild.newMember,
+                _messageBuild.parent,
+                _messageBuild.contribution,
+                _messageBuild.membershipDuration,
+                _messageBuild.couponAmount
+            );
+        }
 
         // EVM2AnyMessage struct
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
@@ -293,7 +347,10 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             data: dataToSend,
             tokenAmounts: tokenAmounts,
             extraArgs: Client._argsToBytes(
-                Client.EVMExtraArgsV2({gasLimit: _gasLimit, allowOutOfOrderExecution: true})
+                Client.EVMExtraArgsV2({
+                    gasLimit: _messageBuild.gasLimit,
+                    allowOutOfOrderExecution: true
+                })
             ),
             feeToken: address(linkToken)
         });

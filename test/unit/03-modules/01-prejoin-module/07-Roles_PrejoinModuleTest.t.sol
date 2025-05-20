@@ -65,10 +65,8 @@ contract RolesPrejoinModuleTest is Test {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(address(usdc));
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
@@ -90,7 +88,8 @@ contract RolesPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
+        prejoinModule.setDAOName(tDaoName);
         vm.stopPrank();
         _;
     }
@@ -103,7 +102,7 @@ contract RolesPrejoinModuleTest is Test {
 
     modifier KYCReferral() {
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(referral);
+        prejoinModule.approveKYC(referral);
         _;
     }
 
@@ -126,7 +125,7 @@ contract RolesPrejoinModuleTest is Test {
         assert(!prejoinModule.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
         // Current KYCProvider can KYC a member
         vm.prank(KYCProvider);
-        prejoinModule.setKYCStatus(child);
+        prejoinModule.approveKYC(child);
         // Grant, revoke and renounce roles
         vm.startPrank(takadao);
         prejoinModule.grantRole(keccak256("OPERATOR"), newOperator);

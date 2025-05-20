@@ -11,6 +11,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {IAccessControl} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 contract LaunchDaoPrejoinModuleTest is Test {
     TestDeployProtocol deployer;
@@ -68,10 +69,8 @@ contract LaunchDaoPrejoinModuleTest is Test {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(address(usdc));
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
@@ -93,7 +92,8 @@ contract LaunchDaoPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
+        prejoinModule.setDAOName(tDaoName);
         vm.stopPrank();
         _;
     }
@@ -108,7 +108,6 @@ contract LaunchDaoPrejoinModuleTest is Test {
             bool referralDiscount,
             address DAOAddress,
             uint256 launchDate,
-            uint256 objectiveAmount,
             uint256 currentAmount,
             ,
             address rePoolAddress,
@@ -121,7 +120,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
         assertEq(referralDiscount, true);
 
         vm.prank(referral);
-        vm.expectRevert();
+        vm.expectPartialRevert(IAccessControl.AccessControlUnauthorizedAccount.selector);
         prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         vm.prank(daoAdmin);
@@ -133,6 +132,13 @@ contract LaunchDaoPrejoinModuleTest is Test {
         prejoinModule.launchDAO(address(takasureReserve), address(0), true);
 
         vm.prank(daoAdmin);
+        vm.expectRevert(PrejoinModule.PrejoinModule__InvalidLaunchDate.selector);
+        prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
+
+        vm.warp(launchDate);
+        vm.roll(block.number + 1);
+
+        vm.prank(daoAdmin);
         prejoinModule.launchDAO(address(takasureReserve), entryModuleAddress, true);
 
         (
@@ -140,7 +146,6 @@ contract LaunchDaoPrejoinModuleTest is Test {
             referralDiscount,
             DAOAddress,
             launchDate,
-            objectiveAmount,
             currentAmount,
             ,
             rePoolAddress,
@@ -164,7 +169,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.switchReferralDiscount();
 
-        (, referralDiscount, , , , , , , , ) = prejoinModule.getDAOData();
+        (, referralDiscount, , , , , , , ) = prejoinModule.getDAOData();
 
         assert(!referralDiscount);
 
@@ -177,7 +182,7 @@ contract LaunchDaoPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.enableRepool(newRePoolAddress);
 
-        (, , , , , , , rePoolAddress, , ) = prejoinModule.getDAOData();
+        (, , , , , , rePoolAddress, , ) = prejoinModule.getDAOData();
 
         assertEq(rePoolAddress, newRePoolAddress);
     }

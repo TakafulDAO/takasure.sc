@@ -89,6 +89,8 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
+        _successResponse(address(bmConsumerMock));
+
         vm.startPrank(bob);
         usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
@@ -109,6 +111,10 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.warp(15 days);
         vm.roll(block.number + 1);
 
+        vm.prank(bob);
+        vm.expectRevert(EntryModule.EntryModule__NotAuthorizedCaller.selector);
+        entryModule.refund(alice);
+
         vm.startPrank(alice);
         vm.expectEmit(true, true, false, false, address(entryModule));
         emit TakasureEvents.OnRefund(testMemberAfterKyc.memberId, alice, expectedRefundAmount);
@@ -120,6 +126,17 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
 
         assertEq(contractBalanceBeforeRefund - expectedRefundAmount, contractBalanceAfterRefund);
         assertEq(aliceBalanceBeforeRefund + expectedRefundAmount, aliceBalanceAfterRefund);
+
+        // Cannot KYC someone who has been refunded until pays again
+        vm.prank(kycService);
+        vm.expectRevert(EntryModule.EntryModule__NoContribution.selector);
+        entryModule.approveKYC(alice);
+
+        vm.prank(alice);
+        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        vm.prank(kycService);
+        entryModule.approveKYC(alice);
     }
 
     function testEntryModule_sameIdIfJoinsAgainAfterRefund() public {
@@ -151,23 +168,5 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         assert(aliceAfterRefund.isRefunded);
         assertEq(aliceAfterFirstJoinBeforeRefund.memberId, aliceAfterRefund.memberId);
         assertEq(aliceAfterRefund.memberId, aliceAfterSecondJoin.memberId);
-    }
-
-    function testEntryModule_refundCalledByAnyone() public {
-        Reserve memory reserve = takasureReserve.getReserveValues();
-        uint8 serviceFee = reserve.serviceFee;
-        uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
-
-        Member memory testMemberAfterKyc = takasureReserve.getMemberFromAddress(alice);
-
-        // 14 days passed
-        vm.warp(15 days);
-        vm.roll(block.number + 1);
-
-        vm.startPrank(bob);
-        vm.expectEmit(true, true, false, false, address(entryModule));
-        emit TakasureEvents.OnRefund(testMemberAfterKyc.memberId, alice, expectedRefundAmount);
-        entryModule.refund(alice);
-        vm.stopPrank();
     }
 }

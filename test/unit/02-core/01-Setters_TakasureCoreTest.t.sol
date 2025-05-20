@@ -100,14 +100,6 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         assertEq(newMaximumThreshold, takasureReserve.getReserveValues().maximumThreshold);
     }
 
-    /// @dev Test the owner can set a new contribution token
-    function testTakasureCore_setNewContributionToken() public {
-        vm.prank(admin);
-        takasureReserve.setNewContributionToken(alice);
-
-        assertEq(alice, takasureReserve.getReserveValues().contributionToken);
-    }
-
     /// @dev Test the owner can set a new service claim address
     function testTakasureCore_cansetNewServiceClaimAddress() public {
         vm.prank(admin);

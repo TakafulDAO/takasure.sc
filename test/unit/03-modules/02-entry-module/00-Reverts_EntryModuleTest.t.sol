@@ -119,24 +119,24 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         vm.prank(alice);
         // And tries to join again but fails
-        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
     }
 
-    /// @dev `setKYCStatus` must revert if the member is address zero
-    function testEntryModule_setKYCStatusMustRevertIfMemberIsAddressZero() public {
+    /// @dev `approveKYC` must revert if the member is address zero
+    function testEntryModule_approveKYCMustRevertIfMemberIsAddressZero() public {
         vm.prank(admin);
 
         vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
-        entryModule.setKYCStatus(address(0));
+        entryModule.approveKYC(address(0));
     }
 
-    /// @dev `setKYCStatus` must revert if the member is already KYC verified
-    function testEntryModule_setKYCStatusMustRevertIfMemberIsAlreadyKYCVerified() public {
+    /// @dev `approveKYC` must revert if the member is already KYC verified
+    function testEntryModule_approveKYCMustRevertIfMemberIsAlreadyKYCVerified() public {
         vm.prank(alice);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
 
@@ -144,11 +144,11 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         // And tries to join again but fails
         vm.expectRevert(EntryModule.EntryModule__MemberAlreadyKYCed.selector);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         vm.stopPrank();
     }
@@ -162,7 +162,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         vm.prank(alice);
         vm.expectRevert(EntryModule.EntryModule__MemberAlreadyKYCed.selector);
@@ -210,16 +210,16 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.setKYCStatus(alice);
+        entryModule.approveKYC(alice);
 
         vm.prank(alice);
-        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // Second check bob join -> bob join again must revert
         vm.startPrank(bob);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.expectRevert(EntryModule.EntryModule__AlreadyJoinedPendingForKYC.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
@@ -239,10 +239,10 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.stopPrank();
 
         vm.prank(admin);
-        entryModule.setKYCStatus(charlie);
+        entryModule.approveKYC(charlie);
 
         vm.prank(charlie);
-        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // Fourth check david join -> 14 days passes -> refund david -> david join -> david join again must revert
@@ -255,7 +255,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(david);
         userRouter.refund();
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.expectRevert(EntryModule.EntryModule__AlreadyJoinedPendingForKYC.selector);
+        vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
         userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
     }

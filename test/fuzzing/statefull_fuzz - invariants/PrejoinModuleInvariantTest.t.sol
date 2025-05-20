@@ -54,10 +54,8 @@ contract PrejoinModuleInvariantTest is StdInvariant, Test {
         usdc = IUSDC(contributionTokenAddress);
 
         // Config mocks
-        vm.startPrank(daoAdmin);
-        takasureReserve.setNewContributionToken(contributionTokenAddress);
+        vm.prank(daoAdmin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        vm.stopPrank();
 
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(prejoinModuleAddress);
@@ -65,9 +63,7 @@ contract PrejoinModuleInvariantTest is StdInvariant, Test {
         vm.startPrank(daoAdmin);
         prejoinModule.createDAO(
             true,
-            true,
             block.timestamp + 31_536_000,
-            0,
             address(bmConsumerMock)
         );
         vm.stopPrank();
@@ -96,7 +92,6 @@ contract PrejoinModuleInvariantTest is StdInvariant, Test {
     function invariant_feeCalculatedCorrectly() public view {
         // This will also run some assertions in the handler
         (
-            ,
             ,
             ,
             ,
