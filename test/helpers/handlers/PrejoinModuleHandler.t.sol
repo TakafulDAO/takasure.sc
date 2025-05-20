@@ -70,10 +70,12 @@ contract PrejoinModuleHandler is Test {
             }
         }
         if (!skip) {
-            assert(ghostFee <= (contributionAmount * MAX_FEE) / 100);
-            assert(ghostFee >= (contributionAmount * MIN_FEE) / 100000);
-            assert(ghostDiscount <= (contributionAmount * MAX_DISCOUNT) / 100);
-            assert(ghostDiscount >= (contributionAmount * MIN_DISCOUNT) / 100);
+            uint256 normalizedContribution = (contributionAmount / 1e4) * 1e4;
+
+            assert(ghostFee <= (normalizedContribution * MAX_FEE) / 100);
+            assert(ghostFee >= (normalizedContribution * MIN_FEE) / 100000);
+            assert(ghostDiscount <= (normalizedContribution * MAX_DISCOUNT) / 100);
+            assert(ghostDiscount >= (normalizedContribution * MIN_DISCOUNT) / 100);
         }
         totalFees += ghostFee;
     }

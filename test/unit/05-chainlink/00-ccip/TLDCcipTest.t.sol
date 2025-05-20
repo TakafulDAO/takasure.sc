@@ -119,7 +119,7 @@ contract TLDCcipTest is Test {
 
     modifier createDao() {
         vm.startPrank(admin);
-        prejoinModule.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
+        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
         prejoinModule.setDAOName(tDaoName);
         vm.stopPrank();
         _;

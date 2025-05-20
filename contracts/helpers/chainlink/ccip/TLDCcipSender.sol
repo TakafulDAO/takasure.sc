@@ -17,7 +17,7 @@ pragma solidity 0.8.28;
 import {IRouterClient} from "ccip/contracts/src/v0.8/ccip/interfaces/IRouterClient.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -72,9 +72,8 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
     /**
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
-     * @param _receiverContract The address of the receiver contract in the destination blockchain.
-     *                          This will be the only receiver
-     * @param _chainSelector The chain selector of the destination chain. From the list of supported chains.
+     * @param _receiverContract Receiver contract in the destination blockchain. This will be the only receiver
+     * @param _chainSelector The chain selector of the destination chain. Only Arbitrum (One, Sepolia) is supported.
      * @param _owner admin address
      * @param _backendProvider The address with privileges to pay contributions with coupon codes
      */
@@ -126,6 +125,11 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         emit OnBackendProviderSet(_backendProvider);
     }
 
+    /**
+     * @notice Set the address of the receiver contract.
+     * @dev The first receiver will be the PrejoinModule. When the DAO is launched we change this to the EntryModule.
+     * @param _receiverContract New receiver contract address.
+     */
     function setReceiverContract(
         address _receiverContract
     ) external onlyOwner notZeroAddress(_receiverContract) {
@@ -138,7 +142,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     /**
      * @notice Transfer tokens to receiver contract on the destination chain.
-     * @dev Revert if this contract dont have sufficient balance to pay for the fees.
+     * @dev Revert if this contract dont have sufficient LINK balance to pay for the fees.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
      * @param tokenToTransfer The address of the token to be transferred. Must be in the list of supported tokens.
      * @param gasLimit gas allowed by the user to be the maximum spend in the destination blockchain by the CCIP protocol
@@ -168,6 +172,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
         if (couponAmount > 0)
             require(msg.sender == backendProvider, TLDCcipSender__NotAuthorized());
+        else require(msg.sender == newMember, TLDCcipSender__NotAuthorized());
 
         Client.EVM2AnyMessage memory message = _setup({
             _amountToTransfer: amountToTransfer,
@@ -197,7 +202,6 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
 
     /**
      * @notice Emergency function to withdraw all Link tokens.
-     * @dev This function reverts with a 'Sender__NothingToWithdraw' error if there are no tokens to withdraw.
      * @param beneficiary The address to which the tokens will be sent.
      */
     function withdrawLink(address beneficiary) external onlyOwner notZeroAddress(beneficiary) {
