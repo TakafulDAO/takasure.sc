@@ -96,4 +96,5 @@ library TakasureEvents {
         address indexed child,
         uint256 reward
     );
+    event OnOperatorChanged(address indexed newOperator, address indexed oldOperator);
 }

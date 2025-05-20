@@ -81,7 +81,7 @@ struct tDAO {
     address DAOAdmin; // Deprecated. DAOAdmin == Operator
     address DAOAddress; // To be assigned when the tDAO is deployed
     uint256 launchDate; // In seconds. An estimated launch date of the DAO
-    uint256 objectiveAmount; // In USDC, six decimals
+    uint256 objectiveAmount; // Deprecated
     uint256 currentAmount; // In USDC, six decimals
     uint256 collectedFees; // Fees collected after deduct, discounts, referral reserve and repool amounts. In USDC, six decimals
     address rePoolAddress; // To be assigned when the tDAO is deployed

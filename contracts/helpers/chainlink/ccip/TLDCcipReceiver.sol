@@ -95,7 +95,6 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         require(_usdc != address(0), TLDCcipReceiver__InvalidUsdcToken());
         usdc = IERC20(_usdc);
         protocolGateway = _protocolGateway;
-        usdc.approve(_protocolGateway, type(uint256).max);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -120,13 +119,8 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     function setProtocolGateway(address _protocolGateway) external onlyOwner {
         require(_protocolGateway != address(0), TLDCcipReceiver__NotZeroAddress());
 
-        // Get the old protocol gateway address and set the approval to 0
         address oldProtocolGateway = protocolGateway;
-        usdc.approve(oldProtocolGateway, 0);
-
-        // Set the new protocol gateway address and approve the maximum amount
         protocolGateway = _protocolGateway;
-        usdc.approve(_protocolGateway, type(uint256).max);
 
         emit OnProtocolGatewayChanged(oldProtocolGateway, _protocolGateway);
     }
@@ -195,6 +189,9 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
         failedMessages.set(messageId, uint256(StatusCode.RESOLVED));
 
+        // Approve the protocol gateway to spend the USDC tokens
+        usdc.approve(protocolGateway, message.destTokenAmounts[0].amount);
+
         // Low level call to the referral gateway
         (bool success, ) = protocolGateway.call(message.data);
         require(success, TLDCcipReceiver__CallFailed());
@@ -245,6 +242,9 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
+        // Approve the protocol gateway to spend the USDC tokens
+        usdc.approve(protocolGateway, any2EvmMessage.destTokenAmounts[0].amount);
+
         // Low level call to the referral gateway
         (bool success, bytes memory returnData) = protocolGateway.call(any2EvmMessage.data);
         if (success) {
