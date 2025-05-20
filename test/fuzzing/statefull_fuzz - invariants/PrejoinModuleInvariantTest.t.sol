@@ -64,9 +64,7 @@ contract PrejoinModuleInvariantTest is StdInvariant, Test {
         prejoinModule.createDAO(
             DAO_NAME,
             true,
-            true,
             block.timestamp + 31_536_000,
-            0,
             address(bmConsumerMock)
         );
         prejoinModule.setDAOName(DAO_NAME);
@@ -96,7 +94,6 @@ contract PrejoinModuleInvariantTest is StdInvariant, Test {
     function invariant_feeCalculatedCorrectly() public view {
         // This will also run some assertions in the handler
         (
-            ,
             ,
             ,
             ,

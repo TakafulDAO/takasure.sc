@@ -103,7 +103,7 @@ contract PrepaysPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
+        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
         prejoinModule.setDAOName(tDaoName);
         vm.stopPrank();
         _;
@@ -111,7 +111,7 @@ contract PrepaysPrejoinModuleTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = true, no referral ========//
     function testprepaymentCase1() public createDao {
-        (, , , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -131,7 +131,7 @@ contract PrepaysPrejoinModuleTest is Test {
 
         (, , , uint256 discount) = prejoinModule.getPrepaidMember(child);
 
-        (, , , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(totalCollectedFees, collectedFees);
         assertEq(collectedFees, 2_500_000);
@@ -140,7 +140,7 @@ contract PrepaysPrejoinModuleTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = true, invalid referral ========//
     function testprepaymentCase2() public createDao {
-        (, , , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -148,7 +148,7 @@ contract PrepaysPrejoinModuleTest is Test {
         vm.expectRevert(PrejoinModule.PrejoinModule__ParentMustKYCFirst.selector);
         prejoinModule.payContribution(CONTRIBUTION_AMOUNT, referral);
 
-        (, , , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(totalCollectedFees, 0);
     }
@@ -158,7 +158,7 @@ contract PrepaysPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.switchReferralDiscount();
 
-        (, , , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -177,7 +177,7 @@ contract PrepaysPrejoinModuleTest is Test {
 
         (, , , uint256 discount) = prejoinModule.getPrepaidMember(child);
 
-        (, , , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(totalCollectedFees, collectedFees);
         assertEq(collectedFees, 3_750_000);
@@ -189,7 +189,7 @@ contract PrepaysPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.switchReferralDiscount();
 
-        (, , , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -197,7 +197,7 @@ contract PrepaysPrejoinModuleTest is Test {
         vm.expectRevert(PrejoinModule.PrejoinModule__ParentMustKYCFirst.selector);
         prejoinModule.payContribution(CONTRIBUTION_AMOUNT, referral);
 
-        (, , , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(totalCollectedFees, 0);
     }
@@ -236,7 +236,7 @@ contract PrepaysPrejoinModuleTest is Test {
     //======== preJoinEnabled = true, referralDiscount = true, valid referral ========//
     function testprepaymentCase5() public createDao referralPrepays KYCReferral {
         // Already collected fees with the modifiers logic
-        (, , , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(alreadyCollectedFees, 2_500_000);
 
@@ -259,7 +259,7 @@ contract PrepaysPrejoinModuleTest is Test {
 
         (, , , uint256 discount) = prejoinModule.getPrepaidMember(child);
 
-        (, , , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(collectedFees, 1_250_000);
         assertEq(totalCollectedFees, collectedFees + alreadyCollectedFees);
@@ -274,7 +274,7 @@ contract PrepaysPrejoinModuleTest is Test {
         prejoinModule.switchReferralDiscount();
 
         // Already collected fees with the modifiers logic
-        (, , , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 alreadyCollectedFees, , , ) = prejoinModule.getDAOData();
         assertEq(alreadyCollectedFees, 2_500_000);
 
         uint256 expectedParentReward = 0;
@@ -294,7 +294,7 @@ contract PrepaysPrejoinModuleTest is Test {
 
         (, , , uint256 discount) = prejoinModule.getPrepaidMember(child);
 
-        (, , , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
+        (, , , , , uint256 totalCollectedFees, , , ) = prejoinModule.getDAOData();
 
         assertEq(collectedFees, 3_750_000);
         assertEq(totalCollectedFees, collectedFees + alreadyCollectedFees);
