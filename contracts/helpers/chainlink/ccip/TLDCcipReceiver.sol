@@ -263,7 +263,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
     function _getNewMemberAddress(bytes memory _data) internal pure returns (address _newMember) {
         // The data is structured to be able to call the function payContributionOnBehalfOf
-        // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
+        // payContributionOnBehalfOf(uint256 contribution, address parent, address newMember, uint256 couponAmount)
 
         assembly {
             let _dataOffset := add(_data, 0x20) // Skip the first 32 bytes word from the data, this will point to the real place where the data starts

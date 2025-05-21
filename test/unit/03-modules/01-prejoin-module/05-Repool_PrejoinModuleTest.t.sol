@@ -30,7 +30,6 @@ contract RepoolPrejoinModuleTest is Test {
     address member = makeAddr("member");
     address notMember = makeAddr("notMember");
     address child = makeAddr("child");
-    string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
 
@@ -88,8 +87,7 @@ contract RepoolPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
-        prejoinModule.setDAOName(tDaoName);
+        prejoinModule.createDAO(true, 1743479999, address(bmConsumerMock));
         vm.stopPrank();
         _;
     }

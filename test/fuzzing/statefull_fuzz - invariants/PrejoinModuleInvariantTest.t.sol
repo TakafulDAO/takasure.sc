@@ -62,12 +62,10 @@ contract PrejoinModuleInvariantTest is StdInvariant, Test {
 
         vm.startPrank(daoAdmin);
         prejoinModule.createDAO(
-            DAO_NAME,
             true,
             block.timestamp + 31_536_000,
             address(bmConsumerMock)
         );
-        prejoinModule.setDAOName(DAO_NAME);
         vm.stopPrank();
 
         handler = new PrejoinModuleHandler(prejoinModule);
