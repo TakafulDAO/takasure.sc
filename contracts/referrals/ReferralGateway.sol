@@ -51,6 +51,7 @@ contract ReferralGateway is
         uint256 discount;
         mapping(address child => uint256 rewards) parentRewardsByChild;
         mapping(uint256 layer => uint256 rewards) parentRewardsByLayer;
+        bool isDonated;
     }
 
     struct tDAO {
@@ -86,6 +87,7 @@ contract ReferralGateway is
     uint256 private constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
     uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
+    uint256 private constant DECIMAL_REQUIREMENT_PRECISION_USDC = 1e4; // 4 decimals to receive at minimum 0.01 USDC
 
     /*//////////////////////////////////////////////////////////////
                             REWARDS RELATED
@@ -334,11 +336,18 @@ contract ReferralGateway is
         uint256 contribution,
         address parent,
         address newMember,
-        uint256 couponAmount
+        uint256 couponAmount,
+        bool isDonated
     ) external returns (uint256 finalFee, uint256 discount) {
         _onlyCouponRedeemerOrCcipReceiver();
 
-        (finalFee, discount) = _payContribution(contribution, parent, newMember, couponAmount);
+        (finalFee, discount) = _payContribution(
+            contribution,
+            parent,
+            newMember,
+            couponAmount,
+            isDonated
+        );
 
         if (couponAmount > 0) {
             isMemberCouponRedeemer[newMember] = true;
@@ -623,12 +632,20 @@ contract ReferralGateway is
         uint256 _contribution,
         address _parent,
         address _newMember,
-        uint256 _couponAmount
+        uint256 _couponAmount,
+        bool _isDonated
     ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
         uint256 realContribution;
 
-        if (_couponAmount > _contribution) realContribution = _couponAmount;
-        else realContribution = _contribution;
+        if (_isDonated) {
+            realContribution = MINIMUM_CONTRIBUTION;
+        } else {
+            uint256 normalizedContribution = (_contribution / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+                DECIMAL_REQUIREMENT_PRECISION_USDC;
+
+            if (_couponAmount > normalizedContribution) realContribution = _couponAmount;
+            else realContribution = normalizedContribution;
+        }
 
         _payContributionChecks(realContribution, _parent, _newMember);
 
@@ -715,6 +732,7 @@ contract ReferralGateway is
                 100;
             nameToDAOData[DAO_NAME].prepaidMembers[_newMember].feeToOperator = _finalFee;
             nameToDAOData[DAO_NAME].prepaidMembers[_newMember].discount = _discount;
+            nameToDAOData[DAO_NAME].prepaidMembers[_newMember].isDonated = _isDonated;
 
             // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
             _getBenefitMultiplierFromOracle(_newMember);
