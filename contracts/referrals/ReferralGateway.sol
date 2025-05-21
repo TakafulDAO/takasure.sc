@@ -70,6 +70,9 @@ contract ReferralGateway is
         IBenefitMultiplierConsumer bmConsumer;
     }
 
+    // Set to true when new members use coupons to pay their contributions. It does not matter the amount
+    mapping(address member => bool) private isMemberCouponRedeemer;
+
     /*//////////////////////////////////////////////////////////////
                               FIXED RATIOS
     //////////////////////////////////////////////////////////////*/
@@ -130,6 +133,12 @@ contract ReferralGateway is
         uint256 indexed couponAmount
     );
     event OnParentRewarded(
+        address indexed parent,
+        uint256 indexed layer,
+        address indexed child,
+        uint256 reward
+    );
+    event OnParentRewardTransferFailed(
         address indexed parent,
         uint256 indexed layer,
         address indexed child,
@@ -379,7 +388,10 @@ contract ReferralGateway is
             couponAmount
         );
 
-        if (couponAmount > 0) emit OnCouponRedeemed(newMember, tDAOName, couponAmount);
+        if (couponAmount > 0) {
+            isMemberCouponRedeemer[newMember] = true;
+            emit OnCouponRedeemed(newMember, tDAOName, couponAmount);
+        }
     }
 
     /**
@@ -419,9 +431,18 @@ contract ReferralGateway is
             // Reset the rewards for this child
             nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[child] = 0;
 
-            usdc.safeTransfer(parent, parentReward);
+            try usdc.transfer(parent, parentReward) {
+                // Emit the event only if the transfer was successful
+                emit OnParentRewarded(parent, layer, child, parentReward);
+            } catch {
+                // If the transfer failed, we need to revert the rewards
+                nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[
+                    child
+                ] = parentReward;
 
-            emit OnParentRewarded(parent, layer, child, parentReward);
+                // Emit an event for off-chain monitoring
+                emit OnParentRewardTransferFailed(parent, layer, child, parentReward);
+            }
 
             // We update the parent address to check the next parent
             parent = childToParent[parent];
@@ -474,6 +495,10 @@ contract ReferralGateway is
      * @dev Intended to be called by anyone if the DAO is not deployed at launch date
      */
     function refundIfDAOIsNotLaunched(address member, string calldata tDAOName) external {
+        require(
+            member == msg.sender || hasRole(OPERATOR, msg.sender),
+            ReferralGateway__NotAuthorizedCaller()
+        );
         require(
             nameToDAOData[tDAOName].launchDate < block.timestamp &&
                 nameToDAOData[tDAOName].DAOAddress == address(0),
@@ -920,7 +945,15 @@ contract ReferralGateway is
 
         isMemberKYCed[_member] = false;
 
-        usdc.safeTransfer(_member, amountToRefund);
+        if (isMemberCouponRedeemer[_member]) {
+            // Reset the coupon redeemer status, this way the member can redeem again
+            isMemberCouponRedeemer[_member] = false;
+            // We transfer the coupon amount to the coupon pool
+            usdc.safeTransfer(couponPool, amountToRefund);
+        } else {
+            // We transfer the amount to the member
+            usdc.safeTransfer(_member, amountToRefund);
+        }
 
         emit OnRefund(_tDAOName, _member, amountToRefund);
     }
