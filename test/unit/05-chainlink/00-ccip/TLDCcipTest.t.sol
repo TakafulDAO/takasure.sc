@@ -40,7 +40,6 @@ contract TLDCcipTest is Test {
     uint256 public constant LINK_INITIAL_AMOUNT = 100e18; // 100 LINK
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 LINK
     uint256 public constant MEMBERSHIP_DURATION = 5 * 365 days; // 5 years
-    string tDaoName = "TheLifeDao";
 
     event OnNewSupportedToken(address token);
     event OnBackendProviderSet(address backendProvider);
@@ -122,8 +121,7 @@ contract TLDCcipTest is Test {
 
     modifier createDao() {
         vm.startPrank(admin);
-        prejoinModule.createDAO(tDaoName, true, 1743479999, address(bmConsumerMock));
-        prejoinModule.setDAOName(tDaoName);
+        prejoinModule.createDAO(true, 1743479999, address(bmConsumerMock));
         vm.stopPrank();
         _;
     }
@@ -286,7 +284,6 @@ contract TLDCcipTest is Test {
         uint256 amountToTransfer = 100e6;
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
-        string memory dao = "dao";
 
         vm.prank(user);
         vm.expectRevert(TLDCcipSender.TLDCcipSender__NotSupportedToken.selector);
@@ -295,7 +292,6 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             contribution,
-            dao,
             address(0),
             user,
             0,
@@ -308,7 +304,6 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 50e6;
         uint256 coupon = 50e6;
-        string memory dao = "dao";
 
         vm.prank(backend);
         vm.expectRevert(TLDCcipSender.TLDCcipSender__ZeroTransferNotAllowed.selector);
@@ -317,7 +312,6 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             contribution,
-            dao,
             address(0),
             user,
             coupon,
@@ -330,7 +324,6 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 minContribution = 20e6;
         uint256 maxContribution = 300e6;
-        string memory dao = "dao";
 
         vm.startPrank(user);
         vm.expectRevert(TLDCcipSender.TLDCcipSender__ContributionOutOfRange.selector);
@@ -339,7 +332,6 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             minContribution,
-            dao,
             address(0),
             user,
             0,
@@ -352,7 +344,6 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             maxContribution,
-            dao,
             address(0),
             user,
             0,
@@ -365,7 +356,6 @@ contract TLDCcipTest is Test {
         uint256 amountToTransfer = 100e6;
         uint256 gasLimit = 1000000;
         uint256 contribution = 50e6;
-        string memory dao = "dao";
 
         vm.prank(user);
         vm.expectRevert(TLDCcipSender.TLDCcipSender__WrongTransferAmount.selector);
@@ -374,7 +364,6 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             contribution,
-            dao,
             address(0),
             user,
             0,
@@ -386,7 +375,6 @@ contract TLDCcipTest is Test {
         uint256 amountToTransfer = 100e6;
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
-        string memory dao = "dao";
         uint256 coupon = 50e6;
 
         vm.prank(user);
@@ -396,7 +384,6 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             contribution,
-            dao,
             address(0),
             user,
             coupon,
@@ -422,7 +409,6 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             contribution,
-            tDaoName,
             address(0),
             user,
             0,
@@ -479,7 +465,7 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0xe01b2be933401960d637314fd27f4fdf2caa6639d0f9ac6f78e7f21fe77c25d6;
+        bytes32 messageId = 0x891f0a4f29f72aecc7d2f0af25e9fa4ee8f0832bdf46411ea7d68956da4b812a;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);
@@ -492,7 +478,6 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             contribution,
-            tDaoName,
             address(0),
             user,
             0,
