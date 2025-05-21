@@ -20,14 +20,16 @@ contract ReserveMathAlgorithmsTest is Test {
         uint256 currentProFormaFundReserve = 0;
         uint256 memberNetContribution = 25000000;
         uint256 currentDynamicReserveRatio = 40;
+        uint256 fundMarketExpendsAddShare = 2;
 
-        uint256 expectedProFormaFundReserve = 10000000;
+        uint256 expectedProFormaFundReserve = 9800000;
 
         uint256 updatedProFormaFundReserve = reserveMathAlgorithmsHarness
             .exposed__updateProFormaFundReserve(
                 currentProFormaFundReserve,
                 memberNetContribution,
-                currentDynamicReserveRatio
+                currentDynamicReserveRatio,
+                fundMarketExpendsAddShare
             );
 
         assertEq(updatedProFormaFundReserve, expectedProFormaFundReserve);
@@ -37,14 +39,16 @@ contract ReserveMathAlgorithmsTest is Test {
         uint256 currentProFormaFundReserve = 10000000;
         uint256 memberNetContribution = 50000000;
         uint256 currentDynamicReserveRatio = 43;
+        uint256 fundMarketExpendsAddShare = 2; // 2%
 
-        uint256 expectedProFormaFundReserve = 31500000;
+        uint256 expectedProFormaFundReserve = 31070000;
 
         uint256 updatedProFormaFundReserve = reserveMathAlgorithmsHarness
             .exposed__updateProFormaFundReserve(
                 currentProFormaFundReserve,
                 memberNetContribution,
-                currentDynamicReserveRatio
+                currentDynamicReserveRatio,
+                fundMarketExpendsAddShare
             );
 
         assertEq(updatedProFormaFundReserve, expectedProFormaFundReserve);

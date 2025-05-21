@@ -9,12 +9,14 @@ contract ReserveMathAlgorithmsHarness {
     function exposed__updateProFormaFundReserve(
         uint256 currentProFormaFundReserve,
         uint256 memberNetContribution,
-        uint256 currentDynamicReserveRatio
+        uint256 currentDynamicReserveRatio,
+        uint256 fundMarketExpendsAddShare
     ) external pure returns (uint256 exposedUpdatedProFormaFundReserve) {
         exposedUpdatedProFormaFundReserve = ReserveMathAlgorithms._updateProFormaFundReserve(
             currentProFormaFundReserve,
             memberNetContribution,
-            currentDynamicReserveRatio
+            currentDynamicReserveRatio,
+            fundMarketExpendsAddShare
         );
     }
 
