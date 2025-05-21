@@ -135,17 +135,12 @@ contract ReferralGateway is
         string indexed tDAOName,
         uint256 indexed couponAmount
     );
-    event OnParentRewarded(
+    event OnParentRewardTransferStatus(
         address indexed parent,
         uint256 indexed layer,
         address indexed child,
-        uint256 reward
-    );
-    event OnParentRewardTransferFailed(
-        address indexed parent,
-        uint256 indexed layer,
-        address indexed child,
-        uint256 reward
+        uint256 reward,
+        bool status
     );
     event OnMemberKYCVerified(address indexed member);
     event OnBenefitMultiplierConsumerChanged(
@@ -160,6 +155,7 @@ contract ReferralGateway is
         address indexed oldCCIPReceiverContract,
         address indexed newCCIPReceiverContract
     );
+    event OnPrejoinDiscountSwitched(bool indexed preJoinEnabled);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__MustHaveName();
@@ -391,7 +387,7 @@ contract ReferralGateway is
 
             try usdc.transfer(parent, parentReward) {
                 // Emit the event only if the transfer was successful
-                emit OnParentRewarded(parent, layer, child, parentReward);
+                emit OnParentRewardTransferStatus(parent, layer, child, parentReward, true);
             } catch {
                 // If the transfer failed, we need to revert the rewards
                 nameToDAOData[DAO_NAME].prepaidMembers[parent].parentRewardsByChild[
@@ -399,7 +395,7 @@ contract ReferralGateway is
                 ] = parentReward;
 
                 // Emit an event for off-chain monitoring
-                emit OnParentRewardTransferFailed(parent, layer, child, parentReward);
+                emit OnParentRewardTransferStatus(parent, layer, child, parentReward, false);
             }
 
             // We update the parent address to check the next parent
@@ -527,6 +523,11 @@ contract ReferralGateway is
         emit OnNewCCIPReceiverContract(oldCCIPReceiverContract, _ccipReceiverContract);
     }
 
+    function setPrejoinDiscount(bool _preJoinEnabled) external onlyRole(OPERATOR) {
+        nameToDAOData[DAO_NAME].preJoinEnabled = _preJoinEnabled;
+        emit OnPrejoinDiscountSwitched(_preJoinEnabled);
+    }
+
     function pause() external onlyRole(PAUSE_GUARDIAN) {
         _pause();
     }
@@ -650,101 +651,86 @@ contract ReferralGateway is
         _payContributionChecks(realContribution, _parent, _newMember);
 
         _finalFee = (realContribution * SERVICE_FEE_RATIO) / 100;
-        // If the DAO pre join is enabled it means the DAO is not deployed yet
-        if (nameToDAOData[DAO_NAME].preJoinEnabled) {
-            // The prepaid member object is created inside this if statement only
 
-            // It will get a discount as a pre-joiner
+        // If the DAO pre join is enabled, it will get a discount as a pre-joiner
+        if (nameToDAOData[DAO_NAME].preJoinEnabled)
             _discount +=
                 ((realContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
                 100;
-            uint256 toReferralReserve;
 
-            if (nameToDAOData[DAO_NAME].referralDiscount) {
-                toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
+        // And if the DAO has the referral discount enabled, it will get a discount as a referrer
+        uint256 toReferralReserve;
 
-                if (_parent != address(0)) {
-                    uint256 referralDiscount = ((realContribution - _couponAmount) *
-                        REFERRAL_DISCOUNT_RATIO) / 100;
-                    _discount += referralDiscount;
+        if (nameToDAOData[DAO_NAME].referralDiscount) {
+            toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
 
-                    childToParent[_newMember] = _parent;
+            // The discount will be only valid if the parent is valid
+            if (_parent != address(0)) {
+                uint256 referralDiscount = ((realContribution - _couponAmount) *
+                    REFERRAL_DISCOUNT_RATIO) / 100;
+                _discount += referralDiscount;
 
-                    (_finalFee, nameToDAOData[DAO_NAME].referralReserve) = _parentRewards(
-                        _newMember,
-                        realContribution,
-                        nameToDAOData[DAO_NAME].referralReserve,
-                        toReferralReserve,
-                        _finalFee
-                    );
-                } else {
-                    nameToDAOData[DAO_NAME].referralReserve += toReferralReserve;
-                }
+                childToParent[_newMember] = _parent;
+
+                (_finalFee, nameToDAOData[DAO_NAME].referralReserve) = _parentRewards(
+                    _newMember,
+                    realContribution,
+                    nameToDAOData[DAO_NAME].referralReserve,
+                    toReferralReserve,
+                    _finalFee
+                );
+            } else {
+                nameToDAOData[DAO_NAME].referralReserve += toReferralReserve;
             }
-
-            uint256 rePoolFee = (realContribution * REPOOL_FEE_RATIO) / 100;
-
-            _finalFee -= _discount + toReferralReserve + rePoolFee;
-
-            assert(
-                (realContribution * SERVICE_FEE_RATIO) / 100 ==
-                    _finalFee + _discount + toReferralReserve + rePoolFee
-            );
-
-            nameToDAOData[DAO_NAME].toRepool += rePoolFee;
-            nameToDAOData[DAO_NAME].currentAmount +=
-                realContribution -
-                (realContribution * SERVICE_FEE_RATIO) /
-                100;
-            nameToDAOData[DAO_NAME].collectedFees += _finalFee;
-
-            uint256 amountToTransfer = realContribution - _discount - _couponAmount;
-
-            if (amountToTransfer > 0) {
-                if (msg.sender == ccipReceiverContract) {
-                    usdc.safeTransferFrom(ccipReceiverContract, address(this), amountToTransfer);
-
-                    // Note: This is a temporary solution to test the CCIP integration in the testnet
-                    // This is because in testnet we are using a different USDC contract for easier testing
-                    // IERC20(0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d).safeTransferFrom(
-                    //     ccipReceiverContract,
-                    //     address(this),
-                    //     amountToTransfer
-                    // );
-                } else {
-                    usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
-                }
-            }
-
-            if (_couponAmount > 0) {
-                usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
-            }
-
-            usdc.safeTransfer(operator, _finalFee);
-
-            nameToDAOData[DAO_NAME].prepaidMembers[_newMember].member = _newMember;
-            nameToDAOData[DAO_NAME]
-                .prepaidMembers[_newMember]
-                .contributionBeforeFee = realContribution;
-            nameToDAOData[DAO_NAME].prepaidMembers[_newMember].contributionAfterFee =
-                realContribution -
-                (realContribution * SERVICE_FEE_RATIO) /
-                100;
-            nameToDAOData[DAO_NAME].prepaidMembers[_newMember].feeToOperator = _finalFee;
-            nameToDAOData[DAO_NAME].prepaidMembers[_newMember].discount = _discount;
-            nameToDAOData[DAO_NAME].prepaidMembers[_newMember].isDonated = _isDonated;
-
-            // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
-            _getBenefitMultiplierFromOracle(_newMember);
-
-            emit OnPrepayment(_parent, _newMember, realContribution, _finalFee, _discount);
-        } else {
-            /**
-             * Call the DAO to join
-             *  TODO: This call needs to change the joinPool function to add a param for the new member
-             *  TODO: To Implement call the function in the router. For V2 of this contract
-             */
         }
+
+        uint256 rePoolFee = (realContribution * REPOOL_FEE_RATIO) / 100;
+
+        _finalFee -= _discount + toReferralReserve + rePoolFee;
+
+        assert(
+            (realContribution * SERVICE_FEE_RATIO) / 100 ==
+                _finalFee + _discount + toReferralReserve + rePoolFee
+        );
+
+        nameToDAOData[DAO_NAME].toRepool += rePoolFee;
+        nameToDAOData[DAO_NAME].currentAmount +=
+            realContribution -
+            (realContribution * SERVICE_FEE_RATIO) /
+            100;
+        nameToDAOData[DAO_NAME].collectedFees += _finalFee;
+
+        uint256 amountToTransfer = realContribution - _discount - _couponAmount;
+
+        if (amountToTransfer > 0) {
+            if (msg.sender == ccipReceiverContract) {
+                usdc.safeTransferFrom(ccipReceiverContract, address(this), amountToTransfer);
+            } else {
+                usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
+            }
+        }
+
+        if (_couponAmount > 0) {
+            usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
+        }
+
+        usdc.safeTransfer(operator, _finalFee);
+
+        // Now we create the prepaid member object
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].member = _newMember;
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].contributionBeforeFee = realContribution;
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].contributionAfterFee =
+            realContribution -
+            (realContribution * SERVICE_FEE_RATIO) /
+            100;
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].feeToOperator = _finalFee;
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].discount = _discount;
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].isDonated = _isDonated;
+
+        // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
+        _getBenefitMultiplierFromOracle(_newMember);
+
+        emit OnPrepayment(_parent, _newMember, realContribution, _finalFee, _discount);
     }
 
     function _payContributionChecks(
