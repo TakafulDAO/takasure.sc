@@ -346,24 +346,6 @@ contract ReferralGateway is
      * @param contribution The amount of the contribution. In USDC six decimals
      * @param tDAOName The name of the DAO
      * @param parent The address of the parent. Optional
-     * @dev The contribution must be between MINIMUM_CONTRIBUTION and MAXIMUM_CONTRIBUTION
-     * @dev The function will create a prepaid member object with the contribution data if
-     *      the DAO is not deployed yet, otherwise it will call the DAO to join
-     * @dev It will apply the discounts and rewards if the DAO has the features enabled
-     */
-    function payContribution(
-        uint256 contribution,
-        string calldata tDAOName,
-        address parent
-    ) external returns (uint256 finalFee, uint256 discount) {
-        (finalFee, discount) = _payContribution(contribution, tDAOName, parent, msg.sender, 0);
-    }
-
-    /**
-     * @notice Pay a contribution to a DAO
-     * @param contribution The amount of the contribution. In USDC six decimals
-     * @param tDAOName The name of the DAO
-     * @param parent The address of the parent. Optional
      * @param newMember The address of the new member
      * @param couponAmount The amount of the coupon. In USDC six decimals
      * @dev The contribution must be between MINIMUM_CONTRIBUTION and MAXIMUM_CONTRIBUTION
