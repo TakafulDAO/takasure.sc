@@ -64,7 +64,7 @@ contract EntryModule is
     bytes32 private constant ROUTER = keccak256("ROUTER");
 
     error EntryModule__NoContribution();
-    error EntryModule__ContributionOutOfRange();
+    error EntryModule__InvalidContribution();
     error EntryModule__AlreadyJoined();
     error EntryModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error EntryModule__MemberAlreadyKYCed();
@@ -197,6 +197,9 @@ contract EntryModule is
             memberWallet
         );
         if (!newMember.isRefunded) require(newMember.wallet == address(0), EntryModule__AlreadyJoined());
+        if (couponAmount > 0) 
+            require(couponAmount <= contributionBeforeFee, EntryModule__InvalidContribution());
+        
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
@@ -370,7 +373,7 @@ contract EntryModule is
         require(
             _contributionBeforeFee >= _reserve.minimumThreshold &&
                 _contributionBeforeFee <= _reserve.maximumThreshold,
-            EntryModule__ContributionOutOfRange()
+            EntryModule__InvalidContribution()
         );
 
         if (!_newMember.isRefunded) {
@@ -429,21 +432,20 @@ contract EntryModule is
         address _parent
     ) internal returns (Reserve memory) {
         // The prepaid member object is created
-        uint256 realContribution = _getRealContributionAfterCoupon(_couponAmount);
 
         uint256 toReferralReserve;
 
         if (_reserve.referralDiscount) {
-            toReferralReserve = (realContribution * ModuleConstants.REFERRAL_RESERVE) / 100;
+            toReferralReserve = (normalizedContributionBeforeFee * ModuleConstants.REFERRAL_RESERVE) / 100;
 
             if (_parent != address(0)) {
-                discount = ((realContribution - _couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
+                discount = ((normalizedContributionBeforeFee - _couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
 
                 childToParent[_child] = _parent;
 
                 (feeAmount, _reserve.referralReserve) = _parentRewards({
                     _initialChildToCheck: _child,
-                    _contribution: realContribution,
+                    _contribution: normalizedContributionBeforeFee,
                     _currentReferralReserve: _reserve.referralReserve,
                     _toReferralReserve: toReferralReserve,
                     _currentFee: feeAmount
@@ -454,13 +456,6 @@ contract EntryModule is
         }
 
         return (_reserve);
-    }
-
-    function _getRealContributionAfterCoupon(
-        uint256 _couponAmount
-    ) internal view returns (uint256 realContribution_) {
-        if (_couponAmount > normalizedContributionBeforeFee) realContribution_ = _couponAmount;
-        else realContribution_ = normalizedContributionBeforeFee;
     }
 
     function _parentRewards(

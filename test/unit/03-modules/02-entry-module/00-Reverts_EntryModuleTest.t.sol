@@ -105,7 +105,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     function testEntryModule_joinPoolMustRevertIfDepositLessThanMinimum() public {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(alice);
-        vm.expectRevert(EntryModule.EntryModule__ContributionOutOfRange.selector);
+        vm.expectRevert(EntryModule.EntryModule__InvalidContribution.selector);
         userRouter.joinPool(parent, wrongContribution, (5 * YEAR));
     }
 
