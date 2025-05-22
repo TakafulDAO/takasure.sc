@@ -335,7 +335,7 @@ contract ReferralGateway is
             require(contribution == MINIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
 
         if (couponAmount > 0)
-            require(contribution == couponAmount, ReferralGateway__InvalidContribution());
+            require(couponAmount <= contribution, ReferralGateway__InvalidContribution());
 
         (finalFee, discount) = _payContribution(
             contribution,
