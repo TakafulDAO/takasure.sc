@@ -57,7 +57,11 @@ contract ReferralGatewayHandler is Test {
                     ghostDiscount = 0;
                 } else {
                     // 4. Contribution amount is within the limits
-                    contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
+                    if (isDonated) {
+                        contributionAmount = MIN_DEPOSIT;
+                    } else {
+                        contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);
+                    }
                     // 5. User has enough balance
                     deal(address(usdc), newMember, contributionAmount);
                     // 6. User approves the pool to spend the contribution amount and joins the pool
@@ -82,13 +86,7 @@ contract ReferralGatewayHandler is Test {
             if (!skip) {
                 (contributionBeforeFee, , , ) = referralGateway.getPrepaidMember(newMember);
 
-                uint256 realContribution;
-
-                if (isDonated) {
-                    realContribution = MIN_DEPOSIT;
-                } else {
-                    realContribution = (contributionAmount / 1e4) * 1e4;
-                }
+                uint256 realContribution = (contributionAmount / 1e4) * 1e4;
 
                 assert(ghostFee <= (realContribution * MAX_FEE) / 100);
                 assert(ghostFee >= (realContribution * MIN_FEE) / 100000);
