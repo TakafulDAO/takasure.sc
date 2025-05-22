@@ -46,6 +46,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         ) = deployer.run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        operator = config.takadaoOperator;
         daoAdmin = config.daoMultisig;
 
         // Assign implementations
@@ -60,9 +61,11 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(referralGatewayAddress);
 
+        vm.prank(operator);
+        referralGateway.setDaoName(DAO_NAME);
+
         vm.prank(daoAdmin);
         referralGateway.createDAO(
-            DAO_NAME,
             true,
             true,
             block.timestamp + 31_536_000,
@@ -82,7 +85,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         operatorInitialBalance = usdc.balanceOf(operator);
 
         bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = ReferralGatewayHandler.payContribution.selector;
+        selectors[0] = ReferralGatewayHandler.payContributionOnBehalfOf.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
     }
@@ -105,7 +108,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
             ,
             uint256 toRepool,
             uint256 referralReserve
-        ) = referralGateway.getDAOData(DAO_NAME);
+        ) = referralGateway.getDAOData();
         uint256 contractBalance = usdc.balanceOf(address(referralGateway));
         assertEq(contractBalance, currentAmount + toRepool + referralReserve);
     }
@@ -115,7 +118,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     /// forge-config: default.invariant.depth = 2
     /// forge-config: default.invariant.fail-on-revert = true
     function invariant_gettersShouldNotRevert() public view {
-        referralGateway.getDAOData(DAO_NAME);
+        referralGateway.getDAOData();
         referralGateway.usdc();
     }
 }
