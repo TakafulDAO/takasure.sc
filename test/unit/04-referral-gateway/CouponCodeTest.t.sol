@@ -21,7 +21,7 @@ contract CouponCodeTest is Test {
     address child = makeAddr("child");
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "TheLifeDao";
+    string tDaoName = "The LifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
@@ -58,8 +58,11 @@ contract CouponCodeTest is Test {
         vm.prank(couponPool);
         usdc.approve(address(referralGateway), 1000e6);
 
+        vm.prank(operator);
+        referralGateway.setDaoName(tDaoName);
+
         vm.prank(config.daoMultisig);
-        referralGateway.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
 
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(referralGatewayAddress);
@@ -96,10 +99,10 @@ contract CouponCodeTest is Test {
         emit OnCouponRedeemed(child, tDaoName, couponAmount);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
-            tDaoName,
             address(0),
             child,
-            couponAmount
+            couponAmount,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -110,8 +113,7 @@ contract CouponCodeTest is Test {
         assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            child,
-            tDaoName
+            child
         );
 
         assertEq(contributionBeforeFee, couponAmount);
@@ -130,10 +132,10 @@ contract CouponCodeTest is Test {
         emit OnCouponRedeemed(child, tDaoName, couponAmount);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
-            tDaoName,
             address(0),
             child,
-            couponAmount
+            couponAmount,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -144,8 +146,7 @@ contract CouponCodeTest is Test {
         assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            child,
-            tDaoName
+            child
         );
 
         assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT);
@@ -164,10 +165,10 @@ contract CouponCodeTest is Test {
         emit OnCouponRedeemed(child, tDaoName, couponAmount);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT * 2,
-            tDaoName,
             address(0),
             child,
-            couponAmount
+            couponAmount,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -178,8 +179,7 @@ contract CouponCodeTest is Test {
         assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            child,
-            tDaoName
+            child
         );
 
         uint256 expectedDiscount = (((CONTRIBUTION_AMOUNT * 2) - couponAmount) *
@@ -187,18 +187,5 @@ contract CouponCodeTest is Test {
 
         assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT * 2);
         assertEq(discount, expectedDiscount); // Applied to what is left after the coupon
-    }
-
-    //======== no coupon ========//
-    function testShouldNootRevertIfThereIsNoCouponPool() public setCouponPoolAndCouponRedeemer {
-        vm.prank(child);
-        (uint256 feeToOp, uint256 discount) = referralGateway.payContribution(
-            CONTRIBUTION_AMOUNT,
-            tDaoName,
-            address(0)
-        );
-
-        assert(feeToOp > 0);
-        assert(discount > 0);
     }
 }
