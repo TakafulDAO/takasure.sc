@@ -331,6 +331,11 @@ contract ReferralGateway is
         bool isDonated
     ) external returns (uint256 finalFee, uint256 discount) {
         _onlyCouponRedeemerOrCcipReceiver();
+        if (isDonated)
+            require(
+                contribution == MINIMUM_CONTRIBUTION,
+                ReferralGateway__ContributionOutOfRange()
+            );
 
         (finalFee, discount) = _payContribution(
             contribution,
@@ -624,15 +629,11 @@ contract ReferralGateway is
     ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
         uint256 realContribution;
 
-        if (_isDonated) {
-            realContribution = MINIMUM_CONTRIBUTION;
-        } else {
-            uint256 normalizedContribution = (_contribution / DECIMAL_REQUIREMENT_PRECISION_USDC) *
-                DECIMAL_REQUIREMENT_PRECISION_USDC;
+        uint256 normalizedContribution = (_contribution / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            DECIMAL_REQUIREMENT_PRECISION_USDC;
 
-            if (_couponAmount > normalizedContribution) realContribution = _couponAmount;
-            else realContribution = normalizedContribution;
-        }
+        if (_couponAmount > normalizedContribution) realContribution = _couponAmount;
+        else realContribution = normalizedContribution;
 
         _payContributionChecks(realContribution, _parent, _newMember);
 
