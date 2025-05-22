@@ -396,11 +396,11 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     {
         // 24.99 USDC
         vm.startPrank(couponRedeemer);
-        vm.expectRevert(ReferralGateway.ReferralGateway__ContributionOutOfRange.selector);
+        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
         referralGateway.payContributionOnBehalfOf(2499e4, referral, child, 0, false);
 
         // 250.01 USDC
-        vm.expectRevert(ReferralGateway.ReferralGateway__ContributionOutOfRange.selector);
+        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
         referralGateway.payContributionOnBehalfOf(25001e4, referral, child, 0, false);
         vm.stopPrank();
     }

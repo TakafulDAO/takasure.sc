@@ -113,7 +113,7 @@ contract CouponCodeAndCcipTest is Test {
                        COUPON PREPAYMENTS NO CCIP
     //////////////////////////////////////////////////////////////*/
 
-    //======== coupon higher than contribution ========//
+    //======== coupon higher than contribution must revert ========//
     function testCouponPrepaymentNoCcipCase1() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT * 2;
 
@@ -123,8 +123,7 @@ contract CouponCodeAndCcipTest is Test {
         uint256 initialCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
 
         vm.prank(couponRedeemer);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
+        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             address(0),
@@ -132,28 +131,6 @@ contract CouponCodeAndCcipTest is Test {
             couponAmount,
             false
         );
-
-        uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
-        uint256 finalOperatorBalance = usdc.balanceOf(operator);
-        uint256 finalCouponUserBalance = usdc.balanceOf(couponUser);
-        uint256 finalCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
-
-        // Coupon pool balance should decrease by the coupon amount
-        assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
-        // Operator balance should increase by the fee
-        assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
-        // Coupon user balance should not change
-        assertEq(finalCouponUserBalance, initialCouponUserBalance);
-        // CCIP receiver contract balance should not change
-        assertEq(finalCCIPReceiverContractBalance, initialCCIPReceiverContractBalance);
-        assert(feeToOp > 0);
-
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            couponUser
-        );
-
-        assertEq(contributionBeforeFee, couponAmount);
-        assertEq(discount, 0); // No discount as the coupon is consumed completely and covers the whole membership
     }
 
     //======== coupon equals than contribution ========//
@@ -307,8 +284,7 @@ contract CouponCodeAndCcipTest is Test {
         uint256 initialCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
 
         vm.prank(ccipReceiverContract);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
+        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             address(0),
@@ -316,28 +292,6 @@ contract CouponCodeAndCcipTest is Test {
             couponAmount,
             false
         );
-
-        uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
-        uint256 finalOperatorBalance = usdc.balanceOf(operator);
-        uint256 finalCouponUserBalance = usdc.balanceOf(couponUser);
-        uint256 finalCCIPReceiverContractBalance = usdc.balanceOf(ccipReceiverContract);
-
-        // Coupon pool balance should decrease by the coupon amount
-        assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
-        // Operator balance should increase by the fee
-        assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
-        // Coupon user balance should not change
-        assertEq(finalCouponUserBalance, initialCouponUserBalance);
-        // CCIP receiver contract balance should not change
-        assertEq(finalCCIPReceiverContractBalance, initialCCIPReceiverContractBalance);
-        assert(feeToOp > 0);
-
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            couponUser
-        );
-
-        assertEq(contributionBeforeFee, couponAmount);
-        assertEq(discount, 0); // No discount as the coupon is consumed completely and covers the whole membership
     }
 
     //======== coupon equals than contribution ========//

@@ -87,39 +87,6 @@ contract CouponCodeTest is Test {
                            COUPON PREPAYMENTS
     //////////////////////////////////////////////////////////////*/
 
-    //======== coupon higher than contribution ========//
-    function testCouponPrepaymentCase1() public setCouponPoolAndCouponRedeemer {
-        uint256 couponAmount = CONTRIBUTION_AMOUNT * 2;
-
-        uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
-        uint256 initialOperatorBalance = usdc.balanceOf(operator);
-
-        vm.prank(couponRedeemer);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnCouponRedeemed(child, tDaoName, couponAmount);
-        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
-            CONTRIBUTION_AMOUNT,
-            address(0),
-            child,
-            couponAmount,
-            false
-        );
-
-        uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
-        uint256 finalOperatorBalance = usdc.balanceOf(operator);
-
-        assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
-        assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
-        assert(feeToOp > 0);
-
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            child
-        );
-
-        assertEq(contributionBeforeFee, couponAmount);
-        assertEq(discount, 0); // No discount as the coupon is consumed completely and covers the whole membership
-    }
-
     //======== coupon equals than contribution ========//
     function testCouponPrepaymentCase2() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
