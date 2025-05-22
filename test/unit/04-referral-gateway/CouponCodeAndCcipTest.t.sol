@@ -71,8 +71,11 @@ contract CouponCodeAndCcipTest is Test {
         vm.prank(ccipReceiverContract);
         usdc.approve(address(referralGateway), 1000e6);
 
+        vm.prank(operator);
+        referralGateway.setDaoName(tDaoName);
+
         vm.prank(config.daoMultisig);
-        referralGateway.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
 
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(referralGatewayAddress);
@@ -124,10 +127,10 @@ contract CouponCodeAndCcipTest is Test {
         emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
-            tDaoName,
             address(0),
             couponUser,
-            couponAmount
+            couponAmount,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -146,8 +149,7 @@ contract CouponCodeAndCcipTest is Test {
         assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            couponUser,
-            tDaoName
+            couponUser
         );
 
         assertEq(contributionBeforeFee, couponAmount);
@@ -168,10 +170,10 @@ contract CouponCodeAndCcipTest is Test {
         emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
-            tDaoName,
             address(0),
             couponUser,
-            couponAmount
+            couponAmount,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -190,8 +192,7 @@ contract CouponCodeAndCcipTest is Test {
         assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            couponUser,
-            tDaoName
+            couponUser
         );
 
         assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT);
@@ -212,10 +213,10 @@ contract CouponCodeAndCcipTest is Test {
         emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT * 2,
-            tDaoName,
             address(0),
             couponUser,
-            couponAmount
+            couponAmount,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -239,8 +240,7 @@ contract CouponCodeAndCcipTest is Test {
         assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            couponUser,
-            tDaoName
+            couponUser
         );
 
         uint256 expectedDiscount = (((CONTRIBUTION_AMOUNT * 2) - couponAmount) *
@@ -260,10 +260,10 @@ contract CouponCodeAndCcipTest is Test {
         vm.prank(couponRedeemer);
         (uint256 feeToOp, uint256 discount) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
-            tDaoName,
             address(0),
             couponUser,
-            0
+            0,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -311,10 +311,10 @@ contract CouponCodeAndCcipTest is Test {
         emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
-            tDaoName,
             address(0),
             couponUser,
-            couponAmount
+            couponAmount,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -333,8 +333,7 @@ contract CouponCodeAndCcipTest is Test {
         assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            couponUser,
-            tDaoName
+            couponUser
         );
 
         assertEq(contributionBeforeFee, couponAmount);
@@ -359,10 +358,10 @@ contract CouponCodeAndCcipTest is Test {
         emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
-            tDaoName,
             address(0),
             couponUser,
-            couponAmount
+            couponAmount,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -381,8 +380,7 @@ contract CouponCodeAndCcipTest is Test {
         assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            couponUser,
-            tDaoName
+            couponUser
         );
 
         assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT);
@@ -407,10 +405,10 @@ contract CouponCodeAndCcipTest is Test {
         emit OnCouponRedeemed(couponUser, tDaoName, couponAmount);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT * 2,
-            tDaoName,
             address(0),
             couponUser,
-            couponAmount
+            couponAmount,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -434,8 +432,7 @@ contract CouponCodeAndCcipTest is Test {
         assert(feeToOp > 0);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
-            couponUser,
-            tDaoName
+            couponUser
         );
 
         uint256 expectedDiscount = (((CONTRIBUTION_AMOUNT * 2) - couponAmount) *
@@ -459,10 +456,10 @@ contract CouponCodeAndCcipTest is Test {
         vm.prank(ccipReceiverContract);
         (uint256 feeToOp, uint256 discount) = referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
-            tDaoName,
             address(0),
             couponUser,
-            0
+            0,
+            false
         );
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
