@@ -161,7 +161,7 @@ contract ReferralGateway is
     error ReferralGateway__InvalidLaunchDate();
     error ReferralGateway__DAOAlreadyLaunched();
     error ReferralGateway__ZeroAmount();
-    error ReferralGateway__ContributionOutOfRange();
+    error ReferralGateway__InvalidContribution();
     error ReferralGateway__ParentMustKYCFirst();
     error ReferralGateway__AlreadyMember();
     error ReferralGateway__MemberAlreadyKYCed();
@@ -332,13 +332,10 @@ contract ReferralGateway is
     ) external returns (uint256 finalFee, uint256 discount) {
         _onlyCouponRedeemerOrCcipReceiver();
         if (isDonated)
-            require(
-                contribution == MINIMUM_CONTRIBUTION,
-                ReferralGateway__ContributionOutOfRange()
-            );
+            require(contribution == MINIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
 
         if (couponAmount > 0)
-            require(contribution == couponAmount, ReferralGateway__ContributionOutOfRange());
+            require(contribution == couponAmount, ReferralGateway__InvalidContribution());
 
         (finalFee, discount) = _payContribution(
             contribution,
@@ -734,7 +731,7 @@ contract ReferralGateway is
 
         require(
             _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
-            ReferralGateway__ContributionOutOfRange()
+            ReferralGateway__InvalidContribution()
         );
 
         if (_parent != address(0))
