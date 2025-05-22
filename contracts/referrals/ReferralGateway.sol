@@ -74,7 +74,7 @@ contract ReferralGateway is
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => bool) private isMemberCouponRedeemer;
 
-    string private daoName = "The LifeDAO";
+    string public daoName = "The LifeDAO";
 
     /*//////////////////////////////////////////////////////////////
                               FIXED RATIOS
@@ -158,9 +158,7 @@ contract ReferralGateway is
     event OnPrejoinDiscountSwitched(bool indexed preJoinEnabled);
 
     error ReferralGateway__ZeroAddress();
-    error ReferralGateway__MustHaveName();
     error ReferralGateway__InvalidLaunchDate();
-    error ReferralGateway__AlreadyExists();
     error ReferralGateway__DAOAlreadyLaunched();
     error ReferralGateway__ZeroAmount();
     error ReferralGateway__ContributionOutOfRange();
@@ -196,8 +194,6 @@ contract ReferralGateway is
 
         operator = _operator;
         usdc = IERC20(_usdcAddress);
-
-        daoName = "The LifeDAO";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -470,13 +466,6 @@ contract ReferralGateway is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function setUsdcAddress(address _usdcAddress) external onlyRole(OPERATOR) {
-        address oldUsdc = address(usdc);
-        usdc = IERC20(_usdcAddress);
-
-        emit OnUsdcAddressChanged(oldUsdc, _usdcAddress);
-    }
-
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
     ) external onlyRole(OPERATOR) {
@@ -575,7 +564,6 @@ contract ReferralGateway is
         external
         view
         returns (
-            string memory tDAOName,
             bool preJoinEnabled,
             bool referralDiscount,
             address DAOAdmin,
@@ -589,7 +577,6 @@ contract ReferralGateway is
             uint256 referralReserve
         )
     {
-        tDAOName = nameToDAOData[daoName].name;
         preJoinEnabled = nameToDAOData[daoName].preJoinEnabled;
         referralDiscount = nameToDAOData[daoName].referralDiscount;
         DAOAdmin = nameToDAOData[daoName].DAOAdmin;
@@ -906,5 +893,9 @@ contract ReferralGateway is
             hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
             ReferralGateway__NotAuthorizedCaller()
         );
+    }
+
+    function setDaoName(string memory _daoName) external onlyRole(OPERATOR) {
+        daoName = _daoName;
     }
 }
