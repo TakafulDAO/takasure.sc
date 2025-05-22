@@ -25,6 +25,8 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     address daoAdmin;
     address operator;
     address public user = makeAddr("user");
+    address public couponRedeemer = makeAddr("couponRedeemer");
+    address couponPool = makeAddr("couponPool");
     uint256 operatorInitialBalance;
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     string constant DAO_NAME = "The LifeDAO";
@@ -61,10 +63,14 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(referralGatewayAddress);
 
-        vm.prank(operator);
-        referralGateway.setDaoName(DAO_NAME);
+        deal(address(usdc), couponPool, 1000e6);
 
-        vm.prank(daoAdmin);
+        vm.prank(couponPool);
+        usdc.approve(address(referralGateway), type(uint256).max);
+
+        vm.startPrank(operator);
+        referralGateway.setCouponPoolAddress(couponPool);
+        referralGateway.setDaoName(DAO_NAME);
         referralGateway.createDAO(
             true,
             true,
@@ -72,8 +78,10 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
             0,
             address(bmConsumerMock)
         );
+        referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
+        vm.stopPrank();
 
-        handler = new ReferralGatewayHandler(referralGateway);
+        handler = new ReferralGatewayHandler(referralGateway, couponRedeemer);
 
         uint256 operatorAddressSlot = 2;
         bytes32 operatorAddressSlotBytes = vm.load(
