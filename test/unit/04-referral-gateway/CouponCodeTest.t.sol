@@ -22,8 +22,8 @@ contract CouponCodeTest is Test {
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
     string tDaoName = "The LifeDao";
-    uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
-    uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
+    uint256 public constant USDC_INITIAL_AMOUNT = 1000e6; // 1000 USDC
+    uint256 public constant CONTRIBUTION_AMOUNT = 250e6; // 250 USDC
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
 
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
@@ -87,12 +87,13 @@ contract CouponCodeTest is Test {
                            COUPON PREPAYMENTS
     //////////////////////////////////////////////////////////////*/
 
-    //======== coupon equals than contribution, both discounts enabled ========//
+    //======== coupon equals than contribution, both discounts enabled, no parent ========//
     function testCouponPrepaymentCase1() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
         uint256 initialOperatorBalance = usdc.balanceOf(operator);
+        uint256 initialChildBalance = usdc.balanceOf(child);
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
@@ -107,10 +108,17 @@ contract CouponCodeTest is Test {
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
         uint256 finalOperatorBalance = usdc.balanceOf(operator);
+        uint256 finalChildBalance = usdc.balanceOf(child);
 
+        // The coupon pool balance should decrease by the coupon amount
         assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
+        // The operator balance should increase by the fee to operator
         assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
-        assert(feeToOp > 0);
+        // The child's balance should remain the same because the coupon covers the entire contribution
+        assertEq(finalChildBalance, initialChildBalance);
+        // The fee to operator should be fee-disount-referralReserve-repoolFee
+        // (250 * 27%) - 0 - (250 * 5%) - (250 * 2%) = 67.5 - 0 - 12.5 - 5 = 50
+        assertEq(feeToOp, 50e6);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
             child
@@ -120,18 +128,19 @@ contract CouponCodeTest is Test {
         assertEq(discount, 0); // No discount as the coupon is consumed completely and covers the whole membership
     }
 
-    //======== coupon less than contribution, both discounts enabled ========//
+    //======== coupon less than contribution, both discounts enabled, no parent ========//
     function testCouponPrepaymentCase2() public setCouponPoolAndCouponRedeemer {
-        uint256 couponAmount = CONTRIBUTION_AMOUNT;
+        uint256 couponAmount = 100e6; // 100 USDC
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
         uint256 initialOperatorBalance = usdc.balanceOf(operator);
+        uint256 initialChildBalance = usdc.balanceOf(child);
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnCouponRedeemed(child, tDaoName, couponAmount);
         (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
-            CONTRIBUTION_AMOUNT * 2,
+            CONTRIBUTION_AMOUNT,
             address(0),
             child,
             couponAmount,
@@ -140,19 +149,31 @@ contract CouponCodeTest is Test {
 
         uint256 finalCouponPoolBalance = usdc.balanceOf(couponPool);
         uint256 finalOperatorBalance = usdc.balanceOf(operator);
+        uint256 finalChildBalance = usdc.balanceOf(child);
+        uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT - couponAmount) *
+            CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
+        // (contribution - coupon) - ((contribution - coupon) * discount)
+        // (250 - 100) - ((250 - 100) * 10%) = 150 - (150 * 10%) = 150 - 15 = 135
+        uint256 expectedTransfer = (CONTRIBUTION_AMOUNT - couponAmount) - expectedDiscount;
 
+        // The coupon pool balance should decrease by the coupon amount
         assertEq(finalCouponPoolBalance, initialCouponPoolBalance - couponAmount);
+        // The operator balance should increase by the fee to operator
         assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
-        assert(feeToOp > 0);
+        // The child's balance should decrease by the remaining contribution amount
+        // initial - ((contribution - coupon) - ((contribution - coupon) * discount))
+        assertEq(finalChildBalance, initialChildBalance - expectedTransfer);
+        assertEq(expectedTransfer, 135e6);
+        // The fee to operator should be fee-disount-referralReserve-repoolFee
+        // (250 * 27%) - (150 * 10%) - (250 * 5%) - (250 * 2%) = 67.5 - 15 - 12.5 - 5 = 35
+        assertEq(feeToOp, 35e6);
+        assertEq(expectedDiscount, 15e6);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
             child
         );
 
-        uint256 expectedDiscount = (((CONTRIBUTION_AMOUNT * 2) - couponAmount) *
-            CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
-
-        assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT * 2);
+        assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT);
         assertEq(discount, expectedDiscount); // Applied to what is left after the coupon
     }
 }
