@@ -87,7 +87,7 @@ contract CouponCodeTest is Test {
                            COUPON PREPAYMENTS
     //////////////////////////////////////////////////////////////*/
 
-    //======== coupon equals than contribution ========//
+    //======== coupon equals than contribution, both discounts enabled ========//
     function testCouponPrepaymentCase1() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
@@ -120,7 +120,7 @@ contract CouponCodeTest is Test {
         assertEq(discount, 0); // No discount as the coupon is consumed completely and covers the whole membership
     }
 
-    //======== coupon less than contribution ========//
+    //======== coupon less than contribution, both discounts enabled ========//
     function testCouponPrepaymentCase2() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
