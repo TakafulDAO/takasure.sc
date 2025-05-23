@@ -88,7 +88,7 @@ contract CouponCodeTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     //======== coupon equals than contribution ========//
-    function testCouponPrepaymentCase2() public setCouponPoolAndCouponRedeemer {
+    function testCouponPrepaymentCase1() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
@@ -121,7 +121,7 @@ contract CouponCodeTest is Test {
     }
 
     //======== coupon less than contribution ========//
-    function testCouponPrepaymentCase3() public setCouponPoolAndCouponRedeemer {
+    function testCouponPrepaymentCase2() public setCouponPoolAndCouponRedeemer {
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
         uint256 initialCouponPoolBalance = usdc.balanceOf(couponPool);
