@@ -27,6 +27,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     address takadao;
     address daoAdmin;
     address KYCProvider;
+    address pauseGuardian;
     address referral = makeAddr("referral");
     address member = makeAddr("member");
     address notMember = makeAddr("notMember");
@@ -103,6 +104,7 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         takadao = config.takadaoOperator;
         daoAdmin = config.daoMultisig;
         KYCProvider = config.kycProvider;
+        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
         referralGateway = ReferralGateway(referralGatewayAddress);
@@ -131,9 +133,26 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
     }
 
-    function testInitialization() public {
-        assertEq(address(referralGateway.usdc()), usdcAddress);
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
+    function testOperatorAddressIsNotZero() public {
+        uint256 operatorAddressSlot = 2;
+        bytes32 operatorAddressSlotBytes = vm.load(
+            address(referralGateway),
+            bytes32(uint256(operatorAddressSlot))
+        );
+        address operatorAddress = address(uint160(uint256(operatorAddressSlotBytes)));
+        assert(operatorAddress != address(0));
+    }
+
+    function testUsdcAddressIsNotZero() public {
+        assert(address(referralGateway.usdc()) != address(0));
+        assertEq(address(referralGateway.usdc()), usdcAddress);
+    }
+
+    function testDAONameAssignCorrectly() public {
         string memory name = referralGateway.daoName();
         assertEq(name, "");
 
@@ -144,17 +163,26 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         assertEq(name, "The LifeDao");
     }
 
+    function testOperatorRoleAssignCorrectly() public {
+        assert(referralGateway.hasRole(keccak256("OPERATOR"), takadao));
+    }
+
+    function testKYCRoleAssignCorrectly() public {
+        assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
+    }
+
+    function testPauseGuardianRoleAssignCorrectly() public {
+        assert(referralGateway.hasRole(keccak256("PAUSE_GUARDIAN"), pauseGuardian));
+    }
+
     /*//////////////////////////////////////////////////////////////
-                                     ROLES
-        //////////////////////////////////////////////////////////////*/
+                           ROLES GRANT/REVOKE
+    //////////////////////////////////////////////////////////////*/
 
     function testRoles() public {
         // Addresses that will be used to test the roles
         address newOperator = makeAddr("newOperator");
         address newKYCProvider = makeAddr("newKYCProvider");
-        // Current addresses with roles
-        assert(referralGateway.hasRole(keccak256("OPERATOR"), takadao));
-        assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
         // New addresses without roles
         assert(!referralGateway.hasRole(keccak256("OPERATOR"), newOperator));
         assert(!referralGateway.hasRole(keccak256("KYC_PROVIDER"), newKYCProvider));
