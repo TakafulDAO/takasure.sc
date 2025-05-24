@@ -188,7 +188,10 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             contribution >= MINIMUM_CONTRIBUTION && contribution <= MAXIMUM_CONTRIBUTION,
             TLDCcipSender__ContributionOutOfRange()
         );
-        require(amountToTransfer <= contribution, TLDCcipSender__WrongTransferAmount());
+        require(
+            amountToTransfer == contribution - couponAmount,
+            TLDCcipSender__WrongTransferAmount()
+        );
 
         if (couponAmount > 0)
             require(msg.sender == backendProvider, TLDCcipSender__NotAuthorized());

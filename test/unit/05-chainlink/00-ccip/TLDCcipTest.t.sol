@@ -372,7 +372,7 @@ contract TLDCcipTest is Test {
     }
 
     function testSenderSendMesageRevertsIfThereIsCouponAndCallerIsNotBackend() public setToken {
-        uint256 amountToTransfer = 100e6;
+        uint256 amountToTransfer = 50e6;
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
         uint256 coupon = 50e6;
