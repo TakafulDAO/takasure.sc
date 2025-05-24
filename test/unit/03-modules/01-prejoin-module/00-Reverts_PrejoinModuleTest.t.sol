@@ -31,7 +31,6 @@ contract RevertsPrejoinModuleTest is Test {
     address member = makeAddr("member");
     address notMember = makeAddr("notMember");
     address child = makeAddr("child");
-    string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
 
@@ -93,23 +92,10 @@ contract RevertsPrejoinModuleTest is Test {
     function testCreateANewDao() public {
         vm.prank(referral);
         vm.expectRevert();
-        prejoinModule.createDAO(
-            tDaoName,
-            true,
-            (block.timestamp + 31_536_000),
-            100e6,
-            address(bmConsumerMock)
-        );
+        prejoinModule.createDAO(true, (block.timestamp + 31_536_000), address(bmConsumerMock));
 
         vm.startPrank(takadao);
-        prejoinModule.createDAO(
-            tDaoName,
-            true,
-            (block.timestamp + 31_536_000),
-            100e6,
-            address(bmConsumerMock)
-        );
-        prejoinModule.setDAOName(tDaoName);
+        prejoinModule.createDAO(true, (block.timestamp + 31_536_000), address(bmConsumerMock));
         vm.stopPrank();
 
         (
@@ -117,7 +103,6 @@ contract RevertsPrejoinModuleTest is Test {
             ,
             address DAOAddress,
             uint256 launchDate,
-            uint256 objectiveAmount,
             uint256 currentAmount,
             ,
             ,
@@ -128,7 +113,6 @@ contract RevertsPrejoinModuleTest is Test {
         assertEq(prejoinEnabled, true);
         assertEq(DAOAddress, address(0));
         assertEq(launchDate, block.timestamp + 31_536_000);
-        assertEq(objectiveAmount, 100e6);
         assertEq(currentAmount, 0);
 
         vm.prank(referral);
@@ -145,8 +129,7 @@ contract RevertsPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(tDaoName, true, 1743479999, 1e12, address(bmConsumerMock));
-        prejoinModule.setDAOName(tDaoName);
+        prejoinModule.createDAO(true, 1743479999, address(bmConsumerMock));
         vm.stopPrank();
         _;
     }
