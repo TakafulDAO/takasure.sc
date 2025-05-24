@@ -669,24 +669,6 @@ contract EntryModule is
         return _member;
     }
 
-    function _memberPaymentFlow(
-        uint256 _contributionBeforeFee,
-        uint256 _contributionAfterFee,
-        address _memberWallet,
-        Reserve memory _reserve,
-        ITakasureReserve _takasureReserve
-    ) internal override returns (Reserve memory, uint256) {
-        _getBenefitMultiplierFromOracle(_memberWallet);
-        return
-            super._memberPaymentFlow(
-                _contributionBeforeFee,
-                _contributionAfterFee,
-                _memberWallet,
-                _reserve,
-                _takasureReserve
-            );
-    }
-
     function _transferContribution(
         IERC20 _contributionToken,
         address,
