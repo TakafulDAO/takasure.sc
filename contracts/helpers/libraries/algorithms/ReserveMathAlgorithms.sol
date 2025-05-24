@@ -21,10 +21,10 @@ library ReserveMathAlgorithms {
      * @notice The Fund Reserve based on each member’s fund reserve add, But taking out / removing
      *         any members that had claims or for any other reason aren't active anymore
      * @dev This value will lately be used to update the dynamic reserve ratio
-     * @param _currentProFormaFundReserve Current value. Note: Six decimals
-     * @param _memberContribution Net contribution of the member. Note: Six decimals
-     * @param _initialReserveRatio Note: Percentage value, i.e. 40% => input should be 40
-     * @return updatedProFormaFundReserve_ Updated value. Note: Six decimals
+     * @param _currentProFormaFundReserve Current value. Six decimals
+     * @param _memberContribution Net contribution of the member. Six decimals
+     * @param _initialReserveRatio Percentage value, i.e. 40% => input should be 40
+     * @return updatedProFormaFundReserve_ Updated value. Six decimals
      */
     function _updateProFormaFundReserve(
         uint256 _currentProFormaFundReserve,
@@ -38,11 +38,11 @@ library ReserveMathAlgorithms {
 
     /**
      * @notice Calculate the pro forma claim reserve, which should be updated on every cash-in operation
-     * @param _currentProFormaClaimReserve Current value. Note: Six decimals
-     * @param _memberContribution Net contribution of the member. Note: Six decimals
-     * @param _serviceFee Service fee. Note: Percentage value, i.e. 20% => input should be 20
-     * @param _initialReserveRatio Initial reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
-     * @return updatedProFormaClaimReserve_ Updated value. Note: Six decimals
+     * @param _currentProFormaClaimReserve Current value. Six decimals
+     * @param _memberContribution Contribution of the member, without fees. Six decimals
+     * @param _serviceFee Service fee. Percentage value, i.e. 20% => input should be 20
+     * @param _initialReserveRatio Initial reserve ratio. Percentage value, i.e. 40% => input should be 40
+     * @return updatedProFormaClaimReserve_ Updated value. Six decimals
      */
     function _updateProFormaClaimReserve(
         uint256 _currentProFormaClaimReserve,
@@ -64,10 +64,10 @@ library ReserveMathAlgorithms {
 
     /**
      * @notice Calculate the dynamic reserve ratio on every cash-in operation
-     * @param _proFormaFundReserve Pro forma fund reserve. Note: Six decimals
-     * @param _fundReserve Fund reserve. Note: Six decimals
-     * @param _cashFlowLastPeriod Cash flow of the last period of 12 months. Note: Six decimals
-     * @return updatedDynamicReserveRatio_ Updated value. Note: Percentage value, i.e. 40% => return value will be 40
+     * @param _proFormaFundReserve Pro forma fund reserve. Six decimals
+     * @param _fundReserve Fund reserve. Six decimals
+     * @param _cashFlowLastPeriod Cash flow of the last period of 12 months. Six decimals
+     * @return updatedDynamicReserveRatio_ Updated value. Percentage value, i.e. 40% => return value will be 40
      * @dev The dynamic reserve ratio is calculated based on the current pro forma fund reserve
      */
     function _calculateDynamicReserveRatio(
@@ -99,12 +99,11 @@ library ReserveMathAlgorithms {
 
     /**
      * @notice Helper function to calculate the benefit multiplier adjuster
-     * @param _cashFlowLastPeriod Cash flow of the last period of 12 months. Note: Six decimals
-     * @param _serviceFee Service fee. Note: Percentage value, i.e. 20% => input should be 20
-     * @param _initialReserveRatio Initial dynamic reserve ratio. Note: Percentage value, i.e. 40% => input should be 40
+     * @param _cashFlowLastPeriod Cash flow of the last period of 12 months. Six decimals
+     * @param _serviceFee Service fee. Percentage value, i.e. 20% => input should be 20
+     * @param _initialReserveRatio Initial dynamic reserve ratio. Percentage value, i.e. 40% => input should be 40
      * @return bmaInflowAssumption_ Six decimals
      */
-    // todo: this one can be inlined inside _calculateBmaCashFlowMethod, as it is only used there. It depends if we decide to use another bma method and it is used in other places
     function _calculateBmaInflowAssumption(
         uint256 _cashFlowLastPeriod,
         uint256 _serviceFee,
@@ -117,10 +116,10 @@ library ReserveMathAlgorithms {
 
     /**
      * @notice Calculate the benefit multiplier adjuster through the Cash Flow Method
-     * @param _totalClaimReserves Total claim reserves. Note: Six decimals
-     * @param _totalFundReserves Total fund reserves. Note: Six decimals
+     * @param _totalClaimReserves Total claim reserves. Six decimals
+     * @param _totalFundReserves Total fund reserves. Six decimals
      * @param _bmaFundReserveShares Percentage value, i.e. 70% => input should be 70
-     * @param _proFormaClaimReserve Pro forma claim reserve. Note: Six decimals
+     * @param _proFormaClaimReserve Pro forma claim reserve. Six decimals
      * @param _bmaInflowAssumption Six decimals
      * @return bma_ Percentage value, i.e. 100% => return value will be 100
      */
