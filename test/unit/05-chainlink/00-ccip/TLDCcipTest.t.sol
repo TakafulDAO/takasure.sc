@@ -39,7 +39,7 @@ contract TLDCcipTest is Test {
     uint64 public chainSelector = 16015286601757825753;
     uint256 public constant LINK_INITIAL_AMOUNT = 100e18; // 100 LINK
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 LINK
-    string tDaoName = "TheLifeDao";
+    uint256 public constant MEMBERSHIP_DURATION = 5 * 365 days; // 5 years
 
     event OnNewSupportedToken(address token);
     event OnBackendProviderSet(address backendProvider);
@@ -47,12 +47,14 @@ contract TLDCcipTest is Test {
         bytes32 indexed messageId,
         uint256 indexed tokenAmount,
         uint256 indexed fees,
-        address user
+        address user,
+        bool isPrejoiner
     );
     event OnProtocolGatewayChanged(
         address indexed oldProtocolGateway,
         address indexed newProtocolGateway
     );
+    event OnPrejoinEnabled(bool isPrejoinEnabled);
 
     function setUp() public {
         deployer = new TestDeployProtocol();
@@ -119,8 +121,7 @@ contract TLDCcipTest is Test {
 
     modifier createDao() {
         vm.startPrank(admin);
-        prejoinModule.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
-        prejoinModule.setDAOName(tDaoName);
+        prejoinModule.createDAO(true, 1743479999, address(bmConsumerMock));
         vm.stopPrank();
         _;
     }
@@ -283,7 +284,6 @@ contract TLDCcipTest is Test {
         uint256 amountToTransfer = 100e6;
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
-        string memory dao = "dao";
 
         vm.prank(user);
         vm.expectRevert(TLDCcipSender.TLDCcipSender__NotSupportedToken.selector);
@@ -292,10 +292,10 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             contribution,
-            dao,
             address(0),
             user,
-            0
+            0,
+            MEMBERSHIP_DURATION
         );
     }
 
@@ -304,7 +304,6 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 50e6;
         uint256 coupon = 50e6;
-        string memory dao = "dao";
 
         vm.prank(backend);
         vm.expectRevert(TLDCcipSender.TLDCcipSender__ZeroTransferNotAllowed.selector);
@@ -313,10 +312,10 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             contribution,
-            dao,
             address(0),
             user,
-            coupon
+            coupon,
+            MEMBERSHIP_DURATION
         );
     }
 
@@ -325,7 +324,6 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 minContribution = 20e6;
         uint256 maxContribution = 300e6;
-        string memory dao = "dao";
 
         vm.startPrank(user);
         vm.expectRevert(TLDCcipSender.TLDCcipSender__ContributionOutOfRange.selector);
@@ -334,10 +332,10 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             minContribution,
-            dao,
             address(0),
             user,
-            0
+            0,
+            MEMBERSHIP_DURATION
         );
 
         vm.expectRevert(TLDCcipSender.TLDCcipSender__ContributionOutOfRange.selector);
@@ -346,10 +344,10 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             maxContribution,
-            dao,
             address(0),
             user,
-            0
+            0,
+            MEMBERSHIP_DURATION
         );
         vm.stopPrank();
     }
@@ -358,7 +356,6 @@ contract TLDCcipTest is Test {
         uint256 amountToTransfer = 100e6;
         uint256 gasLimit = 1000000;
         uint256 contribution = 50e6;
-        string memory dao = "dao";
 
         vm.prank(user);
         vm.expectRevert(TLDCcipSender.TLDCcipSender__WrongTransferAmount.selector);
@@ -367,10 +364,10 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             contribution,
-            dao,
             address(0),
             user,
-            0
+            0,
+            MEMBERSHIP_DURATION
         );
     }
 
@@ -378,7 +375,6 @@ contract TLDCcipTest is Test {
         uint256 amountToTransfer = 50e6;
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
-        string memory dao = "dao";
         uint256 coupon = 50e6;
 
         vm.prank(user);
@@ -388,35 +384,35 @@ contract TLDCcipTest is Test {
             usdcAddress,
             gasLimit,
             contribution,
-            dao,
             address(0),
             user,
-            coupon
+            coupon,
+            MEMBERSHIP_DURATION
         );
     }
 
-    function testSenderSuccessSendMesage() public setToken setAllowedSender {
+    function testSenderSuccessSendMesagePrejoinDisabled() public setToken setAllowedSender {
         uint256 amountToTransfer = 100e6;
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0xe01b2be933401960d637314fd27f4fdf2caa6639d0f9ac6f78e7f21fe77c25d6;
+        bytes32 messageId = 0xac5990a7c2c10d339b2262362a94a935c4f65cdae9ff284bf71e7b7f3cab39a9;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);
 
         vm.expectEmit(true, true, true, true, address(sender));
-        emit OnTokensTransferred(messageId, amountToTransfer, 0, user);
+        emit OnTokensTransferred(messageId, amountToTransfer, 0, user, false);
 
         sender.sendMessage(
             amountToTransfer,
             usdcAddress,
             gasLimit,
             contribution,
-            tDaoName,
             address(0),
             user,
-            0
+            0,
+            MEMBERSHIP_DURATION
         );
         vm.stopPrank();
     }
@@ -442,5 +438,51 @@ contract TLDCcipTest is Test {
         vm.prank(receiver.owner());
         vm.expectRevert(TLDCcipReceiver.TLDCcipReceiver__NotZeroAddress.selector);
         receiver.setProtocolGateway(address(0));
+    }
+
+    function testEnablePrejoin() public {
+        assert(!sender.isPrejoinEnabled());
+
+        vm.prank(senderOwner);
+        vm.expectEmit(false, false, false, false, address(sender));
+        emit OnPrejoinEnabled(true);
+        sender.enablePrejoin(true);
+
+        assert(sender.isPrejoinEnabled());
+    }
+
+    function testEnablePrejoinRevertsIfNotOwner() public {
+        vm.prank(backend);
+        vm.expectRevert();
+        sender.enablePrejoin(true);
+    }
+
+    function testSenderSuccessSendMesagePrejoinEnabled() public setToken setAllowedSender {
+        vm.prank(senderOwner);
+        sender.enablePrejoin(true);
+
+        uint256 amountToTransfer = 100e6;
+        uint256 gasLimit = 1000000;
+        uint256 contribution = 100e6;
+
+        bytes32 messageId = 0x891f0a4f29f72aecc7d2f0af25e9fa4ee8f0832bdf46411ea7d68956da4b812a;
+
+        vm.startPrank(user);
+        usdc.approve(senderAddress, amountToTransfer);
+
+        vm.expectEmit(true, true, true, true, address(sender));
+        emit OnTokensTransferred(messageId, amountToTransfer, 0, user, true);
+
+        sender.sendMessage(
+            amountToTransfer,
+            usdcAddress,
+            gasLimit,
+            contribution,
+            address(0),
+            user,
+            0,
+            MEMBERSHIP_DURATION
+        );
+        vm.stopPrank();
     }
 }

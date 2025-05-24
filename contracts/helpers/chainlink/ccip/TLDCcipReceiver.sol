@@ -6,7 +6,7 @@
  * @notice This contract will:
  *          - Interact with the CCIP pprotocol
  *          - Receive data from the Sender contract
- *          - Perform a call to the ReferralGateway with the data received
+ *          - Perform a call to the PrejoinModule with the data received
  *          - Deployed only in Arbitrum (One and Sepolia)
  */
 pragma solidity 0.8.28;
@@ -23,7 +23,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     using EnumerableMap for EnumerableMap.Bytes32ToUintMap;
 
     IERC20 public immutable usdc;
-    address public protocolGateway;
+    address public protocolGateway; // The address of the contract to perform the low level call with the data received.
 
     mapping(uint64 chainSelector => mapping(address sender => bool)) public isSenderAllowedByChain;
     mapping(bytes32 messageId => Client.Any2EVMMessage message) public messageContentsById;
@@ -85,7 +85,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     /**
      * @param _router The address of the router contract.
      * @param _usdc The address of the usdc contract.
-     * @param _protocolGateway The address of the contract, that will process the data received
+     * @param _protocolGateway The address of the contract to perform the low level call with the data received.
      */
     constructor(
         address _router,
@@ -95,7 +95,6 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         require(_usdc != address(0), TLDCcipReceiver__InvalidUsdcToken());
         usdc = IERC20(_usdc);
         protocolGateway = _protocolGateway;
-        usdc.approve(_protocolGateway, type(uint256).max);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -103,7 +102,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Allows the owner to enable/disable a sender to the list of allowed senders.
+     * @notice Allows the owner to enable/disable a sender.
      * @param chainSelector source chain
      * @param sender The address of the sender contract.
      */
@@ -115,18 +114,13 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
     /**
      * @notice Allows the owner to change the address of the protocol gateway.
-     * @param _protocolGateway The address of the contract, that will process the data received
+     * @param _protocolGateway The address of the contract to perform the low level call with the data received.
      */
     function setProtocolGateway(address _protocolGateway) external onlyOwner {
         require(_protocolGateway != address(0), TLDCcipReceiver__NotZeroAddress());
 
-        // Get the old protocol gateway address and set the approval to 0
         address oldProtocolGateway = protocolGateway;
-        usdc.approve(oldProtocolGateway, 0);
-
-        // Set the new protocol gateway address and approve the maximum amount
         protocolGateway = _protocolGateway;
-        usdc.approve(_protocolGateway, type(uint256).max);
 
         emit OnProtocolGatewayChanged(oldProtocolGateway, _protocolGateway);
     }
@@ -187,13 +181,16 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     /**
      * @notice Allows the owner to retry a failed message in order to unblock the associated tokens.
      * @param user The user which message failed
-     * @dev This function is only callable by the contract owner
-     * @dev It changes the status of the message from 'failed' to 'resolved' to prevent reentrancy
+     * @dev This function is only callable by the user or contract owner
+     * @dev It changes the status of the message from 'failed' to 'resolved'
      */
     function retryFailedMessage(address user) external onlyOwnerOrUser(user) {
         (Client.Any2EVMMessage memory message, bytes32 messageId) = _getUserMessage(user);
 
         failedMessages.set(messageId, uint256(StatusCode.RESOLVED));
+
+        // Approve the protocol gateway to spend the USDC tokens
+        usdc.approve(protocolGateway, message.destTokenAmounts[0].amount);
 
         // Low level call to the referral gateway
         (bool success, ) = protocolGateway.call(message.data);
@@ -245,6 +242,9 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
+        // Approve the protocol gateway to spend the USDC tokens
+        usdc.approve(protocolGateway, any2EvmMessage.destTokenAmounts[0].amount);
+
         // Low level call to the referral gateway
         (bool success, bytes memory returnData) = protocolGateway.call(any2EvmMessage.data);
         if (success) {
@@ -263,7 +263,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
     function _getNewMemberAddress(bytes memory _data) internal pure returns (address _newMember) {
         // The data is structured to be able to call the function payContributionOnBehalfOf
-        // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
+        // payContributionOnBehalfOf(uint256 contribution, address parent, address newMember, uint256 couponAmount)
 
         assembly {
             let _dataOffset := add(_data, 0x20) // Skip the first 32 bytes word from the data, this will point to the real place where the data starts

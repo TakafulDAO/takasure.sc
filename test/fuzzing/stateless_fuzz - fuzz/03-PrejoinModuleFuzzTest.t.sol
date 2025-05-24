@@ -23,7 +23,6 @@ contract PrejoinModuleFuzzTest is Test {
     address couponPool = makeAddr("couponPool");
     address ccipReceiverContract = makeAddr("ccipReceiverContract");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
@@ -68,8 +67,7 @@ contract PrejoinModuleFuzzTest is Test {
         usdc.approve(address(prejoinModule), 1000e6);
 
         vm.startPrank(config.daoMultisig);
-        prejoinModule.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
-        prejoinModule.setDAOName(tDaoName);
+        prejoinModule.createDAO(true, 1743479999, address(bmConsumerMock));
         vm.stopPrank();
 
         vm.prank(bmConsumerMock.admin());
@@ -112,7 +110,7 @@ contract PrejoinModuleFuzzTest is Test {
             CONTRIBUTION_AMOUNT
         );
 
-        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+        (, , , uint256 launchDate, , , , , ) = prejoinModule.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
