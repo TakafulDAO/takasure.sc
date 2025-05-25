@@ -120,20 +120,12 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
         vm.prank(member);
         usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
-    }
 
-    modifier setCouponRedeemer() {
-        vm.prank(takadao);
-        referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        _;
-    }
-
-    modifier createDao() {
         vm.startPrank(takadao);
+        referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
         vm.stopPrank();
-        _;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -141,7 +133,7 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
         //////////////////////////////////////////////////////////////*/
 
     //======== preJoinEnabled = true, referralDiscount = true, invalid referral ========//
-    function testprepaymentCase2() public setCouponRedeemer createDao {
+    function testprepaymentCase2() public {
         (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
@@ -156,7 +148,7 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
     }
 
     //======== preJoinEnabled = true, referralDiscount = false, invalid referral ========//
-    function testprepaymentCase4() public setCouponRedeemer createDao {
+    function testprepaymentCase4() public {
         vm.prank(daoAdmin);
         referralGateway.switchReferralDiscount();
 
@@ -192,7 +184,7 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
     }
 
     //======== preJoinEnabled = true, referralDiscount = true, valid referral ========//
-    function testprepaymentCase5() public setCouponRedeemer createDao referralPrepays KYCReferral {
+    function testprepaymentCase5() public referralPrepays KYCReferral {
         // Already collected fees with the modifiers logic
         (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -227,7 +219,7 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
     }
 
     //======== preJoinEnabled = true, referralDiscount = false, valid referral ========//
-    function testprepaymentCase6() public setCouponRedeemer createDao referralPrepays KYCReferral {
+    function testprepaymentCase6() public referralPrepays KYCReferral {
         vm.prank(daoAdmin);
         referralGateway.switchReferralDiscount();
 
@@ -279,8 +271,6 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
 
     function testMustRevertJoinPoolIfTheDaoHasNoAssignedAddressYet()
         public
-        setCouponRedeemer
-        createDao
         referralPrepays
         KYCReferral
     {
@@ -292,8 +282,6 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
 
     function testMustRevertJoinPoolIfTheChildIsNotKYC()
         public
-        setCouponRedeemer
-        createDao
         referralPrepays
         KYCReferral
         referredPrepays
@@ -311,7 +299,7 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
                                   GRANDPARENTS
         //////////////////////////////////////////////////////////////*/
 
-    function testCompleteReferralTreeAssignRewardCorrectly() public setCouponRedeemer createDao {
+    function testCompleteReferralTreeAssignRewardCorrectly() public {
         // Parents addresses
         address parentTier1 = makeAddr("parentTier1");
         address parentTier2 = makeAddr("parentTier2");
@@ -515,7 +503,7 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
         referralGateway.approveKYC(childWithoutReferee);
     }
 
-    function testLayersCorrectlyAssigned() public setCouponRedeemer createDao {
+    function testLayersCorrectlyAssigned() public {
         // Parents addresses
         address parentTier1 = makeAddr("parentTier1");
         address parentTier2 = makeAddr("parentTier2");
@@ -670,7 +658,7 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
                                      REPOOL
         //////////////////////////////////////////////////////////////*/
 
-    function testTransferToRepool() public setCouponRedeemer createDao {
+    function testTransferToRepool() public {
         address parentTier1 = makeAddr("parentTier1");
         address parentTier2 = makeAddr("parentTier2");
         address parentTier3 = makeAddr("parentTier3");
@@ -781,8 +769,6 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
 
     function testRefundContractHasEnoughBalance()
         public
-        setCouponRedeemer
-        createDao
         referralPrepays
         KYCReferral
         referredPrepays
@@ -853,8 +839,6 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
 
     function testRefundContractDontHaveEnoughBalance()
         public
-        setCouponRedeemer
-        createDao
         referralPrepays
         KYCReferral
         referredPrepays
@@ -947,8 +931,6 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
 
     function testCanNotRefundIfDaoIsLaunched()
         public
-        setCouponRedeemer
-        createDao
         referralPrepays
         KYCReferral
         referredPrepays
@@ -969,8 +951,6 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
 
     function testRefundByAdminEvenIfDaoIsNotYetLaunched()
         public
-        setCouponRedeemer
-        createDao
         referralPrepays
         KYCReferral
         referredPrepays

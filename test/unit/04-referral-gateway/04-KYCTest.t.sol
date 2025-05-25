@@ -49,23 +49,13 @@ contract ReferralGatewayKYCTest is Test {
 
         vm.prank(addressToKyc);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
-    }
 
-    modifier setCouponRedeemer() {
-        vm.prank(takadao);
-        referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        _;
-    }
-
-    modifier createDao() {
         vm.startPrank(takadao);
+        referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
         vm.stopPrank();
-        _;
-    }
 
-    modifier referralPrepays() {
         vm.prank(couponRedeemer);
         referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
@@ -74,10 +64,9 @@ contract ReferralGatewayKYCTest is Test {
             0,
             false
         );
-        _;
     }
 
-    function testKYCAnAddress() public setCouponRedeemer createDao referralPrepays {
+    function testKYCAnAddress() public {
         vm.prank(KYCProvider);
         vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
         referralGateway.approveKYC(address(0));
@@ -89,12 +78,7 @@ contract ReferralGatewayKYCTest is Test {
         assert(referralGateway.isMemberKYCed(addressToKyc));
     }
 
-    function testMustRevertIfKYCTwiceSameAddress()
-        public
-        setCouponRedeemer
-        createDao
-        referralPrepays
-    {
+    function testMustRevertIfKYCTwiceSameAddress() public {
         vm.startPrank(KYCProvider);
         referralGateway.approveKYC(addressToKyc);
 

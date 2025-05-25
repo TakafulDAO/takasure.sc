@@ -60,31 +60,19 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         vm.prank(child);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
-    }
 
-    modifier setCouponRedeemer() {
-        vm.prank(takadao);
-        referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        _;
-    }
-
-    modifier createDao() {
         vm.startPrank(takadao);
+        referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
         vm.stopPrank();
-        _;
     }
 
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
 
-    function testMustRevertIfprepaymentContributionIsOutOfRange()
-        public
-        setCouponRedeemer
-        createDao
-    {
+    function testMustRevertIfprepaymentContributionIsOutOfRange() public {
         // 24.99 USDC
         vm.startPrank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
@@ -101,7 +89,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         //////////////////////////////////////////////////////////////*/
 
     //======== preJoinEnabled = true, referralDiscount = true ========//
-    function testprepaymentCase1() public setCouponRedeemer createDao {
+    function testprepaymentCase1() public {
         (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
@@ -130,7 +118,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
     }
 
     //======== preJoinEnabled = true, referralDiscount = false ========//
-    function testprepaymentCase2() public setCouponRedeemer createDao {
+    function testprepaymentCase2() public {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
 
