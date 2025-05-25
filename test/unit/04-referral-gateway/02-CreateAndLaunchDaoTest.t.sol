@@ -16,6 +16,9 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     address referralGatewayAddress;
     address takadao;
     address daoAdmin;
+    address notAllowedAddress = makeAddr("notAllowedAddress");
+    address DAO = makeAddr("DAO");
+    string tDaoName = "The LifeDao";
 
     function setUp() public {
         // Deployer
@@ -36,9 +39,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     }
 
     function testCreateANewDao() public {
-        address nonAllowedAddress = makeAddr("nonAllowedAddress");
-
-        vm.prank(nonAllowedAddress);
+        vm.prank(notAllowedAddress);
         vm.expectRevert();
         referralGateway.createDAO(
             true,
@@ -82,11 +83,101 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidLaunchDate.selector);
         referralGateway.createDAO(true, true, 0, 100e6, address(bmConsumerMock));
 
-        vm.prank(nonAllowedAddress);
+        vm.prank(notAllowedAddress);
         vm.expectRevert();
         referralGateway.updateLaunchDate(block.timestamp + 32_000_000);
 
         vm.prank(daoAdmin);
         referralGateway.updateLaunchDate(block.timestamp + 32_000_000);
+    }
+
+    modifier createDao() {
+        vm.startPrank(takadao);
+        referralGateway.setDaoName(tDaoName);
+        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        vm.stopPrank();
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                   LAUNCH DAO
+        //////////////////////////////////////////////////////////////*/
+
+    function testLaunchDAO() public createDao {
+        (
+            bool prejoinEnabled,
+            bool referralDiscount,
+            address DAOAdmin,
+            address DAOAddress,
+            uint256 launchDate,
+            uint256 objectiveAmount,
+            uint256 currentAmount,
+            ,
+            address rePoolAddress,
+            ,
+
+        ) = referralGateway.getDAOData();
+
+        assertEq(DAOAddress, address(0));
+        assertEq(prejoinEnabled, true);
+        assertEq(referralDiscount, true);
+
+        vm.prank(notAllowedAddress);
+        vm.expectRevert();
+        referralGateway.launchDAO(DAO, true);
+
+        vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
+        referralGateway.launchDAO(address(0), true);
+
+        vm.prank(daoAdmin);
+        referralGateway.launchDAO(DAO, true);
+
+        (
+            prejoinEnabled,
+            referralDiscount,
+            DAOAdmin,
+            DAOAddress,
+            launchDate,
+            objectiveAmount,
+            currentAmount,
+            ,
+            rePoolAddress,
+            ,
+
+        ) = referralGateway.getDAOData();
+
+        assertEq(DAOAddress, DAO);
+        assert(!prejoinEnabled);
+        assert(referralDiscount);
+        assertEq(rePoolAddress, address(0));
+
+        vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__DAOAlreadyLaunched.selector);
+        referralGateway.updateLaunchDate(block.timestamp + 32_000_000);
+
+        vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__DAOAlreadyLaunched.selector);
+        referralGateway.launchDAO(DAO, true);
+
+        vm.prank(daoAdmin);
+        referralGateway.switchReferralDiscount();
+
+        (, referralDiscount, , , , , , , , , ) = referralGateway.getDAOData();
+
+        assert(!referralDiscount);
+
+        address newRePoolAddress = makeAddr("rePoolAddress");
+
+        vm.prank(daoAdmin);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
+        referralGateway.enableRepool(address(0));
+
+        vm.prank(daoAdmin);
+        referralGateway.enableRepool(newRePoolAddress);
+
+        (, , , , , , , , rePoolAddress, , ) = referralGateway.getDAOData();
+
+        assertEq(rePoolAddress, newRePoolAddress);
     }
 }
