@@ -90,7 +90,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
     }
 
     //======== preJoinEnabled = true, referralDiscount = true, valid referral ========//
-    function testprepaymentCase5() public {
+    function testprepaymentCase3() public {
         // Already collected fees with the modifiers logic
         (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -125,7 +125,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
     }
 
     //======== preJoinEnabled = true, referralDiscount = false, valid referral ========//
-    function testprepaymentCase6() public {
+    function testprepaymentCase4() public {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
 
