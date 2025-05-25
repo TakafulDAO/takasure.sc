@@ -6,69 +6,30 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract ReferralGatewayRefundTest is Test, SimulateDonResponse {
+contract ReferralGatewayRefundTest is Test {
     TestDeployTakasureReserve deployer;
     ReferralGateway referralGateway;
     TakasureReserve takasureReserve;
-    EntryModule entryModule;
     BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     IUSDC usdc;
     address usdcAddress;
     address referralGatewayAddress;
     address takasureReserveAddress;
-    address entryModuleAddress;
     address takadao;
-    address daoAdmin;
     address KYCProvider;
-    address pauseGuardian;
-    address referral = makeAddr("referral");
-    address member = makeAddr("member");
+    address parent = makeAddr("parent");
     address child = makeAddr("child");
     address couponRedeemer = makeAddr("couponRedeemer");
     string tDaoName = "The LifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-    uint256 public constant LAYER_ONE_REWARD_RATIO = 4; // Layer one reward ratio 4%
-    uint256 public constant LAYER_TWO_REWARD_RATIO = 1; // Layer two reward ratio 1%
-    uint256 public constant LAYER_THREE_REWARD_RATIO = 35; // Layer three reward ratio 0.35%
-    uint256 public constant LAYER_FOUR_REWARD_RATIO = 175; // Layer four reward ratio 0.175%
-    uint8 public constant SERVICE_FEE_RATIO = 27;
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
     uint256 public constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
-    uint256 public constant REFERRAL_RESERVE = 5; // 5% of contribution TO Referral Reserve
-    uint256 public constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
-
-    struct PrepaidMember {
-        string tDAOName;
-        address member;
-        uint256 contributionBeforeFee;
-        uint256 contributionAfterFee;
-        uint256 finalFee; // Fee after all the discounts and rewards
-        uint256 discount;
-    }
-
-    event OnPrepayment(
-        address indexed parent,
-        address indexed child,
-        uint256 indexed contribution,
-        uint256 fee,
-        uint256 discount
-    );
-    event OnMemberJoined(uint256 indexed memberId, address indexed member);
-    event OnParentRewardTransferStatus(
-        address indexed parent,
-        uint256 indexed layer,
-        address indexed child,
-        uint256 reward,
-        bool status
-    );
 
     function setUp() public {
         // Deployer
@@ -78,7 +39,7 @@ contract ReferralGatewayRefundTest is Test, SimulateDonResponse {
             ,
             bmConsumerMock,
             takasureReserveAddress,
-            entryModuleAddress,
+            ,
             ,
             ,
             ,
@@ -91,18 +52,15 @@ contract ReferralGatewayRefundTest is Test, SimulateDonResponse {
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
-        daoAdmin = config.daoMultisig;
         KYCProvider = config.kycProvider;
-        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
         referralGateway = ReferralGateway(referralGatewayAddress);
         takasureReserve = TakasureReserve(takasureReserveAddress);
-        entryModule = EntryModule(entryModuleAddress);
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.prank(daoAdmin);
+        vm.prank(takadao);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(bmConsumerMock.admin());
@@ -110,16 +68,13 @@ contract ReferralGatewayRefundTest is Test, SimulateDonResponse {
         bmConsumerMock.setNewRequester(referralGatewayAddress);
 
         // Give and approve USDC
-        deal(address(usdc), referral, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), parent, USDC_INITIAL_AMOUNT);
         deal(address(usdc), child, USDC_INITIAL_AMOUNT);
-        deal(address(usdc), member, USDC_INITIAL_AMOUNT);
 
-        vm.prank(referral);
+        vm.prank(parent);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
         vm.prank(child);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
-        vm.prank(member);
-        usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
 
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
@@ -131,36 +86,22 @@ contract ReferralGatewayRefundTest is Test, SimulateDonResponse {
         referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             address(0),
-            referral,
+            parent,
             0,
             false
         );
-    }
 
-    modifier KYCReferral() {
         vm.prank(KYCProvider);
-        referralGateway.approveKYC(referral);
-        _;
-    }
+        referralGateway.approveKYC(parent);
 
-    modifier referredPrepays() {
         vm.prank(couponRedeemer);
-        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, referral, child, 0, false);
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
-        _;
-    }
-
-    modifier referredIsKYC() {
         vm.prank(KYCProvider);
         referralGateway.approveKYC(child);
-        _;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                    REFUNDS
-        //////////////////////////////////////////////////////////////*/
-
-    function testRefundContractHasEnoughBalance() public KYCReferral referredPrepays referredIsKYC {
+    function testRefundContractHasEnoughBalance() public {
         (
             uint256 contributionBeforeFee,
             uint256 contributionAfterFee,
@@ -224,12 +165,7 @@ contract ReferralGatewayRefundTest is Test, SimulateDonResponse {
         referralGateway.joinDAO(child);
     }
 
-    function testRefundContractDontHaveEnoughBalance()
-        public
-        KYCReferral
-        referredPrepays
-        referredIsKYC
-    {
+    function testRefundContractDontHaveEnoughBalance() public {
         // From parent 20 USDC
         // From child 20 USDC
         // Reward 1
@@ -257,16 +193,16 @@ contract ReferralGatewayRefundTest is Test, SimulateDonResponse {
         vm.warp(launchDate + 1);
         vm.roll(block.number + 1);
 
-        uint256 referralBalanceBeforeRefund = usdc.balanceOf(referral);
+        uint256 parentBalanceBeforeRefund = usdc.balanceOf(parent);
 
-        vm.prank(referral);
-        referralGateway.refundIfDAOIsNotLaunched(referral);
+        vm.prank(parent);
+        referralGateway.refundIfDAOIsNotLaunched(parent);
 
-        uint256 referralBalanceAfterRefund = usdc.balanceOf(referral);
+        uint256 parentBalanceAfterRefund = usdc.balanceOf(parent);
 
         // Should refund 25 usdc - discount = 25 - (25 * 10%) = 22.5
 
-        assertEq(referralBalanceAfterRefund, referralBalanceBeforeRefund + 225e5);
+        assertEq(parentBalanceAfterRefund, parentBalanceBeforeRefund + 225e5);
 
         uint256 newExpectedContractBalance = 39e6 - 225e5; // 16.5
 
@@ -315,13 +251,13 @@ contract ReferralGatewayRefundTest is Test, SimulateDonResponse {
         assertEq(referralReserve, 0);
     }
 
-    function testCanNotRefundIfDaoIsLaunched() public KYCReferral referredPrepays referredIsKYC {
+    function testCanNotRefundIfDaoIsLaunched() public {
         (, , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
 
-        vm.prank(daoAdmin);
+        vm.prank(takadao);
         referralGateway.launchDAO(address(takasureReserve), true);
 
         vm.prank(child);
@@ -329,17 +265,12 @@ contract ReferralGatewayRefundTest is Test, SimulateDonResponse {
         referralGateway.refundIfDAOIsNotLaunched(child);
     }
 
-    function testRefundByAdminEvenIfDaoIsNotYetLaunched()
-        public
-        KYCReferral
-        referredPrepays
-        referredIsKYC
-    {
-        vm.prank(daoAdmin);
+    function testRefundByAdminEvenIfDaoIsNotYetLaunched() public {
+        vm.prank(takadao);
         vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
         referralGateway.refundIfDAOIsNotLaunched(child);
 
-        vm.prank(daoAdmin);
+        vm.prank(takadao);
         referralGateway.refundByAdmin(child);
     }
 }
