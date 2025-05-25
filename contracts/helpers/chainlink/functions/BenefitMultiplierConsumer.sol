@@ -37,7 +37,6 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
 
     event OnBenefitMultiplierResponse(bytes32 indexed requestId, bytes response, bytes err);
 
-    error OracleConsumer__UnexpectedRequestID(bytes32 requestId);
     error OracleConsumer__NotAddressZero();
 
     /**
@@ -61,6 +60,7 @@ contract BenefitMultiplierConsumer is AccessControl, FunctionsClient {
 
     function setNewRequester(address newRequester) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newRequester == address(0)) revert OracleConsumer__NotAddressZero();
+        _revokeRole(BM_REQUESTER_ROLE, requester);
         _grantRole(BM_REQUESTER_ROLE, newRequester);
         requester = newRequester;
     }

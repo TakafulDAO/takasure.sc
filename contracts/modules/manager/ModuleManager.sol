@@ -20,12 +20,7 @@ import {ModuleState} from "contracts/types/TakasureTypes.sol";
 pragma solidity 0.8.28;
 
 contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
-    struct Module {
-        address moduleAddress;
-        ModuleState moduleState;
-    }
-
-    mapping(address moduleAddr => Module) private addressToModule;
+    mapping(address moduleAddr => ModuleState) private addressToModuleState;
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -54,15 +49,14 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @param newModule The new module address
      */
     function addModule(address newModule) external onlyOwner nonReentrant {
-        // New module can not be address 0, can not be already a module, and the status must be disabled or enabled
+        // New module can not be address 0, can not be already a module, and the status will be enabled
         require(newModule != address(0), ModuleManager__AddressZeroNotAllowed());
         require(
-            addressToModule[newModule].moduleAddress == address(0),
+            addressToModuleState[newModule] == ModuleState.Unset,
             ModuleManager__AlreadyModule()
         );
 
-        addressToModule[newModule].moduleAddress = newModule;
-        addressToModule[newModule].moduleState = ModuleState.Enabled;
+        addressToModuleState[newModule] = ModuleState.Enabled;
 
         _checkIsModule(newModule);
         ITLDModuleImplementation(newModule).setContractState(ModuleState.Enabled);
@@ -77,14 +71,14 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @dev The module can not be DEPRECATED
      */
     function changeModuleState(address module, ModuleState newState) external onlyOwner {
-        require(addressToModule[module].moduleAddress != address(0), ModuleManager__NotModule());
         require(
-            addressToModule[module].moduleState != ModuleState.Deprecated,
+            addressToModuleState[module] != ModuleState.Unset &&
+                addressToModuleState[module] != ModuleState.Deprecated,
             ModuleManager__WrongState()
         );
 
-        ModuleState oldState = addressToModule[module].moduleState;
-        addressToModule[module].moduleState = newState;
+        ModuleState oldState = addressToModuleState[module];
+        addressToModuleState[module] = newState;
 
         ITLDModuleImplementation(module).setContractState(newState);
 
@@ -101,7 +95,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @return True if the address is a module, false otherwise
      */
     function isActiveModule(address module) external view returns (bool) {
-        return addressToModule[module].moduleState == ModuleState.Enabled;
+        return addressToModuleState[module] == ModuleState.Enabled;
     }
 
     /**
@@ -111,8 +105,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @dev The given address must be a module
      */
     function getModuleState(address module) external view returns (ModuleState) {
-        require(addressToModule[module].moduleAddress != address(0), ModuleManager__NotModule());
-        return addressToModule[module].moduleState;
+        return addressToModuleState[module];
     }
 
     /*//////////////////////////////////////////////////////////////
