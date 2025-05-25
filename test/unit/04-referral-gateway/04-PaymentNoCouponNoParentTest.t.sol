@@ -69,8 +69,8 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         vm.stopPrank();
     }
 
-    //======== preJoinEnabled = true, referralDiscount = true ========//
-    function testprepaymentCase1() public {
+    //======== preJoinEnabled = true, referralDiscount = true, no parent, no coupon ========//
+    function testPrepaymentCase1() public {
         (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
@@ -98,8 +98,8 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         assertEq(discount, expectedDiscount);
     }
 
-    //======== preJoinEnabled = true, referralDiscount = false ========//
-    function testprepaymentCase2() public {
+    //======== preJoinEnabled = true, referralDiscount = false, no parent, no coupon ========//
+    function testPrepaymentCase2() public {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
 
@@ -129,8 +129,8 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         assertEq(discount, expectedDiscount);
     }
 
-    //======== preJoinEnabled = false, referralDiscount = true ========//
-    function testprepaymentCase3() public {
+    //======== preJoinEnabled = false, referralDiscount = true, no parent, no coupon ========//
+    function testPrepaymentCase3() public {
         vm.prank(takadao);
         referralGateway.setPrejoinDiscount(false);
 
@@ -159,8 +159,8 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         assertEq(discount, expectedDiscount);
     }
 
-    //======== preJoinEnabled = false, referralDiscount = false ========//
-    function testprepaymentCase4() public {
+    //======== preJoinEnabled = false, referralDiscount = false, no parent, no coupon ========//
+    function testPrepaymentCase4() public {
         vm.prank(takadao);
         referralGateway.setPrejoinDiscount(false);
 
