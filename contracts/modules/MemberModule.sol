@@ -87,6 +87,10 @@ contract MemberModule is
 
     function payRecurringContribution(address memberWallet) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        require(
+            hasRole(ModuleConstants.ROUTER, msg.sender) || msg.sender == memberWallet,
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
         (Reserve memory reserve, Member memory activeMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
