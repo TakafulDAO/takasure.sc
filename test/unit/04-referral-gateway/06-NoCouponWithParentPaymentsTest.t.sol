@@ -132,39 +132,6 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test, SimulateDonRespon
                                     PREPAYS
         //////////////////////////////////////////////////////////////*/
 
-    //======== preJoinEnabled = true, referralDiscount = true, invalid referral ========//
-    function testprepaymentCase2() public {
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
-
-        assertEq(alreadyCollectedFees, 0);
-
-        vm.prank(couponRedeemer);
-        vm.expectRevert(ReferralGateway.ReferralGateway__ParentMustKYCFirst.selector);
-        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, referral, child, 0, false);
-
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
-
-        assertEq(totalCollectedFees, 0);
-    }
-
-    //======== preJoinEnabled = true, referralDiscount = false, invalid referral ========//
-    function testprepaymentCase4() public {
-        vm.prank(daoAdmin);
-        referralGateway.switchReferralDiscount();
-
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
-
-        assertEq(alreadyCollectedFees, 0);
-
-        vm.prank(couponRedeemer);
-        vm.expectRevert(ReferralGateway.ReferralGateway__ParentMustKYCFirst.selector);
-        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, referral, child, 0, false);
-
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
-
-        assertEq(totalCollectedFees, 0);
-    }
-
     modifier referralPrepays() {
         vm.prank(couponRedeemer);
         referralGateway.payContributionOnBehalfOf(

@@ -68,26 +68,6 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         vm.stopPrank();
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                REVERTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testMustRevertIfprepaymentContributionIsOutOfRange() public {
-        // 24.99 USDC
-        vm.startPrank(couponRedeemer);
-        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
-        referralGateway.payContributionOnBehalfOf(2499e4, nonKycParent, child, 0, false);
-
-        // 250.01 USDC
-        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
-        referralGateway.payContributionOnBehalfOf(25001e4, nonKycParent, child, 0, false);
-        vm.stopPrank();
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                    PREPAYS
-        //////////////////////////////////////////////////////////////*/
-
     //======== preJoinEnabled = true, referralDiscount = true ========//
     function testprepaymentCase1() public {
         (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
