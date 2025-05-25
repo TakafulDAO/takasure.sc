@@ -722,13 +722,6 @@ contract ReferralGateway is
         address _parent,
         address _newMember
     ) internal view {
-        // DAO must exist
-        require(
-            nameToDAOData[daoName].preJoinEnabled ||
-                nameToDAOData[daoName].DAOAddress != address(0),
-            ReferralGateway__tDAONotReadyYet()
-        );
-
         require(
             _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
             ReferralGateway__InvalidContribution()
