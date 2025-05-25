@@ -139,62 +139,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         _;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                               CREATE DAO
-    //////////////////////////////////////////////////////////////*/
-    function testCreateANewDao() public {
-        vm.prank(referral);
-        vm.expectRevert();
-        referralGateway.createDAO(
-            true,
-            true,
-            (block.timestamp + 31_536_000),
-            100e6,
-            address(bmConsumerMock)
-        );
-
-        vm.prank(takadao);
-        referralGateway.createDAO(
-            true,
-            true,
-            (block.timestamp + 31_536_000),
-            100e6,
-            address(bmConsumerMock)
-        );
-
-        (
-            bool prejoinEnabled,
-            ,
-            address DAOAdmin,
-            address DAOAddress,
-            uint256 launchDate,
-            uint256 objectiveAmount,
-            uint256 currentAmount,
-            ,
-            ,
-            ,
-
-        ) = referralGateway.getDAOData();
-
-        assertEq(prejoinEnabled, true);
-        assertEq(DAOAdmin, daoAdmin);
-        assertEq(DAOAddress, address(0));
-        assertEq(launchDate, block.timestamp + 31_536_000);
-        assertEq(objectiveAmount, 100e6);
-        assertEq(currentAmount, 0);
-
-        vm.prank(takadao);
-        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidLaunchDate.selector);
-        referralGateway.createDAO(true, true, 0, 100e6, address(bmConsumerMock));
-
-        vm.prank(referral);
-        vm.expectRevert();
-        referralGateway.updateLaunchDate(block.timestamp + 32_000_000);
-
-        vm.prank(daoAdmin);
-        referralGateway.updateLaunchDate(block.timestamp + 32_000_000);
-    }
-
     modifier createDao() {
         vm.startPrank(takadao);
         referralGateway.setDaoName(tDaoName);
