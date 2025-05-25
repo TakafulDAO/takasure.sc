@@ -12,7 +12,7 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract ReferralGatewayTest is Test, SimulateDonResponse {
+contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     ReferralGateway referralGateway;
     TakasureReserve takasureReserve;
@@ -30,7 +30,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     address pauseGuardian;
     address referral = makeAddr("referral");
     address member = makeAddr("member");
-    address notMember = makeAddr("notMember");
     address child = makeAddr("child");
     address couponRedeemer = makeAddr("couponRedeemer");
     string tDaoName = "The LifeDao";
@@ -46,8 +45,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     uint256 public constant REFERRAL_RESERVE = 5; // 5% of contribution TO Referral Reserve
     uint256 public constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
 
-    bytes32 public constant REFERRAL = keccak256("REFERRAL");
-
     struct PrepaidMember {
         string tDAOName;
         address member;
@@ -57,9 +54,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 discount;
     }
 
-    event OnPreJoinEnabledChanged(bool indexed isPreJoinEnabled);
-    event OnNewReferralProposal(address indexed proposedReferral);
-    event OnNewReferral(address indexed referral);
     event OnPrepayment(
         address indexed parent,
         address indexed child,
@@ -68,17 +62,12 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
         uint256 discount
     );
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
-    event OnNewDaoCreated(string indexed daoName);
     event OnParentRewardTransferStatus(
         address indexed parent,
         uint256 indexed layer,
         address indexed child,
         uint256 reward,
         bool status
-    );
-    event OnBenefitMultiplierConsumerChanged(
-        address indexed newBenefitMultiplierConsumer,
-        address indexed oldBenefitMultiplierConsumer
     );
 
     function setUp() public {
