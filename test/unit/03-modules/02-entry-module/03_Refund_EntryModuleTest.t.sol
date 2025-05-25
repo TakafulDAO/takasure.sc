@@ -99,11 +99,11 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     }
 
     function testentryModule_refundContribution() public {
-        Reserve memory reserve = takasureReserve.getReserveValues();
-        uint8 serviceFee = reserve.serviceFee;
-        uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
+        deal(address(usdc), address(entryModule), 25e6);
 
-        Member memory testMemberAfterKyc = takasureReserve.getMemberFromAddress(alice);
+        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
+
+        uint256 expectedRefundAmount = Alice.contribution - Alice.discount;
 
         uint256 contractBalanceBeforeRefund = usdc.balanceOf(address(entryModule));
         uint256 aliceBalanceBeforeRefund = usdc.balanceOf(alice);
@@ -116,11 +116,10 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
         entryModule.refund(alice);
 
-        vm.startPrank(alice);
+        vm.prank(alice);
         vm.expectEmit(true, true, false, false, address(entryModule));
-        emit TakasureEvents.OnRefund(testMemberAfterKyc.memberId, alice, expectedRefundAmount);
+        emit TakasureEvents.OnRefund(Alice.memberId, alice, expectedRefundAmount);
         entryModule.refund();
-        vm.stopPrank();
 
         uint256 contractBalanceAfterRefund = usdc.balanceOf(address(entryModule));
         uint256 aliceBalanceAfterRefund = usdc.balanceOf(alice);
@@ -141,6 +140,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     }
 
     function testEntryModule_sameIdIfJoinsAgainAfterRefund() public {
+        deal(address(usdc), address(entryModule), 25e6);
         Member memory aliceAfterFirstJoinBeforeRefund = takasureReserve.getMemberFromAddress(alice);
         // 14 days passed
         vm.warp(15 days);
