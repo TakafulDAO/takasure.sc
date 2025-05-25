@@ -8,7 +8,7 @@ import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 
-contract ReferralGatewayCreateDaoTest is Test {
+contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     TestDeployTakasureReserve deployer;
     ReferralGateway referralGateway;
     BenefitMultiplierConsumerMock bmConsumerMock;
