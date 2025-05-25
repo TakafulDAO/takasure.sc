@@ -12,7 +12,7 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
+contract ReferralGatewayNoCouponWithParentPaymentTest is Test, SimulateDonResponse {
     TestDeployTakasureReserve deployer;
     ReferralGateway referralGateway;
     TakasureReserve takasureReserve;
