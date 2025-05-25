@@ -99,7 +99,15 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint64 _chainSelector,
         address _owner,
         address _backendProvider
-    ) external initializer {
+    )
+        external
+        initializer
+        notZeroAddress(_router)
+        notZeroAddress(_link)
+        notZeroAddress(_receiverContract)
+        notZeroAddress(_owner)
+        notZeroAddress(_backendProvider)
+    {
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __Ownable_init(_owner);
