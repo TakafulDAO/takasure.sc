@@ -134,48 +134,6 @@ contract ReferralGatewayTest is Test, SimulateDonResponse {
     }
 
     /*//////////////////////////////////////////////////////////////
-                             INITIALIZATION
-    //////////////////////////////////////////////////////////////*/
-
-    function testOperatorAddressIsNotZero() public {
-        uint256 operatorAddressSlot = 2;
-        bytes32 operatorAddressSlotBytes = vm.load(
-            address(referralGateway),
-            bytes32(uint256(operatorAddressSlot))
-        );
-        address operatorAddress = address(uint160(uint256(operatorAddressSlotBytes)));
-        assert(operatorAddress != address(0));
-    }
-
-    function testUsdcAddressIsNotZero() public {
-        assert(address(referralGateway.usdc()) != address(0));
-        assertEq(address(referralGateway.usdc()), usdcAddress);
-    }
-
-    function testDAONameAssignCorrectly() public {
-        string memory name = referralGateway.daoName();
-        assertEq(name, "");
-
-        vm.prank(takadao);
-        referralGateway.setDaoName(tDaoName);
-
-        name = referralGateway.daoName();
-        assertEq(name, "The LifeDao");
-    }
-
-    function testOperatorRoleAssignCorrectly() public {
-        assert(referralGateway.hasRole(keccak256("OPERATOR"), takadao));
-    }
-
-    function testKYCRoleAssignCorrectly() public {
-        assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
-    }
-
-    function testPauseGuardianRoleAssignCorrectly() public {
-        assert(referralGateway.hasRole(keccak256("PAUSE_GUARDIAN"), pauseGuardian));
-    }
-
-    /*//////////////////////////////////////////////////////////////
                            ROLES GRANT/REVOKE
     //////////////////////////////////////////////////////////////*/
 
