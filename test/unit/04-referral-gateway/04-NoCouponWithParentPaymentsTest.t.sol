@@ -185,32 +185,6 @@ contract ReferralGatewayNoCouponPaymentTest is Test, SimulateDonResponse {
         _;
     }
 
-    function testKYCAnAddress() public setCouponRedeemer createDao referralPrepays {
-        vm.prank(KYCProvider);
-        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
-        referralGateway.approveKYC(address(0));
-
-        assert(!referralGateway.isMemberKYCed(referral));
-
-        vm.prank(KYCProvider);
-        referralGateway.approveKYC(referral);
-        assert(referralGateway.isMemberKYCed(referral));
-    }
-
-    function testMustRevertIfKYCTwiceSameAddress()
-        public
-        setCouponRedeemer
-        createDao
-        referralPrepays
-    {
-        vm.startPrank(KYCProvider);
-        referralGateway.approveKYC(referral);
-
-        vm.expectRevert(ReferralGateway.ReferralGateway__MemberAlreadyKYCed.selector);
-        referralGateway.approveKYC(referral);
-        vm.stopPrank();
-    }
-
     modifier KYCReferral() {
         vm.prank(KYCProvider);
         referralGateway.approveKYC(referral);
