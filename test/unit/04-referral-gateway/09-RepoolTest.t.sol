@@ -57,7 +57,7 @@ contract ReferralGatewayRepoolTest is Test {
         usdc = IUSDC(usdcAddress);
 
         // Config mocks
-        vm.prank(daoAdmin);
+        vm.prank(takadao);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(bmConsumerMock.admin());
@@ -160,12 +160,12 @@ contract ReferralGatewayRepoolTest is Test {
         vm.prank(KYCProvider);
         referralGateway.approveKYC(childWithoutReferee);
 
-        vm.prank(daoAdmin);
+        vm.prank(takadao);
         referralGateway.launchDAO(address(takasureReserve), true);
 
         address rePoolAddress = makeAddr("rePoolAddress");
 
-        vm.prank(daoAdmin);
+        vm.prank(takadao);
         referralGateway.enableRepool(rePoolAddress);
 
         (, , , , , , , , , uint256 toRepool, ) = referralGateway.getDAOData();
@@ -173,7 +173,7 @@ contract ReferralGatewayRepoolTest is Test {
         assert(toRepool > 0);
         assertEq(usdc.balanceOf(rePoolAddress), 0);
 
-        vm.prank(daoAdmin);
+        vm.prank(takadao);
         referralGateway.transferToRepool();
 
         (, , , , , , , , , uint256 newRepoolBalance, ) = referralGateway.getDAOData();
