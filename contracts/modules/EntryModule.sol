@@ -21,6 +21,7 @@ import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -374,6 +375,12 @@ contract EntryModule is
         uint256 _couponAmount
     ) internal {
         require(
+
+            _newMember.memberState == MemberState.Inactive || _newMember.memberState == MemberState.Canceled,
+            ModuleErrors.Module__WrongMemberState()
+        );
+        require(
+
             _contributionBeforeFee >= _reserve.minimumThreshold &&
                 _contributionBeforeFee <= _reserve.maximumThreshold,
             EntryModule__ContributionOutOfRange()
