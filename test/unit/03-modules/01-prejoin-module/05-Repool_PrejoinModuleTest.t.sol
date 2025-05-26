@@ -30,7 +30,6 @@ contract RepoolPrejoinModuleTest is Test {
     address member = makeAddr("member");
     address notMember = makeAddr("notMember");
     address child = makeAddr("child");
-    string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
 
@@ -88,8 +87,7 @@ contract RepoolPrejoinModuleTest is Test {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(tDaoName, true, true, 1743479999, 1e12, address(bmConsumerMock));
-        prejoinModule.setDAOName(tDaoName);
+        prejoinModule.createDAO(true, 1743479999, address(bmConsumerMock));
         vm.stopPrank();
         _;
     }
@@ -146,7 +144,7 @@ contract RepoolPrejoinModuleTest is Test {
         vm.prank(takadao);
         prejoinModule.approveKYC(childWithoutReferee);
 
-        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+        (, , , uint256 launchDate, , , , , ) = prejoinModule.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
@@ -159,7 +157,7 @@ contract RepoolPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.enableRepool(rePoolAddress);
 
-        (, , , , , , , , uint256 toRepool, ) = prejoinModule.getDAOData();
+        (, , , , , , , uint256 toRepool, ) = prejoinModule.getDAOData();
 
         assert(toRepool > 0);
         assertEq(usdc.balanceOf(rePoolAddress), 0);
@@ -167,7 +165,7 @@ contract RepoolPrejoinModuleTest is Test {
         vm.prank(daoAdmin);
         prejoinModule.transferToRepool();
 
-        (, , , , , , , , uint256 newRepoolBalance, ) = prejoinModule.getDAOData();
+        (, , , , , , , uint256 newRepoolBalance, ) = prejoinModule.getDAOData();
 
         assertEq(newRepoolBalance, 0);
         assertEq(usdc.balanceOf(rePoolAddress), toRepool);
