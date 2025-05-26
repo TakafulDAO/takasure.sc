@@ -239,6 +239,17 @@ contract TakasureReserve is
         kycProvider = newKycProviderAddress;
     }
 
+    function setNewOperatorAddress(address newOperatorAddress) external {
+        _onlyDaoOrTakadao();
+        address oldOperator = takadaoOperator;
+        takadaoOperator = newOperatorAddress;
+
+        _grantRole(OPERATOR, newOperatorAddress);
+        _revokeRole(OPERATOR, oldOperator);
+
+        emit TakasureEvents.OnOperatorChanged(newOperatorAddress, oldOperator);
+    }
+
     function setNewPauseGuardianAddress(address newPauseGuardianAddress) external {
         _onlyDaoOrTakadao();
         address oldPauseGuardian = pauseGuardian;
@@ -391,7 +402,6 @@ contract TakasureReserve is
         returns (uint256 totalECRes_, uint256 totalUCRes_)
     {
         Reserve memory currentReserve = reserve;
-        uint256 newECRes;
         // We check for every member except the recently added
         for (uint256 i = 1; i <= currentReserve.memberIdCounter - 1; ++i) {
             address memberWallet = idToMemberWallet[i];
@@ -400,15 +410,13 @@ contract TakasureReserve is
                 (uint256 memberEcr, uint256 memberUcr) = ReserveMathAlgorithms
                     ._calculateEcrAndUcrByMember(memberToCheck);
 
-                newECRes += memberEcr;
+                totalECRes_ += memberEcr;
                 totalUCRes_ += memberUcr;
             }
         }
 
-        reserve.ECRes = newECRes;
+        reserve.ECRes = totalECRes_;
         reserve.UCRes = totalUCRes_;
-
-        totalECRes_ = reserve.ECRes;
     }
 
     /**
@@ -444,9 +452,7 @@ contract TakasureReserve is
 
     function _onlyDaoOrTakadao() internal view {
         require(
-            hasRole(OPERATOR, msg.sender) ||
-                hasRole(DAO_MULTISIG, msg.sender) ||
-                hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            hasRole(OPERATOR, msg.sender) || hasRole(DAO_MULTISIG, msg.sender),
             TakasureReserve__OnlyDaoOrTakadao()
         );
     }
