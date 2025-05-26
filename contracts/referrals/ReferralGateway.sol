@@ -629,7 +629,7 @@ contract ReferralGateway is
         uint256 normalizedContribution = (_contribution / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
 
-        _payContributionChecks(normalizedContribution, _parent, _newMember);
+        _payContributionChecks(normalizedContribution, _couponAmount, _parent, _newMember);
 
         _finalFee = (normalizedContribution * SERVICE_FEE_RATIO) / 100;
 
@@ -718,6 +718,7 @@ contract ReferralGateway is
 
     function _payContributionChecks(
         uint256 _contribution,
+        uint256 _couponAmount,
         address _parent,
         address _newMember
     ) internal view {
@@ -727,6 +728,12 @@ contract ReferralGateway is
             _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
             ReferralGateway__InvalidContribution()
         );
+
+        if (_couponAmount > 0)
+            require(
+                _couponAmount >= MINIMUM_CONTRIBUTION && _couponAmount <= MAXIMUM_CONTRIBUTION,
+                ReferralGateway__InvalidContribution()
+            );
 
         if (_parent != address(0))
             require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());

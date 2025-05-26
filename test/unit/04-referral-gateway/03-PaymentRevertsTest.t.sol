@@ -80,6 +80,36 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         vm.stopPrank();
     }
 
+    function testMustRevertIfCouponIsOutOfRange() public {
+        // 24.99 USDC
+        vm.startPrank(couponRedeemer);
+        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
+        referralGateway.payContributionOnBehalfOf(
+            USDC_INITIAL_AMOUNT,
+            nonKycParent,
+            child,
+            249e4,
+            false
+        );
+
+        // 250.01 USDC
+        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
+        referralGateway.payContributionOnBehalfOf(
+            USDC_INITIAL_AMOUNT,
+            nonKycParent,
+            child,
+            25001e4,
+            false
+        );
+        vm.stopPrank();
+    }
+
+    function testMustRevertIfDonatedIsTrueAndContributionIsGreaterThan25() public {
+        vm.prank(couponRedeemer);
+        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
+        referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, true);
+    }
+
     function testMustRevertIfMemberIsZeroAddress() public {
         vm.startPrank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);

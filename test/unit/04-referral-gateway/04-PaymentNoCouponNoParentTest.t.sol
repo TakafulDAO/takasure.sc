@@ -69,6 +69,15 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         vm.stopPrank();
     }
 
+    function testPrepaymentDonatedTrue() public {
+        vm.prank(couponRedeemer);
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, true);
+
+        (uint256 contributionBeforeFee, , , ) = referralGateway.getPrepaidMember(child);
+
+        assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT);
+    }
+
     //======== preJoinEnabled = true, referralDiscount = true, no parent, no coupon ========//
     function testPrepaymentCase1() public {
         (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
