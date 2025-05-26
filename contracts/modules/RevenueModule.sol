@@ -42,6 +42,7 @@ contract RevenueModule is
     }
 
     function initialize(address _takasureReserveAddress) external initializer {
+        AddressAndStates._notZeroAddress(_takasureReserveAddress);
         __UUPSUpgradeable_init();
         __AccessControl_init();
 
