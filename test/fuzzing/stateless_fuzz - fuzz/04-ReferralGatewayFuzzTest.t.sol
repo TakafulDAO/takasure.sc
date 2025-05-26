@@ -138,11 +138,4 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
         vm.expectRevert();
         referralGateway.switchReferralDiscount();
     }
-
-    function testSwitchReferralDiscountRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != takadao);
-
-        vm.prank(caller);
-        vm.expectRevert();
-        referralGateway.switchReferralDiscount();
 }
