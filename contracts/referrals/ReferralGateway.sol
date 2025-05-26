@@ -721,6 +721,8 @@ contract ReferralGateway is
         address _parent,
         address _newMember
     ) internal view {
+        require(_newMember != address(0), ReferralGateway__ZeroAddress());
+
         require(
             _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
             ReferralGateway__InvalidContribution()

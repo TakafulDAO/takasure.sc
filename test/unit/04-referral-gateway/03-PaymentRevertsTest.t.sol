@@ -68,7 +68,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         vm.stopPrank();
     }
 
-    function testMustRevertIfprepaymentContributionIsOutOfRange() public {
+    function testMustRevertIfPrepaymentContributionIsOutOfRange() public {
         // 24.99 USDC
         vm.startPrank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
@@ -78,6 +78,12 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
         referralGateway.payContributionOnBehalfOf(25001e4, nonKycParent, child, 0, false);
         vm.stopPrank();
+    }
+
+    function testMustRevertIfMemberIsZeroAddress() public {
+        vm.startPrank(couponRedeemer);
+        vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
+        referralGateway.payContributionOnBehalfOf(200e6, address(0), address(0), 0, false);
     }
 
     //======== preJoinEnabled = true, referralDiscount = true, invalid referral ========//
@@ -127,5 +133,27 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, 0);
+    }
+
+    function testMustRevertIfPayTwice() public {
+        vm.startPrank(couponRedeemer);
+        referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, false);
+
+        vm.expectRevert(ReferralGateway.ReferralGateway__AlreadyMember.selector);
+        referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, false);
+
+        vm.stopPrank();
+    }
+
+    function testMustRevertIfCouponIsGreaterThanContribution() public {
+        vm.prank(couponRedeemer);
+        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
+        referralGateway.payContributionOnBehalfOf(
+            USDC_INITIAL_AMOUNT,
+            address(0),
+            child,
+            USDC_INITIAL_AMOUNT * 2,
+            false
+        );
     }
 }
