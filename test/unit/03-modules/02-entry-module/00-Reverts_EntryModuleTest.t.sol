@@ -35,7 +35,6 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     address public bob = makeAddr("bob");
     address public charlie = makeAddr("charlie");
     address public david = makeAddr("david");
-    address public parent = makeAddr("parent");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
@@ -106,14 +105,14 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(alice);
         vm.expectRevert(EntryModule.EntryModule__InvalidContribution.selector);
-        userRouter.joinPool(parent, wrongContribution, (5 * YEAR));
+        userRouter.joinPool(address(0), wrongContribution, (5 * YEAR));
     }
 
     /// @dev If it is an active member, can not join again
     function testEntryModule_activeMembersShouldNotJoinAgain() public {
         vm.prank(alice);
         // Alice joins the pool
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -124,7 +123,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         // And tries to join again but fails
         vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
     }
 
     /// @dev `approveKYC` must revert if the member is address zero
@@ -138,7 +137,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     /// @dev `approveKYC` must revert if the member is already KYC verified
     function testEntryModule_approveKYCMustRevertIfMemberIsAlreadyKYCVerified() public {
         vm.prank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -156,7 +155,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     /// @dev can not refund someone already KYC verified
     function testEntryModule_refundRevertIfMemberIsKyc() public {
         vm.prank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -173,7 +172,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     function testEntryModule_refundRevertIfMemberAlreadyRefunded() public {
         vm.startPrank(alice);
         // Join and refund
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // 14 days passed
         vm.warp(15 days);
@@ -191,7 +190,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     function testEntryModule_refundRevertIfMemberRefundBefore14Days() public {
         // Join
         vm.startPrank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         // Try to refund
@@ -204,7 +203,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     function testEntryModule_revertIfTryToJoinTwice() public {
         // First check alice join -> kyc alice -> alice join again must revert
         vm.prank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -214,18 +213,18 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
 
         vm.prank(alice);
         vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // Second check bob join -> bob join again must revert
         vm.startPrank(bob);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         // Third check charlie join -> 14 days passes -> refund charlie -> charlie join -> kyc charlie -> charlie join again must revert
         vm.prank(charlie);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -235,7 +234,7 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(charlie);
         userRouter.refund();
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         vm.prank(admin);
@@ -243,20 +242,20 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
 
         vm.prank(charlie);
         vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         // Fourth check david join -> 14 days passes -> refund david -> david join -> david join again must revert
         vm.prank(david);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         vm.warp(block.timestamp + 15 days);
         vm.roll(block.number + 1);
 
         vm.startPrank(david);
         userRouter.refund();
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.expectRevert(EntryModule.EntryModule__AlreadyJoined.selector);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
     }
 }
