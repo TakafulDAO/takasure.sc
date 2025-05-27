@@ -722,29 +722,28 @@ contract ReferralGateway is
         address _parent,
         address _newMember
     ) internal view {
+        // The payer must be different than the zero address and cannot be already a member
         require(_newMember != address(0), ReferralGateway__ZeroAddress());
+        require(
+            nameToDAOData[daoName].prepaidMembers[_newMember].contributionBeforeFee == 0,
+            ReferralGateway__AlreadyMember()
+        );
 
+        // If the member is valid, the contribution must be between the minimum and maximum contribution,
+        // the same for the coupon amount, if any
         require(
             _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
             ReferralGateway__InvalidContribution()
         );
-
         if (_couponAmount > 0)
             require(
                 _couponAmount >= MINIMUM_CONTRIBUTION && _couponAmount <= MAXIMUM_CONTRIBUTION,
                 ReferralGateway__InvalidContribution()
             );
 
+        // If there is a parent, it must be KYCed first
         if (_parent != address(0))
             require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
-
-        if (nameToDAOData[daoName].preJoinEnabled) {
-            // We check if the member already exists
-            require(
-                nameToDAOData[daoName].prepaidMembers[_newMember].contributionBeforeFee == 0,
-                ReferralGateway__AlreadyMember()
-            );
-        }
     }
 
     function _parentRewards(
