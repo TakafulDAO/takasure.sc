@@ -53,8 +53,7 @@ contract TakasureReserve is
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
     error TakasureReserve__OnlyDaoOrTakadao();
-    error TakasureReserve__WrongServiceFee();
-    error TakasureReserve__WrongFundMarketExpendsShare();
+    error TakasureReserve__WrongValue();
     error TakasureReserve__UnallowedAccess();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -176,7 +175,7 @@ contract TakasureReserve is
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(OPERATOR) {
-        require(newServiceFee <= 35, TakasureReserve__WrongServiceFee());
+        require(newServiceFee <= 35, TakasureReserve__WrongValue());
         reserve.serviceFee = newServiceFee;
 
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
@@ -185,7 +184,7 @@ contract TakasureReserve is
     function setNewFundMarketExpendsShare(
         uint8 newFundMarketExpendsAddShare
     ) external onlyRole(DAO_MULTISIG) {
-        require(newFundMarketExpendsAddShare <= 35, TakasureReserve__WrongFundMarketExpendsShare());
+        require(newFundMarketExpendsAddShare <= 35, TakasureReserve__WrongValue());
 
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
         reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
@@ -212,6 +211,13 @@ contract TakasureReserve is
         reserve.maximumThreshold = newMaximumThreshold;
 
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
+    }
+
+    function setRiskMultiplier(uint8 newRiskMultiplier) external onlyRole(DAO_MULTISIG) {
+        require(newRiskMultiplier <= 100, TakasureReserve__WrongValue());
+        reserve.riskMultiplier = newRiskMultiplier;
+
+        emit TakasureEvents.OnNewRiskMultiplier(newRiskMultiplier);
     }
 
     function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(OPERATOR) {
