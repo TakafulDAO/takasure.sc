@@ -11,13 +11,12 @@ import {IMemberModule} from "contracts/interfaces/IMemberModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
 
 contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
-    ITakasureReserve private takasureReserve;
     IEntryModule private entryModule;
     IMemberModule private memberModule;
 
@@ -31,17 +30,20 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         address _entryModule,
         address _memberModule
     ) external initializer {
+        AddressAndStates._notZeroAddress(_takasureReserveAddress);
+        AddressAndStates._notZeroAddress(_entryModule);
+        AddressAndStates._notZeroAddress(_memberModule);
+
         __UUPSUpgradeable_init();
         __AccessControl_init();
 
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
         entryModule = IEntryModule(_entryModule);
         memberModule = IMemberModule(_memberModule);
 
-        address takadaoOperator = takasureReserve.takadaoOperator();
+        address takadaoOperator = ITakasureReserve(_takasureReserveAddress).takadaoOperator();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
     }
 
     function joinPool(
@@ -72,26 +74,18 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         memberModule.defaultMember(memberWallet);
     }
 
-    function setTakasureReserve(
-        address _takasureReserveAddress
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
-    }
-
-    function setEntryModule(
-        address _entryModule
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    function setEntryModule(address _entryModule) external onlyRole(ModuleConstants.OPERATOR) {
+        AddressAndStates._notZeroAddress(_entryModule);
         entryModule = IEntryModule(_entryModule);
     }
 
-    function setMemberModule(
-        address _memberModule
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
+    function setMemberModule(address _memberModule) external onlyRole(ModuleConstants.OPERATOR) {
+        AddressAndStates._notZeroAddress(_memberModule);
         memberModule = IMemberModule(_memberModule);
     }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
 }

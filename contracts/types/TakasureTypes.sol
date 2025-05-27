@@ -4,6 +4,7 @@ import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplie
 pragma solidity 0.8.28;
 
 enum ModuleState {
+    Unset,
     Disabled,
     Enabled,
     Paused,
@@ -56,11 +57,11 @@ struct Member {
     uint256 membershipDuration; // in years
     uint256 membershipStartTime; // in seconds
     uint256 lastPaidYearStartDate; // in seconds
-    uint256 contribution; // in stablecoin currency in Wei
+    uint256 contribution; // Six decimals
     uint256 discount;
-    uint256 claimAddAmount; // amount deposited in the claim reserve, in stablecoin currency in Wei, and without fees
-    uint256 totalContributions; // in stablecoin currency in Wei. This is the total contribution made by the member
-    uint256 totalServiceFee; // in stablecoin currency in Wei
+    uint256 claimAddAmount; // amount deposited in the claim reserve, six decimals, and without fees
+    uint256 totalContributions; // in stablecoin currency. Six decimals. This is the total contribution made by the member
+    uint256 totalServiceFee; // in stablecoin currency six decimals
     uint256 creditTokensBalance; // 18 decimals
     address wallet;
     address parent;
@@ -80,7 +81,7 @@ struct tDAO {
     address DAOAdmin; // Deprecated. DAOAdmin == Operator
     address DAOAddress; // To be assigned when the tDAO is deployed
     uint256 launchDate; // In seconds. An estimated launch date of the DAO
-    uint256 objectiveAmount; // In USDC, six decimals
+    uint256 objectiveAmount; // Deprecated
     uint256 currentAmount; // In USDC, six decimals
     uint256 collectedFees; // Fees collected after deduct, discounts, referral reserve and repool amounts. In USDC, six decimals
     address rePoolAddress; // To be assigned when the tDAO is deployed
@@ -91,7 +92,7 @@ struct tDAO {
 }
 
 struct Reserve {
-    uint8 serviceFee; // Default 22%, max 100%
+    uint8 serviceFee; // Default 27%, max 35%
     uint8 bmaFundReserveShare; // Default 70%
     uint8 fundMarketExpendsAddShare; // Default 20%
     uint8 riskMultiplier; // Default to 2%

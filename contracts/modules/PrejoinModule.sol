@@ -23,10 +23,11 @@ import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 
-import {tDAO, PrepaidMember, ModuleState, Reserve} from "contracts/types/TakasureTypes.sol";
+import {tDAO, ModuleState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 
 pragma solidity 0.8.28;
 
@@ -45,6 +46,8 @@ contract PrejoinModule is
     IERC20 public usdc;
     IBenefitMultiplierConsumer private bmConsumer;
 
+    string private constant DAO_NAME = "The LifeDAO";
+
     address private operator;
 
     mapping(string tDAOName => tDAO DAOData) private nameToDAOData;
@@ -54,9 +57,10 @@ contract PrejoinModule is
     address private couponPool;
     address private ccipReceiverContract;
 
-    string private tDAOName;
-
     ModuleState private moduleState;
+
+    // Set to true when new members use coupons to pay their contributions. It does not matter the amount
+    mapping(address member => bool) private isMemberCouponRedeemer;
 
     /*//////////////////////////////////////////////////////////////
                               FIXED RATIOS
@@ -64,31 +68,15 @@ contract PrejoinModule is
 
     uint8 private constant SERVICE_FEE_RATIO = 27;
     uint256 private constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
-    uint256 private constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from contribution
-    uint256 private constant REFERRAL_RESERVE = 5; // 5% of contribution to Referral Reserve
     uint256 private constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
     uint256 private constant MINIMUM_CONTRIBUTION = 25e6; // 25 USDC
     uint256 private constant MAXIMUM_CONTRIBUTION = 250e6; // 250 USDC
 
     /*//////////////////////////////////////////////////////////////
-                                 ROLES
-    //////////////////////////////////////////////////////////////*/
-
-    bytes32 private constant OPERATOR = keccak256("OPERATOR");
-    bytes32 private constant KYC_PROVIDER = keccak256("KYC_PROVIDER");
-    bytes32 private constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
-    bytes32 internal constant MODULE_MANAGER = keccak256("MODULE_MANAGER");
-
-    /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    event OnNewDAO(
-        bool indexed preJoinEnabled,
-        bool indexed referralDiscount,
-        uint256 launchDate,
-        uint256 objectiveAmount
-    );
+    event OnNewDAO(bool indexed referralDiscount, uint256 launchDate);
     event OnDAOLaunchDateUpdated(uint256 indexed launchDate);
     event OnDAOLaunched(address indexed DAOAddress);
     event OnReferralDiscountSwitched(bool indexed referralDiscount);
@@ -102,6 +90,12 @@ contract PrejoinModule is
     );
     event OnCouponRedeemed(address indexed member, uint256 indexed couponAmount);
     event OnParentRewarded(
+        address indexed parent,
+        uint256 indexed layer,
+        address indexed child,
+        uint256 reward
+    );
+    event OnParentRewardTransferFailed(
         address indexed parent,
         uint256 indexed layer,
         address indexed child,
@@ -121,9 +115,7 @@ contract PrejoinModule is
     );
 
     error PrejoinModule__ZeroAddress();
-    error PrejoinModule__MustHaveName();
     error PrejoinModule__InvalidLaunchDate();
-    error PrejoinModule__AlreadyExists();
     error PrejoinModule__DAOAlreadyLaunched();
     error PrejoinModule__ZeroAmount();
     error PrejoinModule__ContributionOutOfRange();
@@ -164,7 +156,9 @@ contract PrejoinModule is
      * @notice Set the module state
      * @dev Only callable from the Module Manager
      */
-    function setContractState(ModuleState newState) external override onlyRole(MODULE_MANAGER) {
+    function setContractState(
+        ModuleState newState
+    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
         moduleState = newState;
     }
 
@@ -174,56 +168,43 @@ contract PrejoinModule is
 
     /**
      * @notice Create a new DAO
-     * @param DAOName The name of the DAO
-     * @param isPreJoinEnabled The pre-join status of the DAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
      * @param launchDate An estimated launch date of the DAO
-     * @param objectiveAmount The objective amount of the DAO
      * @dev The launch date must be in seconds
-     * @dev The launch date can be 0, if the DAO is already launched or the launch date is not defined
      * @dev The objective amount must be in USDC, six decimals
      * @dev The objective amount can be 0, if the DAO is already launched or the objective amount is not defined
      */
     function createDAO(
-        string calldata DAOName,
-        bool isPreJoinEnabled,
         bool isReferralDiscountEnabled,
         uint256 launchDate,
-        uint256 objectiveAmount,
         address _bmConsumer
-    ) external onlyRole(OPERATOR) {
-        require(bytes(DAOName).length != 0, PrejoinModule__MustHaveName());
-        require(
-            !(Strings.equal(nameToDAOData[DAOName].name, DAOName)),
-            PrejoinModule__AlreadyExists()
-        );
+    ) external onlyRole(ModuleConstants.OPERATOR) {
         require(launchDate > block.timestamp, PrejoinModule__InvalidLaunchDate());
 
         // Create the new DAO
-        nameToDAOData[DAOName].name = DAOName;
-        nameToDAOData[DAOName].preJoinEnabled = isPreJoinEnabled;
-        nameToDAOData[DAOName].referralDiscount = isReferralDiscountEnabled;
-        nameToDAOData[DAOName].DAOAdmin = operator;
-        nameToDAOData[DAOName].launchDate = launchDate;
-        nameToDAOData[DAOName].objectiveAmount = objectiveAmount;
-        nameToDAOData[DAOName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
+        nameToDAOData[DAO_NAME].name = DAO_NAME;
+        nameToDAOData[DAO_NAME].preJoinEnabled = true;
+        nameToDAOData[DAO_NAME].referralDiscount = isReferralDiscountEnabled;
+        nameToDAOData[DAO_NAME].DAOAdmin = operator;
+        nameToDAOData[DAO_NAME].launchDate = launchDate;
+        nameToDAOData[DAO_NAME].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
 
-        emit OnNewDAO(isPreJoinEnabled, isReferralDiscountEnabled, launchDate, objectiveAmount);
+        emit OnNewDAO(isReferralDiscountEnabled, launchDate);
     }
 
     /**
      * @notice Update the DAO estimated launch date
      */
-    function updateLaunchDate(uint256 launchDate) external onlyRole(OPERATOR) {
+    function updateLaunchDate(uint256 launchDate) external onlyRole(ModuleConstants.OPERATOR) {
         require(
-            launchDate > nameToDAOData[tDAOName].launchDate,
+            launchDate > nameToDAOData[DAO_NAME].launchDate,
             PrejoinModule__InvalidLaunchDate()
         );
         require(
-            nameToDAOData[tDAOName].DAOAddress == address(0),
+            nameToDAOData[DAO_NAME].DAOAddress == address(0),
             PrejoinModule__DAOAlreadyLaunched()
         );
-        nameToDAOData[tDAOName].launchDate = launchDate;
+        nameToDAOData[DAO_NAME].launchDate = launchDate;
 
         emit OnDAOLaunchDateUpdated(launchDate);
     }
@@ -240,24 +221,20 @@ contract PrejoinModule is
         address tDAOAddress,
         address entryModuleAddress,
         bool isReferralDiscountEnabled
-    ) external onlyRole(OPERATOR) {
+    ) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(tDAOAddress);
         AddressAndStates._notZeroAddress(entryModuleAddress);
         require(
-            nameToDAOData[tDAOName].launchDate <= block.timestamp,
-            PrejoinModule__InvalidLaunchDate()
-        );
-        require(
-            nameToDAOData[tDAOName].DAOAddress == address(0),
+            nameToDAOData[DAO_NAME].DAOAddress == address(0),
             PrejoinModule__DAOAlreadyLaunched()
         );
 
-        nameToDAOData[tDAOName].preJoinEnabled = false;
-        nameToDAOData[tDAOName].referralDiscount = isReferralDiscountEnabled;
-        nameToDAOData[tDAOName].DAOAddress = tDAOAddress;
-        nameToDAOData[tDAOName].entryModule = entryModuleAddress;
-        nameToDAOData[tDAOName].launchDate = block.timestamp;
+        nameToDAOData[DAO_NAME].preJoinEnabled = false;
+        nameToDAOData[DAO_NAME].referralDiscount = isReferralDiscountEnabled;
+        nameToDAOData[DAO_NAME].DAOAddress = tDAOAddress;
+        nameToDAOData[DAO_NAME].entryModule = entryModuleAddress;
+        nameToDAOData[DAO_NAME].launchDate = block.timestamp;
 
         Reserve memory reserve = _getReservesValuesHook(ITakasureReserve(tDAOAddress));
 
@@ -274,33 +251,33 @@ contract PrejoinModule is
     /**
      * @notice Switch the referralDiscount status of a DAO
      */
-    function switchReferralDiscount() external onlyRole(OPERATOR) {
-        nameToDAOData[tDAOName].referralDiscount = !nameToDAOData[tDAOName].referralDiscount;
+    function switchReferralDiscount() external onlyRole(ModuleConstants.OPERATOR) {
+        nameToDAOData[DAO_NAME].referralDiscount = !nameToDAOData[DAO_NAME].referralDiscount;
 
-        emit OnReferralDiscountSwitched(nameToDAOData[tDAOName].referralDiscount);
+        emit OnReferralDiscountSwitched(nameToDAOData[DAO_NAME].referralDiscount);
     }
 
     /**
      * @notice Assign a rePool address to a tDAO name
      * @param rePoolAddress The address of the rePool
      */
-    function enableRepool(address rePoolAddress) external onlyRole(OPERATOR) {
+    function enableRepool(address rePoolAddress) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._notZeroAddress(rePoolAddress);
-        require(nameToDAOData[tDAOName].DAOAddress != address(0), PrejoinModule__tDAONotReadyYet());
-        nameToDAOData[tDAOName].rePoolAddress = rePoolAddress;
+        require(nameToDAOData[DAO_NAME].DAOAddress != address(0), PrejoinModule__tDAONotReadyYet());
+        nameToDAOData[DAO_NAME].rePoolAddress = rePoolAddress;
 
         emit OnRepoolEnabled(rePoolAddress);
     }
 
-    function transferToRepool() external onlyRole(OPERATOR) {
+    function transferToRepool() external onlyRole(ModuleConstants.OPERATOR) {
         require(moduleState != ModuleState.Deprecated, PrejoinModule__WrongModuleState());
-        require(nameToDAOData[tDAOName].rePoolAddress != address(0), PrejoinModule__ZeroAddress());
-        require(nameToDAOData[tDAOName].toRepool > 0, PrejoinModule__ZeroAmount());
+        require(nameToDAOData[DAO_NAME].rePoolAddress != address(0), PrejoinModule__ZeroAddress());
+        require(nameToDAOData[DAO_NAME].toRepool > 0, PrejoinModule__ZeroAmount());
 
-        uint256 amount = nameToDAOData[tDAOName].toRepool;
-        address rePoolAddress = nameToDAOData[tDAOName].rePoolAddress;
+        uint256 amount = nameToDAOData[DAO_NAME].toRepool;
+        address rePoolAddress = nameToDAOData[DAO_NAME].rePoolAddress;
 
-        nameToDAOData[tDAOName].toRepool = 0;
+        nameToDAOData[DAO_NAME].toRepool = 0;
 
         usdc.safeTransfer(rePoolAddress, amount);
     }
@@ -346,7 +323,10 @@ contract PrejoinModule is
 
         (finalFee, discount) = _payContribution(contribution, parent, newMember, couponAmount);
 
-        if (couponAmount > 0) emit OnCouponRedeemed(newMember, couponAmount);
+        if (couponAmount > 0) {
+            isMemberCouponRedeemer[newMember] = true;
+            emit OnCouponRedeemed(newMember, couponAmount);
+        }
     }
 
     /**
@@ -354,7 +334,7 @@ contract PrejoinModule is
      * @param user The address of the member
      * @dev Only the KYC_PROVIDER can set the KYC status
      */
-    function approveKYC(address user) external onlyRole(KYC_PROVIDER) {
+    function approveKYC(address user) external onlyRole(ModuleConstants.KYC_PROVIDER) {
         // It will be possible to KYC a member that was left behind in the process
         // This will allow them to join the DAO
         require(
@@ -368,7 +348,7 @@ contract PrejoinModule is
 
         // The member must have already pre-paid
         require(
-            nameToDAOData[tDAOName].prepaidMembers[user].contributionBeforeFee != 0,
+            nameToDAOData[DAO_NAME].prepaidMembers[user].contributionBeforeFee != 0,
             PrejoinModule__HasNotPaid()
         );
 
@@ -382,16 +362,25 @@ contract PrejoinModule is
 
             uint256 layer = i + 1;
 
-            uint256 parentReward = nameToDAOData[tDAOName]
+            uint256 parentReward = nameToDAOData[DAO_NAME]
                 .prepaidMembers[parent]
                 .parentRewardsByChild[user];
 
             // Reset the rewards for this child
-            nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[user] = 0;
+            nameToDAOData[DAO_NAME].prepaidMembers[parent].parentRewardsByChild[user] = 0;
 
-            usdc.safeTransfer(parent, parentReward);
+            try usdc.transfer(parent, parentReward) {
+                // Emit the event only if the transfer was successful
+                emit OnParentRewarded(parent, layer, user, parentReward);
+            } catch {
+                // If the transfer failed, we need to revert the rewards
+                nameToDAOData[DAO_NAME].prepaidMembers[parent].parentRewardsByChild[
+                    user
+                ] = parentReward;
 
-            emit OnParentRewarded(parent, layer, user, parentReward);
+                // Emit an event for off-chain monitoring
+                emit OnParentRewardTransferFailed(parent, layer, user, parentReward);
+            }
 
             // We update the parent address to check the next parent
             parent = childToParent[parent];
@@ -413,24 +402,22 @@ contract PrejoinModule is
         require(isMemberKYCed[newMember], PrejoinModule__NotKYCed());
 
         require(
-            nameToDAOData[tDAOName].DAOAddress != address(0) &&
-                !nameToDAOData[tDAOName].preJoinEnabled,
+            nameToDAOData[DAO_NAME].DAOAddress != address(0) &&
+                !nameToDAOData[DAO_NAME].preJoinEnabled,
             PrejoinModule__tDAONotReadyYet()
         );
 
-        uint256 membershipDuration = 60 * 60 * 24 * 365 * 5; // 5 years
-
         // Finally, we join the prepaidMember to the tDAO
-        IEntryModule(nameToDAOData[tDAOName].entryModule).joinPool(
+        IEntryModule(nameToDAOData[DAO_NAME].entryModule).joinPool(
             newMember,
             childToParent[newMember],
-            nameToDAOData[tDAOName].prepaidMembers[newMember].contributionBeforeFee,
-            membershipDuration
+            nameToDAOData[DAO_NAME].prepaidMembers[newMember].contributionBeforeFee,
+            ModuleConstants.DEFAULT_MEMBERSHIP_DURATION
         );
 
         usdc.safeTransfer(
-            nameToDAOData[tDAOName].DAOAddress,
-            nameToDAOData[tDAOName].prepaidMembers[newMember].contributionAfterFee
+            nameToDAOData[DAO_NAME].DAOAddress,
+            nameToDAOData[DAO_NAME].prepaidMembers[newMember].contributionAfterFee
         );
     }
 
@@ -445,12 +432,12 @@ contract PrejoinModule is
      */
     function refundIfDAOIsNotLaunched(address member) external {
         require(
-            member == msg.sender || hasRole(OPERATOR, msg.sender),
+            member == msg.sender || hasRole(ModuleConstants.OPERATOR, msg.sender),
             PrejoinModule__NotAuthorizedCaller()
         );
         require(
-            nameToDAOData[tDAOName].launchDate < block.timestamp &&
-                nameToDAOData[tDAOName].DAOAddress == address(0),
+            nameToDAOData[DAO_NAME].launchDate < block.timestamp &&
+                nameToDAOData[DAO_NAME].DAOAddress == address(0),
             PrejoinModule__tDAONotReadyYet()
         );
 
@@ -458,11 +445,11 @@ contract PrejoinModule is
     }
 
     /**
-     * @notice Refund a prepaid member if the DAO is not deployed at launch date
+     * @notice Admin can refund a prepaid member
      * @param member The address of the member
      * @dev Intended to be called by the OPERATOR in spetial cases
      */
-    function refundByAdmin(address member) external onlyRole(OPERATOR) {
+    function refundByAdmin(address member) external onlyRole(ModuleConstants.OPERATOR) {
         _refund(member);
     }
 
@@ -472,10 +459,10 @@ contract PrejoinModule is
 
     function setNewBenefitMultiplierConsumer(
         address newBenefitMultiplierConsumer
-    ) external onlyRole(OPERATOR) {
+    ) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._notZeroAddress(newBenefitMultiplierConsumer);
-        address oldBenefitMultiplierConsumer = address(nameToDAOData[tDAOName].bmConsumer);
-        nameToDAOData[tDAOName].bmConsumer = IBenefitMultiplierConsumer(
+        address oldBenefitMultiplierConsumer = address(nameToDAOData[DAO_NAME].bmConsumer);
+        nameToDAOData[DAO_NAME].bmConsumer = IBenefitMultiplierConsumer(
             newBenefitMultiplierConsumer
         );
 
@@ -485,7 +472,7 @@ contract PrejoinModule is
         );
     }
 
-    function setNewOperator(address newOperator) external onlyRole(OPERATOR) {
+    function setNewOperator(address newOperator) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._notZeroAddress(newOperator);
         address oldOperator = operator;
 
@@ -493,22 +480,24 @@ contract PrejoinModule is
         operator = newOperator;
 
         // Fixing the roles
-        _grantRole(OPERATOR, newOperator);
-        _revokeRole(OPERATOR, msg.sender);
+        _grantRole(ModuleConstants.OPERATOR, newOperator);
+        _revokeRole(ModuleConstants.OPERATOR, msg.sender);
 
         usdc.safeTransferFrom(oldOperator, newOperator, usdc.balanceOf(oldOperator));
 
         emit OnNewOperator(oldOperator, newOperator);
     }
 
-    function setCouponPoolAddress(address _couponPool) external onlyRole(OPERATOR) {
+    function setCouponPoolAddress(address _couponPool) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._notZeroAddress(_couponPool);
         address oldCouponPool = couponPool;
         couponPool = _couponPool;
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
     }
 
-    function setCCIPReceiverContract(address _ccipReceiverContract) external onlyRole(OPERATOR) {
+    function setCCIPReceiverContract(
+        address _ccipReceiverContract
+    ) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._notZeroAddress(_ccipReceiverContract);
         address oldCCIPReceiverContract = ccipReceiverContract;
         ccipReceiverContract = _ccipReceiverContract;
@@ -531,26 +520,26 @@ contract PrejoinModule is
             uint256 discount
         )
     {
-        contributionBeforeFee = nameToDAOData[tDAOName]
+        contributionBeforeFee = nameToDAOData[DAO_NAME]
             .prepaidMembers[member]
             .contributionBeforeFee;
-        contributionAfterFee = nameToDAOData[tDAOName].prepaidMembers[member].contributionAfterFee;
-        feeToOperator = nameToDAOData[tDAOName].prepaidMembers[member].feeToOperator;
-        discount = nameToDAOData[tDAOName].prepaidMembers[member].discount;
+        contributionAfterFee = nameToDAOData[DAO_NAME].prepaidMembers[member].contributionAfterFee;
+        feeToOperator = nameToDAOData[DAO_NAME].prepaidMembers[member].feeToOperator;
+        discount = nameToDAOData[DAO_NAME].prepaidMembers[member].discount;
     }
 
     function getParentRewardsByChild(
         address parent,
         address child
     ) external view returns (uint256 rewards) {
-        rewards = nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByChild[child];
+        rewards = nameToDAOData[DAO_NAME].prepaidMembers[parent].parentRewardsByChild[child];
     }
 
     function getParentRewardsByLayer(
         address parent,
         uint256 layer
     ) external view returns (uint256 rewards) {
-        rewards = nameToDAOData[tDAOName].prepaidMembers[parent].parentRewardsByLayer[layer];
+        rewards = nameToDAOData[DAO_NAME].prepaidMembers[parent].parentRewardsByLayer[layer];
     }
 
     function getDAOData()
@@ -561,7 +550,6 @@ contract PrejoinModule is
             bool referralDiscount,
             address DAOAddress,
             uint256 launchDate,
-            uint256 objectiveAmount,
             uint256 currentAmount,
             uint256 collectedFees,
             address rePoolAddress,
@@ -569,16 +557,15 @@ contract PrejoinModule is
             uint256 referralReserve
         )
     {
-        preJoinEnabled = nameToDAOData[tDAOName].preJoinEnabled;
-        referralDiscount = nameToDAOData[tDAOName].referralDiscount;
-        DAOAddress = nameToDAOData[tDAOName].DAOAddress;
-        launchDate = nameToDAOData[tDAOName].launchDate;
-        objectiveAmount = nameToDAOData[tDAOName].objectiveAmount;
-        currentAmount = nameToDAOData[tDAOName].currentAmount;
-        collectedFees = nameToDAOData[tDAOName].collectedFees;
-        rePoolAddress = nameToDAOData[tDAOName].rePoolAddress;
-        toRepool = nameToDAOData[tDAOName].toRepool;
-        referralReserve = nameToDAOData[tDAOName].referralReserve;
+        preJoinEnabled = nameToDAOData[DAO_NAME].preJoinEnabled;
+        referralDiscount = nameToDAOData[DAO_NAME].referralDiscount;
+        DAOAddress = nameToDAOData[DAO_NAME].DAOAddress;
+        launchDate = nameToDAOData[DAO_NAME].launchDate;
+        currentAmount = nameToDAOData[DAO_NAME].currentAmount;
+        collectedFees = nameToDAOData[DAO_NAME].collectedFees;
+        rePoolAddress = nameToDAOData[DAO_NAME].rePoolAddress;
+        toRepool = nameToDAOData[DAO_NAME].toRepool;
+        referralReserve = nameToDAOData[DAO_NAME].referralReserve;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -593,15 +580,15 @@ contract PrejoinModule is
 
     function _grantRoles(address _operator, address _KYCProvider) internal {
         _grantRole(DEFAULT_ADMIN_ROLE, _operator);
-        _grantRole(OPERATOR, _operator);
-        _grantRole(KYC_PROVIDER, _KYCProvider);
+        _grantRole(ModuleConstants.OPERATOR, _operator);
+        _grantRole(ModuleConstants.KYC_PROVIDER, _KYCProvider);
     }
 
     function _getBenefitMultiplierFromOracle(address _member) internal {
         string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
         string[] memory args = new string[](1);
         args[0] = memberAddressToString;
-        nameToDAOData[tDAOName].bmConsumer.sendRequest(args);
+        nameToDAOData[DAO_NAME].bmConsumer.sendRequest(args);
     }
 
     function _payContribution(
@@ -612,11 +599,15 @@ contract PrejoinModule is
     ) internal nonReentrant returns (uint256 _finalFee, uint256 _discount) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
+        uint256 normalizedContribution = (_contribution /
+            ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC;
+
         // The prepaid member object is created
         uint256 realContribution;
 
-        if (_couponAmount > _contribution) realContribution = _couponAmount;
-        else realContribution = _contribution;
+        if (_couponAmount > normalizedContribution) realContribution = _couponAmount;
+        else realContribution = normalizedContribution;
 
         _payContributionChecks(realContribution, _parent, _newMember);
 
@@ -628,25 +619,25 @@ contract PrejoinModule is
             100;
         uint256 toReferralReserve;
 
-        if (nameToDAOData[tDAOName].referralDiscount) {
-            toReferralReserve = (realContribution * REFERRAL_RESERVE) / 100;
+        if (nameToDAOData[DAO_NAME].referralDiscount) {
+            toReferralReserve = (realContribution * ModuleConstants.REFERRAL_RESERVE) / 100;
 
             if (_parent != address(0)) {
                 uint256 referralDiscount = ((realContribution - _couponAmount) *
-                    REFERRAL_DISCOUNT_RATIO) / 100;
+                    ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
                 _discount += referralDiscount;
 
                 childToParent[_newMember] = _parent;
 
-                (_finalFee, nameToDAOData[tDAOName].referralReserve) = _parentRewards({
+                (_finalFee, nameToDAOData[DAO_NAME].referralReserve) = _parentRewards({
                     _initialChildToCheck: _newMember,
                     _contribution: realContribution,
-                    _currentReferralReserve: nameToDAOData[tDAOName].referralReserve,
+                    _currentReferralReserve: nameToDAOData[DAO_NAME].referralReserve,
                     _toReferralReserve: toReferralReserve,
                     _currentFee: _finalFee
                 });
             } else {
-                nameToDAOData[tDAOName].referralReserve += toReferralReserve;
+                nameToDAOData[DAO_NAME].referralReserve += toReferralReserve;
             }
         }
 
@@ -659,12 +650,12 @@ contract PrejoinModule is
                 _finalFee + _discount + toReferralReserve + rePoolFee
         );
 
-        nameToDAOData[tDAOName].toRepool += rePoolFee;
-        nameToDAOData[tDAOName].currentAmount +=
+        nameToDAOData[DAO_NAME].toRepool += rePoolFee;
+        nameToDAOData[DAO_NAME].currentAmount +=
             realContribution -
             (realContribution * SERVICE_FEE_RATIO) /
             100;
-        nameToDAOData[tDAOName].collectedFees += _finalFee;
+        nameToDAOData[DAO_NAME].collectedFees += _finalFee;
 
         uint256 amountToTransfer = realContribution - _discount - _couponAmount;
 
@@ -690,14 +681,14 @@ contract PrejoinModule is
 
         usdc.safeTransfer(operator, _finalFee);
 
-        nameToDAOData[tDAOName].prepaidMembers[_newMember].member = _newMember;
-        nameToDAOData[tDAOName].prepaidMembers[_newMember].contributionBeforeFee = realContribution;
-        nameToDAOData[tDAOName].prepaidMembers[_newMember].contributionAfterFee =
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].member = _newMember;
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].contributionBeforeFee = realContribution;
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].contributionAfterFee =
             realContribution -
             (realContribution * SERVICE_FEE_RATIO) /
             100;
-        nameToDAOData[tDAOName].prepaidMembers[_newMember].feeToOperator = _finalFee;
-        nameToDAOData[tDAOName].prepaidMembers[_newMember].discount = _discount;
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].feeToOperator = _finalFee;
+        nameToDAOData[DAO_NAME].prepaidMembers[_newMember].discount = _discount;
 
         // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
         _getBenefitMultiplierFromOracle(_newMember);
@@ -713,14 +704,14 @@ contract PrejoinModule is
         // DAO must exist
 
         require(
-            nameToDAOData[tDAOName].preJoinEnabled ||
-                nameToDAOData[tDAOName].DAOAddress != address(0),
+            nameToDAOData[DAO_NAME].preJoinEnabled ||
+                nameToDAOData[DAO_NAME].DAOAddress != address(0),
             PrejoinModule__tDAONotReadyYet()
         );
 
         // We check if the member already exists
         require(
-            nameToDAOData[tDAOName].prepaidMembers[_newMember].contributionBeforeFee == 0,
+            nameToDAOData[DAO_NAME].prepaidMembers[_newMember].contributionBeforeFee == 0,
             PrejoinModule__AlreadyMember()
         );
 
@@ -749,13 +740,13 @@ contract PrejoinModule is
                 break;
             }
 
-            nameToDAOData[tDAOName]
+            nameToDAOData[DAO_NAME]
                 .prepaidMembers[childToParent[currentChildToCheck]]
                 .parentRewardsByChild[_initialChildToCheck] =
                 (_contribution * _referralRewardRatioByLayer(i + 1)) /
                 (100 * DECIMAL_CORRECTION);
 
-            nameToDAOData[tDAOName]
+            nameToDAOData[DAO_NAME]
                 .prepaidMembers[childToParent[currentChildToCheck]]
                 .parentRewardsByLayer[uint256(i + 1)] +=
                 (_contribution * _referralRewardRatioByLayer(i + 1)) /
@@ -785,13 +776,13 @@ contract PrejoinModule is
             PrejoinModule__WrongModuleState()
         );
         require(
-            nameToDAOData[tDAOName].prepaidMembers[_member].contributionBeforeFee != 0,
+            nameToDAOData[DAO_NAME].prepaidMembers[_member].contributionBeforeFee != 0,
             PrejoinModule__HasNotPaid()
         );
 
-        uint256 discountReceived = nameToDAOData[tDAOName].prepaidMembers[_member].discount;
+        uint256 discountReceived = nameToDAOData[DAO_NAME].prepaidMembers[_member].discount;
 
-        uint256 amountToRefund = nameToDAOData[tDAOName]
+        uint256 amountToRefund = nameToDAOData[DAO_NAME]
             .prepaidMembers[_member]
             .contributionBeforeFee - discountReceived;
 
@@ -803,51 +794,57 @@ contract PrejoinModule is
         uint256 leftover = amountToRefund;
 
         // We deduct first from the tDAO currentAmount only the part the member contributed
-        nameToDAOData[tDAOName].currentAmount -= nameToDAOData[tDAOName]
+        nameToDAOData[DAO_NAME].currentAmount -= nameToDAOData[DAO_NAME]
             .prepaidMembers[_member]
             .contributionAfterFee;
 
         // We update the leftover amount
-        leftover -= nameToDAOData[tDAOName].prepaidMembers[_member].contributionAfterFee;
+        leftover -= nameToDAOData[DAO_NAME].prepaidMembers[_member].contributionAfterFee;
 
         // We compare now against the referralReserve
-        if (leftover <= nameToDAOData[tDAOName].referralReserve) {
+        if (leftover <= nameToDAOData[DAO_NAME].referralReserve) {
             // If it is enough we deduct the leftover from the referralReserve
-            nameToDAOData[tDAOName].referralReserve -= leftover;
+            nameToDAOData[DAO_NAME].referralReserve -= leftover;
         } else {
             // We update the leftover value and set the referralReserve to 0
-            leftover -= nameToDAOData[tDAOName].referralReserve;
-            nameToDAOData[tDAOName].referralReserve = 0;
+            leftover -= nameToDAOData[DAO_NAME].referralReserve;
+            nameToDAOData[DAO_NAME].referralReserve = 0;
 
             // We compare now against the repool amount
-            if (leftover <= nameToDAOData[tDAOName].toRepool) {
-                nameToDAOData[tDAOName].toRepool -= leftover;
+            if (leftover <= nameToDAOData[DAO_NAME].toRepool) {
+                nameToDAOData[DAO_NAME].toRepool -= leftover;
             } else {
-                nameToDAOData[tDAOName].toRepool = 0;
+                nameToDAOData[DAO_NAME].toRepool = 0;
             }
         }
 
-        delete nameToDAOData[tDAOName].prepaidMembers[_member];
+        delete nameToDAOData[DAO_NAME].prepaidMembers[_member];
 
         isMemberKYCed[_member] = false;
 
-        usdc.safeTransfer(_member, amountToRefund);
+        if (isMemberCouponRedeemer[_member]) {
+            // Reset the coupon redeemer status, this way the member can redeem again
+            isMemberCouponRedeemer[_member] = false;
+            // We transfer the coupon amount to the coupon pool
+            usdc.safeTransfer(couponPool, amountToRefund);
+        } else {
+            // We transfer the amount to the member
+            usdc.safeTransfer(_member, amountToRefund);
+        }
 
         emit OnRefund(_member, amountToRefund);
     }
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) ||
+                msg.sender == ccipReceiverContract,
             PrejoinModule__NotAuthorizedCaller()
         );
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
-
-    /// @dev this function can be removed when the contract is deployed
-    function setDAOName(string calldata newDAOName) external onlyRole(OPERATOR) {
-        tDAOName = newDAOName;
-    }
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
 }

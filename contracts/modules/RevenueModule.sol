@@ -15,10 +15,10 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 
 import {Reserve, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
-import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
 
@@ -32,12 +32,17 @@ contract RevenueModule is
 
     ITakasureReserve private takasureReserve;
 
-    Reserve private reserve;
     ModuleState private moduleState;
 
     error RevenueModule__WrongRevenueType();
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(address _takasureReserveAddress) external initializer {
+        AddressAndStates._notZeroAddress(_takasureReserveAddress);
         __UUPSUpgradeable_init();
         __AccessControl_init();
 
@@ -47,7 +52,7 @@ contract RevenueModule is
         address moduleManager = takasureReserve.moduleManager();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
         _grantRole(ModuleConstants.DAO_MULTISIG, daoMultisig);
         _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
     }
@@ -71,9 +76,10 @@ contract RevenueModule is
         uint256 newRevenue,
         RevenueType revenueType
     ) external onlyRole(ModuleConstants.DAO_MULTISIG) {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
-        Reserve memory reserveValues = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
 
         reserve.totalFundRevenues += newRevenue;
         _updateCashMappings(newRevenue);
@@ -81,9 +87,13 @@ contract RevenueModule is
 
         address contributionToken = reserve.contributionToken;
 
-        IERC20(contributionToken).safeTransferFrom(msg.sender, address(this), newRevenue);
+        IERC20(contributionToken).safeTransferFrom(
+            msg.sender,
+            address(takasureReserve),
+            newRevenue
+        );
 
-        takasureReserve.setReserveValuesFromModule(reserveValues);
+        takasureReserve.setReserveValuesFromModule(reserve);
 
         emit TakasureEvents.OnExternalRevenue(newRevenue, reserve.totalFundReserve, revenueType);
     }
@@ -186,5 +196,5 @@ contract RevenueModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
 }
