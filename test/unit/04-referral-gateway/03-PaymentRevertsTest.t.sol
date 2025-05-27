@@ -165,10 +165,67 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         assertEq(totalCollectedFees, 0);
     }
 
-    function testMustRevertIfPayTwice() public {
+    // ======== preJoinEnabled = true, referralDiscount = true ========//
+    function testMustRevertIfTryToJoinTwiceCase1() public {
         vm.startPrank(couponRedeemer);
+        // Child pays the contribution for the first time
         referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, false);
 
+        // If try to pay again, it must revert
+        vm.expectRevert(ReferralGateway.ReferralGateway__AlreadyMember.selector);
+        referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, false);
+
+        vm.stopPrank();
+    }
+
+    // ======== preJoinEnabled = true, referralDiscount = false ========//
+    function testMustRevertIfTryToJoinTwiceCase2() public {
+        // We disable the referral discount
+        vm.prank(takadao);
+        referralGateway.switchReferralDiscount();
+
+        vm.startPrank(couponRedeemer);
+        // Child pays the contribution for the first time
+        referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, false);
+
+        // If try to pay again, it must revert
+        vm.expectRevert(ReferralGateway.ReferralGateway__AlreadyMember.selector);
+        referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, false);
+
+        vm.stopPrank();
+    }
+
+    // ======== preJoinEnabled = false, referralDiscount = true ========//
+    function testMustRevertIfTryToJoinTwiceCase3() public {
+        // We disable the prejoin discount
+        vm.prank(takadao);
+        referralGateway.setPrejoinDiscount(false);
+
+        vm.startPrank(couponRedeemer);
+        // Child pays the contribution for the first time
+        referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, false);
+
+        // If try to pay again, it must revert
+        vm.expectRevert(ReferralGateway.ReferralGateway__AlreadyMember.selector);
+        referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, false);
+
+        vm.stopPrank();
+    }
+
+    // ======== preJoinEnabled = false, referralDiscount = false ========//
+    function testMustRevertIfTryToJoinTwiceCase4() public {
+        // We disable the prejoin discount and referral discount
+        vm.startPrank(takadao);
+        referralGateway.setPrejoinDiscount(false);
+
+        referralGateway.switchReferralDiscount();
+        vm.stopPrank();
+
+        vm.startPrank(couponRedeemer);
+        // Child pays the contribution for the first time
+        referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, false);
+
+        // If try to pay again, it must revert
         vm.expectRevert(ReferralGateway.ReferralGateway__AlreadyMember.selector);
         referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, false);
 
