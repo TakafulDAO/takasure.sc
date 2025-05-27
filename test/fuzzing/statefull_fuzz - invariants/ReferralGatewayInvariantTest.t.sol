@@ -25,6 +25,8 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     address daoAdmin;
     address operator;
     address public user = makeAddr("user");
+    address public couponRedeemer = makeAddr("couponRedeemer");
+    address couponPool = makeAddr("couponPool");
     uint256 operatorInitialBalance;
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     string constant DAO_NAME = "The LifeDAO";
@@ -46,6 +48,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         ) = deployer.run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        operator = config.takadaoOperator;
         daoAdmin = config.daoMultisig;
 
         // Assign implementations
@@ -60,17 +63,25 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(referralGatewayAddress);
 
-        vm.prank(daoAdmin);
+        deal(address(usdc), couponPool, 1000e6);
+
+        vm.prank(couponPool);
+        usdc.approve(address(referralGateway), type(uint256).max);
+
+        vm.startPrank(operator);
+        referralGateway.setCouponPoolAddress(couponPool);
+        referralGateway.setDaoName(DAO_NAME);
         referralGateway.createDAO(
-            DAO_NAME,
             true,
             true,
             block.timestamp + 31_536_000,
             0,
             address(bmConsumerMock)
         );
+        referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
+        vm.stopPrank();
 
-        handler = new ReferralGatewayHandler(referralGateway);
+        handler = new ReferralGatewayHandler(referralGateway, couponRedeemer);
 
         uint256 operatorAddressSlot = 2;
         bytes32 operatorAddressSlotBytes = vm.load(
@@ -82,7 +93,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         operatorInitialBalance = usdc.balanceOf(operator);
 
         bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = ReferralGatewayHandler.payContribution.selector;
+        selectors[0] = ReferralGatewayHandler.payContributionOnBehalfOf.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
     }
@@ -105,7 +116,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
             ,
             uint256 toRepool,
             uint256 referralReserve
-        ) = referralGateway.getDAOData(DAO_NAME);
+        ) = referralGateway.getDAOData();
         uint256 contractBalance = usdc.balanceOf(address(referralGateway));
         assertEq(contractBalance, currentAmount + toRepool + referralReserve);
     }
@@ -115,7 +126,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     /// forge-config: default.invariant.depth = 2
     /// forge-config: default.invariant.fail-on-revert = true
     function invariant_gettersShouldNotRevert() public view {
-        referralGateway.getDAOData(DAO_NAME);
+        referralGateway.getDAOData();
         referralGateway.usdc();
     }
 }
