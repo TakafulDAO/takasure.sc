@@ -13,4 +13,5 @@ library ModuleErrors {
     error Module__WrongModuleState();
     error Module__TooEarlyToCancel();
     error Module__TooEarlyToDefault();
+    error Module__NotAuthorizedCaller();
 }

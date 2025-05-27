@@ -53,8 +53,7 @@ contract TakasureReserve is
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
     error TakasureReserve__OnlyDaoOrTakadao();
-    error TakasureReserve__WrongServiceFee();
-    error TakasureReserve__WrongFundMarketExpendsShare();
+    error TakasureReserve__WrongValue();
     error TakasureReserve__UnallowedAccess();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -176,7 +175,7 @@ contract TakasureReserve is
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(OPERATOR) {
-        require(newServiceFee <= 35, TakasureReserve__WrongServiceFee());
+        require(newServiceFee <= 35, TakasureReserve__WrongValue());
         reserve.serviceFee = newServiceFee;
 
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
@@ -185,7 +184,7 @@ contract TakasureReserve is
     function setNewFundMarketExpendsShare(
         uint8 newFundMarketExpendsAddShare
     ) external onlyRole(DAO_MULTISIG) {
-        require(newFundMarketExpendsAddShare <= 35, TakasureReserve__WrongFundMarketExpendsShare());
+        require(newFundMarketExpendsAddShare <= 35, TakasureReserve__WrongValue());
 
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
         reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
@@ -212,6 +211,13 @@ contract TakasureReserve is
         reserve.maximumThreshold = newMaximumThreshold;
 
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
+    }
+
+    function setRiskMultiplier(uint8 newRiskMultiplier) external onlyRole(DAO_MULTISIG) {
+        require(newRiskMultiplier <= 100, TakasureReserve__WrongValue());
+        reserve.riskMultiplier = newRiskMultiplier;
+
+        emit TakasureEvents.OnNewRiskMultiplier(newRiskMultiplier);
     }
 
     function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(OPERATOR) {
@@ -402,7 +408,6 @@ contract TakasureReserve is
         returns (uint256 totalECRes_, uint256 totalUCRes_)
     {
         Reserve memory currentReserve = reserve;
-        uint256 newECRes;
         // We check for every member except the recently added
         for (uint256 i = 1; i <= currentReserve.memberIdCounter - 1; ++i) {
             address memberWallet = idToMemberWallet[i];
@@ -411,15 +416,13 @@ contract TakasureReserve is
                 (uint256 memberEcr, uint256 memberUcr) = ReserveMathAlgorithms
                     ._calculateEcrAndUcrByMember(memberToCheck);
 
-                newECRes += memberEcr;
+                totalECRes_ += memberEcr;
                 totalUCRes_ += memberUcr;
             }
         }
 
-        reserve.ECRes = newECRes;
+        reserve.ECRes = totalECRes_;
         reserve.UCRes = totalUCRes_;
-
-        totalECRes_ = reserve.ECRes;
     }
 
     /**

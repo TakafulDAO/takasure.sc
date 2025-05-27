@@ -63,6 +63,7 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         address user,
         bool isPrejoiner
     );
+    event OnTokenRemoved(address token);
     event OnPrejoinEnabled(bool isPrejoinEnabled);
 
     error TLDCcipSender__ZeroTransferNotAllowed();
@@ -99,7 +100,15 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         uint64 _chainSelector,
         address _owner,
         address _backendProvider
-    ) external initializer {
+    )
+        external
+        initializer
+        notZeroAddress(_router)
+        notZeroAddress(_link)
+        notZeroAddress(_receiverContract)
+        notZeroAddress(_owner)
+        notZeroAddress(_backendProvider)
+    {
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __Ownable_init(_owner);
@@ -126,6 +135,18 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
         isSupportedToken[token] = true;
 
         emit OnNewSupportedToken(token);
+    }
+
+    /**
+     * @notice Remove a token from the list of supported tokens.
+     * @param token The address of the token to be removed.
+     */
+    function removeSupportedToken(address token) external onlyOwner notZeroAddress(token) {
+        require(isSupportedToken[token], TLDCcipSender__NotSupportedToken());
+
+        isSupportedToken[token] = false;
+
+        emit OnTokenRemoved(token);
     }
 
     /**
@@ -188,7 +209,10 @@ contract TLDCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeabl
             contribution >= MINIMUM_CONTRIBUTION && contribution <= MAXIMUM_CONTRIBUTION,
             TLDCcipSender__ContributionOutOfRange()
         );
-        require(amountToTransfer <= contribution, TLDCcipSender__WrongTransferAmount());
+        require(
+            amountToTransfer == contribution - couponAmount,
+            TLDCcipSender__WrongTransferAmount()
+        );
 
         if (couponAmount > 0)
             require(msg.sender == backendProvider, TLDCcipSender__NotAuthorized());

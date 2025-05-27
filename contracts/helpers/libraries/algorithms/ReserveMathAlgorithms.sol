@@ -174,8 +174,11 @@ library ReserveMathAlgorithms {
         uint256 currentTotalFundCost,
         uint256 currentTotalFundRevenues
     ) internal pure returns (uint256 newLossRatio_) {
-        uint256 decimalCorrection = 1e6;
+        uint256 decimalCorrection = 1e2;
         newLossRatio_ = (currentTotalFundCost * decimalCorrection) / currentTotalFundRevenues;
+        if (newLossRatio_ > 100) {
+            newLossRatio_ = 100;
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -195,7 +198,6 @@ library ReserveMathAlgorithms {
         uint256 currentTimestamp = block.timestamp;
         uint256 claimReserveAdd = member.claimAddAmount;
         uint256 year = 365;
-        uint256 decimalCorrection = 1e3;
         uint256 ecr;
 
         // Time passed since the membership started
@@ -208,9 +210,7 @@ library ReserveMathAlgorithms {
             // Thihs means the user is in the grace period and waiting for payment, we skip it
             return (0, 0);
         } else {
-            ecr =
-                ((((year - membershipTerm) * decimalCorrection) / year) * (claimReserveAdd)) /
-                decimalCorrection;
+            ecr = (claimReserveAdd * (year - membershipTerm)) / year;
 
             member.lastEcr = ecr;
             member.lastUcr = claimReserveAdd - member.lastEcr;

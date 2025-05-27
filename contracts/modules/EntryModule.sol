@@ -21,6 +21,7 @@ import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -58,9 +59,6 @@ contract EntryModule is
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => bool) private isMemberCouponRedeemer; 
 
-
-    bytes32 private constant ROUTER = keccak256("ROUTER");
-
     error EntryModule__NoContribution();
     error EntryModule__ContributionOutOfRange();
     error EntryModule__AlreadyJoined();
@@ -68,7 +66,6 @@ contract EntryModule is
     error EntryModule__MemberAlreadyKYCed();
     error EntryModule__NothingToRefund();
     error EntryModule__TooEarlytoRefund();
-    error EntryModule__NotAuthorizedCaller();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -142,7 +139,7 @@ contract EntryModule is
         uint256 membershipDuration
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        require(msg.sender == prejoinModule || hasRole(ROUTER, msg.sender) || msg.sender == memberWallet, EntryModule__NotAuthorizedCaller());
+        require(msg.sender == prejoinModule || hasRole(ModuleConstants.ROUTER, msg.sender) || msg.sender == memberWallet, ModuleErrors.Module__NotAuthorizedCaller());
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
@@ -374,6 +371,12 @@ contract EntryModule is
         uint256 _couponAmount
     ) internal {
         require(
+
+            _newMember.memberState == MemberState.Inactive || _newMember.memberState == MemberState.Canceled,
+            ModuleErrors.Module__WrongMemberState()
+        );
+        require(
+
             _contributionBeforeFee >= _reserve.minimumThreshold &&
                 _contributionBeforeFee <= _reserve.maximumThreshold,
             EntryModule__ContributionOutOfRange()
@@ -521,7 +524,7 @@ contract EntryModule is
             takasureReserve,
             _memberWallet
         );
-        require(_memberWallet == msg.sender || hasRole(ROUTER, msg.sender) || hasRole(ModuleConstants.OPERATOR, msg.sender), EntryModule__NotAuthorizedCaller());
+        require(_memberWallet == msg.sender || hasRole(ModuleConstants.ROUTER, msg.sender) || hasRole(ModuleConstants.OPERATOR, msg.sender), ModuleErrors.Module__NotAuthorizedCaller());
 
         // The member should not be KYCed neither already refunded
         require(!_member.isKYCVerified, EntryModule__MemberAlreadyKYCed());
@@ -669,24 +672,6 @@ contract EntryModule is
         return _member;
     }
 
-    function _memberPaymentFlow(
-        uint256 _contributionBeforeFee,
-        uint256 _contributionAfterFee,
-        address _memberWallet,
-        Reserve memory _reserve,
-        ITakasureReserve _takasureReserve
-    ) internal override returns (Reserve memory, uint256) {
-        _getBenefitMultiplierFromOracle(_memberWallet);
-        return
-            super._memberPaymentFlow(
-                _contributionBeforeFee,
-                _contributionAfterFee,
-                _memberWallet,
-                _reserve,
-                _takasureReserve
-            );
-    }
-
     function _transferContribution(
         IERC20 _contributionToken,
         address,
@@ -771,7 +756,7 @@ contract EntryModule is
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
             hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
-            EntryModule__NotAuthorizedCaller()
+            ModuleErrors.Module__NotAuthorizedCaller()
         );
     }
 

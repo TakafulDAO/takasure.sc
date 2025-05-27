@@ -58,7 +58,6 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     event OnTokensRecovered(address indexed user, uint256 amount);
 
     error TLDCcipReceiver__NotZeroAddress();
-    error TLDCcipReceiver__InvalidUsdcToken();
     error TLDCcipReceiver__NotAllowedSource();
     error TLDCcipReceiver__OnlySelf();
     error TLDCcipReceiver__CallFailed();
@@ -92,7 +91,10 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         address _usdc,
         address _protocolGateway
     ) CCIPReceiver(_router) Ownable(msg.sender) {
-        require(_usdc != address(0), TLDCcipReceiver__InvalidUsdcToken());
+        require(
+            _router != address(0) && _usdc != address(0) && _protocolGateway != address(0),
+            TLDCcipReceiver__NotZeroAddress()
+        );
         usdc = IERC20(_usdc);
         protocolGateway = _protocolGateway;
     }

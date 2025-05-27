@@ -32,7 +32,6 @@ contract RevenueModule is
 
     ITakasureReserve private takasureReserve;
 
-    Reserve private reserve;
     ModuleState private moduleState;
 
     error RevenueModule__WrongRevenueType();
@@ -43,6 +42,7 @@ contract RevenueModule is
     }
 
     function initialize(address _takasureReserveAddress) external initializer {
+        AddressAndStates._notZeroAddress(_takasureReserveAddress);
         __UUPSUpgradeable_init();
         __AccessControl_init();
 
@@ -79,7 +79,7 @@ contract RevenueModule is
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
-        Reserve memory reserveValues = takasureReserve.getReserveValues();
+        Reserve memory reserve = takasureReserve.getReserveValues();
 
         reserve.totalFundRevenues += newRevenue;
         _updateCashMappings(newRevenue);
@@ -87,9 +87,13 @@ contract RevenueModule is
 
         address contributionToken = reserve.contributionToken;
 
-        IERC20(contributionToken).safeTransferFrom(msg.sender, address(this), newRevenue);
+        IERC20(contributionToken).safeTransferFrom(
+            msg.sender,
+            address(takasureReserve),
+            newRevenue
+        );
 
-        takasureReserve.setReserveValuesFromModule(reserveValues);
+        takasureReserve.setReserveValuesFromModule(reserve);
 
         emit TakasureEvents.OnExternalRevenue(newRevenue, reserve.totalFundReserve, revenueType);
     }
