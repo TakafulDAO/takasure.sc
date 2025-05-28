@@ -643,8 +643,8 @@ contract EntryModule is
             fee = _member.totalServiceFee;
         } else {
             // Otherwise it is a refunded member that is rejoining the pool
-            claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) / 100;
-            contribution = normalizedContributionBeforeFee;
+            claimAddAmount = ((_member.contribution - feeAmount) * (100 - _drr)) / 100;
+            contribution = _member.contribution;
             fee = feeAmount;
         }
 
@@ -662,7 +662,7 @@ contract EntryModule is
             _member.memberId,
             _memberWallet,
             _benefitMultiplier,
-            normalizedContributionBeforeFee,
+            _member.contribution,
             feeAmount,
             userMembershipDuration,
             block.timestamp
