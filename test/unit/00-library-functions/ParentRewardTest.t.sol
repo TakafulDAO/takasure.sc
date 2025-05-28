@@ -26,7 +26,7 @@ contract ParentRewardTest is Test {
         assertEq(b, 0);
     }
 
-    function testReferralRewardRatioByLayer() public {
+    function testReferralRewardRatioByLayer() public view {
         uint256 layer1 = parentRewardsHarness.exposed__referralRewardRatioByLayer(1);
         uint256 layer2 = parentRewardsHarness.exposed__referralRewardRatioByLayer(2);
         uint256 layer3 = parentRewardsHarness.exposed__referralRewardRatioByLayer(3);
