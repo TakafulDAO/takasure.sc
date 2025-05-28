@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {ModuleManager} from "contracts/modules/manager/ModuleManager.sol";
-import {PrejoinModule} from "contracts/modules/PrejoinModule.sol";
+import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
@@ -39,7 +39,7 @@ contract TestDeployProtocol is Script {
             address tsToken,
             BenefitMultiplierConsumerMock,
             address takasureReserve,
-            address prejoinModuleAddress,
+            address referralGatewayAddress,
             address entryModuleAddress,
             address memberModuleAddress,
             address revenueModuleAddress,
@@ -86,7 +86,7 @@ contract TestDeployProtocol is Script {
         );
 
         (
-            prejoinModuleAddress,
+            referralGatewayAddress,
             entryModuleAddress,
             memberModuleAddress,
             revenueModuleAddress
@@ -97,7 +97,8 @@ contract TestDeployProtocol is Script {
             config.contributionToken,
             address(bmConsumerMock),
             makeAddr("ccipReceiverContract"),
-            makeAddr("couponPool")
+            makeAddr("couponPool"),
+            config.pauseGuardian
         );
 
         // Deploy router
@@ -130,19 +131,16 @@ contract TestDeployProtocol is Script {
             .contributionToken;
 
         vm.startPrank(config.takadaoOperator);
-        PrejoinModule(prejoinModuleAddress).grantRole(MODULE_MANAGER, address(moduleManager));
+        // ReferralGateway(referralGatewayAddress).grantRole(MODULE_MANAGER, address(moduleManager));
         EntryModule(entryModuleAddress).grantRole(ROUTER, routerAddress);
         MemberModule(memberModuleAddress).grantRole(ROUTER, routerAddress);
         vm.stopPrank();
-
-        vm.prank(moduleManager.owner());
-        moduleManager.addModule(prejoinModuleAddress);
 
         return (
             tsToken,
             bmConsumerMock,
             takasureReserve,
-            prejoinModuleAddress,
+            referralGatewayAddress,
             entryModuleAddress,
             memberModuleAddress,
             revenueModuleAddress,
@@ -167,7 +165,7 @@ contract TestDeployProtocol is Script {
         );
     }
 
-    address prejoinModuleImplementation;
+    address referralGatewayImplementation;
     address entryModuleImplementation;
     address memberModuleImplementation;
     address revenueModuleImplementation;
@@ -179,24 +177,31 @@ contract TestDeployProtocol is Script {
         address _contributionToken,
         address _bmConsumerMock,
         address _ccipReceiver,
-        address _couponPool
+        address _couponPool,
+        address _pauseGuardian
     )
         internal
         returns (
-            address prejoinModuleAddress_,
+            address referralGatewayAddress_,
             address entryModuleAddress_,
             address memberModuleAddress_,
             address revenueModuleAddress_
         )
     {
-        // Deploy PrejoinModule
-        prejoinModuleImplementation = address(new PrejoinModule());
+        // Deploy ReferralGateway
+        referralGatewayImplementation = address(new ReferralGateway());
 
-        prejoinModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
-            prejoinModuleImplementation,
+        referralGatewayAddress_ = UnsafeUpgrades.deployUUPSProxy(
+            referralGatewayImplementation,
             abi.encodeCall(
-                PrejoinModule.initialize,
-                (_takadaoOperator, _kycProvider, _contributionToken, _bmConsumerMock)
+                ReferralGateway.initialize,
+                (
+                    _takadaoOperator,
+                    _kycProvider,
+                    _pauseGuardian,
+                    _contributionToken,
+                    _bmConsumerMock
+                )
             )
         );
 
@@ -206,7 +211,7 @@ contract TestDeployProtocol is Script {
             entryModuleImplementation,
             abi.encodeCall(
                 EntryModule.initialize,
-                (_takasureReserve, prejoinModuleAddress_, _ccipReceiver, _couponPool)
+                (_takasureReserve, referralGatewayAddress_, _ccipReceiver, _couponPool)
             )
         );
 
