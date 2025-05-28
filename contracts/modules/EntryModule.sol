@@ -256,7 +256,7 @@ contract EntryModule is
 
         (reserve, mintedTokens) = _memberPaymentFlow({
             _contributionBeforeFee: newMember.contribution,
-            _contributionAfterFee: contributionAfterFee,
+            _contributionAfterFee: newMember.contribution - ((newMember.contribution * reserve.serviceFee) / 100),
             _memberWallet: memberWallet,
             _reserve: reserve,
             _takasureReserve: takasureReserve
