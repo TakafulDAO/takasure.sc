@@ -58,7 +58,6 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     event OnTokensRecovered(address indexed user, uint256 amount);
 
     error TLDCcipReceiver__NotZeroAddress();
-    error TLDCcipReceiver__InvalidUsdcToken();
     error TLDCcipReceiver__NotAllowedSource();
     error TLDCcipReceiver__OnlySelf();
     error TLDCcipReceiver__CallFailed();
@@ -92,10 +91,12 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
         address _usdc,
         address _protocolGateway
     ) CCIPReceiver(_router) Ownable(msg.sender) {
-        require(_usdc != address(0), TLDCcipReceiver__InvalidUsdcToken());
+        require(
+            _router != address(0) && _usdc != address(0) && _protocolGateway != address(0),
+            TLDCcipReceiver__NotZeroAddress()
+        );
         usdc = IERC20(_usdc);
         protocolGateway = _protocolGateway;
-        usdc.approve(_protocolGateway, type(uint256).max);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -120,13 +121,8 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     function setProtocolGateway(address _protocolGateway) external onlyOwner {
         require(_protocolGateway != address(0), TLDCcipReceiver__NotZeroAddress());
 
-        // Get the old protocol gateway address and set the approval to 0
         address oldProtocolGateway = protocolGateway;
-        usdc.approve(oldProtocolGateway, 0);
-
-        // Set the new protocol gateway address and approve the maximum amount
         protocolGateway = _protocolGateway;
-        usdc.approve(_protocolGateway, type(uint256).max);
 
         emit OnProtocolGatewayChanged(oldProtocolGateway, _protocolGateway);
     }
@@ -195,6 +191,9 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
         failedMessages.set(messageId, uint256(StatusCode.RESOLVED));
 
+        // Approve the protocol gateway to spend the USDC tokens
+        usdc.approve(protocolGateway, message.destTokenAmounts[0].amount);
+
         // Low level call to the referral gateway
         (bool success, ) = protocolGateway.call(message.data);
         require(success, TLDCcipReceiver__CallFailed());
@@ -245,6 +244,9 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
+        // Approve the protocol gateway to spend the USDC tokens
+        usdc.approve(protocolGateway, any2EvmMessage.destTokenAmounts[0].amount);
+
         // Low level call to the referral gateway
         (bool success, bytes memory returnData) = protocolGateway.call(any2EvmMessage.data);
         if (success) {
@@ -263,7 +265,7 @@ contract TLDCcipReceiver is CCIPReceiver, Ownable2Step {
 
     function _getNewMemberAddress(bytes memory _data) internal pure returns (address _newMember) {
         // The data is structured to be able to call the function payContributionOnBehalfOf
-        // payContributionOnBehalfOf(uint256 contribution, string calldata tDAOName, address parent, address newMember, uint256 couponAmount)
+        // payContributionOnBehalfOf(uint256 contribution, address parent, address newMember, uint256 couponAmount)
 
         assembly {
             let _dataOffset := add(_data, 0x20) // Skip the first 32 bytes word from the data, this will point to the real place where the data starts

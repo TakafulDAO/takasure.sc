@@ -15,6 +15,7 @@ import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployProtocol deployer;
@@ -111,7 +112,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.roll(block.number + 1);
 
         vm.prank(bob);
-        vm.expectRevert(EntryModule.EntryModule__NotAuthorizedCaller.selector);
+        vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
         entryModule.refund(alice);
 
         vm.startPrank(alice);

@@ -38,6 +38,7 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         string memory tokenName,
         string memory tokenSymbol
     ) ERC20(tokenName, tokenSymbol) {
+        require(admin != address(0) && temporaryAdmin != address(0), Token__NotZeroAddress());
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _setRoleAdmin(MINTER_ROLE, MINTER_ADMIN_ROLE);
         _setRoleAdmin(BURNER_ROLE, BURNER_ADMIN_ROLE);
