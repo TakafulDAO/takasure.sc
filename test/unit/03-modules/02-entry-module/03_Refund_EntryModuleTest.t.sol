@@ -36,9 +36,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
-    address public parent = makeAddr("parent");
-    uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
-    uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USD
+    uint256 public constant CONTRIBUTION_AMOUNT = 250e6; // 250 USD
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
@@ -80,30 +78,30 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         entryModule.updateBmAddress();
 
         // For easier testing there is a minimal USDC mock contract without restrictions
-        deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
-        deal(address(usdc), bob, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), alice, CONTRIBUTION_AMOUNT);
+        deal(address(usdc), bob, CONTRIBUTION_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
-        usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(entryModule), CONTRIBUTION_AMOUNT);
+        usdc.approve(address(memberModule), CONTRIBUTION_AMOUNT);
 
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(bob);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
-        usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(entryModule), CONTRIBUTION_AMOUNT);
+        usdc.approve(address(memberModule), CONTRIBUTION_AMOUNT);
         vm.stopPrank();
     }
 
     function testentryModule_refundContribution() public {
-        Reserve memory reserve = takasureReserve.getReserveValues();
-        uint8 serviceFee = reserve.serviceFee;
-        uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
+        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
 
-        Member memory testMemberAfterKyc = takasureReserve.getMemberFromAddress(alice);
+        // contribution - discount - 27% fee
+        // 250 - 0 - (250 * 27 / 100) = 250 - 0 - 67.5 = 182.5
+        uint256 expectedRefundAmount = 1825e5;
 
         uint256 contractBalanceBeforeRefund = usdc.balanceOf(address(entryModule));
         uint256 aliceBalanceBeforeRefund = usdc.balanceOf(alice);
@@ -116,11 +114,10 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
         entryModule.refund(alice);
 
-        vm.startPrank(alice);
+        vm.prank(alice);
         vm.expectEmit(true, true, false, false, address(entryModule));
-        emit TakasureEvents.OnRefund(testMemberAfterKyc.memberId, alice, expectedRefundAmount);
+        emit TakasureEvents.OnRefund(Alice.memberId, alice, expectedRefundAmount);
         entryModule.refund();
-        vm.stopPrank();
 
         uint256 contractBalanceAfterRefund = usdc.balanceOf(address(entryModule));
         uint256 aliceBalanceAfterRefund = usdc.balanceOf(alice);
@@ -133,8 +130,10 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.expectRevert(EntryModule.EntryModule__NoContribution.selector);
         entryModule.approveKYC(alice);
 
-        vm.prank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.startPrank(alice);
+        usdc.approve(address(entryModule), expectedRefundAmount);
+        userRouter.joinPool(address(0), expectedRefundAmount, 5 * YEAR);
+        vm.stopPrank();
 
         vm.prank(kycService);
         entryModule.approveKYC(alice);
@@ -149,18 +148,17 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.startPrank(alice);
+        vm.prank(alice);
         entryModule.refund();
-        vm.stopPrank();
 
         Member memory aliceAfterRefund = takasureReserve.getMemberFromAddress(alice);
 
-        vm.startPrank(bob);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.stopPrank();
+        vm.prank(bob);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         vm.startPrank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        usdc.approve(address(entryModule), 100e6);
+        userRouter.joinPool(address(0), 100e6, 5 * YEAR);
         vm.stopPrank();
 
         Member memory aliceAfterSecondJoin = takasureReserve.getMemberFromAddress(alice);
