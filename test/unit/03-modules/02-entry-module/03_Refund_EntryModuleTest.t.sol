@@ -15,6 +15,7 @@ import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployProtocol deployer;
@@ -35,7 +36,6 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
-    address public parent = makeAddr("parent");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USD
     uint256 public constant YEAR = 365 days;
@@ -86,7 +86,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
 
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         _successResponse(address(bmConsumerMock));
@@ -112,7 +112,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.roll(block.number + 1);
 
         vm.prank(bob);
-        vm.expectRevert(EntryModule.EntryModule__NotAuthorizedCaller.selector);
+        vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
         entryModule.refund(alice);
 
         vm.startPrank(alice);
@@ -133,7 +133,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         entryModule.approveKYC(alice);
 
         vm.prank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         vm.prank(kycService);
         entryModule.approveKYC(alice);
@@ -155,11 +155,11 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         Member memory aliceAfterRefund = takasureReserve.getMemberFromAddress(alice);
 
         vm.startPrank(bob);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         Member memory aliceAfterSecondJoin = takasureReserve.getMemberFromAddress(alice);
