@@ -150,8 +150,14 @@ contract SubscriptionModule is
             memberWallet
         );
 
-        if (!newMember.isRefunded)
+        if (!newMember.isRefunded){
+            require(
+                newMember.memberId != 0 && newMember.wallet == memberWallet,
+                ModuleErrors.Module__WrongMemberState()
+            );
+        } else {
             require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
+        }
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
@@ -200,7 +206,14 @@ contract SubscriptionModule is
             memberWallet
         );
 
-        if (!newMember.isRefunded) require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
+         if (!newMember.isRefunded){
+            require(
+                newMember.memberId != 0 && newMember.wallet == memberWallet,
+                ModuleErrors.Module__WrongMemberState()
+            );
+        } else {
+            require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
+        } 
         
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
@@ -307,42 +320,36 @@ contract SubscriptionModule is
             SubscriptionModule__ContributionOutOfRange()
         );
 
-        if (!_newMember.isRefunded) {
+        uint256 memberId;
+
+        if (!_newMember.isRefunded){
             // Flow 1: Join -> KYC
-            // If is not refunded, it is a completele new member, we create it
-            _newMember = _createNewMember({
-                _newMemberId: ++_reserve.memberIdCounter,
-                _allowCustomDuration: _reserve.allowCustomDuration,
-                _drr: _reserve.dynamicReserveRatio,
-                _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
-                _membershipDuration: _membershipDuration, // From the input
-                _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
-                _memberWallet: _memberWallet, // The member wallet
-                _parentWallet: _parentWallet, // The parent wallet
-                _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
-            });
-            (_reserve) = _calculateReferralRewards(
-                _reserve,
-                _couponAmount,
-                _memberWallet,
-                _parentWallet
-            );
-            _newMember.discount = discount;
+            memberId = ++_reserve.memberIdCounter;
         } else {
             // Flow 2: Join (with flow 1) -> Refund -> Join
-            // If is refunded, the member exist already, but was previously refunded
-            _newMember = _updateMember({
-                _drr: _reserve.dynamicReserveRatio,
-                _benefitMultiplier: _benefitMultiplier,
-                _membershipDuration: _membershipDuration, // From the input
-                _memberWallet: _memberWallet, // The member wallet
-                _memberState: MemberState.Inactive, // Set to inactive until the KYC is verified
-                _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
-                _isRefunded: false, // Reset to false as the user repays the contribution
-                _allowCustomDuration: _reserve.allowCustomDuration,
-                _member: _newMember
-            });
+            memberId = _newMember.memberId;
         }
+
+        _newMember = _createNewMember({
+            _newMemberId: memberId,
+            _allowCustomDuration: _reserve.allowCustomDuration,
+            _drr: _reserve.dynamicReserveRatio,
+            _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
+            _membershipDuration: _membershipDuration, // From the input
+            _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
+            _memberWallet: _memberWallet, // The member wallet
+            _parentWallet: _parentWallet, // The parent wallet
+            _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
+        });
+
+        (_reserve) = _calculateReferralRewards(
+            _reserve,
+            _couponAmount,
+            _memberWallet,
+            _parentWallet
+        );
+
+        _newMember.discount = discount;
 
         // The member will pay the contribution, but will remain inactive until the KYC is verified
         // This means the proformas wont be updated, the amounts wont be added to the reserves,
@@ -416,8 +423,29 @@ contract SubscriptionModule is
         uint256 serviceFeeAmount = _member.totalServiceFee;
         uint256 amountToRefund = contributionAmount - serviceFeeAmount;
 
-        // Update the member values
-        _member.isRefunded = true;
+        Member memory newMember = Member({
+            memberId: _member.memberId,
+            benefitMultiplier: 0,
+            membershipDuration: 0,
+            membershipStartTime: 0,
+            lastPaidYearStartDate: 0,
+            contribution: 0,
+            discount: 0,
+            claimAddAmount: 0,
+            totalContributions: 0,
+            totalServiceFee: 0,
+            creditTokensBalance: 0,
+            wallet: _memberWallet,
+            parent: address(0),
+            memberState: MemberState.Inactive,
+            memberSurplus: 0,
+            isKYCVerified: false,
+            isRefunded: true,
+            lastEcr: 0,
+            lastUcr: 0
+        });
+
+        _member = newMember;
 
         // Transfer the amount to refund
         if (isMemberCouponRedeemer[_memberWallet]) {
@@ -501,50 +529,6 @@ contract SubscriptionModule is
         );
 
         return newMember;
-    }
-
-    function _updateMember(
-        uint256 _drr,
-        uint256 _benefitMultiplier,
-        uint256 _membershipDuration,
-        address _memberWallet,
-        MemberState _memberState,
-        bool _isKYCVerified,
-        bool _isRefunded,
-        bool _allowCustomDuration,
-        Member memory _member
-    ) internal returns (Member memory) {
-        uint256 userMembershipDuration;
-        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) /
-            100;
-
-        if (_allowCustomDuration) {
-            userMembershipDuration = _membershipDuration;
-        } else {
-            userMembershipDuration = ModuleConstants.DEFAULT_MEMBERSHIP_DURATION;
-        }
-
-        _member.benefitMultiplier = _benefitMultiplier;
-        _member.membershipDuration = userMembershipDuration;
-        _member.membershipStartTime = block.timestamp;
-        _member.contribution = normalizedContributionBeforeFee;
-        _member.claimAddAmount = claimAddAmount;
-        _member.totalServiceFee = feeAmount;
-        _member.memberState = _memberState;
-        _member.isKYCVerified = _isKYCVerified;
-        _member.isRefunded = _isRefunded;
-
-        emit TakasureEvents.OnMemberUpdated(
-            _member.memberId,
-            _memberWallet,
-            _benefitMultiplier,
-            normalizedContributionBeforeFee,
-            feeAmount,
-            userMembershipDuration,
-            block.timestamp
-        );
-
-        return _member;
     }
 
     function _transferContribution(
