@@ -173,6 +173,44 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         assertEq(bobBalanceBeforeRefund + expectedRefundAmount, bobBalanceAfterRefund);
     }
 
+    function testentryModule_refundContributionIfThereIsParentButWithoutDiscount() public {
+        // First set referral discount to false
+        vm.prank(takadao);
+        takasureReserve.setReferralDiscountState(false);
+
+        // First we need to KYC Alice so she can act as a parent
+        vm.prank(kycService);
+        entryModule.approveKYC(alice);
+
+        vm.prank(bob);
+        userRouter.joinPool(alice, CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        Member memory Bob = takasureReserve.getMemberFromAddress(bob);
+
+        // contribution - discount - 27% fee
+        // 250 - 0 - (250 * 27 / 100) = 250 - 0 - 67.5 = 182.5
+        // The discount is 0 because the discount is off
+        uint256 expectedRefundAmount = 1825e5;
+
+        uint256 contractBalanceBeforeRefund = usdc.balanceOf(address(entryModule));
+        uint256 bobBalanceBeforeRefund = usdc.balanceOf(bob);
+
+        // 14 days passed
+        vm.warp(15 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(bob);
+        vm.expectEmit(true, true, false, false, address(entryModule));
+        emit TakasureEvents.OnRefund(Bob.memberId, bob, expectedRefundAmount);
+        entryModule.refund();
+
+        uint256 contractBalanceAfterRefund = usdc.balanceOf(address(entryModule));
+        uint256 bobBalanceAfterRefund = usdc.balanceOf(bob);
+
+        assertEq(contractBalanceBeforeRefund - expectedRefundAmount, contractBalanceAfterRefund);
+        assertEq(bobBalanceBeforeRefund + expectedRefundAmount, bobBalanceAfterRefund);
+    }
+
     function testentryModule_refundContributionIfThereIsParentAndIsCouponUser() public {
         // Set the coupon pool and the coupon redeemer
         address couponPool = makeAddr("couponPool");
