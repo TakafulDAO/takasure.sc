@@ -94,7 +94,13 @@ contract TakasureReserve is
         feeClaimAddress = _feeClaimAddress;
         pauseGuardian = _pauseGuardian;
 
-        TSToken daoToken = new TSToken(_tokenAdmin, msg.sender, _tokenName, _tokenSymbol);
+        TSToken daoToken = new TSToken(
+            _tokenAdmin,
+            msg.sender,
+            _moduleManager,
+            _tokenName,
+            _tokenSymbol
+        );
 
         cashFlowVars.monthReference = 1;
         cashFlowVars.dayReference = 1;
