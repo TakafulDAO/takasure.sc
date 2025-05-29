@@ -17,7 +17,7 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
-import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
+import {NewParentRewards} from "contracts/helpers/payments/NewParentRewards.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -29,7 +29,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
-contract EntryModule is
+contract SubscriptionModule is
     Initializable,
     UUPSUpgradeable,
     AccessControlUpgradeable,
@@ -37,7 +37,7 @@ contract EntryModule is
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
     MemberPaymentFlow,
-    ParentRewards
+    NewParentRewards
 {
     using SafeERC20 for IERC20;
 
@@ -49,20 +49,20 @@ contract EntryModule is
     uint256 private transient feeAmount;
     uint256 private transient contributionAfterFee;
     uint256 private transient discount;
-    address private prejoinModule;
+
+    address private referralGateway;
     address private couponPool;
     address private ccipReceiverContract;
 
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
-    mapping(address member => bool) private isMemberCouponRedeemer; 
+    mapping(address member => bool) private isMemberCouponRedeemer;
 
-    error EntryModule__NoContribution();
-    error EntryModule__ContributionOutOfRange();
-    error EntryModule__AlreadyJoined();
-    error EntryModule__BenefitMultiplierRequestFailed(bytes errorResponse);
-    error EntryModule__MemberAlreadyKYCed();
-    error EntryModule__NothingToRefund();
-    error EntryModule__TooEarlytoRefund();
+    error SubscriptionModule__ContributionOutOfRange();
+    error SubscriptionModule__AlreadyJoined();
+    error SubscriptionModule__BenefitMultiplierRequestFailed(bytes errorResponse);
+    error SubscriptionModule__MemberAlreadyKYCed();
+    error SubscriptionModule__NothingToRefund();
+    error SubscriptionModule__TooEarlytoRefund();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -71,7 +71,7 @@ contract EntryModule is
 
     function initialize(
         address _takasureReserveAddress,
-        address _prejoinModule,
+        address _referralGateway,
         address _ccipReceiverContract,
         address _couponPool
     ) external initializer {
@@ -81,16 +81,17 @@ contract EntryModule is
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
+
         address takadaoOperator = takasureReserve.takadaoOperator();
         address moduleManager = takasureReserve.moduleManager();
-        prejoinModule = _prejoinModule;
+
+        referralGateway = _referralGateway;
         ccipReceiverContract = _ccipReceiverContract;
         couponPool = _couponPool;
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
         _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
         _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
-        _grantRole(ModuleConstants.KYC_PROVIDER, takasureReserve.kycProvider());
     }
 
     /**
@@ -136,19 +137,34 @@ contract EntryModule is
         uint256 membershipDuration
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        require(msg.sender == prejoinModule || hasRole(ModuleConstants.ROUTER, msg.sender) || msg.sender == memberWallet, ModuleErrors.Module__NotAuthorizedCaller());
+
+        require(
+            msg.sender == referralGateway ||
+                hasRole(ModuleConstants.ROUTER, msg.sender) ||
+                msg.sender == memberWallet,
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
         );
-        if (!newMember.isRefunded) require(newMember.wallet == address(0), EntryModule__AlreadyJoined());
+
+        if (!newMember.isRefunded){
+            require(
+                newMember.memberId != 0 && newMember.wallet == memberWallet,
+                ModuleErrors.Module__WrongMemberState()
+            );
+        } else {
+            require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
+        }
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
         _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
 
-        if (msg.sender == prejoinModule) {
-            _joinFromPrejoinModule(
+        if (msg.sender == referralGateway) {
+            _joinFromReferralGateway(
                 reserve,
                 newMember,
                 memberWallet,
@@ -182,14 +198,23 @@ contract EntryModule is
         uint256 couponAmount
     ) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+
         _onlyCouponRedeemerOrCcipReceiver();
 
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
         );
-        if (!newMember.isRefunded) require(newMember.wallet == address(0), EntryModule__AlreadyJoined());
 
+         if (!newMember.isRefunded){
+            require(
+                newMember.memberId != 0 && newMember.wallet == memberWallet,
+                ModuleErrors.Module__WrongMemberState()
+            );
+        } else {
+            require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
+        } 
+        
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
         _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
@@ -203,96 +228,12 @@ contract EntryModule is
             membershipDuration,
             benefitMultiplier,
             couponAmount
-        );  
+        );
 
         if (couponAmount > 0) {
             isMemberCouponRedeemer[memberWallet] = true;
             emit TakasureEvents.OnCouponRedeemed(memberWallet, couponAmount);
         }
-    }
-
-    /**
-     * @notice Approves the KYC for a member.
-     * @param memberWallet address of the member
-     * @dev It reverts if the member is the zero address
-     * @dev It reverts if the member is already KYCed
-     */
-    function approveKYC(address memberWallet) external onlyRole(ModuleConstants.KYC_PROVIDER) {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        AddressAndStates._notZeroAddress(memberWallet);
-        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
-            takasureReserve,
-            memberWallet
-        );
-
-        require(!newMember.isKYCVerified, EntryModule__MemberAlreadyKYCed());
-        require(newMember.contribution > 0 && !newMember.isRefunded , EntryModule__NoContribution());
-
-        // This means the user exists and payed contribution but is not KYCed yet, we update the values
-        _calculateAmountAndFees(newMember.contribution, reserve.serviceFee);
-
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
-
-        newMember = _updateMember({
-            _drr: reserve.dynamicReserveRatio, // We take the current value
-            _benefitMultiplier: benefitMultiplier, // We take the current value
-            _membershipDuration: newMember.membershipDuration, // We take the current value
-            _memberWallet: memberWallet, // The member wallet
-            _memberState: MemberState.Active, // Active state as the user is already paid the contribution and KYCed
-            _isKYCVerified: true, // Set to true with this call
-            _isRefunded: false, // Remains false as the user is not refunded
-            _allowCustomDuration: reserve.allowCustomDuration,
-            _member: newMember
-        });
-
-        // Then the everyting needed will be updated, proformas, reserves, cash flow,
-        // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
-        uint256 mintedTokens;
-
-        (reserve, mintedTokens) = _memberPaymentFlow({
-            _contributionBeforeFee: newMember.contribution,
-            _contributionAfterFee: contributionAfterFee,
-            _memberWallet: memberWallet,
-            _reserve: reserve,
-            _takasureReserve: takasureReserve
-        });
-
-        newMember.creditTokensBalance += mintedTokens;
-
-        // Reward the parents
-        address parent = childToParent[memberWallet];
-
-        for (uint256 i; i < uint256(MAX_TIER); ++i) {
-            if (parent == address(0)) break;
-
-            uint256 layer = i + 1;
-
-            uint256 parentReward = parentRewardsByChild[parent][memberWallet];
-
-            // Reset the rewards for this child
-            parentRewardsByChild[parent][memberWallet] = 0;
-
-            try IERC20(reserve.contributionToken).transfer(parent, parentReward) {
-                emit TakasureEvents.OnParentRewarded(parent, layer, memberWallet, parentReward);
-            } catch {
-            parentRewardsByChild[parent][memberWallet] = parentReward;
-            emit TakasureEvents.OnParentRewardTransferFailed(
-                parent,
-                layer,
-                memberWallet,
-                parentReward
-            );
-
-            }
-            // We update the parent address to check the next parent
-            parent = childToParent[parent];
-        }
-
-        emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
-        emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
-
-        _setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
-        takasureReserve.memberSurplus(newMember);
     }
 
     /**
@@ -317,7 +258,7 @@ contract EntryModule is
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
-    function _joinFromPrejoinModule(
+    function _joinFromReferralGateway(
         Reserve memory _reserve,
         Member memory _newMember,
         address _memberWallet,
@@ -354,6 +295,7 @@ contract EntryModule is
         emit TakasureEvents.OnMemberJoined(_newMember.memberId, _memberWallet);
 
         _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
+
         takasureReserve.memberSurplus(_newMember);
     }
 
@@ -368,63 +310,51 @@ contract EntryModule is
         uint256 _couponAmount
     ) internal {
         require(
-
-            _newMember.memberState == MemberState.Inactive || _newMember.memberState == MemberState.Canceled,
+            _newMember.memberState == MemberState.Inactive ||
+                _newMember.memberState == MemberState.Canceled,
             ModuleErrors.Module__WrongMemberState()
         );
         require(
-
             _contributionBeforeFee >= _reserve.minimumThreshold &&
                 _contributionBeforeFee <= _reserve.maximumThreshold,
-            EntryModule__ContributionOutOfRange()
+            SubscriptionModule__ContributionOutOfRange()
         );
 
-        if (!_newMember.isRefunded) {
+        uint256 memberId;
+
+        if (!_newMember.isRefunded){
             // Flow 1: Join -> KYC
-            // If is not refunded, it is a completele new member, we create it
-            _newMember = _createNewMember({
-                _newMemberId: ++_reserve.memberIdCounter,
-                _allowCustomDuration: _reserve.allowCustomDuration,
-                _drr: _reserve.dynamicReserveRatio,
-                _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
-                _membershipDuration: _membershipDuration, // From the input
-                _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
-                _memberWallet: _memberWallet, // The member wallet
-                _parentWallet: _parentWallet, // The parent wallet
-                _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
-            });
-
-            (_reserve) = _calculateReferralRewards(
-                _reserve,
-                _couponAmount,
-                _memberWallet,
-                _parentWallet
-            );
-
-            _newMember.discount = discount;
+            memberId = ++_reserve.memberIdCounter;
         } else {
             // Flow 2: Join (with flow 1) -> Refund -> Join
-            // If is refunded, the member exist already, but was previously refunded
-            _newMember = _updateMember({
-                _drr: _reserve.dynamicReserveRatio,
-                _benefitMultiplier: _benefitMultiplier,
-                _membershipDuration: _membershipDuration, // From the input
-                _memberWallet: _memberWallet, // The member wallet
-                _memberState: MemberState.Inactive, // Set to inactive until the KYC is verified
-                _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
-                _isRefunded: false, // Reset to false as the user repays the contribution
-                _allowCustomDuration: _reserve.allowCustomDuration,
-                _member: _newMember
-            });
+            memberId = _newMember.memberId;
         }
+
+        _newMember = _createNewMember({
+            _newMemberId: memberId,
+            _allowCustomDuration: _reserve.allowCustomDuration,
+            _drr: _reserve.dynamicReserveRatio,
+            _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
+            _membershipDuration: _membershipDuration, // From the input
+            _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
+            _memberWallet: _memberWallet, // The member wallet
+            _parentWallet: _parentWallet, // The parent wallet
+            _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
+        });
+
+        (_reserve) = _calculateReferralRewards(
+            _reserve,
+            _couponAmount,
+            _memberWallet,
+            _parentWallet
+        );
+
+        _newMember.discount = discount;
+
         // The member will pay the contribution, but will remain inactive until the KYC is verified
         // This means the proformas wont be updated, the amounts wont be added to the reserves,
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-        _transferContributionToModule({
-            _memberWallet: _memberWallet,
-            _couponAmount: _couponAmount
-        });
-
+        _transferContributionToModule({_memberWallet: _memberWallet, _couponAmount: _couponAmount});
         _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
     }
 
@@ -436,17 +366,13 @@ contract EntryModule is
     ) internal returns (Reserve memory) {
         // The prepaid member object is created
         uint256 realContribution = _getRealContributionAfterCoupon(_couponAmount);
-
         uint256 toReferralReserve;
 
         if (_reserve.referralDiscount) {
             toReferralReserve = (realContribution * ModuleConstants.REFERRAL_RESERVE) / 100;
-
             if (_parent != address(0)) {
                 discount = ((realContribution - _couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
-
                 childToParent[_child] = _parent;
-
                 (feeAmount, _reserve.referralReserve) = _parentRewards({
                     _initialChildToCheck: _child,
                     _contribution: realContribution,
@@ -458,7 +384,6 @@ contract EntryModule is
                 _reserve.referralReserve += toReferralReserve;
             }
         }
-
         return (_reserve);
     }
 
@@ -475,31 +400,54 @@ contract EntryModule is
      */
     function _refund(address _memberWallet) internal {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+
         (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
             takasureReserve,
             _memberWallet
         );
-        require(_memberWallet == msg.sender || hasRole(ModuleConstants.ROUTER, msg.sender) || hasRole(ModuleConstants.OPERATOR, msg.sender), ModuleErrors.Module__NotAuthorizedCaller());
 
+        require(_memberWallet == msg.sender || hasRole(ModuleConstants.ROUTER, msg.sender) || hasRole(ModuleConstants.OPERATOR, msg.sender), ModuleErrors.Module__NotAuthorizedCaller());
         // The member should not be KYCed neither already refunded
-        require(!_member.isKYCVerified, EntryModule__MemberAlreadyKYCed());
-        require(!_member.isRefunded, EntryModule__NothingToRefund());
+        require(!_member.isKYCVerified, SubscriptionModule__MemberAlreadyKYCed());
+        require(!_member.isRefunded, SubscriptionModule__NothingToRefund());
 
         uint256 currentTimestamp = block.timestamp;
         uint256 membershipStartTime = _member.membershipStartTime;
         // The member can refund after 14 days of the payment
         uint256 limitTimestamp = membershipStartTime + (14 days);
-        require(currentTimestamp >= limitTimestamp, EntryModule__TooEarlytoRefund());
+
+        require(currentTimestamp >= limitTimestamp, SubscriptionModule__TooEarlytoRefund());
 
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmount = _member.contribution;
         uint256 serviceFeeAmount = _member.totalServiceFee;
         uint256 amountToRefund = contributionAmount - serviceFeeAmount;
 
-        // Update the member values
-        _member.isRefunded = true;
-        // Transfer the amount to refund
+        Member memory newMember = Member({
+            memberId: _member.memberId,
+            benefitMultiplier: 0,
+            membershipDuration: 0,
+            membershipStartTime: 0,
+            lastPaidYearStartDate: 0,
+            contribution: 0,
+            discount: 0,
+            claimAddAmount: 0,
+            totalContributions: 0,
+            totalServiceFee: 0,
+            creditTokensBalance: 0,
+            wallet: _memberWallet,
+            parent: address(0),
+            memberState: MemberState.Inactive,
+            memberSurplus: 0,
+            isKYCVerified: false,
+            isRefunded: true,
+            lastEcr: 0,
+            lastUcr: 0
+        });
 
+        _member = newMember;
+
+        // Transfer the amount to refund
         if (isMemberCouponRedeemer[_memberWallet]) {
             // Reset the coupon redeemer status, this way the member can redeem again
             isMemberCouponRedeemer[_memberWallet] = false;
@@ -583,50 +531,6 @@ contract EntryModule is
         return newMember;
     }
 
-    function _updateMember(
-        uint256 _drr,
-        uint256 _benefitMultiplier,
-        uint256 _membershipDuration,
-        address _memberWallet,
-        MemberState _memberState,
-        bool _isKYCVerified,
-        bool _isRefunded,
-        bool _allowCustomDuration,
-        Member memory _member
-    ) internal returns (Member memory) {
-        uint256 userMembershipDuration;
-        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) /
-            100;
-
-        if (_allowCustomDuration) {
-            userMembershipDuration = _membershipDuration;
-        } else {
-            userMembershipDuration = ModuleConstants.DEFAULT_MEMBERSHIP_DURATION;
-        }
-
-        _member.benefitMultiplier = _benefitMultiplier;
-        _member.membershipDuration = userMembershipDuration;
-        _member.membershipStartTime = block.timestamp;
-        _member.contribution = normalizedContributionBeforeFee;
-        _member.claimAddAmount = claimAddAmount;
-        _member.totalServiceFee = feeAmount;
-        _member.memberState = _memberState;
-        _member.isKYCVerified = _isKYCVerified;
-        _member.isRefunded = _isRefunded;
-
-        emit TakasureEvents.OnMemberUpdated(
-            _member.memberId,
-            _memberWallet,
-            _benefitMultiplier,
-            normalizedContributionBeforeFee,
-            feeAmount,
-            userMembershipDuration,
-            block.timestamp
-        );
-
-        return _member;
-    }
-
     function _transferContribution(
         IERC20 _contributionToken,
         address,
@@ -635,7 +539,7 @@ contract EntryModule is
     ) internal override {
         // If the caller is the prejoin module, the transfer will be done by the prejoin module
         // to the takasure reserve. Otherwise, the transfer will be done by this contract
-        if (msg.sender != prejoinModule) {
+        if (msg.sender != referralGateway) {
             _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee - discount);
         }
     }
@@ -644,7 +548,6 @@ contract EntryModule is
         address _member
     ) internal returns (uint256 benefitMultiplier_) {
         string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
-
         // First we check if there is already a request id for this member
         bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);
 
@@ -656,20 +559,18 @@ contract EntryModule is
         } else {
             // If there is a request id, we check if it was successful
             bool successRequest = bmConsumer.idToSuccessRequest(requestId);
-
             if (successRequest) {
                 benefitMultiplier_ = bmConsumer.idToBenefitMultiplier(requestId);
             } else {
                 // If failed we get the error and revert with it
                 bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
-                revert EntryModule__BenefitMultiplierRequestFailed(errorResponse);
+                revert SubscriptionModule__BenefitMultiplierRequestFailed(errorResponse);
             }
         }
     }
 
     function _transferContributionToModule(address _memberWallet, uint256 _couponAmount) internal {
         IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
-
         uint256 _amountToTransferFromMember;
 
         if (_couponAmount > 0) {
@@ -693,12 +594,10 @@ contract EntryModule is
                     _amountToTransferFromMember
                 );
             }
-
             // Transfer the coupon amount to this contract
             if (_couponAmount > 0) {
                 contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
             }
-
             // Transfer the service fee to the fee claim address
             contributionToken.safeTransferFrom(
                 _memberWallet,

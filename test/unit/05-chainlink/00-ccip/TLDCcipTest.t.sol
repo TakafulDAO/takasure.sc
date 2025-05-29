@@ -6,7 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {TLDCcipSender} from "contracts/helpers/chainlink/ccip/TLDCcipSender.sol";
 import {TLDCcipReceiver} from "contracts/helpers/chainlink/ccip/TLDCcipReceiver.sol";
-import {PrejoinModule} from "contracts/modules/PrejoinModule.sol";
+import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
@@ -19,7 +19,7 @@ contract TLDCcipTest is Test {
     TestDeployProtocol deployer;
     TLDCcipSender sender;
     TLDCcipReceiver receiver;
-    PrejoinModule prejoinModule;
+    ReferralGateway referralGateway;
     BenefitMultiplierConsumerMock bmConsumerMock;
     TakasureReserve takasureReserve;
     MockCCIPRouter ccipRouter;
@@ -27,7 +27,7 @@ contract TLDCcipTest is Test {
     BurnMintERC677 public link;
     IUSDC usdc;
     address takasureReserveAddress;
-    address prejoinModuleAddress;
+    address referralGatewayAddress;
     address senderImplementationAddress;
     address senderAddress;
     address usdcAddress;
@@ -62,7 +62,7 @@ contract TLDCcipTest is Test {
             ,
             bmConsumerMock,
             takasureReserveAddress,
-            prejoinModuleAddress,
+            referralGatewayAddress,
             ,
             ,
             ,
@@ -74,7 +74,7 @@ contract TLDCcipTest is Test {
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        prejoinModule = PrejoinModule(prejoinModuleAddress);
+        referralGateway = ReferralGateway(referralGatewayAddress);
         takasureReserve = TakasureReserve(takasureReserveAddress);
         usdc = IUSDC(usdcAddress);
         link = new BurnMintERC677("ChainLink Token", "LINK", 18, 10 ** 27);
@@ -82,7 +82,7 @@ contract TLDCcipTest is Test {
 
         ccipRouter = new MockCCIPRouter();
 
-        receiver = new TLDCcipReceiver(address(ccipRouter), usdcAddress, prejoinModuleAddress);
+        receiver = new TLDCcipReceiver(address(ccipRouter), usdcAddress, referralGatewayAddress);
 
         senderImplementationAddress = address(new TLDCcipSender());
         senderAddress = UnsafeUpgrades.deployUUPSProxy(
@@ -110,18 +110,18 @@ contract TLDCcipTest is Test {
         // Config mocks
         vm.startPrank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        prejoinModule.setCCIPReceiverContract(address(receiver));
+        referralGateway.setCCIPReceiverContract(address(receiver));
         vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
-        bmConsumerMock.setNewRequester(prejoinModuleAddress);
+        bmConsumerMock.setNewRequester(referralGatewayAddress);
         vm.stopPrank();
     }
 
     modifier createDao() {
         vm.startPrank(admin);
-        prejoinModule.createDAO(true, 1743479999, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
         vm.stopPrank();
         _;
     }
@@ -418,11 +418,11 @@ contract TLDCcipTest is Test {
     }
 
     function testReceiverSetProtocolGateway() public {
-        assertEq(receiver.protocolGateway(), prejoinModuleAddress);
+        assertEq(receiver.protocolGateway(), referralGatewayAddress);
 
         vm.prank(receiver.owner());
         vm.expectEmit(true, true, false, false, address(receiver));
-        emit OnProtocolGatewayChanged(prejoinModuleAddress, linkAddress);
+        emit OnProtocolGatewayChanged(referralGatewayAddress, linkAddress);
         receiver.setProtocolGateway(linkAddress);
 
         assertEq(receiver.protocolGateway(), linkAddress);

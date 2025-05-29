@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ReferralGatewayHandler} from "test/helpers/handlers/ReferralGatewayHandler.t.sol";
@@ -12,7 +12,7 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 
 contract ReferralGatewayInvariantTest is StdInvariant, Test {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     ReferralGateway referralGateway;
     TakasureReserve takasureReserve;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -32,16 +32,16 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     string constant DAO_NAME = "The LifeDAO";
 
     function setUp() public {
-        deployer = new TestDeployTakasureReserve();
+        deployer = new TestDeployProtocol();
         (
             ,
             bmConsumerMock,
             reserve,
-            ,
-            ,
-            ,
-            ,
             referralGatewayAddress,
+            ,
+            ,
+            ,
+            ,
             contributionTokenAddress,
             ,
             helperConfig

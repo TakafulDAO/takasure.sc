@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 

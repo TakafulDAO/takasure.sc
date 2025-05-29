@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.28;
 
-contract ParentRewards {
+contract NewParentRewards {
     mapping(address child => address parent) public childToParent;
     mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
     mapping(address parent => mapping(uint256 layer => uint256 reward)) public parentRewardsByLayer;
