@@ -25,7 +25,7 @@ contract TokenTest is Test {
 
     event OnTokenMinted(address indexed to, uint256 indexed amount);
     event OnTokenBurned(address indexed from, uint256 indexed amount);
-    event OnTransferAllowedSet(bool transferAllowed);
+    event OnTransferAllowedSwitched(bool transferAllowed);
 
     function setUp() public {
         // deployer = new TestDeployTakasure();
@@ -143,7 +143,7 @@ contract TokenTest is Test {
 
         vm.prank(admin);
         vm.expectEmit(false, false, false, false, address(daoToken));
-        emit OnTransferAllowedSet(true);
+        emit OnTransferAllowedSwitched(true);
         daoToken.allowTransfers(true);
 
         assert(daoToken.isTransferAllowed());

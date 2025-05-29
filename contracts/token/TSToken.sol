@@ -24,7 +24,7 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
 
     event OnTokenMinted(address indexed to, uint256 indexed amount);
     event OnTokenBurned(address indexed from, uint256 indexed amount);
-    event OnTransferAllowedSet(bool transferAllowed);
+    event OnTransferAllowedSwitched(bool transferAllowed);
 
     error Token__NotZeroAddress();
     error Token__MustBeMoreThanZero();
@@ -56,7 +56,7 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
      */
     function allowTransfers(bool _isTransferAllowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
         isTransferAllowed = _isTransferAllowed;
-        emit OnTransferAllowedSet(_isTransferAllowed);
+        emit OnTransferAllowedSwitched(_isTransferAllowed);
     }
 
     /** @notice Mint Takasure powered tokens
