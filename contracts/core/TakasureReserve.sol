@@ -99,6 +99,7 @@ contract TakasureReserve is
         cashFlowVars.monthReference = 1;
         cashFlowVars.dayReference = 1;
 
+        reserve.referralDiscount = true; // Default
         reserve.serviceFee = 27; // 27% of the contribution amount. Default
         reserve.lossRatioThreshold = 80; // 80% Default
         reserve.bmaFundReserveShare = 70; // 70% Default
