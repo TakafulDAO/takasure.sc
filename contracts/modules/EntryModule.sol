@@ -53,9 +53,6 @@ contract EntryModule is
     address private couponPool;
     address private ccipReceiverContract;
 
-    mapping(address child => address parent) public childToParent;
-    mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
-    mapping(address parent => mapping(uint256 layer => uint256 reward)) public parentRewardsByLayer;
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => bool) private isMemberCouponRedeemer; 
 
