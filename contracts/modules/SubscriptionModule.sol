@@ -106,9 +106,7 @@ contract SubscriptionModule is
         moduleState = newState;
     }
 
-    function setCouponPoolAddress(
-        address _couponPool
-    ) external onlyRole(ModuleConstants.OPERATOR) {
+    function setCouponPoolAddress(address _couponPool) external onlyRole(ModuleConstants.OPERATOR) {
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
@@ -120,7 +118,6 @@ contract SubscriptionModule is
         ccipReceiverContract = _ccipReceiverContract;
     }
 
-    
     function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
@@ -143,9 +140,13 @@ contract SubscriptionModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-       (Reserve memory reserve, Member memory newMember, uint256 benefitMultiplier) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+        (
+            Reserve memory reserve,
+            Member memory newMember,
+            uint256 benefitMultiplier
+        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
-       // Check caller
+        // Check caller
         require(
             msg.sender == referralGateway ||
                 hasRole(ModuleConstants.ROUTER, msg.sender) ||
@@ -187,10 +188,17 @@ contract SubscriptionModule is
         uint256 membershipDuration,
         uint256 couponAmount
     ) external nonReentrant {
-        (Reserve memory reserve, Member memory newMember, uint256 benefitMultiplier) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+        (
+            Reserve memory reserve,
+            Member memory newMember,
+            uint256 benefitMultiplier
+        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
-       // Check caller
-        _onlyCouponRedeemerOrCcipReceiver();        
+        // Check if the coupon amount is valid
+        require(couponAmount <= contributionBeforeFee, SubscriptionModule__InvalidContribution());
+
+        // Check caller
+        _onlyCouponRedeemerOrCcipReceiver();
 
         _join(
             reserve,
@@ -215,7 +223,10 @@ contract SubscriptionModule is
         address takasureReserveAddress,
         uint256 contributionAfterFeeAmount
     ) external {
-        require(moduleManager.isActiveModule(msg.sender), ModuleErrors.Module__NotAuthorizedCaller());
+        require(
+            moduleManager.isActiveModule(msg.sender),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
 
         _transferContribution(
             contributionToken,
@@ -243,28 +254,29 @@ contract SubscriptionModule is
         _refund(memberWallet);
     }
 
-    function _paySubscriptionChecksAndsettings(address _memberWallet, uint256 _contributionBeforeFee) internal returns (Reserve memory reserve_, Member memory newMember_, uint256 benefitMultiplier_) {
+    function _paySubscriptionChecksAndsettings(
+        address _memberWallet,
+        uint256 _contributionBeforeFee
+    )
+        internal
+        returns (Reserve memory reserve_, Member memory newMember_, uint256 benefitMultiplier_)
+    {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
-        (reserve_, newMember_) = _getReserveAndMemberValuesHook(
-            takasureReserve,
-            _memberWallet
-        );
+        (reserve_, newMember_) = _getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
 
-        if (!newMember_.isRefunded){
+        if (!newMember_.isRefunded) {
             require(newMember_.wallet == address(0), SubscriptionModule__AlreadyJoined());
         } else {
             require(
                 newMember_.memberId != 0 && newMember_.wallet == _memberWallet,
                 ModuleErrors.Module__WrongMemberState()
             );
-            
         }
 
         benefitMultiplier_ = _getBenefitMultiplierFromOracle(_memberWallet);
 
         _calculateAmountAndFees(_contributionBeforeFee, reserve_.serviceFee);
-
     }
 
     function _joinFromReferralGateway(
@@ -331,7 +343,7 @@ contract SubscriptionModule is
 
         uint256 memberId;
 
-        if (!_newMember.isRefunded){
+        if (!_newMember.isRefunded) {
             // Flow 1: Join -> KYC
             memberId = ++_reserve.memberIdCounter;
         } else {
@@ -373,18 +385,21 @@ contract SubscriptionModule is
         address _child,
         address _parent
     ) internal returns (Reserve memory) {
-        // The prepaid member object is created
-        uint256 realContribution = _getRealContributionAfterCoupon(_couponAmount);
         uint256 toReferralReserve;
 
         if (_reserve.referralDiscount) {
-            toReferralReserve = (realContribution * ModuleConstants.REFERRAL_RESERVE) / 100;
+            toReferralReserve =
+                (normalizedContributionBeforeFee * ModuleConstants.REFERRAL_RESERVE) /
+                100;
             if (_parent != address(0)) {
-                discount = ((realContribution - _couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
+                discount =
+                    ((normalizedContributionBeforeFee - _couponAmount) *
+                        ModuleConstants.REFERRAL_DISCOUNT_RATIO) /
+                    100;
                 childToParent[_child] = _parent;
                 (feeAmount, _reserve.referralReserve) = _parentRewards({
                     _initialChildToCheck: _child,
-                    _contribution: realContribution,
+                    _contribution: normalizedContributionBeforeFee,
                     _currentReferralReserve: _reserve.referralReserve,
                     _toReferralReserve: toReferralReserve,
                     _currentFee: feeAmount
@@ -394,13 +409,6 @@ contract SubscriptionModule is
             }
         }
         return (_reserve);
-    }
-
-    function _getRealContributionAfterCoupon(
-        uint256 _couponAmount
-    ) internal view returns (uint256 realContribution_) {
-        if (_couponAmount > normalizedContributionBeforeFee) realContribution_ = _couponAmount;
-        else realContribution_ = normalizedContributionBeforeFee;
     }
 
     /**
@@ -415,7 +423,12 @@ contract SubscriptionModule is
             _memberWallet
         );
 
-        require(_memberWallet == msg.sender || hasRole(ModuleConstants.ROUTER, msg.sender) || hasRole(ModuleConstants.OPERATOR, msg.sender), ModuleErrors.Module__NotAuthorizedCaller());
+        require(
+            _memberWallet == msg.sender ||
+                hasRole(ModuleConstants.ROUTER, msg.sender) ||
+                hasRole(ModuleConstants.OPERATOR, msg.sender),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
         // The member should not be KYCed neither already refunded
         require(!_member.isKYCVerified, SubscriptionModule__MemberAlreadyKYCed());
         require(!_member.isRefunded, SubscriptionModule__NothingToRefund());
@@ -428,7 +441,9 @@ contract SubscriptionModule is
         require(currentTimestamp >= limitTimestamp, SubscriptionModule__TooEarlytoRefund());
 
         // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmountAfterFee = _member.contribution - (_member.contribution * _reserve.serviceFee) / 100;
+        uint256 contributionAmountAfterFee = _member.contribution -
+            (_member.contribution * _reserve.serviceFee) /
+            100;
         uint256 discountAmount = _member.discount;
         uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
@@ -618,7 +633,8 @@ contract SubscriptionModule is
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
+            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) ||
+                msg.sender == ccipReceiverContract,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
     }
