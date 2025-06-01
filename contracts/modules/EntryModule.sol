@@ -53,11 +53,14 @@ contract EntryModule is
     address private couponPool;
     address private ccipReceiverContract;
 
+    mapping(address child => address parent) public childToParent;
+    mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
+    mapping(address parent => mapping(uint256 layer => uint256 reward)) public parentRewardsByLayer;
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => bool) private isMemberCouponRedeemer; 
 
     error EntryModule__NoContribution();
-    error EntryModule__ContributionOutOfRange();
+    error EntryModule__InvalidContribution();
     error EntryModule__AlreadyJoined();
     error EntryModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error EntryModule__MemberAlreadyKYCed();
@@ -189,6 +192,9 @@ contract EntryModule is
             memberWallet
         );
         if (!newMember.isRefunded) require(newMember.wallet == address(0), EntryModule__AlreadyJoined());
+        if (couponAmount > 0) 
+            require(couponAmount <= contributionBeforeFee, EntryModule__InvalidContribution());
+        
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
@@ -376,7 +382,7 @@ contract EntryModule is
 
             _contributionBeforeFee >= _reserve.minimumThreshold &&
                 _contributionBeforeFee <= _reserve.maximumThreshold,
-            EntryModule__ContributionOutOfRange()
+            EntryModule__InvalidContribution()
         );
 
         if (!_newMember.isRefunded) {
@@ -435,21 +441,20 @@ contract EntryModule is
         address _parent
     ) internal returns (Reserve memory) {
         // The prepaid member object is created
-        uint256 realContribution = _getRealContributionAfterCoupon(_couponAmount);
 
         uint256 toReferralReserve;
 
         if (_reserve.referralDiscount) {
-            toReferralReserve = (realContribution * ModuleConstants.REFERRAL_RESERVE) / 100;
+            toReferralReserve = (normalizedContributionBeforeFee * ModuleConstants.REFERRAL_RESERVE) / 100;
 
             if (_parent != address(0)) {
-                discount = ((realContribution - _couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
+                discount = ((normalizedContributionBeforeFee - _couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
 
                 childToParent[_child] = _parent;
 
                 (feeAmount, _reserve.referralReserve) = _parentRewards({
                     _initialChildToCheck: _child,
-                    _contribution: realContribution,
+                    _contribution: normalizedContributionBeforeFee,
                     _currentReferralReserve: _reserve.referralReserve,
                     _toReferralReserve: toReferralReserve,
                     _currentFee: feeAmount
@@ -462,16 +467,52 @@ contract EntryModule is
         return (_reserve);
     }
 
-    function _getRealContributionAfterCoupon(
-        uint256 _couponAmount
-    ) internal view returns (uint256 realContribution_) {
-        if (_couponAmount > normalizedContributionBeforeFee) realContribution_ = _couponAmount;
-        else realContribution_ = normalizedContributionBeforeFee;
+    function _parentRewards(
+        address _initialChildToCheck,
+        uint256 _contribution,
+        uint256 _currentReferralReserve,
+        uint256 _toReferralReserve,
+        uint256 _currentFee
+    ) internal override returns (uint256, uint256) {
+        address currentChildToCheck = _initialChildToCheck;
+        uint256 newReferralReserveBalance = _currentReferralReserve + _toReferralReserve;
+        uint256 parentRewardsAccumulated;
+
+        for (int256 i; i < MAX_TIER; ++i) {
+            if (childToParent[currentChildToCheck] == address(0)) {
+                break;
+            }
+
+            parentRewardsByChild[childToParent[currentChildToCheck]][_initialChildToCheck] =
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            parentRewardsByLayer[childToParent[currentChildToCheck]][uint256(i + 1)] +=
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            parentRewardsAccumulated +=
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            currentChildToCheck = childToParent[currentChildToCheck];
+        }
+
+        if (newReferralReserveBalance > parentRewardsAccumulated) {
+            newReferralReserveBalance -= parentRewardsAccumulated;
+        } else {
+            uint256 reserveShortfall = parentRewardsAccumulated - newReferralReserveBalance;
+            _currentFee -= reserveShortfall;
+            newReferralReserveBalance = 0;
+        }
+
+        return (_currentFee, newReferralReserveBalance);
     }
 
     /**
      * @notice All refunds for users that used coupons will be restored in the coupon pool
      *         The user will need to reach custommer support to get the corresponding amount
+     *         The fee is not refundable
      */
     function _refund(address _memberWallet) internal {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
@@ -491,10 +532,10 @@ contract EntryModule is
         uint256 limitTimestamp = membershipStartTime + (14 days);
         require(currentTimestamp >= limitTimestamp, EntryModule__TooEarlytoRefund());
 
-        // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmount = _member.contribution;
-        uint256 serviceFeeAmount = _member.totalServiceFee;
-        uint256 amountToRefund = contributionAmount - serviceFeeAmount;
+        // As there is only one contribution, is easy to calculate with the Member struct values
+        uint256 contributionAmountAfterFee = _member.contribution - (_member.contribution * _reserve.serviceFee) / 100;
+        uint256 discountAmount = _member.discount;
+        uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
         // Update the member values
         _member.isRefunded = true;
@@ -673,7 +714,11 @@ contract EntryModule is
         uint256 _amountToTransferFromMember;
 
         if (_couponAmount > 0) {
-            _amountToTransferFromMember = contributionAfterFee - discount - _couponAmount;
+            if (contributionAfterFee > _couponAmount) 
+                _amountToTransferFromMember = contributionAfterFee - discount - _couponAmount;
+            else 
+                _amountToTransferFromMember = 0;
+            
         } else {
             _amountToTransferFromMember = contributionAfterFee - discount;
         }
@@ -694,17 +739,17 @@ contract EntryModule is
                 );
             }
 
-            // Transfer the coupon amount to this contract
-            if (_couponAmount > 0) {
-                contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
-            }
-
             // Transfer the service fee to the fee claim address
             contributionToken.safeTransferFrom(
                 _memberWallet,
                 takasureReserve.feeClaimAddress(),
                 feeAmount
             );
+        }
+
+        // Transfer the coupon amount to this contract
+        if (_couponAmount > 0) {
+            contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
         }
     }
 

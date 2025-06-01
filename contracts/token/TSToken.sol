@@ -13,12 +13,13 @@ pragma solidity 0.8.28;
 import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
 contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
+    IModuleManager private moduleManager;
+
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
-    bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
-    bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
 
     event OnTokenMinted(address indexed to, uint256 indexed amount);
     event OnTokenBurned(address indexed from, uint256 indexed amount);
@@ -26,6 +27,7 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     error Token__NotZeroAddress();
     error Token__MustBeMoreThanZero();
     error Token__BurnAmountExceedsBalance(uint256 balance, uint256 amountToBurn);
+    error Token__InvalidMinterOrBurnerRole();
 
     modifier mustBeMoreThanZero(uint256 _amount) {
         require(_amount > 0, Token__MustBeMoreThanZero());
@@ -35,17 +37,17 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
     constructor(
         address admin,
         address temporaryAdmin,
+        address _moduleManager,
         string memory tokenName,
         string memory tokenSymbol
     ) ERC20(tokenName, tokenSymbol) {
-        require(admin != address(0) && temporaryAdmin != address(0), Token__NotZeroAddress());
+        require(
+            admin != address(0) && temporaryAdmin != address(0) && _moduleManager != address(0),
+            Token__NotZeroAddress()
+        );
+        moduleManager = IModuleManager(_moduleManager);
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _setRoleAdmin(MINTER_ROLE, MINTER_ADMIN_ROLE);
-        _setRoleAdmin(BURNER_ROLE, BURNER_ADMIN_ROLE);
-        _grantRole(MINTER_ADMIN_ROLE, admin);
-        _grantRole(BURNER_ADMIN_ROLE, admin);
-        _grantRole(MINTER_ADMIN_ROLE, temporaryAdmin);
-        _grantRole(BURNER_ADMIN_ROLE, temporaryAdmin);
+        _grantRole(DEFAULT_ADMIN_ROLE, temporaryAdmin);
     }
 
     /** @notice Mint Takasure powered tokens
@@ -78,5 +80,15 @@ contract TSToken is ERC20Burnable, AccessControl, ReentrancyGuard {
         emit OnTokenBurned(msg.sender, amountToBurn);
 
         super.burn(amountToBurn);
+    }
+
+    function _grantRole(bytes32 role, address account) internal override returns (bool) {
+        if (role == MINTER_ROLE || role == BURNER_ROLE) {
+            require(
+                !hasRole(DEFAULT_ADMIN_ROLE, account) && moduleManager.isActiveModule(account),
+                Token__InvalidMinterOrBurnerRole()
+            );
+        }
+        return super._grantRole(role, account);
     }
 }

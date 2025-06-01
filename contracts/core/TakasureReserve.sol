@@ -94,11 +94,18 @@ contract TakasureReserve is
         feeClaimAddress = _feeClaimAddress;
         pauseGuardian = _pauseGuardian;
 
-        TSToken daoToken = new TSToken(_tokenAdmin, msg.sender, _tokenName, _tokenSymbol);
+        TSToken daoToken = new TSToken(
+            _tokenAdmin,
+            msg.sender,
+            _moduleManager,
+            _tokenName,
+            _tokenSymbol
+        );
 
         cashFlowVars.monthReference = 1;
         cashFlowVars.dayReference = 1;
 
+        reserve.referralDiscount = true; // Default
         reserve.serviceFee = 27; // 27% of the contribution amount. Default
         reserve.lossRatioThreshold = 80; // 80% Default
         reserve.bmaFundReserveShare = 70; // 70% Default
@@ -223,6 +230,10 @@ contract TakasureReserve is
     function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(OPERATOR) {
         AddressAndStates._notZeroAddress(newFeeClaimAddress);
         feeClaimAddress = newFeeClaimAddress;
+    }
+
+    function setReferralDiscountState(bool referralDiscountState) external onlyRole(OPERATOR) {
+        reserve.referralDiscount = referralDiscountState;
     }
 
     function setNewBenefitMultiplierConsumerAddress(

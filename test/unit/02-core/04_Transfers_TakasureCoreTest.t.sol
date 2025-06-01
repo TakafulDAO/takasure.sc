@@ -29,7 +29,6 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
-    address public parent = makeAddr("parent");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
@@ -89,7 +88,7 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         uint256 entryModuleBalanceBefore = usdc.balanceOf(address(entryModule));
 
         vm.prank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 takasureReserveBalanceAfter = usdc.balanceOf(address(takasureReserve));
         uint256 entryModuleBalanceAfter = usdc.balanceOf(address(entryModule));
@@ -107,7 +106,7 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         uint8 serviceFee = reserve.serviceFee;
 
         vm.prank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 takasureReserveBalanceAfter = usdc.balanceOf(address(takasureReserve));
         uint256 entryModuleBalanceAfter = usdc.balanceOf(address(entryModule));
@@ -127,7 +126,7 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
 
         vm.prank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
 
