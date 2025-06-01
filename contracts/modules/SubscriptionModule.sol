@@ -10,6 +10,7 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -43,6 +44,7 @@ contract SubscriptionModule is
 
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
+    IModuleManager private moduleManager;
     ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
@@ -81,16 +83,16 @@ contract SubscriptionModule is
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
+        moduleManager = IModuleManager(takasureReserve.moduleManager());
 
         address takadaoOperator = takasureReserve.takadaoOperator();
-        address moduleManager = takasureReserve.moduleManager();
 
         referralGateway = _referralGateway;
         ccipReceiverContract = _ccipReceiverContract;
         couponPool = _couponPool;
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
+        _grantRole(ModuleConstants.MODULE_MANAGER, address(moduleManager));
         _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
     }
 
@@ -118,6 +120,11 @@ contract SubscriptionModule is
         ccipReceiverContract = _ccipReceiverContract;
     }
 
+    
+    function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
+        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
+    }
+
     /**
      * @notice Allow new members to join the pool. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.
      * @param memberWallet address of the member
@@ -136,32 +143,15 @@ contract SubscriptionModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+       (Reserve memory reserve, Member memory newMember, uint256 benefitMultiplier) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
+       // Check caller
         require(
             msg.sender == referralGateway ||
                 hasRole(ModuleConstants.ROUTER, msg.sender) ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
-        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
-            takasureReserve,
-            memberWallet
-        );
-
-        if (!newMember.isRefunded){
-            require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
-        } else {
-            require(
-                newMember.memberId != 0 && newMember.wallet == memberWallet,
-                ModuleErrors.Module__WrongMemberState()
-            );
-            
-        }
-
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
-
-        _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
 
         if (msg.sender == referralGateway) {
             _joinFromReferralGateway(
@@ -197,28 +187,10 @@ contract SubscriptionModule is
         uint256 membershipDuration,
         uint256 couponAmount
     ) external nonReentrant {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        (Reserve memory reserve, Member memory newMember, uint256 benefitMultiplier) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
-        _onlyCouponRedeemerOrCcipReceiver();
-
-        (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
-            takasureReserve,
-            memberWallet
-        );
-
-         if (!newMember.isRefunded){
-            require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
-
-        } else {
-            require(
-                newMember.memberId != 0 && newMember.wallet == memberWallet,
-                ModuleErrors.Module__WrongMemberState()
-            );
-        } 
-        
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
-
-        _calculateAmountAndFees(contributionBeforeFee, reserve.serviceFee);
+       // Check caller
+        _onlyCouponRedeemerOrCcipReceiver();        
 
         _join(
             reserve,
@@ -243,6 +215,8 @@ contract SubscriptionModule is
         address takasureReserveAddress,
         uint256 contributionAfterFeeAmount
     ) external {
+        require(moduleManager.isActiveModule(msg.sender), ModuleErrors.Module__NotAuthorizedCaller());
+
         _transferContribution(
             contributionToken,
             memberWallet,
@@ -269,8 +243,28 @@ contract SubscriptionModule is
         _refund(memberWallet);
     }
 
-    function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
+    function _paySubscriptionChecksAndsettings(address _memberWallet, uint256 _contributionBeforeFee) internal returns (Reserve memory reserve_, Member memory newMember_, uint256 benefitMultiplier_) {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+
+        (reserve_, newMember_) = _getReserveAndMemberValuesHook(
+            takasureReserve,
+            _memberWallet
+        );
+
+        if (!newMember_.isRefunded){
+            require(newMember_.wallet == address(0), SubscriptionModule__AlreadyJoined());
+        } else {
+            require(
+                newMember_.memberId != 0 && newMember_.wallet == _memberWallet,
+                ModuleErrors.Module__WrongMemberState()
+            );
+            
+        }
+
+        benefitMultiplier_ = _getBenefitMultiplierFromOracle(_memberWallet);
+
+        _calculateAmountAndFees(_contributionBeforeFee, reserve_.serviceFee);
+
     }
 
     function _joinFromReferralGateway(
