@@ -46,6 +46,7 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig

@@ -6,9 +6,9 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
+import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
-import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
@@ -16,22 +16,22 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonResponse {
+contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    EntryModule entryModule;
+    SubscriptionModule subscriptionModule;
+    KYCModule kycModule;
     MemberModule memberModule;
-    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
-    address entryModuleAddress;
+    address subscriptionModuleAddress;
+    address kycModuleAddress;
     address memberModuleAddress;
-    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
@@ -45,18 +45,19 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
             bmConsumerMock,
             takasureReserveProxy,
             ,
-            entryModuleAddress,
+            subscriptionModuleAddress,
+            kycModuleAddress,
             memberModuleAddress,
             ,
-            userRouterAddress,
+            ,
             contributionTokenAddress,
             ,
             helperConfig
         ) = deployer.run();
 
-        entryModule = EntryModule(entryModuleAddress);
+        subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
         memberModule = MemberModule(memberModuleAddress);
-        userRouter = UserRouter(userRouterAddress);
+        kycModule = KYCModule(kycModuleAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -70,27 +71,31 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(entryModuleAddress));
+        vm.startPrank(bmConsumerMock.admin());
+        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
+        bmConsumerMock.setNewRequester(address(kycModuleAddress));
+        vm.stopPrank();
 
-        vm.prank(takadao);
-        entryModule.updateBmAddress();
+        vm.startPrank(takadao);
+        subscriptionModule.updateBmAddress();
+        kycModule.updateBmAddress();
+        vm.stopPrank();
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
 
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
+        subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
-        entryModule.approveKYC(alice);
+        kycModule.approveKYC(alice);
         vm.stopPrank();
     }
 
@@ -116,7 +121,7 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
                 CONTRIBUTION_AMOUNT,
                 totalServiceFeeBeforePayment + expectedServiceIncrease
             );
-            userRouter.payRecurringContribution();
+            memberModule.payRecurringContribution(alice);
             vm.stopPrank();
 
             testMember = takasureReserve.getMemberFromAddress(alice);
@@ -143,7 +148,7 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
 
         vm.expectEmit(true, true, false, false, address(memberModule));
         emit TakasureEvents.OnMemberDefaulted(1, alice);
-        userRouter.defaultMember(alice);
+        memberModule.defaultMember(alice);
 
         Member memory Alice = takasureReserve.getMemberFromAddress(alice);
         assert(Alice.memberState == MemberState.Defaulted);
@@ -152,8 +157,7 @@ contract RecurringPayment_MemberMooduleTest is StdCheats, Test, SimulateDonRespo
         vm.roll(block.number + 1);
 
         vm.prank(alice);
-        userRouter.payRecurringContribution();
-
+        memberModule.payRecurringContribution(alice);
         Alice = takasureReserve.getMemberFromAddress(alice);
         assert(Alice.memberState == MemberState.Active);
     }

@@ -6,8 +6,8 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/modules/EntryModule.sol";
-import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
+import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -21,16 +21,16 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    EntryModule entryModule;
-    MemberModule memberModule;
+    SubscriptionModule subscriptionModule;
+    KYCModule kycModule;
     UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
-    address entryModuleAddress;
-    address memberModuleAddress;
+    address subscriptionModuleAddress;
+    address kycModuleAddress;
     address userRouterAddress;
     IUSDC usdc;
     uint256 public constant USDC_INITIAL_AMOUNT = 500e6; // 100 USDC
@@ -52,8 +52,9 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             bmConsumerMock,
             takasureReserveProxy,
             ,
-            entryModuleAddress,
-            memberModuleAddress,
+            subscriptionModuleAddress,
+            kycModuleAddress,
+            ,
             ,
             userRouterAddress,
             contributionTokenAddress,
@@ -61,8 +62,8 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             helperConfig
         ) = deployer.run();
 
-        entryModule = EntryModule(entryModuleAddress);
-        memberModule = MemberModule(memberModuleAddress);
+        subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
+        kycModule = KYCModule(kycModuleAddress);
         userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -77,17 +78,21 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(entryModuleAddress));
+        vm.startPrank(bmConsumerMock.admin());
+        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
+        bmConsumerMock.setNewRequester(address(kycModuleAddress));
+        vm.stopPrank();
 
-        vm.prank(takadao);
-        entryModule.updateBmAddress();
+        vm.startPrank(takadao);
+        subscriptionModule.updateBmAddress();
+        kycModule.updateBmAddress();
+        vm.stopPrank();
     }
 
     modifier tokensTo(address user) {
         deal(address(usdc), user, USDC_INITIAL_AMOUNT);
         vm.startPrank(user);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
         _;
     }
@@ -234,14 +239,18 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
 
     function _join(address user, uint256 timesContributionAmount) internal {
         vm.startPrank(user);
-        userRouter.joinPool(address(0), timesContributionAmount * CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.paySubscription(
+            address(0),
+            timesContributionAmount * CONTRIBUTION_AMOUNT,
+            5 * YEAR
+        );
         vm.stopPrank();
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(admin);
-        entryModule.approveKYC(user);
+        kycModule.approveKYC(user);
         vm.stopPrank();
     }
 }
