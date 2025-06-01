@@ -90,4 +90,12 @@ library TakasureEvents {
         address indexed child,
         uint256 reward
     );
+    event OnNewRiskMultiplier(uint8 riskMultiplier);
+    event OnParentRewardTransferFailed(
+        address indexed parent,
+        uint256 indexed layer,
+        address indexed child,
+        uint256 reward
+    );
+    event OnOperatorChanged(address indexed newOperator, address indexed oldOperator);
 }

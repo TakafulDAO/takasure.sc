@@ -32,7 +32,6 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
     address member = makeAddr("member");
     address notMember = makeAddr("notMember");
     address child = makeAddr("child");
-    string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint8 public constant SERVICE_FEE_RATIO = 27;
@@ -93,8 +92,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
     modifier createDao() {
         vm.startPrank(daoAdmin);
-        prejoinModule.createDAO(tDaoName, true, 1743479999, 1e12, address(bmConsumerMock));
-        prejoinModule.setDAOName(tDaoName);
+        prejoinModule.createDAO(true, 1743479999, address(bmConsumerMock));
         vm.stopPrank();
         _;
     }
@@ -142,7 +140,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         KYCReferral
         referredPrepays
     {
-        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+        (, , , uint256 launchDate, , , , , ) = prejoinModule.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
@@ -166,7 +164,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        (, , , , , , , , , uint256 referralReserve) = prejoinModule.getDAOData();
+        (, , , , , , , , uint256 referralReserve) = prejoinModule.getDAOData();
         // Current Referral balance must be
         // For referral prepayment: Contribution * 5% = 25 * 5% = 1.25
         // For referred prepayment: 2*(Contribution * 5%) - (Contribution * 4%) =>
@@ -181,7 +179,7 @@ contract JoinPrejoinModuleTest is Test, SimulateDonResponse {
 
         assertEq(referredContributionAfterFee, expectedContributionAfterFee);
 
-        (, , , uint256 launchDate, , , , , , ) = prejoinModule.getDAOData();
+        (, , , uint256 launchDate, , , , , ) = prejoinModule.getDAOData();
 
         vm.warp(launchDate + 1);
         vm.roll(block.number + 1);
