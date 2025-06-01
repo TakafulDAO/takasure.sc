@@ -45,6 +45,7 @@ contract ReferralGatewayJoinDaoTest is Test, SimulateDonResponse {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig

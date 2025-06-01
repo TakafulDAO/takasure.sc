@@ -29,8 +29,20 @@ contract ReferralGatewayKYCTest is Test {
         // Deployer
         deployer = new TestDeployProtocol();
         // Deploy contracts
-        (, bmConsumerMock, , referralGatewayAddress, , , , , usdcAddress, , helperConfig) = deployer
-            .run();
+        (
+            ,
+            bmConsumerMock,
+            ,
+            referralGatewayAddress,
+            ,
+            ,
+            ,
+            ,
+            ,
+            usdcAddress,
+            ,
+            helperConfig
+        ) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
