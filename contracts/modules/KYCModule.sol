@@ -65,10 +65,9 @@ contract KYCModule is
         subscriptionModule = ISubscriptionModule(_subscriptionModuleAddress);
 
         address takadaoOperator = takasureReserve.takadaoOperator();
-        address moduleManager = takasureReserve.moduleManager();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
+        _grantRole(ModuleConstants.MODULE_MANAGER, takasureReserve.moduleManager());
         _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
         _grantRole(ModuleConstants.KYC_PROVIDER, takasureReserve.kycProvider());
     }
