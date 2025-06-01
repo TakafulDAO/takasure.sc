@@ -10,6 +10,7 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -17,7 +18,7 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
-import {NewParentRewards} from "contracts/helpers/payments/NewParentRewards.sol";
+import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -35,10 +36,11 @@ contract KYCModule is
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
     MemberPaymentFlow,
-    NewParentRewards
+    ParentRewards
 {
     ITakasureReserve private takasureReserve;
     IBenefitMultiplierConsumer private bmConsumer;
+    ISubscriptionModule private subscriptionModule;
     ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
@@ -55,7 +57,7 @@ contract KYCModule is
     }
 
     function initialize(
-        address _takasureReserveAddress
+        address _takasureReserveAddress, address _subscriptionModuleAddress
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -63,6 +65,7 @@ contract KYCModule is
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
+        subscriptionModule = ISubscriptionModule(_subscriptionModuleAddress);
 
         address takadaoOperator = takasureReserve.takadaoOperator();
         address moduleManager = takasureReserve.moduleManager();
@@ -81,6 +84,10 @@ contract KYCModule is
         ModuleState newState
     ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
         moduleState = newState;
+    }
+
+    function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
+        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
     
@@ -104,7 +111,6 @@ contract KYCModule is
 
         // This means the user exists and payed contribution but is not KYCed yet, we update the values
         _calculateAmountAndFees(newMember.contribution, reserve.serviceFee);
-
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
         newMember = _updateMember({
@@ -160,6 +166,7 @@ contract KYCModule is
         emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
         _setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
         takasureReserve.memberSurplus(newMember);
+
     }
 
     function _calculateAmountAndFees(uint256 _contributionBeforeFee, uint256 _fee) internal {
@@ -234,6 +241,20 @@ contract KYCModule is
                 revert KYCModule__BenefitMultiplierRequestFailed(errorResponse);
             }
         }
+    }
+
+    function _transferContribution(
+        IERC20 _contributionToken,
+        address _memberWallet,
+        address _takasureReserve,
+        uint256 _contributionAfterFee
+    ) internal override {
+        subscriptionModule.transferContributionAfterKyc(
+            _contributionToken, 
+            _memberWallet, 
+            _takasureReserve, 
+            _contributionAfterFee
+        );
     }
 
     ///@dev required by the OZ UUPS module
