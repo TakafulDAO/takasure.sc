@@ -6,7 +6,7 @@
  * @notice This contract allows an easier implementation of the user's actions
  */
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {IEntryModule} from "contracts/interfaces/IEntryModule.sol";
+import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
 import {IMemberModule} from "contracts/interfaces/IMemberModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -17,7 +17,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 pragma solidity 0.8.28;
 
 contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
-    IEntryModule private entryModule;
+    ISubscriptionModule private subscriptionModule;
     IMemberModule private memberModule;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -27,17 +27,17 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
 
     function initialize(
         address _takasureReserveAddress,
-        address _entryModule,
+        address _subscriptionModule,
         address _memberModule
     ) external initializer {
         AddressAndStates._notZeroAddress(_takasureReserveAddress);
-        AddressAndStates._notZeroAddress(_entryModule);
+        AddressAndStates._notZeroAddress(_subscriptionModule);
         AddressAndStates._notZeroAddress(_memberModule);
 
         __UUPSUpgradeable_init();
         __AccessControl_init();
 
-        entryModule = IEntryModule(_entryModule);
+        subscriptionModule = ISubscriptionModule(_subscriptionModule);
         memberModule = IMemberModule(_memberModule);
 
         address takadaoOperator = ITakasureReserve(_takasureReserveAddress).takadaoOperator();
@@ -46,16 +46,21 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
     }
 
-    function joinPool(
-        address parentWallet,
+    function paySubscription(
+        address memberWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external {
-        entryModule.joinPool(msg.sender, parentWallet, contributionBeforeFee, membershipDuration);
+        subscriptionModule.paySubscription(
+            msg.sender,
+            memberWallet,
+            contributionBeforeFee,
+            membershipDuration
+        );
     }
 
     function refund() external {
-        entryModule.refund(msg.sender);
+        subscriptionModule.refund(msg.sender);
     }
 
     function payRecurringContribution() external {
@@ -74,9 +79,11 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         memberModule.defaultMember(memberWallet);
     }
 
-    function setEntryModule(address _entryModule) external onlyRole(ModuleConstants.OPERATOR) {
-        AddressAndStates._notZeroAddress(_entryModule);
-        entryModule = IEntryModule(_entryModule);
+    function setSubscriptionModule(
+        address _subscriptionModule
+    ) external onlyRole(ModuleConstants.OPERATOR) {
+        AddressAndStates._notZeroAddress(_subscriptionModule);
+        subscriptionModule = ISubscriptionModule(_subscriptionModule);
     }
 
     function setMemberModule(address _memberModule) external onlyRole(ModuleConstants.OPERATOR) {
