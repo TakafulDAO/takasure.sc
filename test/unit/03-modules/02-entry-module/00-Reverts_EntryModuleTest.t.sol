@@ -170,6 +170,8 @@ contract Reverts_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
 
     /// @dev can not refund someone already refunded
     function testEntryModule_refundRevertIfMemberAlreadyRefunded() public {
+        deal(address(usdc), address(entryModule), 25e6);
+
         vm.startPrank(alice);
         // Join and refund
         userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);

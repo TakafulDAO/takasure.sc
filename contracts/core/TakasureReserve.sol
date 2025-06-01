@@ -232,6 +232,10 @@ contract TakasureReserve is
         feeClaimAddress = newFeeClaimAddress;
     }
 
+    function setReferralDiscountState(bool referralDiscountState) external onlyRole(OPERATOR) {
+        reserve.referralDiscount = referralDiscountState;
+    }
+
     function setNewBenefitMultiplierConsumerAddress(
         address newBenefitMultiplierConsumerAddress
     ) external {

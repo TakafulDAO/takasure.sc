@@ -36,8 +36,7 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
-    uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
-    uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USD
+    uint256 public constant CONTRIBUTION_AMOUNT = 250e6; // 250 USD
     uint256 public constant YEAR = 365 days;
 
     function setUp() public {
@@ -79,12 +78,12 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         entryModule.updateBmAddress();
 
         // For easier testing there is a minimal USDC mock contract without restrictions
-        deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
-        deal(address(usdc), bob, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), alice, CONTRIBUTION_AMOUNT);
+        deal(address(usdc), bob, CONTRIBUTION_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
-        usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(entryModule), CONTRIBUTION_AMOUNT);
+        usdc.approve(address(memberModule), CONTRIBUTION_AMOUNT);
 
         userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
@@ -92,17 +91,18 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.startPrank(bob);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
-        usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(entryModule), CONTRIBUTION_AMOUNT);
+        usdc.approve(address(memberModule), CONTRIBUTION_AMOUNT);
         vm.stopPrank();
     }
 
-    function testentryModule_refundContribution() public {
-        Reserve memory reserve = takasureReserve.getReserveValues();
-        uint8 serviceFee = reserve.serviceFee;
-        uint256 expectedRefundAmount = (CONTRIBUTION_AMOUNT * (100 - serviceFee)) / 100;
+    function testentryModule_refundContributionIfThereWhereNoParent() public {
+        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
 
-        Member memory testMemberAfterKyc = takasureReserve.getMemberFromAddress(alice);
+        // contribution - discount - 27% fee
+        // 250 - 0 - (250 * 27 / 100) = 250 - 0 - 67.5 = 182.5
+        // Discount is 0 because Alice has no parent
+        uint256 expectedRefundAmount = 1825e5;
 
         uint256 contractBalanceBeforeRefund = usdc.balanceOf(address(entryModule));
         uint256 aliceBalanceBeforeRefund = usdc.balanceOf(alice);
@@ -115,11 +115,10 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
         entryModule.refund(alice);
 
-        vm.startPrank(alice);
+        vm.prank(alice);
         vm.expectEmit(true, true, false, false, address(entryModule));
-        emit TakasureEvents.OnRefund(testMemberAfterKyc.memberId, alice, expectedRefundAmount);
+        emit TakasureEvents.OnRefund(Alice.memberId, alice, expectedRefundAmount);
         entryModule.refund();
-        vm.stopPrank();
 
         uint256 contractBalanceAfterRefund = usdc.balanceOf(address(entryModule));
         uint256 aliceBalanceAfterRefund = usdc.balanceOf(alice);
@@ -132,11 +131,149 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.expectRevert(EntryModule.EntryModule__NoContribution.selector);
         entryModule.approveKYC(alice);
 
-        vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
+        vm.startPrank(alice);
+        usdc.approve(address(entryModule), expectedRefundAmount);
+        userRouter.joinPool(address(0), expectedRefundAmount, 5 * YEAR);
+        vm.stopPrank();
+        // =======
 
         vm.prank(kycService);
         entryModule.approveKYC(alice);
+    }
+
+    function testentryModule_refundContributionIfThereIsParent() public {
+        // First we need to KYC Alice so she can act as a parent
+        vm.prank(kycService);
+        entryModule.approveKYC(alice);
+
+        vm.prank(bob);
+        userRouter.joinPool(alice, CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        Member memory Bob = takasureReserve.getMemberFromAddress(bob);
+
+        // contribution - discount - 27% fee
+        // 250 - (250 * 5 / 100) - (250 * 27 / 100) = 250 - 12.5 - 67.5 = 170
+        // The discount is 5% because Bob has Alice as parent
+        uint256 expectedRefundAmount = 170e6;
+
+        uint256 contractBalanceBeforeRefund = usdc.balanceOf(address(entryModule));
+        uint256 bobBalanceBeforeRefund = usdc.balanceOf(bob);
+
+        // 14 days passed
+        vm.warp(15 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(bob);
+        vm.expectEmit(true, true, false, false, address(entryModule));
+        emit TakasureEvents.OnRefund(Bob.memberId, bob, expectedRefundAmount);
+        entryModule.refund();
+
+        uint256 contractBalanceAfterRefund = usdc.balanceOf(address(entryModule));
+        uint256 bobBalanceAfterRefund = usdc.balanceOf(bob);
+
+        assertEq(contractBalanceBeforeRefund - expectedRefundAmount, contractBalanceAfterRefund);
+        assertEq(bobBalanceBeforeRefund + expectedRefundAmount, bobBalanceAfterRefund);
+    }
+
+    function testentryModule_refundContributionIfThereIsParentButWithoutDiscount() public {
+        // First set referral discount to false
+        vm.prank(takadao);
+        takasureReserve.setReferralDiscountState(false);
+
+        // First we need to KYC Alice so she can act as a parent
+        vm.prank(kycService);
+        entryModule.approveKYC(alice);
+
+        vm.prank(bob);
+        userRouter.joinPool(alice, CONTRIBUTION_AMOUNT, 5 * YEAR);
+
+        Member memory Bob = takasureReserve.getMemberFromAddress(bob);
+
+        // contribution - discount - 27% fee
+        // 250 - 0 - (250 * 27 / 100) = 250 - 0 - 67.5 = 182.5
+        // The discount is 0 because the discount is off
+        uint256 expectedRefundAmount = 1825e5;
+
+        uint256 contractBalanceBeforeRefund = usdc.balanceOf(address(entryModule));
+        uint256 bobBalanceBeforeRefund = usdc.balanceOf(bob);
+
+        // 14 days passed
+        vm.warp(15 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(bob);
+        vm.expectEmit(true, true, false, false, address(entryModule));
+        emit TakasureEvents.OnRefund(Bob.memberId, bob, expectedRefundAmount);
+        entryModule.refund();
+
+        uint256 contractBalanceAfterRefund = usdc.balanceOf(address(entryModule));
+        uint256 bobBalanceAfterRefund = usdc.balanceOf(bob);
+
+        assertEq(contractBalanceBeforeRefund - expectedRefundAmount, contractBalanceAfterRefund);
+        assertEq(bobBalanceBeforeRefund + expectedRefundAmount, bobBalanceAfterRefund);
+    }
+
+    function testentryModule_refundContributionIfThereIsParentAndIsCouponUser() public {
+        // Set the coupon pool and the coupon redeemer
+        address couponPool = makeAddr("couponPool");
+        address couponRedeemer = makeAddr("couponRedeemer");
+
+        deal(address(usdc), couponPool, CONTRIBUTION_AMOUNT);
+
+        vm.prank(couponPool);
+        usdc.approve(address(entryModule), CONTRIBUTION_AMOUNT);
+
+        vm.startPrank(takadao);
+        entryModule.setCouponPoolAddress(couponPool);
+        entryModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
+        vm.stopPrank();
+
+        // KYC Alice so she can act as a parent
+        vm.prank(kycService);
+        entryModule.approveKYC(alice);
+
+        vm.prank(couponRedeemer);
+        entryModule.joinPoolOnBehalfOf(
+            bob,
+            alice,
+            CONTRIBUTION_AMOUNT,
+            5 * YEAR,
+            (CONTRIBUTION_AMOUNT / 2)
+        );
+
+        Member memory Bob = takasureReserve.getMemberFromAddress(bob);
+
+        // contribution - discount - 27% fee
+        // 250 - ((250 - 125) * 5 / 100) - (250 * 27 / 100) = 250 - (125 * 5 / 100) - 67.5
+        // = 250 - 6.25 - 67.5 = 176.25
+        // The discount is 5% because Bob has Alice as parent, but in this case the discount is applied
+        // to the contribution amount minus the coupon amount, so it is the 5% of 125 USDC
+        uint256 expectedRefundAmount = 17625e4;
+
+        uint256 contractBalanceBeforeRefund = usdc.balanceOf(address(entryModule));
+        uint256 bobBalanceBeforeRefund = usdc.balanceOf(bob);
+        uint256 couponPoolBalanceBeforeRefund = usdc.balanceOf(couponPool);
+
+        // 14 days passed
+        vm.warp(15 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(bob);
+        vm.expectEmit(true, true, false, false, address(entryModule));
+        emit TakasureEvents.OnRefund(Bob.memberId, bob, expectedRefundAmount);
+        entryModule.refund();
+
+        uint256 contractBalanceAfterRefund = usdc.balanceOf(address(entryModule));
+        uint256 bobBalanceAfterRefund = usdc.balanceOf(bob);
+        uint256 couponPoolBalanceAfterRefund = usdc.balanceOf(couponPool);
+
+        assertEq(contractBalanceBeforeRefund - expectedRefundAmount, contractBalanceAfterRefund);
+        // In this case, as Bob used a coupon, the refund amount is not transferred to Bob, but to the coupon pool
+        assertEq(bobBalanceBeforeRefund, bobBalanceAfterRefund);
+        assertEq(
+            couponPoolBalanceBeforeRefund + expectedRefundAmount,
+            couponPoolBalanceAfterRefund
+        );
     }
 
     function testEntryModule_sameIdIfJoinsAgainAfterRefund() public {
@@ -148,18 +285,17 @@ contract Refund_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.startPrank(alice);
+        vm.prank(alice);
         entryModule.refund();
-        vm.stopPrank();
 
         Member memory aliceAfterRefund = takasureReserve.getMemberFromAddress(alice);
 
-        vm.startPrank(bob);
+        vm.prank(bob);
         userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.stopPrank();
 
         vm.startPrank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
+        usdc.approve(address(entryModule), 100e6);
+        userRouter.joinPool(address(0), 100e6, 5 * YEAR);
         vm.stopPrank();
 
         Member memory aliceAfterSecondJoin = takasureReserve.getMemberFromAddress(alice);

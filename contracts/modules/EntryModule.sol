@@ -512,6 +512,7 @@ contract EntryModule is
     /**
      * @notice All refunds for users that used coupons will be restored in the coupon pool
      *         The user will need to reach custommer support to get the corresponding amount
+     *         The fee is not refundable
      */
     function _refund(address _memberWallet) internal {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
@@ -531,10 +532,10 @@ contract EntryModule is
         uint256 limitTimestamp = membershipStartTime + (14 days);
         require(currentTimestamp >= limitTimestamp, EntryModule__TooEarlytoRefund());
 
-        // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmount = _member.contribution;
-        uint256 serviceFeeAmount = _member.totalServiceFee;
-        uint256 amountToRefund = contributionAmount - serviceFeeAmount;
+        // As there is only one contribution, is easy to calculate with the Member struct values
+        uint256 contributionAmountAfterFee = _member.contribution - (_member.contribution * _reserve.serviceFee) / 100;
+        uint256 discountAmount = _member.discount;
+        uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
         // Update the member values
         _member.isRefunded = true;
