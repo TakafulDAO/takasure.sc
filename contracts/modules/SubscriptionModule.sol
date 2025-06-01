@@ -419,9 +419,9 @@ contract SubscriptionModule is
         require(currentTimestamp >= limitTimestamp, SubscriptionModule__TooEarlytoRefund());
 
         // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmount = _member.contribution;
-        uint256 serviceFeeAmount = _member.totalServiceFee;
-        uint256 amountToRefund = contributionAmount - serviceFeeAmount;
+        uint256 contributionAmountAfterFee = _member.contribution - (_member.contribution * _reserve.serviceFee) / 100;
+        uint256 discountAmount = _member.discount;
+        uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
         Member memory newMember = Member({
             memberId: _member.memberId,
