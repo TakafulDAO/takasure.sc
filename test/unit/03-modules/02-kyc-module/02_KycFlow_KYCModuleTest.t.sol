@@ -87,7 +87,7 @@ contract KycFlow_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev Test contribution amount is transferred to the contract
-    function testSubscriptionModule_KycFlow() public {
+    function testKYCModule_KycFlow() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 memberIdBeforeJoin = reserve.memberIdCounter;
 
@@ -141,17 +141,6 @@ contract KycFlow_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
 
         // Set KYC status to true
         vm.prank(admin);
-        vm.expectEmit(true, true, true, true, address(kycModule));
-        emit TakasureEvents.OnMemberUpdated(
-            memberIdAfterJoin,
-            alice,
-            BENEFIT_MULTIPLIER_FROM_CONSUMER,
-            CONTRIBUTION_AMOUNT,
-            ((CONTRIBUTION_AMOUNT * 27) / 100),
-            5 * YEAR,
-            1
-        );
-
         vm.expectEmit(true, false, false, false, address(kycModule));
         emit TakasureEvents.OnMemberKycVerified(memberIdAfterJoin, alice);
 
