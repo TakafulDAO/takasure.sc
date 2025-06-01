@@ -1,10 +1,10 @@
 //SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title EntryModule
+ * @title KYCModule
  * @author Maikel Ordaz
- * @notice This contract manage all the process to become a member
- * @dev It will interact with the TakasureReserve contract to update the values
+ * @notice This contract manage the KYC flow
+ * @dev It will interact with the TakasureReserve contract to update the values. Only admin functions
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

@@ -1,9 +1,9 @@
 //SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title EntryModule
+ * @title SubscriptionModule
  * @author Maikel Ordaz
- * @notice This contract manage all the process to become a member
+ * @notice This contract manage all the subscriptions/refunds to/from the LifeDAO protocol
  * @dev It will interact with the TakasureReserve contract to update the values
  * @dev Upgradeable contract with UUPS pattern
  */
