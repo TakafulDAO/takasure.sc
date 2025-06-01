@@ -17,7 +17,7 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
-import {NewParentRewards} from "contracts/helpers/payments/NewParentRewards.sol";
+import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -37,7 +37,7 @@ contract SubscriptionModule is
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
     MemberPaymentFlow,
-    NewParentRewards
+    ParentRewards
 {
     using SafeERC20 for IERC20;
 
@@ -57,7 +57,7 @@ contract SubscriptionModule is
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => bool) private isMemberCouponRedeemer;
 
-    error SubscriptionModule__ContributionOutOfRange();
+    error SubscriptionModule__InvalidContribution();
     error SubscriptionModule__AlreadyJoined();
     error SubscriptionModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error SubscriptionModule__MemberAlreadyKYCed();
@@ -130,7 +130,7 @@ contract SubscriptionModule is
      *      that the minimum contribution amount is 0.01 USDC
      * @dev the contribution amount will be round down so the last four decimals will be zero
      */
-    function joinPool(
+    function paySubscription(
         address memberWallet,
         address parentWallet,
         uint256 contributionBeforeFee,
@@ -144,19 +144,19 @@ contract SubscriptionModule is
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
-
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
         );
 
         if (!newMember.isRefunded){
+            require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
+        } else {
             require(
                 newMember.memberId != 0 && newMember.wallet == memberWallet,
                 ModuleErrors.Module__WrongMemberState()
             );
-        } else {
-            require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
+            
         }
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
@@ -190,7 +190,7 @@ contract SubscriptionModule is
      * @notice Called by backend or CCIP protocol to allow new members to join the pool
      * @param couponAmount in six decimals
      */
-    function joinPoolOnBehalfOf(
+    function paySubscriptionOnBehalfOf(
         address memberWallet,
         address parentWallet,
         uint256 contributionBeforeFee,
@@ -207,12 +207,13 @@ contract SubscriptionModule is
         );
 
          if (!newMember.isRefunded){
+            require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
+
+        } else {
             require(
                 newMember.memberId != 0 && newMember.wallet == memberWallet,
                 ModuleErrors.Module__WrongMemberState()
             );
-        } else {
-            require(newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
         } 
         
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
@@ -234,6 +235,20 @@ contract SubscriptionModule is
             isMemberCouponRedeemer[memberWallet] = true;
             emit TakasureEvents.OnCouponRedeemed(memberWallet, couponAmount);
         }
+    }
+
+    function transferContributionAfterKyc(
+        IERC20 contributionToken,
+        address memberWallet,
+        address takasureReserveAddress,
+        uint256 contributionAfterFeeAmount
+    ) external {
+        _transferContribution(
+            contributionToken,
+            memberWallet,
+            takasureReserveAddress,
+            contributionAfterFeeAmount
+        );
     }
 
     /**
@@ -317,7 +332,7 @@ contract SubscriptionModule is
         require(
             _contributionBeforeFee >= _reserve.minimumThreshold &&
                 _contributionBeforeFee <= _reserve.maximumThreshold,
-            SubscriptionModule__ContributionOutOfRange()
+            SubscriptionModule__InvalidContribution()
         );
 
         uint256 memberId;
