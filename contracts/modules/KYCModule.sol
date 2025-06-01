@@ -43,10 +43,6 @@ contract KYCModule is
     ISubscriptionModule private subscriptionModule;
     ModuleState private moduleState;
 
-    uint256 private transient normalizedContributionBeforeFee;
-    uint256 private transient feeAmount;
-    uint256 private transient contributionAfterFee;
-
     error KYCModule__NoContribution();
     error KYCModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error KYCModule__MemberAlreadyKYCed();
@@ -57,7 +53,8 @@ contract KYCModule is
     }
 
     function initialize(
-        address _takasureReserveAddress, address _subscriptionModuleAddress
+        address _takasureReserveAddress,
+        address _subscriptionModuleAddress
     ) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
@@ -90,7 +87,6 @@ contract KYCModule is
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
-    
     /**
      * @notice Approves the KYC for a member.
      * @param memberWallet address of the member
@@ -109,28 +105,21 @@ contract KYCModule is
         require(!newMember.isKYCVerified, KYCModule__MemberAlreadyKYCed());
         require(newMember.contribution > 0 && !newMember.isRefunded, KYCModule__NoContribution());
 
-        // This means the user exists and payed contribution but is not KYCed yet, we update the values
-        _calculateAmountAndFees(newMember.contribution, reserve.serviceFee);
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
-        newMember = _updateMember({
-            _drr: reserve.dynamicReserveRatio, // We take the current value
-            _benefitMultiplier: benefitMultiplier, // We take the current value
-            _membershipDuration: newMember.membershipDuration, // We take the current value
-            _memberWallet: memberWallet, // The member wallet
-            _memberState: MemberState.Active, // Active state as the user is already paid the contribution and KYCed
-            _isKYCVerified: true, // Set to true with this call
-            _isRefunded: false, // Remains false as the user is not refunded
-            _allowCustomDuration: reserve.allowCustomDuration,
-            _member: newMember
-        });
+        // We update the member values
+        newMember.benefitMultiplier = benefitMultiplier;
+        newMember.membershipStartTime = block.timestamp;
+        newMember.memberState = MemberState.Active; // Active state as the user is already paid the contribution and KYCed
+        newMember.isKYCVerified = true;
 
         // Then the everyting needed will be updated, proformas, reserves, cash flow,
         // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
         uint256 mintedTokens;
         (reserve, mintedTokens) = _memberPaymentFlow({
             _contributionBeforeFee: newMember.contribution,
-            _contributionAfterFee: contributionAfterFee,
+            _contributionAfterFee: newMember.contribution -
+                ((newMember.contribution * reserve.serviceFee) / 100),
             _memberWallet: memberWallet,
             _reserve: reserve,
             _takasureReserve: takasureReserve
@@ -143,10 +132,14 @@ contract KYCModule is
 
         for (uint256 i; i < uint256(MAX_TIER); ++i) {
             if (parent == address(0)) break;
+
             uint256 layer = i + 1;
+
             uint256 parentReward = parentRewardsByChild[parent][memberWallet];
+
             // Reset the rewards for this child
             parentRewardsByChild[parent][memberWallet] = 0;
+
             try IERC20(reserve.contributionToken).transfer(parent, parentReward) {
                 emit TakasureEvents.OnParentRewarded(parent, layer, memberWallet, parentReward);
             } catch {
@@ -164,59 +157,9 @@ contract KYCModule is
 
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
         emit TakasureEvents.OnMemberJoined(newMember.memberId, memberWallet);
+
         _setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
         takasureReserve.memberSurplus(newMember);
-
-    }
-
-    function _calculateAmountAndFees(uint256 _contributionBeforeFee, uint256 _fee) internal {
-        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
-        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        normalizedContributionBeforeFee =
-            (_contributionBeforeFee / ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC) *
-            ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC;
-        feeAmount = (normalizedContributionBeforeFee * _fee) / 100;
-        contributionAfterFee = normalizedContributionBeforeFee - feeAmount;
-    }
-
-    function _updateMember(
-        uint256 _drr,
-        uint256 _benefitMultiplier,
-        uint256 _membershipDuration,
-        address _memberWallet,
-        MemberState _memberState,
-        bool _isKYCVerified,
-        bool _isRefunded,
-        bool _allowCustomDuration,
-        Member memory _member
-    ) internal returns (Member memory) {
-        uint256 userMembershipDuration;
-        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) /
-            100;
-        if (_allowCustomDuration) {
-            userMembershipDuration = _membershipDuration;
-        } else {
-            userMembershipDuration = ModuleConstants.DEFAULT_MEMBERSHIP_DURATION;
-        }
-        _member.benefitMultiplier = _benefitMultiplier;
-        _member.membershipDuration = userMembershipDuration;
-        _member.membershipStartTime = block.timestamp;
-        _member.contribution = normalizedContributionBeforeFee;
-        _member.claimAddAmount = claimAddAmount;
-        _member.totalServiceFee = feeAmount;
-        _member.memberState = _memberState;
-        _member.isKYCVerified = _isKYCVerified;
-        _member.isRefunded = _isRefunded;
-        emit TakasureEvents.OnMemberUpdated(
-            _member.memberId,
-            _memberWallet,
-            _benefitMultiplier,
-            normalizedContributionBeforeFee,
-            feeAmount,
-            userMembershipDuration,
-            block.timestamp
-        );
-        return _member;
     }
 
     function _getBenefitMultiplierFromOracle(
@@ -250,9 +193,9 @@ contract KYCModule is
         uint256 _contributionAfterFee
     ) internal override {
         subscriptionModule.transferContributionAfterKyc(
-            _contributionToken, 
-            _memberWallet, 
-            _takasureReserve, 
+            _contributionToken,
+            _memberWallet,
+            _takasureReserve,
             _contributionAfterFee
         );
     }
