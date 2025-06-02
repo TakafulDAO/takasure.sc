@@ -133,7 +133,7 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
 
         // Cannot KYC someone who has been refunded until pays again
         vm.prank(kycService);
-        vm.expectRevert(KYCModule.KYCModule__NoContribution.selector);
+        vm.expectRevert(KYCModule.KYCModule__ContributionRequired.selector);
         kycModule.approveKYC(alice);
 
         vm.startPrank(alice);

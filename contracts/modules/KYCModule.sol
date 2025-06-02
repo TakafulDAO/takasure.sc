@@ -43,7 +43,7 @@ contract KYCModule is
     ISubscriptionModule private subscriptionModule;
     ModuleState private moduleState;
 
-    error KYCModule__NoContribution();
+    error KYCModule__ContributionRequired();
     error KYCModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error KYCModule__MemberAlreadyKYCed();
 
@@ -102,7 +102,10 @@ contract KYCModule is
         );
 
         require(!newMember.isKYCVerified, KYCModule__MemberAlreadyKYCed());
-        require(newMember.contribution > 0 && !newMember.isRefunded, KYCModule__NoContribution());
+        require(
+            newMember.contribution > 0 && !newMember.isRefunded,
+            KYCModule__ContributionRequired()
+        );
 
         uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
