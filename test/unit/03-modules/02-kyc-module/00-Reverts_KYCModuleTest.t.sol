@@ -141,16 +141,6 @@ contract Reverts_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.stopPrank();
     }
 
-    /// @dev can not refund someone already KYC verified
-    function testSubscriptionModule_refundRevertIfMemberIsKyc() public {
-        vm.prank(admin);
-        kycModule.approveKYC(alice);
-
-        vm.prank(alice);
-        vm.expectRevert(SubscriptionModule.SubscriptionModule__MemberAlreadyKYCed.selector);
-        subscriptionModule.refund();
-    }
-
     function testSubscriptionModule_revertIfTryToJoinTwice() public {
         vm.prank(admin);
         kycModule.approveKYC(alice);

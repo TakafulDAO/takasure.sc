@@ -430,15 +430,14 @@ contract SubscriptionModule is
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         // The member should not be KYCed neither already refunded
-        require(!_member.isKYCVerified, SubscriptionModule__MemberAlreadyKYCed());
         require(!_member.isRefunded, SubscriptionModule__NothingToRefund());
 
         uint256 currentTimestamp = block.timestamp;
         uint256 membershipStartTime = _member.membershipStartTime;
-        // The member can refund after 14 days of the payment
-        uint256 limitTimestamp = membershipStartTime + (14 days);
+        // The member can refund after 30 days of the payment
+        uint256 limitTimestamp = membershipStartTime + (30 days);
 
-        require(currentTimestamp >= limitTimestamp, SubscriptionModule__TooEarlytoRefund());
+        require(currentTimestamp <= limitTimestamp, SubscriptionModule__TooEarlytoRefund());
 
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmountAfterFee = _member.contribution -

@@ -129,12 +129,15 @@ contract Reverts_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse 
         vm.stopPrank();
     }
 
-    /// @dev can not refund before 14 days
-    function testSubscriptionModule_refundRevertIfMemberRefundBefore14Days() public {
+    /// @dev can not refund after 30 days
+    function testSubscriptionModule_refundRevertIfMemberRefundAfter30Days() public {
         // Join
         vm.startPrank(alice);
         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
+
+        vm.warp(31 days);
+        vm.roll(block.number + 1);
 
         // Try to refund
         vm.startPrank(alice);
