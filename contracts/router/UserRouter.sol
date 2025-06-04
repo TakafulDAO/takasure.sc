@@ -11,7 +11,7 @@ import {IMemberModule} from "contracts/interfaces/IMemberModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
@@ -43,7 +43,7 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         address takadaoOperator = ITakasureReserve(_takasureReserveAddress).takadaoOperator();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
+        _grantRole(Roles.OPERATOR, takadaoOperator);
     }
 
     function paySubscription(
@@ -79,14 +79,12 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         memberModule.defaultMember(memberWallet);
     }
 
-    function setSubscriptionModule(
-        address _subscriptionModule
-    ) external onlyRole(ModuleConstants.OPERATOR) {
+    function setSubscriptionModule(address _subscriptionModule) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(_subscriptionModule);
         subscriptionModule = ISubscriptionModule(_subscriptionModule);
     }
 
-    function setMemberModule(address _memberModule) external onlyRole(ModuleConstants.OPERATOR) {
+    function setMemberModule(address _memberModule) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(_memberModule);
         memberModule = IMemberModule(_memberModule);
     }
@@ -94,5 +92,5 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

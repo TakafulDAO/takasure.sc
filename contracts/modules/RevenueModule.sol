@@ -15,6 +15,7 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 
 import {Reserve, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -52,9 +53,9 @@ contract RevenueModule is
         address moduleManager = takasureReserve.moduleManager();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
-        _grantRole(ModuleConstants.DAO_MULTISIG, daoMultisig);
-        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
+        _grantRole(Roles.OPERATOR, takadaoOperator);
+        _grantRole(Roles.DAO_MULTISIG, daoMultisig);
+        _grantRole(Roles.MODULE_MANAGER, moduleManager);
     }
 
     /**
@@ -63,7 +64,7 @@ contract RevenueModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+    ) external override onlyRole(Roles.MODULE_MANAGER) {
         moduleState = newState;
     }
 
@@ -75,7 +76,7 @@ contract RevenueModule is
     function depositRevenue(
         uint256 newRevenue,
         RevenueType revenueType
-    ) external onlyRole(ModuleConstants.DAO_MULTISIG) {
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
@@ -196,5 +197,5 @@ contract RevenueModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

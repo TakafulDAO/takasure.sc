@@ -22,6 +22,7 @@ import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -92,8 +93,8 @@ contract SubscriptionModule is
         couponPool = _couponPool;
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, address(moduleManager));
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
+        _grantRole(Roles.MODULE_MANAGER, address(moduleManager));
+        _grantRole(Roles.OPERATOR, takadaoOperator);
     }
 
     /**
@@ -102,23 +103,23 @@ contract SubscriptionModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+    ) external override onlyRole(Roles.MODULE_MANAGER) {
         moduleState = newState;
     }
 
-    function setCouponPoolAddress(address _couponPool) external onlyRole(ModuleConstants.OPERATOR) {
+    function setCouponPoolAddress(address _couponPool) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
 
     function setCCIPReceiverContract(
         address _ccipReceiverContract
-    ) external onlyRole(ModuleConstants.OPERATOR) {
+    ) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(_ccipReceiverContract);
         ccipReceiverContract = _ccipReceiverContract;
     }
 
-    function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
+    function updateBmAddress() external onlyRole(Roles.OPERATOR) {
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
@@ -149,7 +150,7 @@ contract SubscriptionModule is
         // Check caller
         require(
             msg.sender == referralGateway ||
-                hasRole(ModuleConstants.ROUTER, msg.sender) ||
+                hasRole(Roles.ROUTER, msg.sender) ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -425,8 +426,8 @@ contract SubscriptionModule is
 
         require(
             _memberWallet == msg.sender ||
-                hasRole(ModuleConstants.ROUTER, msg.sender) ||
-                hasRole(ModuleConstants.OPERATOR, msg.sender),
+                hasRole(Roles.ROUTER, msg.sender) ||
+                hasRole(Roles.OPERATOR, msg.sender),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         // The member should not be KYCed neither already refunded
@@ -632,7 +633,7 @@ contract SubscriptionModule is
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) ||
+            hasRole(Roles.COUPON_REDEEMER, msg.sender) ||
                 msg.sender == ccipReceiverContract,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -641,5 +642,5 @@ contract SubscriptionModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

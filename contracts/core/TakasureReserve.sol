@@ -12,7 +12,6 @@ import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
@@ -23,12 +22,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-contract TakasureReserve is
-    Initializable,
-    UUPSUpgradeable,
-    AccessControlUpgradeable,
-    PausableUpgradeable
-{
+contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable {
     IModuleManager public moduleManager;
     IAddressManager public addressManager;
 
@@ -58,6 +52,11 @@ contract TakasureReserve is
     error TakasureReserve__WrongValue();
     error TakasureReserve__UnallowedAccess();
 
+    modifier onlyRole(bytes32 role) {
+        require(addressManager.hasRole(role, msg.sender), TakasureReserve__UnallowedAccess());
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -65,12 +64,12 @@ contract TakasureReserve is
 
     function initialize(TakasureReserveInitParams memory _initParams) external initializer {
         __UUPSUpgradeable_init();
-        __AccessControl_init();
+        // __AccessControl_init();
         __Pausable_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(OPERATOR, _initParams.takadaoOperator);
-        _grantRole(DAO_MULTISIG, _initParams.daoOperator);
-        _grantRole(PAUSE_GUARDIAN, _initParams.pauseGuardian);
+        // _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        // _grantRole(OPERATOR, _initParams.takadaoOperator);
+        // _grantRole(DAO_MULTISIG, _initParams.daoOperator);
+        // _grantRole(PAUSE_GUARDIAN, _initParams.pauseGuardian);
 
         moduleManager = IModuleManager(_initParams.moduleManager);
         addressManager = IAddressManager(_initParams.addressManager);
@@ -242,25 +241,27 @@ contract TakasureReserve is
         kycProvider = newKycProviderAddress;
     }
 
-    function setNewOperatorAddress(address newOperatorAddress) external {
-        _onlyDaoOrTakadao();
-        address oldOperator = takadaoOperator;
-        takadaoOperator = newOperatorAddress;
+    // todo: ser operator address in address manager
+    // function setNewOperatorAddress(address newOperatorAddress) external {
+    //     _onlyDaoOrTakadao();
+    //     address oldOperator = takadaoOperator;
+    //     takadaoOperator = newOperatorAddress;
 
-        _grantRole(OPERATOR, newOperatorAddress);
-        _revokeRole(OPERATOR, oldOperator);
+    //     _grantRole(OPERATOR, newOperatorAddress);
+    //     _revokeRole(OPERATOR, oldOperator);
 
-        emit TakasureEvents.OnOperatorChanged(newOperatorAddress, oldOperator);
-    }
+    //     emit TakasureEvents.OnOperatorChanged(newOperatorAddress, oldOperator);
+    // }
 
-    function setNewPauseGuardianAddress(address newPauseGuardianAddress) external {
-        _onlyDaoOrTakadao();
-        address oldPauseGuardian = pauseGuardian;
-        pauseGuardian = newPauseGuardianAddress;
+    // todo: set pause guardian in address manager
+    // function setNewPauseGuardianAddress(address newPauseGuardianAddress) external {
+    //     _onlyDaoOrTakadao();
+    //     address oldPauseGuardian = pauseGuardian;
+    //     pauseGuardian = newPauseGuardianAddress;
 
-        _grantRole(PAUSE_GUARDIAN, newPauseGuardianAddress);
-        _revokeRole(PAUSE_GUARDIAN, oldPauseGuardian);
-    }
+    //     _grantRole(PAUSE_GUARDIAN, newPauseGuardianAddress);
+    //     _revokeRole(PAUSE_GUARDIAN, oldPauseGuardian);
+    // }
 
     /**
      * @notice Calculate the surplus for a member
@@ -455,7 +456,8 @@ contract TakasureReserve is
 
     function _onlyDaoOrTakadao() internal view {
         require(
-            hasRole(OPERATOR, msg.sender) || hasRole(DAO_MULTISIG, msg.sender),
+            addressManager.hasRole(OPERATOR, msg.sender) ||
+                addressManager.hasRole(DAO_MULTISIG, msg.sender),
             TakasureReserve__OnlyDaoOrTakadao()
         );
     }

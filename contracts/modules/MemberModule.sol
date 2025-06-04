@@ -19,7 +19,7 @@ import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValues
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -61,8 +61,8 @@ contract MemberModule is
         address moduleManager = takasureReserve.moduleManager();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
+        _grantRole(Roles.MODULE_MANAGER, moduleManager);
+        _grantRole(Roles.OPERATOR, takadaoOperator);
     }
 
     /**
@@ -71,7 +71,7 @@ contract MemberModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+    ) external override onlyRole(Roles.MODULE_MANAGER) {
         moduleState = newState;
     }
 
@@ -88,7 +88,7 @@ contract MemberModule is
     function payRecurringContribution(address memberWallet) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(
-            hasRole(ModuleConstants.ROUTER, msg.sender) || msg.sender == memberWallet,
+            hasRole(Roles.ROUTER, msg.sender) || msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         (Reserve memory reserve, Member memory activeMember) = _getReserveAndMemberValuesHook(
@@ -202,5 +202,5 @@ contract MemberModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

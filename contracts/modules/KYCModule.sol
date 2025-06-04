@@ -21,7 +21,7 @@ import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.so
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -67,9 +67,9 @@ contract KYCModule is
         address takadaoOperator = takasureReserve.takadaoOperator();
 
         _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, takasureReserve.moduleManager());
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
-        _grantRole(ModuleConstants.KYC_PROVIDER, takasureReserve.kycProvider());
+        _grantRole(Roles.MODULE_MANAGER, takasureReserve.moduleManager());
+        _grantRole(Roles.OPERATOR, takadaoOperator);
+        _grantRole(Roles.KYC_PROVIDER, takasureReserve.kycProvider());
     }
 
     /**
@@ -78,11 +78,11 @@ contract KYCModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+    ) external override onlyRole(Roles.MODULE_MANAGER) {
         moduleState = newState;
     }
 
-    function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
+    function updateBmAddress() external onlyRole(Roles.OPERATOR) {
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
@@ -92,7 +92,7 @@ contract KYCModule is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function approveKYC(address memberWallet) external onlyRole(ModuleConstants.KYC_PROVIDER) {
+    function approveKYC(address memberWallet) external onlyRole(Roles.KYC_PROVIDER) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(memberWallet);
 
@@ -205,5 +205,5 @@ contract KYCModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }
