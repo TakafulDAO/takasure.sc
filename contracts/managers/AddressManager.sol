@@ -43,6 +43,7 @@ contract AddressManager is Ownable2Step, AccessControl {
     error AddressManager__InvalidCaller();
     error AddressManager__NoProposedHolder();
     error AddressManager__TooLateToAccept();
+    error AddressManager__NotRoleHolder();
 
     constructor() Ownable(msg.sender) {
         roleAcceptanceDelay = 1 days;
@@ -137,6 +138,23 @@ contract AddressManager is Ownable2Step, AccessControl {
         delete proposedRoleHolders[role];
 
         emit OnNewRoleHolder(role, msg.sender);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              REVOKE ROLES
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Revokes a role from an address.
+     * @param role The role to be revoked.
+     * @param account The address from which the role will be revoked.
+     * @dev This function can only be called by the owner of the contract.
+     */
+    function revokeRoleHolder(bytes32 role, address account) external onlyOwner {
+        require(_roles.contains(role), AddressManager__RoleDoesNotExist());
+        require(roleHolders[role] == account, AddressManager__NotRoleHolder());
+
+        _revokeRole(role, account);
     }
 
     /*//////////////////////////////////////////////////////////////
