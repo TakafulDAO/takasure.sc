@@ -5,6 +5,7 @@ pragma solidity 0.8.28;
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
@@ -15,11 +16,12 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState, TakasureReserveInitParams} from "contracts/types/TakasureTypes.sol";
 
 contract TestDeployProtocol is Script {
     BenefitMultiplierConsumerMock bmConsumerMock;
     ModuleManager moduleManager;
+    AddressManager addressManager;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -65,26 +67,27 @@ contract TestDeployProtocol is Script {
         );
 
         moduleManager = new ModuleManager();
+        addressManager = new AddressManager();
+
+        TakasureReserveInitParams memory params = TakasureReserveInitParams({
+            contributionToken: config.contributionToken,
+            feeClaimAddress: config.feeClaimAddress,
+            daoOperator: config.daoMultisig,
+            takadaoOperator: config.takadaoOperator,
+            kycProvider: config.kycProvider,
+            pauseGuardian: config.pauseGuardian,
+            tokenAdmin: config.tokenAdmin,
+            moduleManager: address(moduleManager),
+            addressManager: address(addressManager),
+            tokenName: config.tokenName,
+            tokenSymbol: config.tokenSymbol
+        });
 
         // Deploy TakasureReserve
         takasureReserveImplementation = address(new TakasureReserve());
         takasureReserve = UnsafeUpgrades.deployUUPSProxy(
             takasureReserveImplementation,
-            abi.encodeCall(
-                TakasureReserve.initialize,
-                (
-                    config.contributionToken,
-                    config.feeClaimAddress,
-                    config.daoMultisig,
-                    config.takadaoOperator,
-                    config.kycProvider,
-                    config.pauseGuardian,
-                    config.tokenAdmin,
-                    address(moduleManager),
-                    config.tokenName,
-                    config.tokenSymbol
-                )
-            )
+            abi.encodeCall(TakasureReserve.initialize, (params))
         );
 
         (

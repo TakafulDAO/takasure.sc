@@ -34,6 +34,20 @@ enum RevenueType {
     CatLoan
 }
 
+struct TakasureReserveInitParams {
+    address contributionToken;
+    address feeClaimAddress;
+    address daoOperator;
+    address takadaoOperator;
+    address kycProvider;
+    address pauseGuardian;
+    address tokenAdmin;
+    address moduleManager;
+    address addressManager;
+    string tokenName;
+    string tokenSymbol;
+}
+
 struct CashFlowVars {
     uint256 dayDepositTimestamp;
     uint256 monthDepositTimestamp;

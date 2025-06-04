@@ -9,13 +9,14 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
-import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, CashFlowVars, TakasureReserveInitParams} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -29,6 +30,7 @@ contract TakasureReserve is
     PausableUpgradeable
 {
     IModuleManager public moduleManager;
+    IAddressManager public addressManager;
 
     Reserve private reserve;
     CashFlowVars private cashFlowVars;
@@ -61,45 +63,29 @@ contract TakasureReserve is
         _disableInitializers();
     }
 
-    /**
-     * @param _contributionToken default USDC
-     * @param _feeClaimAddress address allowed to claim the service fee
-     * @param _daoOperator address allowed to manage the DAO
-     * @dev it reverts if any of the addresses is zero
-     */
-    function initialize(
-        address _contributionToken,
-        address _feeClaimAddress,
-        address _daoOperator,
-        address _takadaoOperator,
-        address _kycProvider,
-        address _pauseGuardian,
-        address _tokenAdmin,
-        address _moduleManager,
-        string memory _tokenName,
-        string memory _tokenSymbol
-    ) external initializer {
+    function initialize(TakasureReserveInitParams memory _initParams) external initializer {
         __UUPSUpgradeable_init();
         __AccessControl_init();
         __Pausable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(OPERATOR, _takadaoOperator);
-        _grantRole(DAO_MULTISIG, _daoOperator);
-        _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
+        _grantRole(OPERATOR, _initParams.takadaoOperator);
+        _grantRole(DAO_MULTISIG, _initParams.daoOperator);
+        _grantRole(PAUSE_GUARDIAN, _initParams.pauseGuardian);
 
-        moduleManager = IModuleManager(_moduleManager);
-        takadaoOperator = _takadaoOperator;
-        daoMultisig = _daoOperator;
-        kycProvider = _kycProvider;
-        feeClaimAddress = _feeClaimAddress;
-        pauseGuardian = _pauseGuardian;
+        moduleManager = IModuleManager(_initParams.moduleManager);
+        addressManager = IAddressManager(_initParams.addressManager);
+        takadaoOperator = _initParams.takadaoOperator;
+        daoMultisig = _initParams.daoOperator;
+        kycProvider = _initParams.kycProvider;
+        feeClaimAddress = _initParams.feeClaimAddress;
+        pauseGuardian = _initParams.pauseGuardian;
 
         TSToken daoToken = new TSToken(
-            _tokenAdmin,
+            _initParams.tokenAdmin,
             msg.sender,
-            _moduleManager,
-            _tokenName,
-            _tokenSymbol
+            _initParams.moduleManager,
+            _initParams.tokenName,
+            _initParams.tokenSymbol
         );
 
         cashFlowVars.monthReference = 1;
@@ -113,7 +99,7 @@ contract TakasureReserve is
         reserve.riskMultiplier = 2; // 2% Default
         reserve.isOptimizerEnabled = true; // Default
         reserve.daoToken = address(daoToken);
-        reserve.contributionToken = _contributionToken;
+        reserve.contributionToken = _initParams.contributionToken;
         reserve.minimumThreshold = 25e6; // 25 USDC // 6 decimals
         reserve.maximumThreshold = 250e6; // 250 USDC // 6 decimals
         reserve.initialReserveRatio = 40; // 40% Default
