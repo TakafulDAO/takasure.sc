@@ -23,7 +23,8 @@ contract AddressManager is Ownable2Step, AccessControl {
         uint256 proposalTime;
     }
 
-    mapping(bytes32 role => address roleHolder) public roleHolders;
+    mapping(address roleHolder => bytes32[] role) public rolesByAddress;
+    mapping(bytes32 role => address roleHolder) public currentRoleHolders;
     mapping(bytes32 role => ProposedHolder proposedHolder) public proposedRoleHolders;
 
     EnumerableSet.Bytes32Set private _roles;
@@ -95,7 +96,11 @@ contract AddressManager is Ownable2Step, AccessControl {
         require(_roles.contains(role), AddressManager__RoleDoesNotExist());
 
         // Check if the role is already assigned to the proposed holder
-        if (roleHolders[role] != proposedRoleHolder) revert AddressManager__AlreadyRoleHolder();
+        bytes32[] memory currentRoles = rolesByAddress[proposedRoleHolder];
+
+        for (uint256 i; i < currentRoles.length; ++i) {
+            if (currentRoles[i] == role) revert AddressManager__AlreadyRoleHolder();
+        }
 
         ProposedHolder memory proposedHolder = ProposedHolder({
             proposedHolder: proposedRoleHolder,
@@ -128,11 +133,17 @@ contract AddressManager is Ownable2Step, AccessControl {
             AddressManager__TooLateToAccept()
         );
 
-        address currentHolder = roleHolders[role];
+        // Revoke the role for the current holder if it exists
+        address currentHolder = currentRoleHolders[role];
+
         if (currentHolder != address(0)) _revokeRole(role, currentHolder);
 
         // Assign the role to the proposed holder
         success = _grantRole(role, msg.sender);
+
+        // Update the current role holder mapping
+        currentRoleHolders[role] = msg.sender;
+        rolesByAddress[msg.sender].push(role);
 
         // Clear the proposed holder
         delete proposedRoleHolders[role];
@@ -152,7 +163,7 @@ contract AddressManager is Ownable2Step, AccessControl {
      */
     function revokeRoleHolder(bytes32 role, address account) external onlyOwner {
         require(_roles.contains(role), AddressManager__RoleDoesNotExist());
-        require(roleHolders[role] == account, AddressManager__NotRoleHolder());
+        require(currentRoleHolders[role] == account, AddressManager__NotRoleHolder());
 
         _revokeRole(role, account);
     }
