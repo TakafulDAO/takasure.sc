@@ -18,6 +18,10 @@ contract AddressManager is Ownable2Step, AccessControl {
 
     EnumerableSet.Bytes32Set private _roles;
 
+    /*//////////////////////////////////////////////////////////////
+                           EVENTS AND ERRORS
+    //////////////////////////////////////////////////////////////*/
+
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
 
@@ -25,6 +29,10 @@ contract AddressManager is Ownable2Step, AccessControl {
     error AddressManager__RoleDoesNotExist();
 
     constructor() Ownable(msg.sender) {}
+
+    /*//////////////////////////////////////////////////////////////
+                             ROLE CREATION
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Creates a new role in the AddressManager
@@ -52,6 +60,10 @@ contract AddressManager is Ownable2Step, AccessControl {
         emit OnRoleRemoved(roleToRemove);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Checks if a role exists in the AddressManager
      * @param role The role to check for existence
@@ -59,5 +71,16 @@ contract AddressManager is Ownable2Step, AccessControl {
      */
     function isValidRole(bytes32 role) external view returns (bool) {
         return _roles.contains(role);
+    }
+
+    /**
+     * @notice Returns the list of roles in the AddressManager
+     * @return roles An array of bytes32 representing the roles
+     */
+    function getRoles() external view returns (bytes32[] memory roles) {
+        roles = new bytes32[](_roles.length());
+        for (uint256 i = 0; i < _roles.length(); i++) {
+            roles[i] = _roles.at(i);
+        }
     }
 }
