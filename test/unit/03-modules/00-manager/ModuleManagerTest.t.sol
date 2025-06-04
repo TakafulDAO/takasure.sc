@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {ModuleManager} from "contracts/modules/manager/ModuleManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IsModule, IsNotModule} from "test/mocks/ModuleMocks.sol";
 
 import {ModuleState} from "contracts/types/TakasureTypes.sol";

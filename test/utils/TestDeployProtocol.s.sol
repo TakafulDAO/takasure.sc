@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {ModuleManager} from "contracts/modules/manager/ModuleManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
