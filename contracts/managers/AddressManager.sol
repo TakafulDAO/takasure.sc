@@ -41,7 +41,7 @@ contract AddressManager is Ownable2Step, AccessControl {
 
     /**
      * @notice Removes an existing role from the AddressManager
-     * @param role The role to be removed
+     * @param roleToRemove The role to be removed
      * @dev This function can only be called by the owner of the contract.
      * @return success A boolean indicating whether the role was successfully removed
      */
