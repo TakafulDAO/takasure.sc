@@ -19,6 +19,7 @@ import {Reserve, Member, MemberState, CashFlowVars, TakasureReserveInitParams} f
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 pragma solidity 0.8.28;
 
@@ -159,7 +160,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         moduleManager = IModuleManager(newModuleManagerContract);
     }
 
-    function setNewServiceFee(uint8 newServiceFee) external onlyRole(OPERATOR) {
+    function setNewServiceFee(uint8 newServiceFee) external onlyRole(Roles.OPERATOR) {
         require(newServiceFee <= 35, TakasureReserve__WrongValue());
         reserve.serviceFee = newServiceFee;
 
@@ -168,7 +169,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
 
     function setNewFundMarketExpendsShare(
         uint8 newFundMarketExpendsAddShare
-    ) external onlyRole(DAO_MULTISIG) {
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         require(newFundMarketExpendsAddShare <= 35, TakasureReserve__WrongValue());
 
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
@@ -180,37 +181,45 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         );
     }
 
-    function setAllowCustomDuration(bool _allowCustomDuration) external onlyRole(DAO_MULTISIG) {
+    function setAllowCustomDuration(
+        bool _allowCustomDuration
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.allowCustomDuration = _allowCustomDuration;
 
         emit TakasureEvents.OnAllowCustomDuration(_allowCustomDuration);
     }
 
-    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyRole(DAO_MULTISIG) {
+    function setNewMinimumThreshold(
+        uint256 newMinimumThreshold
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.minimumThreshold = newMinimumThreshold;
 
         emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
     }
 
-    function setNewMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(DAO_MULTISIG) {
+    function setNewMaximumThreshold(
+        uint256 newMaximumThreshold
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.maximumThreshold = newMaximumThreshold;
 
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
     }
 
-    function setRiskMultiplier(uint8 newRiskMultiplier) external onlyRole(DAO_MULTISIG) {
+    function setRiskMultiplier(uint8 newRiskMultiplier) external onlyRole(Roles.DAO_MULTISIG) {
         require(newRiskMultiplier <= 100, TakasureReserve__WrongValue());
         reserve.riskMultiplier = newRiskMultiplier;
 
         emit TakasureEvents.OnNewRiskMultiplier(newRiskMultiplier);
     }
 
-    function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(OPERATOR) {
+    function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(newFeeClaimAddress);
         feeClaimAddress = newFeeClaimAddress;
     }
 
-    function setReferralDiscountState(bool referralDiscountState) external onlyRole(OPERATOR) {
+    function setReferralDiscountState(
+        bool referralDiscountState
+    ) external onlyRole(Roles.OPERATOR) {
         reserve.referralDiscount = referralDiscountState;
     }
 
@@ -230,7 +239,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
 
     function setNewKycProviderAddress(
         address newKycProviderAddress
-    ) external onlyRole(DAO_MULTISIG) {
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         kycProvider = newKycProviderAddress;
     }
 
@@ -427,8 +436,8 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
 
     function _onlyDaoOrTakadao() internal view {
         require(
-            addressManager.hasRole(OPERATOR, msg.sender) ||
-                addressManager.hasRole(DAO_MULTISIG, msg.sender),
+            addressManager.hasRole(Roles.OPERATOR, msg.sender) ||
+                addressManager.hasRole(Roles.DAO_MULTISIG, msg.sender),
             TakasureReserve__OnlyDaoOrTakadao()
         );
     }
@@ -436,5 +445,5 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(DAO_MULTISIG) {}
+    ) internal override onlyRole(Roles.DAO_MULTISIG) {}
 }
