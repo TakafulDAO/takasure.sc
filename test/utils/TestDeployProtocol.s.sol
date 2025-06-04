@@ -17,6 +17,7 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {ModuleState, TakasureReserveInitParams} from "contracts/types/TakasureTypes.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 contract TestDeployProtocol is Script {
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -127,9 +128,12 @@ contract TestDeployProtocol is Script {
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
         tsToken = address(creditToken);
 
+        _createRoles(address(addressManager));
+
         _assignRoles(
-            takasureReserve,
+            address(addressManager),
             config.daoMultisig,
+            config.takadaoOperator,
             creditToken,
             subscriptionModuleAddress,
             kycModuleAddress,
@@ -143,9 +147,13 @@ contract TestDeployProtocol is Script {
             .contributionToken;
 
         vm.startPrank(config.takadaoOperator);
+        addressManager.acceptProposedRole(Roles.OPERATOR);
         SubscriptionModule(subscriptionModuleAddress).grantRole(ROUTER, routerAddress);
         MemberModule(memberModuleAddress).grantRole(ROUTER, routerAddress);
         vm.stopPrank();
+
+        vm.prank(config.daoMultisig);
+        addressManager.acceptProposedRole(Roles.DAO_MULTISIG);
 
         return (
             tsToken,
@@ -267,16 +275,24 @@ contract TestDeployProtocol is Script {
         moduleManager.addModule(_revenueModuleAddress);
     }
 
+    function _createRoles(address _addressManager) internal {
+        AddressManager(_addressManager).createNewRole(Roles.OPERATOR);
+        AddressManager(_addressManager).createNewRole(Roles.DAO_MULTISIG);
+    }
+
     function _assignRoles(
-        address _takasureReserve,
+        address _addressManager,
         address _daoMultisig,
+        address _takadaoOperator,
         TSToken _creditToken,
         address _subscriptionModuleAddress,
         address _kycModuleAddress,
         address _memberModuleAddress
     ) internal {
+        // Assign some global roles
+        AddressManager(_addressManager).proposeRoleHolder(Roles.OPERATOR, _takadaoOperator);
+        AddressManager(_addressManager).proposeRoleHolder(Roles.DAO_MULTISIG, _daoMultisig);
         // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
-        TakasureReserve(_takasureReserve).grantRole(0x00, _daoMultisig);
         // And the modules as burner and minters
         _creditToken.grantRole(MINTER_ROLE, _subscriptionModuleAddress);
         _creditToken.grantRole(MINTER_ROLE, _kycModuleAddress);
@@ -286,7 +302,6 @@ contract TestDeployProtocol is Script {
         _creditToken.grantRole(BURNER_ROLE, _memberModuleAddress);
 
         // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
-        TakasureReserve(_takasureReserve).renounceRole(0x00, msg.sender);
         // And the burner and minter admins
         _creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
         _creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
