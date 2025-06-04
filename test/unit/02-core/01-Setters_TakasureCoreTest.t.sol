@@ -178,20 +178,20 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         takasureReserve.setNewKycProviderAddress(admin);
     }
 
-    function testTakasureCore_setNewPauseGuardianAddress() public {
-        vm.prank(admin);
-        takasureReserve.setNewPauseGuardianAddress(alice);
+    // function testTakasureCore_setNewPauseGuardianAddress() public {
+    //     vm.prank(admin);
+    //     takasureReserve.setNewPauseGuardianAddress(alice);
 
-        vm.prank(alice);
-        vm.expectRevert(TakasureReserve.TakasureReserve__OnlyDaoOrTakadao.selector);
-        takasureReserve.setNewPauseGuardianAddress(admin);
+    //     vm.prank(alice);
+    //     vm.expectRevert(TakasureReserve.TakasureReserve__OnlyDaoOrTakadao.selector);
+    //     takasureReserve.setNewPauseGuardianAddress(admin);
 
-        vm.prank(alice);
-        takasureReserve.pause();
-        assert(takasureReserve.paused());
+    //     vm.prank(alice);
+    //     takasureReserve.pause();
+    //     assert(takasureReserve.paused());
 
-        vm.prank(alice);
-        takasureReserve.unpause();
-        assert(!takasureReserve.paused());
-    }
+    //     vm.prank(alice);
+    //     takasureReserve.unpause();
+    //     assert(!takasureReserve.paused());
+    // }
 }

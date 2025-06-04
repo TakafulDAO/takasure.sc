@@ -10,4 +10,5 @@ library Roles {
     bytes32 internal constant MODULE_MANAGER = keccak256("MODULE_MANAGER");
     bytes32 internal constant ROUTER = keccak256("ROUTER");
     bytes32 internal constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
+    bytes32 internal constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
 }

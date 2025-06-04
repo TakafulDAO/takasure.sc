@@ -38,8 +38,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
 
     uint256 private RPOOL;
 
-    bytes32 internal constant OPERATOR = keccak256("OPERATOR");
-    bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
     bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
 
     mapping(uint16 month => uint256 monthCashFlow) public monthToCashFlow;
@@ -64,12 +62,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
 
     function initialize(TakasureReserveInitParams memory _initParams) external initializer {
         __UUPSUpgradeable_init();
-        // __AccessControl_init();
         __Pausable_init();
-        // _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        // _grantRole(OPERATOR, _initParams.takadaoOperator);
-        // _grantRole(DAO_MULTISIG, _initParams.daoOperator);
-        // _grantRole(PAUSE_GUARDIAN, _initParams.pauseGuardian);
 
         moduleManager = IModuleManager(_initParams.moduleManager);
         addressManager = IAddressManager(_initParams.addressManager);
@@ -240,28 +233,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     ) external onlyRole(DAO_MULTISIG) {
         kycProvider = newKycProviderAddress;
     }
-
-    // todo: ser operator address in address manager
-    // function setNewOperatorAddress(address newOperatorAddress) external {
-    //     _onlyDaoOrTakadao();
-    //     address oldOperator = takadaoOperator;
-    //     takadaoOperator = newOperatorAddress;
-
-    //     _grantRole(OPERATOR, newOperatorAddress);
-    //     _revokeRole(OPERATOR, oldOperator);
-
-    //     emit TakasureEvents.OnOperatorChanged(newOperatorAddress, oldOperator);
-    // }
-
-    // todo: set pause guardian in address manager
-    // function setNewPauseGuardianAddress(address newPauseGuardianAddress) external {
-    //     _onlyDaoOrTakadao();
-    //     address oldPauseGuardian = pauseGuardian;
-    //     pauseGuardian = newPauseGuardianAddress;
-
-    //     _grantRole(PAUSE_GUARDIAN, newPauseGuardianAddress);
-    //     _revokeRole(PAUSE_GUARDIAN, oldPauseGuardian);
-    // }
 
     /**
      * @notice Calculate the surplus for a member
