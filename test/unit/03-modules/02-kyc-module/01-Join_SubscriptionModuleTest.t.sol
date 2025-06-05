@@ -202,7 +202,7 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         uint256 coupon = 50e6; // 50 USDC
 
         vm.startPrank(takadao);
-        subscriptionModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
+        // subscriptionModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         subscriptionModule.setCouponPoolAddress(couponPool);
         vm.stopPrank();
 

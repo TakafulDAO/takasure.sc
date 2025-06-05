@@ -226,7 +226,7 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
 
         vm.startPrank(takadao);
         subscriptionModule.setCouponPoolAddress(couponPool);
-        subscriptionModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
+        // subscriptionModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         vm.stopPrank();
 
         // KYC Alice so she can act as a parent
