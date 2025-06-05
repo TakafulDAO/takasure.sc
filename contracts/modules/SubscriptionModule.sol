@@ -11,9 +11,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
@@ -34,7 +34,6 @@ pragma solidity 0.8.28;
 contract SubscriptionModule is
     Initializable,
     UUPSUpgradeable,
-    AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
@@ -44,6 +43,7 @@ contract SubscriptionModule is
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
+    IAddressManager private addressManager;
     IBenefitMultiplierConsumer private bmConsumer;
     IModuleManager private moduleManager;
     ModuleState private moduleState;
@@ -67,6 +67,14 @@ contract SubscriptionModule is
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__TooEarlytoRefund();
 
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(addressManager), role),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -79,22 +87,18 @@ contract SubscriptionModule is
         address _couponPool
     ) external initializer {
         __UUPSUpgradeable_init();
-        __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
         moduleManager = IModuleManager(takasureReserve.moduleManager());
+        addressManager = IAddressManager(takasureReserve.addressManager());
 
         address takadaoOperator = takasureReserve.takadaoOperator();
 
         referralGateway = _referralGateway;
         ccipReceiverContract = _ccipReceiverContract;
         couponPool = _couponPool;
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(Roles.MODULE_MANAGER, address(moduleManager));
-        _grantRole(Roles.OPERATOR, takadaoOperator);
     }
 
     /**
@@ -150,7 +154,7 @@ contract SubscriptionModule is
         // Check caller
         require(
             msg.sender == referralGateway ||
-                hasRole(Roles.ROUTER, msg.sender) ||
+                AddressAndStates._checkRole(address(addressManager), Roles.ROUTER) ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -426,8 +430,8 @@ contract SubscriptionModule is
 
         require(
             _memberWallet == msg.sender ||
-                hasRole(Roles.ROUTER, msg.sender) ||
-                hasRole(Roles.OPERATOR, msg.sender),
+                AddressAndStates._checkRole(address(addressManager), Roles.ROUTER) ||
+                AddressAndStates._checkRole(address(addressManager), Roles.OPERATOR),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         // The member should not be KYCed neither already refunded
@@ -633,7 +637,7 @@ contract SubscriptionModule is
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            hasRole(Roles.COUPON_REDEEMER, msg.sender) ||
+            AddressAndStates._checkRole(address(addressManager), Roles.COUPON_REDEEMER) ||
                 msg.sender == ccipReceiverContract,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
