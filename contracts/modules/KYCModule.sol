@@ -19,6 +19,7 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
@@ -47,6 +48,14 @@ contract KYCModule is
     error KYCModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error KYCModule__MemberAlreadyKYCed();
 
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(addressManager), role),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -71,13 +80,13 @@ contract KYCModule is
      * @notice Set the module state
      * @dev Only callable from the Module Manager
      */
-    function setContractState(ModuleState newState) external override {
-        AddressAndStates._onlyRole(address(addressManager), Roles.MODULE_MANAGER);
+    function setContractState(
+        ModuleState newState
+    ) external override onlyRole(Roles.MODULE_MANAGER) {
         moduleState = newState;
     }
 
-    function updateBmAddress() external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.OPERATOR);
+    function updateBmAddress() external onlyRole(Roles.OPERATOR) {
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
@@ -87,8 +96,7 @@ contract KYCModule is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function approveKYC(address memberWallet) external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.KYC_PROVIDER);
+    function approveKYC(address memberWallet) external onlyRole(Roles.KYC_PROVIDER) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(memberWallet);
 
@@ -199,7 +207,7 @@ contract KYCModule is
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override {
-        AddressAndStates._onlyRole(address(addressManager), Roles.OPERATOR);
-    }
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

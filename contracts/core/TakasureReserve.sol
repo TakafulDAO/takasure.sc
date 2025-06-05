@@ -56,6 +56,14 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         _disableInitializers();
     }
 
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(addressManager), role),
+            TakasureReserve__UnallowedAccess()
+        );
+        _;
+    }
+
     function initialize(TakasureReserveInitParams memory _initParams) external initializer {
         __UUPSUpgradeable_init();
         __Pausable_init();
@@ -106,13 +114,11 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         );
     }
 
-    function pause() external {
-        AddressAndStates._onlyRole(address(addressManager), PAUSE_GUARDIAN);
+    function pause() external onlyRole(PAUSE_GUARDIAN) {
         _pause();
     }
 
-    function unpause() external {
-        AddressAndStates._onlyRole(address(addressManager), PAUSE_GUARDIAN);
+    function unpause() external onlyRole(PAUSE_GUARDIAN) {
         _unpause();
     }
 
@@ -157,16 +163,16 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         moduleManager = IModuleManager(newModuleManagerContract);
     }
 
-    function setNewServiceFee(uint8 newServiceFee) external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.OPERATOR);
+    function setNewServiceFee(uint8 newServiceFee) external onlyRole(Roles.OPERATOR) {
         require(newServiceFee <= 35, TakasureReserve__WrongValue());
         reserve.serviceFee = newServiceFee;
 
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
     }
 
-    function setNewFundMarketExpendsShare(uint8 newFundMarketExpendsAddShare) external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.DAO_MULTISIG);
+    function setNewFundMarketExpendsShare(
+        uint8 newFundMarketExpendsAddShare
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         require(newFundMarketExpendsAddShare <= 35, TakasureReserve__WrongValue());
 
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
@@ -178,43 +184,45 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         );
     }
 
-    function setAllowCustomDuration(bool _allowCustomDuration) external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.DAO_MULTISIG);
+    function setAllowCustomDuration(
+        bool _allowCustomDuration
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.allowCustomDuration = _allowCustomDuration;
 
         emit TakasureEvents.OnAllowCustomDuration(_allowCustomDuration);
     }
 
-    function setNewMinimumThreshold(uint256 newMinimumThreshold) external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.DAO_MULTISIG);
+    function setNewMinimumThreshold(
+        uint256 newMinimumThreshold
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.minimumThreshold = newMinimumThreshold;
 
         emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
     }
 
-    function setNewMaximumThreshold(uint256 newMaximumThreshold) external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.DAO_MULTISIG);
+    function setNewMaximumThreshold(
+        uint256 newMaximumThreshold
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.maximumThreshold = newMaximumThreshold;
 
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
     }
 
-    function setRiskMultiplier(uint8 newRiskMultiplier) external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.DAO_MULTISIG);
+    function setRiskMultiplier(uint8 newRiskMultiplier) external onlyRole(Roles.DAO_MULTISIG) {
         require(newRiskMultiplier <= 100, TakasureReserve__WrongValue());
         reserve.riskMultiplier = newRiskMultiplier;
 
         emit TakasureEvents.OnNewRiskMultiplier(newRiskMultiplier);
     }
 
-    function setNewFeeClaimAddress(address newFeeClaimAddress) external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.OPERATOR);
+    function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(newFeeClaimAddress);
         feeClaimAddress = newFeeClaimAddress;
     }
 
-    function setReferralDiscountState(bool referralDiscountState) external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.OPERATOR);
+    function setReferralDiscountState(
+        bool referralDiscountState
+    ) external onlyRole(Roles.OPERATOR) {
         reserve.referralDiscount = referralDiscountState;
     }
 
@@ -232,8 +240,9 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         );
     }
 
-    function setNewKycProviderAddress(address newKycProviderAddress) external {
-        AddressAndStates._onlyRole(address(addressManager), Roles.DAO_MULTISIG);
+    function setNewKycProviderAddress(
+        address newKycProviderAddress
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         kycProvider = newKycProviderAddress;
     }
 
@@ -437,7 +446,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override {
-        AddressAndStates._onlyRole(address(addressManager), Roles.DAO_MULTISIG);
-    }
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(Roles.DAO_MULTISIG) {}
 }
