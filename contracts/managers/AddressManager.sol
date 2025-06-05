@@ -46,8 +46,19 @@ contract AddressManager is Ownable2Step, AccessControl {
     error AddressManager__TooLateToAccept();
     error AddressManager__NotRoleHolder();
 
-    constructor() Ownable(msg.sender) {
+    constructor(address moduleManager) Ownable(msg.sender) {
         roleAcceptanceDelay = 1 days;
+
+        // Set the MODULE_MANAGER role and grant it to the moduleManager address
+        _roles.add(keccak256("MODULE_MANAGER"));
+
+        _grantRole(keccak256("MODULE_MANAGER"), moduleManager);
+
+        rolesByAddress[moduleManager].push(keccak256("MODULE_MANAGER"));
+        currentRoleHolders[keccak256("MODULE_MANAGER")] = moduleManager;
+
+        emit OnRoleCreated(keccak256("MODULE_MANAGER"));
+        emit OnNewRoleHolder(keccak256("MODULE_MANAGER"), moduleManager);
     }
 
     /*//////////////////////////////////////////////////////////////
