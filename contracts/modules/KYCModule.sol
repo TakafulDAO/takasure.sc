@@ -72,7 +72,6 @@ contract KYCModule is
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
         subscriptionModule = ISubscriptionModule(_subscriptionModuleAddress);
 
-        address takadaoOperator = takasureReserve.takadaoOperator();
         addressManager = IAddressManager(takasureReserve.addressManager());
     }
 

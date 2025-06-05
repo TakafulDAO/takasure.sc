@@ -94,7 +94,6 @@ contract SubscriptionModule is
         moduleManager = IModuleManager(takasureReserve.moduleManager());
         addressManager = IAddressManager(takasureReserve.addressManager());
 
-        address takadaoOperator = takasureReserve.takadaoOperator();
 
         referralGateway = _referralGateway;
         ccipReceiverContract = _ccipReceiverContract;

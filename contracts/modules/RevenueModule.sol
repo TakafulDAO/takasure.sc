@@ -51,9 +51,6 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
         __UUPSUpgradeable_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        address takadaoOperator = takasureReserve.takadaoOperator();
-        address daoMultisig = takasureReserve.daoMultisig();
-        address moduleManager = takasureReserve.moduleManager();
         addressManager = IAddressManager(takasureReserve.addressManager());
     }
 

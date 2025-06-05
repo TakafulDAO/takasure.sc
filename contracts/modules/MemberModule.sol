@@ -65,8 +65,6 @@ contract MemberModule is
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
         addressManager = IAddressManager(takasureReserve.addressManager());
-        address takadaoOperator = takasureReserve.takadaoOperator();
-        address moduleManager = takasureReserve.moduleManager();
     }
 
     /**
