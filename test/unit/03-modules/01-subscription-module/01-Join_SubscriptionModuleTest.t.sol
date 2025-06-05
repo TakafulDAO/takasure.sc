@@ -15,7 +15,7 @@ import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
+contract Join_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
