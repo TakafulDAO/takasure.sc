@@ -228,7 +228,7 @@ contract SubscriptionModule is
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
-        _transferContribution(
+        _transferContributionToReserve(
             contributionToken,
             memberWallet,
             takasureReserveAddress,
@@ -554,7 +554,7 @@ contract SubscriptionModule is
         return newMember;
     }
 
-    function _transferContribution(
+    function _transferContributionToReserve(
         IERC20 _contributionToken,
         address,
         address _takasureReserve,
