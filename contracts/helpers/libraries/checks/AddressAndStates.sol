@@ -16,11 +16,8 @@ library AddressAndStates {
     error TakasureProtocol__ZeroAddress();
     error Module__WrongModuleState();
 
-    function _onlyRole(address addressManager, bytes32 role) internal view {
-        require(
-            IAddressManager(addressManager).hasRole(role, msg.sender),
-            TakasureProtocol__UnallowedAccess()
-        );
+    function _checkRole(address addressManager, bytes32 role) internal view returns (bool) {
+        return IAddressManager(addressManager).hasRole(role, msg.sender);
     }
 
     function _notZeroAddress(address _address) internal pure {

@@ -204,8 +204,7 @@ contract AddressManager is Ownable2Step, AccessControl {
     }
 
     function hasRole(bytes32 role, address account) public view override returns (bool) {
-        require(_roles.contains(role), AddressManager__RoleDoesNotExist());
-
-        return super.hasRole(role, account);
+        if (!_roles.contains(role)) return false;
+        else return super.hasRole(role, account);
     }
 }
