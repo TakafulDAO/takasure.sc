@@ -10,9 +10,9 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
@@ -30,7 +30,6 @@ pragma solidity 0.8.28;
 contract MemberModule is
     Initializable,
     UUPSUpgradeable,
-    AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
@@ -39,10 +38,19 @@ contract MemberModule is
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
+    IAddressManager private addressManager;
     IBenefitMultiplierConsumer private bmConsumer;
     ModuleState private moduleState;
 
     error MemberModule__InvalidDate();
+
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(addressManager), role),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -52,17 +60,13 @@ contract MemberModule is
     function initialize(address _takasureReserveAddress) external initializer {
         AddressAndStates._notZeroAddress(_takasureReserveAddress);
         __UUPSUpgradeable_init();
-        __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
+        addressManager = IAddressManager(takasureReserve.addressManager());
         address takadaoOperator = takasureReserve.takadaoOperator();
         address moduleManager = takasureReserve.moduleManager();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(Roles.MODULE_MANAGER, moduleManager);
-        _grantRole(Roles.OPERATOR, takadaoOperator);
     }
 
     /**
@@ -87,10 +91,13 @@ contract MemberModule is
 
     function payRecurringContribution(address memberWallet) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+
         require(
-            hasRole(Roles.ROUTER, msg.sender) || msg.sender == memberWallet,
+            AddressAndStates._checkRole(address(addressManager), Roles.ROUTER) ||
+                msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
+
         (Reserve memory reserve, Member memory activeMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
