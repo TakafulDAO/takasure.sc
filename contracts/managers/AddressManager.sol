@@ -15,29 +15,47 @@ pragma solidity 0.8.28;
 
 contract AddressManager is Ownable2Step, AccessControl {
     using EnumerableSet for EnumerableSet.Bytes32Set;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     uint256 private roleAcceptanceDelay; // Maximum time allowed to accept a proposed role
 
-    struct ProposedHolder {
+    enum AddressType {
+        ADMIN,
+        MODULE,
+        PROTOCOL
+    }
+
+    struct ProtocolAddress {
+        bytes32 name;
+        address addr;
+        AddressType addressType;
+    }
+
+    struct ProposedRoleHolder {
         address proposedHolder;
         uint256 proposalTime;
     }
 
+    mapping(address protocolAddress => ProtocolAddress) public protocolAddresses;
     mapping(address roleHolder => bytes32[] role) public rolesByAddress;
     mapping(bytes32 role => address roleHolder) public currentRoleHolders;
-    mapping(bytes32 role => ProposedHolder proposedHolder) public proposedRoleHolders;
+    mapping(bytes32 role => ProposedRoleHolder proposedRoleHolder) public proposedRoleHolders;
 
-    EnumerableSet.Bytes32Set private _roles;
+    EnumerableSet.Bytes32Set private _protocolRoles;
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    event OnNewProtocolAddress(string indexed name, address indexed addr, AddressType addressType);
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
     event OnProposedRoleHolder(bytes32 indexed role, address indexed proposedHolder);
     event OnNewRoleHolder(bytes32 indexed role, address indexed newHolder);
 
+    error AddressManager__InvalidNameLength();
+    error AddressManager__AddressZero();
+    error AddressManager__AddressAlreadyExists();
     error AddressManager__RoleAlreadyExists();
     error AddressManager__RoleDoesNotExist();
     error AddressManager__AlreadyRoleHolder();
@@ -50,7 +68,7 @@ contract AddressManager is Ownable2Step, AccessControl {
         roleAcceptanceDelay = 1 days;
 
         // Set the MODULE_MANAGER role and grant it to the moduleManager address
-        _roles.add(keccak256("MODULE_MANAGER"));
+        _protocolRoles.add(keccak256("MODULE_MANAGER"));
 
         _grantRole(keccak256("MODULE_MANAGER"), moduleManager);
 
@@ -59,6 +77,42 @@ contract AddressManager is Ownable2Step, AccessControl {
 
         emit OnRoleCreated(keccak256("MODULE_MANAGER"));
         emit OnNewRoleHolder(keccak256("MODULE_MANAGER"), moduleManager);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               ADDRESSES
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Adds a new address to the AddressManager
+     * @param name The name of the address to be added
+     * @param addr The address to be added
+     * @param addressType The type of the address (ADMIN, MODULE, PROTOCOL)
+     * @dev This function can only be called by the owner of the contract.
+     */
+    function addProtocolAddress(
+        string memory name,
+        address addr,
+        AddressType addressType
+    ) external onlyOwner {
+        require(
+            bytes(name).length > 0 && bytes(name).length <= 32,
+            AddressManager__InvalidNameLength()
+        );
+        require(addr != address(0), AddressManager__AddressZero());
+        require(protocolAddresses[addr].addr == address(0), AddressManager__AddressAlreadyExists());
+
+        bytes32 nameHash = keccak256(abi.encode(name));
+
+        ProtocolAddress memory newProtocolAddress = ProtocolAddress({
+            name: nameHash,
+            addr: addr,
+            addressType: addressType
+        });
+
+        protocolAddresses[addr] = newProtocolAddress;
+
+        emit OnNewProtocolAddress(name, addr, addressType);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -72,8 +126,8 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @return success A boolean indicating whether the role was successfully created
      */
     function createNewRole(bytes32 newRole) external onlyOwner returns (bool success) {
-        require(!_roles.contains(newRole), AddressManager__RoleAlreadyExists());
-        success = _roles.add(newRole);
+        require(!_protocolRoles.contains(newRole), AddressManager__RoleAlreadyExists());
+        success = _protocolRoles.add(newRole);
 
         emit OnRoleCreated(newRole);
     }
@@ -85,8 +139,8 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @return success A boolean indicating whether the role was successfully removed
      */
     function removeRole(bytes32 roleToRemove) external onlyOwner returns (bool success) {
-        require(_roles.contains(roleToRemove), AddressManager__RoleDoesNotExist());
-        success = _roles.remove(roleToRemove);
+        require(_protocolRoles.contains(roleToRemove), AddressManager__RoleDoesNotExist());
+        success = _protocolRoles.remove(roleToRemove);
 
         emit OnRoleRemoved(roleToRemove);
     }
@@ -104,7 +158,7 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @dev To remove a proposal just create a new proposal with the same role, can be to address(0).
      */
     function proposeRoleHolder(bytes32 role, address proposedRoleHolder) external onlyOwner {
-        require(_roles.contains(role), AddressManager__RoleDoesNotExist());
+        require(_protocolRoles.contains(role), AddressManager__RoleDoesNotExist());
 
         // Check if the role is already assigned to the proposed holder
         bytes32[] memory currentRoles = rolesByAddress[proposedRoleHolder];
@@ -113,13 +167,13 @@ contract AddressManager is Ownable2Step, AccessControl {
             if (currentRoles[i] == role) revert AddressManager__AlreadyRoleHolder();
         }
 
-        ProposedHolder memory proposedHolder = ProposedHolder({
+        ProposedRoleHolder memory proposed = ProposedRoleHolder({
             proposedHolder: proposedRoleHolder,
             proposalTime: block.timestamp
         });
 
         // Assign the proposed holder with a delay
-        proposedRoleHolders[role] = proposedHolder;
+        proposedRoleHolders[role] = proposed;
 
         emit OnProposedRoleHolder(role, proposedRoleHolder);
     }
@@ -130,9 +184,9 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @dev This function can only be called by the proposed holder of the role.
      */
     function acceptProposedRole(bytes32 role) external returns (bool success) {
-        require(_roles.contains(role), AddressManager__RoleDoesNotExist());
+        require(_protocolRoles.contains(role), AddressManager__RoleDoesNotExist());
 
-        ProposedHolder memory proposedHolder = proposedRoleHolders[role];
+        ProposedRoleHolder memory proposedHolder = proposedRoleHolders[role];
 
         // There must be a proposed holder for the role, and the caller must be the proposed holder
         require(proposedHolder.proposedHolder != address(0), AddressManager__NoProposedHolder());
@@ -173,7 +227,7 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @dev This function can only be called by the owner of the contract.
      */
     function revokeRoleHolder(bytes32 role, address account) external onlyOwner {
-        require(_roles.contains(role), AddressManager__RoleDoesNotExist());
+        require(_protocolRoles.contains(role), AddressManager__RoleDoesNotExist());
         require(currentRoleHolders[role] == account, AddressManager__NotRoleHolder());
 
         _revokeRole(role, account);
@@ -189,7 +243,7 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @return bool A boolean indicating whether the role exists
      */
     function isValidRole(bytes32 role) external view returns (bool) {
-        return _roles.contains(role);
+        return _protocolRoles.contains(role);
     }
 
     /**
@@ -197,14 +251,14 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @return roles An array of bytes32 representing the roles
      */
     function getRoles() external view returns (bytes32[] memory roles) {
-        roles = new bytes32[](_roles.length());
-        for (uint256 i = 0; i < _roles.length(); i++) {
-            roles[i] = _roles.at(i);
+        roles = new bytes32[](_protocolRoles.length());
+        for (uint256 i = 0; i < _protocolRoles.length(); i++) {
+            roles[i] = _protocolRoles.at(i);
         }
     }
 
     function hasRole(bytes32 role, address account) public view override returns (bool) {
-        if (!_roles.contains(role)) return false;
+        if (!_protocolRoles.contains(role)) return false;
         else return super.hasRole(role, account);
     }
 }
