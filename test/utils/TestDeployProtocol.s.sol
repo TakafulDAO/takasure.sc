@@ -175,7 +175,6 @@ contract TestDeployProtocol is Script {
         vm.startPrank(config.takadaoOperator);
         addressManager.acceptProposedRole(Roles.OPERATOR);
         SubscriptionModule(subscriptionModuleAddress).grantRole(ROUTER, routerAddress);
-        MemberModule(memberModuleAddress).grantRole(ROUTER, routerAddress);
         vm.stopPrank();
 
         vm.prank(config.daoMultisig);
