@@ -48,6 +48,7 @@ contract AddressManager is Ownable2Step, AccessControl {
     //////////////////////////////////////////////////////////////*/
 
     event OnNewProtocolAddress(string indexed name, address indexed addr, AddressType addressType);
+    event OnProtocolAddressDeleted(address indexed addr, AddressType addressType);
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
     event OnProposedRoleHolder(bytes32 indexed role, address indexed proposedHolder);
@@ -56,6 +57,7 @@ contract AddressManager is Ownable2Step, AccessControl {
     error AddressManager__InvalidNameLength();
     error AddressManager__AddressZero();
     error AddressManager__AddressAlreadyExists();
+    error AddressManager__AddressDoesNotExist();
     error AddressManager__RoleAlreadyExists();
     error AddressManager__RoleDoesNotExist();
     error AddressManager__AlreadyRoleHolder();
@@ -113,6 +115,27 @@ contract AddressManager is Ownable2Step, AccessControl {
         protocolAddresses[addr] = newProtocolAddress;
 
         emit OnNewProtocolAddress(name, addr, addressType);
+    }
+
+    /**
+     * @notice Deletes an address from the AddressManager
+     * @param addr The address to be deleted
+     * @dev This function can only be called by the owner of the contract.
+     * @dev This function will also remove the address from the rolesByAddress mapping.
+     */
+    function deleteProtocolAddress(address addr) external onlyOwner {
+        require(addr != address(0), AddressManager__AddressZero());
+
+        ProtocolAddress memory protocolAddress = protocolAddresses[addr];
+
+        require(protocolAddress.addr != address(0), AddressManager__AddressDoesNotExist());
+
+        AddressType addressType = protocolAddress.addressType;
+
+        // Remove the address from the mapping
+        delete protocolAddresses[addr];
+
+        emit OnProtocolAddressDeleted(addr, addressType);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -238,6 +261,24 @@ contract AddressManager is Ownable2Step, AccessControl {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Checks if a specific address has a specific name
+     * @param addr The address to check
+     * @param name The name to check against the address
+     * @return bool A boolean indicating whether the address has the name
+     * @dev To be able to use this function in require statements, it is implemented in a way that does not revert.
+     */
+    function hasName(address addr, string memory name) external view returns (bool) {
+        bytes32 nameHash = keccak256(abi.encode(name));
+
+        ProtocolAddress memory protocolAddress = protocolAddresses[addr];
+
+        if (protocolAddress.addr == address(0)) return false; // Address does not exist
+        if (protocolAddress.name != nameHash) return false; // Name does not match
+
+        return true; // Address has the name
+    }
+
+    /**
      * @notice Checks if a role exists in the AddressManager
      * @param role The role to check for existence
      * @return bool A boolean indicating whether the role exists
@@ -257,6 +298,13 @@ contract AddressManager is Ownable2Step, AccessControl {
         }
     }
 
+    /**
+     * @notice Checks if an account has a specific role
+     * @param role The role to check
+     * @param account The address of the account
+     * @return bool A boolean indicating whether the account has the role
+     * @dev If the role is not a protocol role, it will return false.
+     */
     function hasRole(bytes32 role, address account) public view override returns (bool) {
         if (!_protocolRoles.contains(role)) return false;
         else return super.hasRole(role, account);
