@@ -11,9 +11,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
@@ -31,7 +31,6 @@ pragma solidity 0.8.28;
 contract KYCModule is
     Initializable,
     UUPSUpgradeable,
-    AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
@@ -39,6 +38,7 @@ contract KYCModule is
     ParentRewards
 {
     ITakasureReserve private takasureReserve;
+    IAddressManager private addressManager;
     IBenefitMultiplierConsumer private bmConsumer;
     ISubscriptionModule private subscriptionModule;
     ModuleState private moduleState;
@@ -57,7 +57,6 @@ contract KYCModule is
         address _subscriptionModuleAddress
     ) external initializer {
         __UUPSUpgradeable_init();
-        __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
@@ -65,24 +64,20 @@ contract KYCModule is
         subscriptionModule = ISubscriptionModule(_subscriptionModuleAddress);
 
         address takadaoOperator = takasureReserve.takadaoOperator();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(Roles.MODULE_MANAGER, takasureReserve.moduleManager());
-        _grantRole(Roles.OPERATOR, takadaoOperator);
-        _grantRole(Roles.KYC_PROVIDER, takasureReserve.kycProvider());
+        addressManager = IAddressManager(takasureReserve.addressManager());
     }
 
     /**
      * @notice Set the module state
      * @dev Only callable from the Module Manager
      */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyRole(Roles.MODULE_MANAGER) {
+    function setContractState(ModuleState newState) external override {
+        AddressAndStates._onlyRole(address(addressManager), Roles.MODULE_MANAGER);
         moduleState = newState;
     }
 
-    function updateBmAddress() external onlyRole(Roles.OPERATOR) {
+    function updateBmAddress() external {
+        AddressAndStates._onlyRole(address(addressManager), Roles.OPERATOR);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
@@ -92,7 +87,8 @@ contract KYCModule is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function approveKYC(address memberWallet) external onlyRole(Roles.KYC_PROVIDER) {
+    function approveKYC(address memberWallet) external {
+        AddressAndStates._onlyRole(address(addressManager), Roles.KYC_PROVIDER);
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(memberWallet);
 
@@ -203,7 +199,7 @@ contract KYCModule is
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    function _authorizeUpgrade(address newImplementation) internal override {
+        AddressAndStates._onlyRole(address(addressManager), Roles.OPERATOR);
+    }
 }
