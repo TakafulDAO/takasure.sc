@@ -36,7 +36,11 @@ contract AddressManager is Ownable2Step, AccessControl {
         uint256 proposalTime;
     }
 
-    mapping(address protocolAddress => ProtocolAddress) public protocolAddresses;
+    // Related to the protocol addresses
+    mapping(address protocolAddress => bytes32 nameHash) public protocolAddressesNames;
+    mapping(bytes32 nameHash => ProtocolAddress) public protocolAddressesByName;
+
+    // Related to the roles
     mapping(address roleHolder => bytes32[] role) public rolesByAddress;
     mapping(bytes32 role => address roleHolder) public currentRoleHolders;
     mapping(bytes32 role => ProposedRoleHolder proposedRoleHolder) public proposedRoleHolders;
@@ -49,6 +53,7 @@ contract AddressManager is Ownable2Step, AccessControl {
 
     event OnNewProtocolAddress(string indexed name, address indexed addr, AddressType addressType);
     event OnProtocolAddressDeleted(address indexed addr, AddressType addressType);
+    event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
     event OnProposedRoleHolder(bytes32 indexed role, address indexed proposedHolder);
@@ -66,19 +71,8 @@ contract AddressManager is Ownable2Step, AccessControl {
     error AddressManager__TooLateToAccept();
     error AddressManager__NotRoleHolder();
 
-    constructor(address moduleManager) Ownable(msg.sender) {
+    constructor() Ownable(msg.sender) {
         roleAcceptanceDelay = 1 days;
-
-        // Set the MODULE_MANAGER role and grant it to the moduleManager address
-        _protocolRoles.add(keccak256("MODULE_MANAGER"));
-
-        _grantRole(keccak256("MODULE_MANAGER"), moduleManager);
-
-        rolesByAddress[moduleManager].push(keccak256("MODULE_MANAGER"));
-        currentRoleHolders[keccak256("MODULE_MANAGER")] = moduleManager;
-
-        emit OnRoleCreated(keccak256("MODULE_MANAGER"));
-        emit OnNewRoleHolder(keccak256("MODULE_MANAGER"), moduleManager);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -102,9 +96,12 @@ contract AddressManager is Ownable2Step, AccessControl {
             AddressManager__InvalidNameLength()
         );
         require(addr != address(0), AddressManager__AddressZero());
-        require(protocolAddresses[addr].addr == address(0), AddressManager__AddressAlreadyExists());
 
         bytes32 nameHash = keccak256(abi.encode(name));
+        require(
+            protocolAddressesByName[nameHash].addr == address(0),
+            AddressManager__AddressAlreadyExists()
+        );
 
         ProtocolAddress memory newProtocolAddress = ProtocolAddress({
             name: nameHash,
@@ -112,7 +109,9 @@ contract AddressManager is Ownable2Step, AccessControl {
             addressType: addressType
         });
 
-        protocolAddresses[addr] = newProtocolAddress;
+        // protocolAddresses[addr] = newProtocolAddress;
+        protocolAddressesByName[nameHash] = newProtocolAddress;
+        protocolAddressesNames[addr] = nameHash;
 
         emit OnNewProtocolAddress(name, addr, addressType);
     }
@@ -126,16 +125,50 @@ contract AddressManager is Ownable2Step, AccessControl {
     function deleteProtocolAddress(address addr) external onlyOwner {
         require(addr != address(0), AddressManager__AddressZero());
 
-        ProtocolAddress memory protocolAddress = protocolAddresses[addr];
+        bytes32 nameHash = protocolAddressesNames[addr];
+        ProtocolAddress memory protocolAddress = protocolAddressesByName[nameHash];
 
         require(protocolAddress.addr != address(0), AddressManager__AddressDoesNotExist());
 
         AddressType addressType = protocolAddress.addressType;
 
         // Remove the address from the mapping
-        delete protocolAddresses[addr];
+        delete protocolAddressesByName[nameHash];
+        delete protocolAddressesNames[addr];
 
         emit OnProtocolAddressDeleted(addr, addressType);
+    }
+
+    /**
+     * @notice Updates the address of a protocol address given its name
+     * @param name The name of the protocol address to be updated
+     * @param newAddr The new address to be set
+     * @dev This function can only be called by the owner of the contract.
+     * @dev The name must already exist in the AddressManager.
+     */
+    function updateProtocolAddress(string memory name, address newAddr) external onlyOwner {
+        require(newAddr != address(0), AddressManager__AddressZero());
+
+        bytes32 nameHash = keccak256(abi.encode(name));
+
+        ProtocolAddress storage protocolAddress = protocolAddressesByName[nameHash];
+
+        require(
+            protocolAddress.addr != address(0) && protocolAddress.name == nameHash,
+            AddressManager__AddressDoesNotExist()
+        );
+        require(protocolAddress.addr != newAddr, AddressManager__AddressAlreadyExists());
+
+        // Remove the old address from the protocolAddressesNames mapping
+        delete protocolAddressesNames[protocolAddress.addr];
+
+        // Update the address in the protocolAddresses mapping
+        protocolAddress.addr = newAddr;
+
+        // Update the mapping for protocolAddressesNames
+        protocolAddressesNames[newAddr] = nameHash;
+
+        emit OnProtocolAddressUpdated(name, newAddr);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -257,7 +290,7 @@ contract AddressManager is Ownable2Step, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                GETTERS
+                          FOR EXTERNAL CHECKS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -268,15 +301,34 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @dev To be able to use this function in require statements, it is implemented in a way that does not revert.
      */
     function hasName(address addr, string memory name) external view returns (bool) {
-        bytes32 nameHash = keccak256(abi.encode(name));
+        bytes32 expectedNameHash = protocolAddressesNames[addr]; // Access the mapping to ensure it exists
+        bytes32 givenNameHash = keccak256(abi.encode(name));
 
-        ProtocolAddress memory protocolAddress = protocolAddresses[addr];
-
-        if (protocolAddress.addr == address(0)) return false; // Address does not exist
-        if (protocolAddress.name != nameHash) return false; // Name does not match
+        if (
+            addr == address(0) ||
+            bytes(name).length == 0 ||
+            bytes(name).length > 32 ||
+            expectedNameHash != givenNameHash
+        ) return false; // Address is zero
 
         return true; // Address has the name
     }
+
+    /**
+     * @notice Checks if an account has a specific role
+     * @param role The role to check
+     * @param account The address of the account
+     * @return bool A boolean indicating whether the account has the role
+     * @dev If the role is not a protocol role, it will return false.
+     */
+    function hasRole(bytes32 role, address account) public view override returns (bool) {
+        if (!_protocolRoles.contains(role)) return false;
+        else return super.hasRole(role, account);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Checks if a role exists in the AddressManager
@@ -296,17 +348,5 @@ contract AddressManager is Ownable2Step, AccessControl {
         for (uint256 i = 0; i < _protocolRoles.length(); i++) {
             roles[i] = _protocolRoles.at(i);
         }
-    }
-
-    /**
-     * @notice Checks if an account has a specific role
-     * @param role The role to check
-     * @param account The address of the account
-     * @return bool A boolean indicating whether the account has the role
-     * @dev If the role is not a protocol role, it will return false.
-     */
-    function hasRole(bytes32 role, address account) public view override returns (bool) {
-        if (!_protocolRoles.contains(role)) return false;
-        else return super.hasRole(role, account);
     }
 }
