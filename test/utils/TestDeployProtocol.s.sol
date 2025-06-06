@@ -89,7 +89,7 @@ contract TestDeployProtocol is Script {
         );
 
         moduleManager = new ModuleManager();
-        addressManager = new AddressManager(address(moduleManager));
+        addressManager = new AddressManager();
 
         TakasureReserveInitParams memory params = TakasureReserveInitParams({
             contributionToken: config.contributionToken,
@@ -139,6 +139,18 @@ contract TestDeployProtocol is Script {
                 UserRouter.initialize,
                 (takasureReserve, subscriptionModuleAddress, memberModuleAddress)
             )
+        );
+
+        addressManager.addProtocolAddress(
+            "MODULE_MANAGER",
+            address(moduleManager),
+            AddressManager.AddressType.PROTOCOL
+        );
+
+        addressManager.addProtocolAddress(
+            "ROUTER",
+            routerAddress,
+            AddressManager.AddressType.PROTOCOL
         );
 
         _setContracts(

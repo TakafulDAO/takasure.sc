@@ -397,7 +397,7 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0x9a42c7c35d4a0d3a26e00dbb4d69535828b69d31b48cc1cee883b06e293ac007;
+        bytes32 messageId = 0x31bd7ad29c1f739cae95a07a0b39da528b4a8eb93f3cd1a4e39c924eed1c8742;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);
@@ -466,7 +466,7 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0xf4b5b7527126cc908c73c299f82f19112cacbd91b493b0e517791b67371224fb;
+        bytes32 messageId = 0x662a128257cc1bf54479b70ebe747cfcc82b751c76627f2c5a80e50c2d9db770;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);

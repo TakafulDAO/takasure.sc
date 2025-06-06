@@ -9,6 +9,8 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
+
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
@@ -219,15 +221,29 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         address couponPool = makeAddr("couponPool");
         address couponRedeemer = makeAddr("couponRedeemer");
 
+        // uint256 addressManagerStorageSlot = 4;
+        address addressManager = address(
+            uint160(uint256(vm.load(address(subscriptionModule), bytes32(uint256(4)))))
+        );
+
+        vm.startPrank(AddressManager(addressManager).owner());
+        AddressManager(addressManager).createNewRole(keccak256("COUPON_REDEEMER"));
+        AddressManager(addressManager).proposeRoleHolder(
+            keccak256("COUPON_REDEEMER"),
+            couponRedeemer
+        );
+        vm.stopPrank();
+
+        vm.prank(couponRedeemer);
+        AddressManager(addressManager).acceptProposedRole(keccak256("COUPON_REDEEMER"));
+
         deal(address(usdc), couponPool, CONTRIBUTION_AMOUNT);
 
         vm.prank(couponPool);
         usdc.approve(address(subscriptionModule), CONTRIBUTION_AMOUNT);
 
-        vm.startPrank(takadao);
+        vm.prank(takadao);
         subscriptionModule.setCouponPoolAddress(couponPool);
-        // subscriptionModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        vm.stopPrank();
 
         // KYC Alice so she can act as a parent
         vm.prank(kycService);
