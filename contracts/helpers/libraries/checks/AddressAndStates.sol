@@ -16,6 +16,10 @@ library AddressAndStates {
     error TakasureProtocol__ZeroAddress();
     error Module__WrongModuleState();
 
+    function _checkName(address addressManager, string memory name) internal view returns (bool) {
+        return IAddressManager(addressManager).hasName(msg.sender, name);
+    }
+
     function _checkRole(address addressManager, bytes32 role) internal view returns (bool) {
         return IAddressManager(addressManager).hasRole(role, msg.sender);
     }
