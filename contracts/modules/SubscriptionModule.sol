@@ -67,6 +67,14 @@ contract SubscriptionModule is
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__TooEarlytoRefund();
 
+    modifier onlyContract(string memory name) {
+        require(
+            AddressAndStates._checkName(address(addressManager), name),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     modifier onlyRole(bytes32 role) {
         require(
             AddressAndStates._checkRole(address(addressManager), role),
@@ -106,7 +114,7 @@ contract SubscriptionModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(Roles.MODULE_MANAGER) {
+    ) external override onlyContract("MODULE_MANAGER") {
         moduleState = newState;
     }
 
@@ -153,7 +161,7 @@ contract SubscriptionModule is
         // Check caller
         require(
             msg.sender == referralGateway ||
-                AddressAndStates._checkRole(address(addressManager), Roles.ROUTER) ||
+                AddressAndStates._checkName(address(addressManager), "ROUTER") ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -429,7 +437,7 @@ contract SubscriptionModule is
 
         require(
             _memberWallet == msg.sender ||
-                AddressAndStates._checkRole(address(addressManager), Roles.ROUTER) ||
+                AddressAndStates._checkName(address(addressManager), "ROUTER") ||
                 AddressAndStates._checkRole(address(addressManager), Roles.OPERATOR),
             ModuleErrors.Module__NotAuthorizedCaller()
         );

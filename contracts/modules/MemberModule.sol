@@ -44,6 +44,14 @@ contract MemberModule is
 
     error MemberModule__InvalidDate();
 
+    modifier onlyContract(string memory name) {
+        require(
+            AddressAndStates._checkName(address(addressManager), name),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     modifier onlyRole(bytes32 role) {
         require(
             AddressAndStates._checkRole(address(addressManager), role),
@@ -73,7 +81,7 @@ contract MemberModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(Roles.MODULE_MANAGER) {
+    ) external override onlyContract("MODULE_MANAGER") {
         moduleState = newState;
     }
 
@@ -91,7 +99,7 @@ contract MemberModule is
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
         require(
-            AddressAndStates._checkRole(address(addressManager), Roles.ROUTER) ||
+            AddressAndStates._checkName(address(addressManager), "ROUTER") ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );

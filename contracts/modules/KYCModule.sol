@@ -48,6 +48,14 @@ contract KYCModule is
     error KYCModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error KYCModule__MemberAlreadyKYCed();
 
+    modifier onlyContract(string memory name) {
+        require(
+            AddressAndStates._checkName(address(addressManager), name),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     modifier onlyRole(bytes32 role) {
         require(
             AddressAndStates._checkRole(address(addressManager), role),
@@ -81,7 +89,7 @@ contract KYCModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(Roles.MODULE_MANAGER) {
+    ) external override onlyContract("MODULE_MANAGER") {
         moduleState = newState;
     }
 
