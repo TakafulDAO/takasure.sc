@@ -8,8 +8,8 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ITakasurePool} from "contracts/interfaces/ITakasurePool.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
+import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -69,6 +69,7 @@ contract ReferralGateway is
         uint256 toRepool; // In USDC, six decimals
         uint256 referralReserve; // In USDC, six decimals
         IBenefitMultiplierConsumer bmConsumer;
+        address subscriptionModule;
     }
 
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
@@ -256,6 +257,7 @@ contract ReferralGateway is
      */
     function launchDAO(
         address tDAOAddress,
+        address subscriptionModule,
         bool isReferralDiscountEnabled
     ) external onlyRole(OPERATOR) {
         _notZeroAddress(tDAOAddress);
@@ -267,6 +269,7 @@ contract ReferralGateway is
         nameToDAOData[daoName].preJoinEnabled = false;
         nameToDAOData[daoName].referralDiscount = isReferralDiscountEnabled;
         nameToDAOData[daoName].DAOAddress = tDAOAddress;
+        nameToDAOData[daoName].subscriptionModule = subscriptionModule;
         nameToDAOData[daoName].launchDate = block.timestamp;
 
         emit OnDAOLaunched(tDAOAddress);
@@ -421,11 +424,14 @@ contract ReferralGateway is
             ReferralGateway__tDAONotReadyYet()
         );
 
+        uint256 defaultMembershipDuration = 5 * (365 days);
+
         // Finally, we join the prepaidMember to the tDAO
-        ITakasurePool(nameToDAOData[daoName].DAOAddress).prejoins(
+        ISubscriptionModule(nameToDAOData[daoName].subscriptionModule).joinFromReferralGateway(
             newMember,
+            childToParent[newMember],
             nameToDAOData[daoName].prepaidMembers[newMember].contributionBeforeFee,
-            nameToDAOData[daoName].prepaidMembers[newMember].contributionAfterFee
+            defaultMembershipDuration
         );
 
         usdc.safeTransfer(
