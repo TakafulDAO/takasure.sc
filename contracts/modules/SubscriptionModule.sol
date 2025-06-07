@@ -122,6 +122,30 @@ contract SubscriptionModule is
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
+    function joinFromReferralGateway(
+        address memberWallet,
+        address parentWallet,
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration
+    ) external nonReentrant {
+        require(msg.sender == referralGateway, ModuleErrors.Module__NotAuthorizedCaller());
+
+        (
+            Reserve memory reserve,
+            Member memory newMember,
+            uint256 benefitMultiplier
+        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+
+        _joinFromReferralGateway(
+            reserve,
+            newMember,
+            memberWallet,
+            parentWallet,
+            membershipDuration,
+            benefitMultiplier
+        );
+    }
+
     /**
      * @notice Allow new members to join the pool. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.
      * @param memberWallet address of the member
@@ -148,33 +172,20 @@ contract SubscriptionModule is
 
         // Check caller
         require(
-            msg.sender == referralGateway ||
-                hasRole(ModuleConstants.ROUTER, msg.sender) ||
-                msg.sender == memberWallet,
+            hasRole(ModuleConstants.ROUTER, msg.sender) || msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
-        if (msg.sender == referralGateway) {
-            _joinFromReferralGateway(
-                reserve,
-                newMember,
-                memberWallet,
-                parentWallet,
-                membershipDuration,
-                benefitMultiplier
-            );
-        } else {
-            _join(
-                reserve,
-                newMember,
-                memberWallet,
-                parentWallet,
-                contributionBeforeFee,
-                membershipDuration,
-                benefitMultiplier,
-                0
-            );
-        }
+        _join(
+            reserve,
+            newMember,
+            memberWallet,
+            parentWallet,
+            contributionBeforeFee,
+            membershipDuration,
+            benefitMultiplier,
+            0
+        );
     }
 
     /**
