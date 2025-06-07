@@ -88,8 +88,14 @@ contract TestDeployProtocol is Script {
             config.subscriptionId
         );
 
-        moduleManager = new ModuleManager();
         addressManager = new AddressManager();
+        moduleManager = new ModuleManager();
+
+        addressManager.addProtocolAddress(
+            "MODULE_MANAGER",
+            address(moduleManager),
+            AddressManager.AddressType.PROTOCOL
+        );
 
         TakasureReserveInitParams memory params = TakasureReserveInitParams({
             contributionToken: config.contributionToken,
@@ -131,6 +137,12 @@ contract TestDeployProtocol is Script {
             })
         );
 
+        addressManager.addProtocolAddress(
+            "KYC_MODULE",
+            kycModuleAddress,
+            AddressManager.AddressType.MODULE
+        );
+
         // Deploy router
         userRouterImplementation = address(new UserRouter());
         routerAddress = UnsafeUpgrades.deployUUPSProxy(
@@ -139,12 +151,6 @@ contract TestDeployProtocol is Script {
                 UserRouter.initialize,
                 (takasureReserve, subscriptionModuleAddress, memberModuleAddress)
             )
-        );
-
-        addressManager.addProtocolAddress(
-            "MODULE_MANAGER",
-            address(moduleManager),
-            AddressManager.AddressType.PROTOCOL
         );
 
         addressManager.addProtocolAddress(
