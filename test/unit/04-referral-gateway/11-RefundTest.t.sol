@@ -258,8 +258,10 @@ contract ReferralGatewayRefundTest is Test {
         vm.warp(launchDate);
         vm.roll(block.number + 1);
 
+        address subscriptionModule = makeAddr("subscriptionModule");
+
         vm.prank(takadao);
-        referralGateway.launchDAO(address(takasureReserve), true);
+        referralGateway.launchDAO(address(takasureReserve), subscriptionModule, true);
 
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
