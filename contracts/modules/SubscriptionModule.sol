@@ -234,12 +234,7 @@ contract SubscriptionModule is
         address memberWallet,
         address takasureReserveAddress,
         uint256 contributionAfterFeeAmount
-    ) external {
-        require(
-            moduleManager.isActiveModule(msg.sender),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-
+    ) external onlyContract("KYC_MODULE") {
         _transferContribution(
             contributionToken,
             memberWallet,
