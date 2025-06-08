@@ -279,7 +279,7 @@ contract AddressManager is Ownable2Step, AccessControl {
 
         // Remove the role from the rolesByAddress mapping
         bytes32[] storage roles = rolesByAddress[account];
-        for (uint256 i = 0; i < roles.length; i++) {
+        for (uint256 i; i < roles.length; ++i) {
             if (roles[i] == role) {
                 roles[i] = roles[roles.length - 1]; // Move the last element to the current position
                 roles.pop(); // Remove the last element
