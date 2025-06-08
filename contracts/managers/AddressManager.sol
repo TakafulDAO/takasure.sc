@@ -11,6 +11,8 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
+import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
+
 pragma solidity 0.8.28;
 
 contract AddressManager is Ownable2Step, AccessControl {
@@ -19,31 +21,14 @@ contract AddressManager is Ownable2Step, AccessControl {
 
     uint256 private roleAcceptanceDelay; // Maximum time allowed to accept a proposed role
 
-    enum AddressType {
-        ADMIN,
-        MODULE,
-        PROTOCOL
-    }
-
-    struct ProtocolAddress {
-        bytes32 name;
-        address addr;
-        AddressType addressType;
-    }
-
-    struct ProposedRoleHolder {
-        address proposedHolder;
-        uint256 proposalTime;
-    }
-
     // Related to the protocol addresses
     mapping(address protocolAddress => bytes32 nameHash) public protocolAddressesNames;
-    mapping(bytes32 nameHash => ProtocolAddress) public protocolAddressesByName;
+    mapping(bytes32 nameHash => ProtocolAddress) private protocolAddressesByName;
 
     // Related to the roles
-    mapping(address roleHolder => bytes32[] role) public rolesByAddress;
+    mapping(address roleHolder => bytes32[] role) private rolesByAddress;
     mapping(bytes32 role => address roleHolder) public currentRoleHolders;
-    mapping(bytes32 role => ProposedRoleHolder proposedRoleHolder) public proposedRoleHolders;
+    mapping(bytes32 role => ProposedRoleHolder proposedRoleHolder) private proposedRoleHolders;
 
     EnumerableSet.Bytes32Set private _protocolRoles;
 
@@ -51,8 +36,12 @@ contract AddressManager is Ownable2Step, AccessControl {
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    event OnNewProtocolAddress(string indexed name, address indexed addr, AddressType addressType);
-    event OnProtocolAddressDeleted(address indexed addr, AddressType addressType);
+    event OnNewProtocolAddress(
+        string indexed name,
+        address indexed addr,
+        ProtocolAddressType addressType
+    );
+    event OnProtocolAddressDeleted(address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
@@ -89,7 +78,7 @@ contract AddressManager is Ownable2Step, AccessControl {
     function addProtocolAddress(
         string memory name,
         address addr,
-        AddressType addressType
+        ProtocolAddressType addressType
     ) external onlyOwner {
         require(
             bytes(name).length > 0 && bytes(name).length <= 32,
@@ -130,7 +119,7 @@ contract AddressManager is Ownable2Step, AccessControl {
 
         require(protocolAddress.addr != address(0), AddressManager__AddressDoesNotExist());
 
-        AddressType addressType = protocolAddress.addressType;
+        ProtocolAddressType addressType = protocolAddress.addressType;
 
         // Remove the address from the mapping
         delete protocolAddressesByName[nameHash];
@@ -287,6 +276,19 @@ contract AddressManager is Ownable2Step, AccessControl {
         require(currentRoleHolders[role] == account, AddressManager__NotRoleHolder());
 
         _revokeRole(role, account);
+
+        // Remove the role from the rolesByAddress mapping
+        bytes32[] storage roles = rolesByAddress[account];
+        for (uint256 i = 0; i < roles.length; i++) {
+            if (roles[i] == role) {
+                roles[i] = roles[roles.length - 1]; // Move the last element to the current position
+                roles.pop(); // Remove the last element
+                break;
+            }
+        }
+
+        // Clear the current role holder mapping
+        delete currentRoleHolders[role];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -329,6 +331,23 @@ contract AddressManager is Ownable2Step, AccessControl {
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
+
+    function getProtocolAddressByName(
+        string memory name
+    ) external view returns (ProtocolAddress memory protocolAddress) {
+        bytes32 nameHash = keccak256(abi.encode(name));
+        protocolAddress = protocolAddressesByName[nameHash];
+    }
+
+    function getProposedRoleHolder(
+        bytes32 role
+    ) external view returns (ProposedRoleHolder memory proposedHolder) {
+        proposedHolder = proposedRoleHolders[role];
+    }
+
+    function getRolesByAddress(address roleHolder) external view returns (bytes32[] memory roles) {
+        roles = rolesByAddress[roleHolder];
+    }
 
     /**
      * @notice Checks if a role exists in the AddressManager
