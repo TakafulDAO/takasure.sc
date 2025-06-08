@@ -16,7 +16,7 @@ import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsume
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {ModuleState, TakasureReserveInitParams} from "contracts/types/TakasureTypes.sol";
+import {TakasureReserveInitParams, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 contract TestDeployProtocol is Script {
@@ -94,7 +94,7 @@ contract TestDeployProtocol is Script {
         addressManager.addProtocolAddress(
             "MODULE_MANAGER",
             address(moduleManager),
-            AddressManager.AddressType.PROTOCOL
+            ProtocolAddressType.Protocol
         );
 
         TakasureReserveInitParams memory params = TakasureReserveInitParams({
@@ -140,7 +140,7 @@ contract TestDeployProtocol is Script {
         addressManager.addProtocolAddress(
             "KYC_MODULE",
             kycModuleAddress,
-            AddressManager.AddressType.MODULE
+            ProtocolAddressType.Module
         );
 
         // Deploy router
@@ -153,11 +153,7 @@ contract TestDeployProtocol is Script {
             )
         );
 
-        addressManager.addProtocolAddress(
-            "ROUTER",
-            routerAddress,
-            AddressManager.AddressType.PROTOCOL
-        );
+        addressManager.addProtocolAddress("ROUTER", routerAddress, ProtocolAddressType.Protocol);
 
         _setContracts(
             subscriptionModuleAddress,
