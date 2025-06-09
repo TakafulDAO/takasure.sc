@@ -31,8 +31,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
 
     address public feeClaimAddress;
     address public takadaoOperator;
-    address public daoMultisig;
-    address private pauseGuardian;
 
     uint256 private RPOOL;
 
@@ -67,9 +65,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
 
         addressManager = IAddressManager(_initParams.addressManager);
         takadaoOperator = _initParams.takadaoOperator;
-        daoMultisig = _initParams.daoOperator;
         feeClaimAddress = _initParams.feeClaimAddress;
-        pauseGuardian = _initParams.pauseGuardian;
 
         address moduleManager = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
 

@@ -54,9 +54,7 @@ struct ProposedRoleHolder {
 struct TakasureReserveInitParams {
     address contributionToken;
     address feeClaimAddress;
-    address daoOperator;
     address takadaoOperator;
-    address pauseGuardian;
     address tokenAdmin;
     address addressManager;
     string tokenName;
