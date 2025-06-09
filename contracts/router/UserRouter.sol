@@ -8,17 +8,28 @@
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
 import {IMemberModule} from "contracts/interfaces/IMemberModule.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
 
-contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
+contract UserRouter is Initializable, UUPSUpgradeable {
+    IAddressManager private addressManager;
     ISubscriptionModule private subscriptionModule;
     IMemberModule private memberModule;
+
+    error UserRouter__NotAuthorizedCaller();
+
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(addressManager), role),
+            UserRouter__NotAuthorizedCaller()
+        );
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -35,15 +46,13 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         AddressAndStates._notZeroAddress(_memberModule);
 
         __UUPSUpgradeable_init();
-        __AccessControl_init();
 
         subscriptionModule = ISubscriptionModule(_subscriptionModule);
         memberModule = IMemberModule(_memberModule);
 
-        address takadaoOperator = ITakasureReserve(_takasureReserveAddress).takadaoOperator();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(Roles.OPERATOR, takadaoOperator);
+        addressManager = IAddressManager(
+            ITakasureReserve(_takasureReserveAddress).addressManager()
+        );
     }
 
     function paySubscription(

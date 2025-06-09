@@ -106,7 +106,6 @@ contract TestDeployProtocol is Script {
         TakasureReserveInitParams memory params = TakasureReserveInitParams({
             contributionToken: config.contributionToken,
             feeClaimAddress: config.feeClaimAddress,
-            takadaoOperator: config.takadaoOperator,
             tokenAdmin: config.tokenAdmin,
             addressManager: address(addressManager),
             tokenName: config.tokenName,

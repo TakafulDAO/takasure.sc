@@ -30,11 +30,8 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     CashFlowVars private cashFlowVars;
 
     address public feeClaimAddress;
-    address public takadaoOperator;
 
     uint256 private RPOOL;
-
-    bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
 
     mapping(uint16 month => uint256 monthCashFlow) public monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) public dayToCashFlow;
@@ -64,7 +61,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         __Pausable_init();
 
         addressManager = IAddressManager(_initParams.addressManager);
-        takadaoOperator = _initParams.takadaoOperator;
         feeClaimAddress = _initParams.feeClaimAddress;
 
         address moduleManager = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
@@ -107,11 +103,11 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         );
     }
 
-    function pause() external onlyRole(PAUSE_GUARDIAN) {
+    function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _pause();
     }
 
-    function unpause() external onlyRole(PAUSE_GUARDIAN) {
+    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _unpause();
     }
 
