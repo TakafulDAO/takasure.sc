@@ -61,10 +61,6 @@ contract ReferralGatewayJoinDaoTest is Test, SimulateDonResponse {
         takasureReserve = TakasureReserve(takasureReserveAddress);
         usdc = IUSDC(usdcAddress);
 
-        // Config mocks
-        vm.prank(takadao);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
         bmConsumerMock.setNewRequester(referralGatewayAddress);

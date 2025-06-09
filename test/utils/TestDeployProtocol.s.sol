@@ -97,6 +97,12 @@ contract TestDeployProtocol is Script {
             ProtocolAddressType.Protocol
         );
 
+        addressManager.addProtocolAddress(
+            "BENEFIT_MULTIPLIER_CONSUMER",
+            address(bmConsumerMock),
+            ProtocolAddressType.Protocol
+        );
+
         TakasureReserveInitParams memory params = TakasureReserveInitParams({
             contributionToken: config.contributionToken,
             feeClaimAddress: config.feeClaimAddress,

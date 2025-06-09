@@ -31,9 +31,6 @@ contract Reverts_TakasureCoreTest is StdCheats, Test {
         takadao = config.takadaoOperator;
 
         takasureReserve = TakasureReserve(takasureReserveProxy);
-
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -82,21 +79,5 @@ contract Reverts_TakasureCoreTest is StdCheats, Test {
         vm.prank(alice);
         vm.expectRevert();
         takasureReserve.setAllowCustomDuration(true);
-    }
-
-    function testTakasureCore_onlyDaoAndTakadaoCanSetNewBenefitMultiplier() public {
-        vm.prank(alice);
-        vm.expectRevert();
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(alice);
-
-        vm.prank(admin);
-        vm.expectEmit(true, true, false, false, address(takasureReserve));
-        emit TakasureEvents.OnBenefitMultiplierConsumerChanged(alice, address(bmConsumerMock));
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(alice);
-
-        vm.prank(takadao);
-        vm.expectEmit(true, true, false, false, address(takasureReserve));
-        emit TakasureEvents.OnBenefitMultiplierConsumerChanged(address(bmConsumerMock), alice);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
     }
 }

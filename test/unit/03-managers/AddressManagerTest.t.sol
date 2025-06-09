@@ -289,11 +289,9 @@ contract AddressManagerTest is Test {
 
         // Check that the address is deleted
         addressName = addressManager.protocolAddressesNames(adminAddress);
-        protocolAddressToCheck = addressManager.getProtocolAddressByName("Admin");
 
-        assert(addressName == 0x00);
-        assert(protocolAddressToCheck.name == 0x00);
-        assert(protocolAddressToCheck.addr == address(0));
+        vm.expectRevert(AddressManager.AddressManager__AddressDoesNotExist.selector);
+        protocolAddressToCheck = addressManager.getProtocolAddressByName("Admin");
     }
 
     /*//////////////////////////////////////////////////////////////

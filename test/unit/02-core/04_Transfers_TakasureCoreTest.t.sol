@@ -69,14 +69,8 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-
-        vm.prank(takadao);
-        subscriptionModule.updateBmAddress();
     }
 
     /*//////////////////////////////////////////////////////////////

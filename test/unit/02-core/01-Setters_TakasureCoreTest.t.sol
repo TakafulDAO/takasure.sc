@@ -57,9 +57,6 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         vm.startPrank(alice);
         usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
-
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
     }
 
     /// @dev Test the owner can set a new service fee

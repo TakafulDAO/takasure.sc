@@ -61,17 +61,9 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
-        vm.prank(config.daoMultisig);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
         bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
-
-        vm.startPrank(takadao);
-        subscriptionModule.updateBmAddress();
-        kycModule.updateBmAddress();
         vm.stopPrank();
 
         // For easier testing there is a minimal USDC mock contract without restrictions

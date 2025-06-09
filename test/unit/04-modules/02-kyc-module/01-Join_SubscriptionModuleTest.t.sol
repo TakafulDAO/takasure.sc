@@ -82,17 +82,9 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(subscriptionModuleAddress);
         bmConsumerMock.setNewRequester(kycModuleAddress);
-        vm.stopPrank();
-
-        vm.startPrank(takadao);
-        subscriptionModule.updateBmAddress();
-        kycModule.updateBmAddress();
         vm.stopPrank();
     }
 

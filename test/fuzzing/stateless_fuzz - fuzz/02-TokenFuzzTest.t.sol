@@ -46,7 +46,7 @@ contract TokenFuzzTest is Test {
         memberModule = MemberModule(memberModuleAddress);
     }
 
-    function test_fuzz_onlyTakasurePoolIsBurnerAndMinter(
+    function test_fuzz_onlyModulesAreBurnerAndMinter(
         address notMinter,
         address notBurner
     ) public view {

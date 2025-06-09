@@ -74,17 +74,9 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
         bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
-
-        vm.startPrank(takadao);
-        subscriptionModule.updateBmAddress();
-        kycModule.updateBmAddress();
         vm.stopPrank();
     }
 

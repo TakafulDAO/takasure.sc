@@ -57,10 +57,6 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         takasureReserve = TakasureReserve(reserve);
         usdc = IUSDC(contributionTokenAddress);
 
-        // Config mocks
-        vm.prank(daoAdmin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(referralGatewayAddress);
 

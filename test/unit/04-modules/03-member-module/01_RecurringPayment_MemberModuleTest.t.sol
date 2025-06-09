@@ -68,17 +68,9 @@ contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonRespon
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
         bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
-
-        vm.startPrank(takadao);
-        subscriptionModule.updateBmAddress();
-        kycModule.updateBmAddress();
         vm.stopPrank();
 
         // For easier testing there is a minimal USDC mock contract without restrictions

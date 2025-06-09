@@ -68,17 +68,9 @@ contract Cancel_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
         bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
-
-        vm.startPrank(takadao);
-        subscriptionModule.updateBmAddress();
-        kycModule.updateBmAddress();
         vm.stopPrank();
 
         // For easier testing there is a minimal USDC mock contract without restrictions
@@ -94,9 +86,8 @@ contract Cancel_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
-        vm.startPrank(admin);
+        vm.prank(admin);
         kycModule.approveKYC(alice);
-        vm.stopPrank();
 
         vm.warp(block.timestamp + YEAR + 31 days);
         vm.roll(block.number + 1);

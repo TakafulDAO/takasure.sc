@@ -110,7 +110,6 @@ contract TLDCcipTest is Test {
 
         // Config mocks
         vm.startPrank(takadao);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
         referralGateway.setCCIPReceiverContract(address(receiver));
         vm.stopPrank();
 
@@ -397,7 +396,7 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0xe0cd300fcaea679556606fa3c0773a987293cc2f9666244279559039c5e30c65;
+        bytes32 messageId = 0x1fe0b8f7b5309b80f0e91aa33566d302f6d54cc051f0a729388061901a4ff946;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);
@@ -466,7 +465,7 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0x035649215794c05a1764543c7920b22ce0de0fc755578dab8d4428e3e14de98c;
+        bytes32 messageId = 0x6e6f322c73498ea9e6868d9bd5e401440542055b04d589783648bbd991d567d3;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);
