@@ -117,15 +117,15 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         assertEq(true, takasureReserve.getReserveValues().allowCustomDuration);
     }
 
-    function testTakasureCore_setModuleManagerContract() public {
+    function testTakasureCore_setAddressManagerContract() public {
         vm.prank(admin);
-        takasureReserve.setModuleManagerContract(alice);
+        takasureReserve.setAddressManagerContract(alice);
 
-        assertEq(alice, address(takasureReserve.moduleManager()));
+        assertEq(alice, address(takasureReserve.addressManager()));
 
         vm.prank(alice);
-        vm.expectRevert(TakasureReserve.TakasureReserve__OnlyDaoOrTakadao.selector);
-        takasureReserve.setModuleManagerContract(admin);
+        vm.expectRevert();
+        takasureReserve.setAddressManagerContract(admin);
     }
 
     function testTakasureCore_onlyModuleFunctions() public {

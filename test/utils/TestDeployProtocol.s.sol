@@ -105,7 +105,6 @@ contract TestDeployProtocol is Script {
             kycProvider: config.kycProvider,
             pauseGuardian: config.pauseGuardian,
             tokenAdmin: config.tokenAdmin,
-            moduleManager: address(moduleManager),
             addressManager: address(addressManager),
             tokenName: config.tokenName,
             tokenSymbol: config.tokenSymbol

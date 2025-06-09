@@ -15,7 +15,7 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 
-import {Reserve, Member, MemberState, CashFlowVars, TakasureReserveInitParams} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, CashFlowVars, TakasureReserveInitParams, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -24,7 +24,6 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 pragma solidity 0.8.28;
 
 contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable {
-    IModuleManager public moduleManager;
     IAddressManager public addressManager;
 
     Reserve private reserve;
@@ -68,7 +67,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         __UUPSUpgradeable_init();
         __Pausable_init();
 
-        moduleManager = IModuleManager(_initParams.moduleManager);
         addressManager = IAddressManager(_initParams.addressManager);
         takadaoOperator = _initParams.takadaoOperator;
         daoMultisig = _initParams.daoOperator;
@@ -76,10 +74,12 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         feeClaimAddress = _initParams.feeClaimAddress;
         pauseGuardian = _initParams.pauseGuardian;
 
+        address moduleManager = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
+
         TSToken daoToken = new TSToken(
             _initParams.tokenAdmin,
             msg.sender,
-            _initParams.moduleManager,
+            moduleManager,
             _initParams.tokenName,
             _initParams.tokenSymbol
         );
@@ -157,10 +157,10 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         dayToCashFlow[month][day] = dayCashFlow;
     }
 
-    function setModuleManagerContract(address newModuleManagerContract) external {
+    function setAddressManagerContract(address newAddressManagerContract) external {
         _onlyDaoOrTakadao();
-        AddressAndStates._notZeroAddress(newModuleManagerContract);
-        moduleManager = IModuleManager(newModuleManagerContract);
+        AddressAndStates._notZeroAddress(newAddressManagerContract);
+        addressManager = IAddressManager(newAddressManagerContract);
     }
 
     function setNewServiceFee(uint8 newServiceFee) external onlyRole(Roles.OPERATOR) {
@@ -434,7 +434,12 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     }
 
     function _onlyModule() internal view {
-        require(moduleManager.isActiveModule(msg.sender), TakasureReserve__UnallowedAccess());
+        address moduleManager = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
+
+        require(
+            IModuleManager(moduleManager).isActiveModule(msg.sender),
+            TakasureReserve__UnallowedAccess()
+        );
     }
 
     function _onlyDaoOrTakadao() internal view {

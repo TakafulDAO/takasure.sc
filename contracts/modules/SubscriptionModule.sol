@@ -10,7 +10,6 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -45,7 +44,6 @@ contract SubscriptionModule is
     ITakasureReserve private takasureReserve;
     IAddressManager private addressManager;
     IBenefitMultiplierConsumer private bmConsumer;
-    IModuleManager private moduleManager;
     ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
@@ -99,7 +97,6 @@ contract SubscriptionModule is
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
         bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
-        moduleManager = IModuleManager(takasureReserve.moduleManager());
         addressManager = IAddressManager(takasureReserve.addressManager());
 
 

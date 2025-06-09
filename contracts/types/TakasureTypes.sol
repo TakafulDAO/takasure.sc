@@ -59,7 +59,6 @@ struct TakasureReserveInitParams {
     address kycProvider;
     address pauseGuardian;
     address tokenAdmin;
-    address moduleManager;
     address addressManager;
     string tokenName;
     string tokenSymbol;
