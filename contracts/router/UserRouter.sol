@@ -18,8 +18,6 @@ pragma solidity 0.8.28;
 
 contract UserRouter is Initializable, UUPSUpgradeable {
     IAddressManager private addressManager;
-    ISubscriptionModule private subscriptionModule;
-    IMemberModule private memberModule;
 
     error UserRouter__NotAuthorizedCaller();
 
@@ -36,19 +34,10 @@ contract UserRouter is Initializable, UUPSUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(
-        address _takasureReserveAddress,
-        address _subscriptionModule,
-        address _memberModule
-    ) external initializer {
+    function initialize(address _takasureReserveAddress) external initializer {
         AddressAndStates._notZeroAddress(_takasureReserveAddress);
-        AddressAndStates._notZeroAddress(_subscriptionModule);
-        AddressAndStates._notZeroAddress(_memberModule);
 
         __UUPSUpgradeable_init();
-
-        subscriptionModule = ISubscriptionModule(_subscriptionModule);
-        memberModule = IMemberModule(_memberModule);
 
         addressManager = IAddressManager(
             ITakasureReserve(_takasureReserveAddress).addressManager()
@@ -60,6 +49,8 @@ contract UserRouter is Initializable, UUPSUpgradeable {
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external {
+        ISubscriptionModule subscriptionModule = _getSubscriptionModule();
+
         subscriptionModule.paySubscription(
             msg.sender,
             memberWallet,
@@ -69,33 +60,49 @@ contract UserRouter is Initializable, UUPSUpgradeable {
     }
 
     function refund() external {
+        ISubscriptionModule subscriptionModule = _getSubscriptionModule();
+
         subscriptionModule.refund(msg.sender);
     }
 
     function payRecurringContribution() external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.payRecurringContribution(msg.sender);
     }
 
     function cancelMembership() external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.cancelMembership(msg.sender);
     }
 
     function cancelMembership(address memberWallet) external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.cancelMembership(memberWallet);
     }
 
     function defaultMember(address memberWallet) external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.defaultMember(memberWallet);
     }
 
-    function setSubscriptionModule(address _subscriptionModule) external onlyRole(Roles.OPERATOR) {
-        AddressAndStates._notZeroAddress(_subscriptionModule);
-        subscriptionModule = ISubscriptionModule(_subscriptionModule);
+    function _getSubscriptionModule()
+        internal
+        view
+        returns (ISubscriptionModule subscriptionModule_)
+    {
+        subscriptionModule_ = ISubscriptionModule(
+            addressManager.getProtocolAddressByName("SUBSCRIPTION_MODULE").addr
+        );
     }
 
-    function setMemberModule(address _memberModule) external onlyRole(Roles.OPERATOR) {
-        AddressAndStates._notZeroAddress(_memberModule);
-        memberModule = IMemberModule(_memberModule);
+    function _getMemberModule() internal view returns (IMemberModule memberModule_) {
+        memberModule_ = IMemberModule(
+            addressManager.getProtocolAddressByName("MEMBER_MODULE").addr
+        );
     }
 
     ///@dev required by the OZ UUPS module

@@ -21,7 +21,7 @@ import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.so
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
-import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, ModuleState, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -40,7 +40,6 @@ contract KYCModule is
 {
     ITakasureReserve private takasureReserve;
     IAddressManager private addressManager;
-    ISubscriptionModule private subscriptionModule;
     ModuleState private moduleState;
 
     error KYCModule__ContributionRequired();
@@ -68,16 +67,11 @@ contract KYCModule is
         _disableInitializers();
     }
 
-    function initialize(
-        address _takasureReserveAddress,
-        address _subscriptionModuleAddress
-    ) external initializer {
+    function initialize(address _takasureReserveAddress) external initializer {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        subscriptionModule = ISubscriptionModule(_subscriptionModuleAddress);
-
         addressManager = IAddressManager(takasureReserve.addressManager());
     }
 
@@ -204,6 +198,12 @@ contract KYCModule is
         address _takasureReserve,
         uint256 _contributionAfterFee
     ) internal override {
+        address subscriptionModuleAddress = addressManager
+            .getProtocolAddressByName("SUBSCRIPTION_MODULE")
+            .addr;
+
+        ISubscriptionModule subscriptionModule = ISubscriptionModule(subscriptionModuleAddress);
+
         subscriptionModule.transferContributionAfterKyc(
             _contributionToken,
             _memberWallet,

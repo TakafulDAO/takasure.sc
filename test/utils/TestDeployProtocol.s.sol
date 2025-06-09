@@ -144,8 +144,20 @@ contract TestDeployProtocol is Script {
         );
 
         addressManager.addProtocolAddress(
+            "SUBSCRIPTION_MODULE",
+            subscriptionModuleAddress,
+            ProtocolAddressType.Module
+        );
+
+        addressManager.addProtocolAddress(
             "KYC_MODULE",
             kycModuleAddress,
+            ProtocolAddressType.Module
+        );
+
+        addressManager.addProtocolAddress(
+            "MEMBER_MODULE",
+            memberModuleAddress,
             ProtocolAddressType.Module
         );
 
@@ -153,10 +165,7 @@ contract TestDeployProtocol is Script {
         userRouterImplementation = address(new UserRouter());
         routerAddress = UnsafeUpgrades.deployUUPSProxy(
             userRouterImplementation,
-            abi.encodeCall(
-                UserRouter.initialize,
-                (takasureReserve, subscriptionModuleAddress, memberModuleAddress)
-            )
+            abi.encodeCall(UserRouter.initialize, (takasureReserve))
         );
 
         addressManager.addProtocolAddress("ROUTER", routerAddress, ProtocolAddressType.Protocol);
@@ -285,10 +294,7 @@ contract TestDeployProtocol is Script {
         kycModuleImplementation = address(new KYCModule());
         kycModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             kycModuleImplementation,
-            abi.encodeCall(
-                KYCModule.initialize,
-                (_params.takasureReserve, subscriptionModuleAddress_)
-            )
+            abi.encodeCall(KYCModule.initialize, (_params.takasureReserve))
         );
 
         // Deploy MemberModule
