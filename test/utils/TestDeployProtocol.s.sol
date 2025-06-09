@@ -108,7 +108,6 @@ contract TestDeployProtocol is Script {
             feeClaimAddress: config.feeClaimAddress,
             daoOperator: config.daoMultisig,
             takadaoOperator: config.takadaoOperator,
-            kycProvider: config.kycProvider,
             pauseGuardian: config.pauseGuardian,
             tokenAdmin: config.tokenAdmin,
             addressManager: address(addressManager),
