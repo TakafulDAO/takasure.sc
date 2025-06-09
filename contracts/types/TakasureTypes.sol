@@ -56,7 +56,6 @@ struct TakasureReserveInitParams {
     address feeClaimAddress;
     address daoOperator;
     address takadaoOperator;
-    address kycProvider;
     address pauseGuardian;
     address tokenAdmin;
     address addressManager;

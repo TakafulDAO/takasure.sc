@@ -29,7 +29,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     Reserve private reserve;
     CashFlowVars private cashFlowVars;
 
-    address public kycProvider;
     address public feeClaimAddress;
     address public takadaoOperator;
     address public daoMultisig;
@@ -69,7 +68,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         addressManager = IAddressManager(_initParams.addressManager);
         takadaoOperator = _initParams.takadaoOperator;
         daoMultisig = _initParams.daoOperator;
-        kycProvider = _initParams.kycProvider;
         feeClaimAddress = _initParams.feeClaimAddress;
         pauseGuardian = _initParams.pauseGuardian;
 
@@ -223,12 +221,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         bool referralDiscountState
     ) external onlyRole(Roles.OPERATOR) {
         reserve.referralDiscount = referralDiscountState;
-    }
-
-    function setNewKycProviderAddress(
-        address newKycProviderAddress
-    ) external onlyRole(Roles.DAO_MULTISIG) {
-        kycProvider = newKycProviderAddress;
     }
 
     /**
