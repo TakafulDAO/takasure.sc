@@ -105,7 +105,6 @@ contract TestDeployProtocol is Script {
 
         TakasureReserveInitParams memory params = TakasureReserveInitParams({
             contributionToken: config.contributionToken,
-            feeClaimAddress: config.feeClaimAddress,
             tokenAdmin: config.tokenAdmin,
             addressManager: address(addressManager),
             tokenName: config.tokenName,
@@ -117,6 +116,12 @@ contract TestDeployProtocol is Script {
         takasureReserve = UnsafeUpgrades.deployUUPSProxy(
             takasureReserveImplementation,
             abi.encodeCall(TakasureReserve.initialize, (params))
+        );
+
+        addressManager.addProtocolAddress(
+            "FEE_CLAIM_ADDRESS",
+            config.feeClaimAddress,
+            ProtocolAddressType.Admin
         );
 
         (

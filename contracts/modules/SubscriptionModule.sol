@@ -627,7 +627,7 @@ contract SubscriptionModule is
             // Transfer the service fee to the fee claim address
             contributionToken.safeTransferFrom(
                 _memberWallet,
-                takasureReserve.feeClaimAddress(),
+                addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr,
                 feeAmount
             );
         }

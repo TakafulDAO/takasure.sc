@@ -29,8 +29,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     Reserve private reserve;
     CashFlowVars private cashFlowVars;
 
-    address public feeClaimAddress;
-
     uint256 private RPOOL;
 
     mapping(uint16 month => uint256 monthCashFlow) public monthToCashFlow;
@@ -61,7 +59,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         __Pausable_init();
 
         addressManager = IAddressManager(_initParams.addressManager);
-        feeClaimAddress = _initParams.feeClaimAddress;
 
         address moduleManager = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
 
@@ -202,11 +199,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         reserve.riskMultiplier = newRiskMultiplier;
 
         emit TakasureEvents.OnNewRiskMultiplier(newRiskMultiplier);
-    }
-
-    function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(Roles.OPERATOR) {
-        AddressAndStates._notZeroAddress(newFeeClaimAddress);
-        feeClaimAddress = newFeeClaimAddress;
     }
 
     function setReferralDiscountState(

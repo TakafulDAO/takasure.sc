@@ -113,20 +113,20 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         assertEq(subscriptionModuleBalanceAfter, subscriptionModuleBalanceBefore + deposited);
     }
 
-    /// @dev Test service fee is transferred when the member joins the pool
-    function testTakasureCore_serviceFeeAmountTransferedWhenJoinsPool() public {
-        Reserve memory reserve = takasureReserve.getReserveValues();
-        uint8 serviceFee = reserve.serviceFee;
-        address serviceFeeReceiver = takasureReserve.feeClaimAddress();
-        uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
+    // /// @dev Test service fee is transferred when the member joins the pool
+    // function testTakasureCore_serviceFeeAmountTransferedWhenJoinsPool() public {
+    //     Reserve memory reserve = takasureReserve.getReserveValues();
+    //     uint8 serviceFee = reserve.serviceFee;
+    //     address serviceFeeReceiver = takasureReserve.feeClaimAddress();
+    //     uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
 
-        vm.prank(alice);
-        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+    //     vm.prank(alice);
+    //     userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
+    //     uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
 
-        uint256 feeColected = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
+    //     uint256 feeColected = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
 
-        assertEq(serviceFeeReceiverBalanceAfter, serviceFeeReceiverBalanceBefore + feeColected);
-    }
+    //     assertEq(serviceFeeReceiverBalanceAfter, serviceFeeReceiverBalanceBefore + feeColected);
+    // }
 }

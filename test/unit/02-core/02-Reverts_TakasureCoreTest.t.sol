@@ -60,20 +60,6 @@ contract Reverts_TakasureCoreTest is StdCheats, Test {
         takasureReserve.setNewMinimumThreshold(newThreshold);
     }
 
-    /// @dev `setNewFeeClaimAddress` must revert if the caller is not the admin
-    function testTakasureCore_setNewFeeClaimAddressMustRevertIfTheCallerIsNotTheAdmin() public {
-        vm.prank(alice);
-        vm.expectRevert();
-        takasureReserve.setNewFeeClaimAddress(alice);
-    }
-
-    /// @dev `setNewFeeClaimAddress` must revert if the address is zero
-    function testTakasureCore_setNewFeeClaimAddressMustRevertIfAddressZero() public {
-        vm.prank(admin);
-        vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
-        takasureReserve.setNewFeeClaimAddress(address(0));
-    }
-
     /// @dev `setAllowCustomDuration` must revert if the caller is not the admin
     function testTakasureCore_setAllowCustomDurationMustRevertIfTheCallerIsNotTheAdmin() public {
         vm.prank(alice);

@@ -98,14 +98,6 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         assertEq(newMaximumThreshold, takasureReserve.getReserveValues().maximumThreshold);
     }
 
-    /// @dev Test the owner can set a new service claim address
-    function testTakasureCore_cansetNewServiceClaimAddress() public {
-        vm.prank(admin);
-        takasureReserve.setNewFeeClaimAddress(alice);
-
-        assertEq(alice, takasureReserve.feeClaimAddress());
-    }
-
     /// @dev Test the owner can set custom duration
     function testTakasureCore_setAllowCustomDuration() public {
         vm.prank(admin);

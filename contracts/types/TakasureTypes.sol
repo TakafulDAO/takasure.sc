@@ -53,7 +53,6 @@ struct ProposedRoleHolder {
 
 struct TakasureReserveInitParams {
     address contributionToken;
-    address feeClaimAddress;
     address tokenAdmin;
     address addressManager;
     string tokenName;
