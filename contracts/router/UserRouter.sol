@@ -13,6 +13,7 @@ import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
