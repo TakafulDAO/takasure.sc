@@ -40,7 +40,6 @@ contract KYCModule is
 {
     ITakasureReserve private takasureReserve;
     IAddressManager private addressManager;
-    IBenefitMultiplierConsumer private bmConsumer;
     ISubscriptionModule private subscriptionModule;
     ModuleState private moduleState;
 
@@ -77,7 +76,6 @@ contract KYCModule is
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
         subscriptionModule = ISubscriptionModule(_subscriptionModuleAddress);
 
         addressManager = IAddressManager(takasureReserve.addressManager());
@@ -91,10 +89,6 @@ contract KYCModule is
         ModuleState newState
     ) external override onlyContract("MODULE_MANAGER") {
         moduleState = newState;
-    }
-
-    function updateBmAddress() external onlyRole(Roles.OPERATOR) {
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
     /**
@@ -178,6 +172,11 @@ contract KYCModule is
     function _getBenefitMultiplierFromOracle(
         address _member
     ) internal returns (uint256 benefitMultiplier_) {
+        address bmConsumerAddress = addressManager
+            .getProtocolAddressByName("BENEFIT_MULTIPLIER_CONSUMER")
+            .addr;
+        IBenefitMultiplierConsumer bmConsumer = IBenefitMultiplierConsumer(bmConsumerAddress);
+
         string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
         // First we check if there is already a request id for this member
         bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);

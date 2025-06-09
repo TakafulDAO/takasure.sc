@@ -334,9 +334,13 @@ contract AddressManager is Ownable2Step, AccessControl {
 
     function getProtocolAddressByName(
         string memory name
-    ) external view returns (ProtocolAddress memory protocolAddress) {
+    ) external view returns (ProtocolAddress memory) {
         bytes32 nameHash = keccak256(abi.encode(name));
-        protocolAddress = protocolAddressesByName[nameHash];
+        ProtocolAddress memory protocolAddress = protocolAddressesByName[nameHash];
+
+        require(protocolAddress.addr != address(0), AddressManager__AddressDoesNotExist());
+
+        return protocolAddress;
     }
 
     function getProposedRoleHolder(

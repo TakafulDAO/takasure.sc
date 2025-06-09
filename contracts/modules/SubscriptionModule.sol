@@ -19,7 +19,7 @@ import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValues
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
-import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, ModuleState, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
@@ -43,7 +43,6 @@ contract SubscriptionModule is
 
     ITakasureReserve private takasureReserve;
     IAddressManager private addressManager;
-    IBenefitMultiplierConsumer private bmConsumer;
     ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
@@ -96,7 +95,6 @@ contract SubscriptionModule is
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
         addressManager = IAddressManager(takasureReserve.addressManager());
 
 
@@ -125,10 +123,6 @@ contract SubscriptionModule is
     ) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(_ccipReceiverContract);
         ccipReceiverContract = _ccipReceiverContract;
-    }
-
-    function updateBmAddress() external onlyRole(Roles.OPERATOR) {
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
     /**
@@ -574,6 +568,11 @@ contract SubscriptionModule is
     function _getBenefitMultiplierFromOracle(
         address _member
     ) internal returns (uint256 benefitMultiplier_) {
+        address bmConsumerAddress = addressManager.getProtocolAddressByName(
+            "BENEFIT_MULTIPLIER_CONSUMER"
+        ).addr;
+        IBenefitMultiplierConsumer bmConsumer = IBenefitMultiplierConsumer(bmConsumerAddress);
+        
         string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
         // First we check if there is already a request id for this member
         bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);

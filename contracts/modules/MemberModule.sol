@@ -8,7 +8,6 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
@@ -39,7 +38,6 @@ contract MemberModule is
 
     ITakasureReserve private takasureReserve;
     IAddressManager private addressManager;
-    IBenefitMultiplierConsumer private bmConsumer;
     ModuleState private moduleState;
 
     error MemberModule__InvalidDate();
@@ -71,7 +69,6 @@ contract MemberModule is
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
         addressManager = IAddressManager(takasureReserve.addressManager());
     }
 

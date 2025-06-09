@@ -29,7 +29,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     Reserve private reserve;
     CashFlowVars private cashFlowVars;
 
-    address public bmConsumer;
     address public kycProvider;
     address public feeClaimAddress;
     address public takadaoOperator;
@@ -224,20 +223,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         bool referralDiscountState
     ) external onlyRole(Roles.OPERATOR) {
         reserve.referralDiscount = referralDiscountState;
-    }
-
-    function setNewBenefitMultiplierConsumerAddress(
-        address newBenefitMultiplierConsumerAddress
-    ) external {
-        _onlyDaoOrTakadao();
-        AddressAndStates._notZeroAddress(newBenefitMultiplierConsumerAddress);
-        address oldBenefitMultiplierConsumer = address(bmConsumer);
-        bmConsumer = newBenefitMultiplierConsumerAddress;
-
-        emit TakasureEvents.OnBenefitMultiplierConsumerChanged(
-            newBenefitMultiplierConsumerAddress,
-            oldBenefitMultiplierConsumer
-        );
     }
 
     function setNewKycProviderAddress(
