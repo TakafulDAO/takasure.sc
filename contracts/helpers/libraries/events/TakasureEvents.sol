@@ -20,15 +20,6 @@ library TakasureEvents {
         uint256 membershipStartTime,
         bool isKycVerified
     ); // Emited when a new member is created
-    event OnMemberUpdated(
-        uint256 indexed memberId,
-        address indexed member,
-        uint256 indexed benefitMultiplier,
-        uint256 contributionBeforeFee,
-        uint256 serviceFee,
-        uint256 membershipDuration,
-        uint256 membershipStartTime
-    ); // Emited when a member is updated. This is used when a member first KYCed and then paid the contribution
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
     event OnMemberKycVerified(uint256 indexed memberId, address indexed member);
     event OnRecurringPayment(

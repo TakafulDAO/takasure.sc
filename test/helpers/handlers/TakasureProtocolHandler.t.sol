@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -12,7 +12,7 @@ import {MemberState} from "contracts/types/TakasureTypes.sol";
 
 contract TakasureProtocolHandler is Test {
     TakasureReserve takasureReserve;
-    EntryModule entryModule;
+    SubscriptionModule subscriptionModule;
     MemberModule memberModule;
     UserRouter userRouter;
     ERC20 usdc;
@@ -24,12 +24,12 @@ contract TakasureProtocolHandler is Test {
 
     constructor(
         TakasureReserve _takasureReserve,
-        EntryModule _entryModule,
+        SubscriptionModule _subscriptionModule,
         MemberModule _memberModule,
         UserRouter _userRouter
     ) {
         takasureReserve = _takasureReserve;
-        entryModule = _entryModule;
+        subscriptionModule = _subscriptionModule;
         memberModule = _memberModule;
         userRouter = _userRouter;
         usdc = ERC20(address(takasureReserve.getReserveValues().contributionToken));
@@ -39,7 +39,7 @@ contract TakasureProtocolHandler is Test {
         // 1. User is not the zero address or the contracts address
         vm.assume(msg.sender != address(0));
         vm.assume(msg.sender != address(takasureReserve));
-        vm.assume(msg.sender != address(entryModule));
+        vm.assume(msg.sender != address(subscriptionModule));
         vm.assume(msg.sender != address(memberModule));
 
         // 2. User is not already a member
@@ -56,9 +56,9 @@ contract TakasureProtocolHandler is Test {
 
         // 5. User approves the pool to spend the contribution amount and joins the pool
         vm.startPrank(msg.sender);
-        usdc.approve(address(entryModule), contributionAmount);
+        usdc.approve(address(subscriptionModule), contributionAmount);
 
-        userRouter.joinPool(parent, contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
+        userRouter.paySubscription(parent, contributionAmount, DEFAULT_MEMBERSHIP_DURATION);
         vm.stopPrank();
     }
 

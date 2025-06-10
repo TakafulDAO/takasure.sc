@@ -9,6 +9,7 @@ interface ITakasureReserve {
     function kycProvider() external view returns (address);
     function feeClaimAddress() external view returns (address);
     function moduleManager() external view returns (address);
+    function addressManager() external view returns (address);
     function takadaoOperator() external view returns (address);
     function daoMultisig() external view returns (address);
     function monthToCashFlow(uint16 month) external view returns (uint256 monthCashFlow);

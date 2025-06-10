@@ -3,11 +3,11 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
-import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
-import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
+import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {RevenueModule} from "contracts/modules/RevenueModule.sol";
 import {BenefitMultiplierConsumer} from "contracts/helpers/chainlink/functions/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";

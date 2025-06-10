@@ -8,13 +8,15 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
 import {Reserve, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -22,19 +24,30 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-contract RevenueModule is
-    Initializable,
-    UUPSUpgradeable,
-    AccessControlUpgradeable,
-    TLDModuleImplementation
-{
+contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementation {
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-
+    IAddressManager private addressManager;
     ModuleState private moduleState;
 
     error RevenueModule__WrongRevenueType();
+
+    modifier onlyContract(string memory name) {
+        require(
+            AddressAndStates._checkName(address(addressManager), name),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(addressManager), role),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -44,17 +57,9 @@ contract RevenueModule is
     function initialize(address _takasureReserveAddress) external initializer {
         AddressAndStates._notZeroAddress(_takasureReserveAddress);
         __UUPSUpgradeable_init();
-        __AccessControl_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        address takadaoOperator = takasureReserve.takadaoOperator();
-        address daoMultisig = takasureReserve.daoMultisig();
-        address moduleManager = takasureReserve.moduleManager();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
-        _grantRole(ModuleConstants.DAO_MULTISIG, daoMultisig);
-        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
+        addressManager = IAddressManager(takasureReserve.addressManager());
     }
 
     /**
@@ -63,7 +68,7 @@ contract RevenueModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+    ) external override onlyContract("MODULE_MANAGER") {
         moduleState = newState;
     }
 
@@ -75,7 +80,7 @@ contract RevenueModule is
     function depositRevenue(
         uint256 newRevenue,
         RevenueType revenueType
-    ) external onlyRole(ModuleConstants.DAO_MULTISIG) {
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
@@ -196,5 +201,5 @@ contract RevenueModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }
