@@ -3,14 +3,14 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewayParentRewardTest is Test {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     ReferralGateway referralGateway;
     BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
@@ -38,10 +38,22 @@ contract ReferralGatewayParentRewardTest is Test {
 
     function setUp() public {
         // Deployer
-        deployer = new TestDeployTakasureReserve();
+        deployer = new TestDeployProtocol();
         // Deploy contracts
-        (, bmConsumerMock, , , , , , referralGatewayAddress, usdcAddress, , helperConfig) = deployer
-            .run();
+        (
+            ,
+            bmConsumerMock,
+            ,
+            referralGatewayAddress,
+            ,
+            ,
+            ,
+            ,
+            ,
+            usdcAddress,
+            ,
+            helperConfig
+        ) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);

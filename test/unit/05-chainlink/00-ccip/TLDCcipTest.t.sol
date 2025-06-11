@@ -6,7 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {TLDCcipSender} from "contracts/helpers/chainlink/ccip/TLDCcipSender.sol";
 import {TLDCcipReceiver} from "contracts/helpers/chainlink/ccip/TLDCcipReceiver.sol";
-import {PrejoinModule} from "contracts/modules/PrejoinModule.sol";
+import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
@@ -19,7 +19,7 @@ contract TLDCcipTest is Test {
     TestDeployProtocol deployer;
     TLDCcipSender sender;
     TLDCcipReceiver receiver;
-    PrejoinModule prejoinModule;
+    ReferralGateway referralGateway;
     BenefitMultiplierConsumerMock bmConsumerMock;
     TakasureReserve takasureReserve;
     MockCCIPRouter ccipRouter;
@@ -27,7 +27,7 @@ contract TLDCcipTest is Test {
     BurnMintERC677 public link;
     IUSDC usdc;
     address takasureReserveAddress;
-    address prejoinModuleAddress;
+    address referralGatewayAddress;
     address senderImplementationAddress;
     address senderAddress;
     address usdcAddress;
@@ -62,7 +62,8 @@ contract TLDCcipTest is Test {
             ,
             bmConsumerMock,
             takasureReserveAddress,
-            prejoinModuleAddress,
+            referralGatewayAddress,
+            ,
             ,
             ,
             ,
@@ -74,7 +75,7 @@ contract TLDCcipTest is Test {
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        prejoinModule = PrejoinModule(prejoinModuleAddress);
+        referralGateway = ReferralGateway(referralGatewayAddress);
         takasureReserve = TakasureReserve(takasureReserveAddress);
         usdc = IUSDC(usdcAddress);
         link = new BurnMintERC677("ChainLink Token", "LINK", 18, 10 ** 27);
@@ -82,7 +83,7 @@ contract TLDCcipTest is Test {
 
         ccipRouter = new MockCCIPRouter();
 
-        receiver = new TLDCcipReceiver(address(ccipRouter), usdcAddress, prejoinModuleAddress);
+        receiver = new TLDCcipReceiver(address(ccipRouter), usdcAddress, referralGatewayAddress);
 
         senderImplementationAddress = address(new TLDCcipSender());
         senderAddress = UnsafeUpgrades.deployUUPSProxy(
@@ -110,18 +111,18 @@ contract TLDCcipTest is Test {
         // Config mocks
         vm.startPrank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        prejoinModule.setCCIPReceiverContract(address(receiver));
+        referralGateway.setCCIPReceiverContract(address(receiver));
         vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(takasureReserve));
-        bmConsumerMock.setNewRequester(prejoinModuleAddress);
+        bmConsumerMock.setNewRequester(referralGatewayAddress);
         vm.stopPrank();
     }
 
     modifier createDao() {
         vm.startPrank(admin);
-        prejoinModule.createDAO(true, 1743479999, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
         vm.stopPrank();
         _;
     }
@@ -396,7 +397,7 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0xac5990a7c2c10d339b2262362a94a935c4f65cdae9ff284bf71e7b7f3cab39a9;
+        bytes32 messageId = 0xe1bd7b6b4e136621abafb64196fd307d1785c877c003fff9c577c9b2ab2efdf3;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);
@@ -418,11 +419,11 @@ contract TLDCcipTest is Test {
     }
 
     function testReceiverSetProtocolGateway() public {
-        assertEq(receiver.protocolGateway(), prejoinModuleAddress);
+        assertEq(receiver.protocolGateway(), referralGatewayAddress);
 
         vm.prank(receiver.owner());
         vm.expectEmit(true, true, false, false, address(receiver));
-        emit OnProtocolGatewayChanged(prejoinModuleAddress, linkAddress);
+        emit OnProtocolGatewayChanged(referralGatewayAddress, linkAddress);
         receiver.setProtocolGateway(linkAddress);
 
         assertEq(receiver.protocolGateway(), linkAddress);
@@ -465,7 +466,7 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0x891f0a4f29f72aecc7d2f0af25e9fa4ee8f0832bdf46411ea7d68956da4b812a;
+        bytes32 messageId = 0xf6b82138ba0e1252288f7a637ce8c13c14a1ca7e3298b595acd9cc77274c720d;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);

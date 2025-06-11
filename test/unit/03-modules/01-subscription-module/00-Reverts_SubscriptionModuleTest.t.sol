@@ -7,8 +7,7 @@ import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
-import {KYCModule} from "contracts/modules/KYCModule.sol";
-import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
@@ -17,23 +16,25 @@ import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
+contract Reverts_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
-    KYCModule kycModule;
-    MemberModule memberModule;
+    UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
+    address kycService;
     address takadao;
     address subscriptionModuleAddress;
-    address kycModuleAddress;
-    address memberModuleAddress;
+    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
+    address public charlie = makeAddr("charlie");
+    address public david = makeAddr("david");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
@@ -46,22 +47,22 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
-            kycModuleAddress,
-            memberModuleAddress,
             ,
             ,
+            ,
+            userRouterAddress,
             contributionTokenAddress,
             ,
             helperConfig
         ) = deployer.run();
 
         subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
-        kycModule = KYCModule(kycModuleAddress);
-        memberModule = MemberModule(memberModuleAddress);
+        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         admin = config.daoMultisig;
+        kycService = config.kycProvider;
         takadao = config.takadaoOperator;
 
         takasureReserve = TakasureReserve(takasureReserveProxy);
@@ -69,89 +70,79 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), bob, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), charlie, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), david, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
+        vm.stopPrank();
+        vm.startPrank(charlie);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
+        vm.stopPrank();
+        vm.startPrank(david);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
-        vm.startPrank(bmConsumerMock.admin());
+        vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-        bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
 
-        vm.startPrank(takadao);
+        vm.prank(takadao);
         subscriptionModule.updateBmAddress();
-        kycModule.updateBmAddress();
-        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev `payRecurringContribution` must revert if the member is invalid
-    function testMemberModule_payRecurringContributionMustRevertIfMemberIsInvalid() public {
+    /// @dev `paySubscription` must revert if the contribution is less than the minimum threshold
+    function testSubscriptionModule_paySubscriptionMustRevertIfDepositLessThanMinimum() public {
+        uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
         vm.prank(alice);
-        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
-        memberModule.payRecurringContribution(alice);
+        vm.expectRevert(SubscriptionModule.SubscriptionModule__InvalidContribution.selector);
+        userRouter.paySubscription(address(0), wrongContribution, (5 * YEAR));
     }
 
-    /// @dev `payRecurringContribution` must revert if the date is invalid, a year has passed and the member has not paid
-    function testMemberModule_payRecurringContributionMustRevertIfDateIsInvalidNotPaidInTime()
-        public
-    {
+    /// @dev can not refund someone already refunded
+    function testSubscriptionModule_refundRevertIfMemberAlreadyRefunded() public {
+        deal(address(usdc), address(subscriptionModule), 25e6);
+
         vm.startPrank(alice);
-        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
-        subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
-        vm.stopPrank();
+        // Join and refund
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
-        vm.prank(admin);
-        kycModule.approveKYC(alice);
-
-        vm.warp(block.timestamp + 396 days);
+        // 14 days passed
+        vm.warp(15 days);
         vm.roll(block.number + 1);
 
-        vm.startPrank(alice);
-        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
-        memberModule.payRecurringContribution(alice);
+        subscriptionModule.refund();
+
+        // Try to refund again
+        vm.expectRevert(SubscriptionModule.SubscriptionModule__NothingToRefund.selector);
+        subscriptionModule.refund();
         vm.stopPrank();
     }
 
-    /// @dev `payRecurringContribution` must revert if the date is invalid, the membership expired
-    function testMemberModule_payRecurringContributionMustRevertIfDateIsInvalidMembershipExpired()
-        public
-    {
+    /// @dev can not refund after 30 days
+    function testSubscriptionModule_refundRevertIfMemberRefundAfter30Days() public {
+        // Join
         vm.startPrank(alice);
-        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
-        subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
-        vm.prank(admin);
-        kycModule.approveKYC(alice);
-
-        for (uint256 i = 0; i < 5; i++) {
-            vm.warp(block.timestamp + YEAR);
-            vm.roll(block.number + 1);
-
-            vm.startPrank(alice);
-            memberModule.payRecurringContribution(alice);
-            vm.stopPrank();
-        }
-
-        vm.warp(block.timestamp + YEAR);
+        vm.warp(31 days);
         vm.roll(block.number + 1);
 
+        // Try to refund
         vm.startPrank(alice);
-        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
-        memberModule.payRecurringContribution(alice);
+        vm.expectRevert(SubscriptionModule.SubscriptionModule__TooEarlytoRefund.selector);
+        subscriptionModule.refund();
+        vm.stopPrank();
     }
 }

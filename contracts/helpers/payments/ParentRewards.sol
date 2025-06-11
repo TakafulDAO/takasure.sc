@@ -2,7 +2,11 @@
 
 pragma solidity 0.8.28;
 
-abstract contract ParentRewards {
+contract ParentRewards {
+    mapping(address child => address parent) public childToParent;
+    mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
+    mapping(address parent => mapping(uint256 layer => uint256 reward)) public parentRewardsByLayer;
+
     int256 internal constant MAX_TIER = 4;
     int256 private constant A = -3_125;
     int256 private constant B = 30_500;
@@ -16,7 +20,41 @@ abstract contract ParentRewards {
         uint256 _currentReferralReserve,
         uint256 _toReferralReserve,
         uint256 _currentFee
-    ) internal virtual returns (uint256, uint256) {}
+    ) internal virtual returns (uint256, uint256) {
+        address currentChildToCheck = _initialChildToCheck;
+        uint256 newReferralReserveBalance = _currentReferralReserve + _toReferralReserve;
+        uint256 parentRewardsAccumulated;
+
+        for (int256 i; i < MAX_TIER; ++i) {
+            if (childToParent[currentChildToCheck] == address(0)) {
+                break;
+            }
+
+            parentRewardsByChild[childToParent[currentChildToCheck]][_initialChildToCheck] =
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            parentRewardsByLayer[childToParent[currentChildToCheck]][uint256(i + 1)] +=
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            parentRewardsAccumulated +=
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            currentChildToCheck = childToParent[currentChildToCheck];
+        }
+
+        if (newReferralReserveBalance > parentRewardsAccumulated) {
+            newReferralReserveBalance -= parentRewardsAccumulated;
+        } else {
+            uint256 reserveShortfall = parentRewardsAccumulated - newReferralReserveBalance;
+            _currentFee -= reserveShortfall;
+            newReferralReserveBalance = 0;
+        }
+
+        return (_currentFee, newReferralReserveBalance);
+    }
 
     /**
      * @notice This function calculates the referral reward ratio based on the layer

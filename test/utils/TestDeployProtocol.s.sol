@@ -5,8 +5,9 @@ pragma solidity 0.8.28;
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {ModuleManager} from "contracts/modules/manager/ModuleManager.sol";
-import {PrejoinModule} from "contracts/modules/PrejoinModule.sol";
-import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
+import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
@@ -39,8 +40,9 @@ contract TestDeployProtocol is Script {
             address tsToken,
             BenefitMultiplierConsumerMock,
             address takasureReserve,
-            address prejoinModuleAddress,
-            address entryModuleAddress,
+            address referralGatewayAddress,
+            address subscriptionModuleAddress,
+            address kycModuleAddress,
             address memberModuleAddress,
             address revenueModuleAddress,
             address routerAddress,
@@ -86,8 +88,9 @@ contract TestDeployProtocol is Script {
         );
 
         (
-            prejoinModuleAddress,
-            entryModuleAddress,
+            referralGatewayAddress,
+            subscriptionModuleAddress,
+            kycModuleAddress,
             memberModuleAddress,
             revenueModuleAddress
         ) = _deployModules(
@@ -97,7 +100,8 @@ contract TestDeployProtocol is Script {
             config.contributionToken,
             address(bmConsumerMock),
             makeAddr("ccipReceiverContract"),
-            makeAddr("couponPool")
+            makeAddr("couponPool"),
+            config.pauseGuardian
         );
 
         // Deploy router
@@ -106,11 +110,16 @@ contract TestDeployProtocol is Script {
             userRouterImplementation,
             abi.encodeCall(
                 UserRouter.initialize,
-                (takasureReserve, entryModuleAddress, memberModuleAddress)
+                (takasureReserve, subscriptionModuleAddress, memberModuleAddress)
             )
         );
 
-        _setContracts(entryModuleAddress, memberModuleAddress, revenueModuleAddress);
+        _setContracts(
+            subscriptionModuleAddress,
+            kycModuleAddress,
+            memberModuleAddress,
+            revenueModuleAddress
+        );
 
         TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
         tsToken = address(creditToken);
@@ -119,7 +128,8 @@ contract TestDeployProtocol is Script {
             takasureReserve,
             config.daoMultisig,
             creditToken,
-            entryModuleAddress,
+            subscriptionModuleAddress,
+            kycModuleAddress,
             memberModuleAddress
         );
 
@@ -130,20 +140,17 @@ contract TestDeployProtocol is Script {
             .contributionToken;
 
         vm.startPrank(config.takadaoOperator);
-        PrejoinModule(prejoinModuleAddress).grantRole(MODULE_MANAGER, address(moduleManager));
-        EntryModule(entryModuleAddress).grantRole(ROUTER, routerAddress);
+        SubscriptionModule(subscriptionModuleAddress).grantRole(ROUTER, routerAddress);
         MemberModule(memberModuleAddress).grantRole(ROUTER, routerAddress);
         vm.stopPrank();
-
-        vm.prank(moduleManager.owner());
-        moduleManager.addModule(prejoinModuleAddress);
 
         return (
             tsToken,
             bmConsumerMock,
             takasureReserve,
-            prejoinModuleAddress,
-            entryModuleAddress,
+            referralGatewayAddress,
+            subscriptionModuleAddress,
+            kycModuleAddress,
             memberModuleAddress,
             revenueModuleAddress,
             routerAddress,
@@ -167,8 +174,9 @@ contract TestDeployProtocol is Script {
         );
     }
 
-    address prejoinModuleImplementation;
-    address entryModuleImplementation;
+    address referralGatewayImplementation;
+    address subscriptionModuleImplementation;
+    address kycModuleImplementation;
     address memberModuleImplementation;
     address revenueModuleImplementation;
 
@@ -179,35 +187,50 @@ contract TestDeployProtocol is Script {
         address _contributionToken,
         address _bmConsumerMock,
         address _ccipReceiver,
-        address _couponPool
+        address _couponPool,
+        address _pauseGuardian
     )
         internal
         returns (
-            address prejoinModuleAddress_,
-            address entryModuleAddress_,
+            address referralGatewayAddress_,
+            address subscriptionModuleAddress_,
+            address kycModuleAddress_,
             address memberModuleAddress_,
             address revenueModuleAddress_
         )
     {
-        // Deploy PrejoinModule
-        prejoinModuleImplementation = address(new PrejoinModule());
+        // Deploy ReferralGateway
+        referralGatewayImplementation = address(new ReferralGateway());
 
-        prejoinModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
-            prejoinModuleImplementation,
+        referralGatewayAddress_ = UnsafeUpgrades.deployUUPSProxy(
+            referralGatewayImplementation,
             abi.encodeCall(
-                PrejoinModule.initialize,
-                (_takadaoOperator, _kycProvider, _contributionToken, _bmConsumerMock)
+                ReferralGateway.initialize,
+                (
+                    _takadaoOperator,
+                    _kycProvider,
+                    _pauseGuardian,
+                    _contributionToken,
+                    _bmConsumerMock
+                )
             )
         );
 
-        // Deploy EntryModule
-        entryModuleImplementation = address(new EntryModule());
-        entryModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
-            entryModuleImplementation,
+        // Deploy SubscriptionModule
+        subscriptionModuleImplementation = address(new SubscriptionModule());
+        subscriptionModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
+            subscriptionModuleImplementation,
             abi.encodeCall(
-                EntryModule.initialize,
-                (_takasureReserve, prejoinModuleAddress_, _ccipReceiver, _couponPool)
+                SubscriptionModule.initialize,
+                (_takasureReserve, referralGatewayAddress_, _ccipReceiver, _couponPool)
             )
+        );
+
+        // Deploy KYCModule
+        kycModuleImplementation = address(new KYCModule());
+        kycModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
+            kycModuleImplementation,
+            abi.encodeCall(KYCModule.initialize, (_takasureReserve, subscriptionModuleAddress_))
         );
 
         // Deploy MemberModule
@@ -226,15 +249,17 @@ contract TestDeployProtocol is Script {
     }
 
     function _setContracts(
-        address _entryModuleAddress,
+        address _subscriptionModuleAddress,
+        address _kycModuleAddress,
         address _memberModuleAddress,
         address _revenueModuleAddress
     ) internal {
-        // Setting EntryModule as a requester in BenefitMultiplierConsumer
-        bmConsumerMock.setNewRequester(_entryModuleAddress);
+        bmConsumerMock.setNewRequester(_subscriptionModuleAddress);
+        bmConsumerMock.setNewRequester(_kycModuleAddress);
 
         // Set modules contracts in TakasureReserve
-        moduleManager.addModule(_entryModuleAddress);
+        moduleManager.addModule(_subscriptionModuleAddress);
+        moduleManager.addModule(_kycModuleAddress);
         moduleManager.addModule(_memberModuleAddress);
         moduleManager.addModule(_revenueModuleAddress);
     }
@@ -243,15 +268,18 @@ contract TestDeployProtocol is Script {
         address _takasureReserve,
         address _daoMultisig,
         TSToken _creditToken,
-        address _entryModuleAddress,
+        address _subscriptionModuleAddress,
+        address _kycModuleAddress,
         address _memberModuleAddress
     ) internal {
         // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(_takasureReserve).grantRole(0x00, _daoMultisig);
         // And the modules as burner and minters
-        _creditToken.grantRole(MINTER_ROLE, _entryModuleAddress);
+        _creditToken.grantRole(MINTER_ROLE, _subscriptionModuleAddress);
+        _creditToken.grantRole(MINTER_ROLE, _kycModuleAddress);
         _creditToken.grantRole(MINTER_ROLE, _memberModuleAddress);
-        _creditToken.grantRole(BURNER_ROLE, _entryModuleAddress);
+        _creditToken.grantRole(BURNER_ROLE, _subscriptionModuleAddress);
+        _creditToken.grantRole(BURNER_ROLE, _kycModuleAddress);
         _creditToken.grantRole(BURNER_ROLE, _memberModuleAddress);
 
         // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve

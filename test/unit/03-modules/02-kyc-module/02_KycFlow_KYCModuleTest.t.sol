@@ -6,8 +6,8 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/modules/EntryModule.sol";
-import {UserRouter} from "contracts/router/UserRouter.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
+import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
@@ -15,20 +15,20 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract KycFlow_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
+contract KycFlow_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    EntryModule entryModule;
-    UserRouter userRouter;
+    SubscriptionModule subscriptionModule;
+    KYCModule kycModule;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
-    address entryModuleAddress;
-    address userRouterAddress;
+    address subscriptionModuleAddress;
+    address kycModuleAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -43,17 +43,18 @@ contract KycFlow_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
             bmConsumerMock,
             takasureReserveProxy,
             ,
-            entryModuleAddress,
+            subscriptionModuleAddress,
+            kycModuleAddress,
             ,
             ,
-            userRouterAddress,
+            ,
             contributionTokenAddress,
             ,
             helperConfig
         ) = deployer.run();
 
-        entryModule = EntryModule(entryModuleAddress);
-        userRouter = UserRouter(userRouterAddress);
+        subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
+        kycModule = KYCModule(kycModuleAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -68,28 +69,32 @@ contract KycFlow_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(entryModuleAddress));
+        vm.startPrank(bmConsumerMock.admin());
+        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
+        bmConsumerMock.setNewRequester(address(kycModuleAddress));
+        vm.stopPrank();
 
-        vm.prank(takadao);
-        entryModule.updateBmAddress();
+        vm.startPrank(takadao);
+        subscriptionModule.updateBmAddress();
+        kycModule.updateBmAddress();
+        vm.stopPrank();
     }
 
     /// @dev Test contribution amount is transferred to the contract
-    function testEntryModule_KycFlow() public {
+    function testKYCModule_KycFlow() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 memberIdBeforeJoin = reserve.memberIdCounter;
 
         // Join the pool
         vm.prank(alice);
 
-        vm.expectEmit(true, true, true, true, address(entryModule));
+        vm.expectEmit(true, true, true, true, address(subscriptionModule));
         emit TakasureEvents.OnMemberCreated(
             memberIdBeforeJoin + 1,
             alice,
@@ -101,7 +106,7 @@ contract KycFlow_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
             false
         );
 
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
+        subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
         reserve = takasureReserve.getReserveValues();
         uint256 memberIdAfterJoin = reserve.memberIdCounter;
@@ -136,24 +141,13 @@ contract KycFlow_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
 
         // Set KYC status to true
         vm.prank(admin);
-        vm.expectEmit(true, true, true, true, address(entryModule));
-        emit TakasureEvents.OnMemberUpdated(
-            memberIdAfterJoin,
-            alice,
-            BENEFIT_MULTIPLIER_FROM_CONSUMER,
-            CONTRIBUTION_AMOUNT,
-            ((CONTRIBUTION_AMOUNT * 27) / 100),
-            5 * YEAR,
-            1
-        );
-
-        vm.expectEmit(true, false, false, false, address(entryModule));
+        vm.expectEmit(true, false, false, false, address(kycModule));
         emit TakasureEvents.OnMemberKycVerified(memberIdAfterJoin, alice);
 
-        vm.expectEmit(true, true, false, false, address(entryModule));
+        vm.expectEmit(true, true, false, false, address(kycModule));
         emit TakasureEvents.OnMemberJoined(memberIdAfterJoin, alice);
 
-        entryModule.approveKYC(alice);
+        kycModule.approveKYC(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 memberIdAfterKyc = reserve.memberIdCounter;

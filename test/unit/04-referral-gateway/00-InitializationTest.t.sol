@@ -3,13 +3,13 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewayInitializationTest is Test {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     ReferralGateway referralGateway;
     HelperConfig helperConfig;
     IUSDC usdc;
@@ -23,9 +23,9 @@ contract ReferralGatewayInitializationTest is Test {
 
     function setUp() public {
         // Deployer
-        deployer = new TestDeployTakasureReserve();
+        deployer = new TestDeployProtocol();
         // Deploy contracts
-        (, , , , , , , referralGatewayAddress, usdcAddress, , helperConfig) = deployer.run();
+        (, , , referralGatewayAddress, , , , , , usdcAddress, , helperConfig) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -41,7 +41,7 @@ contract ReferralGatewayInitializationTest is Test {
         referralGateway.setDaoName(tDaoName);
     }
 
-    function testOperatorAddressIsNotZero() public {
+    function testOperatorAddressIsNotZero() public view {
         uint256 operatorAddressSlot = 2;
         bytes32 operatorAddressSlotBytes = vm.load(
             address(referralGateway),
@@ -51,25 +51,25 @@ contract ReferralGatewayInitializationTest is Test {
         assert(operatorAddress != address(0));
     }
 
-    function testUsdcAddressIsNotZero() public {
+    function testUsdcAddressIsNotZero() public view {
         assert(address(referralGateway.usdc()) != address(0));
         assertEq(address(referralGateway.usdc()), usdcAddress);
     }
 
-    function testDAONameAssignCorrectly() public {
+    function testDAONameAssignCorrectly() public view {
         string memory name = referralGateway.daoName();
         assertEq(name, "The LifeDao");
     }
 
-    function testOperatorRoleAssignedCorrectly() public {
+    function testOperatorRoleAssignedCorrectly() public view {
         assert(referralGateway.hasRole(keccak256("OPERATOR"), takadao));
     }
 
-    function testKYCRoleAssignedCorrectly() public {
+    function testKYCRoleAssignedCorrectly() public view {
         assert(referralGateway.hasRole(keccak256("KYC_PROVIDER"), KYCProvider));
     }
 
-    function testPauseGuardianRoleAssignedCorrectly() public {
+    function testPauseGuardianRoleAssignedCorrectly() public view {
         assert(referralGateway.hasRole(keccak256("PAUSE_GUARDIAN"), pauseGuardian));
     }
 }

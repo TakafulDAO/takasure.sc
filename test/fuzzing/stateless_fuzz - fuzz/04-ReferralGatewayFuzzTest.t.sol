@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployTakasureReserve} from "test/utils/TestDeployTakasureReserve.s.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
@@ -12,7 +12,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
 contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
-    TestDeployTakasureReserve deployer;
+    TestDeployProtocol deployer;
     ReferralGateway referralGateway;
     TakasureReserve takasureReserve;
     BenefitMultiplierConsumerMock bmConsumerMock;
@@ -35,17 +35,18 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
 
     function setUp() public {
         // Deployer
-        deployer = new TestDeployTakasureReserve();
+        deployer = new TestDeployProtocol();
         // Deploy contracts
         (
             ,
             bmConsumerMock,
             takasureReserveAddress,
-            ,
-            ,
-            ,
-            ,
             referralGatewayAddress,
+            ,
+            ,
+            ,
+            ,
+            ,
             usdcAddress,
             ,
             helperConfig

@@ -6,9 +6,9 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
+import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
-import {UserRouter} from "contracts/router/UserRouter.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
@@ -16,17 +16,17 @@ contract TakasureProtocolFuzzTest is Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    EntryModule entryModule;
+    SubscriptionModule subscriptionModule;
+    KYCModule kycModule;
     MemberModule memberModule;
-    UserRouter userRouter;
     BenefitMultiplierConsumerMock bmConsumerMock;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address daoMultisig;
     address takadao;
-    address entryModuleAddress;
+    address subscriptionModuleAddress;
+    address kycModuleAddress;
     address memberModuleAddress;
-    address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
     address public parent = makeAddr("parent");
@@ -41,18 +41,19 @@ contract TakasureProtocolFuzzTest is Test {
             bmConsumerMock,
             takasureReserveProxy,
             ,
-            entryModuleAddress,
+            subscriptionModuleAddress,
+            kycModuleAddress,
             memberModuleAddress,
             ,
-            userRouterAddress,
+            ,
             contributionTokenAddress,
             ,
             helperConfig
         ) = deployer.run();
 
-        entryModule = EntryModule(entryModuleAddress);
+        subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
+        kycModule = KYCModule(kycModuleAddress);
         memberModule = MemberModule(memberModuleAddress);
-        userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -66,7 +67,7 @@ contract TakasureProtocolFuzzTest is Test {
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
@@ -74,21 +75,21 @@ contract TakasureProtocolFuzzTest is Test {
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
         vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(entryModuleAddress));
+        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
 
         vm.prank(takadao);
-        entryModule.updateBmAddress();
+        subscriptionModule.updateBmAddress();
     }
 
     function test_fuzz_ownerCanapproveKYC(address notOwner) public {
         vm.assume(notOwner != daoMultisig);
 
         vm.prank(alice);
-        userRouter.joinPool(parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
+        subscriptionModule.paySubscription(alice, parent, CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         vm.prank(notOwner);
         vm.expectRevert();
-        entryModule.approveKYC(alice);
+        kycModule.approveKYC(alice);
     }
 
     function test_fuzz_onlyDaoAndTakadaoCanSetNewBenefitMultiplier(address notAuthorized) public {

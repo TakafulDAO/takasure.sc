@@ -6,7 +6,8 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
+import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
@@ -15,19 +16,21 @@ import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
+contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
     BenefitMultiplierConsumerMock bmConsumerMock;
-    EntryModule entryModule;
+    SubscriptionModule subscriptionModule;
+    KYCModule kycModule;
     UserRouter userRouter;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
     address kycService;
     address takadao;
-    address entryModuleAddress;
+    address subscriptionModuleAddress;
+    address kycModuleAddress;
     address userRouterAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
@@ -44,7 +47,8 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
             bmConsumerMock,
             takasureReserveProxy,
             ,
-            entryModuleAddress,
+            subscriptionModuleAddress,
+            kycModuleAddress,
             ,
             ,
             userRouterAddress,
@@ -53,7 +57,8 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
             helperConfig
         ) = deployer.run();
 
-        entryModule = EntryModule(entryModuleAddress);
+        subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
+        kycModule = KYCModule(kycModuleAddress);
         userRouter = UserRouter(userRouterAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -70,20 +75,24 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         deal(address(usdc), bob, USDC_INITIAL_AMOUNT);
 
         vm.startPrank(alice);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
         vm.startPrank(bob);
-        usdc.approve(address(entryModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
         vm.prank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
 
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(entryModuleAddress));
+        vm.startPrank(bmConsumerMock.admin());
+        bmConsumerMock.setNewRequester(subscriptionModuleAddress);
+        bmConsumerMock.setNewRequester(kycModuleAddress);
+        vm.stopPrank();
 
-        vm.prank(takadao);
-        entryModule.updateBmAddress();
+        vm.startPrank(takadao);
+        subscriptionModule.updateBmAddress();
+        kycModule.updateBmAddress();
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -91,15 +100,15 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Test the contribution amount's last four digits are zero
-    function testEntryModule_contributionAmountDecimals() public {
+    function testSubscriptionModule_contributionAmountDecimals() public {
         uint256 contributionAmount = 227123456; // 227.123456 USDC
 
         deal(address(usdc), alice, contributionAmount);
 
         vm.startPrank(alice);
 
-        usdc.approve(address(entryModule), contributionAmount);
-        userRouter.joinPool(address(0), contributionAmount, (5 * YEAR));
+        usdc.approve(address(subscriptionModule), contributionAmount);
+        userRouter.paySubscription(address(0), contributionAmount, (5 * YEAR));
 
         vm.stopPrank();
 
@@ -107,7 +116,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.approveKYC(alice);
+        kycModule.approveKYC(alice);
 
         uint256 totalContributions = takasureReserve.getReserveValues().totalContributions;
 
@@ -121,38 +130,9 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
                       JOIN POOL::CREATE NEW MEMBER
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Test that the joinPool function updates the memberIdCounter
-    function testEntryModule_joinPoolUpdatesCounter() public {
-        uint256 memberIdCounterBeforeAlice = takasureReserve.getReserveValues().memberIdCounter;
-
+    function testSubscriptionModule_approveKYC() public {
         vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
-
-        uint256 memberIdCounterAfterAlice = takasureReserve.getReserveValues().memberIdCounter;
-
-        vm.prank(bob);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
-
-        uint256 memberIdCounterAfterBob = takasureReserve.getReserveValues().memberIdCounter;
-
-        assertEq(memberIdCounterAfterAlice, memberIdCounterBeforeAlice + 1);
-        assertEq(memberIdCounterAfterBob, memberIdCounterAfterAlice + 1);
-    }
-
-    function testEntryModule_joinPoolTransferAmountsCorrectly() public {
-        uint256 aliceBalanceBefore = usdc.balanceOf(alice);
-
-        vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
-
-        uint256 aliceBalanceAfter = usdc.balanceOf(alice);
-
-        assertEq(aliceBalanceAfter, aliceBalanceBefore - CONTRIBUTION_AMOUNT);
-    }
-
-    function testEntryModule_approveKYC() public {
-        vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
@@ -162,7 +142,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         assert(!member.isKYCVerified);
 
         vm.prank(admin);
-        entryModule.approveKYC(alice);
+        kycModule.approveKYC(alice);
 
         member = takasureReserve.getMemberFromAddress(alice);
 
@@ -171,18 +151,21 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
 
     modifier aliceJoinAndKYC() {
         vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.approveKYC(alice);
+        kycModule.approveKYC(alice);
 
         _;
     }
 
-    function testEntryModule_joinPoolOnBehalfOfTransferAmountsCorrectly() public aliceJoinAndKYC {
+    function testSubscriptionModule_paySubscriptionOnBehalfOfTransferAmountsCorrectly()
+        public
+        aliceJoinAndKYC
+    {
         address couponRedeemer = makeAddr("couponRedeemer");
         address couponPool = makeAddr("couponPool");
 
@@ -190,36 +173,36 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         uint256 coupon = 50e6; // 50 USDC
 
         vm.startPrank(takadao);
-        entryModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        entryModule.setCouponPoolAddress(couponPool);
+        subscriptionModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
+        subscriptionModule.setCouponPoolAddress(couponPool);
         vm.stopPrank();
 
         deal(address(usdc), couponPool, coupon);
 
         vm.prank(couponPool);
-        usdc.approve(address(entryModule), coupon);
+        usdc.approve(address(subscriptionModule), coupon);
 
-        uint256 entryModuleBalanceBefore = usdc.balanceOf(address(entryModule));
+        uint256 subscriptionModuleBalanceBefore = usdc.balanceOf(address(subscriptionModule));
         uint256 bobBalanceBefore = usdc.balanceOf(bob);
         uint256 couponPoolBalanceBefore = usdc.balanceOf(couponPool);
         uint256 feeClaimAddressBalanceBefore = usdc.balanceOf(takasureReserve.feeClaimAddress());
 
         vm.prank(couponRedeemer);
-        entryModule.joinPoolOnBehalfOf(bob, alice, contribution, (5 * YEAR), coupon);
+        subscriptionModule.paySubscriptionOnBehalfOf(bob, alice, contribution, (5 * YEAR), coupon);
 
-        uint256 entryModuleBalanceAfter = usdc.balanceOf(address(entryModule));
+        uint256 subscriptionModuleBalanceAfter = usdc.balanceOf(address(subscriptionModule));
         uint256 bobBalanceAfter = usdc.balanceOf(bob);
         uint256 couponPoolBalanceAfter = usdc.balanceOf(couponPool);
         uint256 feeClaimAddressBalanceAfter = usdc.balanceOf(takasureReserve.feeClaimAddress());
         uint256 expectedTransferAmount = (contribution - coupon) -
             (((contribution - coupon) * 5) / 100); // (250 - 50) - ((250 - 50) * 5%) = 200 - 10 = 190 USDC
 
-        // EntryModule balance should be 0 from the beginning, because Alice has already joined
-        // and KYCed, this means the entry module transfers the contribution amount to the takasureReserve
-        assertEq(entryModuleBalanceBefore, 0);
-        // After Bob joins, the entry module balance should be 172.5 USDC, this is contribution - fee - discounts
+        // SubscriptionModule balance should be 0 from the beginning, because Alice has already joined
+        // and KYCed, this means the subscription module transfers the contribution amount to the takasureReserve
+        assertEq(subscriptionModuleBalanceBefore, 0);
+        // After Bob joins, the subscription module balance should be 172.5 USDC, this is contribution - fee - discounts
         // 250 - (250 * 27%) - ((contribution - coupon) * 5%) = 250 - 67.5 - ((250 - 50) * 5%) = 182.5 - 10 = 172.5 USDC
-        assertEq(entryModuleBalanceAfter, 1725e5); // 172.5 USDC
+        assertEq(subscriptionModuleBalanceAfter, 1725e5); // 172.5 USDC
         // The coupon balance should be the initial coupon balance minus the coupon used
         assertEq(couponPoolBalanceAfter, couponPoolBalanceBefore - coupon);
         // Bob's balance should be => initial balance - (contribution - coupon) + discount
@@ -232,9 +215,9 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
             feeClaimAddressBalanceAfter - feeClaimAddressBalanceBefore,
             (contribution * 27) / 100
         );
-        // The entry module balance plus the discount plus the fee should be equal to the contribution amount
+        // The subscription module balance plus the discount plus the fee should be equal to the contribution amount
         assertEq(
-            entryModuleBalanceAfter +
+            subscriptionModuleBalanceAfter +
                 (((contribution - coupon) * 5) / 100) +
                 feeClaimAddressBalanceAfter -
                 feeClaimAddressBalanceBefore,
@@ -243,56 +226,26 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /// @dev Test the membership duration is 5 years if allowCustomDuration is false
-    function testEntryModule_defaultMembershipDuration() public aliceJoinAndKYC {
+    function testSubscriptionModule_defaultMembershipDuration() public aliceJoinAndKYC {
         Member memory member = takasureReserve.getMemberFromAddress(alice);
 
         assertEq(member.membershipDuration, 5 * YEAR);
     }
 
-    /// @dev Test the membership custom duration
-    function testEntryModule_customMembershipDuration() public {
-        vm.prank(admin);
-        takasureReserve.setAllowCustomDuration(true);
-
-        vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, YEAR);
-
-        Member memory member = takasureReserve.getMemberFromAddress(alice);
-
-        assertEq(member.membershipDuration, YEAR);
-    }
-
-    /// @dev Test the member is created
-    function testEntryModule_newMember() public {
-        vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
-
-        uint256 memberId = takasureReserve.getReserveValues().memberIdCounter;
-
-        // Check the member is created and added correctly to mappings
-        Member memory testMember = takasureReserve.getMemberFromAddress(alice);
-
-        assertEq(testMember.memberId, memberId);
-        assertEq(testMember.benefitMultiplier, BENEFIT_MULTIPLIER);
-        assertEq(testMember.contribution, CONTRIBUTION_AMOUNT);
-        assertEq(testMember.wallet, alice);
-        assertEq(uint8(testMember.memberState), 0);
-    }
-
     modifier bobJoinAndKYC() {
         vm.prank(bob);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.approveKYC(bob);
+        kycModule.approveKYC(bob);
         _;
     }
 
     /// @dev More than one can join
-    function testEntryModule_moreThanOneJoin() public aliceJoinAndKYC bobJoinAndKYC {
+    function testSubscriptionModule_moreThanOneJoin() public aliceJoinAndKYC bobJoinAndKYC {
         Member memory aliceMember = takasureReserve.getMemberFromAddress(alice);
         Member memory bobMember = takasureReserve.getMemberFromAddress(bob);
 
@@ -309,9 +262,9 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
                     JOIN POOL::UPDATE BOTH PRO FORMAS
     //////////////////////////////////////////////////////////////*/
     /// @dev Pro formas updated when a member joins
-    function testEntryModule_proFormasUpdatedOnMemberJoined() public aliceJoinAndKYC {
+    function testSubscriptionModule_proFormasUpdatedOnMemberJoined() public aliceJoinAndKYC {
         vm.prank(bob);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         Reserve memory reserve = takasureReserve.getReserveValues();
 
@@ -319,7 +272,7 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         uint256 initialProFormaClaimReserve = reserve.proFormaClaimReserve;
 
         vm.prank(admin);
-        entryModule.approveKYC(bob);
+        kycModule.approveKYC(bob);
 
         reserve = takasureReserve.getReserveValues();
 
@@ -334,31 +287,31 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
                          JOIN POOL::UPDATE DRR
     //////////////////////////////////////////////////////////////*/
     /// @dev New DRR is calculated when a member joins
-    function testEntryModule_drrCalculatedOnMemberJoined() public {
+    function testSubscriptionModule_drrCalculatedOnMemberJoined() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 currentDRR = reserve.dynamicReserveRatio;
         uint256 initialDRR = reserve.initialReserveRatio;
 
         vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.approveKYC(alice);
+        kycModule.approveKYC(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 aliceDRR = reserve.dynamicReserveRatio;
 
         vm.prank(bob);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.approveKYC(bob);
+        kycModule.approveKYC(bob);
 
         reserve = takasureReserve.getReserveValues();
         uint256 bobDRR = reserve.dynamicReserveRatio;
@@ -375,30 +328,30 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
                          JOIN POOL::UPDATE BMA
     //////////////////////////////////////////////////////////////*/
     /// @dev New BMA is calculated when a member joins
-    function testEntryModule_bmaCalculatedOnMemberJoined() public {
+    function testSubscriptionModule_bmaCalculatedOnMemberJoined() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint256 initialBMA = reserve.benefitMultiplierAdjuster;
 
         vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.approveKYC(alice);
+        kycModule.approveKYC(alice);
 
         reserve = takasureReserve.getReserveValues();
         uint256 aliceBMA = reserve.benefitMultiplierAdjuster;
 
         vm.prank(bob);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.approveKYC(bob);
+        kycModule.approveKYC(bob);
 
         reserve = takasureReserve.getReserveValues();
         uint256 bobBMA = reserve.benefitMultiplierAdjuster;
@@ -413,10 +366,10 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        JOINPOOL::TOKENS MINTED
+                        paySubscription::TOKENS MINTED
     //////////////////////////////////////////////////////////////*/
     /// @dev Test the tokens minted are staked in the pool
-    function testEntryModule_tokensMinted() public {
+    function testSubscriptionModule_tokensMinted() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         address creditToken = reserve.daoToken;
         TSToken creditTokenInstance = TSToken(creditToken);
@@ -427,13 +380,13 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         uint256 aliceCreditTokenBalanceBefore = creditTokenInstance.balanceOf(alice);
 
         vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         // We simulate a request before the KYC
         _successResponse(address(bmConsumerMock));
 
         vm.prank(admin);
-        entryModule.approveKYC(alice);
+        kycModule.approveKYC(alice);
 
         uint256 contractCreditTokenBalanceAfter = creditTokenInstance.balanceOf(
             address(takasureReserve)
@@ -449,17 +402,5 @@ contract Join_EntryModuleTest is StdCheats, Test, SimulateDonResponse {
         assertEq(aliceCreditTokenBalanceAfter, 0);
 
         assertEq(member.creditTokensBalance, contractCreditTokenBalanceAfter);
-    }
-
-    function testGasBenchMark_joinPoolThroughUserRouter() public {
-        // Gas used: 505546
-        vm.prank(alice);
-        userRouter.joinPool(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
-    }
-
-    function testGasBenchMark_joinPoolThroughEntryModule() public {
-        // Gas used: 495580
-        vm.prank(alice);
-        entryModule.joinPool(alice, address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
     }
 }
