@@ -9,9 +9,11 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
+
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
+import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
@@ -69,17 +71,9 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
         bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
-
-        vm.startPrank(takadao);
-        subscriptionModule.updateBmAddress();
-        kycModule.updateBmAddress();
         vm.stopPrank();
 
         // For easier testing there is a minimal USDC mock contract without restrictions
@@ -219,15 +213,26 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         address couponPool = makeAddr("couponPool");
         address couponRedeemer = makeAddr("couponRedeemer");
 
+        address addressManager = address(takasureReserve.addressManager());
+
+        vm.startPrank(AddressManager(addressManager).owner());
+        AddressManager(addressManager).createNewRole(keccak256("COUPON_REDEEMER"));
+        AddressManager(addressManager).proposeRoleHolder(
+            keccak256("COUPON_REDEEMER"),
+            couponRedeemer
+        );
+        vm.stopPrank();
+
+        vm.prank(couponRedeemer);
+        AddressManager(addressManager).acceptProposedRole(keccak256("COUPON_REDEEMER"));
+
         deal(address(usdc), couponPool, CONTRIBUTION_AMOUNT);
 
         vm.prank(couponPool);
         usdc.approve(address(subscriptionModule), CONTRIBUTION_AMOUNT);
 
-        vm.startPrank(takadao);
+        vm.prank(takadao);
         subscriptionModule.setCouponPoolAddress(couponPool);
-        subscriptionModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        vm.stopPrank();
 
         // KYC Alice so she can act as a parent
         vm.prank(kycService);

@@ -11,11 +11,11 @@ import {UserRouter} from "contracts/router/UserRouter.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
+import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Join_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
+contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
@@ -77,14 +77,8 @@ contract Join_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-
-        vm.prank(takadao);
-        subscriptionModule.updateBmAddress();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -149,10 +143,6 @@ contract Join_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         assertEq(testMember.wallet, alice);
         assertEq(uint8(testMember.memberState), 0);
     }
-
-    // /*//////////////////////////////////////////////////////////////
-    //                     paySubscription::TOKENS MINTED
-    // //////////////////////////////////////////////////////////////*/
 
     function testGasBenchMark_paySubscriptionThroughUserRouter() public {
         // Gas used: 505546

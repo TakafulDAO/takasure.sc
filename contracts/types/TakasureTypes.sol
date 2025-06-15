@@ -34,6 +34,31 @@ enum RevenueType {
     CatLoan
 }
 
+enum ProtocolAddressType {
+    Admin,
+    Module,
+    Protocol
+}
+
+struct ProtocolAddress {
+    bytes32 name;
+    address addr;
+    ProtocolAddressType addressType;
+}
+
+struct ProposedRoleHolder {
+    address proposedHolder;
+    uint256 proposalTime;
+}
+
+struct TakasureReserveInitParams {
+    address contributionToken;
+    address tokenAdmin;
+    address addressManager;
+    string tokenName;
+    string tokenSymbol;
+}
+
 struct CashFlowVars {
     uint256 dayDepositTimestamp;
     uint256 monthDepositTimestamp;

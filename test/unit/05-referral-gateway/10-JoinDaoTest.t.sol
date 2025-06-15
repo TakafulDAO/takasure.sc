@@ -11,7 +11,7 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
+contract ReferralGatewayJoinDaoTest is Test, SimulateDonResponse {
     TestDeployProtocol deployer;
     ReferralGateway referralGateway;
     TakasureReserve takasureReserve;
@@ -26,7 +26,6 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
     address parent = makeAddr("parent");
     address child = makeAddr("child");
     address couponRedeemer = makeAddr("couponRedeemer");
-    address ccipReceiverContract = makeAddr("ccipReceiverContract");
     string tDaoName = "The LifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
@@ -69,20 +68,14 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
         // Give and approve USDC
         deal(address(usdc), parent, USDC_INITIAL_AMOUNT);
         deal(address(usdc), child, USDC_INITIAL_AMOUNT);
-        // To the ccip receiver contract, it will be used to pay the contributions of the ccip user
-        deal(address(usdc), ccipReceiverContract, 1000e6);
 
         vm.prank(parent);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
         vm.prank(child);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
 
-        vm.prank(ccipReceiverContract);
-        usdc.approve(address(referralGateway), 1000e6);
-
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        referralGateway.setCCIPReceiverContract(ccipReceiverContract);
         referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
         vm.stopPrank();
@@ -100,39 +93,25 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
         referralGateway.approveKYC(parent);
     }
 
-    // Fuzz to test to check the caller on pay contribution on behalf of
-    function testPayContributionOnBehalfOfRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != couponRedeemer);
-        vm.assume(caller != ccipReceiverContract);
-
-        vm.prank(caller);
-        vm.expectRevert(ReferralGateway.ReferralGateway__NotAuthorizedCaller.selector);
-        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
+    function testMustRevertJoinPoolIfTheDaoHasNoAssignedAddressYet() public {
+        vm.prank(parent);
+        vm.expectRevert(ReferralGateway.ReferralGateway__tDAONotReadyYet.selector);
+        emit OnMemberJoined(2, parent);
+        referralGateway.joinDAO(parent);
     }
 
-    // Fuzz to test to check the caller refund if dao is not launched
-    function testRefundIfDaoIsNotLaunchedRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != child);
-        vm.assume(caller != takadao);
-
+    function testMustRevertJoinPoolIfTheChildIsNotKYC() public {
         vm.prank(couponRedeemer);
-        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
-        (, , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
+        address subscriptionModule = makeAddr("subscriptionModule");
 
-        vm.warp(launchDate);
-        vm.roll(block.number + 1);
+        vm.prank(takadao);
+        referralGateway.launchDAO(address(takasureReserve), subscriptionModule, true);
 
-        vm.prank(caller);
-        vm.expectRevert(ReferralGateway.ReferralGateway__NotAuthorizedCaller.selector);
-        referralGateway.refundIfDAOIsNotLaunched(child);
-    }
-
-    function testSwitchReferralDiscountRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != takadao);
-
-        vm.prank(caller);
-        vm.expectRevert();
-        referralGateway.switchReferralDiscount();
+        vm.prank(child);
+        vm.expectRevert(ReferralGateway.ReferralGateway__NotKYCed.selector);
+        emit OnMemberJoined(2, child);
+        referralGateway.joinDAO(child);
     }
 }

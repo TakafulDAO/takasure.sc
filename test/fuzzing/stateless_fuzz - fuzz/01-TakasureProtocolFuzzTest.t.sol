@@ -71,14 +71,8 @@ contract TakasureProtocolFuzzTest is Test {
         usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
-        vm.prank(daoMultisig);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-
-        vm.prank(takadao);
-        subscriptionModule.updateBmAddress();
     }
 
     function test_fuzz_ownerCanapproveKYC(address notOwner) public {
@@ -90,13 +84,5 @@ contract TakasureProtocolFuzzTest is Test {
         vm.prank(notOwner);
         vm.expectRevert();
         kycModule.approveKYC(alice);
-    }
-
-    function test_fuzz_onlyDaoAndTakadaoCanSetNewBenefitMultiplier(address notAuthorized) public {
-        vm.assume(notAuthorized != daoMultisig && notAuthorized != takadao);
-
-        vm.prank(notAuthorized);
-        vm.expectRevert();
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(alice);
     }
 }

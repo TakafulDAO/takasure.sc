@@ -10,18 +10,18 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
-import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, ModuleState, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -33,7 +33,6 @@ pragma solidity 0.8.28;
 contract SubscriptionModule is
     Initializable,
     UUPSUpgradeable,
-    AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
@@ -43,8 +42,6 @@ contract SubscriptionModule is
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    IBenefitMultiplierConsumer private bmConsumer;
-    IModuleManager private moduleManager;
     ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
@@ -66,6 +63,22 @@ contract SubscriptionModule is
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__TooEarlytoRefund();
 
+    modifier onlyContract(string memory name) {
+        require(
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -78,22 +91,13 @@ contract SubscriptionModule is
         address _couponPool
     ) external initializer {
         __UUPSUpgradeable_init();
-        __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
-        moduleManager = IModuleManager(takasureReserve.moduleManager());
-
-        address takadaoOperator = takasureReserve.takadaoOperator();
 
         referralGateway = _referralGateway;
         ccipReceiverContract = _ccipReceiverContract;
         couponPool = _couponPool;
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, address(moduleManager));
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
     }
 
     /**
@@ -102,24 +106,20 @@ contract SubscriptionModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+    ) external override onlyContract("MODULE_MANAGER") {
         moduleState = newState;
     }
 
-    function setCouponPoolAddress(address _couponPool) external onlyRole(ModuleConstants.OPERATOR) {
+    function setCouponPoolAddress(address _couponPool) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
 
     function setCCIPReceiverContract(
         address _ccipReceiverContract
-    ) external onlyRole(ModuleConstants.OPERATOR) {
+    ) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(_ccipReceiverContract);
         ccipReceiverContract = _ccipReceiverContract;
-    }
-
-    function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
     function joinFromReferralGateway(
@@ -171,8 +171,9 @@ contract SubscriptionModule is
         ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
         // Check caller
-        require(
-            hasRole(ModuleConstants.ROUTER, msg.sender) || msg.sender == memberWallet,
+        require(           
+                AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
+                msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
@@ -233,11 +234,9 @@ contract SubscriptionModule is
         address memberWallet,
         address takasureReserveAddress,
         uint256 contributionAfterFeeAmount
-    ) external {
-        require(
-            moduleManager.isActiveModule(msg.sender),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
+
+    ) external onlyContract("KYC_MODULE") {
+
 
         _transferContributionToReserve(
             contributionToken,
@@ -245,6 +244,7 @@ contract SubscriptionModule is
             takasureReserveAddress,
             contributionAfterFeeAmount
         );
+
     }
 
     /**
@@ -434,10 +434,12 @@ contract SubscriptionModule is
             _memberWallet
         );
 
+        address addressManager = address(takasureReserve.addressManager());
+
         require(
             _memberWallet == msg.sender ||
-                hasRole(ModuleConstants.ROUTER, msg.sender) ||
-                hasRole(ModuleConstants.OPERATOR, msg.sender),
+                AddressAndStates._checkName(addressManager, "ROUTER") ||
+                AddressAndStates._checkRole(addressManager, Roles.OPERATOR),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         // The member should not be KYCed neither already refunded
@@ -581,6 +583,11 @@ contract SubscriptionModule is
     function _getBenefitMultiplierFromOracle(
         address _member
     ) internal returns (uint256 benefitMultiplier_) {
+        address bmConsumerAddress = IAddressManager(address(takasureReserve.addressManager()))
+            .getProtocolAddressByName("BENEFIT_MULTIPLIER_CONSUMER")
+            .addr;
+        IBenefitMultiplierConsumer bmConsumer = IBenefitMultiplierConsumer(bmConsumerAddress);
+
         string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
         // First we check if there is already a request id for this member
         bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);
@@ -635,7 +642,9 @@ contract SubscriptionModule is
             // Transfer the service fee to the fee claim address
             contributionToken.safeTransferFrom(
                 _memberWallet,
-                takasureReserve.feeClaimAddress(),
+                IAddressManager(address(takasureReserve.addressManager()))
+                    .getProtocolAddressByName("FEE_CLAIM_ADDRESS")
+                    .addr,
                 feeAmount
             );
         }
@@ -643,7 +652,7 @@ contract SubscriptionModule is
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) ||
+            AddressAndStates._checkRole(address(takasureReserve.addressManager()), Roles.COUPON_REDEEMER) ||
                 msg.sender == ccipReceiverContract,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -652,5 +661,5 @@ contract SubscriptionModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

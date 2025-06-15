@@ -6,13 +6,14 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
 import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
+import {Member, Reserve, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
@@ -81,17 +82,9 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(subscriptionModuleAddress);
         bmConsumerMock.setNewRequester(kycModuleAddress);
-        vm.stopPrank();
-
-        vm.startPrank(takadao);
-        subscriptionModule.updateBmAddress();
-        kycModule.updateBmAddress();
         vm.stopPrank();
     }
 
@@ -129,6 +122,35 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
     /*//////////////////////////////////////////////////////////////
                       JOIN POOL::CREATE NEW MEMBER
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev Test that the paySubscription function updates the memberIdCounter
+    function testSubscriptionModule_paySubscriptionUpdatesCounter() public {
+        uint256 memberIdCounterBeforeAlice = takasureReserve.getReserveValues().memberIdCounter;
+
+        vm.prank(alice);
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        uint256 memberIdCounterAfterAlice = takasureReserve.getReserveValues().memberIdCounter;
+
+        vm.prank(bob);
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        uint256 memberIdCounterAfterBob = takasureReserve.getReserveValues().memberIdCounter;
+
+        assertEq(memberIdCounterAfterAlice, memberIdCounterBeforeAlice + 1);
+        assertEq(memberIdCounterAfterBob, memberIdCounterAfterAlice + 1);
+    }
+
+    function testSubscriptionModule_paySubscriptionTransferAmountsCorrectly() public {
+        uint256 aliceBalanceBefore = usdc.balanceOf(alice);
+
+        vm.prank(alice);
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        uint256 aliceBalanceAfter = usdc.balanceOf(alice);
+
+        assertEq(aliceBalanceAfter, aliceBalanceBefore - CONTRIBUTION_AMOUNT);
+    }
 
     function testSubscriptionModule_approveKYC() public {
         vm.prank(alice);
@@ -172,10 +194,21 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         uint256 contribution = 250e6; // 250 USDC
         uint256 coupon = 50e6; // 50 USDC
 
-        vm.startPrank(takadao);
-        subscriptionModule.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        subscriptionModule.setCouponPoolAddress(couponPool);
+        address addressManager = address(takasureReserve.addressManager());
+
+        vm.startPrank(AddressManager(addressManager).owner());
+        AddressManager(addressManager).createNewRole(keccak256("COUPON_REDEEMER"));
+        AddressManager(addressManager).proposeRoleHolder(
+            keccak256("COUPON_REDEEMER"),
+            couponRedeemer
+        );
         vm.stopPrank();
+
+        vm.prank(couponRedeemer);
+        AddressManager(addressManager).acceptProposedRole(keccak256("COUPON_REDEEMER"));
+
+        vm.prank(takadao);
+        subscriptionModule.setCouponPoolAddress(couponPool);
 
         deal(address(usdc), couponPool, coupon);
 
@@ -185,15 +218,19 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         uint256 subscriptionModuleBalanceBefore = usdc.balanceOf(address(subscriptionModule));
         uint256 bobBalanceBefore = usdc.balanceOf(bob);
         uint256 couponPoolBalanceBefore = usdc.balanceOf(couponPool);
-        uint256 feeClaimAddressBalanceBefore = usdc.balanceOf(takasureReserve.feeClaimAddress());
+        uint256 feeClaimAddressBalanceBefore = usdc.balanceOf(
+            AddressManager(addressManager).getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr
+        );
 
         vm.prank(couponRedeemer);
         subscriptionModule.paySubscriptionOnBehalfOf(bob, alice, contribution, (5 * YEAR), coupon);
 
         uint256 subscriptionModuleBalanceAfter = usdc.balanceOf(address(subscriptionModule));
-        uint256 bobBalanceAfter = usdc.balanceOf(bob);
-        uint256 couponPoolBalanceAfter = usdc.balanceOf(couponPool);
-        uint256 feeClaimAddressBalanceAfter = usdc.balanceOf(takasureReserve.feeClaimAddress());
+        // uint256 bobBalanceAfter = usdc.balanceOf(bob);
+        // uint256 couponPoolBalanceAfter = usdc.balanceOf(couponPool);
+        uint256 feeClaimAddressBalanceAfter = usdc.balanceOf(
+            AddressManager(addressManager).getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr
+        );
         uint256 expectedTransferAmount = (contribution - coupon) -
             (((contribution - coupon) * 5) / 100); // (250 - 50) - ((250 - 50) * 5%) = 200 - 10 = 190 USDC
 
@@ -204,10 +241,10 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         // 250 - (250 * 27%) - ((contribution - coupon) * 5%) = 250 - 67.5 - ((250 - 50) * 5%) = 182.5 - 10 = 172.5 USDC
         assertEq(subscriptionModuleBalanceAfter, 1725e5); // 172.5 USDC
         // The coupon balance should be the initial coupon balance minus the coupon used
-        assertEq(couponPoolBalanceAfter, couponPoolBalanceBefore - coupon);
+        assertEq(usdc.balanceOf(couponPool), couponPoolBalanceBefore - coupon);
         // Bob's balance should be => initial balance - (contribution - coupon) + discount
         // 1000 - (250 - 50) + 10 = 1000 - 200 + 10 = 810 USDC
-        assertEq(bobBalanceAfter, bobBalanceBefore - expectedTransferAmount);
+        assertEq(usdc.balanceOf(bob), bobBalanceBefore - expectedTransferAmount);
         assertEq(expectedTransferAmount, 190e6); // 190 USDC
         // The feeClaimAddress balance should be increased by the fee
         // 250 * 27% = 67.5
@@ -230,6 +267,36 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         Member memory member = takasureReserve.getMemberFromAddress(alice);
 
         assertEq(member.membershipDuration, 5 * YEAR);
+    }
+
+    /// @dev Test the membership custom duration
+    function testSubscriptionModule_customMembershipDuration() public {
+        vm.prank(admin);
+        takasureReserve.setAllowCustomDuration(true);
+
+        vm.prank(alice);
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, YEAR);
+
+        Member memory member = takasureReserve.getMemberFromAddress(alice);
+
+        assertEq(member.membershipDuration, YEAR);
+    }
+
+    /// @dev Test the member is created
+    function testSubscriptionModule_newMember() public {
+        vm.prank(alice);
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+
+        uint256 memberId = takasureReserve.getReserveValues().memberIdCounter;
+
+        // Check the member is created and added correctly to mappings
+        Member memory testMember = takasureReserve.getMemberFromAddress(alice);
+
+        assertEq(testMember.memberId, memberId);
+        assertEq(testMember.benefitMultiplier, BENEFIT_MULTIPLIER);
+        assertEq(testMember.contribution, CONTRIBUTION_AMOUNT);
+        assertEq(testMember.wallet, alice);
+        assertEq(uint8(testMember.memberState), 0);
     }
 
     modifier bobJoinAndKYC() {
@@ -402,5 +469,17 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         assertEq(aliceCreditTokenBalanceAfter, 0);
 
         assertEq(member.creditTokensBalance, contractCreditTokenBalanceAfter);
+    }
+
+    function testGasBenchMark_paySubscriptionThroughUserRouter() public {
+        // Gas used: 505546
+        vm.prank(alice);
+        userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+    }
+
+    function testGasBenchMark_paySubscriptionThroughSubscriptionModule() public {
+        // Gas used: 495580
+        vm.prank(alice);
+        subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
     }
 }

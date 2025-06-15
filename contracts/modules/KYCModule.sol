@@ -11,17 +11,18 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
-import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Reserve, Member, MemberState, ModuleState, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -31,7 +32,6 @@ pragma solidity 0.8.28;
 contract KYCModule is
     Initializable,
     UUPSUpgradeable,
-    AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
@@ -39,37 +39,38 @@ contract KYCModule is
     ParentRewards
 {
     ITakasureReserve private takasureReserve;
-    IBenefitMultiplierConsumer private bmConsumer;
-    ISubscriptionModule private subscriptionModule;
     ModuleState private moduleState;
 
     error KYCModule__ContributionRequired();
     error KYCModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error KYCModule__MemberAlreadyKYCed();
 
+    modifier onlyContract(string memory name) {
+        require(
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(
-        address _takasureReserveAddress,
-        address _subscriptionModuleAddress
-    ) external initializer {
+    function initialize(address _takasureReserveAddress) external initializer {
         __UUPSUpgradeable_init();
-        __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
-        subscriptionModule = ISubscriptionModule(_subscriptionModuleAddress);
-
-        address takadaoOperator = takasureReserve.takadaoOperator();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, takasureReserve.moduleManager());
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
-        _grantRole(ModuleConstants.KYC_PROVIDER, takasureReserve.kycProvider());
     }
 
     /**
@@ -78,12 +79,8 @@ contract KYCModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+    ) external override onlyContract("MODULE_MANAGER") {
         moduleState = newState;
-    }
-
-    function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
     /**
@@ -92,7 +89,7 @@ contract KYCModule is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function approveKYC(address memberWallet) external onlyRole(ModuleConstants.KYC_PROVIDER) {
+    function approveKYC(address memberWallet) external onlyRole(Roles.KYC_PROVIDER) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(memberWallet);
 
@@ -167,6 +164,11 @@ contract KYCModule is
     function _getBenefitMultiplierFromOracle(
         address _member
     ) internal returns (uint256 benefitMultiplier_) {
+        address bmConsumerAddress = IAddressManager(address(takasureReserve.addressManager()))
+            .getProtocolAddressByName("BENEFIT_MULTIPLIER_CONSUMER")
+            .addr;
+        IBenefitMultiplierConsumer bmConsumer = IBenefitMultiplierConsumer(bmConsumerAddress);
+
         string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
         // First we check if there is already a request id for this member
         bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);
@@ -194,6 +196,13 @@ contract KYCModule is
         address _takasureReserve,
         uint256 _contributionAfterFee
     ) internal override {
+        address addressManager = address(ITakasureReserve(_takasureReserve).addressManager());
+        address subscriptionModuleAddress = IAddressManager(addressManager)
+            .getProtocolAddressByName("SUBSCRIPTION_MODULE")
+            .addr;
+
+        ISubscriptionModule subscriptionModule = ISubscriptionModule(subscriptionModuleAddress);
+
         subscriptionModule.transferContributionAfterKyc(
             _contributionToken,
             _memberWallet,
@@ -205,5 +214,5 @@ contract KYCModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

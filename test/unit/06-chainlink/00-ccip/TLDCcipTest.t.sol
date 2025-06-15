@@ -31,7 +31,7 @@ contract TLDCcipTest is Test {
     address senderImplementationAddress;
     address senderAddress;
     address usdcAddress;
-    address admin;
+    address takadao;
     address linkAddress;
     address senderOwner = makeAddr("senderOwner");
     address backend = makeAddr("backend");
@@ -106,11 +106,10 @@ contract TLDCcipTest is Test {
         deal(linkAddress, senderAddress, LINK_INITIAL_AMOUNT);
         deal(usdcAddress, user, USDC_INITIAL_AMOUNT);
 
-        admin = config.daoMultisig;
+        takadao = config.takadaoOperator;
 
         // Config mocks
-        vm.startPrank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
+        vm.startPrank(takadao);
         referralGateway.setCCIPReceiverContract(address(receiver));
         vm.stopPrank();
 
@@ -121,7 +120,7 @@ contract TLDCcipTest is Test {
     }
 
     modifier createDao() {
-        vm.startPrank(admin);
+        vm.startPrank(takadao);
         referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
         vm.stopPrank();
         _;
@@ -397,7 +396,7 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0xe1bd7b6b4e136621abafb64196fd307d1785c877c003fff9c577c9b2ab2efdf3;
+        bytes32 messageId = 0xfd232619d422166ed95dde214a39a873d17ce6a57f0bb1d396deb1592ec92339;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);
@@ -466,7 +465,7 @@ contract TLDCcipTest is Test {
         uint256 gasLimit = 1000000;
         uint256 contribution = 100e6;
 
-        bytes32 messageId = 0xf6b82138ba0e1252288f7a637ce8c13c14a1ca7e3298b595acd9cc77274c720d;
+        bytes32 messageId = 0x668e816fc5702608a4b0948631660e6057976ec1521718a00f52b2460a818a57;
 
         vm.startPrank(user);
         usdc.approve(senderAddress, amountToTransfer);

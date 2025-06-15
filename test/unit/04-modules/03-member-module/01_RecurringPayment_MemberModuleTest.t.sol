@@ -16,7 +16,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Cancel_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
+contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
@@ -56,8 +56,8 @@ contract Cancel_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         ) = deployer.run();
 
         subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
-        kycModule = KYCModule(kycModuleAddress);
         memberModule = MemberModule(memberModuleAddress);
+        kycModule = KYCModule(kycModuleAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -68,17 +68,9 @@ contract Cancel_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
         vm.startPrank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
         bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
-
-        vm.startPrank(takadao);
-        subscriptionModule.updateBmAddress();
-        kycModule.updateBmAddress();
         vm.stopPrank();
 
         // For easier testing there is a minimal USDC mock contract without restrictions
@@ -97,34 +89,68 @@ contract Cancel_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(admin);
         kycModule.approveKYC(alice);
         vm.stopPrank();
+    }
 
-        vm.warp(block.timestamp + YEAR + 31 days);
+    function testMemberModule_payRecurringContributionThrough5Years() public {
+        uint256 expectedServiceIncrease = (CONTRIBUTION_AMOUNT * 27) / 100;
+
+        for (uint256 i = 0; i < 5; i++) {
+            Member memory testMember = takasureReserve.getMemberFromAddress(alice);
+
+            uint256 lastYearStartDateBefore = testMember.lastPaidYearStartDate;
+            uint256 totalContributionBeforePayment = testMember.totalContributions;
+            uint256 totalServiceFeeBeforePayment = testMember.totalServiceFee;
+
+            vm.warp(block.timestamp + YEAR);
+            vm.roll(block.number + 1);
+
+            vm.startPrank(alice);
+            vm.expectEmit(true, true, true, true, address(memberModule));
+            emit TakasureEvents.OnRecurringPayment(
+                alice,
+                testMember.memberId,
+                lastYearStartDateBefore + 365 days,
+                CONTRIBUTION_AMOUNT,
+                totalServiceFeeBeforePayment + expectedServiceIncrease
+            );
+            memberModule.payRecurringContribution(alice);
+            vm.stopPrank();
+
+            testMember = takasureReserve.getMemberFromAddress(alice);
+
+            uint256 lastYearStartDateAfter = testMember.lastPaidYearStartDate;
+            uint256 totalContributionAfterPayment = testMember.totalContributions;
+            uint256 totalServiceFeeAfterPayment = testMember.totalServiceFee;
+
+            assert(lastYearStartDateAfter == lastYearStartDateBefore + 365 days);
+            assert(
+                totalContributionAfterPayment ==
+                    totalContributionBeforePayment + CONTRIBUTION_AMOUNT
+            );
+            assert(
+                totalServiceFeeAfterPayment ==
+                    totalServiceFeeBeforePayment + expectedServiceIncrease
+            );
+        }
+    }
+
+    function testMemberModule_defaultedMembersCanPayContribution() public {
+        vm.warp(block.timestamp + YEAR + 15 days);
         vm.roll(block.number + 1);
 
+        vm.expectEmit(true, true, false, false, address(memberModule));
+        emit TakasureEvents.OnMemberDefaulted(1, alice);
         memberModule.defaultMember(alice);
-    }
 
-    function testMemberModule_cancelMembershipThroughModule() public {
         Member memory Alice = takasureReserve.getMemberFromAddress(alice);
         assert(Alice.memberState == MemberState.Defaulted);
 
-        vm.expectEmit(true, true, false, false, address(memberModule));
-        emit TakasureEvents.OnMemberCanceled(Alice.memberId, alice);
-        memberModule.cancelMembership(alice);
+        vm.warp(block.timestamp + 10 days);
+        vm.roll(block.number + 1);
 
+        vm.prank(alice);
+        memberModule.payRecurringContribution(alice);
         Alice = takasureReserve.getMemberFromAddress(alice);
-        assert(Alice.memberState == MemberState.Canceled);
-    }
-
-    function testMemberModule_cancelMembershipThroughRouter() public {
-        Member memory Alice = takasureReserve.getMemberFromAddress(alice);
-        assert(Alice.memberState == MemberState.Defaulted);
-
-        vm.expectEmit(true, true, false, false, address(memberModule));
-        emit TakasureEvents.OnMemberCanceled(Alice.memberId, alice);
-        memberModule.cancelMembership(alice);
-
-        Alice = takasureReserve.getMemberFromAddress(alice);
-        assert(Alice.memberState == MemberState.Canceled);
+        assert(Alice.memberState == MemberState.Active);
     }
 }
