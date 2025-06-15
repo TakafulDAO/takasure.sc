@@ -159,12 +159,11 @@ contract AddressManager is Ownable2Step, AccessControl {
 
         // Remove the old address from the protocolAddressesNames mapping
         delete protocolAddressesNames[protocolAddress.addr];
-
-        // Update the address in the protocolAddresses mapping
-        protocolAddress.addr = newAddr;
-
-        // Update the mapping for protocolAddressesNames
+        // And add the new address to the protocolAddressesNames mapping
         protocolAddressesNames[newAddr] = nameHash;
+
+        // In the protocolAddresses mapping, update the address value in the ProtocolAddress struct
+        protocolAddress.addr = newAddr;
 
         emit OnProtocolAddressUpdated(name, newAddr);
     }
