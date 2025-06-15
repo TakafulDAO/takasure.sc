@@ -157,8 +157,10 @@ contract ReferralGatewayRepoolTest is Test {
         vm.prank(KYCProvider);
         referralGateway.approveKYC(childWithoutReferee);
 
+        address subscriptionModule = makeAddr("subscriptionModule");
+
         vm.prank(takadao);
-        referralGateway.launchDAO(address(takasureReserve), true);
+        referralGateway.launchDAO(address(takasureReserve), subscriptionModule, true);
 
         address rePoolAddress = makeAddr("rePoolAddress");
 

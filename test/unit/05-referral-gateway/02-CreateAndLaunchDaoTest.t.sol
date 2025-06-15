@@ -18,6 +18,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     address daoAdmin;
     address notAllowedAddress = makeAddr("notAllowedAddress");
     address DAO = makeAddr("DAO");
+    address subscriptionModule = makeAddr("subscriptionModule");
     string tDaoName = "The LifeDao";
 
     function setUp() public {
@@ -124,14 +125,14 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
 
         vm.prank(notAllowedAddress);
         vm.expectRevert();
-        referralGateway.launchDAO(DAO, true);
+        referralGateway.launchDAO(DAO, subscriptionModule, true);
 
         vm.prank(daoAdmin);
         vm.expectRevert(ReferralGateway.ReferralGateway__ZeroAddress.selector);
-        referralGateway.launchDAO(address(0), true);
+        referralGateway.launchDAO(address(0), subscriptionModule, true);
 
         vm.prank(daoAdmin);
-        referralGateway.launchDAO(DAO, true);
+        referralGateway.launchDAO(DAO, subscriptionModule, true);
 
         (
             prejoinEnabled,
@@ -158,7 +159,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
 
         vm.prank(daoAdmin);
         vm.expectRevert(ReferralGateway.ReferralGateway__DAOAlreadyLaunched.selector);
-        referralGateway.launchDAO(DAO, true);
+        referralGateway.launchDAO(DAO, subscriptionModule, true);
 
         vm.prank(daoAdmin);
         referralGateway.switchReferralDiscount();

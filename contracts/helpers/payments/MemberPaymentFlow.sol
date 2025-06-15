@@ -43,7 +43,7 @@ contract MemberPaymentFlow {
         );
 
         // Transfer the contribution to the reserves
-        _transferContribution(
+        _transferContributionToReserve(
             IERC20(_reserve.contributionToken),
             _memberWallet,
             address(_takasureReserve),
@@ -63,7 +63,7 @@ contract MemberPaymentFlow {
      * @notice This function will transfer the contribution from the module to the reserves
      * @dev Override in module if the transfer is handled differently
      */
-    function _transferContribution(
+    function _transferContributionToReserve(
         IERC20 _contributionToken,
         address _memberWallet,
         address _takasureReserve,

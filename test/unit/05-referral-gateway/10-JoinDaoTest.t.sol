@@ -104,8 +104,10 @@ contract ReferralGatewayJoinDaoTest is Test, SimulateDonResponse {
         vm.prank(couponRedeemer);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
+        address subscriptionModule = makeAddr("subscriptionModule");
+
         vm.prank(takadao);
-        referralGateway.launchDAO(address(takasureReserve), true);
+        referralGateway.launchDAO(address(takasureReserve), subscriptionModule, true);
 
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__NotKYCed.selector);

@@ -190,7 +190,7 @@ contract KYCModule is
         }
     }
 
-    function _transferContribution(
+    function _transferContributionToReserve(
         IERC20 _contributionToken,
         address _memberWallet,
         address _takasureReserve,
