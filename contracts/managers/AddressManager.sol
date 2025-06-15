@@ -19,7 +19,7 @@ contract AddressManager is Ownable2Step, AccessControl {
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    uint256 private roleAcceptanceDelay; // Maximum time allowed to accept a proposed role
+    uint256 public roleAcceptanceDelay; // Maximum time allowed to accept a proposed role
 
     // Related to the protocol addresses
     mapping(address protocolAddress => bytes32 nameHash) public protocolAddressesNames;
@@ -36,6 +36,7 @@ contract AddressManager is Ownable2Step, AccessControl {
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    event OnNewRoleAcceptanceDelay(uint256 newDelay);
     event OnNewProtocolAddress(
         string indexed name,
         address indexed addr,
@@ -48,6 +49,7 @@ contract AddressManager is Ownable2Step, AccessControl {
     event OnProposedRoleHolder(bytes32 indexed role, address indexed proposedHolder);
     event OnNewRoleHolder(bytes32 indexed role, address indexed newHolder);
 
+    error AddressManager__InvalidDelay();
     error AddressManager__InvalidNameLength();
     error AddressManager__AddressZero();
     error AddressManager__AddressAlreadyExists();
@@ -62,6 +64,16 @@ contract AddressManager is Ownable2Step, AccessControl {
 
     constructor() Ownable(msg.sender) {
         roleAcceptanceDelay = 1 days;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+
+    function setRoleAcceptanceDelay(uint256 newDelay) external onlyOwner {
+        require(newDelay > 0, AddressManager__InvalidDelay());
+        roleAcceptanceDelay = newDelay;
+        emit OnNewRoleAcceptanceDelay(newDelay);
     }
 
     /*//////////////////////////////////////////////////////////////
