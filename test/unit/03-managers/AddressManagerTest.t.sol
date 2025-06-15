@@ -15,6 +15,7 @@ contract AddressManagerTest is Test {
     address adminAddress = makeAddr("adminAddress");
     address moduleAddress = makeAddr("moduleAddress");
 
+    event OnNewRoleAcceptanceDelay(uint256 newDelay);
     event OnNewProtocolAddress(
         string indexed name,
         address indexed addr,
@@ -35,6 +36,12 @@ contract AddressManagerTest is Test {
     /*//////////////////////////////////////////////////////////////
                                 REVERTS
     //////////////////////////////////////////////////////////////*/
+
+    function testRevertIfRoleAcceptanceDelayIsZero() public {
+        vm.prank(addressManagerOwner);
+        vm.expectRevert(AddressManager.AddressManager__InvalidDelay.selector);
+        addressManager.setRoleAcceptanceDelay(0);
+    }
 
     function testAddProtocolAddressRevertsIfThereIsNoName() public {
         vm.prank(addressManagerOwner);
@@ -194,6 +201,24 @@ contract AddressManagerTest is Test {
         vm.prank(addressManagerOwner);
         vm.expectRevert(AddressManager.AddressManager__NotRoleHolder.selector);
         addressManager.revokeRoleHolder(keccak256("TestRole"), notCurrentHolder);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ACCEPTANCE DELAY
+    //////////////////////////////////////////////////////////////*/
+
+    function testSetRoleAcceptanceDelayAndEmitEvent() public {
+        uint256 initialDelay = addressManager.roleAcceptanceDelay();
+
+        vm.prank(addressManagerOwner);
+        vm.expectEmit(false, false, false, false, address(addressManager));
+        emit OnNewRoleAcceptanceDelay(2 days);
+        addressManager.setRoleAcceptanceDelay(2 days);
+
+        uint256 newDelay = addressManager.roleAcceptanceDelay();
+
+        assertEq(initialDelay, 1 days);
+        assertEq(newDelay, 2 days);
     }
 
     /*//////////////////////////////////////////////////////////////

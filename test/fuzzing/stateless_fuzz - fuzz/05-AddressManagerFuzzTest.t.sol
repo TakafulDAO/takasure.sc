@@ -18,6 +18,14 @@ contract AddressManagerFuzzTest is Test {
         addressManager = new AddressManager();
     }
 
+    function testChangeRoleAcceptanceDelayRevertIfCallerIsWrong(address caller) public {
+        vm.assume(caller != addressManagerOwner);
+
+        vm.prank(caller);
+        vm.expectRevert();
+        addressManager.setRoleAcceptanceDelay(2 days);
+    }
+
     function testAddAdminAddressRevertIfCallerIsWrong(address caller) public {
         vm.assume(caller != addressManagerOwner);
 
