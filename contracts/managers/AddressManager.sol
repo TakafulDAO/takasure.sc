@@ -154,10 +154,7 @@ contract AddressManager is Ownable2Step, AccessControl {
 
         ProtocolAddress storage protocolAddress = protocolAddressesByName[nameHash];
 
-        require(
-            protocolAddress.addr != address(0) && protocolAddress.name == nameHash,
-            AddressManager__AddressDoesNotExist()
-        );
+        require(protocolAddress.addr != address(0), AddressManager__AddressDoesNotExist());
         require(protocolAddress.addr != newAddr, AddressManager__AddressAlreadyExists());
 
         // Remove the old address from the protocolAddressesNames mapping
