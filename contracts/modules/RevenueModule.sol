@@ -8,7 +8,6 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
@@ -28,14 +27,13 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    IAddressManager private addressManager;
     ModuleState private moduleState;
 
     error RevenueModule__WrongRevenueType();
 
     modifier onlyContract(string memory name) {
         require(
-            AddressAndStates._checkName(address(addressManager), name),
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -43,7 +41,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
 
     modifier onlyRole(bytes32 role) {
         require(
-            AddressAndStates._checkRole(address(addressManager), role),
+            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -59,7 +57,6 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
         __UUPSUpgradeable_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        addressManager = IAddressManager(takasureReserve.addressManager());
     }
 
     /**

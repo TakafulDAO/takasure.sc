@@ -39,7 +39,6 @@ contract KYCModule is
     ParentRewards
 {
     ITakasureReserve private takasureReserve;
-    IAddressManager private addressManager;
     ModuleState private moduleState;
 
     error KYCModule__ContributionRequired();
@@ -48,7 +47,7 @@ contract KYCModule is
 
     modifier onlyContract(string memory name) {
         require(
-            AddressAndStates._checkName(address(addressManager), name),
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -56,7 +55,7 @@ contract KYCModule is
 
     modifier onlyRole(bytes32 role) {
         require(
-            AddressAndStates._checkRole(address(addressManager), role),
+            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -72,7 +71,6 @@ contract KYCModule is
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        addressManager = IAddressManager(takasureReserve.addressManager());
     }
 
     /**
@@ -166,7 +164,7 @@ contract KYCModule is
     function _getBenefitMultiplierFromOracle(
         address _member
     ) internal returns (uint256 benefitMultiplier_) {
-        address bmConsumerAddress = addressManager
+        address bmConsumerAddress = IAddressManager(address(takasureReserve.addressManager()))
             .getProtocolAddressByName("BENEFIT_MULTIPLIER_CONSUMER")
             .addr;
         IBenefitMultiplierConsumer bmConsumer = IBenefitMultiplierConsumer(bmConsumerAddress);
@@ -198,7 +196,8 @@ contract KYCModule is
         address _takasureReserve,
         uint256 _contributionAfterFee
     ) internal override {
-        address subscriptionModuleAddress = addressManager
+        address addressManager = address(ITakasureReserve(_takasureReserve).addressManager());
+        address subscriptionModuleAddress = IAddressManager(addressManager)
             .getProtocolAddressByName("SUBSCRIPTION_MODULE")
             .addr;
 

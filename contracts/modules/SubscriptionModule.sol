@@ -42,7 +42,6 @@ contract SubscriptionModule is
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    IAddressManager private addressManager;
     ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
@@ -66,7 +65,7 @@ contract SubscriptionModule is
 
     modifier onlyContract(string memory name) {
         require(
-            AddressAndStates._checkName(address(addressManager), name),
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -74,7 +73,7 @@ contract SubscriptionModule is
 
     modifier onlyRole(bytes32 role) {
         require(
-            AddressAndStates._checkRole(address(addressManager), role),
+            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -95,8 +94,6 @@ contract SubscriptionModule is
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        addressManager = IAddressManager(takasureReserve.addressManager());
-
 
         referralGateway = _referralGateway;
         ccipReceiverContract = _ccipReceiverContract;
@@ -152,7 +149,7 @@ contract SubscriptionModule is
         // Check caller
         require(
             msg.sender == referralGateway ||
-                AddressAndStates._checkName(address(addressManager), "ROUTER") ||
+                AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -421,10 +418,12 @@ contract SubscriptionModule is
             _memberWallet
         );
 
+        address addressManager = address(takasureReserve.addressManager());
+
         require(
             _memberWallet == msg.sender ||
-                AddressAndStates._checkName(address(addressManager), "ROUTER") ||
-                AddressAndStates._checkRole(address(addressManager), Roles.OPERATOR),
+                AddressAndStates._checkName(addressManager, "ROUTER") ||
+                AddressAndStates._checkRole(addressManager, Roles.OPERATOR),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         // The member should not be KYCed neither already refunded
@@ -568,11 +567,11 @@ contract SubscriptionModule is
     function _getBenefitMultiplierFromOracle(
         address _member
     ) internal returns (uint256 benefitMultiplier_) {
-        address bmConsumerAddress = addressManager.getProtocolAddressByName(
-            "BENEFIT_MULTIPLIER_CONSUMER"
-        ).addr;
+        address bmConsumerAddress = IAddressManager(address(takasureReserve.addressManager()))
+            .getProtocolAddressByName("BENEFIT_MULTIPLIER_CONSUMER")
+            .addr;
         IBenefitMultiplierConsumer bmConsumer = IBenefitMultiplierConsumer(bmConsumerAddress);
-        
+
         string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
         // First we check if there is already a request id for this member
         bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);
@@ -627,7 +626,9 @@ contract SubscriptionModule is
             // Transfer the service fee to the fee claim address
             contributionToken.safeTransferFrom(
                 _memberWallet,
-                addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr,
+                IAddressManager(address(takasureReserve.addressManager()))
+                    .getProtocolAddressByName("FEE_CLAIM_ADDRESS")
+                    .addr,
                 feeAmount
             );
         }
@@ -635,7 +636,7 @@ contract SubscriptionModule is
 
     function _onlyCouponRedeemerOrCcipReceiver() internal view {
         require(
-            AddressAndStates._checkRole(address(addressManager), Roles.COUPON_REDEEMER) ||
+            AddressAndStates._checkRole(address(takasureReserve.addressManager()), Roles.COUPON_REDEEMER) ||
                 msg.sender == ccipReceiverContract,
             ModuleErrors.Module__NotAuthorizedCaller()
         );

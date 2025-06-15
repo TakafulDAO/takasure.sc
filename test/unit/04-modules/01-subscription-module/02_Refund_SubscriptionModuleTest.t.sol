@@ -213,10 +213,7 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         address couponPool = makeAddr("couponPool");
         address couponRedeemer = makeAddr("couponRedeemer");
 
-        // uint256 addressManagerStorageSlot = 4;
-        address addressManager = address(
-            uint160(uint256(vm.load(address(subscriptionModule), bytes32(uint256(4)))))
-        );
+        address addressManager = address(takasureReserve.addressManager());
 
         vm.startPrank(AddressManager(addressManager).owner());
         AddressManager(addressManager).createNewRole(keccak256("COUPON_REDEEMER"));
