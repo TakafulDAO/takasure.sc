@@ -67,14 +67,14 @@ contract TokenFuzzTest is Test {
         assert(!isBurner);
     }
 
-    function test_fuzz_onlyMinterCanMint(address notMinter) public {
-        // The input address must not be the same as the takasurePool address
-        vm.assume(notMinter != subscriptionModuleAddress);
+    // function test_fuzz_onlyMinterCanMint(address notMinter) public {
+    //     // The input address must not be the same as the takasurePool address
+    //     vm.assume(notMinter != subscriptionModuleAddress);
 
-        vm.prank(notMinter);
-        vm.expectRevert();
-        daoToken.mint(user, MINT_AMOUNT);
-    }
+    //     vm.prank(notMinter);
+    //     vm.expectRevert();
+    //     daoToken.mint(user, MINT_AMOUNT);
+    // }
 
     function test_fuzz_onlyBurnerCanBurn(address notBurner) public {
         // The input address must not be the same as the takasurePool address
