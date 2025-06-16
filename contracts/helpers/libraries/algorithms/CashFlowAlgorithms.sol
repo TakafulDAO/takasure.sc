@@ -6,7 +6,6 @@
  * @notice It help to calculate the needed algorithms on the payment process
  */
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 
 import {Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -288,17 +287,5 @@ library CashFlowAlgorithms {
         );
 
         emit TakasureEvents.OnNewBenefitMultiplierAdjuster(updatedBMA_);
-    }
-
-    function _mintDaoTokens(
-        ITakasureReserve _takasureReserve,
-        uint256 _contributionBeforeFee
-    ) internal returns (uint256 mintedTokens_) {
-        // Mint needed DAO Tokens
-        Reserve memory _reserve = _takasureReserve.getReserveValues();
-        mintedTokens_ = _contributionBeforeFee * ModuleConstants.DECIMALS_CONVERSION_FACTOR; // 6 decimals to 18 decimals
-
-        bool success = ITSToken(_reserve.daoToken).mint(address(_takasureReserve), mintedTokens_);
-        require(success, ModuleErrors.Module__MintFailed());
     }
 }

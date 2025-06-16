@@ -135,9 +135,9 @@ contract MemberModule is
             activeMember.memberState = MemberState.Active;
 
         // And we pay the contribution
-        uint256 mintedTokens;
+        uint256 credits;
 
-        (reserve, mintedTokens) = _memberPaymentFlow({
+        (reserve, credits) = _memberPaymentFlow({
             _contributionBeforeFee: contributionBeforeFee,
             _contributionAfterFee: contributionBeforeFee - feeAmount,
             _memberWallet: memberWallet,
@@ -145,7 +145,7 @@ contract MemberModule is
             _takasureReserve: takasureReserve
         });
 
-        activeMember.creditTokensBalance += mintedTokens;
+        activeMember.creditsBalance += credits;
 
         emit TakasureEvents.OnRecurringPayment(
             memberWallet,

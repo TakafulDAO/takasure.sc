@@ -114,8 +114,8 @@ contract KYCModule is
 
         // Then the everyting needed will be updated, proformas, reserves, cash flow,
         // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
-        uint256 mintedTokens;
-        (reserve, mintedTokens) = _memberPaymentFlow({
+        uint256 credits;
+        (reserve, credits) = _memberPaymentFlow({
             _contributionBeforeFee: newMember.contribution,
             _contributionAfterFee: newMember.contribution -
                 ((newMember.contribution * reserve.serviceFee) / 100),
@@ -124,7 +124,7 @@ contract KYCModule is
             _takasureReserve: takasureReserve
         });
 
-        newMember.creditTokensBalance += mintedTokens;
+        newMember.creditsBalance += credits;
 
         // Reward the parents
         address parent = childToParent[memberWallet];

@@ -283,9 +283,9 @@ contract SubscriptionModule is
 
         // Then everyting needed will be updated, proformas, reserves, cash flow,
         // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
-        uint256 mintedTokens;
+        uint256 credits;
 
-        (_reserve, mintedTokens) = _memberPaymentFlow({
+        (_reserve, credits) = _memberPaymentFlow({
             _contributionBeforeFee: _newMember.contribution,
             _contributionAfterFee: contributionAfterFee,
             _memberWallet: _memberWallet,
@@ -293,7 +293,7 @@ contract SubscriptionModule is
             _takasureReserve: takasureReserve
         });
 
-        _newMember.creditTokensBalance += mintedTokens;
+        _newMember.creditsBalance += credits;
 
         emit TakasureEvents.OnMemberJoined(_newMember.memberId, _memberWallet);
 
@@ -439,7 +439,7 @@ contract SubscriptionModule is
             claimAddAmount: 0,
             totalContributions: 0,
             totalServiceFee: 0,
-            creditTokensBalance: 0,
+            creditsBalance: 0,
             wallet: _memberWallet,
             parent: address(0),
             memberState: MemberState.Inactive,
@@ -510,7 +510,7 @@ contract SubscriptionModule is
             claimAddAmount: claimAddAmount,
             totalContributions: normalizedContributionBeforeFee,
             totalServiceFee: feeAmount,
-            creditTokensBalance: 0,
+            creditsBalance: 0,
             wallet: _memberWallet,
             parent: _parentWallet,
             memberState: _memberState,

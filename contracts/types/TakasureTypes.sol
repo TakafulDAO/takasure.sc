@@ -50,14 +50,6 @@ struct ProposedRoleHolder {
     uint256 proposalTime;
 }
 
-struct TakasureReserveInitParams {
-    address contributionToken;
-    address tokenAdmin;
-    address addressManager;
-    string tokenName;
-    string tokenSymbol;
-}
-
 struct CashFlowVars {
     uint256 dayDepositTimestamp;
     uint256 monthDepositTimestamp;
@@ -86,7 +78,7 @@ struct Member {
     uint256 claimAddAmount; // amount deposited in the claim reserve, six decimals, and without fees
     uint256 totalContributions; // in stablecoin currency. Six decimals. This is the total contribution made by the member
     uint256 totalServiceFee; // in stablecoin currency six decimals
-    uint256 creditTokensBalance; // 18 decimals
+    uint256 creditsBalance; // 18 decimals
     address wallet;
     address parent;
     MemberState memberState;
@@ -105,8 +97,8 @@ struct Reserve {
     bool isOptimizerEnabled; // Default true
     bool allowCustomDuration; // Default false
     bool referralDiscount;
-    address daoToken;
     address contributionToken;
+    uint256 totalCredits; // Total credits issued to members, 18 decimals
     uint256 memberIdCounter;
     uint256 minimumThreshold; // Default 25 USDC, 6 decimals
     uint256 maximumThreshold; // Default 250 USDC, 6 decimals

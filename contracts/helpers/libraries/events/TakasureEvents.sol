@@ -36,8 +36,7 @@ library TakasureEvents {
         uint256 indexed serviceFee,
         uint256 bmaFundReserveShare,
         bool isOptimizerEnabled,
-        address contributionToken,
-        address daoToken
+        address contributionToken
     );
     event OnNewProFormaValues(
         uint256 indexed proFormaFundReserve,

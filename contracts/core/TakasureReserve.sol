@@ -13,9 +13,8 @@ import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {TSToken} from "contracts/token/TSToken.sol";
 
-import {Reserve, Member, MemberState, CashFlowVars, TakasureReserveInitParams, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, CashFlowVars, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -54,21 +53,11 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         _;
     }
 
-    function initialize(TakasureReserveInitParams memory _initParams) external initializer {
+    function initialize(address contributionToken, address _addressManager) external initializer {
         __UUPSUpgradeable_init();
         __Pausable_init();
 
-        addressManager = IAddressManager(_initParams.addressManager);
-
-        address moduleManager = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
-
-        TSToken daoToken = new TSToken(
-            _initParams.tokenAdmin,
-            msg.sender,
-            moduleManager,
-            _initParams.tokenName,
-            _initParams.tokenSymbol
-        );
+        addressManager = IAddressManager(_addressManager);
 
         cashFlowVars.monthReference = 1;
         cashFlowVars.dayReference = 1;
@@ -80,8 +69,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         reserve.fundMarketExpendsAddShare = 20; // 20% Default
         reserve.riskMultiplier = 2; // 2% Default
         reserve.isOptimizerEnabled = true; // Default
-        reserve.daoToken = address(daoToken);
-        reserve.contributionToken = _initParams.contributionToken;
+        reserve.contributionToken = contributionToken;
         reserve.minimumThreshold = 25e6; // 25 USDC // 6 decimals
         reserve.maximumThreshold = 250e6; // 250 USDC // 6 decimals
         reserve.initialReserveRatio = 40; // 40% Default
@@ -95,8 +83,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
             reserve.serviceFee,
             reserve.bmaFundReserveShare,
             reserve.isOptimizerEnabled,
-            reserve.contributionToken,
-            reserve.daoToken
+            reserve.contributionToken
         );
     }
 
@@ -213,11 +200,9 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     function memberSurplus(Member memory newMemberValues) external {
         _onlyModule();
         uint256 totalSurplus = _calculateSurplus();
-        uint256 userCreditTokensBalance = newMemberValues.creditTokensBalance;
-        address daoToken = reserve.daoToken;
-        uint256 totalCreditTokens = IERC20(daoToken).balanceOf(address(this)) +
-            userCreditTokensBalance;
-        uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
+        uint256 userCreditsBalance = newMemberValues.creditsBalance;
+        uint256 totalCreditsInReserve = reserve.totalCredits + userCreditsBalance;
+        uint256 userSurplus = (totalSurplus * userCreditsBalance) / totalCreditsInReserve;
         members[newMemberValues.wallet].memberSurplus = userSurplus;
         emit TakasureEvents.OnMemberSurplusUpdated(
             members[newMemberValues.wallet].memberId,
