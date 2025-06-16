@@ -74,10 +74,6 @@ defender-upgrade-referral:
 	@forge script deploy/defender/02-DefenderUpgradeReferralGateway.s.sol:DefenderUpgradeReferralGateway $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
-# Chainlink functions
-functions-deploy-bm-consumer:
-	@forge script deploy/chainlink/functions/DeployBenefitMultiplierConsumer.s.sol:DeployBenefitMultiplierConsumer $(NETWORK_ARGS)
-
 # Interactions with ReferralGateway Contract
 # Create a DAO
 referral-create-dao:
@@ -91,27 +87,9 @@ referral-change-operator:
 referral-renounce-admin:
 	@forge script scripts/contract-interactions/referralGateway/ChangeAdmin.s.sol:ChangeAdmin $(NETWORK_ARGS)
 
-# Interactions with BenefitMultiplierConsumer Contract
-# Add a new BM Requester
-functions-add-bm-requester:
-	@forge script scripts/contract-interactions/bmConsumer/AddBmRequester.s.sol:AddBmRequester $(NETWORK_ARGS)
-
-functions-request-bm:
-	@forge script scripts/contract-interactions/bmConsumer/RequestBenefitMultiplier.s.sol:RequestBenefitMultiplier $(NETWORK_ARGS)
-
-# Add a new BM fetch code
-functions-add-bm-fetch-code:
-	@forge script scripts/contract-interactions/bmConsumer/AddBmFetchCode.s.sol:AddBmFetchCode $(NETWORK_ARGS)
-
 # Interactions with USDC
 mock-approve-spender:
 	@forge script scripts/contract-interactions/usdc/ApproveSpender.s.sol:ApproveSpender $(NETWORK_ARGS)
-
-# Interactions with Takasure Contract
-# Add a new BM Oracle Consumer
-takasure-add-bm-consumer:
-	@forge script scripts/contract-interactions/takasure/AddBmOracleConsumer.s.sol:AddBmOracleConsumer $(NETWORK_ARGS)
-
 
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
