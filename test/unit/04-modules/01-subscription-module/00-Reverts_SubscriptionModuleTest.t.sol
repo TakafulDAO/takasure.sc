@@ -8,19 +8,16 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reverts_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
+contract Reverts_SubscriptionModuleTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     UserRouter userRouter;
     address takasureReserveProxy;
@@ -43,7 +40,6 @@ contract Reverts_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse 
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -86,9 +82,6 @@ contract Reverts_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse 
         vm.startPrank(david);
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
-
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
     }
 
     /*//////////////////////////////////////////////////////////////

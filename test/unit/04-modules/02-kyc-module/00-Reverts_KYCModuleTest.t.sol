@@ -8,19 +8,16 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reverts_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
+contract Reverts_KYCModuleTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     KYCModule kycModule;
     address takasureReserveProxy;
@@ -38,12 +35,12 @@ contract Reverts_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
+    uint256 public constant BM = 1;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -87,15 +84,9 @@ contract Reverts_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
 
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-
         vm.prank(alice);
         // Alice pays for the subscription
         subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
-
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -105,7 +96,7 @@ contract Reverts_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
     /// @dev If it is an active member, can not join again
     function testSubscriptionModule_activeMembersShouldNotJoinAgain() public {
         vm.prank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         vm.prank(alice);
         // And tries to join again but fails
@@ -118,24 +109,24 @@ contract Reverts_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(admin);
 
         vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
-        kycModule.approveKYC(address(0));
+        kycModule.approveKYC(address(0), BM);
     }
 
     /// @dev `approveKYC` must revert if the member is already KYC verified
     function testSubscriptionModule_approveKYCMustRevertIfMemberIsAlreadyKYCVerified() public {
         vm.startPrank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         // And tries to join again but fails
         vm.expectRevert(KYCModule.KYCModule__MemberAlreadyKYCed.selector);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         vm.stopPrank();
     }
 
     function testSubscriptionModule_revertIfTryToJoinTwice() public {
         vm.prank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         vm.prank(alice);
         vm.expectRevert(SubscriptionModule.SubscriptionModule__AlreadyJoined.selector);
@@ -152,9 +143,6 @@ contract Reverts_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(charlie);
         subscriptionModule.paySubscription(charlie, address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.warp(block.timestamp + 15 days);
         vm.roll(block.number + 1);
 
@@ -164,7 +152,7 @@ contract Reverts_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.stopPrank();
 
         vm.prank(admin);
-        kycModule.approveKYC(charlie);
+        kycModule.approveKYC(charlie, BM);
 
         vm.prank(charlie);
         vm.expectRevert(SubscriptionModule.SubscriptionModule__AlreadyJoined.selector);

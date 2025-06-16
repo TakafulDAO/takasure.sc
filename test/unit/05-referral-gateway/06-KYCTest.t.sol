@@ -5,14 +5,12 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewayKYCTest is Test {
     TestDeployProtocol deployer;
     ReferralGateway referralGateway;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     IUSDC usdc;
     address usdcAddress;
@@ -29,20 +27,7 @@ contract ReferralGatewayKYCTest is Test {
         // Deployer
         deployer = new TestDeployProtocol();
         // Deploy contracts
-        (
-            ,
-            bmConsumerMock,
-            ,
-            referralGatewayAddress,
-            ,
-            ,
-            ,
-            ,
-            ,
-            usdcAddress,
-            ,
-            helperConfig
-        ) = deployer.run();
+        (, , referralGatewayAddress, , , , , , usdcAddress, , helperConfig) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -53,9 +38,6 @@ contract ReferralGatewayKYCTest is Test {
         referralGateway = ReferralGateway(referralGatewayAddress);
         usdc = IUSDC(usdcAddress);
 
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(referralGatewayAddress);
-
         // Give and approve USDC
         deal(address(usdc), addressToKyc, USDC_INITIAL_AMOUNT);
 
@@ -65,7 +47,7 @@ contract ReferralGatewayKYCTest is Test {
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         referralGateway.setDaoName(tDaoName);
-        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
 
         vm.prank(couponRedeemer);

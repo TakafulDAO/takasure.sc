@@ -11,17 +11,14 @@ import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, Reserve, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
+contract Join_SubscriptionModuleTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     KYCModule kycModule;
     UserRouter userRouter;
@@ -40,12 +37,12 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant BENEFIT_MULTIPLIER = 0;
     uint256 public constant YEAR = 365 days;
+    uint256 public constant BM = 1;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -81,11 +78,6 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(bob);
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
-
-        vm.startPrank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(subscriptionModuleAddress);
-        bmConsumerMock.setNewRequester(kycModuleAddress);
-        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -105,11 +97,8 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
 
         vm.stopPrank();
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         uint256 totalContributions = takasureReserve.getReserveValues().totalContributions;
 
@@ -156,15 +145,12 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         Member memory member = takasureReserve.getMemberFromAddress(alice);
 
         assert(!member.isKYCVerified);
 
         vm.prank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         member = takasureReserve.getMemberFromAddress(alice);
 
@@ -175,11 +161,8 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         _;
     }
@@ -303,11 +286,8 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(bob);
         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(admin);
-        kycModule.approveKYC(bob);
+        kycModule.approveKYC(bob, BM);
         _;
     }
 
@@ -339,7 +319,7 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         uint256 initialProFormaClaimReserve = reserve.proFormaClaimReserve;
 
         vm.prank(admin);
-        kycModule.approveKYC(bob);
+        kycModule.approveKYC(bob, BM);
 
         reserve = takasureReserve.getReserveValues();
 
@@ -362,11 +342,8 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         reserve = takasureReserve.getReserveValues();
         uint256 aliceDRR = reserve.dynamicReserveRatio;
@@ -374,11 +351,8 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(bob);
         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(admin);
-        kycModule.approveKYC(bob);
+        kycModule.approveKYC(bob, BM);
 
         reserve = takasureReserve.getReserveValues();
         uint256 bobDRR = reserve.dynamicReserveRatio;
@@ -402,11 +376,8 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         reserve = takasureReserve.getReserveValues();
         uint256 aliceBMA = reserve.benefitMultiplierAdjuster;
@@ -414,11 +385,8 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(bob);
         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(admin);
-        kycModule.approveKYC(bob);
+        kycModule.approveKYC(bob, BM);
 
         reserve = takasureReserve.getReserveValues();
         uint256 bobBMA = reserve.benefitMultiplierAdjuster;
@@ -449,11 +417,8 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.prank(alice);
         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         uint256 contractCreditTokenBalanceAfter = creditTokenInstance.balanceOf(
             address(takasureReserve)

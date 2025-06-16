@@ -9,18 +9,15 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, MemberState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
+contract RecurringPayment_MemberModuleTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     KYCModule kycModule;
     MemberModule memberModule;
@@ -37,12 +34,12 @@ contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonRespon
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
+    uint256 public constant BM = 1;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -68,11 +65,6 @@ contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonRespon
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
-        vm.startPrank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-        bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
-
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
@@ -83,11 +75,8 @@ contract RecurringPayment_MemberModuleTest is StdCheats, Test, SimulateDonRespon
         subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.startPrank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
         vm.stopPrank();
     }
 

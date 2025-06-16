@@ -5,14 +5,12 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewaySettersTests is Test {
     TestDeployProtocol deployer;
     ReferralGateway referralGateway;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     IUSDC usdc;
     address usdcAddress;
@@ -37,20 +35,7 @@ contract ReferralGatewaySettersTests is Test {
         // Deployer
         deployer = new TestDeployProtocol();
         // Deploy contracts
-        (
-            ,
-            bmConsumerMock,
-            ,
-            referralGatewayAddress,
-            ,
-            ,
-            ,
-            ,
-            ,
-            usdcAddress,
-            ,
-            helperConfig
-        ) = deployer.run();
+        (, , referralGatewayAddress, , , , , , usdcAddress, , helperConfig) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -76,10 +61,7 @@ contract ReferralGatewaySettersTests is Test {
         referralGateway.setDaoName(tDaoName);
 
         vm.prank(config.daoMultisig);
-        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
-
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(referralGatewayAddress);
+        referralGateway.createDAO(true, true, 1743479999, 1e12);
     }
 
     function testSetNewCouponPoolAddress() public {

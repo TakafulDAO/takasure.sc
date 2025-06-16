@@ -20,7 +20,7 @@ contract Getters_TakasureCoreTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (, , takasureReserveProxy, , , , , , , contributionTokenAddress, , ) = deployer.run();
+        (, takasureReserveProxy, , , , , , , contributionTokenAddress, , ) = deployer.run();
 
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);

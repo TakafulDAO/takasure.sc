@@ -9,17 +9,14 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
+contract Join_SubscriptionModuleTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     UserRouter userRouter;
     address takasureReserveProxy;
@@ -41,7 +38,6 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -76,9 +72,6 @@ contract Join_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(bob);
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
-
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
     }
 
     /*//////////////////////////////////////////////////////////////

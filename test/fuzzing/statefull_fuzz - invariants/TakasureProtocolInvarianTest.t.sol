@@ -31,7 +31,6 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
         deployer = new TestDeployProtocol();
         (
             ,
-            ,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,

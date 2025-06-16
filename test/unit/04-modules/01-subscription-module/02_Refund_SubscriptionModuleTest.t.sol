@@ -11,19 +11,16 @@ import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
-contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
+contract Refund_SubscriptionModuleTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     KYCModule kycModule;
     MemberModule memberModule;
@@ -40,12 +37,12 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
     address public bob = makeAddr("bob");
     uint256 public constant CONTRIBUTION_AMOUNT = 250e6; // 250 USD
     uint256 public constant YEAR = 365 days;
+    uint256 public constant BM = 1;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -71,11 +68,6 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
 
-        vm.startPrank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-        bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
-
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, CONTRIBUTION_AMOUNT);
         deal(address(usdc), bob, CONTRIBUTION_AMOUNT);
@@ -86,8 +78,6 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
 
         subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
-
-        _successResponse(address(bmConsumerMock));
 
         vm.startPrank(bob);
         usdc.approve(address(subscriptionModule), CONTRIBUTION_AMOUNT);
@@ -128,7 +118,7 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         // Cannot KYC someone who has been refunded until pays again
         vm.prank(kycService);
         vm.expectRevert(KYCModule.KYCModule__ContributionRequired.selector);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         vm.startPrank(alice);
         usdc.approve(address(subscriptionModule), expectedRefundAmount);
@@ -139,7 +129,7 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
     function testSubscriptionModule_refundContributionIfThereIsParent() public {
         // First we need to KYC Alice so she can act as a parent
         vm.prank(kycService);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         vm.prank(bob);
         subscriptionModule.paySubscription(bob, alice, CONTRIBUTION_AMOUNT, 5 * YEAR);
@@ -177,7 +167,7 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
 
         // First we need to KYC Alice so she can act as a parent
         vm.prank(kycService);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         vm.prank(bob);
         subscriptionModule.paySubscription(bob, alice, CONTRIBUTION_AMOUNT, 5 * YEAR);
@@ -236,7 +226,7 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
 
         // KYC Alice so she can act as a parent
         vm.prank(kycService);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         vm.prank(couponRedeemer);
         subscriptionModule.paySubscriptionOnBehalfOf(
@@ -287,9 +277,6 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test, SimulateDonResponse {
         // 14 days passed
         vm.warp(15 days);
         vm.roll(block.number + 1);
-
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
 
         vm.prank(alice);
         subscriptionModule.refund();

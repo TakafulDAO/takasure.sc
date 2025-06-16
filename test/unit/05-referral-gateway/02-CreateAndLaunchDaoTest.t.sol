@@ -5,13 +5,11 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 
 contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     TestDeployProtocol deployer;
     ReferralGateway referralGateway;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     address referralGatewayAddress;
     address takadao;
@@ -25,7 +23,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         // Deployer
         deployer = new TestDeployProtocol();
         // Deploy contracts
-        (, bmConsumerMock, , referralGatewayAddress, , , , , , , , helperConfig) = deployer.run();
+        (, , referralGatewayAddress, , , , , , , , helperConfig) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -34,30 +32,15 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
 
         // Assign implementations
         referralGateway = ReferralGateway(referralGatewayAddress);
-
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(referralGatewayAddress);
     }
 
     function testCreateANewDao() public {
         vm.prank(notAllowedAddress);
         vm.expectRevert();
-        referralGateway.createDAO(
-            true,
-            true,
-            (block.timestamp + 31_536_000),
-            100e6,
-            address(bmConsumerMock)
-        );
+        referralGateway.createDAO(true, true, (block.timestamp + 31_536_000), 100e6);
 
         vm.prank(takadao);
-        referralGateway.createDAO(
-            true,
-            true,
-            (block.timestamp + 31_536_000),
-            100e6,
-            address(bmConsumerMock)
-        );
+        referralGateway.createDAO(true, true, (block.timestamp + 31_536_000), 100e6);
 
         (
             bool prejoinEnabled,
@@ -82,7 +65,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
 
         vm.prank(takadao);
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidLaunchDate.selector);
-        referralGateway.createDAO(true, true, 0, 100e6, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 0, 100e6);
 
         vm.prank(notAllowedAddress);
         vm.expectRevert();
@@ -95,7 +78,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     modifier createDao() {
         vm.startPrank(takadao);
         referralGateway.setDaoName(tDaoName);
-        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
         _;
     }

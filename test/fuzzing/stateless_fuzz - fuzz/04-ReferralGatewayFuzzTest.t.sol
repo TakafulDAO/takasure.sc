@@ -6,16 +6,13 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
+contract ReferralGatewayFuzzTest is Test {
     TestDeployProtocol deployer;
     ReferralGateway referralGateway;
     TakasureReserve takasureReserve;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     IUSDC usdc;
     address usdcAddress;
@@ -38,7 +35,6 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
         // Deploy contracts
         (
             ,
-            bmConsumerMock,
             takasureReserveAddress,
             referralGatewayAddress,
             ,
@@ -61,10 +57,6 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
         takasureReserve = TakasureReserve(takasureReserveAddress);
         usdc = IUSDC(usdcAddress);
 
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(takasureReserve));
-        bmConsumerMock.setNewRequester(referralGatewayAddress);
-
         // Give and approve USDC
         deal(address(usdc), parent, USDC_INITIAL_AMOUNT);
         deal(address(usdc), child, USDC_INITIAL_AMOUNT);
@@ -77,7 +69,7 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         referralGateway.setDaoName(tDaoName);
-        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
 
         vm.prank(couponRedeemer);

@@ -8,7 +8,6 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
@@ -18,7 +17,6 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     UserRouter userRouter;
     address takasureReserveProxy;
@@ -38,7 +36,6 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -69,9 +66,6 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         vm.startPrank(alice);
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
-
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -27,7 +27,6 @@ contract TokenFuzzTest is Test {
         deployer = new TestDeployProtocol();
         (
             daoTokenAddress,
-            ,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,

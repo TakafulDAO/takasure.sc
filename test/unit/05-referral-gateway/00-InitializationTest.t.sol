@@ -25,7 +25,7 @@ contract ReferralGatewayInitializationTest is Test {
         // Deployer
         deployer = new TestDeployProtocol();
         // Deploy contracts
-        (, , , referralGatewayAddress, , , , , , usdcAddress, , helperConfig) = deployer.run();
+        (, , referralGatewayAddress, , , , , , usdcAddress, , helperConfig) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);

@@ -9,18 +9,15 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
+contract Surplus_TakasureCoreTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     KYCModule kycModule;
     UserRouter userRouter;
@@ -36,6 +33,7 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     uint256 public constant USDC_INITIAL_AMOUNT = 500e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
+    uint256 public constant BM = 1;
 
     // Users
     address public alice = makeAddr("alice");
@@ -49,7 +47,6 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -74,11 +71,6 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
 
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
-
-        vm.startPrank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-        bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
     }
 
     modifier tokensTo(address user) {
@@ -238,11 +230,8 @@ contract Surplus_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         );
         vm.stopPrank();
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.startPrank(admin);
-        kycModule.approveKYC(user);
+        kycModule.approveKYC(user, BM);
         vm.stopPrank();
     }
 }

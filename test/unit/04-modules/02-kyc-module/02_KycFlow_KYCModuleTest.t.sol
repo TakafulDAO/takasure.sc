@@ -8,18 +8,15 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract KycFlow_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
+contract KycFlow_KYCModuleTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     KYCModule kycModule;
     address takasureReserveProxy;
@@ -33,14 +30,13 @@ contract KycFlow_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
     address public alice = makeAddr("alice");
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-    uint256 public constant BENEFIT_MULTIPLIER_FROM_CONSUMER = 100046; // Mock respose
     uint256 public constant YEAR = 365 days;
+    uint256 public constant BM = 1;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -71,11 +67,6 @@ contract KycFlow_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(alice);
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
-
-        vm.startPrank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-        bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
     }
 
     /// @dev Test contribution amount is transferred to the contract
@@ -90,7 +81,6 @@ contract KycFlow_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         emit TakasureEvents.OnMemberCreated(
             memberIdBeforeJoin + 1,
             alice,
-            0,
             CONTRIBUTION_AMOUNT,
             ((CONTRIBUTION_AMOUNT * 27) / 100),
             5 * YEAR,
@@ -128,9 +118,6 @@ contract KycFlow_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         assertEq(uint8(testMemberAfterJoin.memberState), 0, "Member State is not correct");
         assertEq(testMemberAfterJoin.isKYCVerified, false, "KYC Verification is not correct");
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         // Set KYC status to true
         vm.prank(admin);
         vm.expectEmit(true, false, false, false, address(kycModule));
@@ -139,7 +126,7 @@ contract KycFlow_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.expectEmit(true, true, false, false, address(kycModule));
         emit TakasureEvents.OnMemberJoined(memberIdAfterJoin, alice);
 
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         reserve = takasureReserve.getReserveValues();
         uint256 memberIdAfterKyc = reserve.memberIdCounter;
@@ -159,11 +146,7 @@ contract KycFlow_KYCModuleTest is StdCheats, Test, SimulateDonResponse {
         // Check the values
         assertEq(testMemberAfterKyc.memberId, memberIdAfterKyc, "Member ID is not correct");
         assertEq(memberIdAfterJoin, memberIdAfterKyc, "Member ID is not correct");
-        assertEq(
-            testMemberAfterKyc.benefitMultiplier,
-            BENEFIT_MULTIPLIER_FROM_CONSUMER,
-            "Benefit Multiplier is not correct"
-        );
+        assertEq(testMemberAfterKyc.benefitMultiplier, BM, "Benefit Multiplier is not correct");
         assertEq(
             testMemberAfterKyc.contribution,
             CONTRIBUTION_AMOUNT,

@@ -9,19 +9,16 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
+contract Reverts_MemberModuleTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     KYCModule kycModule;
     MemberModule memberModule;
@@ -37,12 +34,12 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
+    uint256 public constant BM = 1;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -73,11 +70,6 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         vm.startPrank(alice);
         usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
-
-        vm.startPrank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-        bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -100,11 +92,8 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         vm.warp(block.timestamp + 396 days);
         vm.roll(block.number + 1);
@@ -124,11 +113,8 @@ contract Reverts_MemberModuleTest is StdCheats, Test, SimulateDonResponse {
         subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
         vm.stopPrank();
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(admin);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         for (uint256 i = 0; i < 5; i++) {
             vm.warp(block.timestamp + YEAR);

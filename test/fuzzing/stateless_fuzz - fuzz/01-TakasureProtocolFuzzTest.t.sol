@@ -9,7 +9,6 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract TakasureProtocolFuzzTest is Test {
@@ -19,7 +18,6 @@ contract TakasureProtocolFuzzTest is Test {
     SubscriptionModule subscriptionModule;
     KYCModule kycModule;
     MemberModule memberModule;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address daoMultisig;
@@ -33,12 +31,12 @@ contract TakasureProtocolFuzzTest is Test {
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
+    uint256 public constant BM = 1;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
             ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -70,9 +68,6 @@ contract TakasureProtocolFuzzTest is Test {
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         usdc.approve(address(memberModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
-
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
     }
 
     function test_fuzz_ownerCanapproveKYC(address notOwner) public {
@@ -83,6 +78,6 @@ contract TakasureProtocolFuzzTest is Test {
 
         vm.prank(notOwner);
         vm.expectRevert();
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
     }
 }

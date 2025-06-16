@@ -6,7 +6,6 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
@@ -16,7 +15,6 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
@@ -28,20 +26,8 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (
-            ,
-            bmConsumerMock,
-            takasureReserveProxy,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            contributionTokenAddress,
-            ,
-            helperConfig
-        ) = deployer.run();
+        (, takasureReserveProxy, , , , , , , contributionTokenAddress, , helperConfig) = deployer
+            .run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 

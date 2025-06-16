@@ -12,7 +12,6 @@ import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {TSToken} from "contracts/token/TSToken.sol";
@@ -20,7 +19,6 @@ import {TakasureReserveInitParams, ProtocolAddressType} from "contracts/types/Ta
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 contract TestDeployProtocol is Script {
-    BenefitMultiplierConsumerMock bmConsumerMock;
     ModuleManager moduleManager;
     AddressManager addressManager;
 
@@ -41,7 +39,6 @@ contract TestDeployProtocol is Script {
         address takadaoOperator;
         address kycProvider;
         address contributionToken;
-        address bmConsumerMock;
         address couponPool;
         address pauseGuardian;
     }
@@ -61,7 +58,6 @@ contract TestDeployProtocol is Script {
         external
         returns (
             address tsToken,
-            BenefitMultiplierConsumerMock,
             address takasureReserve,
             address referralGatewayAddress,
             address subscriptionModuleAddress,
@@ -79,26 +75,12 @@ contract TestDeployProtocol is Script {
 
         vm.startBroadcast(msg.sender);
 
-        // Deploy the BenefitMultiplierConsumerMock
-        bmConsumerMock = _deployBMConsumer(
-            config.functionsRouter,
-            config.donId,
-            config.gasLimit,
-            config.subscriptionId
-        );
-
         addressManager = new AddressManager();
         moduleManager = new ModuleManager();
 
         addressManager.addProtocolAddress(
             "MODULE_MANAGER",
             address(moduleManager),
-            ProtocolAddressType.Protocol
-        );
-
-        addressManager.addProtocolAddress(
-            "BENEFIT_MULTIPLIER_CONSUMER",
-            address(bmConsumerMock),
             ProtocolAddressType.Protocol
         );
 
@@ -135,7 +117,6 @@ contract TestDeployProtocol is Script {
                 takadaoOperator: config.takadaoOperator,
                 kycProvider: config.kycProvider,
                 contributionToken: config.contributionToken,
-                bmConsumerMock: address(bmConsumerMock),
                 couponPool: makeAddr("couponPool"),
                 pauseGuardian: config.pauseGuardian
             })
@@ -210,7 +191,6 @@ contract TestDeployProtocol is Script {
 
         return (
             tsToken,
-            bmConsumerMock,
             takasureReserve,
             referralGatewayAddress,
             subscriptionModuleAddress,
@@ -221,20 +201,6 @@ contract TestDeployProtocol is Script {
             contributionTokenAddress,
             kycProvider,
             helperConfig
-        );
-    }
-
-    function _deployBMConsumer(
-        address _functionsRouter,
-        bytes32 _donId,
-        uint32 _gasLimit,
-        uint64 _subscriptionId
-    ) internal returns (BenefitMultiplierConsumerMock bmConsumerMock_) {
-        bmConsumerMock_ = new BenefitMultiplierConsumerMock(
-            _functionsRouter,
-            _donId,
-            _gasLimit,
-            _subscriptionId
         );
     }
 
@@ -267,8 +233,7 @@ contract TestDeployProtocol is Script {
                     _params.takadaoOperator,
                     _params.kycProvider,
                     _params.pauseGuardian,
-                    _params.contributionToken,
-                    _params.bmConsumerMock
+                    _params.contributionToken
                 )
             )
         );
@@ -311,9 +276,6 @@ contract TestDeployProtocol is Script {
         address _memberModuleAddress,
         address _revenueModuleAddress
     ) internal {
-        bmConsumerMock.setNewRequester(_subscriptionModuleAddress);
-        bmConsumerMock.setNewRequester(_kycModuleAddress);
-
         // Set modules contracts in TakasureReserve
         moduleManager.addModule(_subscriptionModuleAddress);
         moduleManager.addModule(_kycModuleAddress);
