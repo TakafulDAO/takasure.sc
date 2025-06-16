@@ -23,13 +23,6 @@ contract HelperConfig is DeployConstants, Script {
         address takadaoOperator;
         address kycProvider;
         address pauseGuardian;
-        address tokenAdmin;
-        string tokenName;
-        string tokenSymbol;
-        address functionsRouter;
-        bytes32 donId;
-        uint32 gasLimit;
-        uint64 subscriptionId;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -66,14 +59,7 @@ contract HelperConfig is DeployConstants, Script {
             daoMultisig: daoMultisig.mainnet,
             takadaoOperator: takadaoOperator.mainnet,
             kycProvider: kycProvider.mainnet,
-            pauseGuardian: pauseGuardian.mainnet,
-            tokenAdmin: tokenAdmin.mainnet,
-            tokenName: "Takasure DAO Token",
-            tokenSymbol: "TST",
-            functionsRouter: 0x97083E831F8F0638855e2A515c90EdCF158DF238,
-            donId: 0x66756e2d617262697472756d2d6d61696e6e65742d3100000000000000000000,
-            gasLimit: 300000,
-            subscriptionId: 32
+            pauseGuardian: pauseGuardian.mainnet
         });
     }
 
@@ -88,14 +74,7 @@ contract HelperConfig is DeployConstants, Script {
             daoMultisig: daoMultisig.arb_sepolia,
             takadaoOperator: takadaoOperator.arb_sepolia,
             kycProvider: kycProvider.arb_sepolia,
-            pauseGuardian: pauseGuardian.arb_sepolia,
-            tokenAdmin: tokenAdmin.arb_sepolia,
-            tokenName: "Takasure DAO Token",
-            tokenSymbol: "TST",
-            functionsRouter: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C,
-            donId: 0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000,
-            gasLimit: 300000,
-            subscriptionId: 123
+            pauseGuardian: pauseGuardian.arb_sepolia
         });
     }
 
@@ -110,14 +89,7 @@ contract HelperConfig is DeployConstants, Script {
             daoMultisig: daoMultisig.eth_sepolia,
             takadaoOperator: takadaoOperator.eth_sepolia,
             kycProvider: kycProvider.eth_sepolia,
-            pauseGuardian: pauseGuardian.eth_sepolia,
-            tokenAdmin: tokenAdmin.eth_sepolia,
-            tokenName: "Takasure DAO Token",
-            tokenSymbol: "TST",
-            functionsRouter: 0xb83E47C2bC239B3bf370bc41e1459A34b41238D0,
-            donId: 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000,
-            gasLimit: 300000,
-            subscriptionId: 3966
+            pauseGuardian: pauseGuardian.eth_sepolia
         });
     }
 
@@ -141,14 +113,7 @@ contract HelperConfig is DeployConstants, Script {
                 daoMultisig: daoMultisig.local,
                 takadaoOperator: takadaoOperator.local,
                 kycProvider: kycProvider.local,
-                pauseGuardian: pauseGuardian.local,
-                tokenAdmin: tokenAdmin.local,
-                tokenName: "Takasure DAO Token",
-                tokenSymbol: "TST",
-                functionsRouter: 0x234a5fb5Bd614a7AA2FfAB244D603abFA0Ac5C5C, // Same as sepolia
-                donId: 0x66756e2d617262697472756d2d7365706f6c69612d3100000000000000000000, // Same as sepolia
-                gasLimit: 300000,
-                subscriptionId: 123 // Same as sepolia
+                pauseGuardian: pauseGuardian.local
             });
     }
 
