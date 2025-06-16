@@ -19,9 +19,7 @@ contract ReferralGatewaySettersTests is Test {
     address referralGatewayAddress;
     address operator;
     address couponUser = makeAddr("couponUser");
-    address ccipUser = makeAddr("ccipUser");
     address couponPool = makeAddr("couponPool");
-    address ccipReceiverContract = makeAddr("ccipReceiverContract");
     address couponRedeemer = makeAddr("couponRedeemer");
     string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -33,10 +31,6 @@ contract ReferralGatewaySettersTests is Test {
         address indexed member,
         string indexed tDAOName,
         uint256 indexed couponAmount
-    );
-    event OnNewCCIPReceiverContract(
-        address indexed oldCCIPReceiverContract,
-        address indexed newCCIPReceiverContract
     );
 
     function setUp() public {
@@ -78,11 +72,6 @@ contract ReferralGatewaySettersTests is Test {
         vm.prank(couponPool);
         usdc.approve(address(referralGateway), 1000e6);
 
-        // To the ccip receiver contract, it will be used to pay the contributions of the ccip user
-        deal(address(usdc), ccipReceiverContract, 1000e6);
-        vm.prank(ccipReceiverContract);
-        usdc.approve(address(referralGateway), 1000e6);
-
         vm.prank(operator);
         referralGateway.setDaoName(tDaoName);
 
@@ -98,12 +87,5 @@ contract ReferralGatewaySettersTests is Test {
         vm.expectEmit(true, true, false, false, address(referralGateway));
         emit OnNewCouponPoolAddress(address(0), couponPool);
         referralGateway.setCouponPoolAddress(couponPool);
-    }
-
-    function testSetNewCcipReceiverContract() public {
-        vm.prank(operator);
-        vm.expectEmit(true, true, false, false, address(referralGateway));
-        emit OnNewCCIPReceiverContract(address(0), ccipReceiverContract);
-        referralGateway.setCCIPReceiverContract(ccipReceiverContract);
     }
 }

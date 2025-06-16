@@ -42,7 +42,6 @@ contract TestDeployProtocol is Script {
         address kycProvider;
         address contributionToken;
         address bmConsumerMock;
-        address ccipReceiver;
         address couponPool;
         address pauseGuardian;
     }
@@ -137,7 +136,6 @@ contract TestDeployProtocol is Script {
                 kycProvider: config.kycProvider,
                 contributionToken: config.contributionToken,
                 bmConsumerMock: address(bmConsumerMock),
-                ccipReceiver: makeAddr("ccipReceiverContract"),
                 couponPool: makeAddr("couponPool"),
                 pauseGuardian: config.pauseGuardian
             })
@@ -281,12 +279,7 @@ contract TestDeployProtocol is Script {
             subscriptionModuleImplementation,
             abi.encodeCall(
                 SubscriptionModule.initialize,
-                (
-                    _params.takasureReserve,
-                    referralGatewayAddress_,
-                    _params.ccipReceiver,
-                    _params.couponPool
-                )
+                (_params.takasureReserve, referralGatewayAddress_, _params.couponPool)
             )
         );
 

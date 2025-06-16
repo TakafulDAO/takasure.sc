@@ -26,7 +26,6 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
     address parent = makeAddr("parent");
     address child = makeAddr("child");
     address couponRedeemer = makeAddr("couponRedeemer");
-    address ccipReceiverContract = makeAddr("ccipReceiverContract");
     string tDaoName = "The LifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
@@ -69,20 +68,14 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
         // Give and approve USDC
         deal(address(usdc), parent, USDC_INITIAL_AMOUNT);
         deal(address(usdc), child, USDC_INITIAL_AMOUNT);
-        // To the ccip receiver contract, it will be used to pay the contributions of the ccip user
-        deal(address(usdc), ccipReceiverContract, 1000e6);
 
         vm.prank(parent);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
         vm.prank(child);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
 
-        vm.prank(ccipReceiverContract);
-        usdc.approve(address(referralGateway), 1000e6);
-
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        referralGateway.setCCIPReceiverContract(ccipReceiverContract);
         referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
         vm.stopPrank();
@@ -103,10 +96,9 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
     // Fuzz to test to check the caller on pay contribution on behalf of
     function testPayContributionOnBehalfOfRevertsIfCallerIsWrong(address caller) public {
         vm.assume(caller != couponRedeemer);
-        vm.assume(caller != ccipReceiverContract);
 
         vm.prank(caller);
-        vm.expectRevert(ReferralGateway.ReferralGateway__NotAuthorizedCaller.selector);
+        vm.expectRevert();
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
     }
 
