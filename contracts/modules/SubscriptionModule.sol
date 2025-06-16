@@ -51,7 +51,6 @@ contract SubscriptionModule is
 
     address private referralGateway;
     address private couponPool;
-    address private ccipReceiverContract;
 
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => bool) private isMemberCouponRedeemer;
@@ -87,7 +86,6 @@ contract SubscriptionModule is
     function initialize(
         address _takasureReserveAddress,
         address _referralGateway,
-        address _ccipReceiverContract,
         address _couponPool
     ) external initializer {
         __UUPSUpgradeable_init();
@@ -96,7 +94,6 @@ contract SubscriptionModule is
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
 
         referralGateway = _referralGateway;
-        ccipReceiverContract = _ccipReceiverContract;
         couponPool = _couponPool;
     }
 
@@ -113,13 +110,6 @@ contract SubscriptionModule is
     function setCouponPoolAddress(address _couponPool) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
-    }
-
-    function setCCIPReceiverContract(
-        address _ccipReceiverContract
-    ) external onlyRole(Roles.OPERATOR) {
-        AddressAndStates._notZeroAddress(_ccipReceiverContract);
-        ccipReceiverContract = _ccipReceiverContract;
     }
 
     function joinFromReferralGateway(
@@ -171,8 +161,8 @@ contract SubscriptionModule is
         ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
         // Check caller
-        require(           
-                AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
+        require(
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -190,7 +180,7 @@ contract SubscriptionModule is
     }
 
     /**
-     * @notice Called by backend or CCIP protocol to allow new members to join the pool
+     * @notice Called by backend to allow new members to join the pool
      * @param couponAmount in six decimals
      */
     function paySubscriptionOnBehalfOf(
@@ -199,7 +189,7 @@ contract SubscriptionModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration,
         uint256 couponAmount
-    ) external nonReentrant {
+    ) external nonReentrant onlyRole(Roles.COUPON_REDEEMER) {
         (
             Reserve memory reserve,
             Member memory newMember,
@@ -208,9 +198,6 @@ contract SubscriptionModule is
 
         // Check if the coupon amount is valid
         require(couponAmount <= contributionBeforeFee, SubscriptionModule__InvalidContribution());
-
-        // Check caller
-        _onlyCouponRedeemerOrCcipReceiver();
 
         _join(
             reserve,
@@ -234,17 +221,13 @@ contract SubscriptionModule is
         address memberWallet,
         address takasureReserveAddress,
         uint256 contributionAfterFeeAmount
-
     ) external onlyContract("KYC_MODULE") {
-
-
         _transferContributionToReserve(
             contributionToken,
             memberWallet,
             takasureReserveAddress,
             contributionAfterFeeAmount
         );
-
     }
 
     /**
@@ -622,19 +605,12 @@ contract SubscriptionModule is
 
         // Store temporarily the contribution in this contract, this way will be available for refunds
         if (_amountToTransferFromMember > 0) {
-            if (msg.sender == ccipReceiverContract) {
-                contributionToken.safeTransferFrom(
-                    ccipReceiverContract,
-                    address(this),
-                    _amountToTransferFromMember
-                );
-            } else {
-                contributionToken.safeTransferFrom(
-                    _memberWallet,
-                    address(this),
-                    _amountToTransferFromMember
-                );
-            }
+            contributionToken.safeTransferFrom(
+                _memberWallet,
+                address(this),
+                _amountToTransferFromMember
+            );
+
             // Transfer the coupon amount to this contract
             if (_couponAmount > 0) {
                 contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
@@ -648,14 +624,6 @@ contract SubscriptionModule is
                 feeAmount
             );
         }
-    }
-
-    function _onlyCouponRedeemerOrCcipReceiver() internal view {
-        require(
-            AddressAndStates._checkRole(address(takasureReserve.addressManager()), Roles.COUPON_REDEEMER) ||
-                msg.sender == ccipReceiverContract,
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
     }
 
     ///@dev required by the OZ UUPS module

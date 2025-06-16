@@ -41,7 +41,7 @@ contract ReferralGateway is
     mapping(address child => address parent) public childToParent;
 
     address private couponPool;
-    address private ccipReceiverContract;
+    address private ccipReceiverContract; // DEPRECATED!!!
 
     struct PrepaidMember {
         address member;
@@ -152,10 +152,6 @@ contract ReferralGateway is
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
-    event OnNewCCIPReceiverContract(
-        address indexed oldCCIPReceiverContract,
-        address indexed newCCIPReceiverContract
-    );
     event OnPrejoinDiscountSwitched(bool indexed preJoinEnabled);
 
     error ReferralGateway__ZeroAddress();
@@ -332,8 +328,7 @@ contract ReferralGateway is
         address newMember,
         uint256 couponAmount,
         bool isDonated
-    ) external returns (uint256 finalFee, uint256 discount) {
-        _onlyCouponRedeemerOrCcipReceiver();
+    ) external onlyRole(COUPON_REDEEMER) returns (uint256 finalFee, uint256 discount) {
         if (isDonated)
             require(contribution == MINIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
 
@@ -514,13 +509,6 @@ contract ReferralGateway is
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
     }
 
-    function setCCIPReceiverContract(address _ccipReceiverContract) external onlyRole(OPERATOR) {
-        _notZeroAddress(_ccipReceiverContract);
-        address oldCCIPReceiverContract = ccipReceiverContract;
-        ccipReceiverContract = _ccipReceiverContract;
-        emit OnNewCCIPReceiverContract(oldCCIPReceiverContract, _ccipReceiverContract);
-    }
-
     function setPrejoinDiscount(bool _preJoinEnabled) external onlyRole(OPERATOR) {
         nameToDAOData[daoName].preJoinEnabled = _preJoinEnabled;
         emit OnPrejoinDiscountSwitched(_preJoinEnabled);
@@ -689,17 +677,10 @@ contract ReferralGateway is
 
         uint256 amountToTransfer = normalizedContribution - _discount - _couponAmount;
 
-        if (amountToTransfer > 0) {
-            if (msg.sender == ccipReceiverContract) {
-                usdc.safeTransferFrom(ccipReceiverContract, address(this), amountToTransfer);
-            } else {
-                usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
-            }
-        }
+        if (amountToTransfer > 0)
+            usdc.safeTransferFrom(_newMember, address(this), amountToTransfer);
 
-        if (_couponAmount > 0) {
-            usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
-        }
+        if (_couponAmount > 0) usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
 
         usdc.safeTransfer(operator, _finalFee);
 
@@ -890,13 +871,6 @@ contract ReferralGateway is
 
     function _notZeroAddress(address _address) internal pure {
         require(_address != address(0), ReferralGateway__ZeroAddress());
-    }
-
-    function _onlyCouponRedeemerOrCcipReceiver() internal view {
-        require(
-            hasRole(COUPON_REDEEMER, msg.sender) || msg.sender == ccipReceiverContract,
-            ReferralGateway__NotAuthorizedCaller()
-        );
     }
 
     function setDaoName(string memory _daoName) external onlyRole(OPERATOR) {
