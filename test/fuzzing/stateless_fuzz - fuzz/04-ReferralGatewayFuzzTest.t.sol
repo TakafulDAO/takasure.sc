@@ -34,7 +34,6 @@ contract ReferralGatewayFuzzTest is Test {
         deployer = new TestDeployProtocol();
         // Deploy contracts
         (
-            ,
             takasureReserveAddress,
             referralGatewayAddress,
             ,

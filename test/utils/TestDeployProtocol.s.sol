@@ -14,8 +14,7 @@ import {RevenueModule} from "contracts/modules/RevenueModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {TSToken} from "contracts/token/TSToken.sol";
-import {TakasureReserveInitParams, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 contract TestDeployProtocol is Script {
@@ -48,7 +47,6 @@ contract TestDeployProtocol is Script {
         address daoMultisig;
         address takadaoOperator;
         address kycProvider;
-        TSToken creditToken;
         address subscriptionModuleAddress;
         address kycModuleAddress;
         address memberModuleAddress;
@@ -57,7 +55,6 @@ contract TestDeployProtocol is Script {
     function run()
         external
         returns (
-            address tsToken,
             address takasureReserve,
             address referralGatewayAddress,
             address subscriptionModuleAddress,
@@ -84,19 +81,14 @@ contract TestDeployProtocol is Script {
             ProtocolAddressType.Protocol
         );
 
-        TakasureReserveInitParams memory params = TakasureReserveInitParams({
-            contributionToken: config.contributionToken,
-            tokenAdmin: config.tokenAdmin,
-            addressManager: address(addressManager),
-            tokenName: config.tokenName,
-            tokenSymbol: config.tokenSymbol
-        });
-
         // Deploy TakasureReserve
         takasureReserveImplementation = address(new TakasureReserve());
         takasureReserve = UnsafeUpgrades.deployUUPSProxy(
             takasureReserveImplementation,
-            abi.encodeCall(TakasureReserve.initialize, (params))
+            abi.encodeCall(
+                TakasureReserve.initialize,
+                (config.contributionToken, address(addressManager))
+            )
         );
 
         addressManager.addProtocolAddress(
@@ -156,9 +148,6 @@ contract TestDeployProtocol is Script {
             revenueModuleAddress
         );
 
-        TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
-        tsToken = address(creditToken);
-
         _createRoles(address(addressManager));
 
         _assignRoles(
@@ -167,7 +156,6 @@ contract TestDeployProtocol is Script {
                 daoMultisig: config.daoMultisig,
                 takadaoOperator: config.takadaoOperator,
                 kycProvider: config.kycProvider,
-                creditToken: creditToken,
                 subscriptionModuleAddress: subscriptionModuleAddress,
                 kycModuleAddress: kycModuleAddress,
                 memberModuleAddress: memberModuleAddress
@@ -190,7 +178,6 @@ contract TestDeployProtocol is Script {
         addressManager.acceptProposedRole(Roles.KYC_PROVIDER);
 
         return (
-            tsToken,
             takasureReserve,
             referralGatewayAddress,
             subscriptionModuleAddress,
@@ -303,19 +290,6 @@ contract TestDeployProtocol is Script {
             Roles.KYC_PROVIDER,
             _params.kycProvider
         );
-        // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
-        // And the modules as burner and minters
-        _params.creditToken.grantRole(MINTER_ROLE, _params.subscriptionModuleAddress);
-        _params.creditToken.grantRole(MINTER_ROLE, _params.kycModuleAddress);
-        _params.creditToken.grantRole(MINTER_ROLE, _params.memberModuleAddress);
-        _params.creditToken.grantRole(BURNER_ROLE, _params.subscriptionModuleAddress);
-        _params.creditToken.grantRole(BURNER_ROLE, _params.kycModuleAddress);
-        _params.creditToken.grantRole(BURNER_ROLE, _params.memberModuleAddress);
-
-        // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
-        // And the burner and minter admins
-        _params.creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
-        _params.creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
     }
 
     // To avoid this contract to be count in coverage

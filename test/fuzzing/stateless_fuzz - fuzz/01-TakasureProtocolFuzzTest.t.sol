@@ -36,7 +36,6 @@ contract TakasureProtocolFuzzTest is Test {
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
-            ,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,

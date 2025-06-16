@@ -10,7 +10,6 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
-import {TSToken} from "contracts/token/TSToken.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, Reserve, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
@@ -42,7 +41,6 @@ contract Join_SubscriptionModuleTest is StdCheats, Test {
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
-            ,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -401,18 +399,15 @@ contract Join_SubscriptionModuleTest is StdCheats, Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        paySubscription::TOKENS MINTED
+                        paySubscription::CREDITS
     //////////////////////////////////////////////////////////////*/
-    /// @dev Test the tokens minted are staked in the pool
-    function testSubscriptionModule_tokensMinted() public {
+    /// @dev Test the credits are generated when a member joins
+    function testSubscriptionModule_creditsGenerated() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
-        address creditToken = reserve.daoToken;
-        TSToken creditTokenInstance = TSToken(creditToken);
+        Member memory member = takasureReserve.getMemberFromAddress(alice);
 
-        uint256 contractCreditTokenBalanceBefore = creditTokenInstance.balanceOf(
-            address(takasureReserve)
-        );
-        uint256 aliceCreditTokenBalanceBefore = creditTokenInstance.balanceOf(alice);
+        uint256 contractCreditsBefore = reserve.totalCredits;
+        uint256 aliceCreditsBefore = member.creditsBalance;
 
         vm.prank(alice);
         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
@@ -420,20 +415,16 @@ contract Join_SubscriptionModuleTest is StdCheats, Test {
         vm.prank(admin);
         kycModule.approveKYC(alice, BM);
 
-        uint256 contractCreditTokenBalanceAfter = creditTokenInstance.balanceOf(
-            address(takasureReserve)
-        );
-        uint256 aliceCreditTokenBalanceAfter = creditTokenInstance.balanceOf(alice);
+        reserve = takasureReserve.getReserveValues();
+        member = takasureReserve.getMemberFromAddress(alice);
 
-        Member memory member = takasureReserve.getMemberFromAddress(alice);
+        uint256 contractCreditsAfter = reserve.totalCredits;
+        uint256 aliceCreditsAfter = member.creditsBalance;
 
-        assertEq(contractCreditTokenBalanceBefore, 0);
-        assertEq(aliceCreditTokenBalanceBefore, 0);
-
-        assertEq(contractCreditTokenBalanceAfter, CONTRIBUTION_AMOUNT * 10 ** 12);
-        assertEq(aliceCreditTokenBalanceAfter, 0);
-
-        assertEq(member.creditTokensBalance, contractCreditTokenBalanceAfter);
+        assertEq(contractCreditsBefore, 0);
+        assertEq(aliceCreditsBefore, 0);
+        assertEq(contractCreditsAfter, CONTRIBUTION_AMOUNT * 10 ** 12);
+        assertEq(aliceCreditsAfter, CONTRIBUTION_AMOUNT * 10 ** 12);
     }
 
     function testGasBenchMark_paySubscriptionThroughUserRouter() public {

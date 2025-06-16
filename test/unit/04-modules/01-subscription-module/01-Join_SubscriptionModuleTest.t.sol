@@ -8,7 +8,6 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
-import {TSToken} from "contracts/token/TSToken.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
@@ -37,7 +36,6 @@ contract Join_SubscriptionModuleTest is StdCheats, Test {
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
-            ,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,

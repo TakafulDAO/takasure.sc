@@ -34,7 +34,6 @@ contract ReferralGatewayRefundTest is Test {
         deployer = new TestDeployProtocol();
         // Deploy contracts
         (
-            ,
             takasureReserveAddress,
             referralGatewayAddress,
             ,

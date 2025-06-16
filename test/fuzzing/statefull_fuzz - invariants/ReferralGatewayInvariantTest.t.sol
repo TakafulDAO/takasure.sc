@@ -32,7 +32,6 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
-            ,
             reserve,
             referralGatewayAddress,
             ,

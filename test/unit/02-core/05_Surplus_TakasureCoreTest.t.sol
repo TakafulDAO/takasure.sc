@@ -46,7 +46,6 @@ contract Surplus_TakasureCoreTest is StdCheats, Test {
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
-            ,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,

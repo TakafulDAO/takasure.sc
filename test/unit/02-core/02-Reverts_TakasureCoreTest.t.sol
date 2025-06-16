@@ -21,7 +21,7 @@ contract Reverts_TakasureCoreTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (, takasureReserveProxy, , , , , , , , , helperConfig) = deployer.run();
+        (takasureReserveProxy, , , , , , , , , helperConfig) = deployer.run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 

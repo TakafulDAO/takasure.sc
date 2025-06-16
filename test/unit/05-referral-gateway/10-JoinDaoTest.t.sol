@@ -34,7 +34,6 @@ contract ReferralGatewayJoinDaoTest is Test {
         deployer = new TestDeployProtocol();
         // Deploy contracts
         (
-            ,
             takasureReserveAddress,
             referralGatewayAddress,
             ,
