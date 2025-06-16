@@ -5,7 +5,6 @@ import {Reserve, Member, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 pragma solidity 0.8.28;
 
 interface ITakasureReserve {
-    function bmConsumer() external view returns (address);
     function kycProvider() external view returns (address);
     function feeClaimAddress() external view returns (address);
     function moduleManager() external view returns (address);

@@ -32,7 +32,7 @@ contract ReferralGateway is
     using SafeERC20 for IERC20;
 
     IERC20 public usdc;
-    IBenefitMultiplierConsumer private bmConsumer;
+    IBenefitMultiplierConsumer private bmConsumer; // DEPRECATED!!!
 
     address private operator;
 
@@ -68,7 +68,7 @@ contract ReferralGateway is
         address rePoolAddress; // To be assigned when the tDAO is deployed
         uint256 toRepool; // In USDC, six decimals
         uint256 referralReserve; // In USDC, six decimals
-        IBenefitMultiplierConsumer bmConsumer;
+        IBenefitMultiplierConsumer bmConsumer; // DEPRECATED!!!
         address subscriptionModule;
     }
 
@@ -144,10 +144,6 @@ contract ReferralGateway is
         bool status
     );
     event OnMemberKYCVerified(address indexed member);
-    event OnBenefitMultiplierConsumerChanged(
-        address indexed newBenefitMultiplierConsumer,
-        address indexed oldBenefitMultiplierConsumer
-    );
     event OnRefund(address indexed member, uint256 indexed amount);
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
@@ -177,14 +173,12 @@ contract ReferralGateway is
         address _operator,
         address _KYCProvider,
         address _pauseGuardian,
-        address _usdcAddress,
-        address _benefitMultiplierConsumer
+        address _usdcAddress
     ) external initializer {
         _notZeroAddress(_operator);
         _notZeroAddress(_KYCProvider);
         _notZeroAddress(_pauseGuardian);
         _notZeroAddress(_usdcAddress);
-        _notZeroAddress(_benefitMultiplierConsumer);
         _initDependencies();
 
         _grantRoles(_operator, _KYCProvider, _pauseGuardian);
@@ -212,8 +206,7 @@ contract ReferralGateway is
         bool isPreJoinEnabled,
         bool isReferralDiscountEnabled,
         uint256 launchDate,
-        uint256 objectiveAmount,
-        address _bmConsumer
+        uint256 objectiveAmount
     ) external whenNotPaused onlyRole(OPERATOR) {
         require(launchDate > block.timestamp, ReferralGateway__InvalidLaunchDate());
 
@@ -224,7 +217,7 @@ contract ReferralGateway is
         nameToDAOData[daoName].DAOAdmin = msg.sender;
         nameToDAOData[daoName].launchDate = launchDate;
         nameToDAOData[daoName].objectiveAmount = objectiveAmount;
-        nameToDAOData[daoName].bmConsumer = IBenefitMultiplierConsumer(_bmConsumer);
+        nameToDAOData[daoName].bmConsumer = IBenefitMultiplierConsumer(address(0)); // DEPRECATED!!!
 
         emit OnNewDAO(isPreJoinEnabled, isReferralDiscountEnabled, launchDate, objectiveAmount);
     }
@@ -471,21 +464,6 @@ contract ReferralGateway is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function setNewBenefitMultiplierConsumer(
-        address newBenefitMultiplierConsumer
-    ) external onlyRole(OPERATOR) {
-        _notZeroAddress(newBenefitMultiplierConsumer);
-        address oldBenefitMultiplierConsumer = address(nameToDAOData[daoName].bmConsumer);
-        nameToDAOData[daoName].bmConsumer = IBenefitMultiplierConsumer(
-            newBenefitMultiplierConsumer
-        );
-
-        emit OnBenefitMultiplierConsumerChanged(
-            newBenefitMultiplierConsumer,
-            oldBenefitMultiplierConsumer
-        );
-    }
-
     function setNewOperator(address newOperator) external onlyRole(OPERATOR) {
         _notZeroAddress(newOperator);
         address oldOperator = operator;
@@ -606,13 +584,6 @@ contract ReferralGateway is
         _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
     }
 
-    function _getBenefitMultiplierFromOracle(address _member) internal {
-        string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
-        string[] memory args = new string[](1);
-        args[0] = memberAddressToString;
-        nameToDAOData[daoName].bmConsumer.sendRequest(args);
-    }
-
     function _payContribution(
         uint256 _contribution,
         address _parent,
@@ -696,9 +667,6 @@ contract ReferralGateway is
         nameToDAOData[daoName].prepaidMembers[_newMember].feeToOperator = _finalFee;
         nameToDAOData[daoName].prepaidMembers[_newMember].discount = _discount;
         nameToDAOData[daoName].prepaidMembers[_newMember].isDonated = _isDonated;
-
-        // Finally, we request the benefit multiplier for the member, this to have it ready when the member joins the DAO
-        _getBenefitMultiplierFromOracle(_newMember);
 
         emit OnPrepayment(_parent, _newMember, normalizedContribution, _finalFee, _discount);
     }

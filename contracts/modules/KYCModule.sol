@@ -8,7 +8,6 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
@@ -89,7 +88,10 @@ contract KYCModule is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function approveKYC(address memberWallet) external onlyRole(Roles.KYC_PROVIDER) {
+    function approveKYC(
+        address memberWallet,
+        uint256 benefitMultiplier
+    ) external onlyRole(Roles.KYC_PROVIDER) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(memberWallet);
 
@@ -103,8 +105,6 @@ contract KYCModule is
             newMember.contribution > 0 && !newMember.isRefunded,
             KYCModule__ContributionRequired()
         );
-
-        uint256 benefitMultiplier = _getBenefitMultiplierFromOracle(memberWallet);
 
         // We update the member values
         newMember.benefitMultiplier = benefitMultiplier;
@@ -159,35 +159,6 @@ contract KYCModule is
 
         _setNewReserveAndMemberValuesHook(takasureReserve, reserve, newMember);
         takasureReserve.memberSurplus(newMember);
-    }
-
-    function _getBenefitMultiplierFromOracle(
-        address _member
-    ) internal returns (uint256 benefitMultiplier_) {
-        address bmConsumerAddress = IAddressManager(address(takasureReserve.addressManager()))
-            .getProtocolAddressByName("BENEFIT_MULTIPLIER_CONSUMER")
-            .addr;
-        IBenefitMultiplierConsumer bmConsumer = IBenefitMultiplierConsumer(bmConsumerAddress);
-
-        string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
-        // First we check if there is already a request id for this member
-        bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);
-        if (requestId == 0) {
-            // If there is no request id, it means the member has no valid BM yet. So we make a new request
-            string[] memory args = new string[](1);
-            args[0] = memberAddressToString;
-            bmConsumer.sendRequest(args);
-        } else {
-            // If there is a request id, we check if it was successful
-            bool successRequest = bmConsumer.idToSuccessRequest(requestId);
-            if (successRequest) {
-                benefitMultiplier_ = bmConsumer.idToBenefitMultiplier(requestId);
-            } else {
-                // If failed we get the error and revert with it
-                bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
-                revert KYCModule__BenefitMultiplierRequestFailed(errorResponse);
-            }
-        }
     }
 
     function _transferContributionToReserve(

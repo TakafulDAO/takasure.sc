@@ -8,7 +8,6 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
@@ -57,7 +56,6 @@ contract SubscriptionModule is
 
     error SubscriptionModule__InvalidContribution();
     error SubscriptionModule__AlreadyJoined();
-    error SubscriptionModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error SubscriptionModule__MemberAlreadyKYCed();
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__TooEarlytoRefund();
@@ -122,8 +120,7 @@ contract SubscriptionModule is
 
         (
             Reserve memory reserve,
-            Member memory newMember,
-            uint256 benefitMultiplier
+            Member memory newMember
         ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
         _joinFromReferralGateway(
@@ -131,8 +128,7 @@ contract SubscriptionModule is
             newMember,
             memberWallet,
             parentWallet,
-            membershipDuration,
-            benefitMultiplier
+            membershipDuration
         );
     }
 
@@ -156,8 +152,7 @@ contract SubscriptionModule is
     ) external nonReentrant {
         (
             Reserve memory reserve,
-            Member memory newMember,
-            uint256 benefitMultiplier
+            Member memory newMember
         ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
         // Check caller
@@ -174,7 +169,6 @@ contract SubscriptionModule is
             parentWallet,
             contributionBeforeFee,
             membershipDuration,
-            benefitMultiplier,
             0
         );
     }
@@ -192,8 +186,7 @@ contract SubscriptionModule is
     ) external nonReentrant onlyRole(Roles.COUPON_REDEEMER) {
         (
             Reserve memory reserve,
-            Member memory newMember,
-            uint256 benefitMultiplier
+            Member memory newMember
         ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
         // Check if the coupon amount is valid
@@ -206,7 +199,6 @@ contract SubscriptionModule is
             parentWallet,
             contributionBeforeFee,
             membershipDuration,
-            benefitMultiplier,
             couponAmount
         );
 
@@ -253,7 +245,7 @@ contract SubscriptionModule is
         uint256 _contributionBeforeFee
     )
         internal
-        returns (Reserve memory reserve_, Member memory newMember_, uint256 benefitMultiplier_)
+        returns (Reserve memory reserve_, Member memory newMember_)
     {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
@@ -268,8 +260,6 @@ contract SubscriptionModule is
             );
         }
 
-        benefitMultiplier_ = _getBenefitMultiplierFromOracle(_memberWallet);
-
         _calculateAmountAndFees(_contributionBeforeFee, reserve_.serviceFee);
     }
 
@@ -278,14 +268,12 @@ contract SubscriptionModule is
         Member memory _newMember,
         address _memberWallet,
         address _parentWallet,
-        uint256 _membershipDuration,
-        uint256 _benefitMultiplier
+        uint256 _membershipDuration
     ) internal {
         _newMember = _createNewMember({
             _newMemberId: ++_reserve.memberIdCounter,
             _allowCustomDuration: _reserve.allowCustomDuration,
             _drr: _reserve.dynamicReserveRatio,
-            _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
             _membershipDuration: _membershipDuration, // From the input
             _isKYCVerified: true, // All members from prejoin are KYCed
             _memberWallet: _memberWallet, // The member wallet
@@ -321,7 +309,6 @@ contract SubscriptionModule is
         address _parentWallet,
         uint256 _contributionBeforeFee,
         uint256 _membershipDuration,
-        uint256 _benefitMultiplier,
         uint256 _couponAmount
     ) internal {
         require(
@@ -349,7 +336,6 @@ contract SubscriptionModule is
             _newMemberId: memberId,
             _allowCustomDuration: _reserve.allowCustomDuration,
             _drr: _reserve.dynamicReserveRatio,
-            _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
             _membershipDuration: _membershipDuration, // From the input
             _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
             _memberWallet: _memberWallet, // The member wallet
@@ -496,7 +482,6 @@ contract SubscriptionModule is
         uint256 _newMemberId,
         bool _allowCustomDuration,
         uint256 _drr,
-        uint256 _benefitMultiplier,
         uint256 _membershipDuration,
         bool _isKYCVerified,
         address _memberWallet,
@@ -516,7 +501,7 @@ contract SubscriptionModule is
 
         Member memory newMember = Member({
             memberId: _newMemberId,
-            benefitMultiplier: _benefitMultiplier,
+            benefitMultiplier: 0, // Placeholder, will be set after the KYC
             membershipDuration: userMembershipDuration,
             membershipStartTime: block.timestamp,
             lastPaidYearStartDate: block.timestamp,
@@ -539,7 +524,6 @@ contract SubscriptionModule is
         emit TakasureEvents.OnMemberCreated(
             newMember.memberId,
             _memberWallet,
-            _benefitMultiplier,
             normalizedContributionBeforeFee,
             feeAmount,
             userMembershipDuration,
@@ -560,36 +544,6 @@ contract SubscriptionModule is
         // to the takasure reserve. Otherwise, the transfer will be done by this contract
         if (msg.sender != referralGateway) {
             _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee - discount);
-        }
-    }
-
-    function _getBenefitMultiplierFromOracle(
-        address _member
-    ) internal returns (uint256 benefitMultiplier_) {
-        address bmConsumerAddress = IAddressManager(address(takasureReserve.addressManager()))
-            .getProtocolAddressByName("BENEFIT_MULTIPLIER_CONSUMER")
-            .addr;
-        IBenefitMultiplierConsumer bmConsumer = IBenefitMultiplierConsumer(bmConsumerAddress);
-
-        string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
-        // First we check if there is already a request id for this member
-        bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);
-
-        if (requestId == 0) {
-            // If there is no request id, it means the member has no valid BM yet. So we make a new request
-            string[] memory args = new string[](1);
-            args[0] = memberAddressToString;
-            bmConsumer.sendRequest(args);
-        } else {
-            // If there is a request id, we check if it was successful
-            bool successRequest = bmConsumer.idToSuccessRequest(requestId);
-            if (successRequest) {
-                benefitMultiplier_ = bmConsumer.idToBenefitMultiplier(requestId);
-            } else {
-                // If failed we get the error and revert with it
-                bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
-                revert SubscriptionModule__BenefitMultiplierRequestFailed(errorResponse);
-            }
         }
     }
 

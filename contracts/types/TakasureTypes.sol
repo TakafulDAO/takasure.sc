@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GNU GPLv3
-import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 
 pragma solidity 0.8.28;
 
@@ -96,24 +95,6 @@ struct Member {
     bool isRefunded; // Can not be true if isKYCVerified is true
     uint256 lastEcr; // the last ECR calculated
     uint256 lastUcr; // the last UCR calculated
-}
-
-struct tDAO {
-    mapping(address member => PrepaidMember) prepaidMembers;
-    string name;
-    bool preJoinEnabled;
-    bool referralDiscount;
-    address DAOAdmin; // Deprecated. DAOAdmin == Operator
-    address DAOAddress; // To be assigned when the tDAO is deployed
-    uint256 launchDate; // In seconds. An estimated launch date of the DAO
-    uint256 objectiveAmount; // Deprecated
-    uint256 currentAmount; // In USDC, six decimals
-    uint256 collectedFees; // Fees collected after deduct, discounts, referral reserve and repool amounts. In USDC, six decimals
-    address rePoolAddress; // To be assigned when the tDAO is deployed
-    uint256 toRepool; // In USDC, six decimals
-    uint256 referralReserve; // In USDC, six decimals
-    IBenefitMultiplierConsumer bmConsumer;
-    address entryModule; // The module that will be used to enter the DAO
 }
 
 struct Reserve {
