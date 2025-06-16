@@ -8,7 +8,6 @@ import {TSToken} from "contracts/token/TSToken.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
-import {BenefitMultiplierConsumer} from "contracts/helpers/chainlink/functions/BenefitMultiplierConsumer.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
@@ -29,13 +28,6 @@ contract DeployTakasureReserve is Script {
     {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
-
-        string memory root = vm.projectRoot();
-        string memory scriptPath = string.concat(
-            root,
-            "/scripts/chainlink-functions/bmFetchCode.js"
-        );
-        string memory bmFetchScript = vm.readFile(scriptPath);
 
         vm.startBroadcast();
 
@@ -58,14 +50,6 @@ contract DeployTakasureReserve is Script {
             )
         );
 
-        // Deploy BenefitMultiplierConsumer
-        BenefitMultiplierConsumer benefitMultiplierConsumer = new BenefitMultiplierConsumer(
-            config.functionsRouter,
-            config.donId,
-            config.gasLimit,
-            config.subscriptionId
-        );
-
         // Deploy EntryModule
         entryModule = Upgrades.deployUUPSProxy(
             "EntryModule.sol",
@@ -83,17 +67,6 @@ contract DeployTakasureReserve is Script {
             "RevenueModule.sol",
             abi.encodeCall(RevenueModule.initialize, (takasureReserve))
         );
-
-        // Set BenefitMultiplierConsumer as an oracle in TakasurePool
-        TakasureReserve(takasureReserve).setNewBenefitMultiplierConsumerAddress(
-            address(benefitMultiplierConsumer)
-        );
-
-        // Add new source code to BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
-
-        // Setting EntryModule as a requester in BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setNewRequester(entryModule);
 
         // Set EntryModule as a module in TakasurePool
         // TakasureReserve(takasureReserve).setNewModuleContract(entryModule);
