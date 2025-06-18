@@ -27,7 +27,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     uint256 public totalSupply; // Total supply of NFTs minted
 
     uint256 public constant NFT_PRICE = 250e6; // 250 USDC, this is the max contribution
-    // Tokens 9181 to 18_000 are reserved for coupon buyers
+    // Tokens 9181 to 18_000 are reserved for pioneers
     uint256 public constant MAX_SUPPLY = 18_000;
     // Not minted, but we'll assume it is minted for the revenue calculation
     // Tokens 1 to 9180 are reserved for Takadao
