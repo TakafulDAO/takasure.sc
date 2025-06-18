@@ -20,7 +20,7 @@ pragma solidity 0.8.28;
 contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     using SafeERC20 for IERC20;
 
-    address private immutable takadaoOperator;
+    address private immutable operator;
     address private revShareModule;
     string public baseURI; // Base URI for the NFTs
 
@@ -30,8 +30,8 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     // Tokens 9181 to 18_000 are reserved for pioneers
     uint256 public constant MAX_SUPPLY = 18_000;
     // Not minted, but we'll assume it is minted for the revenue calculation
-    // Tokens 1 to 9180 are reserved for Takadao
-    uint256 private constant TAKADAO_BALANCE = 9_180;
+    // Tokens 1 to 9180 are reserved for owner
+    uint256 private constant OWNER_BALANCE = 9_180;
     uint256 private constant DECIMAL_CORRECTION = 1e6;
 
     /*//////////////////////////////////////////////////////////////
@@ -52,7 +52,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     constructor(address _operator) Ownable(msg.sender) ERC721("RevShareNFT", "RSNFT") {
         AddressAndStates._notZeroAddress(_operator);
 
-        takadaoOperator = _operator;
+        operator = _operator;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -92,7 +92,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
 
         // Update the revenues
         // _updateRevenue(member);
-        // _updateRevenue(takadaoOperator);
+        // _updateRevenue(operator);
 
         _safeMint(member, tokenId);
 
@@ -152,7 +152,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     }
 
     function balanceOf(address owner) public view override(ERC721) returns (uint256) {
-        if (owner == takadaoOperator) return TAKADAO_BALANCE;
+        if (owner == operator) return OWNER_BALANCE;
         return super.balanceOf(owner);
     }
 
@@ -161,7 +161,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     //////////////////////////////////////////////////////////////*/
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        if (tokenId >= TAKADAO_BALANCE) {
+        if (tokenId >= OWNER_BALANCE) {
             _requireOwned(tokenId);
         }
 
