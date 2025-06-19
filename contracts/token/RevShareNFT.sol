@@ -26,13 +26,11 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
 
     uint256 public totalSupply; // Total supply of NFTs minted
 
-    uint256 public constant NFT_PRICE = 250e6; // 250 USDC, this is the max contribution
     // Tokens 9181 to 18_000 are reserved for pioneers
     uint256 public constant MAX_SUPPLY = 18_000;
     // Not minted, but we'll assume it is minted for the revenue calculation
     // Tokens 1 to 9180 are reserved for owner
     uint256 private constant OWNER_BALANCE = 9_180;
-    uint256 private constant DECIMAL_CORRECTION = 1e6;
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
@@ -48,6 +46,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     );
 
     error RevShareNFT__MaxSupplyReached();
+    error RevShareNFT__BatchMintMoreThanOne();
 
     constructor(address _operator) Ownable(msg.sender) ERC721("RevShareNFT", "RSNFT") {
         AddressAndStates._notZeroAddress(_operator);
@@ -80,11 +79,11 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
 
     /**
      * @notice Mint single token to a user or activate an existing token from a coupon buyer
-     * @param member The address of the member to mint a single NFT. This is only used for SINGLE_MINT
+     * @param nftOwner The address of the member to mint a single NFT. This is only used for SINGLE_MINT
      * @dev Only callable by someone with owner
      */
-    function mint(address member) external onlyOwner {
-        AddressAndStates._notZeroAddress(member);
+    function mint(address nftOwner) external onlyOwner {
+        AddressAndStates._notZeroAddress(nftOwner);
         require(totalSupply < MAX_SUPPLY, RevShareNFT__MaxSupplyReached());
 
         uint256 tokenId = totalSupply;
@@ -94,39 +93,35 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         // _updateRevenue(member);
         // _updateRevenue(operator);
 
-        _safeMint(member, tokenId);
+        _safeMint(nftOwner, tokenId);
 
-        emit OnRevShareNFTMinted(member, tokenId);
+        emit OnRevShareNFTMinted(nftOwner, tokenId);
     }
 
     /**
      * @notice Mint multiple tokens to a coupon buyer
-     * @param couponBuyer The address of the coupon buyer to mint the NFTs
+     * @param nftOwner The address of the coupon buyer to mint the NFTs
+     * @param tokensToMint Amount of NFTs
      * @dev Only callable by owner
      */
-    function batchMint(address couponBuyer, uint256 amountPaid) external nonReentrant onlyOwner {
-        AddressAndStates._notZeroAddress(couponBuyer);
+    function batchMint(address nftOwner, uint256 tokensToMint) external nonReentrant onlyOwner {
+        AddressAndStates._notZeroAddress(nftOwner);
         require(totalSupply < MAX_SUPPLY, RevShareNFT__MaxSupplyReached());
-
-        // Check how many NFTs the coupon buyer can mint
-        uint256 maxNFTsAllowed = amountPaid / NFT_PRICE; // 550 / 250 = 2.2 => 2 NFTs
+        require(tokensToMint > 1, RevShareNFT__BatchMintMoreThanOne());
 
         uint256 firstNewTokenId = totalSupply;
+        totalSupply += tokensToMint;
+        uint256 lastNewTokenId = firstNewTokenId + tokensToMint;
 
-        totalSupply += maxNFTsAllowed;
+        // Update the revenues
+        // _updateRevenue(member);
+        // _updateRevenue(operator);
 
-        if (maxNFTsAllowed == 1) {
-            _safeMint(couponBuyer, firstNewTokenId);
-            emit OnRevShareNFTMinted(couponBuyer, firstNewTokenId);
-        } else {
-            uint256 lastNewTokenId = firstNewTokenId + maxNFTsAllowed;
-
-            for (uint256 i = firstNewTokenId; i < lastNewTokenId; ++i) {
-                _safeMint(couponBuyer, i);
-            }
-
-            emit OnBatchRevShareNFTMinted(couponBuyer, firstNewTokenId, lastNewTokenId);
+        for (uint256 i = firstNewTokenId; i < lastNewTokenId; ++i) {
+            _safeMint(nftOwner, i);
         }
+
+        emit OnBatchRevShareNFTMinted(nftOwner, firstNewTokenId, lastNewTokenId);
     }
 
     /**
@@ -151,14 +146,14 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         super.transferFrom(from, to, tokenId);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
+
     function balanceOf(address owner) public view override(ERC721) returns (uint256) {
         if (owner == operator) return OWNER_BALANCE;
         return super.balanceOf(owner);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                GETTERS
-    //////////////////////////////////////////////////////////////*/
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         if (tokenId >= OWNER_BALANCE) {
