@@ -6,6 +6,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
 
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
@@ -21,7 +22,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     using SafeERC20 for IERC20;
 
     address private immutable operator;
-    address private revShareModule;
+    IRevShareModule private revShareModule;
     string public baseURI; // Base URI for the NFTs
 
     uint256 public totalSupply; // Total supply of NFTs minted
@@ -61,8 +62,8 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     function setRevShareModule(address _revShareModule) external onlyOwner {
         AddressAndStates._notZeroAddress(_revShareModule);
 
-        address oldRevShareModule = revShareModule;
-        revShareModule = _revShareModule;
+        address oldRevShareModule = address(revShareModule);
+        revShareModule = IRevShareModule(_revShareModule);
 
         emit OnRevShareModuleSet(oldRevShareModule, _revShareModule);
     }
@@ -78,7 +79,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Mint single token to a user or activate an existing token from a coupon buyer
+     * @notice Mint single token to a user
      * @param nftOwner The address of the member to mint a single NFT. This is only used for SINGLE_MINT
      * @dev Only callable by someone with owner
      */
@@ -89,9 +90,11 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         uint256 tokenId = totalSupply;
         ++totalSupply;
 
-        // Update the revenues
-        // _updateRevenue(member);
-        // _updateRevenue(operator);
+        // Update the revenues if the contract is set up to do so
+        if (address(revShareModule) != address(0)) {
+            IRevShareModule(revShareModule).updateRevenue(nftOwner);
+            IRevShareModule(revShareModule).updateRevenue(operator);
+        }
 
         _safeMint(nftOwner, tokenId);
 
@@ -113,9 +116,11 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         totalSupply += tokensToMint;
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint;
 
-        // Update the revenues
-        // _updateRevenue(member);
-        // _updateRevenue(operator);
+        // Update the revenues if the contract is set up to do so
+        if (address(revShareModule) != address(0)) {
+            IRevShareModule(revShareModule).updateRevenue(nftOwner);
+            IRevShareModule(revShareModule).updateRevenue(operator);
+        }
 
         for (uint256 i = firstNewTokenId; i < lastNewTokenId; ++i) {
             _safeMint(nftOwner, i);
@@ -129,8 +134,11 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
      * @dev The revenues are updated for both the sender and the receiver
      */
     function transfer(address to, uint256 tokenId) external {
-        // _updateRevenue(msg.sender);
-        // _updateRevenue(to);
+        // Update the revenues if the contract is set up to do so
+        if (address(revShareModule) != address(0)) {
+            IRevShareModule(revShareModule).updateRevenue(msg.sender);
+            IRevShareModule(revShareModule).updateRevenue(to);
+        }
 
         _safeTransfer(msg.sender, to, tokenId, "");
     }
@@ -140,8 +148,11 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
      * @dev The revenues are updated for both the sender and the receiver
      */
     function transferFrom(address from, address to, uint256 tokenId) public override(ERC721) {
-        // _updateRevenue(from);
-        // _updateRevenue(to);
+        // Update the revenues if the contract is set up to do so
+        if (address(revShareModule) != address(0)) {
+            IRevShareModule(revShareModule).updateRevenue(from);
+            IRevShareModule(revShareModule).updateRevenue(to);
+        }
 
         super.transferFrom(from, to, tokenId);
     }
