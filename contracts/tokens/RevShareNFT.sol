@@ -26,12 +26,10 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     string public baseURI; // Base URI for the NFTs
 
     uint256 public totalSupply; // Total supply of NFTs minted
+    uint256 private operatorBalance;
 
     // Tokens 9181 to 18_000 are reserved for pioneers
     uint256 public constant MAX_SUPPLY = 18_000;
-    // Not minted, but we'll assume it is minted for the revenue calculation
-    // Tokens 1 to 9180 are reserved for owner
-    uint256 private constant OWNER_BALANCE = 9_180;
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
@@ -41,7 +39,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     event OnBaseURISet(string indexed oldBaseUri, string indexed newBaseURI);
     event OnRevShareNFTMinted(address indexed owner, uint256 tokenId);
     event OnBatchRevShareNFTMinted(
-        address indexed couponBuyer,
+        address indexed newOwner,
         uint256 initialTokenId,
         uint256 lastTokenId
     );
@@ -53,6 +51,10 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         AddressAndStates._notZeroAddress(_operator);
 
         operator = _operator;
+
+        // Not minted, but we'll assume it is minted for the revenue calculation
+        operatorBalance = 9_180; // 9180 tokens reserved for operator
+        totalSupply = operatorBalance - 1; // 9180 tokens reserved for operator, but we start at 0
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -85,10 +87,13 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
      */
     function mint(address nftOwner) external onlyOwner {
         AddressAndStates._notZeroAddress(nftOwner);
+
         require(totalSupply < MAX_SUPPLY, RevShareNFT__MaxSupplyReached());
 
         uint256 tokenId = totalSupply;
         ++totalSupply;
+
+        if (nftOwner == operator) ++operatorBalance;
 
         // Update the revenues if the contract is set up to do so
         if (address(revShareModule) != address(0)) {
@@ -102,8 +107,8 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     }
 
     /**
-     * @notice Mint multiple tokens to a coupon buyer
-     * @param nftOwner The address of the coupon buyer to mint the NFTs
+     * @notice Mint multiple tokens
+     * @param nftOwner The address to mint
      * @param tokensToMint Amount of NFTs
      * @dev Only callable by owner
      */
@@ -114,6 +119,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
 
         uint256 firstNewTokenId = totalSupply;
         totalSupply += tokensToMint;
+        if (nftOwner == operator) operatorBalance += tokensToMint;
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint;
 
         // Update the revenues if the contract is set up to do so
@@ -140,6 +146,13 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
             IRevShareModule(revShareModule).updateRevenue(to);
         }
 
+        // From Id 0 to Id 9179 we are assuming minted to the operator from the begining
+        // So we have to mint those tokens before transfer
+        if (msg.sender == operator && tokenId < 9_180) {
+            _safeMint(msg.sender, tokenId);
+            --operatorBalance;
+        }
+
         _safeTransfer(msg.sender, to, tokenId, "");
     }
 
@@ -154,6 +167,13 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
             IRevShareModule(revShareModule).updateRevenue(to);
         }
 
+        // From Id 0 to Id 9179 we are assuming minted to the operator from the begining
+        // So we have to mint those tokens before transfer
+        if (from == operator && tokenId < 9_180) {
+            _safeMint(from, tokenId);
+            --operatorBalance;
+        }
+
         super.transferFrom(from, to, tokenId);
     }
 
@@ -162,15 +182,11 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     //////////////////////////////////////////////////////////////*/
 
     function balanceOf(address owner) public view override(ERC721) returns (uint256) {
-        if (owner == operator) return OWNER_BALANCE;
+        if (owner == operator) return operatorBalance;
         return super.balanceOf(owner);
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        if (tokenId >= OWNER_BALANCE) {
-            _requireOwned(tokenId);
-        }
-
         return
             bytes(baseURI).length > 0
                 ? string.concat(baseURI, Strings.toString(tokenId), ".json")
