@@ -7,6 +7,8 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
+import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
@@ -21,8 +23,9 @@ pragma solidity 0.8.28;
 contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     using SafeERC20 for IERC20;
 
+    ITakasureReserve private takasureReserve;
+
     address private immutable operator;
-    IRevShareModule private revShareModule;
     string public baseURI; // Base URI for the NFTs
 
     uint256 public totalSupply; // Total supply of NFTs minted
@@ -35,6 +38,10 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    event OnTakasureReserveSet(
+        address indexed oldTakasureReserve,
+        address indexed newTakasureReserve
+    );
     event OnRevShareModuleSet(address indexed oldRevShareModule, address indexed newRevShareModule);
     event OnBaseURISet(string indexed oldBaseUri, string indexed newBaseURI);
     event OnRevShareNFTMinted(address indexed owner, uint256 tokenId);
@@ -61,13 +68,13 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
                                 SETTINGS
     //////////////////////////////////////////////////////////////*/
 
-    function setRevShareModule(address _revShareModule) external onlyOwner {
-        AddressAndStates._notZeroAddress(_revShareModule);
+    function setTakasureReserve(address _takasureReserve) external onlyOwner {
+        AddressAndStates._notZeroAddress(_takasureReserve);
 
-        address oldRevShareModule = address(revShareModule);
-        revShareModule = IRevShareModule(_revShareModule);
+        address oldTakasureReserve = address(takasureReserve);
+        takasureReserve = ITakasureReserve(_takasureReserve);
 
-        emit OnRevShareModuleSet(oldRevShareModule, _revShareModule);
+        emit OnTakasureReserveSet(oldTakasureReserve, _takasureReserve);
     }
 
     function setBaseURI(string calldata _newBaseURI) external onlyOwner {
@@ -96,10 +103,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         if (nftOwner == operator) ++operatorBalance;
 
         // Update the revenues if the contract is set up to do so
-        if (address(revShareModule) != address(0)) {
-            IRevShareModule(revShareModule).updateRevenue(nftOwner);
-            IRevShareModule(revShareModule).updateRevenue(operator);
-        }
+        _updateRevenuesIfProtocolIsSetUp(nftOwner, operator);
 
         _safeMint(nftOwner, tokenId);
 
@@ -123,10 +127,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint;
 
         // Update the revenues if the contract is set up to do so
-        if (address(revShareModule) != address(0)) {
-            IRevShareModule(revShareModule).updateRevenue(nftOwner);
-            IRevShareModule(revShareModule).updateRevenue(operator);
-        }
+        _updateRevenuesIfProtocolIsSetUp(nftOwner, operator);
 
         for (uint256 i = firstNewTokenId; i < lastNewTokenId; ++i) {
             _safeMint(nftOwner, i);
@@ -141,10 +142,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
      */
     function transfer(address to, uint256 tokenId) external {
         // Update the revenues if the contract is set up to do so
-        if (address(revShareModule) != address(0)) {
-            IRevShareModule(revShareModule).updateRevenue(msg.sender);
-            IRevShareModule(revShareModule).updateRevenue(to);
-        }
+        _updateRevenuesIfProtocolIsSetUp(msg.sender, to);
 
         // From Id 0 to Id 9179 we are assuming minted to the operator from the begining
         // So we have to mint those tokens before transfer
@@ -162,10 +160,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
      */
     function transferFrom(address from, address to, uint256 tokenId) public override(ERC721) {
         // Update the revenues if the contract is set up to do so
-        if (address(revShareModule) != address(0)) {
-            IRevShareModule(revShareModule).updateRevenue(from);
-            IRevShareModule(revShareModule).updateRevenue(to);
-        }
+        _updateRevenuesIfProtocolIsSetUp(from, to);
 
         // From Id 0 to Id 9179 we are assuming minted to the operator from the begining
         // So we have to mint those tokens before transfer
@@ -191,5 +186,22 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
             bytes(baseURI).length > 0
                 ? string.concat(baseURI, Strings.toString(tokenId), ".json")
                 : "";
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function _updateRevenuesIfProtocolIsSetUp(address _a, address _b) internal {
+        if (address(takasureReserve) != address(0)) {
+            address revShareModule = IAddressManager(takasureReserve.addressManager())
+                .getProtocolAddressByName("RevShareModule")
+                .addr;
+
+            if (revShareModule != address(0)) {
+                IRevShareModule(revShareModule).updateRevenue(_a);
+                IRevShareModule(revShareModule).updateRevenue(_b);
+            }
+        }
     }
 }
