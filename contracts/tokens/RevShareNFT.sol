@@ -25,7 +25,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
 
     ITakasureReserve private takasureReserve;
 
-    address private immutable operator;
+    address public immutable operator;
     string public baseURI; // Base URI for the NFTs
 
     uint256 public totalSupply; // Total supply of NFTs minted
@@ -194,9 +194,17 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
 
     function _updateRevenuesIfProtocolIsSetUp(address _a, address _b) internal {
         if (address(takasureReserve) != address(0)) {
-            address revShareModule = IAddressManager(takasureReserve.addressManager())
-                .getProtocolAddressByName("RevShareModule")
-                .addr;
+            address revShareModule;
+
+            try
+                IAddressManager(takasureReserve.addressManager()).getProtocolAddressByName(
+                    "RevShareModule"
+                )
+            {
+                revShareModule = IAddressManager(takasureReserve.addressManager())
+                    .getProtocolAddressByName("RevShareModule")
+                    .addr;
+            } catch {}
 
             if (revShareModule != address(0)) {
                 IRevShareModule(revShareModule).updateRevenue(_a);
