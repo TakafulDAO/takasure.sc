@@ -57,10 +57,14 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     error RevShareNFT__BatchMintMoreThanOne();
     error RevShareNFT__NotEnoughBalance();
 
-    constructor(address _operator) Ownable(msg.sender) ERC721("RevShareNFT", "RSNFT") {
+    constructor(
+        address _operator,
+        string memory _baseURI
+    ) Ownable(msg.sender) ERC721("RevShareNFT", "RSNFT") {
         AddressAndStates._notZeroAddress(_operator);
 
         operator = _operator;
+        baseURI = _baseURI;
 
         totalSupply = OPERATOR_RESERVED_TOKENS - 1; // We assume that the operator has 9180 tokens already minted and the tokenId starts at 0
     }

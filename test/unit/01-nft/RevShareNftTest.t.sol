@@ -28,7 +28,9 @@ contract RevShareNftTest is Test {
     );
 
     function setUp() public {
-        nft = new RevShareNFT(operator);
+        string
+            memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
+        nft = new RevShareNFT(operator, baseURI);
 
         addressManager = new AddressManager();
 
@@ -52,6 +54,10 @@ contract RevShareNftTest is Test {
         assertEq(nft.MAX_SUPPLY(), 18_000);
         assertEq(nft.balanceOf(operator), nft.MAX_SUPPLY());
         assertEq(nft.totalSupply(), 9_179);
+        assertEq(
+            nft.baseURI(),
+            "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/"
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -69,7 +75,7 @@ contract RevShareNftTest is Test {
         vm.prank(nft.owner());
         vm.expectEmit(true, true, false, false, address(nft));
         emit OnBaseURISet(
-            "",
+            "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/",
             "https://ipfs.io/ipfs/Qmb2yMfCt7zqCP5C2aoMAeYh9qyfabSTcb7URzV85zfZME/"
         );
         nft.setBaseURI("https://ipfs.io/ipfs/Qmb2yMfCt7zqCP5C2aoMAeYh9qyfabSTcb7URzV85zfZME/");
