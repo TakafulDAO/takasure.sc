@@ -50,8 +50,8 @@ contract RevShareNftTest is Test {
     function testNft_initialValues() public view {
         assertEq(nft.operator(), operator);
         assertEq(nft.MAX_SUPPLY(), 18_000);
-        assertEq(nft.balanceOf(operator), 9180);
-        assertEq(nft.totalSupply(), nft.balanceOf(operator) - 1);
+        assertEq(nft.balanceOf(operator), nft.MAX_SUPPLY());
+        assertEq(nft.totalSupply(), 9_179);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -144,13 +144,13 @@ contract RevShareNftTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testNft_transferNft() public {
-        assertEq(nft.balanceOf(operator), 9180);
+        assertEq(nft.balanceOf(operator), 18_000);
         assertEq(nft.balanceOf(alice), 0);
 
         vm.prank(operator);
         nft.transfer(alice, 1);
 
-        assertEq(nft.balanceOf(operator), 9179);
+        assertEq(nft.balanceOf(operator), 17_999);
         assertEq(nft.balanceOf(alice), 1);
     }
 
@@ -158,7 +158,7 @@ contract RevShareNftTest is Test {
         address bob = makeAddr("bob");
         address charlie = makeAddr("charlie");
 
-        assertEq(nft.balanceOf(operator), 9180);
+        assertEq(nft.balanceOf(operator), 18_000);
         assertEq(nft.balanceOf(alice), 0);
         assertEq(nft.balanceOf(bob), 0);
         assertEq(nft.balanceOf(charlie), 0);
@@ -166,7 +166,7 @@ contract RevShareNftTest is Test {
         vm.prank(operator);
         nft.transfer(alice, 1);
 
-        assertEq(nft.balanceOf(operator), 9179);
+        assertEq(nft.balanceOf(operator), 17_999);
         assertEq(nft.balanceOf(alice), 1);
         assertEq(nft.balanceOf(bob), 0);
         assertEq(nft.balanceOf(charlie), 0);
@@ -177,7 +177,7 @@ contract RevShareNftTest is Test {
         vm.prank(bob);
         nft.transferFrom(alice, charlie, 1);
 
-        assertEq(nft.balanceOf(operator), 9179);
+        assertEq(nft.balanceOf(operator), 17_999);
         assertEq(nft.balanceOf(alice), 0);
         assertEq(nft.balanceOf(bob), 0);
         assertEq(nft.balanceOf(charlie), 1);

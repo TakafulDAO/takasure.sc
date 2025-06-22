@@ -29,10 +29,12 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     string public baseURI; // Base URI for the NFTs
 
     uint256 public totalSupply; // Total supply of NFTs minted
-    uint256 private operatorBalance;
+    uint256 private mintedToOperator; // Updated on transfers from the operator
+    uint256 private mintedToPioneers; // Updated on mints
 
-    // Tokens 9181 to 18_000 are reserved for pioneers
     uint256 public constant MAX_SUPPLY = 18_000;
+    uint256 private constant OPERATOR_RESERVED_TOKENS = 9_180; // 51% of the total supply reserved for operator
+    uint256 private constant PIONEERS_RESERVED_TOKENS = 8_820; // 49% of the total supply reserved for pioneers
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
@@ -51,17 +53,17 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         uint256 lastTokenId
     );
 
+    error RevShareNFT__NotAllowedAddress();
     error RevShareNFT__MaxSupplyReached();
     error RevShareNFT__BatchMintMoreThanOne();
+    error RevShareNFT__NotEnoughBalance();
 
     constructor(address _operator) Ownable(msg.sender) ERC721("RevShareNFT", "RSNFT") {
         AddressAndStates._notZeroAddress(_operator);
 
         operator = _operator;
 
-        // Not minted, but we'll assume it is minted for the revenue calculation
-        operatorBalance = 9_180; // 9180 tokens reserved for operator
-        totalSupply = operatorBalance - 1; // 9180 tokens reserved for operator, but we start at 0
+        totalSupply = OPERATOR_RESERVED_TOKENS - 1; // We assume that the operator has 9180 tokens already minted and the tokenId starts at 0
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -94,13 +96,15 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
      */
     function mint(address nftOwner) external onlyOwner {
         AddressAndStates._notZeroAddress(nftOwner);
-
-        require(totalSupply < MAX_SUPPLY, RevShareNFT__MaxSupplyReached());
+        require(nftOwner != operator, RevShareNFT__NotAllowedAddress());
+        require(
+            totalSupply < MAX_SUPPLY && mintedToPioneers < PIONEERS_RESERVED_TOKENS,
+            RevShareNFT__MaxSupplyReached()
+        );
 
         uint256 tokenId = totalSupply;
         ++totalSupply;
-
-        if (nftOwner == operator) ++operatorBalance;
+        ++mintedToPioneers;
 
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(nftOwner, operator);
@@ -118,12 +122,16 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
      */
     function batchMint(address nftOwner, uint256 tokensToMint) external nonReentrant onlyOwner {
         AddressAndStates._notZeroAddress(nftOwner);
-        require(totalSupply < MAX_SUPPLY, RevShareNFT__MaxSupplyReached());
+        require(nftOwner != operator, RevShareNFT__NotAllowedAddress());
+        require(
+            totalSupply < MAX_SUPPLY && mintedToPioneers < PIONEERS_RESERVED_TOKENS,
+            RevShareNFT__MaxSupplyReached()
+        );
         require(tokensToMint > 1, RevShareNFT__BatchMintMoreThanOne());
 
         uint256 firstNewTokenId = totalSupply;
         totalSupply += tokensToMint;
-        if (nftOwner == operator) operatorBalance += tokensToMint;
+        mintedToPioneers += tokensToMint;
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint;
 
         // Update the revenues if the contract is set up to do so
@@ -144,14 +152,15 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(msg.sender, to);
 
-        // From Id 0 to Id 9179 we are assuming minted to the operator from the begining
-        // So we have to mint those tokens before transfer
-        if (msg.sender == operator && tokenId < 9_180) {
-            _safeMint(msg.sender, tokenId);
-            --operatorBalance;
+        // If the caller is the operator, as all the balance is assumed but not minted,
+        // then we mint the token to the recipient instead of transferring it
+        if (msg.sender == operator) {
+            require(mintedToOperator < OPERATOR_RESERVED_TOKENS, RevShareNFT__NotEnoughBalance());
+            _safeMint(to, tokenId);
+            ++mintedToOperator;
+        } else {
+            _safeTransfer(msg.sender, to, tokenId, "");
         }
-
-        _safeTransfer(msg.sender, to, tokenId, "");
     }
 
     /**
@@ -162,11 +171,12 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(from, to);
 
-        // From Id 0 to Id 9179 we are assuming minted to the operator from the begining
-        // So we have to mint those tokens before transfer
-        if (from == operator && tokenId < 9_180) {
+        // If the caller is the operator, as all the balance is assumed but not minted,
+        // then we mint the token to the recipient instead of transferring it
+        if (from == operator) {
+            require(mintedToOperator < OPERATOR_RESERVED_TOKENS, RevShareNFT__NotEnoughBalance());
             _safeMint(from, tokenId);
-            --operatorBalance;
+            ++mintedToOperator;
         }
 
         super.transferFrom(from, to, tokenId);
@@ -177,7 +187,10 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     //////////////////////////////////////////////////////////////*/
 
     function balanceOf(address owner) public view override(ERC721) returns (uint256) {
-        if (owner == operator) return operatorBalance;
+        if (owner == operator)
+            return
+                (OPERATOR_RESERVED_TOKENS - mintedToOperator) +
+                (PIONEERS_RESERVED_TOKENS - mintedToPioneers);
         return super.balanceOf(owner);
     }
 
