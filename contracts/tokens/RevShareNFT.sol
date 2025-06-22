@@ -5,7 +5,6 @@
  * @author Maikel Ordaz
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
