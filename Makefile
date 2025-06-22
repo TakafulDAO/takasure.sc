@@ -36,7 +36,7 @@ snapshot :; forge snapshot
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
 # Protocol deployments
-protoco-deploy-referral:
+protocol-deploy-referral:
 	@forge clean
 	@forge script deploy/protocol/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
@@ -48,6 +48,11 @@ protocol-deploy-all:
 protocol-deploy-takasure:
 	@forge clean
 	@forge script deploy/protocol/02-DeployTakasure.s.sol:DeployTakasure $(NETWORK_ARGS)
+
+# Token deployments
+tokens-deploy-nft:
+	@forge clean
+	@forge script deploy/tokens/nft/DeployRevShareNft.s.sol:DeployRevShareNft $(NETWORK_ARGS)
 
 # Protocol upgrades
 protocol-upgrade-referral:
