@@ -21,7 +21,11 @@ contract AddressManagerTest is Test {
         address indexed addr,
         ProtocolAddressType addressType
     );
-    event OnProtocolAddressDeleted(address indexed addr, ProtocolAddressType addressType);
+    event OnProtocolAddressDeleted(
+        bytes32 indexed nameHash,
+        address indexed addr,
+        ProtocolAddressType addressType
+    );
     event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
@@ -308,8 +312,8 @@ contract AddressManagerTest is Test {
 
         // Now delete the address and check that the event is emitted
         vm.prank(addressManagerOwner);
-        vm.expectEmit(true, false, false, false, address(addressManager));
-        emit OnProtocolAddressDeleted(adminAddress, ProtocolAddressType.Admin);
+        vm.expectEmit(true, true, false, false, address(addressManager));
+        emit OnProtocolAddressDeleted(addressName, adminAddress, ProtocolAddressType.Admin);
         addressManager.deleteProtocolAddress(adminAddress);
 
         // Check that the address is deleted

@@ -42,7 +42,11 @@ contract AddressManager is Ownable2Step, AccessControl {
         address indexed addr,
         ProtocolAddressType addressType
     );
-    event OnProtocolAddressDeleted(address indexed addr, ProtocolAddressType addressType);
+    event OnProtocolAddressDeleted(
+        bytes32 indexed nameHash,
+        address indexed addr,
+        ProtocolAddressType addressType
+    );
     event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
@@ -137,7 +141,7 @@ contract AddressManager is Ownable2Step, AccessControl {
         delete protocolAddressesByName[nameHash];
         delete protocolAddressesNames[addr];
 
-        emit OnProtocolAddressDeleted(addr, addressType);
+        emit OnProtocolAddressDeleted(nameHash, addr, addressType);
     }
 
     /**
