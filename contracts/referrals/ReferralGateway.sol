@@ -8,7 +8,6 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -32,7 +31,7 @@ contract ReferralGateway is
     using SafeERC20 for IERC20;
 
     IERC20 public usdc;
-    IBenefitMultiplierConsumer private bmConsumer; // DEPRECATED!!!
+    address private bmConsumer; // DEPRECATED!!!
 
     address private operator;
 
@@ -68,7 +67,7 @@ contract ReferralGateway is
         address rePoolAddress; // To be assigned when the tDAO is deployed
         uint256 toRepool; // In USDC, six decimals
         uint256 referralReserve; // In USDC, six decimals
-        IBenefitMultiplierConsumer bmConsumer; // DEPRECATED!!!
+        address bmConsumer; // DEPRECATED!!!
         address subscriptionModule;
     }
 
@@ -217,7 +216,7 @@ contract ReferralGateway is
         nameToDAOData[daoName].DAOAdmin = msg.sender;
         nameToDAOData[daoName].launchDate = launchDate;
         nameToDAOData[daoName].objectiveAmount = objectiveAmount;
-        nameToDAOData[daoName].bmConsumer = IBenefitMultiplierConsumer(address(0)); // DEPRECATED!!!
+        nameToDAOData[daoName].bmConsumer = address(0); // DEPRECATED!!!
 
         emit OnNewDAO(isPreJoinEnabled, isReferralDiscountEnabled, launchDate, objectiveAmount);
     }
