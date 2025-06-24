@@ -58,8 +58,8 @@ make all
     + ARBITRUM_MAINNET_RPC_URL
 4. Testnet RPC_URL
     + ARBITRUM_TESTNET_SEPOLIA_RPC_URL
-5. Scans api keys. [here](https://docs.arbiscan.io/getting-started/viewing-api-usage-statistics)
-    + ARBISCAN_API_KEY
+5. Scans api keys. [here](https://docs.etherscan.io/etherscan-v2/getting-an-api-key)
+    + ETHERSCAN_API_KEY
 6. Accounts. This are the names of the accounts encripted with `cast wallet import`
     + MAINNET_ACCOUNT=
     + TESTNET_ACCOUNT=
