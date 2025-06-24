@@ -31,6 +31,8 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     uint256 private mintedToOperator; // Updated on transfers from the operator
     uint256 private mintedToPioneers; // Updated on mints
 
+    mapping(address pioneer => uint256 timestamp) public pioneerMintedAt;
+
     uint256 public constant MAX_SUPPLY = 18_000;
     uint256 private constant OPERATOR_RESERVED_TOKENS = 9_180; // 51% of the total supply reserved for operator
     uint256 private constant PIONEERS_RESERVED_TOKENS = 8_820; // 49% of the total supply reserved for pioneers
@@ -95,12 +97,12 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
 
     /**
      * @notice Mint single token to a user
-     * @param nftOwner The address of the member to mint a single NFT. This is only used for SINGLE_MINT
+     * @param pioneer The address of the member to mint a single NFT. This is only used for SINGLE_MINT
      * @dev Only callable by someone with owner
      */
-    function mint(address nftOwner) external onlyOwner {
-        AddressAndStates._notZeroAddress(nftOwner);
-        require(nftOwner != operator, RevShareNFT__NotAllowedAddress());
+    function mint(address pioneer) external onlyOwner {
+        AddressAndStates._notZeroAddress(pioneer);
+        require(pioneer != operator, RevShareNFT__NotAllowedAddress());
         require(
             totalSupply < MAX_SUPPLY && mintedToPioneers < PIONEERS_RESERVED_TOKENS,
             RevShareNFT__MaxSupplyReached()
@@ -111,11 +113,11 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         ++mintedToPioneers;
 
         // Update the revenues if the contract is set up to do so
-        _updateRevenuesIfProtocolIsSetUp(nftOwner, operator);
+        _updateRevenuesIfProtocolIsSetUp(pioneer, operator);
 
-        _safeMint(nftOwner, tokenId);
+        _safeMint(pioneer, tokenId);
 
-        emit OnRevShareNFTMinted(nftOwner, tokenId);
+        emit OnRevShareNFTMinted(pioneer, tokenId);
     }
 
     /**
@@ -239,12 +241,14 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
         }
     }
 
-    function _updateRevenuesIfProtocolIsSetUp(address _a, address _b) internal {
+    function _updateRevenuesIfProtocolIsSetUp(address _pioneer, address _operator) internal {
         address revShareModule = _fetchRevShareModuleAddressIfIsSetUp();
 
         if (revShareModule != address(0)) {
-            IRevShareModule(revShareModule).updateRevenue(_a);
-            IRevShareModule(revShareModule).updateRevenue(_b);
+            IRevShareModule(revShareModule).updateRevenue(_pioneer);
+            IRevShareModule(revShareModule).updateRevenue(_operator);
+        } else {
+            pioneerMintedAt[_pioneer] = block.timestamp;
         }
     }
 }
