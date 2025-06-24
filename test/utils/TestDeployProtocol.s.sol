@@ -73,13 +73,6 @@ contract TestDeployProtocol is Script {
         vm.startBroadcast(msg.sender);
 
         addressManager = new AddressManager();
-        moduleManager = new ModuleManager();
-
-        addressManager.addProtocolAddress(
-            "MODULE_MANAGER",
-            address(moduleManager),
-            ProtocolAddressType.Protocol
-        );
 
         // Deploy TakasureReserve
         takasureReserveImplementation = address(new TakasureReserve());
@@ -89,6 +82,14 @@ contract TestDeployProtocol is Script {
                 TakasureReserve.initialize,
                 (config.contributionToken, address(addressManager))
             )
+        );
+
+        moduleManager = new ModuleManager(address(takasureReserve));
+
+        addressManager.addProtocolAddress(
+            "MODULE_MANAGER",
+            address(moduleManager),
+            ProtocolAddressType.Protocol
         );
 
         addressManager.addProtocolAddress(
@@ -132,6 +133,12 @@ contract TestDeployProtocol is Script {
             ProtocolAddressType.Module
         );
 
+        addressManager.addProtocolAddress(
+            "REVENUE_MODULE",
+            revenueModuleAddress,
+            ProtocolAddressType.Module
+        );
+
         // Deploy router
         userRouterImplementation = address(new UserRouter());
         routerAddress = UnsafeUpgrades.deployUUPSProxy(
@@ -140,13 +147,6 @@ contract TestDeployProtocol is Script {
         );
 
         addressManager.addProtocolAddress("ROUTER", routerAddress, ProtocolAddressType.Protocol);
-
-        _setContracts(
-            subscriptionModuleAddress,
-            kycModuleAddress,
-            memberModuleAddress,
-            revenueModuleAddress
-        );
 
         _createRoles(address(addressManager));
 
@@ -255,19 +255,6 @@ contract TestDeployProtocol is Script {
             revenueModuleImplementation,
             abi.encodeCall(RevenueModule.initialize, (_params.takasureReserve))
         );
-    }
-
-    function _setContracts(
-        address _subscriptionModuleAddress,
-        address _kycModuleAddress,
-        address _memberModuleAddress,
-        address _revenueModuleAddress
-    ) internal {
-        // Set modules contracts in TakasureReserve
-        moduleManager.addModule(_subscriptionModuleAddress);
-        moduleManager.addModule(_kycModuleAddress);
-        moduleManager.addModule(_memberModuleAddress);
-        moduleManager.addModule(_revenueModuleAddress);
     }
 
     function _createRoles(address _addressManager) internal {

@@ -9,6 +9,7 @@
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -59,6 +60,7 @@ contract AddressManager is Ownable2Step, AccessControl, IAddressManager {
     error AddressManager__AddressZero();
     error AddressManager__AddressAlreadyExists();
     error AddressManager__AddressDoesNotExist();
+    error AddressManager__AddModuleManagerFirst();
     error AddressManager__RoleAlreadyExists();
     error AddressManager__RoleDoesNotExist();
     error AddressManager__AlreadyRoleHolder();
@@ -115,9 +117,18 @@ contract AddressManager is Ownable2Step, AccessControl, IAddressManager {
             addressType: addressType
         });
 
-        // protocolAddresses[addr] = newProtocolAddress;
         protocolAddressesByName[nameHash] = newProtocolAddress;
         protocolAddressesNames[addr] = nameHash;
+
+        if (addressType == ProtocolAddressType.Module) {
+            // If the address is a module, then we call the ModuleManager to register it
+            // This means to add any module, the ModuleManager must be deployed first
+            address moduleManager = _getProtocolAddressByName("MODULE_MANAGER").addr;
+            require(moduleManager != address(0), AddressManager__AddModuleManagerFirst());
+
+            // The ModuleManager will be in charge to check if the address is a valid module
+            IModuleManager(moduleManager).addModule(addr);
+        }
 
         emit OnNewProtocolAddress(name, addr, addressType);
     }
@@ -351,12 +362,7 @@ contract AddressManager is Ownable2Step, AccessControl, IAddressManager {
     function getProtocolAddressByName(
         string memory name
     ) external view returns (ProtocolAddress memory) {
-        bytes32 nameHash = keccak256(abi.encode(name));
-        ProtocolAddress memory protocolAddress = protocolAddressesByName[nameHash];
-
-        require(protocolAddress.addr != address(0), AddressManager__AddressDoesNotExist());
-
-        return protocolAddress;
+        return _getProtocolAddressByName(name);
     }
 
     function getProposedRoleHolder(
@@ -387,5 +393,20 @@ contract AddressManager is Ownable2Step, AccessControl, IAddressManager {
         for (uint256 i = 0; i < _protocolRoles.length(); i++) {
             roles[i] = _protocolRoles.at(i);
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function _getProtocolAddressByName(
+        string memory _name
+    ) internal view returns (ProtocolAddress memory) {
+        bytes32 nameHash = keccak256(abi.encode(_name));
+        ProtocolAddress memory protocolAddress_ = protocolAddressesByName[nameHash];
+
+        require(protocolAddress_.addr != address(0), AddressManager__AddressDoesNotExist());
+
+        return protocolAddress_;
     }
 }

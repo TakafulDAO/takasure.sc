@@ -3,17 +3,22 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
+import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IsModule, IsNotModule} from "test/mocks/ModuleMocks.sol";
 
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 contract ModuleManagerTest is Test {
+    TestDeployProtocol deployer;
+    TakasureReserve takasureReserve;
     ModuleManager moduleManager;
     IsModule isModule;
     IsNotModule isNotModule;
-
     address moduleManagerOwner = makeAddr("moduleManagerOwner");
+    address addressManager;
 
     enum State {
         Unset,
@@ -31,9 +36,15 @@ contract ModuleManagerTest is Test {
     );
 
     function setUp() public {
-        vm.prank(moduleManagerOwner);
+        deployer = new TestDeployProtocol();
+        (address takasureReserveProxy, , , , , , , , , ) = deployer.run();
 
-        moduleManager = new ModuleManager();
+        takasureReserve = TakasureReserve(takasureReserveProxy);
+        addressManager = address(takasureReserve.addressManager());
+
+        vm.prank(moduleManagerOwner);
+        moduleManager = new ModuleManager(takasureReserveProxy);
+
         isModule = new IsModule();
         isNotModule = new IsNotModule();
     }
@@ -43,13 +54,13 @@ contract ModuleManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testAddAddressZeroAsModuleReverts() public {
-        vm.prank(moduleManagerOwner);
+        vm.prank(addressManager);
         vm.expectRevert(ModuleManager.ModuleManager__AddressZeroNotAllowed.selector);
         moduleManager.addModule(address(0));
     }
 
     function testAddModuleTwiceReverts() public {
-        vm.startPrank(moduleManagerOwner);
+        vm.startPrank(addressManager);
         moduleManager.addModule(address(isModule));
         vm.expectRevert(ModuleManager.ModuleManager__AlreadyModule.selector);
         moduleManager.addModule(address(isModule));
@@ -65,13 +76,13 @@ contract ModuleManagerTest is Test {
     }
 
     function testAddContractIsNotModuleReverts() public {
-        vm.prank(moduleManagerOwner);
+        vm.prank(addressManager);
         vm.expectRevert(ModuleManager.ModuleManager__NotModule.selector);
         moduleManager.addModule(address(isNotModule));
     }
 
     modifier addModule() {
-        vm.prank(moduleManagerOwner);
+        vm.prank(addressManager);
         moduleManager.addModule(address(isModule));
         _;
     }
@@ -103,7 +114,7 @@ contract ModuleManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testAddModuleEmitsEvent() public {
-        vm.prank(moduleManagerOwner);
+        vm.prank(addressManager);
         vm.expectEmit(false, false, false, true, address(moduleManager));
         emit OnNewModule(address(isModule));
         moduleManager.addModule(address(isModule));

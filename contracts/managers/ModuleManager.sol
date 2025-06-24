@@ -11,6 +11,7 @@
  * @dev The state in this contract will be mainly the modules addresses and their status and any other auxiliary data
  */
 
+import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ITLDModuleImplementation} from "contracts/interfaces/ITLDModuleImplementation.sol";
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
@@ -20,6 +21,8 @@ import {ModuleState} from "contracts/types/TakasureTypes.sol";
 pragma solidity 0.8.28;
 
 contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
+    ITakasureReserve private takasureReserve;
+
     mapping(address moduleAddr => ModuleState) private addressToModuleState;
 
     /*//////////////////////////////////////////////////////////////
@@ -33,12 +36,15 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
         ModuleState newState
     );
 
+    error ModuleManager__InvalidCaller();
     error ModuleManager__AddressZeroNotAllowed();
     error ModuleManager__AlreadyModule();
     error ModuleManager__NotModule();
     error ModuleManager__WrongState();
 
-    constructor() Ownable(msg.sender) {}
+    constructor(address _takasureReserveAddress) Ownable(msg.sender) {
+        takasureReserve = ITakasureReserve(_takasureReserveAddress);
+    }
 
     /*//////////////////////////////////////////////////////////////
                       MODULE MANAGEMENT FUNCTIONS
@@ -48,7 +54,11 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @notice A function to add a new module
      * @param newModule The new module address
      */
-    function addModule(address newModule) external onlyOwner nonReentrant {
+    function addModule(address newModule) external nonReentrant {
+        require(
+            msg.sender == address(takasureReserve.addressManager()),
+            ModuleManager__InvalidCaller()
+        );
         // New module can not be address 0, can not be already a module, and the status will be enabled
         require(newModule != address(0), ModuleManager__AddressZeroNotAllowed());
         require(

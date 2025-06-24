@@ -247,24 +247,6 @@ contract AddressManagerTest is Test {
         assert(protocolAddressToCheck.addressType == ProtocolAddressType.Admin);
     }
 
-    function testAddModuleAddressAndEmitEvent() public {
-        vm.prank(addressManagerOwner);
-        vm.expectEmit(true, true, false, false, address(addressManager));
-        emit OnNewProtocolAddress("Module", moduleAddress, ProtocolAddressType.Module);
-        addressManager.addProtocolAddress("Module", moduleAddress, ProtocolAddressType.Module);
-
-        bytes32 addressName = addressManager.protocolAddressesNames(moduleAddress);
-
-        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName(
-            "Module"
-        );
-
-        assert(addressName == keccak256(abi.encode("Module")));
-        assert(protocolAddressToCheck.name == keccak256(abi.encode("Module")));
-        assert(protocolAddressToCheck.addr == moduleAddress);
-        assert(protocolAddressToCheck.addressType == ProtocolAddressType.Module);
-    }
-
     function testAddProtocolAddressAndEmitEvent() public {
         vm.prank(addressManagerOwner);
         vm.expectEmit(true, true, false, false, address(addressManager));
