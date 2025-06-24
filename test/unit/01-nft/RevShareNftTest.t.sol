@@ -149,43 +149,49 @@ contract RevShareNftTest is Test {
                                TRANSFERS
     //////////////////////////////////////////////////////////////*/
 
-    function testNft_transferNft() public {
-        assertEq(nft.balanceOf(operator), 18_000);
-        assertEq(nft.balanceOf(alice), 0);
-
+    function testNft_transferNftRevertsIfRevShareModuleNotSetUp() public {
         vm.prank(operator);
+        vm.expectRevert(RevShareNFT.RevShareNFT__RevShareModuleNotSetUp.selector);
         nft.transfer(alice, 1);
-
-        assertEq(nft.balanceOf(operator), 17_999);
-        assertEq(nft.balanceOf(alice), 1);
     }
 
-    function testNft_transferFromNft() public {
-        address bob = makeAddr("bob");
-        address charlie = makeAddr("charlie");
+    // function testNft_transferNft() public {
+    //     assertEq(nft.balanceOf(operator), 18_000);
+    //     assertEq(nft.balanceOf(alice), 0);
 
-        assertEq(nft.balanceOf(operator), 18_000);
-        assertEq(nft.balanceOf(alice), 0);
-        assertEq(nft.balanceOf(bob), 0);
-        assertEq(nft.balanceOf(charlie), 0);
+    //     vm.prank(operator);
+    //     nft.transfer(alice, 1);
 
-        vm.prank(operator);
-        nft.transfer(alice, 1);
+    //     assertEq(nft.balanceOf(operator), 17_999);
+    //     assertEq(nft.balanceOf(alice), 1);
+    // }
 
-        assertEq(nft.balanceOf(operator), 17_999);
-        assertEq(nft.balanceOf(alice), 1);
-        assertEq(nft.balanceOf(bob), 0);
-        assertEq(nft.balanceOf(charlie), 0);
+    // function testNft_transferFromNft() public {
+    //     address bob = makeAddr("bob");
+    //     address charlie = makeAddr("charlie");
 
-        vm.prank(alice);
-        nft.setApprovalForAll(bob, true);
+    //     assertEq(nft.balanceOf(operator), 18_000);
+    //     assertEq(nft.balanceOf(alice), 0);
+    //     assertEq(nft.balanceOf(bob), 0);
+    //     assertEq(nft.balanceOf(charlie), 0);
 
-        vm.prank(bob);
-        nft.transferFrom(alice, charlie, 1);
+    //     vm.prank(operator);
+    //     nft.transfer(alice, 1);
 
-        assertEq(nft.balanceOf(operator), 17_999);
-        assertEq(nft.balanceOf(alice), 0);
-        assertEq(nft.balanceOf(bob), 0);
-        assertEq(nft.balanceOf(charlie), 1);
-    }
+    //     assertEq(nft.balanceOf(operator), 17_999);
+    //     assertEq(nft.balanceOf(alice), 1);
+    //     assertEq(nft.balanceOf(bob), 0);
+    //     assertEq(nft.balanceOf(charlie), 0);
+
+    //     vm.prank(alice);
+    //     nft.setApprovalForAll(bob, true);
+
+    //     vm.prank(bob);
+    //     nft.transferFrom(alice, charlie, 1);
+
+    //     assertEq(nft.balanceOf(operator), 17_999);
+    //     assertEq(nft.balanceOf(alice), 0);
+    //     assertEq(nft.balanceOf(bob), 0);
+    //     assertEq(nft.balanceOf(charlie), 1);
+    // }
 }

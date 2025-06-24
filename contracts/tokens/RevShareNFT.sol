@@ -56,6 +56,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     error RevShareNFT__MaxSupplyReached();
     error RevShareNFT__BatchMintMoreThanOne();
     error RevShareNFT__NotEnoughBalance();
+    error RevShareNFT__RevShareModuleNotSetUp();
 
     constructor(
         address _operator,
@@ -152,6 +153,12 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
      * @dev The revenues are updated for both the sender and the receiver
      */
     function transfer(address to, uint256 tokenId) external {
+        // The transfers are disable if the RevShareModule is not set up
+        require(
+            _fetchRevShareModuleAddressIfIsSetUp() != address(0),
+            RevShareNFT__RevShareModuleNotSetUp()
+        );
+
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(msg.sender, to);
 
@@ -171,6 +178,12 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
      * @dev The revenues are updated for both the sender and the receiver
      */
     function transferFrom(address from, address to, uint256 tokenId) public override(ERC721) {
+        // The transfers are disable if the RevShareModule is not set up
+        require(
+            _fetchRevShareModuleAddressIfIsSetUp() != address(0),
+            RevShareNFT__RevShareModuleNotSetUp()
+        );
+
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(from, to);
 
