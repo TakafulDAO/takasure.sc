@@ -8,6 +8,7 @@
 
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -15,7 +16,7 @@ import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contract
 
 pragma solidity 0.8.28;
 
-contract AddressManager is Ownable2Step, AccessControl {
+contract AddressManager is Ownable2Step, AccessControl, IAddressManager {
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -335,7 +336,10 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @return bool A boolean indicating whether the account has the role
      * @dev If the role is not a protocol role, it will return false.
      */
-    function hasRole(bytes32 role, address account) public view override returns (bool) {
+    function hasRole(
+        bytes32 role,
+        address account
+    ) public view override(AccessControl, IAddressManager) returns (bool) {
         if (!_protocolRoles.contains(role)) return false;
         else return super.hasRole(role, account);
     }
