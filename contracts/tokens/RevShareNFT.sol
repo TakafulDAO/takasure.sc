@@ -208,24 +208,30 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _updateRevenuesIfProtocolIsSetUp(address _a, address _b) internal {
+    function _fetchRevShareModuleAddressIfIsSetUp()
+        internal
+        view
+        returns (address revShareModule_)
+    {
         if (address(takasureReserve) != address(0)) {
-            address revShareModule;
-
             try
                 IAddressManager(takasureReserve.addressManager()).getProtocolAddressByName(
-                    "RevShareModule"
+                    "REVENUE_SHARE_MODULE"
                 )
             {
-                revShareModule = IAddressManager(takasureReserve.addressManager())
-                    .getProtocolAddressByName("RevShareModule")
+                revShareModule_ = IAddressManager(takasureReserve.addressManager())
+                    .getProtocolAddressByName("REVENUE_SHARE_MODULE")
                     .addr;
             } catch {}
+        }
+    }
 
-            if (revShareModule != address(0)) {
-                IRevShareModule(revShareModule).updateRevenue(_a);
-                IRevShareModule(revShareModule).updateRevenue(_b);
-            }
+    function _updateRevenuesIfProtocolIsSetUp(address _a, address _b) internal {
+        address revShareModule = _fetchRevShareModuleAddressIfIsSetUp();
+
+        if (revShareModule != address(0)) {
+            IRevShareModule(revShareModule).updateRevenue(_a);
+            IRevShareModule(revShareModule).updateRevenue(_b);
         }
     }
 }
