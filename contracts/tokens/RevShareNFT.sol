@@ -9,9 +9,10 @@ import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -19,12 +20,18 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.28;
 
-contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
+contract RevShareNFT is
+    Initializable,
+    UUPSUpgradeable,
+    Ownable2StepUpgradeable,
+    ReentrancyGuardTransientUpgradeable,
+    ERC721Upgradeable
+{
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
 
-    address public immutable operator;
+    address public operator;
     string public baseURI; // Base URI for the NFTs
 
     uint256 public totalSupply; // Total supply of NFTs minted
@@ -60,11 +67,19 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
     error RevShareNFT__NotEnoughBalance();
     error RevShareNFT__RevShareModuleNotSetUp();
 
-    constructor(
-        address _operator,
-        string memory _baseURI
-    ) Ownable(msg.sender) ERC721("RevShareNFT", "RSNFT") {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _operator, string memory _baseURI) external initializer {
         AddressAndStates._notZeroAddress(_operator);
+
+        __UUPSUpgradeable_init();
+        __Ownable2Step_init();
+        __Ownable_init(msg.sender);
+        __ReentrancyGuardTransient_init();
+        __ERC721_init("RevShareNFT", "RSNFT");
 
         operator = _operator;
         baseURI = _baseURI;
@@ -179,7 +194,11 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
      * @notice Transfer from override function. Only active NFTs can be transferred
      * @dev The revenues are updated for both the sender and the receiver
      */
-    function transferFrom(address from, address to, uint256 tokenId) public override(ERC721) {
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public override(ERC721Upgradeable) {
         // The transfers are disable if the RevShareModule is not set up
         require(
             _fetchRevShareModuleAddressIfIsSetUp() != address(0),
@@ -204,7 +223,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function balanceOf(address owner) public view override(ERC721) returns (uint256) {
+    function balanceOf(address owner) public view override(ERC721Upgradeable) returns (uint256) {
         if (owner == operator)
             return
                 (OPERATOR_RESERVED_TOKENS - mintedToOperator) +
@@ -251,4 +270,7 @@ contract RevShareNFT is Ownable2Step, ReentrancyGuardTransient, ERC721 {
             pioneerMintedAt[_pioneer] = block.timestamp;
         }
     }
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }

@@ -53,6 +53,13 @@ protocol-deploy-takasure:
 tokens-deploy-nft:
 	@forge clean
 	@forge script deploy/tokens/nft/DeployRevShareNft.s.sol:DeployRevShareNft $(NETWORK_ARGS)
+	@cp contracts/tokens/nft/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
+
+# Token upgrades
+tokens-upgrade-nft:
+	@forge clean
+	@forge script deploy/tokens/nft/UpgradeRevShareNft.s.sol:UpgradeRevShareNft $(NETWORK_ARGS)
+	@cp contracts/tokens/nft/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
 
 # Protocol upgrades
 protocol-upgrade-referral:

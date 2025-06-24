@@ -30,7 +30,13 @@ contract RevShareNftTest is Test {
     function setUp() public {
         string
             memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
-        nft = new RevShareNFT(operator, baseURI);
+        // nft = new RevShareNFT(operator, baseURI);
+        address nftImplementation = address(new RevShareNFT());
+        address nftAddress = UnsafeUpgrades.deployUUPSProxy(
+            nftImplementation,
+            abi.encodeCall(RevShareNFT.initialize, (operator, baseURI))
+        );
+        nft = RevShareNFT(nftAddress);
 
         addressManager = new AddressManager();
 
