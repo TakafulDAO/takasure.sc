@@ -3,7 +3,6 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
-import {BenefitMultiplierConsumer} from "contracts/helpers/chainlink/functions/BenefitMultiplierConsumer.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
@@ -17,31 +16,7 @@ contract DeployReferralGateway is Script, DeployConstants {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
 
-        string memory bmFetchScriptRoot;
-
-        if (chainId == ARB_MAINNET_CHAIN_ID) {
-            bmFetchScriptRoot = MAINNET_SCRIPT_ROOT;
-        } else if (chainId == ARB_SEPOLIA_CHAIN_ID) {
-            bmFetchScriptRoot = TESTNET_SCRIPT_ROOT;
-        } else {
-            bmFetchScriptRoot = UAT_SCRIPT_ROOT;
-        }
-
-        string memory root = vm.projectRoot();
-        string memory scriptPath = string.concat(root, bmFetchScriptRoot);
-        string memory bmFetchScript = vm.readFile(scriptPath);
-
         vm.startBroadcast();
-
-        BenefitMultiplierConsumer bmConsumer = new BenefitMultiplierConsumer(
-            config.functionsRouter,
-            config.donId,
-            config.gasLimit,
-            config.subscriptionId
-        );
-
-        // Add new source code to BenefitMultiplierConsumer
-        bmConsumer.setBMSourceRequestCode(bmFetchScript);
 
         // Deploy TakasurePool
         proxy = Upgrades.deployUUPSProxy(
@@ -52,14 +27,10 @@ contract DeployReferralGateway is Script, DeployConstants {
                     config.takadaoOperator,
                     config.kycProvider,
                     config.pauseGuardian,
-                    config.contributionToken,
-                    address(bmConsumer)
+                    config.contributionToken
                 )
             )
         );
-
-        // Setting TakasurePool as a requester in BenefitMultiplierConsumer
-        bmConsumer.setNewRequester(proxy);
 
         vm.stopBroadcast();
 

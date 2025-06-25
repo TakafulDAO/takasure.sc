@@ -9,13 +9,11 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ReferralGatewayHandler} from "test/helpers/handlers/ReferralGatewayHandler.t.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 
 contract ReferralGatewayInvariantTest is StdInvariant, Test {
     TestDeployProtocol deployer;
     ReferralGateway referralGateway;
     TakasureReserve takasureReserve;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     ReferralGatewayHandler handler;
     IUSDC usdc;
@@ -34,8 +32,6 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
-            ,
-            bmConsumerMock,
             reserve,
             referralGatewayAddress,
             ,
@@ -57,13 +53,6 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         takasureReserve = TakasureReserve(reserve);
         usdc = IUSDC(contributionTokenAddress);
 
-        // Config mocks
-        vm.prank(daoAdmin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(referralGatewayAddress);
-
         deal(address(usdc), couponPool, 1000e6);
 
         vm.prank(couponPool);
@@ -72,13 +61,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         vm.startPrank(operator);
         referralGateway.setCouponPoolAddress(couponPool);
         referralGateway.setDaoName(DAO_NAME);
-        referralGateway.createDAO(
-            true,
-            true,
-            block.timestamp + 31_536_000,
-            0,
-            address(bmConsumerMock)
-        );
+        referralGateway.createDAO(true, true, block.timestamp + 31_536_000, 0);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         vm.stopPrank();
 

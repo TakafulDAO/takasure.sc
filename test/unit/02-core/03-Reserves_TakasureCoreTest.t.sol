@@ -8,17 +8,14 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
+import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {SimulateDonResponse} from "test/utils/SimulateDonResponse.sol";
 
-contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
+contract Reserves_TakasureCoreTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     KYCModule kycModule;
     address takasureReserveProxy;
@@ -32,12 +29,11 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant YEAR = 365 days;
+    uint256 public constant BM = 1;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
-            ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -60,19 +56,6 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
 
         takasureReserve = TakasureReserve(takasureReserveProxy);
         usdc = IUSDC(contributionTokenAddress);
-
-        vm.prank(config.daoMultisig);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
-        vm.startPrank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-        bmConsumerMock.setNewRequester(address(kycModuleAddress));
-        vm.stopPrank();
-
-        vm.startPrank(takadao);
-        subscriptionModule.updateBmAddress();
-        kycModule.updateBmAddress();
-        vm.stopPrank();
 
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
@@ -98,11 +81,8 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         uint8 serviceFee = reserve.serviceFee;
         uint8 fundMarketExpendsShare = reserve.fundMarketExpendsAddShare;
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         vm.prank(kycService);
-        kycModule.approveKYC(alice);
+        kycModule.approveKYC(alice, BM);
 
         // reserve = takasureReserve.getReserveValues();
         // uint256 finalClaimReserve = reserve.totalClaimReserve;
@@ -147,13 +127,10 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         }
         // Each day 10 users will join with the contribution amount
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         // First day
         for (uint256 i; i < 10; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -162,7 +139,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Second day
         for (uint256 i = 10; i < 20; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -171,7 +148,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Third day
         for (uint256 i = 20; i < 30; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -180,7 +157,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Fourth day
         for (uint256 i = 30; i < 40; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -189,7 +166,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Fifth day
         for (uint256 i = 40; i < 50; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         uint256 cash = takasureReserve.getCashLast12Months();
@@ -225,9 +202,6 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             );
         }
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         // Test three months two days
 
         // First month 30 people joins
@@ -235,7 +209,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // 20 * 30 = 600USDC
         for (uint256 i; i < 30; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         vm.warp(block.timestamp + 31 days);
@@ -245,7 +219,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // 20 * 10 = 200USDC + 600USDC = 800USDC
         for (uint256 i = 30; i < 40; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         vm.warp(block.timestamp + 31 days);
@@ -255,7 +229,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // 20 * 15 = 300USDC + 800USDC = 1100USDC
         for (uint256 i = 40; i < 55; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         vm.warp(block.timestamp + 1 days);
@@ -265,7 +239,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // 20 * 23 = 460USDC + 1100USDC = 1560USDC
         for (uint256 i = 55; i < 78; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         uint256 cash = takasureReserve.getCashLast12Months();
@@ -299,13 +273,10 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
             );
         }
 
-        // We simulate a request before the KYC
-        _successResponse(address(bmConsumerMock));
-
         // Months 1, 2 and 3, one new member joins daily
         for (uint256 i; i < 90; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
             vm.warp(block.timestamp + 1 days);
             vm.roll(block.number + 1);
         }
@@ -313,7 +284,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Months 4 to 12, 10 new members join monthly
         for (uint256 i = 90; i < 180; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
 
             // End of the month
             if (
@@ -342,7 +313,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Thirteenth month 10 people joins
         for (uint256 i = 180; i < 190; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         // Month 1 take 29 days => Total 580USDC
@@ -365,7 +336,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Fourteenth month 10 people joins
         for (uint256 i = 190; i < 200; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
         }
 
         // Month 1 should not count
@@ -389,7 +360,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test, SimulateDonResponse {
         // Last 2 days 2 people joins
         for (uint256 i = 200; i < 202; i++) {
             vm.prank(kycService);
-            kycModule.approveKYC(lotOfUsers[i]);
+            kycModule.approveKYC(lotOfUsers[i], BM);
 
             vm.warp(block.timestamp + 1 days);
             vm.roll(block.number + 1);

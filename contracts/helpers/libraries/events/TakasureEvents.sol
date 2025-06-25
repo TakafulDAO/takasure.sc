@@ -13,7 +13,6 @@ library TakasureEvents {
     event OnMemberCreated(
         uint256 indexed memberId,
         address indexed member,
-        uint256 indexed benefitMultiplier,
         uint256 contributionBeforeFee,
         uint256 serviceFee,
         uint256 membershipDuration,
@@ -37,8 +36,7 @@ library TakasureEvents {
         uint256 indexed serviceFee,
         uint256 bmaFundReserveShare,
         bool isOptimizerEnabled,
-        address contributionToken,
-        address daoToken
+        address contributionToken
     );
     event OnNewProFormaValues(
         uint256 indexed proFormaFundReserve,
@@ -55,10 +53,6 @@ library TakasureEvents {
     event OnRefund(uint256 indexed memberId, address indexed member, uint256 indexed amount);
     event OnNewMinimumThreshold(uint256 indexed minimumThreshold);
     event OnNewMaximumThreshold(uint256 indexed maximumThreshold);
-    event OnBenefitMultiplierConsumerChanged(
-        address indexed newBenefitMultiplierConsumer,
-        address indexed oldBenefitMultiplierConsumer
-    );
     event OnNewMarketExpendsFundReserveAddShare(
         uint8 indexed newMarketExpendsFundReserveAddShare,
         uint8 indexed oldMarketExpendsFundReserveAddShare

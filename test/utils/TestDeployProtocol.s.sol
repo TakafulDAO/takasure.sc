@@ -4,41 +4,61 @@ pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {ModuleManager} from "contracts/modules/manager/ModuleManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {TSToken} from "contracts/token/TSToken.sol";
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 contract TestDeployProtocol is Script {
-    BenefitMultiplierConsumerMock bmConsumerMock;
     ModuleManager moduleManager;
+    AddressManager addressManager;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
     bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
-    bytes32 public constant MODULE_MANAGER = keccak256("MODULE_MANAGER");
     bytes32 public constant ROUTER = keccak256("ROUTER");
 
+    address addressManagerImplementation;
+    address addressManagerProxy;
+    address moduleManagerImplementation;
+    address moduleManagerProxy;
     address takasureReserveImplementation;
     address userRouterImplementation;
 
     string root;
     string scriptPath;
 
+    struct DeployModuleFunctionParams {
+        address addressManager;
+        address takadaoOperator;
+        address kycProvider;
+        address contributionToken;
+        address couponPool;
+        address pauseGuardian;
+    }
+
+    struct AssignRolesFunctionParams {
+        address addressManager;
+        address daoMultisig;
+        address takadaoOperator;
+        address kycProvider;
+        address subscriptionModuleAddress;
+        address kycModuleAddress;
+        address memberModuleAddress;
+    }
+
     function run()
         external
         returns (
-            address tsToken,
-            BenefitMultiplierConsumerMock,
             address takasureReserve,
             address referralGatewayAddress,
             address subscriptionModuleAddress,
@@ -56,15 +76,12 @@ contract TestDeployProtocol is Script {
 
         vm.startBroadcast(msg.sender);
 
-        // Deploy the BenefitMultiplierConsumerMock
-        bmConsumerMock = _deployBMConsumer(
-            config.functionsRouter,
-            config.donId,
-            config.gasLimit,
-            config.subscriptionId
+        addressManagerImplementation = address(new AddressManager());
+        addressManagerProxy = UnsafeUpgrades.deployUUPSProxy(
+            addressManagerImplementation,
+            abi.encodeCall(AddressManager.initialize, (msg.sender))
         );
-
-        moduleManager = new ModuleManager();
+        addressManager = AddressManager(addressManagerProxy);
 
         // Deploy TakasureReserve
         takasureReserveImplementation = address(new TakasureReserve());
@@ -72,19 +89,33 @@ contract TestDeployProtocol is Script {
             takasureReserveImplementation,
             abi.encodeCall(
                 TakasureReserve.initialize,
-                (
-                    config.contributionToken,
-                    config.feeClaimAddress,
-                    config.daoMultisig,
-                    config.takadaoOperator,
-                    config.kycProvider,
-                    config.pauseGuardian,
-                    config.tokenAdmin,
-                    address(moduleManager),
-                    config.tokenName,
-                    config.tokenSymbol
-                )
+                (config.contributionToken, address(addressManager))
             )
+        );
+
+        addressManager.addProtocolAddress(
+            "TAKASURE_RESERVE",
+            takasureReserve,
+            ProtocolAddressType.Protocol
+        );
+
+        moduleManagerImplementation = address(new ModuleManager());
+        moduleManagerProxy = UnsafeUpgrades.deployUUPSProxy(
+            moduleManagerImplementation,
+            abi.encodeCall(ModuleManager.initialize, (addressManagerProxy))
+        );
+        moduleManager = ModuleManager(moduleManagerProxy);
+
+        addressManager.addProtocolAddress(
+            "MODULE_MANAGER",
+            address(moduleManager),
+            ProtocolAddressType.Protocol
+        );
+
+        addressManager.addProtocolAddress(
+            "FEE_CLAIM_ADDRESS",
+            config.feeClaimAddress,
+            ProtocolAddressType.Admin
         );
 
         (
@@ -94,43 +125,61 @@ contract TestDeployProtocol is Script {
             memberModuleAddress,
             revenueModuleAddress
         ) = _deployModules(
-            takasureReserve,
-            config.takadaoOperator,
-            config.kycProvider,
-            config.contributionToken,
-            address(bmConsumerMock),
-            makeAddr("ccipReceiverContract"),
-            makeAddr("couponPool"),
-            config.pauseGuardian
+            DeployModuleFunctionParams({
+                addressManager: address(addressManager),
+                takadaoOperator: config.takadaoOperator,
+                kycProvider: config.kycProvider,
+                contributionToken: config.contributionToken,
+                couponPool: makeAddr("couponPool"),
+                pauseGuardian: config.pauseGuardian
+            })
+        );
+
+        addressManager.addProtocolAddress(
+            "SUBSCRIPTION_MODULE",
+            subscriptionModuleAddress,
+            ProtocolAddressType.Module
+        );
+
+        addressManager.addProtocolAddress(
+            "KYC_MODULE",
+            kycModuleAddress,
+            ProtocolAddressType.Module
+        );
+
+        addressManager.addProtocolAddress(
+            "MEMBER_MODULE",
+            memberModuleAddress,
+            ProtocolAddressType.Module
+        );
+
+        addressManager.addProtocolAddress(
+            "REVENUE_MODULE",
+            revenueModuleAddress,
+            ProtocolAddressType.Module
         );
 
         // Deploy router
         userRouterImplementation = address(new UserRouter());
         routerAddress = UnsafeUpgrades.deployUUPSProxy(
             userRouterImplementation,
-            abi.encodeCall(
-                UserRouter.initialize,
-                (takasureReserve, subscriptionModuleAddress, memberModuleAddress)
-            )
+            abi.encodeCall(UserRouter.initialize, (takasureReserve))
         );
 
-        _setContracts(
-            subscriptionModuleAddress,
-            kycModuleAddress,
-            memberModuleAddress,
-            revenueModuleAddress
-        );
+        addressManager.addProtocolAddress("ROUTER", routerAddress, ProtocolAddressType.Protocol);
 
-        TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
-        tsToken = address(creditToken);
+        _createRoles(address(addressManager));
 
         _assignRoles(
-            takasureReserve,
-            config.daoMultisig,
-            creditToken,
-            subscriptionModuleAddress,
-            kycModuleAddress,
-            memberModuleAddress
+            AssignRolesFunctionParams({
+                addressManager: address(addressManager),
+                daoMultisig: config.daoMultisig,
+                takadaoOperator: config.takadaoOperator,
+                kycProvider: config.kycProvider,
+                subscriptionModuleAddress: subscriptionModuleAddress,
+                kycModuleAddress: kycModuleAddress,
+                memberModuleAddress: memberModuleAddress
+            })
         );
 
         vm.stopBroadcast();
@@ -139,14 +188,16 @@ contract TestDeployProtocol is Script {
             .getReserveValues()
             .contributionToken;
 
-        vm.startPrank(config.takadaoOperator);
-        SubscriptionModule(subscriptionModuleAddress).grantRole(ROUTER, routerAddress);
-        MemberModule(memberModuleAddress).grantRole(ROUTER, routerAddress);
-        vm.stopPrank();
+        vm.prank(config.takadaoOperator);
+        addressManager.acceptProposedRole(Roles.OPERATOR);
+
+        vm.prank(config.daoMultisig);
+        addressManager.acceptProposedRole(Roles.DAO_MULTISIG);
+
+        vm.prank(config.kycProvider);
+        addressManager.acceptProposedRole(Roles.KYC_PROVIDER);
 
         return (
-            tsToken,
-            bmConsumerMock,
             takasureReserve,
             referralGatewayAddress,
             subscriptionModuleAddress,
@@ -160,20 +211,6 @@ contract TestDeployProtocol is Script {
         );
     }
 
-    function _deployBMConsumer(
-        address _functionsRouter,
-        bytes32 _donId,
-        uint32 _gasLimit,
-        uint64 _subscriptionId
-    ) internal returns (BenefitMultiplierConsumerMock bmConsumerMock_) {
-        bmConsumerMock_ = new BenefitMultiplierConsumerMock(
-            _functionsRouter,
-            _donId,
-            _gasLimit,
-            _subscriptionId
-        );
-    }
-
     address referralGatewayImplementation;
     address subscriptionModuleImplementation;
     address kycModuleImplementation;
@@ -181,14 +218,7 @@ contract TestDeployProtocol is Script {
     address revenueModuleImplementation;
 
     function _deployModules(
-        address _takasureReserve,
-        address _takadaoOperator,
-        address _kycProvider,
-        address _contributionToken,
-        address _bmConsumerMock,
-        address _ccipReceiver,
-        address _couponPool,
-        address _pauseGuardian
+        DeployModuleFunctionParams memory _params
     )
         internal
         returns (
@@ -207,11 +237,10 @@ contract TestDeployProtocol is Script {
             abi.encodeCall(
                 ReferralGateway.initialize,
                 (
-                    _takadaoOperator,
-                    _kycProvider,
-                    _pauseGuardian,
-                    _contributionToken,
-                    _bmConsumerMock
+                    _params.takadaoOperator,
+                    _params.kycProvider,
+                    _params.pauseGuardian,
+                    _params.contributionToken
                 )
             )
         );
@@ -222,7 +251,7 @@ contract TestDeployProtocol is Script {
             subscriptionModuleImplementation,
             abi.encodeCall(
                 SubscriptionModule.initialize,
-                (_takasureReserve, referralGatewayAddress_, _ccipReceiver, _couponPool)
+                (_params.addressManager, referralGatewayAddress_, _params.couponPool)
             )
         );
 
@@ -230,63 +259,44 @@ contract TestDeployProtocol is Script {
         kycModuleImplementation = address(new KYCModule());
         kycModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             kycModuleImplementation,
-            abi.encodeCall(KYCModule.initialize, (_takasureReserve, subscriptionModuleAddress_))
+            abi.encodeCall(KYCModule.initialize, (_params.addressManager))
         );
 
         // Deploy MemberModule
         memberModuleImplementation = address(new MemberModule());
         memberModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             memberModuleImplementation,
-            abi.encodeCall(MemberModule.initialize, (_takasureReserve))
+            abi.encodeCall(MemberModule.initialize, (_params.addressManager))
         );
 
         // Deploy RevenueModule
         revenueModuleImplementation = address(new RevenueModule());
         revenueModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             revenueModuleImplementation,
-            abi.encodeCall(RevenueModule.initialize, (_takasureReserve))
+            abi.encodeCall(RevenueModule.initialize, (_params.addressManager))
         );
     }
 
-    function _setContracts(
-        address _subscriptionModuleAddress,
-        address _kycModuleAddress,
-        address _memberModuleAddress,
-        address _revenueModuleAddress
-    ) internal {
-        bmConsumerMock.setNewRequester(_subscriptionModuleAddress);
-        bmConsumerMock.setNewRequester(_kycModuleAddress);
-
-        // Set modules contracts in TakasureReserve
-        moduleManager.addModule(_subscriptionModuleAddress);
-        moduleManager.addModule(_kycModuleAddress);
-        moduleManager.addModule(_memberModuleAddress);
-        moduleManager.addModule(_revenueModuleAddress);
+    function _createRoles(address _addressManager) internal {
+        AddressManager(_addressManager).createNewRole(Roles.OPERATOR);
+        AddressManager(_addressManager).createNewRole(Roles.DAO_MULTISIG);
+        AddressManager(_addressManager).createNewRole(Roles.KYC_PROVIDER);
     }
 
-    function _assignRoles(
-        address _takasureReserve,
-        address _daoMultisig,
-        TSToken _creditToken,
-        address _subscriptionModuleAddress,
-        address _kycModuleAddress,
-        address _memberModuleAddress
-    ) internal {
-        // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
-        TakasureReserve(_takasureReserve).grantRole(0x00, _daoMultisig);
-        // And the modules as burner and minters
-        _creditToken.grantRole(MINTER_ROLE, _subscriptionModuleAddress);
-        _creditToken.grantRole(MINTER_ROLE, _kycModuleAddress);
-        _creditToken.grantRole(MINTER_ROLE, _memberModuleAddress);
-        _creditToken.grantRole(BURNER_ROLE, _subscriptionModuleAddress);
-        _creditToken.grantRole(BURNER_ROLE, _kycModuleAddress);
-        _creditToken.grantRole(BURNER_ROLE, _memberModuleAddress);
-
-        // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
-        TakasureReserve(_takasureReserve).renounceRole(0x00, msg.sender);
-        // And the burner and minter admins
-        _creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
-        _creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
+    function _assignRoles(AssignRolesFunctionParams memory _params) internal {
+        // Assign some global roles
+        AddressManager(_params.addressManager).proposeRoleHolder(
+            Roles.OPERATOR,
+            _params.takadaoOperator
+        );
+        AddressManager(_params.addressManager).proposeRoleHolder(
+            Roles.DAO_MULTISIG,
+            _params.daoMultisig
+        );
+        AddressManager(_params.addressManager).proposeRoleHolder(
+            Roles.KYC_PROVIDER,
+            _params.kycProvider
+        );
     }
 
     // To avoid this contract to be count in coverage

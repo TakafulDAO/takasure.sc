@@ -8,16 +8,15 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, MemberState, Reserve} from "contracts/types/TakasureTypes.sol";
+import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 contract Transfers_TakasureCoreTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     SubscriptionModule subscriptionModule;
     UserRouter userRouter;
     address takasureReserveProxy;
@@ -36,8 +35,6 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
-            ,
-            bmConsumerMock,
             takasureReserveProxy,
             ,
             subscriptionModuleAddress,
@@ -68,15 +65,6 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
         vm.startPrank(alice);
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
-
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(address(subscriptionModuleAddress));
-
-        vm.prank(takadao);
-        subscriptionModule.updateBmAddress();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -123,7 +111,9 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
     function testTakasureCore_serviceFeeAmountTransferedWhenJoinsPool() public {
         Reserve memory reserve = takasureReserve.getReserveValues();
         uint8 serviceFee = reserve.serviceFee;
-        address serviceFeeReceiver = takasureReserve.feeClaimAddress();
+        address serviceFeeReceiver = IAddressManager(takasureReserve.addressManager())
+            .getProtocolAddressByName("FEE_CLAIM_ADDRESS")
+            .addr;
         uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
 
         vm.prank(alice);
