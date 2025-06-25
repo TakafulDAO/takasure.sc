@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
 
@@ -33,8 +34,12 @@ contract AddressManagerTest is Test {
     event OnNewRoleHolder(bytes32 indexed role, address indexed newHolder);
 
     function setUp() public {
-        vm.prank(addressManagerOwner);
-        addressManager = new AddressManager();
+        address addressManagerImplementation = address(new AddressManager());
+        address addressManagerProxy = UnsafeUpgrades.deployUUPSProxy(
+            addressManagerImplementation,
+            abi.encodeCall(AddressManager.initialize, (addressManagerOwner))
+        );
+        addressManager = AddressManager(addressManagerProxy);
     }
 
     /*//////////////////////////////////////////////////////////////

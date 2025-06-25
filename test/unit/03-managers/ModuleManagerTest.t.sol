@@ -5,6 +5,7 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IsModule, IsNotModule} from "test/mocks/ModuleMocks.sol";
@@ -42,8 +43,15 @@ contract ModuleManagerTest is Test {
         takasureReserve = TakasureReserve(takasureReserveProxy);
         addressManager = address(takasureReserve.addressManager());
 
-        vm.prank(moduleManagerOwner);
-        moduleManager = new ModuleManager(takasureReserveProxy);
+        vm.startPrank(moduleManagerOwner);
+        address moduleManagerImplementation = address(new ModuleManager());
+        address moduleManagerProxy = UnsafeUpgrades.deployUUPSProxy(
+            moduleManagerImplementation,
+            abi.encodeCall(ModuleManager.initialize, (takasureReserveProxy))
+        );
+        vm.stopPrank();
+
+        moduleManager = ModuleManager(moduleManagerProxy);
 
         isModule = new IsModule();
         isNotModule = new IsNotModule();

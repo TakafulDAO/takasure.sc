@@ -27,6 +27,10 @@ contract TestDeployProtocol is Script {
     bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
     bytes32 public constant ROUTER = keccak256("ROUTER");
 
+    address addressManagerImplementation;
+    address addressManagerProxy;
+    address moduleManagerImplementation;
+    address moduleManagerProxy;
     address takasureReserveImplementation;
     address userRouterImplementation;
 
@@ -72,7 +76,12 @@ contract TestDeployProtocol is Script {
 
         vm.startBroadcast(msg.sender);
 
-        addressManager = new AddressManager();
+        addressManagerImplementation = address(new AddressManager());
+        addressManagerProxy = UnsafeUpgrades.deployUUPSProxy(
+            addressManagerImplementation,
+            abi.encodeCall(AddressManager.initialize, (msg.sender))
+        );
+        addressManager = AddressManager(addressManagerProxy);
 
         // Deploy TakasureReserve
         takasureReserveImplementation = address(new TakasureReserve());
@@ -90,7 +99,12 @@ contract TestDeployProtocol is Script {
             ProtocolAddressType.Protocol
         );
 
-        moduleManager = new ModuleManager(address(takasureReserve));
+        moduleManagerImplementation = address(new ModuleManager());
+        moduleManagerProxy = UnsafeUpgrades.deployUUPSProxy(
+            moduleManagerImplementation,
+            abi.encodeCall(ModuleManager.initialize, (takasureReserve))
+        );
+        moduleManager = ModuleManager(moduleManagerProxy);
 
         addressManager.addProtocolAddress(
             "MODULE_MANAGER",

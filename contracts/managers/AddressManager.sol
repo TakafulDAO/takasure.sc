@@ -6,8 +6,9 @@
  * @notice This contract will manage the addresses in the TLD protocol of the Takasure protocol
  */
 
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
@@ -17,7 +18,13 @@ import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contract
 
 pragma solidity 0.8.28;
 
-contract AddressManager is Ownable2Step, AccessControl, IAddressManager {
+contract AddressManager is
+    Initializable,
+    UUPSUpgradeable,
+    Ownable2StepUpgradeable,
+    AccessControlUpgradeable,
+    IAddressManager
+{
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -69,7 +76,16 @@ contract AddressManager is Ownable2Step, AccessControl, IAddressManager {
     error AddressManager__TooLateToAccept();
     error AddressManager__NotRoleHolder();
 
-    constructor() Ownable(msg.sender) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _owner) external initializer {
+        __UUPSUpgradeable_init();
+        __Ownable2Step_init();
+        __Ownable_init(_owner);
+        __AccessControl_init();
         roleAcceptanceDelay = 1 days;
     }
 
@@ -350,7 +366,7 @@ contract AddressManager is Ownable2Step, AccessControl, IAddressManager {
     function hasRole(
         bytes32 role,
         address account
-    ) public view override(AccessControl, IAddressManager) returns (bool) {
+    ) public view override(AccessControlUpgradeable, IAddressManager) returns (bool) {
         if (!_protocolRoles.contains(role)) return false;
         else return super.hasRole(role, account);
     }
@@ -409,4 +425,7 @@ contract AddressManager is Ownable2Step, AccessControl, IAddressManager {
 
         return protocolAddress_;
     }
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }

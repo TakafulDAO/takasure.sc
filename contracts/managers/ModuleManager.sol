@@ -13,14 +13,20 @@
 
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ITLDModuleImplementation} from "contracts/interfaces/ITLDModuleImplementation.sol";
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
-contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
+contract ModuleManager is
+    Initializable,
+    UUPSUpgradeable,
+    Ownable2StepUpgradeable,
+    ReentrancyGuardTransientUpgradeable
+{
     ITakasureReserve private takasureReserve;
 
     mapping(address moduleAddr => ModuleState) private addressToModuleState;
@@ -42,7 +48,16 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
     error ModuleManager__NotModule();
     error ModuleManager__WrongState();
 
-    constructor(address _takasureReserveAddress) Ownable(msg.sender) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _takasureReserveAddress) external initializer {
+        __UUPSUpgradeable_init();
+        __Ownable2Step_init();
+        __Ownable_init(msg.sender);
+        __ReentrancyGuardTransient_init();
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
     }
 
@@ -133,4 +148,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
             revert ModuleManager__NotModule();
         }
     }
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
