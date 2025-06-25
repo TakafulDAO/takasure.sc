@@ -34,7 +34,7 @@ contract TestDeployProtocol is Script {
     string scriptPath;
 
     struct DeployModuleFunctionParams {
-        address takasureReserve;
+        address addressManager;
         address takadaoOperator;
         address kycProvider;
         address contributionToken;
@@ -84,6 +84,12 @@ contract TestDeployProtocol is Script {
             )
         );
 
+        addressManager.addProtocolAddress(
+            "TAKASURE_RESERVE",
+            takasureReserve,
+            ProtocolAddressType.Protocol
+        );
+
         moduleManager = new ModuleManager(address(takasureReserve));
 
         addressManager.addProtocolAddress(
@@ -106,7 +112,7 @@ contract TestDeployProtocol is Script {
             revenueModuleAddress
         ) = _deployModules(
             DeployModuleFunctionParams({
-                takasureReserve: takasureReserve,
+                addressManager: address(addressManager),
                 takadaoOperator: config.takadaoOperator,
                 kycProvider: config.kycProvider,
                 contributionToken: config.contributionToken,
@@ -231,7 +237,7 @@ contract TestDeployProtocol is Script {
             subscriptionModuleImplementation,
             abi.encodeCall(
                 SubscriptionModule.initialize,
-                (_params.takasureReserve, referralGatewayAddress_, _params.couponPool)
+                (_params.addressManager, referralGatewayAddress_, _params.couponPool)
             )
         );
 
@@ -239,21 +245,21 @@ contract TestDeployProtocol is Script {
         kycModuleImplementation = address(new KYCModule());
         kycModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             kycModuleImplementation,
-            abi.encodeCall(KYCModule.initialize, (_params.takasureReserve))
+            abi.encodeCall(KYCModule.initialize, (_params.addressManager))
         );
 
         // Deploy MemberModule
         memberModuleImplementation = address(new MemberModule());
         memberModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             memberModuleImplementation,
-            abi.encodeCall(MemberModule.initialize, (_params.takasureReserve))
+            abi.encodeCall(MemberModule.initialize, (_params.addressManager))
         );
 
         // Deploy RevenueModule
         revenueModuleImplementation = address(new RevenueModule());
         revenueModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             revenueModuleImplementation,
-            abi.encodeCall(RevenueModule.initialize, (_params.takasureReserve))
+            abi.encodeCall(RevenueModule.initialize, (_params.addressManager))
         );
     }
 

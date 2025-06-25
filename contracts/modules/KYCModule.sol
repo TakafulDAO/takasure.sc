@@ -37,7 +37,7 @@ contract KYCModule is
     MemberPaymentFlow,
     ParentRewards
 {
-    ITakasureReserve private takasureReserve;
+    IAddressManager private addressManager;
     ModuleState private moduleState;
 
     error KYCModule__ContributionRequired();
@@ -46,7 +46,7 @@ contract KYCModule is
 
     modifier onlyContract(string memory name) {
         require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
+            AddressAndStates._checkName(address(addressManager), name),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -54,7 +54,7 @@ contract KYCModule is
 
     modifier onlyRole(bytes32 role) {
         require(
-            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
+            AddressAndStates._checkRole(address(addressManager), role),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -65,11 +65,11 @@ contract KYCModule is
         _disableInitializers();
     }
 
-    function initialize(address _takasureReserveAddress) external initializer {
+    function initialize(address _addressManager) external initializer {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
 
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
+        addressManager = IAddressManager(_addressManager);
     }
 
     /**
@@ -94,6 +94,10 @@ contract KYCModule is
     ) external onlyRole(Roles.KYC_PROVIDER) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(memberWallet);
+
+        ITakasureReserve takasureReserve = ITakasureReserve(
+            addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
+        );
 
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
@@ -167,8 +171,7 @@ contract KYCModule is
         address _takasureReserve,
         uint256 _contributionAfterFee
     ) internal override {
-        address addressManager = address(ITakasureReserve(_takasureReserve).addressManager());
-        address subscriptionModuleAddress = IAddressManager(addressManager)
+        address subscriptionModuleAddress = addressManager
             .getProtocolAddressByName("SUBSCRIPTION_MODULE")
             .addr;
 

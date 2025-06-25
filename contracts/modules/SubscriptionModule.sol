@@ -40,7 +40,7 @@ contract SubscriptionModule is
 {
     using SafeERC20 for IERC20;
 
-    ITakasureReserve private takasureReserve;
+    IAddressManager private addressManager;
     ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
@@ -62,7 +62,7 @@ contract SubscriptionModule is
 
     modifier onlyContract(string memory name) {
         require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
+            AddressAndStates._checkName(address(addressManager), name),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -70,7 +70,7 @@ contract SubscriptionModule is
 
     modifier onlyRole(bytes32 role) {
         require(
-            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
+            AddressAndStates._checkRole(address(addressManager), role),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -82,14 +82,14 @@ contract SubscriptionModule is
     }
 
     function initialize(
-        address _takasureReserveAddress,
+        address _addressManager,
         address _referralGateway,
         address _couponPool
     ) external initializer {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
 
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
+        addressManager = IAddressManager(_addressManager);
 
         referralGateway = _referralGateway;
         couponPool = _couponPool;
@@ -118,10 +118,10 @@ contract SubscriptionModule is
     ) external nonReentrant {
         require(msg.sender == referralGateway, ModuleErrors.Module__NotAuthorizedCaller());
 
-        (
-            Reserve memory reserve,
-            Member memory newMember
-        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
+            memberWallet,
+            contributionBeforeFee
+        );
 
         _joinFromReferralGateway(
             reserve,
@@ -150,14 +150,14 @@ contract SubscriptionModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        (
-            Reserve memory reserve,
-            Member memory newMember
-        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
+            memberWallet,
+            contributionBeforeFee
+        );
 
         // Check caller
         require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
+            AddressAndStates._checkName(address(addressManager), "ROUTER") ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -184,10 +184,10 @@ contract SubscriptionModule is
         uint256 membershipDuration,
         uint256 couponAmount
     ) external nonReentrant onlyRole(Roles.COUPON_REDEEMER) {
-        (
-            Reserve memory reserve,
-            Member memory newMember
-        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
+            memberWallet,
+            contributionBeforeFee
+        );
 
         // Check if the coupon amount is valid
         require(couponAmount <= contributionBeforeFee, SubscriptionModule__InvalidContribution());
@@ -243,13 +243,12 @@ contract SubscriptionModule is
     function _paySubscriptionChecksAndsettings(
         address _memberWallet,
         uint256 _contributionBeforeFee
-    )
-        internal
-        returns (Reserve memory reserve_, Member memory newMember_)
-    {
+    ) internal returns (Reserve memory reserve_, Member memory newMember_) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
-        (reserve_, newMember_) = _getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
+        (reserve_, newMember_) = _getReserveAndMemberValuesHook(ITakasureReserve(
+            addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
+        ), _memberWallet);
 
         if (!newMember_.isRefunded) {
             require(newMember_.wallet == address(0), SubscriptionModule__AlreadyJoined());
@@ -284,6 +283,10 @@ contract SubscriptionModule is
         // Then everyting needed will be updated, proformas, reserves, cash flow,
         // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
         uint256 credits;
+
+        ITakasureReserve takasureReserve = ITakasureReserve(
+            addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
+        );
 
         (_reserve, credits) = _memberPaymentFlow({
             _contributionBeforeFee: _newMember.contribution,
@@ -352,10 +355,15 @@ contract SubscriptionModule is
 
         _newMember.discount = discount;
 
+
+        ITakasureReserve takasureReserve = ITakasureReserve(
+            addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
+        );
+
         // The member will pay the contribution, but will remain inactive until the KYC is verified
         // This means the proformas wont be updated, the amounts wont be added to the reserves,
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-        _transferContributionToModule({_memberWallet: _memberWallet, _couponAmount: _couponAmount});
+        _transferContributionToModule({_memberWallet: _memberWallet, _couponAmount: _couponAmount, _takasureReserve: takasureReserve});
         _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
     }
 
@@ -398,17 +406,19 @@ contract SubscriptionModule is
     function _refund(address _memberWallet) internal {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
+        ITakasureReserve takasureReserve = ITakasureReserve(
+            addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
+        );
+
         (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
             takasureReserve,
             _memberWallet
         );
 
-        address addressManager = address(takasureReserve.addressManager());
-
         require(
             _memberWallet == msg.sender ||
-                AddressAndStates._checkName(addressManager, "ROUTER") ||
-                AddressAndStates._checkRole(addressManager, Roles.OPERATOR),
+                AddressAndStates._checkName(address(addressManager), "ROUTER") ||
+                AddressAndStates._checkRole(address(addressManager), Roles.OPERATOR),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         // The member should not be KYCed neither already refunded
@@ -547,8 +557,8 @@ contract SubscriptionModule is
         }
     }
 
-    function _transferContributionToModule(address _memberWallet, uint256 _couponAmount) internal {
-        IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
+    function _transferContributionToModule(address _memberWallet, uint256 _couponAmount, ITakasureReserve _takasureReserve) internal {
+        IERC20 contributionToken = IERC20(_takasureReserve.getReserveValues().contributionToken);
         uint256 _amountToTransferFromMember;
 
         if (_couponAmount > 0) {
@@ -572,9 +582,7 @@ contract SubscriptionModule is
             // Transfer the service fee to the fee claim address
             contributionToken.safeTransferFrom(
                 _memberWallet,
-                IAddressManager(address(takasureReserve.addressManager()))
-                    .getProtocolAddressByName("FEE_CLAIM_ADDRESS")
-                    .addr,
+                addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr,
                 feeAmount
             );
         }
