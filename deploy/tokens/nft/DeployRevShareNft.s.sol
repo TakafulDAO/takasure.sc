@@ -8,7 +8,7 @@ import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract DeployRevShareNft is Script {
-    string baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
+    string baseURI = "https://ipfs.io/ipfs/QmUNHy2dz6Ye9Xt67Y52YfkPJmasahJQhTy3ghviR3kwk8/";
 
     function run() external returns (address nft) {
         HelperConfig helperConfig = new HelperConfig();
