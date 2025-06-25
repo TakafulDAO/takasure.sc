@@ -9,6 +9,7 @@
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
@@ -23,6 +24,7 @@ contract AddressManager is
     UUPSUpgradeable,
     Ownable2StepUpgradeable,
     AccessControlUpgradeable,
+    ReentrancyGuardTransientUpgradeable,
     IAddressManager
 {
     using EnumerableSet for EnumerableSet.Bytes32Set;
@@ -86,6 +88,7 @@ contract AddressManager is
         __Ownable2Step_init();
         __Ownable_init(_owner);
         __AccessControl_init();
+        __ReentrancyGuardTransient_init();
         roleAcceptanceDelay = 1 days;
     }
 
@@ -114,7 +117,7 @@ contract AddressManager is
         string memory name,
         address addr,
         ProtocolAddressType addressType
-    ) external onlyOwner {
+    ) external onlyOwner nonReentrant {
         require(
             bytes(name).length > 0 && bytes(name).length <= 32,
             AddressManager__InvalidNameLength()
