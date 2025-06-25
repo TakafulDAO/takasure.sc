@@ -47,7 +47,7 @@ contract ModuleManagerTest is Test {
         address moduleManagerImplementation = address(new ModuleManager());
         address moduleManagerProxy = UnsafeUpgrades.deployUUPSProxy(
             moduleManagerImplementation,
-            abi.encodeCall(ModuleManager.initialize, (takasureReserveProxy))
+            abi.encodeCall(ModuleManager.initialize, (addressManager))
         );
         vm.stopPrank();
 

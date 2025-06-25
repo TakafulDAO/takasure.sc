@@ -102,7 +102,7 @@ contract TestDeployProtocol is Script {
         moduleManagerImplementation = address(new ModuleManager());
         moduleManagerProxy = UnsafeUpgrades.deployUUPSProxy(
             moduleManagerImplementation,
-            abi.encodeCall(ModuleManager.initialize, (takasureReserve))
+            abi.encodeCall(ModuleManager.initialize, (addressManagerProxy))
         );
         moduleManager = ModuleManager(moduleManagerProxy);
 

@@ -11,7 +11,6 @@
  * @dev The state in this contract will be mainly the modules addresses and their status and any other auxiliary data
  */
 
-import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ITLDModuleImplementation} from "contracts/interfaces/ITLDModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
@@ -27,7 +26,7 @@ contract ModuleManager is
     Ownable2StepUpgradeable,
     ReentrancyGuardTransientUpgradeable
 {
-    ITakasureReserve private takasureReserve;
+    address private addressManager;
 
     mapping(address moduleAddr => ModuleState) private addressToModuleState;
 
@@ -53,12 +52,12 @@ contract ModuleManager is
         _disableInitializers();
     }
 
-    function initialize(address _takasureReserveAddress) external initializer {
+    function initialize(address _addressManager) external initializer {
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __Ownable_init(msg.sender);
         __ReentrancyGuardTransient_init();
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
+        addressManager = _addressManager;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -70,10 +69,7 @@ contract ModuleManager is
      * @param newModule The new module address
      */
     function addModule(address newModule) external nonReentrant {
-        require(
-            msg.sender == address(takasureReserve.addressManager()),
-            ModuleManager__InvalidCaller()
-        );
+        require(msg.sender == addressManager, ModuleManager__InvalidCaller());
         // New module can not be address 0, can not be already a module, and the status will be enabled
         require(newModule != address(0), ModuleManager__AddressZeroNotAllowed());
         require(
