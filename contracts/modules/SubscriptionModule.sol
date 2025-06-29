@@ -60,22 +60,6 @@ contract SubscriptionModule is
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__TooEarlytoRefund();
 
-    modifier onlyContract(string memory name) {
-        require(
-            AddressAndStates._checkName(address(addressManager), name),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(address(addressManager), role),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -101,11 +85,11 @@ contract SubscriptionModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER") {
+    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
         moduleState = newState;
     }
 
-    function setCouponPoolAddress(address _couponPool) external onlyRole(Roles.OPERATOR) {
+    function setCouponPoolAddress(address _couponPool) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
@@ -183,7 +167,7 @@ contract SubscriptionModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration,
         uint256 couponAmount
-    ) external nonReentrant onlyRole(Roles.COUPON_REDEEMER) {
+    ) external nonReentrant onlyRole(Roles.COUPON_REDEEMER, address(addressManager)) {
         (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
             memberWallet,
             contributionBeforeFee
@@ -213,7 +197,7 @@ contract SubscriptionModule is
         address memberWallet,
         address takasureReserveAddress,
         uint256 contributionAfterFeeAmount
-    ) external onlyContract("KYC_MODULE") {
+    ) external onlyContract("KYC_MODULE", address(addressManager)) {
         _transferContributionToReserve(
             contributionToken,
             memberWallet,
@@ -591,5 +575,5 @@ contract SubscriptionModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
 }

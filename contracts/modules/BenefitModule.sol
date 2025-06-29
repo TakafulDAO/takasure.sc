@@ -7,30 +7,12 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
-import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 pragma solidity 0.8.28;
 
 contract BenefitModule is Initializable, UUPSUpgradeable, TLDModuleImplementation {
     IAddressManager private addressManager;
     ModuleState private moduleState;
-
-    modifier onlyContract(string memory name) {
-        require(
-            AddressAndStates._checkName(address(addressManager), name),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(address(addressManager), role),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -49,12 +31,12 @@ contract BenefitModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER") {
+    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
         moduleState = newState;
     }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
 }

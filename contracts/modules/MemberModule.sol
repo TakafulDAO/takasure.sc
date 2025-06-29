@@ -41,22 +41,6 @@ contract MemberModule is
 
     error MemberModule__InvalidDate();
 
-    modifier onlyContract(string memory name) {
-        require(
-            AddressAndStates._checkName(address(addressManager), name),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(address(addressManager), role),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -76,7 +60,7 @@ contract MemberModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER") {
+    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
         moduleState = newState;
     }
 
@@ -225,5 +209,5 @@ contract MemberModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
 }
