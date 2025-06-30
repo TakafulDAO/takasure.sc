@@ -206,13 +206,7 @@ contract TestDeployProtocol is Script {
             referralGatewayImplementation,
             abi.encodeCall(
                 ReferralGateway.initialize,
-                (
-                    _takadaoOperator,
-                    _kycProvider,
-                    _pauseGuardian,
-                    _contributionToken,
-                    _bmConsumerMock
-                )
+                (_takadaoOperator, _kycProvider, _pauseGuardian, _contributionToken)
             )
         );
 

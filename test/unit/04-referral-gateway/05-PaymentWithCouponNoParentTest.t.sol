@@ -83,7 +83,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         referralGateway.setDaoName(tDaoName);
 
         vm.prank(config.daoMultisig);
-        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12);
 
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(referralGatewayAddress);

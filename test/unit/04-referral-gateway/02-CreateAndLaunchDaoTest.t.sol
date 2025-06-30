@@ -42,22 +42,10 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     function testCreateANewDao() public {
         vm.prank(notAllowedAddress);
         vm.expectRevert();
-        referralGateway.createDAO(
-            true,
-            true,
-            (block.timestamp + 31_536_000),
-            100e6,
-            address(bmConsumerMock)
-        );
+        referralGateway.createDAO(true, true, (block.timestamp + 31_536_000), 100e6);
 
         vm.prank(takadao);
-        referralGateway.createDAO(
-            true,
-            true,
-            (block.timestamp + 31_536_000),
-            100e6,
-            address(bmConsumerMock)
-        );
+        referralGateway.createDAO(true, true, (block.timestamp + 31_536_000), 100e6);
 
         (
             bool prejoinEnabled,
@@ -82,7 +70,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
 
         vm.prank(takadao);
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidLaunchDate.selector);
-        referralGateway.createDAO(true, true, 0, 100e6, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 0, 100e6);
 
         vm.prank(notAllowedAddress);
         vm.expectRevert();
@@ -95,7 +83,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     modifier createDao() {
         vm.startPrank(takadao);
         referralGateway.setDaoName(tDaoName);
-        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
         _;
     }

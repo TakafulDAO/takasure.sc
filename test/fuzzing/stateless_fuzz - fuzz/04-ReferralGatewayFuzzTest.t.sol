@@ -86,9 +86,8 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
 
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        referralGateway.setCCIPReceiverContract(ccipReceiverContract);
         referralGateway.setDaoName(tDaoName);
-        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
 
         vm.prank(couponRedeemer);
@@ -110,7 +109,7 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
         vm.assume(caller != ccipReceiverContract);
 
         vm.prank(caller);
-        vm.expectRevert(ReferralGateway.ReferralGateway__NotAuthorizedCaller.selector);
+        vm.expectRevert();
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
     }
 

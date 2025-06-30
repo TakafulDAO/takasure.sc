@@ -72,13 +72,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         vm.startPrank(operator);
         referralGateway.setCouponPoolAddress(couponPool);
         referralGateway.setDaoName(DAO_NAME);
-        referralGateway.createDAO(
-            true,
-            true,
-            block.timestamp + 31_536_000,
-            0,
-            address(bmConsumerMock)
-        );
+        referralGateway.createDAO(true, true, block.timestamp + 31_536_000, 0);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         vm.stopPrank();
 
