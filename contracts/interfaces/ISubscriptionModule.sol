@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GNU GPLv3
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {AssociationMember} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 interface ISubscriptionModule {
@@ -23,4 +24,6 @@ interface ISubscriptionModule {
         address takasureReserve,
         uint256 contributionAfterFee
     ) external;
+    function getMember(address memberWallet) external view returns (AssociationMember memory);
+    function modifyAssociationMember(AssociationMember memory member) external;
 }
