@@ -8,7 +8,7 @@
 pragma solidity 0.8.28;
 
 library ModuleErrors {
-    error Module__MintFailed();
+    error Module__ParentNotKYCed();
     error Module__WrongMemberState();
     error Module__WrongModuleState();
     error Module__TooEarlyToCancel();
