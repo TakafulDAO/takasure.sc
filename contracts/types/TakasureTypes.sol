@@ -10,6 +10,12 @@ enum ModuleState {
     Deprecated
 }
 
+enum AssociationMemberState {
+    Inactive,
+    Active,
+    Canceled
+}
+
 enum MemberState {
     Inactive,
     Active,
@@ -65,6 +71,18 @@ struct PrepaidMember {
     uint256 discount;
     mapping(address child => uint256 rewards) parentRewardsByChild;
     mapping(uint256 layer => uint256 rewards) parentRewardsByLayer;
+}
+
+struct AssociationMember {
+    uint256 memberId;
+    uint256 discount;
+    uint256 associateStartTime; // in seconds
+    address wallet;
+    address parent;
+    AssociationMemberState memberState;
+    bool isRefunded; // Can not be true if isKYCVerified is true
+    bool isLifeProtected;
+    bool isFarewellProtected;
 }
 
 struct Member {
