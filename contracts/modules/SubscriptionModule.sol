@@ -11,6 +11,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
+import {IRevenueModule} from "contracts/interfaces/modules/IRevenueModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
@@ -20,7 +21,7 @@ import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValues
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
-import {AssociationMember, AssociationMemberState, ModuleState, ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {AssociationMember, AssociationMemberState, ModuleState, ProtocolAddress, ProtocolAddressType, RevenueType} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
@@ -147,6 +148,15 @@ contract SubscriptionModule is
     function refund(address memberWallet) external {
         AddressAndStates._notZeroAddress(memberWallet);
         _refund(memberWallet);
+    }
+
+    function transferDonationsToReserve(uint256 amount) external {
+        address revenueModuleAddress = addressManager
+            .getProtocolAddressByName("REVENUE_MODULE")
+            .addr;
+        IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
+
+        revenueModule.depositRevenue(amount, RevenueType.CatDonation);
     }
 
     function modifyAssociationMember(AssociationMember memory member) external {
@@ -388,20 +398,6 @@ contract SubscriptionModule is
 
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
     }
-
-    // TODO: transfer donations to reserve using revenue module
-    // function _transferContributionToReserve(
-    //     IERC20 _contributionToken,
-    //     address,
-    //     address _takasureReserve,
-    //     uint256 _contributionAfterFee
-    // ) internal override {
-    //     // If the caller is the prejoin module, the transfer will be done by the prejoin module
-    //     // to the takasure reserve. Otherwise, the transfer will be done by this contract
-    //     if (msg.sender != referralGateway) {
-    //         _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee - discount);
-    //     }
-    // }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
