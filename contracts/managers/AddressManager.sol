@@ -10,8 +10,8 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
-import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {IModuleManager} from "contracts/interfaces/managers/IModuleManager.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 

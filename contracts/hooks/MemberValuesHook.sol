@@ -11,8 +11,8 @@
  */
 
 import {Member} from "contracts/types/TakasureTypes.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
-import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {ISubscriptionModule} from "contracts/interfaces/modules/ISubscriptionModule.sol";
 
 import {AssociationMember} from "contracts/types/TakasureTypes.sol";
 

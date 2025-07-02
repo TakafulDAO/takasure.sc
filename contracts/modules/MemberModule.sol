@@ -9,7 +9,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";

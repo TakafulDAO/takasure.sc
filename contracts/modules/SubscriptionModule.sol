@@ -8,14 +8,14 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
-import {IReferralRewardsModule} from "contracts/interfaces/IReferralRewardsModule.sol";
-import {IKYCModule} from "contracts/interfaces/IKYCModule.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
+import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
-import {ITLDModuleImplementation} from "contracts/interfaces/ITLDModuleImplementation.sol";
+import {ITLDModuleImplementation} from "contracts/interfaces/modules/ITLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";

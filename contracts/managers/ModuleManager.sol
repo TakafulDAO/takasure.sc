@@ -11,7 +11,7 @@
  * @dev The state in this contract will be mainly the modules addresses and their status and any other auxiliary data
  */
 
-import {ITLDModuleImplementation} from "contracts/interfaces/ITLDModuleImplementation.sol";
+import {ITLDModuleImplementation} from "contracts/interfaces/modules/ITLDModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";

@@ -6,9 +6,9 @@
  * @notice This contract allows an easier implementation of the user's actions
  */
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
-import {IMemberModule} from "contracts/interfaces/IMemberModule.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {ISubscriptionModule} from "contracts/interfaces/modules/ISubscriptionModule.sol";
+import {IMemberModule} from "contracts/interfaces/modules/IMemberModule.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
