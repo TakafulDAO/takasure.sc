@@ -14,15 +14,18 @@ contract BenefitModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
     IAddressManager private addressManager;
     ModuleState private moduleState;
 
+    string public moduleName;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(address _addressManager) external initializer {
+    function initialize(address _addressManager, string calldata _moduleName) external initializer {
         __UUPSUpgradeable_init();
 
         addressManager = IAddressManager(_addressManager);
+        moduleName = _moduleName;
     }
 
     /**

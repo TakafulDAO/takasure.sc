@@ -30,6 +30,8 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
     IAddressManager private addressManager;
     ModuleState private moduleState;
 
+    string public moduleName;
+
     error RevenueModule__WrongRevenueType();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -37,11 +39,12 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
         _disableInitializers();
     }
 
-    function initialize(address _addressManager) external initializer {
+    function initialize(address _addressManager, string calldata _moduleName) external initializer {
         AddressAndStates._notZeroAddress(_addressManager);
         __UUPSUpgradeable_init();
 
         addressManager = IAddressManager(_addressManager);
+        moduleName = _moduleName;
     }
 
     /**

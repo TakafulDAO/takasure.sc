@@ -39,6 +39,8 @@ contract MemberModule is
     IAddressManager private addressManager;
     ModuleState private moduleState;
 
+    string public moduleName;
+
     error MemberModule__InvalidDate();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -46,12 +48,13 @@ contract MemberModule is
         _disableInitializers();
     }
 
-    function initialize(address _addressManager) external initializer {
+    function initialize(address _addressManager, string calldata _moduleName) external initializer {
         AddressAndStates._notZeroAddress(_addressManager);
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
 
         addressManager = IAddressManager(_addressManager);
+        moduleName = _moduleName;
     }
 
     /**
