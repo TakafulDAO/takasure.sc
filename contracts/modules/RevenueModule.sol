@@ -24,13 +24,8 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementation {
+contract RevenueModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
-
-    IAddressManager private addressManager;
-    ModuleState private moduleState;
-
-    string public moduleName;
 
     error RevenueModule__WrongRevenueType();
 

@@ -38,11 +38,6 @@ contract KYCModule is
     MemberPaymentFlow,
     ParentRewards
 {
-    IAddressManager private addressManager;
-    ModuleState private moduleState;
-
-    string public moduleName;
-
     mapping(address member => bool) public isKYCed; // To check if a member is KYCed
 
     error KYCModule__ContributionRequired();

@@ -33,20 +33,15 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 pragma solidity 0.8.28;
 
 contract SubscriptionModule is
+    TLDModuleImplementation,
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable,
-    TLDModuleImplementation,
     ReserveAndMemberValuesHook,
     MemberPaymentFlow,
     ParentRewards
 {
     using SafeERC20 for IERC20;
-
-    IAddressManager private addressManager;
-    ModuleState private moduleState;
-
-    string public moduleName;
 
     uint256 private memberIdCounter;
 
@@ -150,6 +145,7 @@ contract SubscriptionModule is
         _refund(memberWallet);
     }
 
+    // TODO: Access control should be implemented
     function transferDonationsToReserve(uint256 amount) external {
         address revenueModuleAddress = addressManager
             .getProtocolAddressByName("REVENUE_MODULE")

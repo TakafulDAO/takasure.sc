@@ -15,16 +15,11 @@ import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.
 pragma solidity 0.8.28;
 
 contract ReferralRewardsModule is
+    TLDModuleImplementation,
     Initializable,
     UUPSUpgradeable,
-    TLDModuleImplementation,
     ParentRewards
 {
-    IAddressManager private addressManager;
-    ModuleState private moduleState;
-
-    string public moduleName;
-
     bool public referralDiscountEnabled;
     uint256 public referralReserve;
 

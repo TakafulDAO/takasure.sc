@@ -11,11 +11,6 @@ import {ModuleState} from "contracts/types/TakasureTypes.sol";
 pragma solidity 0.8.28;
 
 contract BenefitModule is Initializable, UUPSUpgradeable, TLDModuleImplementation {
-    IAddressManager private addressManager;
-    ModuleState private moduleState;
-
-    string public moduleName;
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
