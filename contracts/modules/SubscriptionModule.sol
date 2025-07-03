@@ -9,25 +9,20 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {ITLDModuleImplementation} from "contracts/interfaces/modules/ITLDModuleImplementation.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IRevenueModule} from "contracts/interfaces/modules/IRevenueModule.sol";
 
+import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
-import {ITLDModuleImplementation} from "contracts/interfaces/modules/ITLDModuleImplementation.sol";
-import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
-import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
-import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
 import {AssociationMember, AssociationMemberState, ModuleState, ProtocolAddress, ProtocolAddressType, RevenueType} from "contracts/types/TakasureTypes.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
@@ -36,10 +31,7 @@ contract SubscriptionModule is
     TLDModuleImplementation,
     Initializable,
     UUPSUpgradeable,
-    ReentrancyGuardTransientUpgradeable,
-    ReserveAndMemberValuesHook,
-    MemberPaymentFlow,
-    ParentRewards
+    ReentrancyGuardTransientUpgradeable
 {
     using SafeERC20 for IERC20;
 
@@ -80,9 +72,7 @@ contract SubscriptionModule is
         __ReentrancyGuardTransient_init();
 
         addressManager = IAddressManager(_addressManager);
-
         couponPool = _couponPool;
-
         moduleName = _moduleName;
     }
 

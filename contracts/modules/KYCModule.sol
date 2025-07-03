@@ -8,35 +8,27 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {ISubscriptionModule} from "contracts/interfaces/modules/ISubscriptionModule.sol";
-import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 
+import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {MemberValuesHook} from "contracts/hooks/MemberValuesHook.sol";
-import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
-import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
-import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 import {AssociationMember, AssociationMemberState, ModuleState, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.28;
 
 contract KYCModule is
-    Initializable,
-    UUPSUpgradeable,
-    ReentrancyGuardTransientUpgradeable,
     TLDModuleImplementation,
     MemberValuesHook,
-    MemberPaymentFlow,
-    ParentRewards
+    Initializable,
+    UUPSUpgradeable,
+    ReentrancyGuardTransientUpgradeable
 {
     mapping(address member => bool) public isKYCed; // To check if a member is KYCed
 

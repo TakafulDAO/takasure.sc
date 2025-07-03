@@ -10,7 +10,7 @@ import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
-contract BenefitModule is Initializable, UUPSUpgradeable, TLDModuleImplementation {
+contract BenefitModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
