@@ -254,6 +254,7 @@ contract ReferralGateway is
         bool isReferralDiscountEnabled
     ) external onlyRole(OPERATOR) {
         _notZeroAddress(tDAOAddress);
+        _notZeroAddress(subscriptionModule);
         require(
             nameToDAOData[daoName].DAOAddress == address(0),
             ReferralGateway__DAOAlreadyLaunched()
@@ -845,7 +846,9 @@ contract ReferralGateway is
         require(_address != address(0), ReferralGateway__ZeroAddress());
     }
 
-    function setDaoName(string memory _daoName) external onlyRole(OPERATOR) {
-        daoName = _daoName;
+    function setDaoAddressAndDaoAdmin() external onlyRole(OPERATOR) {
+        nameToDAOData[daoName].DAOAddress = address(0);
+        nameToDAOData[daoName].DAOAdmin = address(0);
+        nameToDAOData[daoName].referralDiscount = true;
     }
 }
