@@ -111,7 +111,6 @@ contract TLDCcipTest is Test {
         // Config mocks
         vm.startPrank(admin);
         takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
-        referralGateway.setCCIPReceiverContract(address(receiver));
         vm.stopPrank();
 
         vm.startPrank(bmConsumerMock.admin());
@@ -122,7 +121,7 @@ contract TLDCcipTest is Test {
 
     modifier createDao() {
         vm.startPrank(admin);
-        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
         _;
     }

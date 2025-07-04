@@ -87,7 +87,7 @@ contract ReferralGatewaySettersTests is Test {
         referralGateway.setDaoName(tDaoName);
 
         vm.prank(config.daoMultisig);
-        referralGateway.createDAO(true, true, 1743479999, 1e12, address(bmConsumerMock));
+        referralGateway.createDAO(true, true, 1743479999, 1e12);
 
         vm.prank(bmConsumerMock.admin());
         bmConsumerMock.setNewRequester(referralGatewayAddress);
@@ -98,12 +98,5 @@ contract ReferralGatewaySettersTests is Test {
         vm.expectEmit(true, true, false, false, address(referralGateway));
         emit OnNewCouponPoolAddress(address(0), couponPool);
         referralGateway.setCouponPoolAddress(couponPool);
-    }
-
-    function testSetNewCcipReceiverContract() public {
-        vm.prank(operator);
-        vm.expectEmit(true, true, false, false, address(referralGateway));
-        emit OnNewCCIPReceiverContract(address(0), ccipReceiverContract);
-        referralGateway.setCCIPReceiverContract(ccipReceiverContract);
     }
 }
