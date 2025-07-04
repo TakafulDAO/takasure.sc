@@ -846,7 +846,7 @@ contract ReferralGateway is
         require(_address != address(0), ReferralGateway__ZeroAddress());
     }
 
-    function setDaoAddressAndDaoAdmin() external onlyRole(OPERATOR) {
+    function defaultDaoConfig() external onlyRole(OPERATOR) {
         nameToDAOData[daoName].DAOAddress = address(0);
         nameToDAOData[daoName].DAOAdmin = address(0);
         nameToDAOData[daoName].referralDiscount = true;
