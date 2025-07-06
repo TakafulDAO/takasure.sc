@@ -5,16 +5,17 @@
  * @author Maikel Ordaz
  * @notice This contract will manage the addresses in the TLD protocol of the Takasure protocol
  */
-
-import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IModuleManager} from "contracts/interfaces/managers/IModuleManager.sol";
 
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
@@ -29,6 +30,8 @@ contract AddressManager is
 {
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
+
+    address public beacon;
 
     uint256 public roleAcceptanceDelay; // Maximum time allowed to accept a proposed role
 
@@ -59,6 +62,7 @@ contract AddressManager is
         ProtocolAddressType addressType
     );
     event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
+    event OnNewBenefitModuleDeployed(string indexed name, address indexed moduleAddress);
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
     event OnProposedRoleHolder(bytes32 indexed role, address indexed proposedHolder);
@@ -83,12 +87,14 @@ contract AddressManager is
         _disableInitializers();
     }
 
-    function initialize(address _owner) external initializer {
+    function initialize(address _owner, address _beacon) external initializer {
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __Ownable_init(_owner);
         __AccessControl_init();
         __ReentrancyGuardTransient_init();
+
+        beacon = _beacon;
         roleAcceptanceDelay = 1 days;
     }
 
@@ -117,39 +123,9 @@ contract AddressManager is
         string memory name,
         address addr,
         ProtocolAddressType addressType
-    ) external onlyOwner nonReentrant {
-        require(
-            bytes(name).length > 0 && bytes(name).length <= 32,
-            AddressManager__InvalidNameLength()
-        );
-        require(addr != address(0), AddressManager__AddressZero());
-
-        bytes32 nameHash = keccak256(abi.encode(name));
-        require(
-            protocolAddressesByName[nameHash].addr == address(0),
-            AddressManager__AddressAlreadyExists()
-        );
-
-        ProtocolAddress memory newProtocolAddress = ProtocolAddress({
-            name: nameHash,
-            addr: addr,
-            addressType: addressType
-        });
-
-        protocolAddressesByName[nameHash] = newProtocolAddress;
-        protocolAddressesNames[addr] = nameHash;
-
-        if (addressType == ProtocolAddressType.Module) {
-            // If the address is a module, then we call the ModuleManager to register it
-            // This means to add any module, the ModuleManager must be deployed first
-            address moduleManager = _getProtocolAddressByName("MODULE_MANAGER").addr;
-            require(moduleManager != address(0), AddressManager__AddModuleManagerFirst());
-
-            // The ModuleManager will be in charge to check if the address is a valid module
-            IModuleManager(moduleManager).addModule(addr);
-        }
-
-        emit OnNewProtocolAddress(name, addr, addressType);
+    ) external onlyOwner {
+        _nameChecks(name);
+        _addProtocolAddress(name, addr, addressType);
     }
 
     /**
@@ -201,6 +177,27 @@ contract AddressManager is
         protocolAddress.addr = newAddr;
 
         emit OnProtocolAddressUpdated(name, newAddr);
+    }
+
+    /**
+     * @notice Deploys and adds a new BenefitModule using a beacon proxy
+     * @param name The name of the module to be deployed
+     * @return address The address of the newly deployed BenefitModule
+     */
+    function deployBenefitModule(string memory name) external onlyOwner returns (address) {
+        _nameChecks(name);
+
+        BeaconProxy newBenefitModule = new BeaconProxy(
+            beacon,
+            abi.encodeCall(BenefitModule.initialize, (address(this), name))
+        );
+
+        // Add the new module address to the AddressManager
+        _addProtocolAddress(name, address(newBenefitModule), ProtocolAddressType.Module);
+
+        emit OnNewBenefitModuleDeployed(name, address(newBenefitModule));
+
+        return address(newBenefitModule);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -417,6 +414,51 @@ contract AddressManager is
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _nameChecks(string memory _name) internal view {
+        require(
+            bytes(_name).length > 0 && bytes(_name).length <= 32,
+            AddressManager__InvalidNameLength()
+        );
+
+        bytes32 nameHash = keccak256(abi.encode(_name));
+
+        require(
+            protocolAddressesByName[nameHash].addr == address(0),
+            AddressManager__AddressAlreadyExists()
+        );
+    }
+
+    function _addProtocolAddress(
+        string memory _name,
+        address _addr,
+        ProtocolAddressType _addressType
+    ) internal nonReentrant {
+        require(_addr != address(0), AddressManager__AddressZero());
+
+        bytes32 nameHash = keccak256(abi.encode(_name));
+
+        ProtocolAddress memory newProtocolAddress = ProtocolAddress({
+            name: nameHash,
+            addr: _addr,
+            addressType: _addressType
+        });
+
+        protocolAddressesByName[nameHash] = newProtocolAddress;
+        protocolAddressesNames[_addr] = nameHash;
+
+        if (_addressType == ProtocolAddressType.Module) {
+            // If the address is a module, then we call the ModuleManager to register it
+            // This means to add any module, the ModuleManager must be deployed first
+            address moduleManager = _getProtocolAddressByName("MODULE_MANAGER").addr;
+            require(moduleManager != address(0), AddressManager__AddModuleManagerFirst());
+
+            // The ModuleManager will be in charge to check if the address is a valid module
+            IModuleManager(moduleManager).addModule(_addr);
+        }
+
+        emit OnNewProtocolAddress(_name, _addr, _addressType);
+    }
 
     function _getProtocolAddressByName(
         string memory _name
