@@ -97,7 +97,8 @@ contract SubscriptionModule is
      * @notice Called by backend to allow new members to join the pool
      * @notice Allow new members to pay subscriptions. All members must pay first, and KYC afterwards.
      * @param userWallet address of the member
-     * @param parentWallet address of the parent
+     * @param parentWallet Optional parent address. If there is no parent it must be address(0)
+     *                     If a parent is provided, it must be KYCed
      * @param membershipStartTime when the membership starts, in seconds
      * @param couponAmount in six decimals
      */
@@ -107,7 +108,10 @@ contract SubscriptionModule is
         uint256 couponAmount,
         uint256 membershipStartTime
     ) external onlyRole(Roles.COUPON_REDEEMER, address(addressManager)) {
-        require(couponAmount == SUBSCRIPTION_AMOUNT, SubscriptionModule__InvalidCoupon());
+        require(
+            couponAmount == 0 || couponAmount == SUBSCRIPTION_AMOUNT,
+            SubscriptionModule__InvalidCoupon()
+        );
 
         _paySubscription(userWallet, parentWallet, couponAmount, membershipStartTime);
 
