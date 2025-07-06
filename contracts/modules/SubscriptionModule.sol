@@ -94,21 +94,11 @@ contract SubscriptionModule is
     }
 
     /**
-     * @notice Allow new members to pay subscriptions. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.
+     * @notice Called by backend to allow new members to join the pool
+     * @notice Allow new members to pay subscriptions. All members must pay first, and KYC afterwards.
      * @param userWallet address of the member
      * @param parentWallet address of the parent
      * @param membershipStartTime when the membership starts, in seconds
-     */
-    function paySubscription(
-        address userWallet,
-        address parentWallet,
-        uint256 membershipStartTime
-    ) external {
-        _paySubscription(userWallet, parentWallet, 0, membershipStartTime);
-    }
-
-    /**
-     * @notice Called by backend to allow new members to join the pool
      * @param couponAmount in six decimals
      */
     function paySubscriptionOnBehalfOf(
@@ -287,6 +277,9 @@ contract SubscriptionModule is
         return _newMember;
     }
 
+    /**
+     * @dev The subscription amount is fixed at 25 USDC
+     */
     function _transferSubscriptionToModule(
         IERC20 _contributionToken,
         uint256 _fee,
