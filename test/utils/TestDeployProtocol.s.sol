@@ -11,6 +11,7 @@ import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
+import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
@@ -20,6 +21,7 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 contract TestDeployProtocol is Script {
     ModuleManager moduleManager;
     AddressManager addressManager;
+    BenefitModule benefitModule;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -33,6 +35,7 @@ contract TestDeployProtocol is Script {
     address moduleManagerProxy;
     address takasureReserveImplementation;
     address userRouterImplementation;
+    address beacon;
 
     string root;
     string scriptPath;
@@ -76,10 +79,13 @@ contract TestDeployProtocol is Script {
 
         vm.startBroadcast(msg.sender);
 
+        benefitModule = new BenefitModule();
+        beacon = UnsafeUpgrades.deployBeacon(address(benefitModule), msg.sender);
+
         addressManagerImplementation = address(new AddressManager());
         addressManagerProxy = UnsafeUpgrades.deployUUPSProxy(
             addressManagerImplementation,
-            abi.encodeCall(AddressManager.initialize, (msg.sender))
+            abi.encodeCall(AddressManager.initialize, (msg.sender, beacon))
         );
         addressManager = AddressManager(addressManagerProxy);
 
@@ -251,7 +257,7 @@ contract TestDeployProtocol is Script {
             subscriptionModuleImplementation,
             abi.encodeCall(
                 SubscriptionModule.initialize,
-                (_params.addressManager, referralGatewayAddress_, _params.couponPool)
+                (_params.addressManager, _params.couponPool, "SUBSCRIPTION_MODULE")
             )
         );
 
@@ -259,21 +265,21 @@ contract TestDeployProtocol is Script {
         kycModuleImplementation = address(new KYCModule());
         kycModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             kycModuleImplementation,
-            abi.encodeCall(KYCModule.initialize, (_params.addressManager))
+            abi.encodeCall(KYCModule.initialize, (_params.addressManager, "KYC_MODULE"))
         );
 
         // Deploy MemberModule
         memberModuleImplementation = address(new MemberModule());
         memberModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             memberModuleImplementation,
-            abi.encodeCall(MemberModule.initialize, (_params.addressManager))
+            abi.encodeCall(MemberModule.initialize, (_params.addressManager, "MEMBER_MODULE"))
         );
 
         // Deploy RevenueModule
         revenueModuleImplementation = address(new RevenueModule());
         revenueModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
             revenueModuleImplementation,
-            abi.encodeCall(RevenueModule.initialize, (_params.addressManager))
+            abi.encodeCall(RevenueModule.initialize, (_params.addressManager, "REVENUE_MODULE"))
         );
     }
 
