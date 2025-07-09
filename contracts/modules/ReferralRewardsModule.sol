@@ -45,7 +45,7 @@ contract ReferralRewardsModule is
         moduleState = newState;
     }
 
-    function calculateReferralRewardsFromSubscriptions(
+    function calculateReferralRewards(
         uint256 contribution,
         uint256 couponAmount,
         address child,
@@ -82,7 +82,7 @@ contract ReferralRewardsModule is
         return (newFeeAmount, discount);
     }
 
-    function rewardParentsFromSubscriptions(address child) external {
+    function rewardParents(address child) external {
         address parent = childToParent[child];
         for (uint256 i; i < uint256(MAX_TIER); ++i) {
             if (parent == address(0)) break;
