@@ -16,7 +16,7 @@ enum AssociationMemberState {
     Canceled
 }
 
-enum MemberState {
+enum BenefitMemberState {
     Inactive,
     Active,
     Defaulted,
@@ -85,7 +85,7 @@ struct AssociationMember {
     bool isFarewellProtected;
 }
 
-struct Member {
+struct BenefitMember {
     uint256 memberId;
     uint256 benefitMultiplier;
     uint256 membershipDuration; // in years
@@ -99,10 +99,8 @@ struct Member {
     uint256 creditsBalance; // 18 decimals
     address wallet;
     address parent;
-    MemberState memberState;
+    BenefitMemberState memberState;
     uint256 memberSurplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
-    bool isKYCVerified; // Can not be true if isRefunded is true
-    bool isRefunded; // Can not be true if isKYCVerified is true
     uint256 lastEcr; // the last ECR calculated
     uint256 lastUcr; // the last UCR calculated
 }
