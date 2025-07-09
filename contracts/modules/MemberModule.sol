@@ -14,10 +14,10 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
-import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
+import {ReserveHooks} from "contracts/hooks/ReserveHooks.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
-import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, BenefitMember, BenefitMemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
@@ -31,7 +31,7 @@ contract MemberModule is
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable,
-    ReserveAndMemberValuesHook,
+    ReserveHooks,
     MemberPaymentFlow
 {
     using SafeERC20 for IERC20;
@@ -81,14 +81,17 @@ contract MemberModule is
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
-        (Reserve memory reserve, Member memory activeMember) = _getReserveAndMemberValuesHook(
-            ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr),
-            memberWallet
-        );
+        (
+            Reserve memory reserve,
+            BenefitMember memory activeMember
+        ) = _getReserveAndMemberValuesHook(
+                ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr),
+                memberWallet
+            );
 
         require(
-            activeMember.memberState == MemberState.Active ||
-                activeMember.memberState == MemberState.Defaulted,
+            activeMember.memberState == BenefitMemberState.Active ||
+                activeMember.memberState == BenefitMemberState.Defaulted,
             ModuleErrors.Module__WrongMemberState()
         );
 
@@ -114,8 +117,8 @@ contract MemberModule is
         activeMember.totalServiceFee += feeAmount;
         activeMember.lastEcr = 0;
         activeMember.lastUcr = 0;
-        if (activeMember.memberState == MemberState.Defaulted)
-            activeMember.memberState = MemberState.Active;
+        if (activeMember.memberState == BenefitMemberState.Defaulted)
+            activeMember.memberState = BenefitMemberState.Active;
 
         // And we pay the contribution
         uint256 credits;
@@ -155,9 +158,12 @@ contract MemberModule is
             addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
         );
 
-        Member memory member = _getMembersValuesHook(takasureReserve, memberWallet);
+        BenefitMember memory member = _getBenefitMembersValuesHook(takasureReserve, memberWallet);
 
-        require(member.memberState == MemberState.Active, ModuleErrors.Module__WrongMemberState());
+        require(
+            member.memberState == BenefitMemberState.Active,
+            ModuleErrors.Module__WrongMemberState()
+        );
 
         uint256 currentTimestamp = block.timestamp;
         uint256 lastPaidYearStartDate = member.lastPaidYearStartDate;
@@ -165,11 +171,11 @@ contract MemberModule is
 
         if (currentTimestamp >= limitTimestamp) {
             // Update the state, this will allow to cancel the membership
-            member.memberState = MemberState.Defaulted;
+            member.memberState = BenefitMemberState.Defaulted;
 
             emit TakasureEvents.OnMemberDefaulted(member.memberId, memberWallet);
 
-            _setMembersValuesHook(takasureReserve, member);
+            _setBenefitMembersValuesHook(takasureReserve, member);
         } else {
             revert ModuleErrors.Module__TooEarlyToDefault();
         }
@@ -180,10 +186,10 @@ contract MemberModule is
             addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
         );
 
-        Member memory member = _getMembersValuesHook(takasureReserve, _memberWallet);
+        BenefitMember memory member = _getBenefitMembersValuesHook(takasureReserve, _memberWallet);
 
         require(
-            member.memberState == MemberState.Defaulted,
+            member.memberState == BenefitMemberState.Defaulted,
             ModuleErrors.Module__WrongMemberState()
         );
 
@@ -194,11 +200,11 @@ contract MemberModule is
             (30 days);
 
         if (currentTimestamp >= limitTimestamp) {
-            member.memberState = MemberState.Canceled;
+            member.memberState = BenefitMemberState.Canceled;
 
             emit TakasureEvents.OnMemberCanceled(member.memberId, _memberWallet);
 
-            _setMembersValuesHook(takasureReserve, member);
+            _setBenefitMembersValuesHook(takasureReserve, member);
         } else {
             revert ModuleErrors.Module__TooEarlyToCancel();
         }
