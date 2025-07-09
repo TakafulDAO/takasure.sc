@@ -14,7 +14,7 @@ import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewa
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {MemberValuesHook} from "contracts/hooks/MemberValuesHook.sol";
+import {AssociationHooks} from "contracts/hooks/AssociationHooks.sol";
 
 import {AssociationMember, AssociationMemberState, ModuleState, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
@@ -25,7 +25,7 @@ pragma solidity 0.8.28;
 
 contract KYCModule is
     TLDModuleImplementation,
-    MemberValuesHook,
+    AssociationHooks,
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable
@@ -86,7 +86,7 @@ contract KYCModule is
         // Reward the parents
         IReferralRewardsModule(
             addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
-        ).rewardParentsFromSubscriptions(memberWallet);
+        ).rewardParents({child: memberWallet});
 
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
     }
