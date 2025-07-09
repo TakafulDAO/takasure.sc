@@ -16,8 +16,7 @@ library TakasureEvents {
         uint256 contributionBeforeFee,
         uint256 serviceFee,
         uint256 membershipDuration,
-        uint256 membershipStartTime,
-        bool isKycVerified
+        uint256 membershipStartTime
     ); // Emited when a new member is created
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
     event OnMemberKycVerified(uint256 indexed memberId, address indexed member);

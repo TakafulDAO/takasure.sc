@@ -8,7 +8,9 @@
 pragma solidity 0.8.28;
 
 library ModuleErrors {
-    error Module__ParentNotKYCed();
+    error Module__InvalidCoupon();
+    error Module__AlreadyJoined();
+    error Module__AddressNotKYCed();
     error Module__WrongMemberState();
     error Module__WrongModuleState();
     error Module__TooEarlyToCancel();
