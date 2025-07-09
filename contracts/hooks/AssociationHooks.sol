@@ -10,7 +10,6 @@
  *      2. Set new values for the reserve and/or a given member in the Core contracts
  */
 
-import {Member} from "contracts/types/TakasureTypes.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISubscriptionModule} from "contracts/interfaces/modules/ISubscriptionModule.sol";
 
@@ -18,7 +17,7 @@ import {AssociationMember} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
-abstract contract MemberValuesHook {
+abstract contract AssociationHooks {
     function _getAssociationMembersValuesHook(
         IAddressManager _addressManager,
         address _memberWallet
