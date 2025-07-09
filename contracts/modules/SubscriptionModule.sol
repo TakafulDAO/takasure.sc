@@ -41,7 +41,7 @@ contract SubscriptionModule is
 
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => AssociationMember) private members;
-    mapping(address member => bool) private isMemberCouponRedeemer;
+    mapping(address member => bool) private isMemberCouponSubscriptionRedeemer;
 
     uint256 private constant SUBSCRIPTION_AMOUNT = 25e6; // 25 USDC in six decimals
     uint256 private constant FEE = 27; // 27% service fee, in percentage
@@ -52,8 +52,6 @@ contract SubscriptionModule is
         address indexed parentWallet
     );
 
-    error SubscriptionModule__InvalidCoupon();
-    error SubscriptionModule__AlreadyJoined();
     error SubscriptionModule__InvalidDate();
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__TooEarlytoRefund();
@@ -110,12 +108,12 @@ contract SubscriptionModule is
     ) external onlyRole(Roles.COUPON_REDEEMER, address(addressManager)) {
         require(
             couponAmount == 0 || couponAmount == SUBSCRIPTION_AMOUNT,
-            SubscriptionModule__InvalidCoupon()
+            ModuleErrors.Module__InvalidCoupon()
         );
 
         _paySubscription(userWallet, parentWallet, couponAmount, membershipStartTime);
 
-        isMemberCouponRedeemer[userWallet] = true;
+        isMemberCouponSubscriptionRedeemer[userWallet] = true;
         emit TakasureEvents.OnCouponRedeemed(userWallet, couponAmount);
     }
 
@@ -182,13 +180,13 @@ contract SubscriptionModule is
 
         (uint256 feeAmount, uint256 discount) = IReferralRewardsModule(
             addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
-        ).calculateReferralRewardsFromSubscriptions(
-                SUBSCRIPTION_AMOUNT,
-                _couponAmount,
-                _userWallet,
-                _parentWallet,
-                (SUBSCRIPTION_AMOUNT * FEE) / 100
-            );
+        ).calculateReferralRewards({
+                contribution: SUBSCRIPTION_AMOUNT,
+                couponAmount: _couponAmount,
+                child: _userWallet,
+                parent: _parentWallet,
+                feeAmount: (SUBSCRIPTION_AMOUNT * FEE) / 100
+            });
 
         newMember.discount = discount;
 
@@ -227,7 +225,7 @@ contract SubscriptionModule is
 
         // If the user is not refunded then the wallet must be empty, otherwise it must match the user wallet
         if (!_newMember.isRefunded)
-            require(_newMember.wallet == address(0), SubscriptionModule__AlreadyJoined());
+            require(_newMember.wallet == address(0), ModuleErrors.Module__AlreadyJoined());
         else
             require(
                 _newMember.memberId != 0 && _newMember.wallet == _userWallet,
@@ -241,7 +239,7 @@ contract SubscriptionModule is
             // Check if the parent is KYCed
             require(
                 IKYCModule(kycModule).isKYCed(_parentWallet),
-                ModuleErrors.Module__ParentNotKYCed()
+                ModuleErrors.Module__AddressNotKYCed()
             );
         }
 
@@ -369,9 +367,9 @@ contract SubscriptionModule is
         );
 
         // Transfer the amount to refund
-        if (isMemberCouponRedeemer[_memberWallet]) {
+        if (isMemberCouponSubscriptionRedeemer[_memberWallet]) {
             // Reset the coupon redeemer status, this way the member can redeem again
-            isMemberCouponRedeemer[_memberWallet] = false;
+            isMemberCouponSubscriptionRedeemer[_memberWallet] = false;
             // We transfer the coupon amount to the coupon pool
             contributionToken.safeTransfer(couponPool, amountToRefund);
         } else {
