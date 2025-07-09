@@ -3,12 +3,12 @@
 pragma solidity 0.8.28;
 
 interface IReferralRewardsModule {
-    function calculateReferralRewardsFromSubscriptions(
+    function calculateReferralRewards(
         uint256 contribution,
         uint256 couponAmount,
         address child,
         address parent,
-        uint256 fee
+        uint256 feeAmount
     ) external returns (uint256, uint256);
-    function rewardParentsFromSubscriptions(address child) external;
+    function rewardParents(address child) external;
 }
