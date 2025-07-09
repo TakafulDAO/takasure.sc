@@ -8,7 +8,7 @@ import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {MemberState} from "contracts/types/TakasureTypes.sol";
+import {BenefitMemberState} from "contracts/types/TakasureTypes.sol";
 
 contract TakasureProtocolHandler is Test {
     TakasureReserve takasureReserve;
@@ -43,10 +43,10 @@ contract TakasureProtocolHandler is Test {
         vm.assume(msg.sender != address(memberModule));
 
         // 2. User is not already a member
-        MemberState currentMemberState = takasureReserve
+        BenefitMemberState currentMemberState = takasureReserve
             .getMemberFromAddress(msg.sender)
             .memberState;
-        vm.assume(currentMemberState != MemberState.Active);
+        vm.assume(currentMemberState != BenefitMemberState.Active);
 
         // 3. Contribution amount is within the limits
         contributionAmount = bound(contributionAmount, MIN_DEPOSIT, MAX_DEPOSIT);

@@ -9,9 +9,9 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Member, Reserve} from "contracts/types/TakasureTypes.sol";
+import {BenefitMember, Reserve} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 contract Transfers_TakasureCoreTest is StdCheats, Test {
     TestDeployProtocol deployer;

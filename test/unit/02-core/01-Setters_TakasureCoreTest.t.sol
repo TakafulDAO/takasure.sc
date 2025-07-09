@@ -9,7 +9,7 @@ import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {Member, Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {BenefitMember, Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 
 contract Setters_TakasureCoreTest is StdCheats, Test {
     TestDeployProtocol deployer;
@@ -104,7 +104,7 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
     }
 
     function testTakasureCore_onlyModuleFunctions() public {
-        Member memory member;
+        BenefitMember memory member;
         Reserve memory reserve;
         CashFlowVars memory cashFlowVars;
 
