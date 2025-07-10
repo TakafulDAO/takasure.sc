@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
@@ -16,6 +17,8 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
 
@@ -26,11 +29,14 @@ contract BenefitModule is
     Initializable,
     ReentrancyGuardTransientUpgradeable
 {
+    using SafeERC20 for IERC20;
+
     uint256 private transient normalizedContributionBeforeFee;
     uint256 private transient feeAmount;
     uint256 private transient contributionAfterFee;
     uint256 private transient discount;
 
+    mapping(address member => BenefitMember) private members;
     mapping(address member => bool) private isMemberCouponALPRedeemer;
 
     error BenefitModule__BenefitNotSupported();
@@ -63,7 +69,41 @@ contract BenefitModule is
      * @param memberWallet address of the member
      * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
-     * @param couponAmount in six decimals
+     * @dev it reverts if the member is not KYCed
+     * @dev it reverts if the contribution is out of bounds
+     * @dev it reverts if the member is already active
+     * @dev the contribution amount will be round down so the last four decimals will be zero. This means
+     *      that the minimum contribution amount is 0.01 USDC
+     */
+    function joinBenefit(
+        address memberWallet,
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration
+    ) external nonReentrant {
+        // Check caller
+        require(
+            AddressAndStates._checkName(address(addressManager), "ROUTER") ||
+                msg.sender == memberWallet,
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+
+        (
+            Reserve memory reserve,
+            address parentWallet,
+            AssociationMember memory member
+        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee, 0);
+
+        _join(reserve, memberWallet, parentWallet, contributionBeforeFee, membershipDuration, 0);
+
+        _setBenefitInAssociation(member);
+    }
+
+    /**
+     * @notice Called by backend to allow new members to apply to the benefit from the current module
+     * @param memberWallet address of the member
+     * @param contributionBeforeFee in six decimals
+     * @param membershipDuration default 5 years
+     * @param couponAmount amount of the coupon in six decimals
      * @dev it reverts if the member is not KYCed
      * @dev it reverts if the contribution is out of bounds
      * @dev it reverts if the member is already active
@@ -75,7 +115,7 @@ contract BenefitModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration,
         uint256 couponAmount
-    ) external nonReentrant {
+    ) external nonReentrant onlyRole(Roles.COUPON_REDEEMER, address(addressManager)) {
         // Check caller
         require(
             AddressAndStates._checkName(address(addressManager), "ROUTER") ||
@@ -83,11 +123,11 @@ contract BenefitModule is
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
-        (Reserve memory reserve, address parentWallet) = _paySubscriptionChecksAndsettings(
-            memberWallet,
-            contributionBeforeFee,
-            couponAmount
-        );
+        (
+            Reserve memory reserve,
+            address parentWallet,
+            AssociationMember memory member
+        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee, couponAmount);
 
         _join(
             reserve,
@@ -102,6 +142,57 @@ contract BenefitModule is
             isMemberCouponALPRedeemer[memberWallet] = true;
             emit TakasureEvents.OnCouponRedeemed(memberWallet, couponAmount);
         }
+
+        _setBenefitInAssociation(member);
+    }
+
+    function _paySubscriptionChecksAndsettings(
+        address _memberWallet,
+        uint256 _contributionBeforeFee,
+        uint256 _couponAmount
+    )
+        internal
+        returns (Reserve memory reserve_, address parentWallet_, AssociationMember memory member_)
+    {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+
+        // Check if the coupon amount is valid
+        require(_couponAmount <= _contributionBeforeFee, ModuleErrors.Module__InvalidCoupon());
+
+        // Check if the member and the parent are KYCed
+        IKYCModule kycModule = IKYCModule(
+            addressManager.getProtocolAddressByName("KYC_MODULE").addr
+        );
+
+        require(kycModule.isKYCed(_memberWallet), ModuleErrors.Module__AddressNotKYCed());
+
+        member_ = _getAssociationMembersValuesHook(addressManager, _memberWallet);
+
+        if (_stringsEqual(moduleName, "LIFE_MODULE")) {
+            require(!member_.isLifeProtected, ModuleErrors.Module__AlreadyJoined());
+        } else if (_stringsEqual(moduleName, "FAREWELL_MODULE")) {
+            require(!member_.isFarewellProtected, ModuleErrors.Module__AlreadyJoined());
+        } else {
+            revert BenefitModule__BenefitNotSupported();
+        }
+
+        reserve_ = _getReservesValuesHook(
+            ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr)
+        );
+
+        parentWallet_ = member_.parent;
+
+        _calculateAmountAndFees(_contributionBeforeFee, reserve_.serviceFee);
+    }
+
+    function _calculateAmountAndFees(uint256 _contributionBeforeFee, uint256 _fee) internal {
+        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
+        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
+        normalizedContributionBeforeFee =
+            (_contributionBeforeFee / ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC) *
+            ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC;
+        feeAmount = (normalizedContributionBeforeFee * _fee) / 100;
+        contributionAfterFee = normalizedContributionBeforeFee - feeAmount;
     }
 
     function _join(
@@ -155,15 +246,30 @@ contract BenefitModule is
 
         newBenefitMember.discount = discount;
 
-        // ITakasureReserve takasureReserve = ITakasureReserve(
-        //     addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
-        // );
+        // The member will pay the contribution, but will remain inactive until the BM is setted
+        // This means the proformas wont be updated, the amounts wont be added to the reserves,
+        // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
+        _transferContributionToModule({_memberWallet: _memberWallet, _couponAmount: _couponAmount});
 
-        // // The member will pay the contribution, but will remain inactive until the KYC is verified
-        // // This means the proformas wont be updated, the amounts wont be added to the reserves,
-        // // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-        // _transferContributionToModule({_memberWallet: _memberWallet, _couponAmount: _couponAmount, _takasureReserve: takasureReserve});
-        // _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
+        // Store the member as part of this benefit
+        members[_memberWallet] = newBenefitMember;
+
+        // Update the reserve with the new member
+        _setNewReserveAndMemberValuesHook(
+            ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr),
+            _reserve,
+            newBenefitMember
+        );
+    }
+
+    function _setBenefitInAssociation(AssociationMember memory _member) internal {
+        // TODO: Maybe instead of this use a Enumerable set to be able to loop through the members?
+        if (_stringsEqual(moduleName, "LIFE_MODULE")) {
+            _member.isLifeProtected = true;
+        } else if (_stringsEqual(moduleName, "FAREWELL_MODULE")) {
+            _member.isFarewellProtected = true;
+        }
+        _setAssociationMembersValuesHook(addressManager, _member);
     }
 
     function _createNewMember(
@@ -209,53 +315,41 @@ contract BenefitModule is
         return newMember;
     }
 
-    function _paySubscriptionChecksAndsettings(
-        address _memberWallet,
-        uint256 _contributionBeforeFee,
-        uint256 _couponAmount
-    ) internal returns (Reserve memory reserve_, address parentWallet_) {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-
-        // Check if the coupon amount is valid
-        require(_couponAmount <= _contributionBeforeFee, ModuleErrors.Module__InvalidCoupon());
-
-        // Check if the member and the parent are KYCed
-        IKYCModule kycModule = IKYCModule(
-            addressManager.getProtocolAddressByName("KYC_MODULE").addr
+    function _transferContributionToModule(address _memberWallet, uint256 _couponAmount) internal {
+        ITakasureReserve takasureReserve = ITakasureReserve(
+            addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
         );
 
-        require(kycModule.isKYCed(_memberWallet), ModuleErrors.Module__AddressNotKYCed());
+        IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
+        uint256 _amountToTransferFromMember;
 
-        AssociationMember memory member = _getAssociationMembersValuesHook(
-            addressManager,
-            _memberWallet
-        );
-
-        if (_stringsEqual(moduleName, "LIFE_MODULE")) {
-            require(!member.isLifeProtected, ModuleErrors.Module__AlreadyJoined());
-        } else if (_stringsEqual(moduleName, "FAREWELL_MODULE")) {
-            require(!member.isFarewellProtected, ModuleErrors.Module__AlreadyJoined());
+        if (_couponAmount > 0) {
+            _amountToTransferFromMember = contributionAfterFee - discount - _couponAmount;
         } else {
-            revert BenefitModule__BenefitNotSupported();
+            _amountToTransferFromMember = contributionAfterFee - discount;
         }
 
-        reserve_ = _getReservesValuesHook(
-            ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr)
-        );
+        // Store temporarily the contribution in this contract, this way will be available for refunds
+        if (_amountToTransferFromMember > 0) {
+            contributionToken.safeTransferFrom(
+                _memberWallet,
+                address(this),
+                _amountToTransferFromMember
+            );
 
-        parentWallet_ = member.parent;
+            // Transfer the coupon amount to this contract
+            if (_couponAmount > 0) {
+                address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+                contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
+            }
 
-        _calculateAmountAndFees(_contributionBeforeFee, reserve_.serviceFee);
-    }
+            // Transfer the service fee to the fee claim address
+            address feeClaimAddress = addressManager
+                .getProtocolAddressByName("FEE_CLAIM_ADDRESS")
+                .addr;
 
-    function _calculateAmountAndFees(uint256 _contributionBeforeFee, uint256 _fee) internal {
-        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
-        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        normalizedContributionBeforeFee =
-            (_contributionBeforeFee / ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC) *
-            ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC;
-        feeAmount = (normalizedContributionBeforeFee * _fee) / 100;
-        contributionAfterFee = normalizedContributionBeforeFee - feeAmount;
+            contributionToken.safeTransferFrom(_memberWallet, feeClaimAddress, feeAmount);
+        }
     }
 
     function _stringsEqual(string memory _a, string memory _b) internal pure returns (bool) {
