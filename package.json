@@ -14,7 +14,7 @@
     "dotenv": "^16.4.5",
     "ethers": "^5.7.2",
     "prettier": "^3.2.5",
-    "prettier-plugin-solidity": "^1.3.1"
+    "prettier-plugin-solidity": "^2.1.0"
   },
   "scripts": {
     "slither": "slither . --solc-remaps '@openzeppelin=node_modules/@openzeppelin' --exclude naming-convention,low-level-calls --buidler-ignore-compile",
