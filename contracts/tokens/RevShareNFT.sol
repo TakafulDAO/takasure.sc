@@ -67,6 +67,16 @@ contract RevShareNFT is
     error RevShareNFT__NotEnoughBalance();
     error RevShareNFT__RevShareModuleNotSetUp();
 
+    modifier mintChecks(address pioneer) {
+        AddressAndStates._notZeroAddress(pioneer);
+        require(pioneer != operator && pioneer != address(this), RevShareNFT__NotAllowedAddress());
+        require(
+            totalSupply < MAX_SUPPLY && mintedToPioneers < PIONEERS_RESERVED_TOKENS,
+            RevShareNFT__MaxSupplyReached()
+        );
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -115,14 +125,7 @@ contract RevShareNFT is
      * @param pioneer The address of the member to mint a single NFT. This is only used for SINGLE_MINT
      * @dev Only callable by someone with owner
      */
-    function mint(address pioneer) external onlyOwner {
-        AddressAndStates._notZeroAddress(pioneer);
-        require(pioneer != operator, RevShareNFT__NotAllowedAddress());
-        require(
-            totalSupply < MAX_SUPPLY && mintedToPioneers < PIONEERS_RESERVED_TOKENS,
-            RevShareNFT__MaxSupplyReached()
-        );
-
+    function mint(address pioneer) external onlyOwner mintChecks(pioneer) {
         uint256 tokenId = totalSupply;
         ++totalSupply;
         ++mintedToPioneers;
@@ -137,17 +140,14 @@ contract RevShareNFT is
 
     /**
      * @notice Mint multiple tokens
-     * @param nftOwner The address to mint
+     * @param pioneer The address to mint
      * @param tokensToMint Amount of NFTs
      * @dev Only callable by owner
      */
-    function batchMint(address nftOwner, uint256 tokensToMint) external nonReentrant onlyOwner {
-        AddressAndStates._notZeroAddress(nftOwner);
-        require(nftOwner != operator, RevShareNFT__NotAllowedAddress());
-        require(
-            totalSupply < MAX_SUPPLY && mintedToPioneers < PIONEERS_RESERVED_TOKENS,
-            RevShareNFT__MaxSupplyReached()
-        );
+    function batchMint(
+        address pioneer,
+        uint256 tokensToMint
+    ) external onlyOwner nonReentrant mintChecks(pioneer) {
         require(tokensToMint > 1, RevShareNFT__BatchMintMoreThanOne());
 
         uint256 firstNewTokenId = totalSupply;
@@ -156,13 +156,13 @@ contract RevShareNFT is
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint;
 
         // Update the revenues if the contract is set up to do so
-        _updateRevenuesIfProtocolIsSetUp(nftOwner, operator);
+        _updateRevenuesIfProtocolIsSetUp(pioneer, operator);
 
         for (uint256 i = firstNewTokenId; i < lastNewTokenId; ++i) {
-            _safeMint(nftOwner, i);
+            _safeMint(pioneer, i);
         }
 
-        emit OnBatchRevShareNFTMinted(nftOwner, firstNewTokenId, lastNewTokenId);
+        emit OnBatchRevShareNFTMinted(pioneer, firstNewTokenId, lastNewTokenId);
     }
 
     /**
