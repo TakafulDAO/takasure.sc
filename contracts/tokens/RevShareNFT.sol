@@ -166,11 +166,10 @@ contract RevShareNFT is
     }
 
     /**
-     * @notice Transfer override function. Only active NFTs can be transferred
+     * @notice Transfer override function. transfers are only allowed if the RevShareModule is set up
      * @dev The revenues are updated for both the sender and the receiver
      */
     function transfer(address to, uint256 tokenId) external {
-        // The transfers are disable if the RevShareModule is not set up
         require(
             _fetchRevShareModuleAddressIfIsSetUp() != address(0),
             RevShareNFT__RevShareModuleNotSetUp()
@@ -247,7 +246,10 @@ contract RevShareNFT is
         view
         returns (address revShareModule_)
     {
+        // If the takasureReserve is not set, we return address(0)
         if (address(takasureReserve) != address(0)) {
+            // We try to fetch the RevShareModule address from the AddressManager, if it fails it means
+            // the revenue share module is not set up, so we return address(0)
             try
                 IAddressManager(takasureReserve.addressManager()).getProtocolAddressByName(
                     "REVENUE_SHARE_MODULE"
@@ -264,9 +266,12 @@ contract RevShareNFT is
         address revShareModule = _fetchRevShareModuleAddressIfIsSetUp();
 
         if (revShareModule != address(0)) {
+            // If the RevShareModule is set up, we update the revenues for both the pioneer and the operator
             IRevShareModule(revShareModule).updateRevenue(_pioneer);
             IRevShareModule(revShareModule).updateRevenue(_operator);
         } else {
+            // If the RevShareModule is not set up, we store the timestamp of the mint
+            // to be able to calculate the revenues later
             pioneerMintedAt[_pioneer] = block.timestamp;
         }
     }
