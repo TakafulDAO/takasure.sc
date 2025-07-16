@@ -200,17 +200,17 @@ contract SubscriptionModule is
         );
 
         // Transfer the contribution amount from the user wallet to this contract
-        _transferSubscriptionToModule({
+        // Transferthe fee to the fee claim address
+        // Transfer the referral reserve amount to the referral rewards module to be distributed later
+        _performTransfers({
             _contributionToken: contributionToken,
             _fee: feeAmount,
             _discount: discount,
             _couponAmount: _couponAmount,
-            _userWallet: _userWallet
+            _toReferralReserveAmount: toReferralReserveAmount,
+            _userWallet: _userWallet,
+            _referralRewardsModule: address(referralRewardsModule)
         });
-
-        // Transfer the referral reserve amount to the corresponding module
-        if (toReferralReserveAmount > 0)
-            contributionToken.safeTransfer(address(referralRewardsModule), toReferralReserveAmount);
 
         // Update the member mapping
         members[_userWallet] = newMember;
@@ -291,12 +291,14 @@ contract SubscriptionModule is
     /**
      * @dev The subscription amount is fixed at 25 USDC
      */
-    function _transferSubscriptionToModule(
+    function _performTransfers(
         IERC20 _contributionToken,
         uint256 _fee,
         uint256 _discount,
         uint256 _couponAmount,
-        address _userWallet
+        uint256 _toReferralReserveAmount,
+        address _userWallet,
+        address _referralRewardsModule
     ) internal {
         uint256 contributionAfterFee = SUBSCRIPTION_AMOUNT - _fee;
 
@@ -323,6 +325,10 @@ contract SubscriptionModule is
             // Transfer the service fee to the fee claim address
             _transferFee(_contributionToken, _userWallet, _fee);
         }
+
+        // Transfer the referral reserve amount to the corresponding module
+        if (_toReferralReserveAmount > 0)
+            _contributionToken.safeTransfer(_referralRewardsModule, _toReferralReserveAmount);
     }
 
     function _transferFee(IERC20 _contributionToken, address _userWallet, uint256 _fee) internal {
