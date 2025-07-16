@@ -178,9 +178,14 @@ contract SubscriptionModule is
 
         newMember = _createAssociationMember(newMember, _userWallet, _parentWallet);
 
-        (uint256 feeAmount, uint256 discount) = IReferralRewardsModule(
+        IReferralRewardsModule referralRewardsModule = IReferralRewardsModule(
             addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
-        ).calculateReferralRewards({
+        );
+        (
+            uint256 feeAmount,
+            uint256 discount,
+            uint256 toReferralReserveAmount
+        ) = referralRewardsModule.calculateReferralRewards({
                 contribution: SUBSCRIPTION_AMOUNT,
                 couponAmount: _couponAmount,
                 child: _userWallet,
@@ -202,6 +207,10 @@ contract SubscriptionModule is
             _couponAmount: _couponAmount,
             _userWallet: _userWallet
         });
+
+        // Transfer the referral reserve amount to the corresponding module
+        if (toReferralReserveAmount > 0)
+            contributionToken.safeTransfer(address(referralRewardsModule), toReferralReserveAmount);
 
         // Update the member mapping
         members[_userWallet] = newMember;
