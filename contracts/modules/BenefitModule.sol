@@ -9,6 +9,7 @@ import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewa
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {AssociationHooks} from "contracts/hooks/AssociationHooks.sol";
 import {ReserveHooks} from "contracts/hooks/ReserveHooks.sol";
+import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
@@ -26,6 +27,7 @@ contract BenefitModule is
     TLDModuleImplementation,
     AssociationHooks,
     ReserveHooks,
+    MemberPaymentFlow,
     Initializable,
     ReentrancyGuardTransientUpgradeable
 {
@@ -38,6 +40,12 @@ contract BenefitModule is
 
     mapping(address member => BenefitMember) private members;
     mapping(address member => bool) private isMemberCouponALPRedeemer;
+
+    event OnMemberJoinedBenefit(
+        string indexed benefitName,
+        uint256 indexed memberId,
+        address indexed member
+    );
 
     error BenefitModule__BenefitNotSupported();
     error BenefitModule__InvalidContribution();
@@ -226,44 +234,62 @@ contract BenefitModule is
             _drr: _reserve.dynamicReserveRatio,
             _membershipDuration: _membershipDuration, // From the input
             _memberWallet: _memberWallet, // The member wallet
-            _parentWallet: _parentWallet, // The parent wallet
-            _memberState: BenefitMemberState.Inactive // Set to inactive until the KYC is verified
+            _parentWallet: _parentWallet // The parent wallet
         });
 
         IReferralRewardsModule referralRewardsModule = IReferralRewardsModule(
             addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
         );
 
-        (feeAmount, discount) = referralRewardsModule.calculateReferralRewards({
-            contribution: normalizedContributionBeforeFee,
-            couponAmount: _couponAmount,
-            child: _memberWallet,
-            parent: _parentWallet,
-            feeAmount: feeAmount
-        });
-
-        referralRewardsModule.rewardParents({child: _memberWallet});
-
-        newBenefitMember.discount = discount;
+        uint256 toReferralReserveAmount;
+        (feeAmount, discount, toReferralReserveAmount) = referralRewardsModule
+            .calculateReferralRewards({
+                contribution: normalizedContributionBeforeFee,
+                couponAmount: _couponAmount,
+                child: _memberWallet,
+                parent: _parentWallet,
+                feeAmount: feeAmount
+            });
 
         // The member will pay the contribution, but will remain inactive until the BM is setted
         // This means the proformas wont be updated, the amounts wont be added to the reserves,
         // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
         _transferContributionToModule({_memberWallet: _memberWallet, _couponAmount: _couponAmount});
 
+        ITakasureReserve takasureReserve = ITakasureReserve(
+            addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
+        );
+
+        // We run the model algorithms to update the reserve values, proformas, cash flow,
+        // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
+        uint256 credits_;
+
+        (_reserve, credits_) = _memberPaymentFlow({
+            _contributionBeforeFee: newBenefitMember.contribution,
+            _contributionAfterFee: newBenefitMember.contribution -
+                ((newBenefitMember.contribution * _reserve.serviceFee) / 100),
+            _memberWallet: _memberWallet,
+            _reserve: _reserve,
+            _takasureReserve: takasureReserve
+        });
+
+        newBenefitMember.discount = discount;
+        newBenefitMember.creditsBalance += credits_;
+
         // Store the member as part of this benefit
         members[_memberWallet] = newBenefitMember;
 
+        // Reward the parents
+        referralRewardsModule.rewardParents({child: _memberWallet});
+        emit OnMemberJoinedBenefit(moduleName, newBenefitMember.memberId, _memberWallet);
+
         // Update the reserve with the new member
-        _setNewReserveAndMemberValuesHook(
-            ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr),
-            _reserve,
-            newBenefitMember
-        );
+        _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, newBenefitMember);
+        takasureReserve.memberSurplus(newBenefitMember);
     }
 
     function _setBenefitInAssociation(AssociationMember memory _member) internal {
-        // TODO: Maybe instead of this use a Enumerable set to be able to loop through the members?
+        // TODO: Maybe instead of this use a Enumerable set to be able to loop through the members? Maybe not needed because I can use this var only to check and loop through all in the reserve. CHECKKKKK
         if (_stringsEqual(moduleName, "LIFE_MODULE")) {
             _member.isLifeProtected = true;
         } else if (_stringsEqual(moduleName, "FAREWELL_MODULE")) {
@@ -277,15 +303,14 @@ contract BenefitModule is
         uint256 _drr,
         uint256 _membershipDuration,
         address _memberWallet,
-        address _parentWallet,
-        BenefitMemberState _memberState
+        address _parentWallet
     ) internal returns (BenefitMember memory) {
         uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) /
             100;
 
         BenefitMember memory newMember = BenefitMember({
             memberId: _newMemberId,
-            benefitMultiplier: 0, // Placeholder, will be set after the KYC
+            benefitMultiplier: 0, // Placeholder, will be set after
             membershipDuration: _membershipDuration,
             membershipStartTime: block.timestamp,
             lastPaidYearStartDate: block.timestamp,
@@ -297,7 +322,7 @@ contract BenefitModule is
             creditsBalance: 0,
             wallet: _memberWallet,
             parent: _parentWallet,
-            memberState: _memberState,
+            memberState: BenefitMemberState.Active,
             memberSurplus: 0,
             lastEcr: 0,
             lastUcr: 0
