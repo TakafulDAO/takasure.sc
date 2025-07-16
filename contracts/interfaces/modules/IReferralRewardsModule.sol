@@ -9,6 +9,6 @@ interface IReferralRewardsModule {
         address child,
         address parent,
         uint256 feeAmount
-    ) external returns (uint256, uint256);
+    ) external returns (uint256 newFeeAmount, uint256 discount, uint256 toReferralReserveAmount);
     function rewardParents(address child) external;
 }

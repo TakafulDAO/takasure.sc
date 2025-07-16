@@ -51,10 +51,8 @@ contract ReferralRewardsModule is
         address child,
         address parent,
         uint256 feeAmount
-    ) external returns (uint256, uint256) {
+    ) external returns (uint256 newFeeAmount, uint256 discount, uint256 toReferralReserveAmount) {
         uint256 toReferralReserve;
-        uint256 discount;
-        uint256 newFeeAmount;
 
         if (referralDiscountEnabled) {
             toReferralReserve = (contribution * ModuleConstants.REFERRAL_RESERVE) / 100;
@@ -71,15 +69,15 @@ contract ReferralRewardsModule is
                     _currentFee: feeAmount
                 });
 
+                toReferralReserveAmount = newReferralReserve - referralReserve;
                 referralReserve = newReferralReserve;
                 newFeeAmount = fee;
             } else {
+                toReferralReserveAmount = toReferralReserve;
                 referralReserve += toReferralReserve;
                 newFeeAmount = feeAmount;
             }
         }
-
-        return (newFeeAmount, discount);
     }
 
     function rewardParents(address child) external {
