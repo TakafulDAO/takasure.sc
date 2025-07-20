@@ -122,7 +122,9 @@ contract SubscriptionModule is
      * @dev To be called by anyone
      * @param memberWallet address to be refunded
      */
-    function refund(address memberWallet) external {
+    function refund(
+        address memberWallet
+    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._notZeroAddress(memberWallet);
         _refund(memberWallet);
     }
