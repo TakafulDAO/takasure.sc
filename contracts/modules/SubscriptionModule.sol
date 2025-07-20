@@ -128,13 +128,52 @@ contract SubscriptionModule is
     }
 
     // TODO: Access control should be implemented
-    function transferDonationsToReserve(uint256 amount) external {
+    /**
+     * @notice Transfer the subscription amount to the reserve
+     * @param memberWallet address of the member
+     * @dev It will transfer the subscription amount to the reserve, this would be 25USDC
+     * @dev If the caller is the backend then the Revenue Type will be donation
+     * @dev If the caller is a Benefit Module, then the Revenue Type will be Subscription
+     */
+    function transferSubscriptionToReserve(address memberWallet) external {
+        // Reward the parents
+        IReferralRewardsModule(
+            addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
+        ).rewardParents({child: memberWallet});
+
+        // Get the Benefit Module address
+        address lifeBenefitModuleAddress = addressManager
+            .getProtocolAddressByName("LIFE_BENEFIT_MODULE")
+            .addr;
+        address farewellBenefitModuleAddress = addressManager
+            .getProtocolAddressByName("FAREWELL_BENEFIT_MODULE")
+            .addr;
+
+        // TODO: For now check if the caller has the coupon redeemer role
+        bool isCouponRedeemer = AddressAndStates._checkRole(
+            address(addressManager),
+            Roles.COUPON_REDEEMER
+        );
+
+        RevenueType revenueType;
+
+        if (msg.sender == lifeBenefitModuleAddress || msg.sender == farewellBenefitModuleAddress) {
+            revenueType = RevenueType.Contribution;
+        } else if (isCouponRedeemer) {
+            revenueType = RevenueType.ContributionDonation;
+        } else {
+            revert ModuleErrors.Module__NotAuthorizedCaller();
+        }
+
         address revenueModuleAddress = addressManager
             .getProtocolAddressByName("REVENUE_MODULE")
             .addr;
         IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
 
-        revenueModule.depositRevenue(amount, RevenueType.CatDonation);
+        revenueModule.depositRevenue(
+            SUBSCRIPTION_AMOUNT - ((SUBSCRIPTION_AMOUNT * FEE) / 100),
+            revenueType
+        );
     }
 
     function modifyAssociationMember(AssociationMember memory member) external {

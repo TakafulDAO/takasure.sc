@@ -83,11 +83,6 @@ contract KYCModule is
         newMember.memberState = AssociationMemberState.Active; // Active state as the user is already paid the contribution and KYCed
         isKYCed[memberWallet] = true;
 
-        // Reward the parents
-        IReferralRewardsModule(
-            addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
-        ).rewardParents({child: memberWallet});
-
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
     }
 
