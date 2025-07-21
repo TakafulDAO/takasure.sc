@@ -77,42 +77,7 @@ contract BenefitModule is
      * @param memberWallet address of the member
      * @param contributionBeforeFee in six decimals
      * @param membershipDuration default 5 years
-     * @dev it reverts if the member is not KYCed
-     * @dev it reverts if the contribution is out of bounds
-     * @dev it reverts if the member is already active
-     * @dev the contribution amount will be round down so the last four decimals will be zero. This means
-     *      that the minimum contribution amount is 0.01 USDC
-     */
-    function joinBenefit(
-        address memberWallet,
-        uint256 contributionBeforeFee,
-        uint256 membershipDuration
-    ) external nonReentrant {
-        // Check caller
-        require(
-            AddressAndStates._checkName(address(addressManager), "ROUTER") ||
-                msg.sender == memberWallet,
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-
-        (
-            Reserve memory reserve,
-            address parentWallet,
-            AssociationMember memory member
-        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee, 0);
-
-        _join(reserve, memberWallet, parentWallet, contributionBeforeFee, membershipDuration, 0);
-
-        _setBenefitInAssociation(member);
-    }
-
-    /**
-     * @notice Called by backend to allow new members to apply to the benefit from the current module
-     * @param memberWallet address of the member
-     * @param contributionBeforeFee in six decimals
-     * @param membershipDuration default 5 years
      * @param couponAmount amount of the coupon in six decimals
-     * @dev it reverts if the member is not KYCed
      * @dev it reverts if the contribution is out of bounds
      * @dev it reverts if the member is already active
      * @dev the contribution amount will be round down so the last four decimals will be zero. This means
