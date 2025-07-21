@@ -47,6 +47,10 @@ contract ModuleManager is
     error ModuleManager__NotModule();
     error ModuleManager__WrongState();
 
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();

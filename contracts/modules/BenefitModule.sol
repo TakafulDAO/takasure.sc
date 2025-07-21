@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+/**
+ * @title BenefitModule
+ * @author Maikel Ordaz
+ * @notice This contract manage the joins to a specific benefit
+ * @dev This is the implementation for a Beacon Proxy
+ */
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
@@ -41,6 +48,10 @@ contract BenefitModule is
     mapping(address member => BenefitMember) private members;
     mapping(address member => bool) private isMemberCouponALPRedeemer;
 
+    /*//////////////////////////////////////////////////////////////
+                           EVENTS AND ERRORS
+    //////////////////////////////////////////////////////////////*/
+
     event OnMemberJoinedBenefit(
         string indexed benefitName,
         uint256 indexed memberId,
@@ -49,6 +60,10 @@ contract BenefitModule is
 
     error BenefitModule__BenefitNotSupported();
     error BenefitModule__InvalidContribution();
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -62,6 +77,10 @@ contract BenefitModule is
         moduleName = _moduleName;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Set the module state
      * @dev Only callable from the Module Manager
@@ -71,6 +90,10 @@ contract BenefitModule is
     ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
         moduleState = newState;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 JOINS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Called by backend to allow new members to apply to the benefit from the current module
@@ -118,6 +141,10 @@ contract BenefitModule is
 
         _setBenefitInAssociation(member);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     function _paySubscriptionChecksAndsettings(
         address _memberWallet,

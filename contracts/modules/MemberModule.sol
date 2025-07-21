@@ -36,7 +36,15 @@ contract MemberModule is
 {
     using SafeERC20 for IERC20;
 
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
     error MemberModule__InvalidDate();
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -51,6 +59,10 @@ contract MemberModule is
         addressManager = IAddressManager(_addressManager);
         moduleName = _moduleName;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Set the module state

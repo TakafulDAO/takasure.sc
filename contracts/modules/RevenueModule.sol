@@ -27,7 +27,15 @@ pragma solidity 0.8.28;
 contract RevenueModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
     error RevenueModule__WrongRevenueType();
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -41,6 +49,10 @@ contract RevenueModule is TLDModuleImplementation, Initializable, UUPSUpgradeabl
         addressManager = IAddressManager(_addressManager);
         moduleName = _moduleName;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Set the module state

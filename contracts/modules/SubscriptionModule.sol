@@ -3,8 +3,7 @@
 /**
  * @title SubscriptionModule
  * @author Maikel Ordaz
- * @notice This contract manage all the subscriptions/refunds to/from the LifeDAO protocol
- * @dev It will interact with the TakasureReserve contract to update the values
+ * @notice This contract manage all the subscriptions/refunds to/from the LifeDAO association
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -46,6 +45,10 @@ contract SubscriptionModule is
     uint256 private constant SUBSCRIPTION_AMOUNT = 25e6; // 25 USDC in six decimals
     uint256 private constant FEE = 27; // 27% service fee, in percentage
 
+    /*//////////////////////////////////////////////////////////////
+                           EVENTS AND ERRORS
+    //////////////////////////////////////////////////////////////*/
+
     event OnNewAssociationMember(
         uint256 indexed memberId,
         address indexed memberWallet,
@@ -55,6 +58,10 @@ contract SubscriptionModule is
     error SubscriptionModule__InvalidDate();
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__TooEarlytoRefund();
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -74,6 +81,10 @@ contract SubscriptionModule is
         moduleName = _moduleName;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Set the module state
      * @dev Only callable from the Module Manager
@@ -90,6 +101,10 @@ contract SubscriptionModule is
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                         SUBSCRIPTION PAYMENTS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Called by backend to allow new members to join the pool
@@ -117,6 +132,10 @@ contract SubscriptionModule is
         emit TakasureEvents.OnCouponRedeemed(userWallet, couponAmount);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                REFUNDS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Method to refunds a user
      * @dev To be called by anyone
@@ -128,6 +147,10 @@ contract SubscriptionModule is
         AddressAndStates._notZeroAddress(memberWallet);
         _refund(memberWallet);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                         RESERVE CONTRIBUTIONS
+    //////////////////////////////////////////////////////////////*/
 
     // TODO: Access control should be implemented
     /**
@@ -178,8 +201,16 @@ contract SubscriptionModule is
         );
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Modify an association member after certain operations
+     * @dev Only callable by modules
+     * @dev This can be after a KWC verification, or after joining a benefit
+     */
     function modifyAssociationMember(AssociationMember memory member) external {
-        // Only an address of type MODULE can modify association members
         string memory callerModuleName = ITLDModuleImplementation(msg.sender).moduleName();
         require(
             addressManager.getProtocolAddressByName(callerModuleName).addressType ==
@@ -190,9 +221,17 @@ contract SubscriptionModule is
         members[member.wallet] = member;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
+
     function getMember(address memberWallet) external view returns (AssociationMember memory) {
         return members[memberWallet];
     }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Allow new members to pay subscriptions. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.

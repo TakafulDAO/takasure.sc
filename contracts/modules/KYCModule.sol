@@ -4,7 +4,6 @@
  * @title KYCModule
  * @author Maikel Ordaz
  * @notice This contract manage the KYC flow
- * @dev It will interact with the TakasureReserve contract to update the values. Only admin functions
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -32,9 +31,17 @@ contract KYCModule is
 {
     mapping(address member => bool) public isKYCed; // To check if a member is KYCed
 
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
     error KYCModule__ContributionRequired();
     error KYCModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error KYCModule__MemberAlreadyKYCed();
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -49,6 +56,10 @@ contract KYCModule is
         moduleName = _moduleName;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Set the module state
      * @dev Only callable from the Module Manager
@@ -58,6 +69,10 @@ contract KYCModule is
     ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
         moduleState = newState;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                  KYC
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Approves the KYC for a member.
@@ -85,6 +100,10 @@ contract KYCModule is
 
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(

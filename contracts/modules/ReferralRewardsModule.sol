@@ -23,6 +23,10 @@ contract ReferralRewardsModule is
     bool public referralDiscountEnabled;
     uint256 public referralReserve;
 
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -34,6 +38,10 @@ contract ReferralRewardsModule is
         addressManager = IAddressManager(_addressManager);
         moduleName = _moduleName;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Set the module state

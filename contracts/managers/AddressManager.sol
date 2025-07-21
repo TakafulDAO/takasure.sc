@@ -82,6 +82,10 @@ contract AddressManager is
     error AddressManager__TooLateToAccept();
     error AddressManager__NotRoleHolder();
 
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();

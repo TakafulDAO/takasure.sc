@@ -36,14 +36,13 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     mapping(address member => BenefitMember) private members;
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
     error TakasureReserve__OnlyDaoOrTakadao();
     error TakasureReserve__WrongValue();
     error TakasureReserve__UnallowedAccess();
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
 
     modifier onlyRole(bytes32 role) {
         require(
@@ -51,6 +50,15 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
             TakasureReserve__UnallowedAccess()
         );
         _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize(address contributionToken, address _addressManager) external initializer {
@@ -86,6 +94,10 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
             reserve.contributionToken
         );
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
 
     function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _pause();
