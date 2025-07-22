@@ -10,17 +10,18 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {ISubscriptionModule} from "contracts/interfaces/modules/ISubscriptionModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {AssociationHooks} from "contracts/hooks/AssociationHooks.sol";
 import {ReserveHooks} from "contracts/hooks/ReserveHooks.sol";
-import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {ModuleState, AssociationMember, Reserve, BenefitMember, BenefitMemberState} from "contracts/types/TakasureTypes.sol";
+import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -34,7 +35,6 @@ contract BenefitModule is
     TLDModuleImplementation,
     AssociationHooks,
     ReserveHooks,
-    MemberPaymentFlow,
     Initializable,
     ReentrancyGuardTransientUpgradeable
 {
@@ -119,6 +119,7 @@ contract BenefitModule is
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
+        // Initial checks and settings
         (
             Reserve memory reserve,
             address parentWallet,
@@ -159,13 +160,14 @@ contract BenefitModule is
         // Check if the coupon amount is valid
         require(_couponAmount <= _contributionBeforeFee, ModuleErrors.Module__InvalidCoupon());
 
-        // Check if the member and the parent are KYCed
+        // Check if the member must be KYCed
         IKYCModule kycModule = IKYCModule(
             addressManager.getProtocolAddressByName("KYC_MODULE").addr
         );
 
         require(kycModule.isKYCed(_memberWallet), ModuleErrors.Module__AddressNotKYCed());
 
+        // The member can not be part of the corresponding benefit
         member_ = _getAssociationMembersValuesHook(addressManager, _memberWallet);
 
         if (_stringsEqual(moduleName, "LIFE_MODULE")) {
@@ -208,17 +210,21 @@ contract BenefitModule is
             _memberWallet
         );
 
+        // The member must be inactive or canceled to join
         require(
             newBenefitMember.memberState == BenefitMemberState.Inactive ||
                 newBenefitMember.memberState == BenefitMemberState.Canceled,
             ModuleErrors.Module__WrongMemberState()
         );
+
+        // The contribution must be within the limits
         require(
             _contributionBeforeFee >= _reserve.minimumThreshold &&
                 _contributionBeforeFee <= _reserve.maximumThreshold,
             BenefitModule__InvalidContribution()
         );
 
+        // Create a new member
         uint256 memberId = ++_reserve.memberIdCounter;
 
         newBenefitMember = _createNewMember({
@@ -229,6 +235,7 @@ contract BenefitModule is
             _parentWallet: _parentWallet // The parent wallet
         });
 
+        // Calculate the referral rewards
         IReferralRewardsModule referralRewardsModule = IReferralRewardsModule(
             addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
         );
@@ -243,11 +250,6 @@ contract BenefitModule is
                 feeAmount: feeAmount
             });
 
-        // The member will pay the contribution, but will remain inactive until the BM is setted
-        // This means the proformas wont be updated, the amounts wont be added to the reserves,
-        // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-        _transferContributionToModule({_memberWallet: _memberWallet, _couponAmount: _couponAmount});
-
         ITakasureReserve takasureReserve = ITakasureReserve(
             addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
         );
@@ -256,22 +258,29 @@ contract BenefitModule is
         // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
         uint256 credits_;
 
-        (_reserve, credits_) = _memberPaymentFlow({
-            _contributionBeforeFee: newBenefitMember.contribution,
+        (_reserve, credits_) = CashFlowAlgorithms._updateNewReserveValues({
+            _takasureReserve: takasureReserve,
             _contributionAfterFee: newBenefitMember.contribution -
                 ((newBenefitMember.contribution * _reserve.serviceFee) / 100),
-            _memberWallet: _memberWallet,
-            _reserve: _reserve,
-            _takasureReserve: takasureReserve
+            _contributionBeforeFee: newBenefitMember.contribution,
+            _reserve: _reserve
         });
 
+        // Set the member values
         newBenefitMember.discount = discount;
         newBenefitMember.creditsBalance += credits_;
 
         // Store the member as part of this benefit
         members[_memberWallet] = newBenefitMember;
 
-        // Reward the parents
+        _performTransfers({
+            _memberWallet: _memberWallet,
+            _couponAmount: _couponAmount,
+            _toReferralReserveAmount: toReferralReserveAmount,
+            _referralRewardsModule: address(referralRewardsModule)
+        });
+
+        // Reward parents
         referralRewardsModule.rewardParents({child: _memberWallet});
         emit OnMemberJoinedBenefit(moduleName, newBenefitMember.memberId, _memberWallet);
 
@@ -332,33 +341,49 @@ contract BenefitModule is
         return newMember;
     }
 
-    function _transferContributionToModule(address _memberWallet, uint256 _couponAmount) internal {
-        ITakasureReserve takasureReserve = ITakasureReserve(
-            addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
-        );
+    /**
+     * @notice This function will perform the transfers needed when a member joins a benefit
+     * @dev The transfers are:
+     *      - The subscription amount minus fees. SubscriptionModule -> TakasureReserve
+     *      - The contribution minus subscription and fees (only if needed). Member -> TakasureReserve
+     *      - The service fee amount (only if needed). Member -> FeeClaimAddress
+     *      - The coupon amount (only if needed).  Coupon pool -> TakasureReserve
+     *      - The referral rewards amount (only if needed). Member -> ReferralRewardsModule
+     */
+    function _performTransfers(
+        address _memberWallet,
+        uint256 _couponAmount,
+        uint256 _toReferralReserveAmount,
+        address _referralRewardsModule
+    ) internal {
+        // First call the subscription module to transfer the subscription amount to the reserves
+        uint256 subscription = ISubscriptionModule(
+            addressManager.getProtocolAddressByName("SUBSCRIPTION_MODULE").addr
+        ).transferSubscriptionToReserve(_memberWallet);
 
-        IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
         uint256 _amountToTransferFromMember;
 
         if (_couponAmount > 0) {
-            _amountToTransferFromMember = contributionAfterFee - discount - _couponAmount;
+            _amountToTransferFromMember =
+                contributionAfterFee -
+                subscription -
+                discount -
+                _couponAmount;
         } else {
-            _amountToTransferFromMember = contributionAfterFee - discount;
+            _amountToTransferFromMember = contributionAfterFee - subscription - discount;
         }
 
-        // Store temporarily the contribution in this contract, this way will be available for refunds
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+
+        // Transfer to reserve
         if (_amountToTransferFromMember > 0) {
             contributionToken.safeTransferFrom(
                 _memberWallet,
-                address(this),
+                addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr,
                 _amountToTransferFromMember
             );
-
-            // Transfer the coupon amount to this contract
-            if (_couponAmount > 0) {
-                address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
-                contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
-            }
 
             // Transfer the service fee to the fee claim address
             address feeClaimAddress = addressManager
@@ -366,6 +391,21 @@ contract BenefitModule is
                 .addr;
 
             contributionToken.safeTransferFrom(_memberWallet, feeClaimAddress, feeAmount);
+        }
+
+        // Transfer the coupon amount to this contract
+        if (_couponAmount > 0) {
+            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+            contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
+        }
+
+        // Lastly, transfer the corresponding amount to the referral reserve
+        if (_toReferralReserveAmount > 0) {
+            contributionToken.safeTransferFrom(
+                _memberWallet,
+                _referralRewardsModule,
+                _toReferralReserveAmount
+            );
         }
     }
 
