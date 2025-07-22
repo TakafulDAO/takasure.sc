@@ -1,5 +1,5 @@
 {
-  "address": "0x2AdCF8727bcE82c9B83F55CF7eA54CC43064FC5B",
+  "address": "0x96E8f1Ce7adC9CC1076F0af7149D720310D0f43F",
   "abi": [
         { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
         {
@@ -51,7 +51,7 @@
             "type": "function",
             "name": "batchMint",
             "inputs": [
-                { "name": "nftOwner", "type": "address", "internalType": "address" },
+                { "name": "pioneer", "type": "address", "internalType": "address" },
                 { "name": "tokensToMint", "type": "uint256", "internalType": "uint256" }
             ],
             "outputs": [],
