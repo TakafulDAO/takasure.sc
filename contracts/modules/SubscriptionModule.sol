@@ -160,7 +160,7 @@ contract SubscriptionModule is
      * @dev If the caller is the backend then the Revenue Type will be donation
      * @dev If the caller is a Benefit Module, then the Revenue Type will be Subscription
      */
-    function transferSubscriptionToReserve(address memberWallet) external {
+    function transferSubscriptionToReserve(address memberWallet) external returns (uint256) {
         // Reward the parents
         IReferralRewardsModule(
             addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
@@ -195,10 +195,11 @@ contract SubscriptionModule is
             .addr;
         IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
 
-        revenueModule.depositRevenue(
-            SUBSCRIPTION_AMOUNT - ((SUBSCRIPTION_AMOUNT * FEE) / 100),
-            revenueType
-        );
+        uint256 toTransfer = SUBSCRIPTION_AMOUNT - ((SUBSCRIPTION_AMOUNT * FEE) / 100);
+
+        revenueModule.depositRevenue(toTransfer, revenueType);
+
+        return toTransfer;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -275,15 +276,10 @@ contract SubscriptionModule is
 
         newMember.discount = discount;
 
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
-
         // Transfer the contribution amount from the user wallet to this contract
         // Transferthe fee to the fee claim address
         // Transfer the referral reserve amount to the referral rewards module to be distributed later
         _performTransfers({
-            _contributionToken: contributionToken,
             _fee: feeAmount,
             _discount: discount,
             _couponAmount: _couponAmount,
@@ -372,7 +368,6 @@ contract SubscriptionModule is
      * @dev The subscription amount is fixed at 25 USDC
      */
     function _performTransfers(
-        IERC20 _contributionToken,
         uint256 _fee,
         uint256 _discount,
         uint256 _couponAmount,
@@ -380,6 +375,10 @@ contract SubscriptionModule is
         address _userWallet,
         address _referralRewardsModule
     ) internal {
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+
         uint256 contributionAfterFee = SUBSCRIPTION_AMOUNT - _fee;
 
         uint256 amountToTransferFromMember;
@@ -391,7 +390,7 @@ contract SubscriptionModule is
         }
 
         if (amountToTransferFromMember > 0) {
-            _contributionToken.safeTransferFrom(
+            contributionToken.safeTransferFrom(
                 _userWallet,
                 address(this),
                 amountToTransferFromMember
@@ -399,16 +398,16 @@ contract SubscriptionModule is
 
             // Transfer the coupon amount to this contract
             if (_couponAmount > 0) {
-                _contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
+                contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
             }
 
             // Transfer the service fee to the fee claim address
-            _transferFee(_contributionToken, _userWallet, _fee);
+            _transferFee(contributionToken, _userWallet, _fee);
         }
 
         // Transfer the referral reserve amount to the corresponding module
         if (_toReferralReserveAmount > 0)
-            _contributionToken.safeTransfer(_referralRewardsModule, _toReferralReserveAmount);
+            contributionToken.safeTransfer(_referralRewardsModule, _toReferralReserveAmount);
     }
 
     function _transferFee(IERC20 _contributionToken, address _userWallet, uint256 _fee) internal {
