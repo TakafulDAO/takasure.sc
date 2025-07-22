@@ -36,7 +36,7 @@ contract MemberPaymentFlow {
         Reserve memory _reserve,
         ITakasureReserve _takasureReserve
     ) internal virtual returns (Reserve memory, uint256) {
-        _reserve = CashFlowAlgorithms._updateNewReserveValues(
+        (_reserve, ) = CashFlowAlgorithms._updateNewReserveValues(
             _takasureReserve,
             _contributionAfterFee,
             _contributionBeforeFee,
@@ -58,6 +58,7 @@ contract MemberPaymentFlow {
         return (_reserve, credits_);
     }
 
+    // Todo: not needed anymore? Fix in member module the transfer depending if it is updating the subscription or the benefit
     /**
      * @notice This function will transfer the contribution from the module to the reserves
      * @dev Override in module if the transfer is handled differently

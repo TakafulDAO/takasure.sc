@@ -24,7 +24,7 @@ library CashFlowAlgorithms {
         uint256 _contributionAfterFee,
         uint256 _contributionBeforeFee,
         Reserve memory _reserve
-    ) internal returns (Reserve memory) {
+    ) internal returns (Reserve memory, uint256) {
         (
             uint256 updatedProFormaFundReserve,
             uint256 updatedProFormaClaimReserve
@@ -56,7 +56,11 @@ library CashFlowAlgorithms {
         uint256 lossRatio = _updateLossRatio(_reserve.totalFundCost, _reserve.totalFundRevenues);
         _reserve.lossRatio = lossRatio;
 
-        return _reserve;
+        uint256 credits_ = _contributionBeforeFee * ModuleConstants.DECIMALS_CONVERSION_FACTOR; // 6 decimals to 18 decimals
+
+        _reserve.totalCredits += credits_;
+
+        return (_reserve, credits_);
     }
 
     function _updateProFormas(
