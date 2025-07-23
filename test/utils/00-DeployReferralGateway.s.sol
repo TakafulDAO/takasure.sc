@@ -8,9 +8,12 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract DeployReferralGateway is Script {
-    function run() external returns (HelperConfig helperConfig, ReferralGateway referralGateway) {
-        helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+    function run()
+        external
+        returns (HelperConfig.NetworkConfig memory config, ReferralGateway referralGateway)
+    {
+        HelperConfig helperConfig = new HelperConfig();
+        config = helperConfig.getConfigByChainId(block.chainid);
 
         vm.startBroadcast(msg.sender);
 
@@ -34,7 +37,7 @@ contract DeployReferralGateway is Script {
 
         vm.stopBroadcast();
 
-        return (helperConfig, referralGateway);
+        return (config, referralGateway);
     }
 
     // To avoid this contract to be count in coverage

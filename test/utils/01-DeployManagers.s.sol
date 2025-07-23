@@ -15,13 +15,13 @@ contract DeployManagers is Script {
     function run()
         external
         returns (
-            HelperConfig helperConfig,
+            HelperConfig.NetworkConfig memory config,
             AddressManager addressManager,
             ModuleManager moduleManager
         )
     {
-        helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        HelperConfig helperConfig = new HelperConfig();
+        config = helperConfig.getConfigByChainId(block.chainid);
 
         vm.startBroadcast(msg.sender);
 
@@ -66,7 +66,7 @@ contract DeployManagers is Script {
         vm.prank(config.kycProvider);
         addressManager.acceptProposedRole(Roles.KYC_PROVIDER);
 
-        return (helperConfig, addressManager, moduleManager);
+        return (config, addressManager, moduleManager);
     }
 
     // To avoid this contract to be count in coverage
