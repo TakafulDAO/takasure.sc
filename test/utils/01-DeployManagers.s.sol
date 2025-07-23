@@ -47,12 +47,6 @@ contract DeployManagers is Script {
             ProtocolAddressType.Protocol
         );
 
-        addressManager.addProtocolAddress(
-            "FEE_CLAIM_ADDRESS",
-            config.feeClaimAddress,
-            ProtocolAddressType.Admin
-        );
-
         addressManager.createNewRole(Roles.OPERATOR);
         addressManager.createNewRole(Roles.DAO_MULTISIG);
         addressManager.createNewRole(Roles.KYC_PROVIDER);
