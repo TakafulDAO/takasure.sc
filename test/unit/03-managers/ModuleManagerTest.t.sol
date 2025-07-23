@@ -3,22 +3,21 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
-import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {IsModule, IsNotModule} from "test/mocks/ModuleMocks.sol";
 
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 contract ModuleManagerTest is Test {
-    TestDeployProtocol deployer;
-    TakasureReserve takasureReserve;
+    DeployManagers managerDeployer;
     ModuleManager moduleManager;
+    AddressManager addressManagerProxy;
     IsModule isModule;
     IsNotModule isNotModule;
-    address moduleManagerOwner = makeAddr("moduleManagerOwner");
+    address moduleManagerOwner;
     address addressManager;
 
     enum State {
@@ -37,21 +36,11 @@ contract ModuleManagerTest is Test {
     );
 
     function setUp() public {
-        deployer = new TestDeployProtocol();
-        (address takasureReserveProxy, , , , , , , , , ) = deployer.run();
+        managerDeployer = new DeployManagers();
+        (, addressManagerProxy, moduleManager) = managerDeployer.run();
 
-        takasureReserve = TakasureReserve(takasureReserveProxy);
-        addressManager = address(takasureReserve.addressManager());
-
-        vm.startPrank(moduleManagerOwner);
-        address moduleManagerImplementation = address(new ModuleManager());
-        address moduleManagerProxy = UnsafeUpgrades.deployUUPSProxy(
-            moduleManagerImplementation,
-            abi.encodeCall(ModuleManager.initialize, (addressManager))
-        );
-        vm.stopPrank();
-
-        moduleManager = ModuleManager(moduleManagerProxy);
+        addressManager = address(addressManagerProxy);
+        moduleManagerOwner = addressManagerProxy.owner();
 
         isModule = new IsModule();
         isNotModule = new IsNotModule();
