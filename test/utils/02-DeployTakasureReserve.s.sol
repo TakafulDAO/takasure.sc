@@ -11,11 +11,9 @@ import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 
 contract DeployTakasureReserve is Script {
     function run(
-        HelperConfig helperConfig,
+        HelperConfig.NetworkConfig memory config,
         AddressManager addressManager
     ) external returns (TakasureReserve takasureReserve) {
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
-
         vm.startBroadcast(msg.sender);
 
         // Deploy TakasureReserve
