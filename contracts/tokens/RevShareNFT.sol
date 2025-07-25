@@ -20,6 +20,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.28;
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/RevShareNFTV1.sol:RevShareNFTV1
 contract RevShareNFT is
     Initializable,
     UUPSUpgradeable,
@@ -153,12 +154,12 @@ contract RevShareNFT is
         uint256 firstNewTokenId = totalSupply;
         totalSupply += tokensToMint;
         mintedToPioneers += tokensToMint;
-        uint256 lastNewTokenId = firstNewTokenId + tokensToMint;
+        uint256 lastNewTokenId = firstNewTokenId + tokensToMint - 1;
 
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(pioneer, operator);
 
-        for (uint256 i = firstNewTokenId; i < lastNewTokenId; ++i) {
+        for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
             _safeMint(pioneer, i);
         }
 
