@@ -58,8 +58,9 @@ tokens-deploy-nft:
 # Token upgrades
 tokens-upgrade-nft:
 	@forge clean
-	@forge script deploy/tokens/nft/UpgradeRevShareNft.s.sol:UpgradeRevShareNft $(NETWORK_ARGS)
-	@cp contracts/tokens/nft/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
+	@forge script deploy/tokens/nft/UpgradeRevShareNFT.s.sol:UpgradeRevShareNFT $(NETWORK_ARGS)
+	@cp contracts/tokens/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
+	
 
 # Protocol upgrades
 protocol-upgrade-referral:

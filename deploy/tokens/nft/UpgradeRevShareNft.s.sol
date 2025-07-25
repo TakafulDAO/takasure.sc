@@ -8,20 +8,16 @@ import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract UpgradeRevShareNFT is Script, GetContractAddress {
     function run() external returns (address) {
+        console2.log("AQUI");
         address revShareNFTAddress = _getContractAddress(block.chainid, "RevShareNFT");
         address oldImplementation = Upgrades.getImplementationAddress(revShareNFTAddress);
         console2.log("Old RevShareNFT implementation address: ", oldImplementation);
-
         vm.startBroadcast();
-
         // Upgrade RevShareNFT
         Upgrades.upgradeProxy(revShareNFTAddress, "RevShareNFT.sol", "");
-
         vm.stopBroadcast();
-
         address newImplementation = Upgrades.getImplementationAddress(revShareNFTAddress);
         console2.log("New RevShareNFT implementation address: ", newImplementation);
-
         return (newImplementation);
     }
 }
