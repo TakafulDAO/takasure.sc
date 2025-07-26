@@ -12,7 +12,6 @@ import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
 import {BenefitModule} from "contracts/modules/BenefitModule.sol";
-import {UserRouter} from "contracts/router/UserRouter.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
@@ -27,14 +26,12 @@ contract TestDeployProtocol is Script {
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant MINTER_ADMIN_ROLE = keccak256("MINTER_ADMIN_ROLE");
     bytes32 public constant BURNER_ADMIN_ROLE = keccak256("BURNER_ADMIN_ROLE");
-    bytes32 public constant ROUTER = keccak256("ROUTER");
 
     address addressManagerImplementation;
     address addressManagerProxy;
     address moduleManagerImplementation;
     address moduleManagerProxy;
     address takasureReserveImplementation;
-    address userRouterImplementation;
     address beacon;
 
     string root;
@@ -162,15 +159,6 @@ contract TestDeployProtocol is Script {
             revenueModuleAddress,
             ProtocolAddressType.Module
         );
-
-        // Deploy router
-        userRouterImplementation = address(new UserRouter());
-        routerAddress = UnsafeUpgrades.deployUUPSProxy(
-            userRouterImplementation,
-            abi.encodeCall(UserRouter.initialize, (takasureReserve))
-        );
-
-        addressManager.addProtocolAddress("ROUTER", routerAddress, ProtocolAddressType.Protocol);
 
         _createRoles(address(addressManager));
 
