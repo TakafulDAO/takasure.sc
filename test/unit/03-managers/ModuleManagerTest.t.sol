@@ -37,7 +37,7 @@ contract ModuleManagerTest is Test {
 
     function setUp() public {
         managerDeployer = new DeployManagers();
-        (, addressManagerProxy, moduleManager) = managerDeployer.run();
+        (, addressManagerProxy, moduleManager, , , , , ) = managerDeployer.run();
 
         addressManager = address(addressManagerProxy);
         moduleManagerOwner = addressManagerProxy.owner();

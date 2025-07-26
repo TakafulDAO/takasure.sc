@@ -13,7 +13,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
-contract Reverts_SubscriptionModuleTest is StdCheats, Test {
+contract SubscriptionModuleFuzzTest is StdCheats, Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
     SubscriptionModule subscriptionModule;
@@ -21,7 +21,6 @@ contract Reverts_SubscriptionModuleTest is StdCheats, Test {
     address couponRedeemer;
     IUSDC usdc;
     address public alice = makeAddr("alice");
-    address public bob = makeAddr("bob");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 150 USDC
 
     function setUp() public {
@@ -52,28 +51,28 @@ contract Reverts_SubscriptionModuleTest is StdCheats, Test {
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                    REVERTS
-        //////////////////////////////////////////////////////////////*/
+    function testSetCouponPoolAddressRevertsIfCallerIsWrong(address caller) public {
+        vm.assume(caller != takadao);
 
-    function testSubscriptionModule_revertsIfTryToSetAddressZeroToCouponPool() public {
-        vm.prank(takadao);
-        vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
-        subscriptionModule.setCouponPoolAddress(address(0));
+        vm.prank(caller);
+        vm.expectRevert();
+        subscriptionModule.setCouponPoolAddress(makeAddr("validAddr"));
     }
 
-    function testSubscriptionModule_revertsIfTryToPayTwice() public {
-        vm.startPrank(couponRedeemer);
-        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+    function testPaySubscriptionOnBehalfOfRevertsIfCallerIsWrong(address caller) public {
+        vm.assume(caller != couponRedeemer);
 
-        vm.expectRevert(ModuleErrors.Module__AlreadyJoined.selector);
+        vm.prank(caller);
+        vm.expectRevert();
         subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
-        vm.stopPrank();
     }
 
-    function testSubscriptionModule_revertsIfParentIsNotValid() public {
+    function testPaySubscriptionOnBehalfOfRevertsIfCouponIsInvalid(uint256 coupon) public {
+        vm.assume(coupon != 0);
+        vm.assume(coupon != 25e6);
+
         vm.prank(couponRedeemer);
-        vm.expectRevert(ModuleErrors.Module__AddressNotKYCed.selector);
-        subscriptionModule.paySubscriptionOnBehalfOf(alice, bob, 0, block.timestamp);
+        vm.expectRevert();
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), coupon, block.timestamp);
     }
 }

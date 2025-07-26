@@ -17,7 +17,7 @@ contract AddressManagerFuzzTest is Test {
 
     function setUp() public {
         managerDeployer = new DeployManagers();
-        (, addressManager, ) = managerDeployer.run();
+        (, addressManager, , , , , , ) = managerDeployer.run();
         addressManagerOwner = addressManager.owner();
     }
 
