@@ -27,7 +27,7 @@ abstract contract AssociationHooks {
             .addr;
         ISubscriptionModule subscriptionModule = ISubscriptionModule(subscriptionModuleAddress);
 
-        member_ = subscriptionModule.getMember(_memberWallet);
+        member_ = subscriptionModule.getAssociationMember(_memberWallet);
     }
 
     function _setAssociationMembersValuesHook(

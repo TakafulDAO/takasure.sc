@@ -19,6 +19,8 @@ interface ISubscriptionModule {
     ) external;
     function refund(address memberWallet) external;
     function transferSubscriptionToReserve(address memberWallet) external returns (uint256);
-    function getMember(address memberWallet) external view returns (AssociationMember memory);
+    function getAssociationMember(
+        address memberWallet
+    ) external view returns (AssociationMember memory);
     function modifyAssociationMember(AssociationMember memory member) external;
 }
