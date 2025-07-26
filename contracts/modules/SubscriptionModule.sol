@@ -120,7 +120,7 @@ contract SubscriptionModule is
         address parentWallet,
         uint256 couponAmount,
         uint256 membershipStartTime
-    ) external onlyRole(Roles.COUPON_REDEEMER, address(addressManager)) {
+    ) external {
         require(
             couponAmount == 0 || couponAmount == SUBSCRIPTION_AMOUNT,
             ModuleErrors.Module__InvalidCoupon()
@@ -128,8 +128,10 @@ contract SubscriptionModule is
 
         _paySubscription(userWallet, parentWallet, couponAmount, membershipStartTime);
 
-        isMemberCouponSubscriptionRedeemer[userWallet] = true;
-        emit TakasureEvents.OnCouponRedeemed(userWallet, couponAmount);
+        if (couponAmount > 0) {
+            isMemberCouponSubscriptionRedeemer[userWallet] = true;
+            emit TakasureEvents.OnCouponRedeemed(userWallet, couponAmount);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -226,7 +228,9 @@ contract SubscriptionModule is
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function getMember(address memberWallet) external view returns (AssociationMember memory) {
+    function getAssociationMember(
+        address memberWallet
+    ) external view returns (AssociationMember memory) {
         return members[memberWallet];
     }
 
@@ -248,8 +252,8 @@ contract SubscriptionModule is
     ) internal nonReentrant {
         // Check caller
         require(
-            AddressAndStates._checkName(address(addressManager), "ROUTER") ||
-                msg.sender == _userWallet,
+            AddressAndStates._checkRole(address(addressManager), Roles.COUPON_REDEEMER) ||
+                AddressAndStates._checkName(address(addressManager), "ROUTER"),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
