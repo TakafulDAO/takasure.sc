@@ -375,6 +375,17 @@ contract AddressManager is
         else return super.hasRole(role, account);
     }
 
+    function hasType(address addr, ProtocolAddressType addressType) external view returns (bool) {
+        // First check if the address is registered
+        if (protocolAddressesNames[addr] == bytes32(0)) return false;
+
+        // Then check if the address type matches
+        ProtocolAddress memory protocolAddress = protocolAddressesByName[
+            protocolAddressesNames[addr]
+        ];
+        return protocolAddress.addressType == addressType;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/

@@ -163,17 +163,13 @@ contract SubscriptionModule is
             .getProtocolAddressByName("FAREWELL_BENEFIT_MODULE")
             .addr;
 
-        // TODO: For now check if the caller has the coupon redeemer role
-        bool isCouponRedeemer = AddressAndStates._checkRole(
-            address(addressManager),
-            Roles.COUPON_REDEEMER
-        );
+        bool isOperator = AddressAndStates._checkRole(address(addressManager), Roles.OPERATOR);
 
         RevenueType revenueType;
 
         if (msg.sender == lifeBenefitModuleAddress || msg.sender == farewellBenefitModuleAddress) {
             revenueType = RevenueType.Contribution;
-        } else if (isCouponRedeemer) {
+        } else if (isOperator) {
             revenueType = RevenueType.ContributionDonation;
         } else {
             revert ModuleErrors.Module__NotAuthorizedCaller();
@@ -200,14 +196,9 @@ contract SubscriptionModule is
      * @dev Only callable by modules
      * @dev This can be after a KYC verification, or after joining a benefit
      */
-    function modifyAssociationMember(AssociationMember memory member) external {
-        string memory callerModuleName = ITLDModuleImplementation(msg.sender).moduleName();
-        require(
-            addressManager.getProtocolAddressByName(callerModuleName).addressType ==
-                ProtocolAddressType.Module,
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-
+    function modifyAssociationMember(
+        AssociationMember memory member
+    ) external onlyType(ProtocolAddressType.Module, address(addressManager)) {
         members[member.wallet] = member;
     }
 

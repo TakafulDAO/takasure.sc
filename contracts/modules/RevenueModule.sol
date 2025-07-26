@@ -13,7 +13,7 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
-import {Reserve, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, RevenueType, CashFlowVars, ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
@@ -69,11 +69,13 @@ contract RevenueModule is TLDModuleImplementation, Initializable, UUPSUpgradeabl
      * @param newRevenue the new revenue to be added to the fund reserve
      * @param revenueType the type of revenue to be added
      */
-    function depositRevenue(
-        uint256 newRevenue,
-        RevenueType revenueType
-    ) external onlyRole(Roles.DAO_MULTISIG, address(addressManager)) {
+    function depositRevenue(uint256 newRevenue, RevenueType revenueType) external {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        require(
+            AddressAndStates._checkRole(address(addressManager), Roles.OPERATOR) ||
+                AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
         require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
         ITakasureReserve takasureReserve = ITakasureReserve(
