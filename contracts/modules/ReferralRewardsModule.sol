@@ -37,6 +37,8 @@ contract ReferralRewardsModule is
 
         addressManager = IAddressManager(_addressManager);
         moduleName = _moduleName;
+
+        referralDiscountEnabled = true; // Enable referral discount by default
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -61,7 +63,6 @@ contract ReferralRewardsModule is
         uint256 feeAmount
     ) external returns (uint256 newFeeAmount, uint256 discount, uint256 toReferralReserveAmount) {
         uint256 toReferralReserve;
-
         if (referralDiscountEnabled) {
             toReferralReserve = (contribution * ModuleConstants.REFERRAL_RESERVE) / 100;
             if (parent != address(0)) {
@@ -83,7 +84,7 @@ contract ReferralRewardsModule is
             } else {
                 toReferralReserveAmount = toReferralReserve;
                 referralReserve += toReferralReserve;
-                newFeeAmount = feeAmount;
+                newFeeAmount = feeAmount - toReferralReserve;
             }
         }
     }
