@@ -23,6 +23,7 @@ import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol"
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Test, console2} from "forge-std/Test.sol";
 
 pragma solidity 0.8.28;
 
@@ -35,8 +36,6 @@ contract SubscriptionModule is
     using SafeERC20 for IERC20;
 
     uint256 private memberIdCounter;
-
-    address private couponPool;
 
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => AssociationMember) private members;
@@ -68,16 +67,11 @@ contract SubscriptionModule is
         _disableInitializers();
     }
 
-    function initialize(
-        address _addressManager,
-        address _couponPool,
-        string calldata _moduleName
-    ) external initializer {
+    function initialize(address _addressManager, string calldata _moduleName) external initializer {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
 
         addressManager = IAddressManager(_addressManager);
-        couponPool = _couponPool;
         moduleName = _moduleName;
     }
 
@@ -93,13 +87,6 @@ contract SubscriptionModule is
         ModuleState newState
     ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
         moduleState = newState;
-    }
-
-    function setCouponPoolAddress(
-        address _couponPool
-    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
-        AddressAndStates._notZeroAddress(_couponPool);
-        couponPool = _couponPool;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -211,7 +198,7 @@ contract SubscriptionModule is
     /**
      * @notice Modify an association member after certain operations
      * @dev Only callable by modules
-     * @dev This can be after a KWC verification, or after joining a benefit
+     * @dev This can be after a KYC verification, or after joining a benefit
      */
     function modifyAssociationMember(AssociationMember memory member) external {
         string memory callerModuleName = ITLDModuleImplementation(msg.sender).moduleName();
@@ -279,7 +266,6 @@ contract SubscriptionModule is
             });
 
         newMember.discount = discount;
-
         // Transfer the contribution amount from the user wallet to this contract
         // Transferthe fee to the fee claim address
         // Transfer the referral reserve amount to the referral rewards module to be distributed later
@@ -385,28 +371,20 @@ contract SubscriptionModule is
 
         uint256 contributionAfterFee = SUBSCRIPTION_AMOUNT - _fee;
 
-        uint256 amountToTransferFromMember;
+        bool transferFromMember = _couponAmount == 0 ? true : false;
 
-        if (_couponAmount > 0) {
-            amountToTransferFromMember = contributionAfterFee - _discount - _couponAmount;
-        } else {
-            amountToTransferFromMember = contributionAfterFee - _discount;
-        }
+        uint256 amountToTransfer;
 
-        if (amountToTransferFromMember > 0) {
-            contributionToken.safeTransferFrom(
-                _userWallet,
-                address(this),
-                amountToTransferFromMember
-            );
+        if (transferFromMember) {
+            amountToTransfer = contributionAfterFee - _discount;
 
-            // Transfer the coupon amount to this contract
-            if (_couponAmount > 0) {
-                contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
-            }
-
-            // Transfer the service fee to the fee claim address
+            contributionToken.safeTransferFrom(_userWallet, address(this), amountToTransfer);
             _transferFee(contributionToken, _userWallet, _fee);
+        } else {
+            amountToTransfer = contributionAfterFee;
+            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+            contributionToken.safeTransferFrom(couponPool, address(this), amountToTransfer);
+            _transferFee(contributionToken, couponPool, _fee);
         }
 
         // Transfer the referral reserve amount to the corresponding module
@@ -437,11 +415,14 @@ contract SubscriptionModule is
 
         // The member should not be refunded
         require(!_member.isRefunded, SubscriptionModule__NothingToRefund());
+
         uint256 currentTimestamp = block.timestamp;
         uint256 startTime = _member.associateStartTime;
+
         // The member can refund before 30 days of the payment
         uint256 limitTimestamp = startTime + (30 days);
         require(currentTimestamp <= limitTimestamp, SubscriptionModule__TooEarlytoRefund());
+
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmountAfterFee = SUBSCRIPTION_AMOUNT -
             ((SUBSCRIPTION_AMOUNT * FEE) / 100);
@@ -469,11 +450,15 @@ contract SubscriptionModule is
             // Reset the coupon redeemer status, this way the member can redeem again
             isMemberCouponSubscriptionRedeemer[_memberWallet] = false;
             // We transfer the coupon amount to the coupon pool
+            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
             contributionToken.safeTransfer(couponPool, amountToRefund);
         } else {
             // We transfer the amount to the member
             contributionToken.safeTransfer(_memberWallet, amountToRefund);
         }
+
+        // Update the member mapping
+        members[_memberWallet] = _member;
 
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
     }
