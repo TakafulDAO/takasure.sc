@@ -12,30 +12,43 @@ import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 contract DeployManagers is Script {
+    address beacon;
+    address addressManagerImplementation;
+    address addressManagerProxy;
+    address moduleManagerImplementation;
+    address moduleManagerProxy;
+
     function run()
         external
         returns (
             HelperConfig.NetworkConfig memory config,
             AddressManager addressManager,
-            ModuleManager moduleManager
+            ModuleManager moduleManager,
+            address operator,
+            address daoMultisig,
+            address kycProvider,
+            address couponRedeemer,
+            address feeClaimAddress
         )
     {
         HelperConfig helperConfig = new HelperConfig();
         config = helperConfig.getConfigByChainId(block.chainid);
 
+        couponRedeemer = makeAddr("couponRedeemer");
+
         vm.startBroadcast(msg.sender);
 
-        address beacon = UnsafeUpgrades.deployBeacon(address(new BenefitModule()), msg.sender);
+        beacon = UnsafeUpgrades.deployBeacon(address(new BenefitModule()), msg.sender);
 
-        address addressManagerImplementation = address(new AddressManager());
-        address addressManagerProxy = UnsafeUpgrades.deployUUPSProxy(
+        addressManagerImplementation = address(new AddressManager());
+        addressManagerProxy = UnsafeUpgrades.deployUUPSProxy(
             addressManagerImplementation,
             abi.encodeCall(AddressManager.initialize, (msg.sender, beacon))
         );
         addressManager = AddressManager(addressManagerProxy);
 
-        address moduleManagerImplementation = address(new ModuleManager());
-        address moduleManagerProxy = UnsafeUpgrades.deployUUPSProxy(
+        moduleManagerImplementation = address(new ModuleManager());
+        moduleManagerProxy = UnsafeUpgrades.deployUUPSProxy(
             moduleManagerImplementation,
             abi.encodeCall(ModuleManager.initialize, (addressManagerProxy))
         );
@@ -50,11 +63,24 @@ contract DeployManagers is Script {
         addressManager.createNewRole(Roles.OPERATOR);
         addressManager.createNewRole(Roles.DAO_MULTISIG);
         addressManager.createNewRole(Roles.KYC_PROVIDER);
+        addressManager.createNewRole(Roles.COUPON_REDEEMER);
 
         addressManager.proposeRoleHolder(Roles.OPERATOR, config.takadaoOperator);
         addressManager.proposeRoleHolder(Roles.DAO_MULTISIG, config.daoMultisig);
         addressManager.proposeRoleHolder(Roles.KYC_PROVIDER, config.kycProvider);
+        addressManager.proposeRoleHolder(Roles.COUPON_REDEEMER, couponRedeemer);
 
+        addressManager.addProtocolAddress(
+            "CONTRIBUTION_TOKEN",
+            config.contributionToken,
+            ProtocolAddressType.Protocol
+        );
+
+        addressManager.addProtocolAddress(
+            "FEE_CLAIM_ADDRESS",
+            config.feeClaimAddress,
+            ProtocolAddressType.Admin
+        );
         vm.stopBroadcast();
 
         vm.prank(config.takadaoOperator);
@@ -66,7 +92,19 @@ contract DeployManagers is Script {
         vm.prank(config.kycProvider);
         addressManager.acceptProposedRole(Roles.KYC_PROVIDER);
 
-        return (config, addressManager, moduleManager);
+        vm.prank(couponRedeemer);
+        addressManager.acceptProposedRole(Roles.COUPON_REDEEMER);
+
+        return (
+            config,
+            addressManager,
+            moduleManager,
+            config.takadaoOperator,
+            config.daoMultisig,
+            config.kycProvider,
+            couponRedeemer,
+            config.feeClaimAddress
+        );
     }
 
     // To avoid this contract to be count in coverage

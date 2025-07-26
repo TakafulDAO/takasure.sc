@@ -34,12 +34,6 @@ contract DeployTakasureReserve is Script {
             ProtocolAddressType.Protocol
         );
 
-        addressManager.addProtocolAddress(
-            "FEE_CLAIM_ADDRESS",
-            config.feeClaimAddress,
-            ProtocolAddressType.Admin
-        );
-
         vm.stopBroadcast();
 
         return (takasureReserve);
