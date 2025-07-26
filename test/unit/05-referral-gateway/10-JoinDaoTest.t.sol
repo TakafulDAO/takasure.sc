@@ -37,7 +37,7 @@ contract ReferralGatewayJoinDaoTest is Test {
         (config, referralGateway) = deployer.run();
 
         managersDeployer = new DeployManagers();
-        (, AddressManager addressManager, , , , , , ) = managersDeployer.run();
+        (, AddressManager addressManager, ) = managersDeployer.run();
 
         takasureDeployer = new DeployTakasureReserve();
         takasureReserve = takasureDeployer.run(config, addressManager);

@@ -14,7 +14,6 @@ import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 
 contract DeployModules is Script {
-    address couponPool = makeAddr("couponPool");
     address lifeBenefitModuleAddress;
     address farewellBenefitModuleAddress;
     address kycModuleImplementation;
@@ -113,7 +112,7 @@ contract DeployModules is Script {
             subscriptionModuleImplementation,
             abi.encodeCall(
                 SubscriptionModule.initialize,
-                (address(addressManager), couponPool, "SUBSCRIPTION_MODULE")
+                (address(addressManager), "SUBSCRIPTION_MODULE")
             )
         );
 

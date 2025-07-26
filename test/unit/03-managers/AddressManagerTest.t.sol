@@ -35,7 +35,7 @@ contract AddressManagerTest is Test {
 
     function setUp() public {
         managerDeployer = new DeployManagers();
-        (, addressManager, , , , , , ) = managerDeployer.run();
+        (, addressManager, ) = managerDeployer.run();
         addressManagerOwner = addressManager.owner();
     }
 
@@ -353,7 +353,7 @@ contract AddressManagerTest is Test {
     function testCreateNewRole() public {
         bytes32[] memory roles = addressManager.getRoles();
 
-        assert(roles.length == 4); // Already created roles: OPERATOR, DAO_MULTISIG, KYC_PROVIDER
+        assert(roles.length == 0);
         assert(!addressManager.isValidRole(keccak256("TestRole")));
 
         vm.prank(addressManagerOwner);
@@ -366,8 +366,8 @@ contract AddressManagerTest is Test {
         roles = addressManager.getRoles();
         assert(roleCreated);
         assert(isValidRole);
-        assert(roles.length == 5);
-        assert(roles[4] == keccak256("TestRole"));
+        assert(roles.length == 1);
+        assert(roles[0] == keccak256("TestRole"));
     }
 
     modifier addRole() {
@@ -382,8 +382,8 @@ contract AddressManagerTest is Test {
 
     function testRemoveRole() public addRole {
         bytes32[] memory roles = addressManager.getRoles();
-        assert(roles.length == 5);
-        assert(roles[4] == keccak256("TestRole"));
+        assert(roles.length == 1);
+        assert(roles[0] == keccak256("TestRole"));
         assert(addressManager.isValidRole(keccak256("TestRole")));
 
         vm.prank(addressManagerOwner);
@@ -396,7 +396,7 @@ contract AddressManagerTest is Test {
 
         assert(roleRemoved);
         assert(!isValidRole);
-        assert(roles.length == 4);
+        assert(roles.length == 0);
     }
 
     /*//////////////////////////////////////////////////////////////

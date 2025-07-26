@@ -5,7 +5,9 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {DeployModules} from "test/utils/03-DeployModules.s.sol";
+import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -16,6 +18,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 contract Reverts_SubscriptionModuleTest is StdCheats, Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
+    AddAddressesAndRoles addressesAndRoles;
     SubscriptionModule subscriptionModule;
     address takadao;
     address couponRedeemer;
@@ -27,17 +30,18 @@ contract Reverts_SubscriptionModuleTest is StdCheats, Test {
     function setUp() public {
         managersDeployer = new DeployManagers();
         moduleDeployer = new DeployModules();
+        addressesAndRoles = new AddAddressesAndRoles();
 
         (
             HelperConfig.NetworkConfig memory config,
             AddressManager addressManager,
-            ,
-            address operator,
-            ,
-            ,
-            address redeemer,
-
+            ModuleManager moduleManager
         ) = managersDeployer.run();
+        (address operator, , , address redeemer, , ) = addressesAndRoles.run(
+            addressManager,
+            config,
+            address(moduleManager)
+        );
         (, , , , , , subscriptionModule) = moduleDeployer.run(addressManager);
 
         takadao = operator;
@@ -55,12 +59,6 @@ contract Reverts_SubscriptionModuleTest is StdCheats, Test {
     /*//////////////////////////////////////////////////////////////
                                     REVERTS
         //////////////////////////////////////////////////////////////*/
-
-    function testSubscriptionModule_revertsIfTryToSetAddressZeroToCouponPool() public {
-        vm.prank(takadao);
-        vm.expectRevert(AddressAndStates.TakasureProtocol__ZeroAddress.selector);
-        subscriptionModule.setCouponPoolAddress(address(0));
-    }
 
     function testSubscriptionModule_revertsIfTryToPayTwice() public {
         vm.startPrank(couponRedeemer);

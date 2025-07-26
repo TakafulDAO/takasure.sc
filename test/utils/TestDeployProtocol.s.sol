@@ -45,7 +45,6 @@ contract TestDeployProtocol is Script {
         address takadaoOperator;
         address kycProvider;
         address contributionToken;
-        address couponPool;
         address pauseGuardian;
     }
 
@@ -136,7 +135,6 @@ contract TestDeployProtocol is Script {
                 takadaoOperator: config.takadaoOperator,
                 kycProvider: config.kycProvider,
                 contributionToken: config.contributionToken,
-                couponPool: makeAddr("couponPool"),
                 pauseGuardian: config.pauseGuardian
             })
         );
@@ -257,7 +255,7 @@ contract TestDeployProtocol is Script {
             subscriptionModuleImplementation,
             abi.encodeCall(
                 SubscriptionModule.initialize,
-                (_params.addressManager, _params.couponPool, "SUBSCRIPTION_MODULE")
+                (_params.addressManager, "SUBSCRIPTION_MODULE")
             )
         );
 
