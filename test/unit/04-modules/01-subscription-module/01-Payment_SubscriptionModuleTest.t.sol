@@ -16,7 +16,7 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {AssociationMember, AssociationMemberState} from "contracts/types/TakasureTypes.sol";
+import {AssociationMember, AssociationMemberState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 
 contract Payment_SubscriptionModuleTest is StdCheats, Test {
     DeployManagers managersDeployer;
@@ -89,6 +89,14 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
 
         vm.prank(couponPool);
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
+
+        address takasureReserve = makeAddr("takasureReserve");
+        vm.prank(addressManager.owner());
+        addressManager.addProtocolAddress(
+            "TAKASURE_RESERVE",
+            takasureReserve,
+            ProtocolAddressType.Protocol
+        );
     }
 
     function testSubscriptionModule_paySubscriptionOnBehalfOfEmitsEvent() public {
@@ -245,4 +253,10 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
             block.timestamp
         );
     }
+
+    // todo: fix algos in RevenueModule.sol
+    // function testSubscriptionModule_donatesContribution() public payAndKyc {
+    //     vm.prank(takadao);
+    //     subscriptionModule.transferSubscriptionToReserve(alice);
+    // }
 }

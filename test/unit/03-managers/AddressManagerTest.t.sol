@@ -550,4 +550,8 @@ contract AddressManagerTest is Test {
 
         assert(addressManager.hasRole(keccak256("TestRole"), roleHolder));
     }
+
+    function testCheckIfAnAddressHasTypeSet() public addAdminAddress {
+        assert(addressManager.hasType(adminAddress, ProtocolAddressType.Admin));
+    }
 }
