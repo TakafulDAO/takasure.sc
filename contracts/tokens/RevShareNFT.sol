@@ -32,7 +32,6 @@ contract RevShareNFT is
 
     ITakasureReserve private takasureReserve;
 
-    address public operator;
     string public baseURI; // Base URI for the NFTs
 
     uint256 public totalSupply; // Total supply of NFTs minted
@@ -66,7 +65,7 @@ contract RevShareNFT is
 
     modifier mintChecks(address pioneer) {
         AddressAndStates._notZeroAddress(pioneer);
-        require(pioneer != operator && pioneer != address(this), RevShareNFT__NotAllowedAddress());
+        require(pioneer != address(this), RevShareNFT__NotAllowedAddress());
         require(totalSupply < MAX_SUPPLY, RevShareNFT__MaxSupplyReached());
         _;
     }
@@ -76,16 +75,13 @@ contract RevShareNFT is
         _disableInitializers();
     }
 
-    function initialize(address _operator, string memory _baseURI) external initializer {
-        AddressAndStates._notZeroAddress(_operator);
-
+    function initialize(string memory _baseURI) external initializer {
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __Ownable_init(msg.sender);
         __ReentrancyGuardTransient_init();
         __ERC721_init("RevShareNFT", "RSNFT");
 
-        operator = _operator;
         baseURI = _baseURI;
     }
 
@@ -122,7 +118,7 @@ contract RevShareNFT is
         ++totalSupply;
 
         // Update the revenues if the contract is set up to do so
-        _updateRevenuesIfProtocolIsSetUp(pioneer, operator);
+        _updateRevenuesIfProtocolIsSetUp(pioneer);
 
         _safeMint(pioneer, tokenId);
 
@@ -146,7 +142,7 @@ contract RevShareNFT is
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint - 1;
 
         // Update the revenues if the contract is set up to do so
-        _updateRevenuesIfProtocolIsSetUp(pioneer, operator);
+        _updateRevenuesIfProtocolIsSetUp(pioneer);
 
         for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
             _safeMint(pioneer, i);
@@ -166,7 +162,8 @@ contract RevShareNFT is
         );
 
         // Update the revenues if the contract is set up to do so
-        _updateRevenuesIfProtocolIsSetUp(msg.sender, to);
+        _updateRevenuesIfProtocolIsSetUp(msg.sender);
+        _updateRevenuesIfProtocolIsSetUp(to);
 
         _safeTransfer(msg.sender, to, tokenId, "");
     }
@@ -187,7 +184,8 @@ contract RevShareNFT is
         );
 
         // Update the revenues if the contract is set up to do so
-        _updateRevenuesIfProtocolIsSetUp(from, to);
+        _updateRevenuesIfProtocolIsSetUp(from);
+        _updateRevenuesIfProtocolIsSetUp(to);
 
         super.transferFrom(from, to, tokenId);
     }
@@ -228,13 +226,12 @@ contract RevShareNFT is
         }
     }
 
-    function _updateRevenuesIfProtocolIsSetUp(address _pioneer, address _operator) internal {
+    function _updateRevenuesIfProtocolIsSetUp(address _pioneer) internal {
         address revShareModule = _fetchRevShareModuleAddressIfIsSetUp();
 
         if (revShareModule != address(0)) {
-            // If the RevShareModule is set up, we update the revenues for both the pioneer and the operator
+            // If the RevShareModule is set up, we update the revenues for the given address
             IRevShareModule(revShareModule).updateRevenue(_pioneer);
-            IRevShareModule(revShareModule).updateRevenue(_operator);
         } else {
             // If the RevShareModule is not set up, we store the timestamp of the mint
             // to be able to calculate the revenues later
