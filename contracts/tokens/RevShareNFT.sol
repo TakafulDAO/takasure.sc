@@ -6,7 +6,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
-import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -30,7 +30,7 @@ contract RevShareNFT is
 {
     using SafeERC20 for IERC20;
 
-    ITakasureReserve private takasureReserve;
+    IAddressManager private addressManager;
 
     string public baseURI; // Base URI for the NFTs
 
@@ -44,10 +44,7 @@ contract RevShareNFT is
                             EVENTS & ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    event OnTakasureReserveSet(
-        address indexed oldTakasureReserve,
-        address indexed newTakasureReserve
-    );
+    event OnAddressManagerSet(address indexed oldAddressManager, address indexed newAddressManager);
     event OnRevShareModuleSet(address indexed oldRevShareModule, address indexed newRevShareModule);
     event OnBaseURISet(string indexed oldBaseUri, string indexed newBaseURI);
     event OnRevShareNFTMinted(address indexed owner, uint256 tokenId);
@@ -89,13 +86,13 @@ contract RevShareNFT is
                                 SETTINGS
     //////////////////////////////////////////////////////////////*/
 
-    function setTakasureReserve(address _takasureReserve) external onlyOwner {
-        AddressAndStates._notZeroAddress(_takasureReserve);
+    function setAddressManager(address _addressManager) external onlyOwner {
+        AddressAndStates._notZeroAddress(_addressManager);
 
-        address oldTakasureReserve = address(takasureReserve);
-        takasureReserve = ITakasureReserve(_takasureReserve);
+        address oldAddressManager = address(addressManager);
+        addressManager = IAddressManager(_addressManager);
 
-        emit OnTakasureReserveSet(oldTakasureReserve, _takasureReserve);
+        emit OnAddressManagerSet(oldAddressManager, _addressManager);
     }
 
     function setBaseURI(string calldata _newBaseURI) external onlyOwner {
@@ -210,16 +207,12 @@ contract RevShareNFT is
         view
         returns (address revShareModule_)
     {
-        // If the takasureReserve is not set, we return address(0)
-        if (address(takasureReserve) != address(0)) {
+        // If the addressManager is not set, we return address(0)
+        if (address(addressManager) != address(0)) {
             // We try to fetch the RevShareModule address from the AddressManager, if it fails it means
             // the revenue share module is not set up, so we return address(0)
-            try
-                IAddressManager(takasureReserve.addressManager()).getProtocolAddressByName(
-                    "REVENUE_SHARE_MODULE"
-                )
-            {
-                revShareModule_ = IAddressManager(takasureReserve.addressManager())
+            try addressManager.getProtocolAddressByName("REVENUE_SHARE_MODULE") {
+                revShareModule_ = addressManager
                     .getProtocolAddressByName("REVENUE_SHARE_MODULE")
                     .addr;
             } catch {}
