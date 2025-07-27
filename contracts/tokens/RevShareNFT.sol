@@ -36,14 +36,10 @@ contract RevShareNFT is
     string public baseURI; // Base URI for the NFTs
 
     uint256 public totalSupply; // Total supply of NFTs minted
-    uint256 private mintedToOperator; // Updated on transfers from the operator
-    uint256 private mintedToPioneers; // Updated on mints
 
     mapping(address pioneer => uint256 timestamp) public pioneerMintedAt;
 
-    uint256 public constant MAX_SUPPLY = 18_000;
-    uint256 private constant OPERATOR_RESERVED_TOKENS = 9_180; // 51% of the total supply reserved for operator
-    uint256 private constant PIONEERS_RESERVED_TOKENS = 8_820; // 49% of the total supply reserved for pioneers
+    uint256 public constant MAX_SUPPLY = 8_820;
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
@@ -71,10 +67,7 @@ contract RevShareNFT is
     modifier mintChecks(address pioneer) {
         AddressAndStates._notZeroAddress(pioneer);
         require(pioneer != operator && pioneer != address(this), RevShareNFT__NotAllowedAddress());
-        require(
-            totalSupply < MAX_SUPPLY && mintedToPioneers < PIONEERS_RESERVED_TOKENS,
-            RevShareNFT__MaxSupplyReached()
-        );
+        require(totalSupply < MAX_SUPPLY, RevShareNFT__MaxSupplyReached());
         _;
     }
 
@@ -94,8 +87,6 @@ contract RevShareNFT is
 
         operator = _operator;
         baseURI = _baseURI;
-
-        totalSupply = OPERATOR_RESERVED_TOKENS - 1; // We assume that the operator has 9180 tokens already minted and the tokenId starts at 0
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -129,7 +120,6 @@ contract RevShareNFT is
     function mint(address pioneer) external onlyOwner mintChecks(pioneer) {
         uint256 tokenId = totalSupply;
         ++totalSupply;
-        ++mintedToPioneers;
 
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(pioneer, operator);
@@ -153,7 +143,6 @@ contract RevShareNFT is
 
         uint256 firstNewTokenId = totalSupply;
         totalSupply += tokensToMint;
-        mintedToPioneers += tokensToMint;
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint - 1;
 
         // Update the revenues if the contract is set up to do so
@@ -179,15 +168,7 @@ contract RevShareNFT is
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(msg.sender, to);
 
-        // If the caller is the operator, as all the balance is assumed but not minted,
-        // then we mint the token to the recipient instead of transferring it
-        if (msg.sender == operator) {
-            require(mintedToOperator < OPERATOR_RESERVED_TOKENS, RevShareNFT__NotEnoughBalance());
-            _safeMint(to, tokenId);
-            ++mintedToOperator;
-        } else {
-            _safeTransfer(msg.sender, to, tokenId, "");
-        }
+        _safeTransfer(msg.sender, to, tokenId, "");
     }
 
     /**
@@ -208,28 +189,12 @@ contract RevShareNFT is
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(from, to);
 
-        // If the caller is the operator, as all the balance is assumed but not minted,
-        // then we mint the token to the recipient instead of transferring it
-        if (from == operator) {
-            require(mintedToOperator < OPERATOR_RESERVED_TOKENS, RevShareNFT__NotEnoughBalance());
-            _safeMint(from, tokenId);
-            ++mintedToOperator;
-        }
-
         super.transferFrom(from, to, tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
-
-    function balanceOf(address owner) public view override(ERC721Upgradeable) returns (uint256) {
-        if (owner == operator)
-            return
-                (OPERATOR_RESERVED_TOKENS - mintedToOperator) +
-                (PIONEERS_RESERVED_TOKENS - mintedToPioneers);
-        return super.balanceOf(owner);
-    }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         return
