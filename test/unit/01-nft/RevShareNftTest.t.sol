@@ -120,7 +120,7 @@ contract RevShareNftTest is Test {
         nft.batchMint(alice, 3);
 
         assertEq(nft.balanceOf(alice), 3);
-        assertEq(nft.totalSupply(), 2);
+        assertEq(nft.totalSupply(), 3);
     }
 
     /*//////////////////////////////////////////////////////////////
