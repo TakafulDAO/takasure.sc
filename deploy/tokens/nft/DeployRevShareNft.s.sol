@@ -3,22 +3,19 @@
 pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract DeployRevShareNft is Script {
-    string baseURI = "https://ipfs.io/ipfs/QmUNHy2dz6Ye9Xt67Y52YfkPJmasahJQhTy3ghviR3kwk8/";
+    string baseURI =
+        "https://bafybeia2igblodva5p2yknyykmswnh66jysmr67ucnoeqtrlzach3ma34a.ipfs.w3s.link/";
 
     function run() external returns (address nft) {
-        HelperConfig helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
-
         vm.startBroadcast();
 
         nft = Upgrades.deployUUPSProxy(
             "RevShareNFT.sol",
-            abi.encodeCall(RevShareNFT.initialize, (config.takadaoOperator, baseURI))
+            abi.encodeCall(RevShareNFT.initialize, (baseURI))
         );
 
         vm.stopBroadcast();
