@@ -36,7 +36,8 @@ contract RevShareNFT is
 
     uint256 public totalSupply; // Total supply of NFTs minted
 
-    mapping(address pioneer => uint256 timestamp) public pioneerMintedAt;
+    mapping(address pioneer => mapping(uint256 tokenId => uint256 timestamp))
+        public pioneerMintedAt;
 
     uint256 public constant MAX_SUPPLY = 8_820;
 
@@ -115,7 +116,9 @@ contract RevShareNFT is
         ++totalSupply;
 
         // Update the revenues if the contract is set up to do so
-        _updateRevenuesIfProtocolIsSetUp(pioneer);
+        bool revUpdated = _updateRevenuesIfProtocolIsSetUp(pioneer);
+
+        if (!revUpdated) pioneerMintedAt[pioneer][tokenId] = block.timestamp;
 
         _safeMint(pioneer, tokenId);
 
@@ -139,9 +142,10 @@ contract RevShareNFT is
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint - 1;
 
         // Update the revenues if the contract is set up to do so
-        _updateRevenuesIfProtocolIsSetUp(pioneer);
+        bool revUpdated = _updateRevenuesIfProtocolIsSetUp(pioneer);
 
         for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
+            if (!revUpdated) pioneerMintedAt[pioneer][i] = block.timestamp;
             _safeMint(pioneer, i);
         }
 
@@ -219,16 +223,15 @@ contract RevShareNFT is
         }
     }
 
-    function _updateRevenuesIfProtocolIsSetUp(address _pioneer) internal {
+    function _updateRevenuesIfProtocolIsSetUp(
+        address _pioneer
+    ) internal returns (bool revUpdated_) {
         address revShareModule = _fetchRevShareModuleAddressIfIsSetUp();
 
         if (revShareModule != address(0)) {
             // If the RevShareModule is set up, we update the revenues for the given address
             IRevShareModule(revShareModule).updateRevenue(_pioneer);
-        } else {
-            // If the RevShareModule is not set up, we store the timestamp of the mint
-            // to be able to calculate the revenues later
-            pioneerMintedAt[_pioneer] = block.timestamp;
+            revUpdated_ = true;
         }
     }
 
