@@ -1,5 +1,5 @@
 {
-  "address": "0xB2E819EbE1fE64898255752369FAeFc62444E4ab",
+  "address": "0xB6eAab86908963E03cd4d75366A22C0062bdfF83",
   "abi": [
         { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
         {
@@ -119,7 +119,10 @@
         {
             "type": "function",
             "name": "pioneerMintedAt",
-            "inputs": [{ "name": "pioneer", "type": "address", "internalType": "address" }],
+            "inputs": [
+                { "name": "pioneer", "type": "address", "internalType": "address" },
+                { "name": "tokenId", "type": "uint256", "internalType": "uint256" }
+            ],
             "outputs": [{ "name": "timestamp", "type": "uint256", "internalType": "uint256" }],
             "stateMutability": "view"
         },
