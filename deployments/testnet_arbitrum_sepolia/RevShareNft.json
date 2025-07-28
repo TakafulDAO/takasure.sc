@@ -1,5 +1,5 @@
 {
-  "address": "0x96E8f1Ce7adC9CC1076F0af7149D720310D0f43F",
+  "address": "0xB2E819EbE1fE64898255752369FAeFc62444E4ab",
   "abi": [
         { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
         {
@@ -67,10 +67,7 @@
         {
             "type": "function",
             "name": "initialize",
-            "inputs": [
-                { "name": "_operator", "type": "address", "internalType": "address" },
-                { "name": "_baseURI", "type": "string", "internalType": "string" }
-            ],
+            "inputs": [{ "name": "_baseURI", "type": "string", "internalType": "string" }],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -96,13 +93,6 @@
             "name": "name",
             "inputs": [],
             "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "operator",
-            "inputs": [],
-            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
             "stateMutability": "view"
         },
         {
@@ -172,6 +162,13 @@
         },
         {
             "type": "function",
+            "name": "setAddressManager",
+            "inputs": [{ "name": "_addressManager", "type": "address", "internalType": "address" }],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "setApprovalForAll",
             "inputs": [
                 { "name": "operator", "type": "address", "internalType": "address" },
@@ -184,15 +181,6 @@
             "type": "function",
             "name": "setBaseURI",
             "inputs": [{ "name": "_newBaseURI", "type": "string", "internalType": "string" }],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
-            "name": "setTakasureReserve",
-            "inputs": [
-                { "name": "_takasureReserve", "type": "address", "internalType": "address" }
-            ],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -302,6 +290,25 @@
         },
         {
             "type": "event",
+            "name": "OnAddressManagerSet",
+            "inputs": [
+                {
+                    "name": "oldAddressManager",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "newAddressManager",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
             "name": "OnBaseURISet",
             "inputs": [
                 {
@@ -373,25 +380,6 @@
                     "type": "uint256",
                     "indexed": false,
                     "internalType": "uint256"
-                }
-            ],
-            "anonymous": false
-        },
-        {
-            "type": "event",
-            "name": "OnTakasureReserveSet",
-            "inputs": [
-                {
-                    "name": "oldTakasureReserve",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
-                },
-                {
-                    "name": "newTakasureReserve",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
                 }
             ],
             "anonymous": false
