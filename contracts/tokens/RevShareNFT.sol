@@ -135,7 +135,7 @@ contract RevShareNFT is
         require(tokensToMint > 1, RevShareNFT__BatchMintMoreThanOne());
 
         uint256 firstNewTokenId = totalSupply;
-        totalSupply += tokensToMint;
+        totalSupply += tokensToMint - 1; // Update the total supply to the last token ID that will be minted
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint - 1;
 
         // Update the revenues if the contract is set up to do so
