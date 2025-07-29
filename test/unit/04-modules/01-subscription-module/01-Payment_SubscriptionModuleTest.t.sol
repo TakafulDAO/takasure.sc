@@ -5,6 +5,7 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {DeployModules} from "test/utils/03-DeployModules.s.sol";
+import {DeployReserve} from "test/utils/05-DeployReserve.s.sol";
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
@@ -12,6 +13,7 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {ReferralRewardsModule} from "contracts/modules/ReferralRewardsModule.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
@@ -21,10 +23,12 @@ import {AssociationMember, AssociationMemberState, ProtocolAddressType} from "co
 contract Payment_SubscriptionModuleTest is StdCheats, Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
+    DeployReserve reserveDeployer;
     AddAddressesAndRoles addressesAndRoles;
     KYCModule kycModule;
     SubscriptionModule subscriptionModule;
     ReferralRewardsModule referralRewardsModule;
+    TakasureReserve takasureReserve;
     address takadao;
     address couponRedeemer;
     address feeClaimAddress;
@@ -48,6 +52,7 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
     function setUp() public {
         managersDeployer = new DeployManagers();
         moduleDeployer = new DeployModules();
+        reserveDeployer = new DeployReserve();
         addressesAndRoles = new AddAddressesAndRoles();
 
         (
@@ -66,8 +71,8 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
         (, , kycModule, , referralRewardsModule, , subscriptionModule) = moduleDeployer.run(
             addressManager
         );
+        takasureReserve = reserveDeployer.run(config, addressManager);
 
-        // kycService = config.kycProvider;
         takadao = operator;
         couponRedeemer = redeemer;
         feeClaimAddress = feeClaimer;
@@ -89,14 +94,6 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
 
         vm.prank(couponPool);
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
-
-        address takasureReserve = makeAddr("takasureReserve");
-        vm.prank(addressManager.owner());
-        addressManager.addProtocolAddress(
-            "TAKASURE_RESERVE",
-            takasureReserve,
-            ProtocolAddressType.Protocol
-        );
     }
 
     function testSubscriptionModule_paySubscriptionOnBehalfOfEmitsEvent() public {
@@ -254,9 +251,20 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
         );
     }
 
-    // todo: fix algos in RevenueModule.sol
-    // function testSubscriptionModule_donatesContribution() public payAndKyc {
-    //     vm.prank(takadao);
-    //     subscriptionModule.transferSubscriptionToReserve(alice);
-    // }
+    function testSubscriptionModule_donatesContribution() public payAndKyc {
+        uint256 contractBalanceBefore = usdc.balanceOf(address(subscriptionModule));
+        uint256 takasureReserveBalanceBefore = usdc.balanceOf(address(takasureReserve));
+
+        vm.prank(takadao);
+        subscriptionModule.transferSubscriptionToReserve(alice);
+
+        uint256 contractBalanceAfter = usdc.balanceOf(address(subscriptionModule));
+        uint256 takasureReserveBalanceAfter = usdc.balanceOf(address(takasureReserve));
+
+        assertEq(contractBalanceBefore, SUBSCRIPTION - (SUBSCRIPTION * FEE) / 100);
+        assertEq(takasureReserveBalanceBefore, 0);
+        assertEq(contractBalanceAfter, 0);
+        assertEq(contractBalanceBefore, takasureReserveBalanceAfter);
+        assertEq(takasureReserveBalanceBefore, contractBalanceAfter);
+    }
 }
