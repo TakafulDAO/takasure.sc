@@ -182,6 +182,11 @@ contract SubscriptionModule is
 
         uint256 toTransfer = SUBSCRIPTION_AMOUNT - ((SUBSCRIPTION_AMOUNT * FEE) / 100);
 
+        IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr).approve(
+            revenueModuleAddress,
+            toTransfer
+        );
+
         revenueModule.depositRevenue(toTransfer, revenueType);
 
         return toTransfer;
