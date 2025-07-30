@@ -267,4 +267,21 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
         assertEq(contractBalanceBefore, takasureReserveBalanceAfter);
         assertEq(takasureReserveBalanceBefore, contractBalanceAfter);
     }
+
+    function testPaySubscriptionAfterRefundKeepsMemberId() public {
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+
+        uint256 firstId = subscriptionModule.getAssociationMember(alice).memberId;
+
+        vm.prank(takadao);
+        subscriptionModule.refund(alice);
+
+        // Rejoin after refund
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+
+        uint256 newId = subscriptionModule.getAssociationMember(alice).memberId;
+        assertEq(newId, firstId);
+    }
 }

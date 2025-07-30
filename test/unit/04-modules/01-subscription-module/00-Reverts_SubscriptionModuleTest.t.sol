@@ -74,4 +74,53 @@ contract Reverts_SubscriptionModuleTest is StdCheats, Test {
         vm.expectRevert(ModuleErrors.Module__AddressNotKYCed.selector);
         subscriptionModule.paySubscriptionOnBehalfOf(alice, bob, 0, block.timestamp);
     }
+
+    function testSubscriptionModule_paySubscriptionRevertsIfFutureStartTime() public {
+        vm.prank(couponRedeemer);
+        vm.expectRevert(SubscriptionModule.SubscriptionModule__InvalidDate.selector);
+        subscriptionModule.paySubscriptionOnBehalfOf(
+            alice,
+            address(0),
+            0,
+            block.timestamp + 1 days
+        );
+    }
+
+    function testSubscriptionModule_refundRevertsIfCalledTwice() public {
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+
+        vm.prank(takadao);
+        subscriptionModule.refund(alice);
+
+        vm.prank(takadao);
+        vm.expectRevert(SubscriptionModule.SubscriptionModule__NothingToRefund.selector);
+        subscriptionModule.refund(alice);
+    }
+
+    function testPaySubscriptionRevertsIfParentIsSelf() public {
+        vm.startPrank(couponRedeemer);
+        vm.expectRevert(ModuleErrors.Module__InvalidAddress.selector);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, alice, 0, block.timestamp);
+        vm.stopPrank();
+    }
+
+    function testSubscriptionModule_transferSubscriptionToReserveRevertsIfUnauthorized() public {
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+
+        vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
+        subscriptionModule.transferSubscriptionToReserve(alice);
+    }
+
+    function testSubscriptionModule_refundRevertsIfAfter30Days() public {
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+
+        skip(31 days);
+
+        vm.prank(takadao);
+        vm.expectRevert(SubscriptionModule.SubscriptionModule__TooEarlytoRefund.selector);
+        subscriptionModule.refund(alice);
+    }
 }
