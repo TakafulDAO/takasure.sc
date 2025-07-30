@@ -432,7 +432,7 @@ contract SubscriptionModule is
             associateStartTime: 0, // Reset the start time
             wallet: _memberWallet,
             parent: address(0), // Reset the parent
-            memberState: AssociationMemberState.Inactive, // Set to inactive
+            memberState: AssociationMemberState.Inactive, // Set to inactive in case the user already made KYC
             isRefunded: true, // Set the member as refunded
             isLifeProtected: false,
             isFarewellProtected: false
