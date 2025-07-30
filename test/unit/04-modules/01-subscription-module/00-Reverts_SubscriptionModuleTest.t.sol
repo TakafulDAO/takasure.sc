@@ -120,7 +120,7 @@ contract Reverts_SubscriptionModuleTest is StdCheats, Test {
         skip(31 days);
 
         vm.prank(takadao);
-        vm.expectRevert(SubscriptionModule.SubscriptionModule__TooEarlytoRefund.selector);
+        vm.expectRevert(SubscriptionModule.SubscriptionModule__TooLateToRefund.selector);
         subscriptionModule.refund(alice);
     }
 }

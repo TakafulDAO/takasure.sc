@@ -56,7 +56,7 @@ contract SubscriptionModule is
 
     error SubscriptionModule__InvalidDate();
     error SubscriptionModule__NothingToRefund();
-    error SubscriptionModule__TooEarlytoRefund();
+    error SubscriptionModule__TooLateToRefund();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -418,7 +418,7 @@ contract SubscriptionModule is
 
         // The member can refund before 30 days of the payment
         uint256 limitTimestamp = startTime + (30 days);
-        require(currentTimestamp <= limitTimestamp, SubscriptionModule__TooEarlytoRefund());
+        require(currentTimestamp <= limitTimestamp, SubscriptionModule__TooLateToRefund());
 
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmountAfterFee = SUBSCRIPTION_AMOUNT -
