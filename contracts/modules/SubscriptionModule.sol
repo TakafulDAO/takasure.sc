@@ -305,6 +305,7 @@ contract SubscriptionModule is
 
         // If a parent wallet is provided, it must be KYCed
         if (_parentWallet != address(0)) {
+            require(_userWallet != _parentWallet, ModuleErrors.Module__InvalidAddress());
             address kycModule = addressManager.getProtocolAddressByName("KYC_MODULE").addr;
 
             // Check if the parent is KYCed

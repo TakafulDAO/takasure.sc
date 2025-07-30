@@ -16,4 +16,5 @@ library ModuleErrors {
     error Module__TooEarlyToCancel();
     error Module__TooEarlyToDefault();
     error Module__NotAuthorizedCaller();
+    error Module__InvalidAddress();
 }
