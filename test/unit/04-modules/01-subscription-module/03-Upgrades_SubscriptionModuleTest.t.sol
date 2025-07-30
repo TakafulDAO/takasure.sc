@@ -14,18 +14,17 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
-contract SubscriptionModuleFuzzTest is StdCheats, Test {
+contract Reverts_SubscriptionModuleTest is StdCheats, Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
     AddAddressesAndRoles addressesAndRoles;
     SubscriptionModule subscriptionModule;
     address takadao;
     address couponRedeemer;
-    address moduleManagerAddress;
     IUSDC usdc;
     address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 150 USDC
 
     function setUp() public {
@@ -47,7 +46,6 @@ contract SubscriptionModuleFuzzTest is StdCheats, Test {
 
         takadao = operator;
         couponRedeemer = redeemer;
-        moduleManagerAddress = address(moduleManager);
 
         usdc = IUSDC(config.contributionToken);
 
@@ -58,37 +56,10 @@ contract SubscriptionModuleFuzzTest is StdCheats, Test {
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
     }
 
-    function testSetContractStateRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != moduleManagerAddress);
+    function testSubscriptionModule_upgrade() public {
+        address newImpl = address(new SubscriptionModule());
 
-        vm.prank(caller);
-        vm.expectRevert();
-        subscriptionModule.setContractState(ModuleState.Paused);
-    }
-
-    function testPaySubscriptionOnBehalfOfRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != couponRedeemer);
-
-        vm.prank(caller);
-        vm.expectRevert();
-        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
-    }
-
-    function testPaySubscriptionOnBehalfOfRevertsIfCouponIsInvalid(uint256 coupon) public {
-        vm.assume(coupon != 0);
-        vm.assume(coupon != 25e6);
-
-        vm.prank(couponRedeemer);
-        vm.expectRevert();
-        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), coupon, block.timestamp);
-    }
-
-    function testUpgradeRevertsIfCallerIsInvalid(address caller) public {
-        vm.assume(caller != takadao);
-        address newImpl = makeAddr("newImpl");
-
-        vm.prank(caller);
-        vm.expectRevert();
+        vm.prank(takadao);
         subscriptionModule.upgradeToAndCall(newImpl, "");
     }
 }
