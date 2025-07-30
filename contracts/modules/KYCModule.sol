@@ -98,6 +98,8 @@ contract KYCModule is
         newMember.memberState = AssociationMemberState.Active; // Active state as the user is already paid the contribution and KYCed
         isKYCed[memberWallet] = true;
 
+        _setAssociationMembersValuesHook(addressManager, newMember);
+
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
     }
 
