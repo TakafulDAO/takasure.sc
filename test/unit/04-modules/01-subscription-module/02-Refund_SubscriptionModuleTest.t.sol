@@ -61,7 +61,6 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test {
             addressManager
         );
 
-        // kycService = config.kycProvider;
         takadao = operator;
         couponRedeemer = redeemer;
         feeClaimAddress = feeClaimer;
@@ -164,6 +163,14 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test {
         vm.prank(takadao);
         vm.expectEmit(true, true, true, false, address(subscriptionModule));
         emit OnRefund(1, alice, SUBSCRIPTION - (SUBSCRIPTION * FEE) / 100);
+        subscriptionModule.refund(alice);
+    }
+
+    function testSubscriptionModule_canRefundOnTheTimeLimit() public payAndKyc {
+        vm.warp(block.timestamp + 30 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(takadao);
         subscriptionModule.refund(alice);
     }
 }

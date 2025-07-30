@@ -209,6 +209,12 @@ contract AddressManagerTest is Test {
         addressManager.revokeRoleHolder(keccak256("TestRole"), notCurrentHolder);
     }
 
+    function testDeleteNonexistentAddressReverts() public {
+        vm.prank(addressManagerOwner);
+        vm.expectRevert(AddressManager.AddressManager__AddressDoesNotExist.selector);
+        addressManager.deleteProtocolAddress(address(0x999));
+    }
+
     /*//////////////////////////////////////////////////////////////
                             ACCEPTANCE DELAY
     //////////////////////////////////////////////////////////////*/
