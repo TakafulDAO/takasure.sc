@@ -104,7 +104,8 @@ contract MemberModule is
             ModuleErrors.Module__WrongMemberState()
         );
 
-        uint256 newAssociationStartTime = associationMember.associateStartTime + 365 days;
+        uint256 newAssociationStartTime = associationMember.associateStartTime +
+            ModuleConstants.YEAR;
 
         associationMember.associateStartTime = newAssociationStartTime;
 
@@ -124,7 +125,7 @@ contract MemberModule is
         emit TakasureEvents.OnRecurringPayment(
             memberWallet,
             associationMember.memberId,
-            toTransfer
+            ModuleConstants.ASSOCIATION_SUBSCRIPTION
         );
     }
 
