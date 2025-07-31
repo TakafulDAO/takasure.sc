@@ -19,6 +19,7 @@ import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgra
 
 import {AssociationMember, AssociationMemberState, ModuleState, ProtocolAddress, ProtocolAddressType, RevenueType} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -40,9 +41,6 @@ contract SubscriptionModule is
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => AssociationMember) private members;
     mapping(address member => bool) private isMemberCouponSubscriptionRedeemer;
-
-    uint256 private constant SUBSCRIPTION_AMOUNT = 25e6; // 25 USDC in six decimals
-    uint256 private constant FEE = 27; // 27% service fee, in percentage
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -109,7 +107,7 @@ contract SubscriptionModule is
         uint256 membershipStartTime
     ) external {
         require(
-            couponAmount == 0 || couponAmount == SUBSCRIPTION_AMOUNT,
+            couponAmount == 0 || couponAmount == ModuleConstants.ASSOCIATION_SUBSCRIPTION,
             ModuleErrors.Module__InvalidCoupon()
         );
 
@@ -180,7 +178,9 @@ contract SubscriptionModule is
             .addr;
         IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
 
-        uint256 toTransfer = SUBSCRIPTION_AMOUNT - ((SUBSCRIPTION_AMOUNT * FEE) / 100);
+        uint256 toTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
+            ((ModuleConstants.ASSOCIATION_SUBSCRIPTION *
+                ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
 
         IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr).approve(
             revenueModuleAddress,
@@ -254,11 +254,12 @@ contract SubscriptionModule is
             uint256 discount,
             uint256 toReferralReserveAmount
         ) = referralRewardsModule.calculateReferralRewards({
-                contribution: SUBSCRIPTION_AMOUNT,
+                contribution: ModuleConstants.ASSOCIATION_SUBSCRIPTION,
                 couponAmount: _couponAmount,
                 child: _userWallet,
                 parent: _parentWallet,
-                feeAmount: (SUBSCRIPTION_AMOUNT * FEE) / 100
+                feeAmount: (ModuleConstants.ASSOCIATION_SUBSCRIPTION *
+                    ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100
             });
 
         newMember.discount = discount;
@@ -295,7 +296,7 @@ contract SubscriptionModule is
         );
 
         // If the user is not refunded then the wallet must be empty, otherwise it must match the user wallet
-        if (!_newMember.isRefunded)
+        if (!_newMember.isRefunded && _newMember.memberState == AssociationMemberState.Inactive)
             require(_newMember.wallet == address(0), ModuleErrors.Module__AlreadyJoined());
         else
             require(
@@ -326,12 +327,12 @@ contract SubscriptionModule is
     ) internal returns (AssociationMember memory) {
         uint256 memberId;
 
-        if (!_newMember.isRefunded) {
-            // Flow 1: Join -> KYC
-            memberId = ++memberIdCounter;
-        } else {
-            // Flow 2: Join (with flow 1) -> Refund -> Join
+        if (_newMember.isRefunded || _newMember.memberState == AssociationMemberState.Canceled) {
+            // Refunded or canceled member
             memberId = _newMember.memberId;
+        } else {
+            // Completely new member
+            memberId = ++memberIdCounter;
         }
 
         _newMember = AssociationMember({
@@ -366,7 +367,7 @@ contract SubscriptionModule is
             addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
         );
 
-        uint256 contributionAfterFee = SUBSCRIPTION_AMOUNT - _fee;
+        uint256 contributionAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION - _fee;
 
         bool transferFromMember = _couponAmount == 0 ? true : false;
 
@@ -421,8 +422,9 @@ contract SubscriptionModule is
         require(currentTimestamp <= limitTimestamp, SubscriptionModule__TooLateToRefund());
 
         // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmountAfterFee = SUBSCRIPTION_AMOUNT -
-            ((SUBSCRIPTION_AMOUNT * FEE) / 100);
+        uint256 contributionAmountAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
+            ((ModuleConstants.ASSOCIATION_SUBSCRIPTION *
+                ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
         uint256 discountAmount = _member.discount;
         uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
