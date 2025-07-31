@@ -14,7 +14,7 @@ import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-import {AssociationMemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {AssociationMemberState, ModuleState, AssociationMember} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract Cancel_MemberModule is Test {
@@ -33,6 +33,8 @@ contract Cancel_MemberModule is Test {
     address kycProvider;
     address couponRedeemer;
     address alice = makeAddr("alice");
+
+    event OnMemberCanceled(uint256 indexed memberId, address indexed member);
 
     function setUp() public {
         managersDeployer = new DeployManagers();
@@ -72,9 +74,31 @@ contract Cancel_MemberModule is Test {
         vm.prank(kycProvider);
         kycModule.approveKYC(alice);
 
-        vm.warp(block.timestamp + 366 days);
+        vm.warp(block.timestamp + 396 days);
         vm.roll(block.number + 1);
     }
 
-    function test() public {}
+    function testMemberModule_cancelAssociationSubscriptionUpdatesMember() public {
+        AssociationMember memory aliceAsMember = subscriptionModule.getAssociationMember(alice);
+
+        assertEq(aliceAsMember.memberId, 1);
+        assertGt(aliceAsMember.associateStartTime, 0);
+        assertEq(aliceAsMember.wallet, alice);
+        assert(aliceAsMember.memberState == AssociationMemberState.Active);
+
+        memberModule.cancelAssociationSubscription(alice);
+
+        aliceAsMember = subscriptionModule.getAssociationMember(alice);
+
+        assertEq(aliceAsMember.memberId, 1);
+        assertEq(aliceAsMember.associateStartTime, 0);
+        assertEq(aliceAsMember.wallet, alice);
+        assert(aliceAsMember.memberState == AssociationMemberState.Canceled);
+    }
+
+    function testMemberModule_payRecurringAssociationSubscriptionEmitsEvent() public {
+        vm.expectEmit(true, true, false, false, address(memberModule));
+        emit OnMemberCanceled(1, alice);
+        memberModule.cancelAssociationSubscription(alice);
+    }
 }
