@@ -25,6 +25,8 @@ contract Reverts_ReferralRewardsModule is Test {
     ModuleManager moduleManager;
 
     address operator;
+    address alice = makeAddr("alice");
+    address bob = makeAddr("bob");
 
     function setUp() public {
         managersDeployer = new DeployManagers();
@@ -46,5 +48,13 @@ contract Reverts_ReferralRewardsModule is Test {
         operator = operatorAddr;
     }
 
-    function test() public {}
+    function testRewardsModule_calculateReferralRewardsRevertIfNotCalledByAModule() public {
+        vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
+        referralRewardsModule.calculateReferralRewards(25e6, 25e6, alice, bob, 0);
+    }
+
+    function testRewardsModule_rewardParentsRevertIfNotCalledByAModule() public {
+        vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
+        referralRewardsModule.rewardParents(alice);
+    }
 }

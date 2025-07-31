@@ -10,6 +10,7 @@ import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
@@ -63,7 +64,10 @@ contract ReferralRewardsModule is
         address parent,
         uint256 feeAmount
     ) external returns (uint256 newFeeAmount, uint256 discount, uint256 toReferralReserveAmount) {
-        AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module);
+        require(
+            AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
 
         uint256 toReferralReserve;
         if (referralDiscountEnabled) {
@@ -93,7 +97,10 @@ contract ReferralRewardsModule is
     }
 
     function rewardParents(address child) external {
-        AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module);
+        require(
+            AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
 
         address parent = childToParent[child];
         for (uint256 i; i < uint256(MAX_TIER); ++i) {
