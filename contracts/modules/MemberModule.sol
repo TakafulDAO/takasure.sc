@@ -85,11 +85,7 @@ contract MemberModule is
     function payRecurringAssociationSubscription(address memberWallet) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
-        require(
-            AddressAndStates._checkName(address(addressManager), "ROUTER") ||
-                msg.sender == memberWallet,
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
+        require(msg.sender == memberWallet, ModuleErrors.Module__NotAuthorizedCaller());
 
         AssociationMember memory associationMember = _getAssociationMembersValuesHook(
             addressManager,
