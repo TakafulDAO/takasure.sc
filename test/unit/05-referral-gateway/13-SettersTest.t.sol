@@ -16,6 +16,7 @@ contract ReferralGatewaySettersTests is Test {
     address couponUser = makeAddr("couponUser");
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
+    address pauseGuardian;
     string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
@@ -27,6 +28,8 @@ contract ReferralGatewaySettersTests is Test {
         string indexed tDAOName,
         uint256 indexed couponAmount
     );
+    event Paused(address account);
+    event Unpaused(address account);
 
     function setUp() public {
         // Deployer
@@ -36,6 +39,7 @@ contract ReferralGatewaySettersTests is Test {
 
         // Get config values
         operator = config.takadaoOperator;
+        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
         usdc = IUSDC(config.contributionToken);
@@ -66,10 +70,25 @@ contract ReferralGatewaySettersTests is Test {
         referralGateway.setCouponPoolAddress(couponPool);
     }
 
-    function testReferralRewardsModule_upgrade() public {
+    function testReferralGateway_upgrade() public {
         address newImpl = address(new ReferralGateway());
 
         vm.prank(operator);
         referralGateway.upgradeToAndCall(newImpl, "");
+    }
+
+    function testReferralGateway_pause() public {
+        vm.prank(pauseGuardian);
+        vm.expectEmit(false, false, false, true, address(referralGateway));
+        emit Paused(pauseGuardian);
+        referralGateway.pause();
+    }
+
+    function testReferralGateway_unPause() public {
+        vm.startPrank(pauseGuardian);
+        referralGateway.pause();
+        vm.expectEmit(false, false, false, true, address(referralGateway));
+        emit Unpaused(pauseGuardian);
+        referralGateway.unpause();
     }
 }
