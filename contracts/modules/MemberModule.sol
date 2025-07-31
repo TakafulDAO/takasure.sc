@@ -165,7 +165,7 @@ contract MemberModule is
 
         _setAssociationMembersValuesHook(addressManager, associationMember);
 
-        // todo: emit event for cancellation
+        emit TakasureEvents.OnMemberCanceled(associationMember.memberId, memberWallet);
     }
 
     /*//////////////////////////////////////////////////////////////
