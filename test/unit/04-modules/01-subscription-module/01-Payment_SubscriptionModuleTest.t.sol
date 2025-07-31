@@ -11,6 +11,7 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
+import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {ReferralRewardsModule} from "contracts/modules/ReferralRewardsModule.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
@@ -26,6 +27,7 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
     DeployReserve reserveDeployer;
     AddAddressesAndRoles addressesAndRoles;
     KYCModule kycModule;
+    MemberModule memberModule;
     SubscriptionModule subscriptionModule;
     ReferralRewardsModule referralRewardsModule;
     TakasureReserve takasureReserve;
@@ -68,9 +70,8 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
             address feeClaimer,
             address pool
         ) = addressesAndRoles.run(addressManager, config, address(moduleManager));
-        (, , kycModule, , referralRewardsModule, , subscriptionModule) = moduleDeployer.run(
-            addressManager
-        );
+        (, , kycModule, memberModule, referralRewardsModule, , subscriptionModule) = moduleDeployer
+            .run(addressManager);
         takasureReserve = reserveDeployer.run(config, addressManager);
 
         takadao = operator;
@@ -268,7 +269,7 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
         assertEq(takasureReserveBalanceBefore, contractBalanceAfter);
     }
 
-    function testPaySubscriptionAfterRefundKeepsMemberId() public {
+    function testSubscriptionModule_paySubscriptionAfterRefundKeepsMemberId() public {
         vm.prank(couponRedeemer);
         subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
 
@@ -278,6 +279,23 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
         subscriptionModule.refund(alice);
 
         // Rejoin after refund
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+
+        uint256 newId = subscriptionModule.getAssociationMember(alice).memberId;
+        assertEq(newId, firstId);
+    }
+
+    function testSubscriptionModule_paySubscriptionAfterCancelKeepsMemberId() public payAndKyc {
+        uint256 firstId = subscriptionModule.getAssociationMember(alice).memberId;
+
+        vm.warp(block.timestamp + 396 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(alice);
+        memberModule.cancelAssociationSubscription(alice);
+
+        // Rejoin after cancel
         vm.prank(couponRedeemer);
         subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
 
