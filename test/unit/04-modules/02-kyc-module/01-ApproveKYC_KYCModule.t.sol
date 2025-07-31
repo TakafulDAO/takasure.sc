@@ -16,7 +16,7 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AssociationMemberState, ModuleState, AssociationMember} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract KYCModule_UnitTest is Test {
+contract ApproveKYC_KYCModule is Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
     AddAddressesAndRoles addressesAndRoles;

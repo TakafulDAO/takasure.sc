@@ -15,7 +15,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
-contract Reverts_SubscriptionModuleTest is StdCheats, Test {
+contract Upgrades_SubscriptionModuleTest is StdCheats, Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
     AddAddressesAndRoles addressesAndRoles;
