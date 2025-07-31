@@ -17,7 +17,7 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AssociationMemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract Reverts_MemberModule is Test {
+contract Cancel_MemberModule is Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
     AddAddressesAndRoles addressesAndRoles;

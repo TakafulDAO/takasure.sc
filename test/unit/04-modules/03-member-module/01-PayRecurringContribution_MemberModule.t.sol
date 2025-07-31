@@ -17,7 +17,7 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AssociationMemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract Cancel_MemberModule is Test {
+contract RPayRecurring_MemberModule is Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
     AddAddressesAndRoles addressesAndRoles;
@@ -72,4 +72,6 @@ contract Cancel_MemberModule is Test {
         vm.prank(kycProvider);
         kycModule.approveKYC(alice);
     }
+
+    function test() public {}
 }
