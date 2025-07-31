@@ -8,7 +8,9 @@ import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
+import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
@@ -20,12 +22,18 @@ contract Cancel_MemberModule is Test {
     DeployModules moduleDeployer;
     AddAddressesAndRoles addressesAndRoles;
 
+    KYCModule kycModule;
     MemberModule memberModule;
+    SubscriptionModule subscriptionModule;
 
     AddressManager addressManager;
     ModuleManager moduleManager;
+    IUSDC usdc;
 
     address takadao;
+    address kycProvider;
+    address couponRedeemer;
+    address alice = makeAddr("alice");
 
     function setUp() public {
         managersDeployer = new DeployManagers();
@@ -38,11 +46,49 @@ contract Cancel_MemberModule is Test {
             ModuleManager modMgr
         ) = managersDeployer.run();
 
-        (address operatorAddr, , , , , ) = addressesAndRoles.run(addrMgr, config, address(modMgr));
+        (address operatorAddr, , address kyc, address redeemer, , ) = addressesAndRoles.run(
+            addrMgr,
+            config,
+            address(modMgr)
+        );
 
-        (, , , memberModule, , , ) = moduleDeployer.run(addrMgr);
+        (, , kycModule, memberModule, , , subscriptionModule) = moduleDeployer.run(addrMgr);
 
         takadao = operatorAddr;
+        kycProvider = kyc;
+        couponRedeemer = redeemer;
+
+        usdc = IUSDC(config.contributionToken);
+
+        deal(address(usdc), alice, 25e6);
+
+        vm.prank(alice);
+        usdc.approve(address(subscriptionModule), 25e6);
+
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+
+        vm.prank(kycProvider);
+        kycModule.approveKYC(alice);
+
+        vm.warp(block.timestamp + 366 days);
+        vm.roll(block.number + 1);
+    }
+
+    function testPayRecurringAssociationSubscriptionRevertsIfCallerIsWrong(address caller) public {
+        vm.assume(caller != alice);
+
+        vm.prank(caller);
+        vm.expectRevert();
+        memberModule.payRecurringAssociationSubscription(alice);
+    }
+
+    function testSetContractStateRevertsIfCallerIsWrong(address caller) public {
+        vm.assume(caller != address(moduleManager));
+
+        vm.prank(caller);
+        vm.expectRevert();
+        memberModule.setContractState(ModuleState.Paused);
     }
 
     function testUpgradeRevertsIfCallerIsInvalid(address caller) public {

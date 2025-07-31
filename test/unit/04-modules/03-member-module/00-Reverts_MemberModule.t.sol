@@ -73,5 +73,74 @@ contract Reverts_MemberModule is Test {
         kycModule.approveKYC(alice);
     }
 
-    function test() public {}
+    modifier travelInTime() {
+        vm.warp(block.timestamp + 366 days);
+        vm.roll(block.number + 1);
+        _;
+    }
+
+    function testMemberModule_payRecurringAssociationSubscriptionRevertIfModuleDisabled()
+        public
+        travelInTime
+    {
+        vm.prank(address(moduleManager));
+        memberModule.setContractState(ModuleState.Paused);
+
+        vm.prank(alice);
+        vm.expectRevert();
+        memberModule.payRecurringAssociationSubscription(alice);
+    }
+
+    function testMemberModule_cancelRevertIfModuleDisabled() public travelInTime {
+        vm.prank(address(moduleManager));
+        memberModule.setContractState(ModuleState.Paused);
+
+        vm.prank(alice);
+        vm.expectRevert();
+        memberModule.cancelAssociationSubscription(alice);
+    }
+
+    function testMemberModule_payRecurringAssociationSubscriptionRevertIfTooEarly() public {
+        vm.prank(alice);
+        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
+        memberModule.payRecurringAssociationSubscription(alice);
+    }
+
+    function testMemberModule_payRecurringAssociationSubscriptionRevertIfTooLate() public {
+        vm.warp(block.timestamp + 396 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(alice);
+        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
+        memberModule.payRecurringAssociationSubscription(alice);
+    }
+
+    function testMemberModule_payRecurringAssociationSubscriptionRevertIfIsNoActive() public {
+        vm.prank(operator);
+        subscriptionModule.refund(alice);
+
+        vm.warp(block.timestamp + 366 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(alice);
+        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
+        memberModule.payRecurringAssociationSubscription(alice);
+    }
+
+    function testMemberModule_cancelAssociationSubscriptionRevertIfTooEarly() public {
+        vm.expectRevert(MemberModule.MemberModule__InvalidDate.selector);
+        memberModule.cancelAssociationSubscription(alice);
+    }
+
+    function testMemberModule_cancelAssociationSubscriptionRevertIfIsNoActive() public {
+        vm.prank(operator);
+        subscriptionModule.refund(alice);
+
+        vm.warp(block.timestamp + 396 days);
+        vm.roll(block.number + 1);
+
+        vm.prank(alice);
+        vm.expectRevert(ModuleErrors.Module__WrongMemberState.selector);
+        memberModule.cancelAssociationSubscription(alice);
+    }
 }

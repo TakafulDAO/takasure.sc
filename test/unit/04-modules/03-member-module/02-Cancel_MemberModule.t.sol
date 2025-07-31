@@ -71,6 +71,9 @@ contract Cancel_MemberModule is Test {
 
         vm.prank(kycProvider);
         kycModule.approveKYC(alice);
+
+        vm.warp(block.timestamp + 366 days);
+        vm.roll(block.number + 1);
     }
 
     function test() public {}
