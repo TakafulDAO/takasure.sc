@@ -65,4 +65,11 @@ contract ReferralGatewaySettersTests is Test {
         emit OnNewCouponPoolAddress(address(0), couponPool);
         referralGateway.setCouponPoolAddress(couponPool);
     }
+
+    function testReferralRewardsModule_upgrade() public {
+        address newImpl = address(new ReferralGateway());
+
+        vm.prank(operator);
+        referralGateway.upgradeToAndCall(newImpl, "");
+    }
 }
