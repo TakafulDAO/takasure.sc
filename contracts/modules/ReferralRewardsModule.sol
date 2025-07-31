@@ -8,9 +8,10 @@ import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleIm
 
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
 
@@ -62,6 +63,8 @@ contract ReferralRewardsModule is
         address parent,
         uint256 feeAmount
     ) external returns (uint256 newFeeAmount, uint256 discount, uint256 toReferralReserveAmount) {
+        AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module);
+
         uint256 toReferralReserve;
         if (referralDiscountEnabled) {
             toReferralReserve = (contribution * ModuleConstants.REFERRAL_RESERVE) / 100;
@@ -90,6 +93,8 @@ contract ReferralRewardsModule is
     }
 
     function rewardParents(address child) external {
+        AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module);
+
         address parent = childToParent[child];
         for (uint256 i; i < uint256(MAX_TIER); ++i) {
             if (parent == address(0)) break;
