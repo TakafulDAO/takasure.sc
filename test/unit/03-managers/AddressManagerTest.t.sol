@@ -560,4 +560,15 @@ contract AddressManagerTest is Test {
     function testCheckIfAnAddressHasTypeSet() public addAdminAddress {
         assert(addressManager.hasType(adminAddress, ProtocolAddressType.Admin));
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                UPGRADES
+    //////////////////////////////////////////////////////////////*/
+
+    function testUpgrades() public {
+        address newImpl = address(new AddressManager());
+
+        vm.prank(addressManagerOwner);
+        addressManager.upgradeToAndCall(newImpl, "");
+    }
 }

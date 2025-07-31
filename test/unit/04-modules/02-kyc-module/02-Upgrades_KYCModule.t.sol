@@ -70,33 +70,10 @@ contract KYCModule_UnitTest is Test {
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
     }
 
-    function testKYCModule_ApprovesKYCUpdatesAssociationMember() public {
-        vm.prank(couponRedeemer);
-        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+    function testKYCModule_upgrade() public {
+        address newImpl = address(new KYCModule());
 
-        AssociationMember memory aliceAsMember = subscriptionModule.getAssociationMember(alice);
-        assert(aliceAsMember.memberState == AssociationMemberState.Inactive);
-
-        vm.prank(kycProvider);
-        kycModule.approveKYC(alice);
-
-        aliceAsMember = subscriptionModule.getAssociationMember(alice);
-
-        assert(aliceAsMember.memberState == AssociationMemberState.Active);
-        assert(kycModule.isKYCed(alice));
-    }
-
-    function testKYCModule_ApprovesKYCUpdatesMapping() public {
-        vm.prank(kycProvider);
-        kycModule.approveKYC(alice);
-
-        assert(kycModule.isKYCed(alice));
-    }
-
-    function testKYCModule_ApproveKYCEmitsEventOnKYCApproval() public {
-        vm.prank(kycProvider);
-        vm.expectEmit(true, true, false, false, address(kycModule));
-        emit OnMemberKycVerified(0, alice);
-        kycModule.approveKYC(alice);
+        vm.prank(operator);
+        kycModule.upgradeToAndCall(newImpl, "");
     }
 }

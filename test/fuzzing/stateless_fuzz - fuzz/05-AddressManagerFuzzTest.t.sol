@@ -111,4 +111,13 @@ contract AddressManagerFuzzTest is Test {
         vm.expectRevert();
         addressManager.revokeRoleHolder(keccak256("TestRole"), roleHolder);
     }
+
+    function testUpgradeRevertsIfCallerIsInvalid(address caller) public {
+        vm.assume(caller != addressManagerOwner);
+        address newImpl = makeAddr("newImpl");
+
+        vm.prank(caller);
+        vm.expectRevert();
+        addressManager.upgradeToAndCall(newImpl, "");
+    }
 }

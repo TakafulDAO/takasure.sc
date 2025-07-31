@@ -170,4 +170,15 @@ contract ModuleManagerTest is Test {
 
         assert(!moduleManager.isActiveModule(address(isModule)));
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                UPGRADES
+    //////////////////////////////////////////////////////////////*/
+
+    function testUpgrades() public {
+        address newImpl = address(new ModuleManager());
+
+        vm.prank(moduleManagerOwner);
+        moduleManager.upgradeToAndCall(newImpl, "");
+    }
 }
