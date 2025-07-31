@@ -14,10 +14,10 @@ import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-import {AssociationMemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {AssociationMemberState, ModuleState, AssociationMember} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract RPayRecurring_MemberModule is Test {
+contract PayRecurring_MemberModule is Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
     AddAddressesAndRoles addressesAndRoles;
@@ -33,6 +33,12 @@ contract RPayRecurring_MemberModule is Test {
     address kycProvider;
     address couponRedeemer;
     address alice = makeAddr("alice");
+
+    event OnRecurringPayment(
+        address member,
+        uint256 indexed memberId,
+        uint256 indexed contribution
+    );
 
     function setUp() public {
         managersDeployer = new DeployManagers();
@@ -61,10 +67,12 @@ contract RPayRecurring_MemberModule is Test {
 
         usdc = IUSDC(config.contributionToken);
 
-        deal(address(usdc), alice, 25e6);
+        deal(address(usdc), alice, 50e6);
 
-        vm.prank(alice);
+        vm.startPrank(alice);
         usdc.approve(address(subscriptionModule), 25e6);
+        usdc.approve(address(memberModule), 25e6);
+        vm.stopPrank();
 
         vm.prank(couponRedeemer);
         subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
@@ -76,5 +84,39 @@ contract RPayRecurring_MemberModule is Test {
         vm.roll(block.number + 1);
     }
 
-    function test() public {}
+    function testMemberModule_payRecurringAssociationSubscriptionUpdatesMember() public {
+        AssociationMember memory aliceAsMember = subscriptionModule.getAssociationMember(alice);
+
+        uint256 initialStartTime = aliceAsMember.associateStartTime;
+
+        vm.prank(alice);
+        memberModule.payRecurringAssociationSubscription(alice);
+
+        aliceAsMember = subscriptionModule.getAssociationMember(alice);
+
+        uint256 newStartTime = aliceAsMember.associateStartTime;
+
+        assertEq(newStartTime, initialStartTime + 365 days);
+    }
+
+    function testMemberModule_payRecurringAssociationSubscriptionTransferAmounts() public {
+        uint256 contractBalanceBefore = usdc.balanceOf(address(memberModule));
+        uint256 aliceBalanceBefore = usdc.balanceOf(alice);
+
+        vm.prank(alice);
+        memberModule.payRecurringAssociationSubscription(alice);
+
+        uint256 contractBalanceAfter = usdc.balanceOf(address(memberModule));
+        uint256 aliceBalanceAfter = usdc.balanceOf(alice);
+
+        assertEq(contractBalanceAfter, contractBalanceBefore + (25e6 - ((25e6 * 27) / 100)));
+        assertEq(aliceBalanceAfter, aliceBalanceBefore - (25e6 - ((25e6 * 27) / 100)));
+    }
+
+    function testMemberModule_payRecurringAssociationSubscriptionEmitsEvent() public {
+        vm.prank(alice);
+        vm.expectEmit(true, true, false, false, address(memberModule));
+        emit OnRecurringPayment(alice, 1, 25e6);
+        memberModule.payRecurringAssociationSubscription(alice);
+    }
 }
