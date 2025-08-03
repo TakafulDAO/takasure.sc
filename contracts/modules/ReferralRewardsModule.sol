@@ -6,7 +6,6 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
-import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -16,14 +15,20 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-contract ReferralRewardsModule is
-    TLDModuleImplementation,
-    Initializable,
-    UUPSUpgradeable,
-    ParentRewards
-{
+contract ReferralRewardsModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
     bool public referralDiscountEnabled;
-    uint256 public referralReserve;
+    // uint256 public referralReserve;
+
+    mapping(address child => address parent) public childToParent;
+    mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
+    mapping(address parent => mapping(uint256 layer => uint256 reward)) public parentRewardsByLayer;
+
+    uint256 private constant DECIMAL_CORRECTION = 10_000;
+    int256 private constant MAX_TIER = 4;
+    int256 private constant A = -3_125;
+    int256 private constant B = 30_500;
+    int256 private constant C = -99_625;
+    int256 private constant D = 112_250;
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -69,29 +74,34 @@ contract ReferralRewardsModule is
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
-        uint256 toReferralReserve;
         if (referralDiscountEnabled) {
-            toReferralReserve = (contribution * ModuleConstants.REFERRAL_RESERVE) / 100;
+            toReferralReserveAmount = (contribution * ModuleConstants.REFERRAL_RESERVE) / 100;
+
             if (parent != address(0)) {
                 discount =
                     ((contribution - couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) /
                     100;
                 childToParent[child] = parent;
-                (uint256 fee, uint256 newReferralReserve) = _parentRewards({
+
+                // IERC20 contributionToken = IERC20(
+                //     addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+                // );
+
+                uint256 fee = _parentRewards({
                     _initialChildToCheck: child,
                     _contribution: contribution,
-                    _currentReferralReserve: referralReserve,
-                    _toReferralReserve: toReferralReserve,
+                    // _currentReferralReserve: contributionToken.balanceOf(address(this)),
+                    // _toReferralReserve: toReferralReserveAmount,
                     _currentFee: feeAmount
                 });
 
-                toReferralReserveAmount = newReferralReserve - referralReserve;
-                referralReserve = newReferralReserve;
+                // toReferralReserveAmount = toReferralReserveAmount; // ! esta linea esta mal
+                // referralReserve = newReferralReserve;
                 newFeeAmount = fee;
             } else {
-                toReferralReserveAmount = toReferralReserve;
-                referralReserve += toReferralReserve;
-                newFeeAmount = feeAmount - toReferralReserve;
+                // toReferralReserveAmount = toReferralReserveAmount;
+                // referralReserve += toReferralReserve;
+                newFeeAmount = feeAmount - toReferralReserveAmount;
             }
         }
     }
@@ -126,6 +136,72 @@ contract ReferralRewardsModule is
             }
             // We update the parent address to check the next parent
             parent = childToParent[parent];
+        }
+    }
+
+    function _parentRewards(
+        address _initialChildToCheck,
+        uint256 _contribution,
+        uint256 _currentFee
+    ) internal virtual returns (uint256) {
+        address currentChildToCheck = _initialChildToCheck;
+        uint256 parentRewardsAccumulated;
+
+        // Loop through the parent chain
+        for (int256 i; i < MAX_TIER; ++i) {
+            // Parent To check
+            address parentToCheck = childToParent[currentChildToCheck];
+
+            // If we reach someone without a parent, we stop
+            if (parentToCheck == address(0)) {
+                break;
+            }
+
+            // reward per child
+            parentRewardsByChild[parentToCheck][_initialChildToCheck] =
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            // reward per layer
+            parentRewardsByLayer[parentToCheck][uint256(i + 1)] +=
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            // Total rewards accumulated through the parent chain
+            parentRewardsAccumulated +=
+                (_contribution * _referralRewardRatioByLayer(i + 1)) /
+                (100 * DECIMAL_CORRECTION);
+
+            // Update the current child to check, for the next iteration
+            currentChildToCheck = childToParent[currentChildToCheck];
+        }
+
+        return _currentFee;
+    }
+
+    /**
+     * @notice This function calculates the referral reward ratio based on the layer
+     * @param _layer The layer of the referral
+     * @return referralRewardRatio_ The referral reward ratio
+     * @dev Max Layer = 4
+     * @dev The formula is y = Ax^3 + Bx^2 + Cx + D
+     *      y = reward ratio, x = layer, A = -3_125, B = 30_500, C = -99_625, D = 112_250
+     *      The original values are layer 1 = 4%, layer 2 = 1%, layer 3 = 0.35%, layer 4 = 0.175%
+     *      But this values where multiplied by 10_000 to avoid decimals in the formula so the values are
+     *      layer 1 = 40_000, layer 2 = 10_000, layer 3 = 3_500, layer 4 = 1_750
+     */
+    function _referralRewardRatioByLayer(
+        int256 _layer
+    ) internal pure virtual returns (uint256 referralRewardRatio_) {
+        assembly {
+            let layerSquare := mul(_layer, _layer) // x^2
+            let layerCube := mul(_layer, layerSquare) // x^3
+
+            // y = Ax^3 + Bx^2 + Cx + D
+            referralRewardRatio_ := add(
+                add(add(mul(A, layerCube), mul(B, layerSquare)), mul(C, _layer)),
+                D
+            )
         }
     }
 
