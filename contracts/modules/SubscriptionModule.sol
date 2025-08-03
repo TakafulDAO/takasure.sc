@@ -24,7 +24,6 @@ import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol"
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Test, console2} from "forge-std/Test.sol";
 
 pragma solidity 0.8.28;
 
