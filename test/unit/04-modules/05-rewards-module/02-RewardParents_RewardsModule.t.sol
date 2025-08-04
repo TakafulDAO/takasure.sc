@@ -43,11 +43,14 @@ contract RewardParents_ReferralRewardsModule is Test {
     address dave = makeAddr("dave");
     address eve = makeAddr("eve");
     address frank = makeAddr("frank");
+    address mallory = makeAddr("mallory");
 
     uint256 expectedLayer1Reward = 1_000_000; // 25 * 4% = 1
     uint256 expectedLayer2Reward = 250_000; // 25 * 1% = 0.25
     uint256 expectedLayer3Reward = 87_500; // 25 * 0.35% = 0.0875
     uint256 expectedLayer4Reward = 43_750; // 25 * 0.175% = 0.04375
+
+    event OnReferralDiscountSwitched(bool enabled);
 
     function setUp() public {
         managersDeployer = new DeployManagers();
@@ -60,11 +63,14 @@ contract RewardParents_ReferralRewardsModule is Test {
             AddressManager addrMgr,
             ModuleManager modMgr
         ) = managersDeployer.run();
-        (address operator, , address kyc, address redeemer, , ) = addressesAndRoles.run(
-            addrMgr,
-            config,
-            address(modMgr)
-        );
+        (
+            address operator,
+            ,
+            address kyc,
+            address redeemer,
+            address feeClaimer,
+
+        ) = addressesAndRoles.run(addrMgr, config, address(modMgr));
 
         (, , kycModule, , referralRewardsModule, , subscriptionModule) = moduleDeployer.run(
             addrMgr
@@ -79,12 +85,17 @@ contract RewardParents_ReferralRewardsModule is Test {
         kycProvider = kyc;
         usdc = IUSDC(config.contributionToken);
 
+        vm.prank(feeClaimer);
+        usdc.approve(address(subscriptionModule), type(uint256).max);
+
+        deal(address(usdc), address(subscriptionModule), 6_250_000);
         deal(address(usdc), alice, 25e6);
         deal(address(usdc), bob, 2375e4);
         deal(address(usdc), charlie, 2375e4);
         deal(address(usdc), dave, 2375e4);
         deal(address(usdc), eve, 2375e4);
         deal(address(usdc), frank, 2375e4);
+        deal(address(usdc), mallory, 25e6);
 
         vm.prank(alice);
         usdc.approve(address(subscriptionModule), 25e6);
@@ -98,6 +109,8 @@ contract RewardParents_ReferralRewardsModule is Test {
         usdc.approve(address(subscriptionModule), 2375e4);
         vm.prank(frank);
         usdc.approve(address(subscriptionModule), 2375e4);
+        vm.prank(mallory);
+        usdc.approve(address(subscriptionModule), 25e6);
 
         vm.prank(couponRedeemer);
         subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
@@ -222,59 +235,86 @@ contract RewardParents_ReferralRewardsModule is Test {
                 (2 * expectedLayer3Reward) -
                 expectedLayer4Reward
         ); // 7.5 - (4 * 1) - (3 * 0.25) - (2 * 0.0875) - 0.04375 = 7.5 - 4 - 0.75 - 0.175 - 0.04375 = 2.53125
-        console2.log(
-            "Contract Balance after rewards distribution: ",
-            usdc.balanceOf(address(referralRewardsModule))
-        ); // 2_531_250
-        console2.log(
+
+        // Donate Frank distribution
+        _donate(frank);
+
+        assertEq(
+            usdc.balanceOf(alice),
             expectedLayer1Reward +
                 expectedLayer2Reward +
                 expectedLayer3Reward +
                 expectedLayer4Reward
-        ); // 1_381_250
+        );
+        assertEq(
+            usdc.balanceOf(bob),
+            expectedLayer1Reward +
+                expectedLayer2Reward +
+                expectedLayer3Reward +
+                expectedLayer4Reward
+        );
+        assertEq(
+            usdc.balanceOf(charlie),
+            expectedLayer1Reward + expectedLayer2Reward + expectedLayer3Reward
+        );
+        assertEq(usdc.balanceOf(dave), expectedLayer1Reward + expectedLayer2Reward);
+        assertEq(usdc.balanceOf(eve), expectedLayer1Reward);
+        assertEq(usdc.balanceOf(frank), 0);
+        assertEq(
+            usdc.balanceOf(address(referralRewardsModule)),
+            contractBalance -
+                (5 * expectedLayer1Reward) -
+                (4 * expectedLayer2Reward) -
+                (3 * expectedLayer3Reward) -
+                (2 * expectedLayer4Reward)
+        ); // 7.5 - (5 * 1) - (4 * 0.25) - (3 * 0.0875) - (2 * 0.04375) = 7.5 - 5 - 1 - 0.2625 - 0.0875 = 1.15
+    }
 
-        // Operator will need to top up the needed amount
-        // deal(
-        //     address(usdc),
-        //     takadao,
-        //     expectedLayer4Reward +
-        //         expectedLayer3Reward +
-        //         expectedLayer2Reward +
-        //         expectedLayer1Reward
-        // );
-        // vm.prank(takadao);
-        // usdc.transfer(
-        //     address(referralRewardsModule),
-        //     expectedLayer4Reward +
-        //         expectedLayer3Reward +
-        //         expectedLayer2Reward +
-        //         expectedLayer1Reward
-        // );
+    function testRewardModule_setRewardDiscount() public {
+        assert(referralRewardsModule.referralDiscountEnabled());
 
-        // Donate Frank distribution
-        // _donate(frank);
+        vm.prank(takadao);
+        vm.expectEmit(false, false, false, false, address(referralRewardsModule));
+        emit OnReferralDiscountSwitched(false);
+        referralRewardsModule.setReferralDiscountState(false);
 
-        // assertEq(
-        //     usdc.balanceOf(alice),
-        //     expectedLayer1Reward +
-        //         expectedLayer2Reward +
-        //         expectedLayer3Reward +
-        //         expectedLayer4Reward
-        // );
-        // assertEq(
-        //     usdc.balanceOf(bob),
-        //     expectedLayer1Reward +
-        //         expectedLayer2Reward +
-        //         expectedLayer3Reward +
-        //         expectedLayer4Reward
-        // );
-        // assertEq(
-        //     usdc.balanceOf(charlie),
-        //     expectedLayer1Reward + expectedLayer2Reward + expectedLayer3Reward
-        // );
-        // assertEq(usdc.balanceOf(dave), expectedLayer1Reward + expectedLayer2Reward);
-        // assertEq(usdc.balanceOf(eve), expectedLayer1Reward);
-        // assertEq(usdc.balanceOf(frank), 0);
+        assert(!referralRewardsModule.referralDiscountEnabled());
+
+        vm.prank(takadao);
+        vm.expectEmit(false, false, false, false, address(referralRewardsModule));
+        emit OnReferralDiscountSwitched(true);
+        referralRewardsModule.setReferralDiscountState(true);
+
+        assert(referralRewardsModule.referralDiscountEnabled());
+    }
+
+    modifier setDiscountToFalse() {
+        vm.prank(takadao);
+        referralRewardsModule.setReferralDiscountState(false);
+        _;
+    }
+
+    function testRewardModule_calculateRewardsCorrectlyWhenThereIsNoDiscount()
+        public
+        setDiscountToFalse
+    {
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(mallory, frank, 0, block.timestamp);
+        vm.prank(kycProvider);
+        kycModule.approveKYC(mallory);
+
+        // No rewards are assigned to Frank from Mallory, even if Mallory set Frank as a referrer
+        assertEq(referralRewardsModule.childToParent(mallory), address(0));
+        assertEq(referralRewardsModule.parentRewardsByChild(frank, mallory), 0);
+        assertEq(referralRewardsModule.parentRewardsByLayer(frank, 1), 0);
+
+        _donate(alice);
+        _donate(bob);
+        _donate(charlie);
+        _donate(dave);
+        _donate(eve);
+        _donate(frank);
+        _donate(mallory);
     }
 
     function _donate(address user) internal {
