@@ -177,18 +177,27 @@ contract SubscriptionModule is
             .addr;
         IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
 
-        uint256 toTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+
+        uint256 amountToTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
             ((ModuleConstants.ASSOCIATION_SUBSCRIPTION *
                 ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
 
-        IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr).approve(
-            revenueModuleAddress,
-            toTransfer
-        );
+        // Check if the user had any discount
+        uint256 userDiscount = members[memberWallet].discount;
 
-        revenueModule.depositRevenue(toTransfer, revenueType);
+        if (userDiscount > 0) {
+            address feeClaimer = addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr;
+            contributionToken.safeTransferFrom(feeClaimer, address(this), userDiscount);
+        }
 
-        return toTransfer;
+        contributionToken.approve(revenueModuleAddress, amountToTransfer);
+
+        revenueModule.depositRevenue(amountToTransfer, revenueType);
+
+        return amountToTransfer;
     }
 
     /*//////////////////////////////////////////////////////////////
