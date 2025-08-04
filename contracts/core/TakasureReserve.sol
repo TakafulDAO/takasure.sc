@@ -200,12 +200,6 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         emit TakasureEvents.OnNewRiskMultiplier(newRiskMultiplier);
     }
 
-    function setReferralDiscountState(
-        bool referralDiscountState
-    ) external onlyRole(Roles.OPERATOR) {
-        reserve.referralDiscount = referralDiscountState;
-    }
-
     /**
      * @notice Calculate the surplus for a member
      */

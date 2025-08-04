@@ -17,7 +17,6 @@ pragma solidity 0.8.28;
 
 contract ReferralRewardsModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
     bool public referralDiscountEnabled;
-    // uint256 public referralReserve;
 
     mapping(address child => address parent) public childToParent;
     mapping(address parent => mapping(address child => uint256 reward)) public parentRewardsByChild;
@@ -29,6 +28,8 @@ contract ReferralRewardsModule is TLDModuleImplementation, Initializable, UUPSUp
     int256 private constant B = 30_500;
     int256 private constant C = -99_625;
     int256 private constant D = 112_250;
+
+    event OnReferralDiscountSwitched(bool enabled);
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -60,6 +61,14 @@ contract ReferralRewardsModule is TLDModuleImplementation, Initializable, UUPSUp
         ModuleState newState
     ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
         moduleState = newState;
+    }
+
+    function setReferralDiscountState(
+        bool referralDiscountState
+    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        referralDiscountEnabled = referralDiscountState;
+
+        emit OnReferralDiscountSwitched(referralDiscountEnabled);
     }
 
     function calculateReferralRewards(
