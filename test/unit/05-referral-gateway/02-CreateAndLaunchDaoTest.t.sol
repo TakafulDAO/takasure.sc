@@ -13,10 +13,17 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     ReferralGateway referralGateway;
     address takadao;
     address daoAdmin;
+    address pauseGuardian;
     address notAllowedAddress = makeAddr("notAllowedAddress");
     address DAO = makeAddr("DAO");
     address subscriptionModule = makeAddr("subscriptionModule");
     string tDaoName = "The LifeDao";
+
+    modifier pauseContract() {
+        vm.prank(pauseGuardian);
+        referralGateway.pause();
+        _;
+    }
 
     function setUp() public {
         // Deployer
@@ -27,6 +34,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         // Get config values
         takadao = config.takadaoOperator;
         daoAdmin = config.daoMultisig;
+        pauseGuardian = config.pauseGuardian;
     }
 
     function testCreateANewDao() public {
@@ -68,6 +76,12 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
 
         vm.prank(daoAdmin);
         referralGateway.updateLaunchDate(block.timestamp + 32_000_000);
+    }
+
+    function testCreateANewDaoRevertIfContractPaused() public pauseContract {
+        vm.prank(takadao);
+        vm.expectRevert();
+        referralGateway.createDAO(true, true, (block.timestamp + 31_536_000), 100e6);
     }
 
     modifier createDao() {

@@ -14,11 +14,18 @@ contract ReferralGatewayKYCTest is Test {
     IUSDC usdc;
     address takadao;
     address KYCProvider;
+    address pauseGuardian;
     address addressToKyc = makeAddr("addressToKyc");
     address couponRedeemer = makeAddr("couponRedeemer");
     string tDaoName = "The LifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
+
+    modifier pauseContract() {
+        vm.prank(pauseGuardian);
+        referralGateway.pause();
+        _;
+    }
 
     function setUp() public {
         // Deployer
@@ -29,6 +36,7 @@ contract ReferralGatewayKYCTest is Test {
         // Get config values
         takadao = config.takadaoOperator;
         KYCProvider = config.kycProvider;
+        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
         usdc = IUSDC(config.contributionToken);
@@ -65,6 +73,12 @@ contract ReferralGatewayKYCTest is Test {
         vm.prank(KYCProvider);
         referralGateway.approveKYC(addressToKyc);
         assert(referralGateway.isMemberKYCed(addressToKyc));
+    }
+
+    function testKYCRevertIfContractPaused() public pauseContract {
+        vm.prank(KYCProvider);
+        vm.expectRevert();
+        referralGateway.approveKYC(addressToKyc);
     }
 
     function testMustRevertIfKYCTwiceSameAddress() public {

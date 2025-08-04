@@ -21,6 +21,7 @@ contract ReferralGatewayJoinDaoTest is Test {
     IUSDC usdc;
     address takadao;
     address KYCProvider;
+    address pauseGuardian;
     address parent = makeAddr("parent");
     address child = makeAddr("child");
     address couponRedeemer = makeAddr("couponRedeemer");
@@ -29,6 +30,12 @@ contract ReferralGatewayJoinDaoTest is Test {
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
 
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
+
+    modifier pauseContract() {
+        vm.prank(pauseGuardian);
+        referralGateway.pause();
+        _;
+    }
 
     function setUp() public {
         // Deployer
@@ -45,6 +52,7 @@ contract ReferralGatewayJoinDaoTest is Test {
         // Get config values
         takadao = config.takadaoOperator;
         KYCProvider = config.kycProvider;
+        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
         usdc = IUSDC(config.contributionToken);
@@ -96,6 +104,12 @@ contract ReferralGatewayJoinDaoTest is Test {
         vm.prank(child);
         vm.expectRevert(ReferralGateway.ReferralGateway__NotKYCed.selector);
         emit OnMemberJoined(2, child);
+        referralGateway.joinDAO(child);
+    }
+
+    function testMustRevertJoinPoolIfContractIsPaused() public pauseContract {
+        vm.prank(child);
+        vm.expectRevert();
         referralGateway.joinDAO(child);
     }
 }
