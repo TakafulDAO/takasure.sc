@@ -13,6 +13,7 @@ import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/acces
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 
+import {ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -214,10 +215,10 @@ contract RevShareNFT is
         if (address(addressManager) != address(0)) {
             // We try to fetch the RevShareModule address from the AddressManager, if it fails it means
             // the revenue share module is not set up, so we return address(0)
-            try addressManager.getProtocolAddressByName("REVENUE_SHARE_MODULE") {
-                revShareModule_ = addressManager
-                    .getProtocolAddressByName("REVENUE_SHARE_MODULE")
-                    .addr;
+            try addressManager.getProtocolAddressByName("REVENUE_SHARE_MODULE") returns (
+                ProtocolAddress memory protocolAddress
+            ) {
+                revShareModule_ = protocolAddress.addr;
             } catch {}
         }
     }
