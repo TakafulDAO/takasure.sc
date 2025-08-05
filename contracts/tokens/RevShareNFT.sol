@@ -153,7 +153,7 @@ contract RevShareNFT is
     }
 
     /**
-     * @notice Transfer override function. transfers are only allowed if the RevShareModule is set up
+     * @notice Transfers are only allowed if the RevShareModule is set up
      * @dev The revenues are updated for both the sender and the receiver
      */
     function transfer(address to, uint256 tokenId) external {
