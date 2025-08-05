@@ -196,6 +196,8 @@ contract RevShareNFT is
     //////////////////////////////////////////////////////////////*/
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        // Token must be owned
+        _requireOwned(tokenId);
         return
             bytes(baseURI).length > 0
                 ? string.concat(baseURI, Strings.toString(tokenId), ".json")

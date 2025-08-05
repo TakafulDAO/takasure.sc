@@ -57,13 +57,20 @@ contract RevShareNftTest is Test {
     }
 
     function testNft_takadaoNftsBaseUris() public {
-        vm.prank(nft.owner());
+        vm.startPrank(nft.owner());
         vm.expectEmit(true, true, false, false, address(nft));
         emit OnBaseURISet(
             "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/",
             "https://ipfs.io/ipfs/Qmb2yMfCt7zqCP5C2aoMAeYh9qyfabSTcb7URzV85zfZME/"
         );
         nft.setBaseURI("https://ipfs.io/ipfs/Qmb2yMfCt7zqCP5C2aoMAeYh9qyfabSTcb7URzV85zfZME/");
+
+        vm.expectRevert();
+        nft.tokenURI(0);
+
+        nft.mint(alice);
+
+        vm.stopPrank();
 
         assertEq(
             nft.tokenURI(0),
