@@ -111,7 +111,7 @@ contract RevShareNFT is
      * @param pioneer The address of the member to mint a single NFT. This is only used for SINGLE_MINT
      * @dev Only callable by someone with owner
      */
-    function mint(address pioneer) external onlyOwner mintChecks(pioneer) {
+    function mint(address pioneer) external onlyOwner nonReentrant mintChecks(pioneer) {
         uint256 tokenId = totalSupply;
         ++totalSupply;
 
@@ -156,7 +156,7 @@ contract RevShareNFT is
      * @notice Transfers are only allowed if the RevShareModule is set up
      * @dev The revenues are updated for both the sender and the receiver
      */
-    function transfer(address to, uint256 tokenId) external {
+    function transfer(address to, uint256 tokenId) external nonReentrant {
         require(
             _fetchRevShareModuleAddressIfIsSetUp() != address(0),
             RevShareNFT__RevShareModuleNotSetUp()
