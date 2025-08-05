@@ -5,11 +5,15 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {RevShareModuleMock} from "test/mocks/RevShareModuleMock.sol";
 
 contract RevShareNftTest is Test {
     RevShareNFT nft;
     address operator = makeAddr("operator");
     address alice = makeAddr("alice");
+    address bob = makeAddr("bob");
 
     event OnAddressManagerSet(address indexed oldAddressManager, address indexed newAddressManager);
     event OnBaseURISet(string indexed oldBaseUri, string indexed newBaseURI);
@@ -78,6 +82,18 @@ contract RevShareNftTest is Test {
         );
     }
 
+    function testNft_tokenURIEmptyWhenBaseURINotSet() public {
+        address impl = address(new RevShareNFT());
+        RevShareNFT noBaseUri = RevShareNFT(
+            UnsafeUpgrades.deployUUPSProxy(impl, abi.encodeCall(RevShareNFT.initialize, ("")))
+        );
+
+        vm.prank(noBaseUri.owner());
+        noBaseUri.mint(alice);
+
+        assertEq(noBaseUri.tokenURI(0), "");
+    }
+
     /*//////////////////////////////////////////////////////////////
                               SINGLE MINT
     //////////////////////////////////////////////////////////////*/
@@ -100,6 +116,37 @@ contract RevShareNftTest is Test {
         assertEq(nft.totalSupply(), latestTokenIdBefore + 1);
         assertEq(aliceBalanceBefore, 0);
         assertEq(nft.balanceOf(alice), 1);
+    }
+
+    function testNft_mintStoresPioneerMintedAtIfRevUpdateFails() public {
+        address failingManager = address(0xFEED);
+
+        _mockAddressManagerRevert(failingManager);
+
+        vm.prank(nft.owner());
+        nft.setAddressManager(failingManager);
+
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
+        uint256 timestamp = nft.pioneerMintedAt(alice, 0);
+        assertGt(timestamp, 0);
+        assertLe(timestamp, block.timestamp);
+    }
+
+    function testNft_mintDoesNotStorePioneerMintedAtIfRevUpdateSucceeds() public {
+        RevShareModuleMock rev = new RevShareModuleMock();
+        address mockManager = address(0xD00D);
+
+        _mockAddressManagerReturn(mockManager, address(rev));
+
+        vm.prank(nft.owner());
+        nft.setAddressManager(mockManager);
+
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
+        assertEq(nft.pioneerMintedAt(alice, 0), 0); // Not stored
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -130,13 +177,143 @@ contract RevShareNftTest is Test {
         assertEq(nft.totalSupply(), 3);
     }
 
+    function testNft_batchMintStoresPioneerMintedAtOnlyIfRevFails() public {
+        address failingManager = address(0xABCD);
+        _mockAddressManagerRevert(failingManager);
+
+        vm.prank(nft.owner());
+        nft.setAddressManager(failingManager);
+
+        vm.prank(nft.owner());
+        nft.batchMint(alice, 3);
+
+        for (uint256 i = 0; i < 3; ++i) {
+            assertGt(nft.pioneerMintedAt(alice, i), 0);
+        }
+    }
+
+    function testNft_batchMintSkipsPioneerMintedAtIfRevWorks() public {
+        RevShareModuleMock rev = new RevShareModuleMock();
+        address mockManager = address(0xDEAD);
+
+        _mockAddressManagerReturn(mockManager, address(rev));
+
+        vm.prank(nft.owner());
+        nft.setAddressManager(mockManager);
+
+        vm.prank(nft.owner());
+        nft.batchMint(alice, 3);
+
+        for (uint256 i = 0; i < 3; ++i) {
+            assertEq(nft.pioneerMintedAt(alice, i), 0);
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                                TRANSFERS
     //////////////////////////////////////////////////////////////*/
 
-    function testNft_transferNftRevertsIfRevShareModuleNotSetUp() public {
+    function testNft_transferRevertsIfRevModuleNotSet() public {
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
         vm.prank(alice);
         vm.expectRevert(RevShareNFT.RevShareNFT__RevShareModuleNotSetUp.selector);
-        nft.transfer(alice, 1);
+        nft.transfer(bob, 0);
+    }
+
+    function testNft_transferFromRevertsIfRevModuleNotSet() public {
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
+        vm.prank(alice);
+        nft.approve(bob, 0);
+
+        vm.prank(bob);
+        vm.expectRevert(RevShareNFT.RevShareNFT__RevShareModuleNotSetUp.selector);
+        nft.transferFrom(alice, bob, 0);
+    }
+
+    function testNft_transferWorksIfRevModuleSet() public {
+        RevShareModuleMock rev = new RevShareModuleMock();
+        address mockManager = address(0xCAFE);
+
+        _mockAddressManagerReturn(mockManager, address(rev));
+
+        vm.prank(nft.owner());
+        nft.setAddressManager(mockManager);
+
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
+        vm.prank(alice);
+        nft.transfer(bob, 0);
+
+        assertEq(nft.ownerOf(0), bob);
+        assertEq(rev.lastUpdated(), bob);
+    }
+
+    function testNft_transferFromWorksIfRevModuleSet() public {
+        RevShareModuleMock rev = new RevShareModuleMock();
+        address mockManager = address(0xBEEF);
+
+        _mockAddressManagerReturn(mockManager, address(rev));
+
+        vm.prank(nft.owner());
+        nft.setAddressManager(mockManager);
+
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
+        vm.prank(alice);
+        nft.approve(bob, 0);
+
+        vm.prank(bob);
+        nft.transferFrom(alice, bob, 0);
+
+        assertEq(nft.ownerOf(0), bob);
+        assertEq(rev.lastUpdated(), bob);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                   Helpers to mock AddressManager responses
+    //////////////////////////////////////////////////////////////*/
+
+    function _mockAddressManagerReturn(address mockManager, address revModule) internal {
+        // inject minimal bytecode so it's a contract
+        vm.etch(mockManager, hex"60006000");
+
+        bytes memory selector = abi.encodeWithSelector(
+            IAddressManager.getProtocolAddressByName.selector,
+            "REVENUE_SHARE_MODULE"
+        );
+
+        ProtocolAddress memory response = ProtocolAddress({
+            name: keccak256("REVENUE_SHARE_MODULE"),
+            addr: revModule,
+            addressType: ProtocolAddressType.Protocol
+        });
+
+        vm.mockCall(mockManager, selector, abi.encode(response));
+    }
+
+    function _mockAddressManagerRevert(address mockManager) internal {
+        vm.etch(mockManager, hex"60006000");
+        bytes memory selector = abi.encodeWithSelector(
+            IAddressManager.getProtocolAddressByName.selector,
+            "REVENUE_SHARE_MODULE"
+        );
+        vm.mockCallRevert(mockManager, selector, "Mock failure");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                UPGRADES
+    //////////////////////////////////////////////////////////////*/
+
+    function testNft_upgrade() public {
+        address newImpl = address(new RevShareNFT());
+
+        vm.prank(nft.owner());
+        nft.upgradeToAndCall(newImpl, "");
     }
 }
