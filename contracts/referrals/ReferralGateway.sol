@@ -624,6 +624,9 @@ contract ReferralGateway is
                 ((normalizedContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
                 100;
 
+        if (nameToDAOData[daoName].referralDiscountEnabled && _parent != address(0))
+            _discount += ((normalizedContribution - _couponAmount) * REFERRAL_DISCOUNT_RATIO) / 100;
+
         // And if the DAO has the referral discount enabled, it will get a discount as a referrer
         uint256 toReferralReserve;
 
@@ -632,10 +635,6 @@ contract ReferralGateway is
 
             // The discount will be only valid if the parent is valid
             if (_parent != address(0)) {
-                uint256 referralDiscount = ((normalizedContribution - _couponAmount) *
-                    REFERRAL_DISCOUNT_RATIO) / 100;
-                _discount += referralDiscount;
-
                 childToParent[_newMember] = _parent;
 
                 (_finalFee, nameToDAOData[daoName].referralReserve) = _parentRewards(
