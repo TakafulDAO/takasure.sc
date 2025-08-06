@@ -164,6 +164,10 @@ contract ReferralGateway is
     error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
     error ReferralGateway__NotAuthorizedCaller();
 
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -188,7 +192,7 @@ contract ReferralGateway is
     }
 
     /*//////////////////////////////////////////////////////////////
-                               DAO ADMIN
+                                  DAO
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -269,16 +273,6 @@ contract ReferralGateway is
         nameToDAOData[daoName].launchDate = block.timestamp;
 
         emit OnDAOLaunched(tDAOAddress);
-    }
-
-    /**
-     * @notice Switch the referralDiscount status of a DAO
-     */
-    function switchReferralDiscount() external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].referralDiscountEnabled = !nameToDAOData[daoName]
-            .referralDiscountEnabled;
-
-        emit OnReferralDiscountSwitched(nameToDAOData[daoName].referralDiscountEnabled);
     }
 
     /**
@@ -493,6 +487,16 @@ contract ReferralGateway is
         address oldCouponPool = couponPool;
         couponPool = _couponPool;
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
+    }
+
+    /**
+     * @notice Switch the referralDiscount status of a DAO
+     */
+    function switchReferralDiscount() external onlyRole(OPERATOR) {
+        nameToDAOData[daoName].referralDiscountEnabled = !nameToDAOData[daoName]
+            .referralDiscountEnabled;
+
+        emit OnReferralDiscountSwitched(nameToDAOData[daoName].referralDiscountEnabled);
     }
 
     function setPrejoinDiscount(bool _preJoinDiscountEnabled) external onlyRole(OPERATOR) {
