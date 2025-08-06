@@ -149,6 +149,7 @@ contract ReferralGateway is
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
     event OnPrejoinDiscountSwitched(bool indexed preJoinDiscountEnabled);
+    event OnRewardsDistributionSwitched(bool indexed rewardsEnabled);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__InvalidLaunchDate();
@@ -502,6 +503,11 @@ contract ReferralGateway is
     function setPrejoinDiscount(bool _preJoinDiscountEnabled) external onlyRole(OPERATOR) {
         nameToDAOData[daoName].preJoinDiscountEnabled = _preJoinDiscountEnabled;
         emit OnPrejoinDiscountSwitched(_preJoinDiscountEnabled);
+    }
+
+    function setRewardsDistribution(bool _rewardsEnabled) external onlyRole(OPERATOR) {
+        nameToDAOData[daoName].rewardsEnabled = _rewardsEnabled;
+        emit OnRewardsDistributionSwitched(_rewardsEnabled);
     }
 
     function pause() external onlyRole(PAUSE_GUARDIAN) {
