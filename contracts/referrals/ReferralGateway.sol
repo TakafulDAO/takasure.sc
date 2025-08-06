@@ -57,7 +57,7 @@ contract ReferralGateway is
         mapping(address member => PrepaidMember) prepaidMembers;
         string name;
         bool preJoinDiscountEnabled;
-        bool referralDiscount;
+        bool referralDiscountEnabled;
         address DAOAdmin; // The one that can modify the DAO settings
         address DAOAddress; // To be assigned when the tDAO is deployed
         uint256 launchDate; // In seconds. An estimated launch date of the DAO
@@ -212,7 +212,7 @@ contract ReferralGateway is
         // Create the new DAO
         nameToDAOData[daoName].name = daoName;
         nameToDAOData[daoName].preJoinDiscountEnabled = isPreJoinDiscountEnabled;
-        nameToDAOData[daoName].referralDiscount = isReferralDiscountEnabled;
+        nameToDAOData[daoName].referralDiscountEnabled = isReferralDiscountEnabled;
         nameToDAOData[daoName].DAOAdmin = msg.sender;
         nameToDAOData[daoName].launchDate = launchDate;
         nameToDAOData[daoName].objectiveAmount = objectiveAmount;
@@ -261,7 +261,7 @@ contract ReferralGateway is
         );
 
         nameToDAOData[daoName].preJoinDiscountEnabled = false;
-        nameToDAOData[daoName].referralDiscount = isReferralDiscountEnabled;
+        nameToDAOData[daoName].referralDiscountEnabled = isReferralDiscountEnabled;
         nameToDAOData[daoName].DAOAddress = tDAOAddress;
         nameToDAOData[daoName].subscriptionModule = subscriptionModule;
         nameToDAOData[daoName].launchDate = block.timestamp;
@@ -273,9 +273,10 @@ contract ReferralGateway is
      * @notice Switch the referralDiscount status of a DAO
      */
     function switchReferralDiscount() external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].referralDiscount = !nameToDAOData[daoName].referralDiscount;
+        nameToDAOData[daoName].referralDiscountEnabled = !nameToDAOData[daoName]
+            .referralDiscountEnabled;
 
-        emit OnReferralDiscountSwitched(nameToDAOData[daoName].referralDiscount);
+        emit OnReferralDiscountSwitched(nameToDAOData[daoName].referralDiscountEnabled);
     }
 
     /**
@@ -546,7 +547,7 @@ contract ReferralGateway is
         view
         returns (
             bool preJoinDiscountEnabled,
-            bool referralDiscount,
+            bool referralDiscountEnabled,
             address DAOAdmin,
             address DAOAddress,
             uint256 launchDate,
@@ -559,7 +560,7 @@ contract ReferralGateway is
         )
     {
         preJoinDiscountEnabled = nameToDAOData[daoName].preJoinDiscountEnabled;
-        referralDiscount = nameToDAOData[daoName].referralDiscount;
+        referralDiscountEnabled = nameToDAOData[daoName].referralDiscountEnabled;
         DAOAdmin = nameToDAOData[daoName].DAOAdmin;
         DAOAddress = nameToDAOData[daoName].DAOAddress;
         launchDate = nameToDAOData[daoName].launchDate;
@@ -612,7 +613,7 @@ contract ReferralGateway is
         // And if the DAO has the referral discount enabled, it will get a discount as a referrer
         uint256 toReferralReserve;
 
-        if (nameToDAOData[daoName].referralDiscount) {
+        if (nameToDAOData[daoName].referralDiscountEnabled) {
             toReferralReserve = (normalizedContribution * REFERRAL_RESERVE) / 100;
 
             // The discount will be only valid if the parent is valid
