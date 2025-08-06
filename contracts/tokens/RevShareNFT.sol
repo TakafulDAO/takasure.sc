@@ -73,10 +73,10 @@ contract RevShareNFT is
         _disableInitializers();
     }
 
-    function initialize(string memory _baseURI) external initializer {
+    function initialize(string memory _baseURI, address _owner) external initializer {
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
-        __Ownable_init(msg.sender);
+        __Ownable_init(_owner);
         __ReentrancyGuardTransient_init();
         __ERC721_init("RevShareNFT", "RSNFT");
 
