@@ -138,8 +138,10 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = false, with parent, no coupon ========//
     function testPrepaymentCase14() public {
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
+        vm.stopPrank();
 
         // Already collected fees with the modifiers logic
         (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
@@ -210,8 +212,8 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
     function testPrepaymentCase16() public {
         vm.startPrank(takadao);
         referralGateway.switchReferralDiscount();
-
         referralGateway.setPrejoinDiscount(false);
+        referralGateway.setRewardsDistribution(false);
         vm.stopPrank();
 
         // Already collected fees with the modifiers logic

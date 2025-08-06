@@ -196,8 +196,10 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = false, no parent, coupon equals contribution ========//
     function testPrepaymentCase7() public setCouponPoolAndCouponRedeemer {
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
+        vm.stopPrank();
 
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
@@ -240,8 +242,10 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = false, no parent, coupon less than contribution ========//
     function testPrepaymentCase8() public setCouponPoolAndCouponRedeemer {
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
+        vm.stopPrank();
 
         uint256 couponAmount = 100e6; // 100 USDC
 
@@ -386,11 +390,11 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
     //======== preJoinEnabled = false, referralDiscount = false, no parent, coupon equals contribution ========//
     function testPrepaymentCase11() public setCouponPoolAndCouponRedeemer {
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         referralGateway.setPrejoinDiscount(false);
-
-        vm.prank(takadao);
         referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
+        vm.stopPrank();
 
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
@@ -433,11 +437,11 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
     //======== preJoinEnabled = false, referralDiscount = false, no parent, coupon less than contribution ========//
     function testPrepaymentCase12() public setCouponPoolAndCouponRedeemer {
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         referralGateway.setPrejoinDiscount(false);
-
-        vm.prank(takadao);
         referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
+        vm.stopPrank();
 
         uint256 couponAmount = 100e6; // 100 USDC
 

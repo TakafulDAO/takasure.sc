@@ -433,7 +433,7 @@ contract ReferralGatewayParentRewardTest is Test {
     function testNoRewardsAssignedIfReferralDiscountDisabled() public {
         // Turn off referral discount
         vm.prank(takadao);
-        referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
 
         // Parents address
         address parentTier1 = makeAddr("parentTier1");
@@ -641,7 +641,7 @@ contract ReferralGatewayParentRewardTest is Test {
         // But parent 3 won't have any rewards from his children contributions
 
         vm.prank(takadao);
-        referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
 
         vm.prank(KYCProvider);
         vm.expectEmit(true, true, true, true, address(referralGateway));

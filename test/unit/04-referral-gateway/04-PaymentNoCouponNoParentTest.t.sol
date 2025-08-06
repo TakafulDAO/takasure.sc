@@ -121,8 +121,10 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = false, no parent, no coupon ========//
     function testPrepaymentCase2() public {
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
+        vm.stopPrank();
 
         (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -182,11 +184,11 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
     //======== preJoinEnabled = false, referralDiscount = false, no parent, no coupon ========//
     function testPrepaymentCase4() public {
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         referralGateway.setPrejoinDiscount(false);
-
-        vm.prank(takadao);
         referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
+        vm.stopPrank();
 
         (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 

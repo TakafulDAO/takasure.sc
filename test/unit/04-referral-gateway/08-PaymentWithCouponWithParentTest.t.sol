@@ -214,7 +214,7 @@ contract ReferralGatewayWithCouponWithParentPaymentTest is Test {
     //======== preJoinEnabled = true, referralDiscount = false, with parent, coupon equals contribution ========//
     function testPrepaymentCase19() public setCouponPoolAndCouponRedeemer parentJoinsAndKYC {
         vm.prank(takadao);
-        referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
 
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
@@ -258,7 +258,7 @@ contract ReferralGatewayWithCouponWithParentPaymentTest is Test {
     //======== preJoinEnabled = true, referralDiscount = false, with parent, coupon less than contribution ========//
     function testPrepaymentCase20() public setCouponPoolAndCouponRedeemer parentJoinsAndKYC {
         vm.prank(takadao);
-        referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
 
         uint256 couponAmount = 100e6; // 100 USDC
 
@@ -281,10 +281,11 @@ contract ReferralGatewayWithCouponWithParentPaymentTest is Test {
         uint256 finalOperatorBalance = usdc.balanceOf(takadao);
         uint256 finalChildBalance = usdc.balanceOf(child);
         uint256 prejoinDiscount = ((CONTRIBUTION_AMOUNT - couponAmount) *
-            CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
-        uint256 expectedDiscount = prejoinDiscount;
+            CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100; // (250 -100) * 10 / 100 = 15
+        uint256 referralDiscount = ((CONTRIBUTION_AMOUNT - couponAmount) * 5) / 100; // (250 - 100) * 5 / 100 = 7.5
+        uint256 expectedDiscount = prejoinDiscount + referralDiscount; // 15 + 7.5 = 22.5
         // (contribution - coupon) - (((contribution - coupon) * prejoinDiscount) + ())
-        // (250 - 100) - (((250 - 100) * 10%) + ((250 - 100) * 5%)) = 150 - (15 + 7.5) = 150 - 22.5 = 127.5
+        // (250 - 100) - 15 - 7.5 = 127.5
         uint256 expectedTransfer = (CONTRIBUTION_AMOUNT - couponAmount) - expectedDiscount;
 
         // The coupon pool balance should decrease by the coupon amount
@@ -293,10 +294,10 @@ contract ReferralGatewayWithCouponWithParentPaymentTest is Test {
         assertEq(finalOperatorBalance, initialOperatorBalance + feeToOp);
         // The child's balance should decrease by the remaining contribution amount
         assertEq(finalChildBalance, initialChildBalance - expectedTransfer);
-        assertEq(expectedTransfer, 135e6);
+        assertEq(expectedTransfer, 1275e5);
         // The fee to operator should be fee-disount-referralReserve-repoolFee
-        assertEq(feeToOp, 475e5);
-        assertEq(expectedDiscount, 15e6);
+        assertEq(feeToOp, 40e6);
+        assertEq(expectedDiscount, 225e5);
 
         (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
             child
@@ -304,6 +305,7 @@ contract ReferralGatewayWithCouponWithParentPaymentTest is Test {
 
         assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT);
         assertEq(discount, expectedDiscount); // Applied to what is left after the coupon
+        //22_500_000, 15_000_000
     }
 
     //======== preJoinEnabled = false, referralDiscount = true, with parent, coupon equals contribution ========//
@@ -407,7 +409,7 @@ contract ReferralGatewayWithCouponWithParentPaymentTest is Test {
         referralGateway.setPrejoinDiscount(false);
 
         vm.prank(takadao);
-        referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
 
         uint256 couponAmount = CONTRIBUTION_AMOUNT;
 
@@ -453,8 +455,10 @@ contract ReferralGatewayWithCouponWithParentPaymentTest is Test {
         vm.prank(takadao);
         referralGateway.setPrejoinDiscount(false);
 
-        vm.prank(takadao);
+        vm.startPrank(takadao);
         referralGateway.switchReferralDiscount();
+        referralGateway.setRewardsDistribution(false);
+        vm.stopPrank();
 
         uint256 couponAmount = 100e6; // 100 USDC
 
