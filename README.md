@@ -49,19 +49,15 @@ make all
 2. Create a .env file with the variables explained on the next section. You can also check the `.env.example` file
 
 ### env
-1. Private keys. For development purposes, this is used only in the script to check the chainlink functions script
-    + TESTNET_DEPLOYER_PK
-2. Deployers addresses
-    + MAINNET_DEPLOYER_ADDRESS
+1. Deployers addresses
     + TESTNET_DEPLOYER_ADDRESS
-3. Mainnet RPC URL
+2. Mainnet RPC URL
     + ARBITRUM_MAINNET_RPC_URL
-4. Testnet RPC_URL
+3. Testnet RPC_URL
     + ARBITRUM_TESTNET_SEPOLIA_RPC_URL
-5. Scans api keys. [here](https://docs.etherscan.io/etherscan-v2/getting-an-api-key)
+4. Scans api keys. [here](https://docs.etherscan.io/etherscan-v2/getting-an-api-key)
     + ETHERSCAN_API_KEY
-6. Accounts. This are the names of the accounts encripted with `cast wallet import`
-    + MAINNET_ACCOUNT=
+5. Accounts. This are the names of the accounts encripted with `cast wallet import`
     + TESTNET_ACCOUNT=
 
 > [!CAUTION]
@@ -76,14 +72,10 @@ Use `forge build` or `make build`
 ### Testing
 
 Use `forge test` or `make test`
-Use `forge coverage --ir-minimum` to get the coverage report
-
-For special test cases related to chainlink services be aware of the following:
-- For chainlink functions there is no available tool to test it in Foundry. You can use the script `scripts/chainlink-functions/requestSepolia.js` to test the functions behaviour and output.
-- For chainlink ccip there are some tests to check events, errors and settings, but the main functionality was tested in live environments, please check the `deployments` folder to find the testnet deployment for the Receiver and the Sender contracts, and interact with them to check the functionality. This is one of the ways recommended in the Chainlink documentation to test the functionality of the contracts.
+Use `forge coverage --ir-minimum` or `make coverage-report` to get the coverage report
 
 > [!TIP]
-> To run a specific test use `forge test --mt <TEST_NAME>`
+> To run a specific test use `forge test --mt <TEST_NAME>` or `forge test --mc <TEST_CONTRACT_NAME>` to run the tests in a file
 
 >[!NOTE]
 > Some formal verification is made in this repo. Follow the instructions in the README file in the `certora` folder
