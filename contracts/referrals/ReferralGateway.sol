@@ -69,6 +69,7 @@ contract ReferralGateway is
         uint256 referralReserve; // In USDC, six decimals
         address bmConsumer; // DEPRECATED!!!
         address subscriptionModule;
+        bool rewardsEnabled;
     }
 
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
@@ -217,6 +218,7 @@ contract ReferralGateway is
         nameToDAOData[daoName].launchDate = launchDate;
         nameToDAOData[daoName].objectiveAmount = objectiveAmount;
         nameToDAOData[daoName].bmConsumer = address(0); // DEPRECATED!!!
+        nameToDAOData[daoName].rewardsEnabled = true;
 
         emit OnNewDAO(
             isPreJoinDiscountEnabled,
@@ -548,6 +550,7 @@ contract ReferralGateway is
         returns (
             bool preJoinDiscountEnabled,
             bool referralDiscountEnabled,
+            bool rewardsEnabled,
             address DAOAdmin,
             address DAOAddress,
             uint256 launchDate,
@@ -561,6 +564,7 @@ contract ReferralGateway is
     {
         preJoinDiscountEnabled = nameToDAOData[daoName].preJoinDiscountEnabled;
         referralDiscountEnabled = nameToDAOData[daoName].referralDiscountEnabled;
+        rewardsEnabled = nameToDAOData[daoName].rewardsEnabled;
         DAOAdmin = nameToDAOData[daoName].DAOAdmin;
         DAOAddress = nameToDAOData[daoName].DAOAddress;
         launchDate = nameToDAOData[daoName].launchDate;
