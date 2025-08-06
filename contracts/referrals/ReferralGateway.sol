@@ -630,7 +630,7 @@ contract ReferralGateway is
         // And if the DAO has the referral discount enabled, it will get a discount as a referrer
         uint256 toReferralReserve;
 
-        if (nameToDAOData[daoName].referralDiscountEnabled) {
+        if (nameToDAOData[daoName].rewardsEnabled) {
             toReferralReserve = (normalizedContribution * REFERRAL_RESERVE) / 100;
 
             // The discount will be only valid if the parent is valid
