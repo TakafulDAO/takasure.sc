@@ -20,7 +20,7 @@ contract RevShareNftFuzzTest is Test {
         address nftImplementation = address(new RevShareNFT());
         address nftAddress = UnsafeUpgrades.deployUUPSProxy(
             nftImplementation,
-            abi.encodeCall(RevShareNFT.initialize, (baseURI))
+            abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
         );
         nft = RevShareNFT(nftAddress);
     }

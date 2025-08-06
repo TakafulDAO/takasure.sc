@@ -15,7 +15,7 @@ contract RevShareNFT_Invariant is Test {
         address nftImpl = address(new RevShareNFT());
         address nftProxy = UnsafeUpgrades.deployUUPSProxy(
             nftImpl,
-            abi.encodeCall(RevShareNFT.initialize, (baseURI))
+            abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
         );
         nft = RevShareNFT(nftProxy);
 

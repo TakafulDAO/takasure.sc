@@ -30,7 +30,7 @@ contract RevShareNftTest is Test {
         address nftImplementation = address(new RevShareNFT());
         address nftAddress = UnsafeUpgrades.deployUUPSProxy(
             nftImplementation,
-            abi.encodeCall(RevShareNFT.initialize, (baseURI))
+            abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
         );
         nft = RevShareNFT(nftAddress);
     }
@@ -85,7 +85,10 @@ contract RevShareNftTest is Test {
     function testNft_tokenURIEmptyWhenBaseURINotSet() public {
         address impl = address(new RevShareNFT());
         RevShareNFT noBaseUri = RevShareNFT(
-            UnsafeUpgrades.deployUUPSProxy(impl, abi.encodeCall(RevShareNFT.initialize, ("")))
+            UnsafeUpgrades.deployUUPSProxy(
+                impl,
+                abi.encodeCall(RevShareNFT.initialize, ("", msg.sender))
+            )
         );
 
         vm.prank(noBaseUri.owner());
