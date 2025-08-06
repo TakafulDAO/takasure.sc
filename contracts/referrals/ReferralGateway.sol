@@ -850,10 +850,4 @@ contract ReferralGateway is
     function setDaoName(string memory _daoName) external onlyRole(OPERATOR) {
         daoName = _daoName;
     }
-
-    function defaultDaoConfig() external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].DAOAddress = address(0);
-        nameToDAOData[daoName].DAOAdmin = address(0);
-        nameToDAOData[daoName].referralDiscount = true;
-    }
 }
