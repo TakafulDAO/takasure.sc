@@ -121,7 +121,7 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
         vm.prank(couponRedeemer);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
-        (, , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
+        (, , , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);

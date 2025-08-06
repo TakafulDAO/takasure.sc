@@ -106,6 +106,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
             ,
             ,
             ,
+            ,
             uint256 currentAmount,
             ,
             ,

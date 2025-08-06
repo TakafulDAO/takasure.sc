@@ -130,7 +130,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = true, invalid referral ========//
     function testPaymentRevertsIfParentIsInvalidCase1() public {
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -146,7 +146,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
             false
         );
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, 0);
     }
@@ -156,7 +156,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
 
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -172,7 +172,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
             false
         );
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, 0);
     }

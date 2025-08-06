@@ -171,7 +171,7 @@ contract ReferralGatewayRepoolTest is Test {
         vm.prank(takadao);
         referralGateway.enableRepool(rePoolAddress);
 
-        (, , , , , , , , , uint256 toRepool, ) = referralGateway.getDAOData();
+        (, , , , , , , , , , uint256 toRepool, ) = referralGateway.getDAOData();
 
         assert(toRepool > 0);
         assertEq(usdc.balanceOf(rePoolAddress), 0);
@@ -179,7 +179,7 @@ contract ReferralGatewayRepoolTest is Test {
         vm.prank(takadao);
         referralGateway.transferToRepool();
 
-        (, , , , , , , , , uint256 newRepoolBalance, ) = referralGateway.getDAOData();
+        (, , , , , , , , , , uint256 newRepoolBalance, ) = referralGateway.getDAOData();
 
         assertEq(newRepoolBalance, 0);
         assertEq(usdc.balanceOf(rePoolAddress), toRepool);

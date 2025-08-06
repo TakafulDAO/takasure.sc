@@ -126,7 +126,7 @@ contract ReferralGatewayRefundTest is Test {
         referralGateway.refundIfDAOIsNotLaunched(child);
         vm.stopPrank();
 
-        (, , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
+        (, , , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
@@ -178,6 +178,7 @@ contract ReferralGatewayRefundTest is Test {
             ,
             ,
             ,
+            ,
             uint256 launchDate,
             ,
             uint256 currentAmount,
@@ -209,7 +210,7 @@ contract ReferralGatewayRefundTest is Test {
 
         assertEq(usdc.balanceOf(address(referralGateway)), newExpectedContractBalance);
 
-        (, , , , , , currentAmount, , , toRepool, referralReserve) = referralGateway.getDAOData();
+        (, , , , , , , currentAmount, , , toRepool, referralReserve) = referralGateway.getDAOData();
 
         assertEq(currentAmount, 1825e4); // The new currentAmount should be 36.5 - (25 - 25 * 27%) = 36.5 - (25 - 6.75) = 36.5 - 18.25 = 18.25
         assertEq(referralReserve, 0); // The new rr should be 1.5 - (22.5 - 18.25) = 1.5 - 4.25 = 0
@@ -245,7 +246,7 @@ contract ReferralGatewayRefundTest is Test {
         assertEq(usdc.balanceOf(address(child)), childBalanceBeforeRefund + amountToRefundToChild);
         assertEq(usdc.balanceOf(address(referralGateway)), 0);
 
-        (, , , , , , currentAmount, , , toRepool, referralReserve) = referralGateway.getDAOData();
+        (, , , , , , , currentAmount, , , toRepool, referralReserve) = referralGateway.getDAOData();
 
         assertEq(currentAmount, 0);
         assertEq(toRepool, 0);
@@ -253,7 +254,7 @@ contract ReferralGatewayRefundTest is Test {
     }
 
     function testCanNotRefundIfDaoIsLaunched() public {
-        (, , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
+        (, , , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);

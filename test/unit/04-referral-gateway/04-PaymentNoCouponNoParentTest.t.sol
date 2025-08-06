@@ -92,7 +92,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = true, no parent, no coupon ========//
     function testPrepaymentCase1() public {
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -112,7 +112,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, collectedFees);
         assertEq(collectedFees, 2_500_000);
@@ -124,7 +124,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
 
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -143,7 +143,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, collectedFees);
         assertEq(collectedFees, 3_750_000);
@@ -155,7 +155,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         vm.prank(takadao);
         referralGateway.setPrejoinDiscount(false);
 
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -173,7 +173,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, collectedFees);
         assertEq(collectedFees, 5_000_000);
@@ -188,7 +188,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
 
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -204,7 +204,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, collectedFees);
         assertEq(collectedFees, 6_250_000);
