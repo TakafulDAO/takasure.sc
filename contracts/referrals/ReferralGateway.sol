@@ -859,8 +859,4 @@ contract ReferralGateway is
     function _notZeroAddress(address _address) internal pure {
         require(_address != address(0), ReferralGateway__ZeroAddress());
     }
-
-    function setDaoName(string memory _daoName) external onlyRole(OPERATOR) {
-        daoName = _daoName;
-    }
 }
