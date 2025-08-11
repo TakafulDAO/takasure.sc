@@ -83,9 +83,6 @@ contract ReferralGatewaySettersTests is Test {
         vm.prank(ccipReceiverContract);
         usdc.approve(address(referralGateway), 1000e6);
 
-        vm.prank(operator);
-        referralGateway.setDaoName(tDaoName);
-
         vm.prank(config.daoMultisig);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
 

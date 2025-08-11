@@ -83,7 +83,6 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
 
     modifier createDao() {
         vm.startPrank(takadao);
-        referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
         _;

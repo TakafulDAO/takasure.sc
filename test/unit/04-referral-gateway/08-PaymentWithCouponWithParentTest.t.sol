@@ -79,8 +79,18 @@ contract ReferralGatewayWithCouponWithParentPaymentTest is Test {
         vm.prank(couponPool);
         usdc.approve(address(referralGateway), 1000e6);
 
-        vm.prank(takadao);
-        referralGateway.setDaoName(tDaoName);
+        bytes memory strBytes = bytes(tDaoName);
+        bytes32 slotValue;
+
+        assembly {
+            slotValue := mload(add(strBytes, 32))
+        }
+
+        uint256 lenFlagged = strBytes.length * 2;
+
+        slotValue = (slotValue & ~bytes32(uint256(0xFF))) | bytes32(uint256(lenFlagged));
+
+        vm.store(address(referralGateway), bytes32(uint256(9)), slotValue);
 
         vm.prank(config.daoMultisig);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
