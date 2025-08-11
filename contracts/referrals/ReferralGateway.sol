@@ -500,14 +500,15 @@ contract ReferralGateway is
         emit OnReferralDiscountSwitched(nameToDAOData[daoName].referralDiscountEnabled);
     }
 
-    function setPrejoinDiscount(bool _preJoinDiscountEnabled) external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].preJoinDiscountEnabled = _preJoinDiscountEnabled;
-        emit OnPrejoinDiscountSwitched(_preJoinDiscountEnabled);
+    function switchPrejoinDiscount() external onlyRole(OPERATOR) {
+        nameToDAOData[daoName].preJoinDiscountEnabled = !nameToDAOData[daoName]
+            .preJoinDiscountEnabled;
+        emit OnPrejoinDiscountSwitched(nameToDAOData[daoName].preJoinDiscountEnabled);
     }
 
-    function setRewardsDistribution(bool _rewardsEnabled) external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].rewardsEnabled = _rewardsEnabled;
-        emit OnRewardsDistributionSwitched(_rewardsEnabled);
+    function switchRewardsDistribution() external onlyRole(OPERATOR) {
+        nameToDAOData[daoName].rewardsEnabled = !nameToDAOData[daoName].rewardsEnabled;
+        emit OnRewardsDistributionSwitched(nameToDAOData[daoName].rewardsEnabled);
     }
 
     function pause() external onlyRole(PAUSE_GUARDIAN) {
