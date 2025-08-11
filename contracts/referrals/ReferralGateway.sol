@@ -8,7 +8,6 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -32,7 +31,7 @@ contract ReferralGateway is
     using SafeERC20 for IERC20;
 
     IERC20 public usdc;
-    IBenefitMultiplierConsumer private bmConsumer; // DEPRECATED!!!
+    address private bmConsumer; // DEPRECATED!!!
 
     address private operator;
 
@@ -57,7 +56,7 @@ contract ReferralGateway is
     struct tDAO {
         mapping(address member => PrepaidMember) prepaidMembers;
         string name;
-        bool preJoinEnabled;
+        bool preJoinDiscountEnabled;
         bool referralDiscount;
         address DAOAdmin; // The one that can modify the DAO settings
         address DAOAddress; // To be assigned when the tDAO is deployed
@@ -68,14 +67,14 @@ contract ReferralGateway is
         address rePoolAddress; // To be assigned when the tDAO is deployed
         uint256 toRepool; // In USDC, six decimals
         uint256 referralReserve; // In USDC, six decimals
-        IBenefitMultiplierConsumer bmConsumer; // DEPRECATED!!!
+        address bmConsumer; // DEPRECATED!!!
         address subscriptionModule;
     }
 
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => bool) private isMemberCouponRedeemer;
 
-    string public daoName = "The LifeDAO";
+    string public daoName;
 
     /*//////////////////////////////////////////////////////////////
                               FIXED RATIOS
@@ -115,7 +114,7 @@ contract ReferralGateway is
     //////////////////////////////////////////////////////////////*/
 
     event OnNewDAO(
-        bool indexed preJoinEnabled,
+        bool indexed preJoinDiscountEnabled,
         bool indexed referralDiscount,
         uint256 launchDate,
         uint256 objectiveAmount
@@ -148,7 +147,7 @@ contract ReferralGateway is
     event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
-    event OnPrejoinDiscountSwitched(bool indexed preJoinEnabled);
+    event OnPrejoinDiscountSwitched(bool indexed preJoinDiscountEnabled);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__InvalidLaunchDate();
@@ -193,7 +192,7 @@ contract ReferralGateway is
 
     /**
      * @notice Create a new DAO
-     * @param isPreJoinEnabled The pre-join status of the DAO
+     * @param isPreJoinDiscountEnabled The pre-join status of the DAO
      * @param isReferralDiscountEnabled The referral discount status of the DAO
      * @param launchDate An estimated launch date of the DAO
      * @param objectiveAmount The objective amount of the DAO
@@ -203,7 +202,7 @@ contract ReferralGateway is
      * @dev The objective amount can be 0, if the DAO is already launched or the objective amount is not defined
      */
     function createDAO(
-        bool isPreJoinEnabled,
+        bool isPreJoinDiscountEnabled,
         bool isReferralDiscountEnabled,
         uint256 launchDate,
         uint256 objectiveAmount
@@ -212,14 +211,19 @@ contract ReferralGateway is
 
         // Create the new DAO
         nameToDAOData[daoName].name = daoName;
-        nameToDAOData[daoName].preJoinEnabled = isPreJoinEnabled;
+        nameToDAOData[daoName].preJoinDiscountEnabled = isPreJoinDiscountEnabled;
         nameToDAOData[daoName].referralDiscount = isReferralDiscountEnabled;
         nameToDAOData[daoName].DAOAdmin = msg.sender;
         nameToDAOData[daoName].launchDate = launchDate;
         nameToDAOData[daoName].objectiveAmount = objectiveAmount;
-        nameToDAOData[daoName].bmConsumer = IBenefitMultiplierConsumer(address(0)); // DEPRECATED!!!
+        nameToDAOData[daoName].bmConsumer = address(0); // DEPRECATED!!!
 
-        emit OnNewDAO(isPreJoinEnabled, isReferralDiscountEnabled, launchDate, objectiveAmount);
+        emit OnNewDAO(
+            isPreJoinDiscountEnabled,
+            isReferralDiscountEnabled,
+            launchDate,
+            objectiveAmount
+        );
     }
 
     /**
@@ -242,7 +246,7 @@ contract ReferralGateway is
      * @dev Only the DAOAdmin can call this method, the DAOAdmin is the one that created the DAO and must have
      *      the role of DAO_MULTISIG in the DAO
      * @dev The tDAOAddress must be different from 0
-     * @dev It will disable the preJoinEnabled status of the DAO
+     * @dev It will disable the preJoinDiscountEnabled status of the DAO
      */
     function launchDAO(
         address tDAOAddress,
@@ -250,12 +254,13 @@ contract ReferralGateway is
         bool isReferralDiscountEnabled
     ) external onlyRole(OPERATOR) {
         _notZeroAddress(tDAOAddress);
+        _notZeroAddress(subscriptionModule);
         require(
             nameToDAOData[daoName].DAOAddress == address(0),
             ReferralGateway__DAOAlreadyLaunched()
         );
 
-        nameToDAOData[daoName].preJoinEnabled = false;
+        nameToDAOData[daoName].preJoinDiscountEnabled = false;
         nameToDAOData[daoName].referralDiscount = isReferralDiscountEnabled;
         nameToDAOData[daoName].DAOAddress = tDAOAddress;
         nameToDAOData[daoName].subscriptionModule = subscriptionModule;
@@ -487,9 +492,9 @@ contract ReferralGateway is
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
     }
 
-    function setPrejoinDiscount(bool _preJoinEnabled) external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].preJoinEnabled = _preJoinEnabled;
-        emit OnPrejoinDiscountSwitched(_preJoinEnabled);
+    function setPrejoinDiscount(bool _preJoinDiscountEnabled) external onlyRole(OPERATOR) {
+        nameToDAOData[daoName].preJoinDiscountEnabled = _preJoinDiscountEnabled;
+        emit OnPrejoinDiscountSwitched(_preJoinDiscountEnabled);
     }
 
     function pause() external onlyRole(PAUSE_GUARDIAN) {
@@ -540,7 +545,7 @@ contract ReferralGateway is
         external
         view
         returns (
-            bool preJoinEnabled,
+            bool preJoinDiscountEnabled,
             bool referralDiscount,
             address DAOAdmin,
             address DAOAddress,
@@ -553,7 +558,7 @@ contract ReferralGateway is
             uint256 referralReserve
         )
     {
-        preJoinEnabled = nameToDAOData[daoName].preJoinEnabled;
+        preJoinDiscountEnabled = nameToDAOData[daoName].preJoinDiscountEnabled;
         referralDiscount = nameToDAOData[daoName].referralDiscount;
         DAOAdmin = nameToDAOData[daoName].DAOAdmin;
         DAOAddress = nameToDAOData[daoName].DAOAddress;
@@ -599,7 +604,7 @@ contract ReferralGateway is
         _finalFee = (normalizedContribution * SERVICE_FEE_RATIO) / 100;
 
         // If the DAO pre join is enabled, it will get a discount as a pre-joiner
-        if (nameToDAOData[daoName].preJoinEnabled)
+        if (nameToDAOData[daoName].preJoinDiscountEnabled)
             _discount +=
                 ((normalizedContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
                 100;
@@ -843,5 +848,11 @@ contract ReferralGateway is
 
     function setDaoName(string memory _daoName) external onlyRole(OPERATOR) {
         daoName = _daoName;
+    }
+
+    function defaultDaoConfig() external onlyRole(OPERATOR) {
+        nameToDAOData[daoName].DAOAddress = address(0);
+        nameToDAOData[daoName].DAOAdmin = address(0);
+        nameToDAOData[daoName].referralDiscount = true;
     }
 }
