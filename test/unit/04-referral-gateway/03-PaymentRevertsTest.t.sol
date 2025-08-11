@@ -210,7 +210,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     function testMustRevertIfTryToJoinTwiceCase3() public {
         // We disable the prejoin discount
         vm.prank(takadao);
-        referralGateway.setPrejoinDiscount(false);
+        referralGateway.switchPrejoinDiscount();
 
         vm.startPrank(couponRedeemer);
         // Child pays the contribution for the first time
@@ -227,7 +227,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     function testMustRevertIfTryToJoinTwiceCase4() public {
         // We disable the prejoin discount and referral discount
         vm.startPrank(takadao);
-        referralGateway.setPrejoinDiscount(false);
+        referralGateway.switchPrejoinDiscount();
 
         referralGateway.switchReferralDiscount();
         vm.stopPrank();

@@ -122,7 +122,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
     function testPrepaymentCase2() public {
         vm.startPrank(takadao);
         referralGateway.switchReferralDiscount();
-        referralGateway.setRewardsDistribution(false);
+        referralGateway.switchRewardsDistribution();
         vm.stopPrank();
 
         (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
@@ -154,7 +154,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
     //======== preJoinEnabled = false, referralDiscount = true, no parent, no coupon ========//
     function testPrepaymentCase3() public {
         vm.prank(takadao);
-        referralGateway.setPrejoinDiscount(false);
+        referralGateway.switchPrejoinDiscount();
 
         (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -184,9 +184,9 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
     //======== preJoinEnabled = false, referralDiscount = false, no parent, no coupon ========//
     function testPrepaymentCase4() public {
         vm.startPrank(takadao);
-        referralGateway.setPrejoinDiscount(false);
+        referralGateway.switchPrejoinDiscount();
         referralGateway.switchReferralDiscount();
-        referralGateway.setRewardsDistribution(false);
+        referralGateway.switchRewardsDistribution();
         vm.stopPrank();
 
         (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
