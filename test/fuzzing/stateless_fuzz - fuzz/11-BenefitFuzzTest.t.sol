@@ -16,7 +16,7 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {AssociationMember, AssociationMemberState, ProtocolAddressType, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 contract BenefitFuzzTest is StdCheats, Test {
     DeployManagers managersDeployer;

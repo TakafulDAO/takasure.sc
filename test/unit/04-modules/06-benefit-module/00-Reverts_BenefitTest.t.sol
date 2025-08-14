@@ -20,7 +20,7 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {AssociationMember, AssociationMemberState, ProtocolAddressType, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 contract Reverts_BenefitTest is StdCheats, Test {
     DeployManagers managersDeployer;
@@ -111,9 +111,9 @@ contract Reverts_BenefitTest is StdCheats, Test {
 
     function testBenefitModule_joinBenefitRevertsIfModuleDisabled() public {
         vm.prank(address(moduleManager));
-        kycModule.setContractState(ModuleState.Paused);
+        lifeModule.setContractState(ModuleState.Paused);
 
-        vm.prank(kycProvider);
+        vm.prank(couponRedeemer);
         vm.expectRevert();
         lifeModule.joinBenefitOnBehalfOf(alice, 50e6, 5 * YEAR, 0);
     }
