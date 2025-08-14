@@ -112,13 +112,6 @@ contract BenefitModule is
         uint256 membershipDuration,
         uint256 couponAmount
     ) external nonReentrant onlyRole(Roles.COUPON_REDEEMER, address(addressManager)) {
-        // Check caller
-        require(
-            AddressAndStates._checkName(address(addressManager), "ROUTER") ||
-                msg.sender == memberWallet,
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-
         // Initial checks and settings
         (
             Reserve memory reserve,
