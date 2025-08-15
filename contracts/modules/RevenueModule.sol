@@ -76,7 +76,6 @@ contract RevenueModule is TLDModuleImplementation, Initializable, UUPSUpgradeabl
                 AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
-        require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
         ITakasureReserve takasureReserve = ITakasureReserve(
             addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
