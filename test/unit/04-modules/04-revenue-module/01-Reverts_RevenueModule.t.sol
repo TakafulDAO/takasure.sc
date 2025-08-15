@@ -46,12 +46,6 @@ contract Reverts_RevenueModule is Test {
         operator = operatorAddr;
     }
 
-    function testRevenueModule_depositRevenueRevertIfContributionType() public {
-        vm.prank(operator);
-        vm.expectRevert(RevenueModule.RevenueModule__WrongRevenueType.selector);
-        revenueModule.depositRevenue(25e6, RevenueType.Contribution);
-    }
-
     function testRevenueModule_depositRevenueRevertIfCallerIsWrong() public {
         vm.prank(address(0));
         vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);

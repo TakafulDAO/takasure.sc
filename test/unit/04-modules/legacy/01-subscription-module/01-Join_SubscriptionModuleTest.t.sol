@@ -76,64 +76,7 @@
 //                       JOIN POOL::CREATE NEW MEMBER
 //     //////////////////////////////////////////////////////////////*/
 
-//     /// @dev Test that the paySubscription function updates the memberIdCounter
-//     function testSubscriptionModule_paySubscriptionUpdatesCounter() public {
-//         uint256 memberIdCounterBeforeAlice = takasureReserve.getReserveValues().memberIdCounter;
 
-//         vm.prank(alice);
-//         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
-
-//         uint256 memberIdCounterAfterAlice = takasureReserve.getReserveValues().memberIdCounter;
-
-//         vm.prank(bob);
-//         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
-
-//         uint256 memberIdCounterAfterBob = takasureReserve.getReserveValues().memberIdCounter;
-
-//         assertEq(memberIdCounterAfterAlice, memberIdCounterBeforeAlice + 1);
-//         assertEq(memberIdCounterAfterBob, memberIdCounterAfterAlice + 1);
-//     }
-
-//     function testSubscriptionModule_paySubscriptionTransferAmountsCorrectly() public {
-//         uint256 aliceBalanceBefore = usdc.balanceOf(alice);
-
-//         vm.prank(alice);
-//         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
-
-//         uint256 aliceBalanceAfter = usdc.balanceOf(alice);
-
-//         assertEq(aliceBalanceAfter, aliceBalanceBefore - CONTRIBUTION_AMOUNT);
-//     }
-
-//     /// @dev Test the membership custom duration
-//     function testSubscriptionModule_customMembershipDuration() public {
-//         vm.prank(admin);
-//         takasureReserve.setAllowCustomDuration(true);
-
-//         vm.prank(alice);
-//         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, YEAR);
-
-//         Member memory member = takasureReserve.getMemberFromAddress(alice);
-
-//         assertEq(member.membershipDuration, YEAR);
-//     }
-
-//     /// @dev Test the member is created
-//     function testSubscriptionModule_newMember() public {
-//         vm.prank(alice);
-//         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
-
-//         uint256 memberId = takasureReserve.getReserveValues().memberIdCounter;
-
-//         // Check the member is created and added correctly to mappings
-//         Member memory testMember = takasureReserve.getMemberFromAddress(alice);
-
-//         assertEq(testMember.memberId, memberId);
-//         assertEq(testMember.benefitMultiplier, BENEFIT_MULTIPLIER);
-//         assertEq(testMember.contribution, CONTRIBUTION_AMOUNT);
-//         assertEq(testMember.wallet, alice);
-//         assertEq(uint8(testMember.memberState), 0);
-//     }
 
 //     function testGasBenchMark_paySubscriptionThroughUserRouter() public {
 //         // Gas used: 505546
