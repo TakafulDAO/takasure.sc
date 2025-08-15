@@ -163,9 +163,9 @@ contract BenefitModule is
         // The member can not be part of the corresponding benefit
         member_ = _getAssociationMembersValuesHook(addressManager, _memberWallet);
 
-        if (_stringsEqual(moduleName, "LIFE_MODULE")) {
+        if (_stringsEqual(moduleName, "LIFE_BENEFIT_MODULE")) {
             require(!member_.isLifeProtected, ModuleErrors.Module__AlreadyJoined());
-        } else if (_stringsEqual(moduleName, "FAREWELL_MODULE")) {
+        } else if (_stringsEqual(moduleName, "FAREWELL_BENEFIT_MODULE")) {
             require(!member_.isFarewellProtected, ModuleErrors.Module__AlreadyJoined());
         } else {
             revert BenefitModule__BenefitNotSupported();
