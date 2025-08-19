@@ -137,4 +137,13 @@ contract ReferralGatewayFuzzTest is Test, SimulateDonResponse {
         vm.expectRevert();
         referralGateway.switchReferralDiscount();
     }
+
+    function testUpgradeRevertsIfCallerIsInvalid(address caller) public {
+        vm.assume(caller != takadao);
+        address newImpl = makeAddr("newImpl");
+
+        vm.prank(caller);
+        vm.expectRevert();
+        referralGateway.upgradeToAndCall(newImpl, "");
+    }
 }

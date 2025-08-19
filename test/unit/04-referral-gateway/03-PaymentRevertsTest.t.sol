@@ -18,6 +18,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     address usdcAddress;
     address referralGatewayAddress;
     address takadao;
+    address pauseGuardian;
     address nonKycParent = makeAddr("nonKycParent");
     address child = makeAddr("child");
     address couponRedeemer = makeAddr("couponRedeemer");
@@ -36,6 +37,12 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         uint256 fee,
         uint256 discount
     );
+
+    modifier pauseContract() {
+        vm.prank(pauseGuardian);
+        referralGateway.pause();
+        _;
+    }
 
     function setUp() public {
         // Deployer
@@ -59,6 +66,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
+        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
         referralGateway = ReferralGateway(referralGatewayAddress);
@@ -253,5 +261,11 @@ contract ReferralGatewayPaymentRevertsTest is Test {
             USDC_INITIAL_AMOUNT * 2,
             false
         );
+    }
+
+    function testMustRevertIfContractIsPaused() public pauseContract {
+        vm.prank(couponRedeemer);
+        vm.expectRevert();
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
     }
 }

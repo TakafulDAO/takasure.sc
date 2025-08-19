@@ -18,6 +18,7 @@ contract ReferralGatewaySettersTests is Test {
     address usdcAddress;
     address referralGatewayAddress;
     address operator;
+    address pauseGuardian;
     address couponUser = makeAddr("couponUser");
     address ccipUser = makeAddr("ccipUser");
     address couponPool = makeAddr("couponPool");
@@ -38,6 +39,8 @@ contract ReferralGatewaySettersTests is Test {
         address indexed oldCCIPReceiverContract,
         address indexed newCCIPReceiverContract
     );
+    event Paused(address account);
+    event Unpaused(address account);
 
     function setUp() public {
         // Deployer
@@ -61,6 +64,7 @@ contract ReferralGatewaySettersTests is Test {
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         operator = config.takadaoOperator;
+        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
         referralGateway = ReferralGateway(address(referralGatewayAddress));
@@ -95,5 +99,27 @@ contract ReferralGatewaySettersTests is Test {
         vm.expectEmit(true, true, false, false, address(referralGateway));
         emit OnNewCouponPoolAddress(address(0), couponPool);
         referralGateway.setCouponPoolAddress(couponPool);
+    }
+
+    function testReferralGateway_upgrade() public {
+        address newImpl = address(new ReferralGateway());
+
+        vm.prank(operator);
+        referralGateway.upgradeToAndCall(newImpl, "");
+    }
+
+    function testReferralGateway_pause() public {
+        vm.prank(pauseGuardian);
+        vm.expectEmit(false, false, false, true, address(referralGateway));
+        emit Paused(pauseGuardian);
+        referralGateway.pause();
+    }
+
+    function testReferralGateway_unPause() public {
+        vm.startPrank(pauseGuardian);
+        referralGateway.pause();
+        vm.expectEmit(false, false, false, true, address(referralGateway));
+        emit Unpaused(pauseGuardian);
+        referralGateway.unpause();
     }
 }
