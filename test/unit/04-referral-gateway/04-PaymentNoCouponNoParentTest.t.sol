@@ -123,30 +123,9 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         vm.prank(takadao);
         referralGateway.switchRewardsDistribution();
 
-        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
-
-        assertEq(alreadyCollectedFees, 0);
-
-        uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
-        uint256 collectedFees = fees -
-            ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
-            ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
-
-        uint256 expectedDiscount = (CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
-            100;
-
         vm.prank(couponRedeemer);
-        vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
+        vm.expectRevert(ReferralGateway.ReferralGateway__IncompatibleSettings.selector);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
-
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
-
-        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
-
-        assertEq(totalCollectedFees, collectedFees);
-        assertEq(collectedFees, 3_750_000);
-        assertEq(discount, expectedDiscount);
     }
 
     //======== preJoinDiscountEnabled = true, referralDiscountEnabled = false, rewardsEnabled = true, no parent, no coupon ========//
@@ -251,27 +230,9 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         referralGateway.switchRewardsDistribution(); // false
         vm.stopPrank();
 
-        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
-
-        assertEq(alreadyCollectedFees, 0);
-
-        uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
-        uint256 collectedFees = fees - ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
-
-        uint256 expectedDiscount = 0;
-
         vm.prank(couponRedeemer);
-        vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
+        vm.expectRevert(ReferralGateway.ReferralGateway__IncompatibleSettings.selector);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
-
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
-
-        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
-
-        assertEq(totalCollectedFees, collectedFees);
-        assertEq(collectedFees, 6_250_000);
-        assertEq(discount, expectedDiscount);
     }
 
     //======== preJoinDiscountEnabled = false, referralDiscountEnabled = false, rewardsEnabled = true, no parent, no coupon ========//
