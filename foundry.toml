@@ -22,6 +22,7 @@ optimizer = true
 optimizer_runs = 100000
 evm_version = 'cancun'
 
+
 [fuzz]
 runs = 256
 seed = "0x2"
@@ -48,3 +49,6 @@ base_sepolia = "${BASE_TESTNET_RPC_URL}"
 eth_sepolia = "${ETHEREUM_TESTNET_SEPOLIA_RPC_URL}"
 optimism_sepolia = "${OPTIMISM_TESTNET_RPC_URL}"
 polygon_amoy = "${POLYGON_TESTNET_RPC_URL}"
+
+[lint]
+ignore = ['*.t.sol', '*.s.sol', './test/', './scripts/', './deploy/']
