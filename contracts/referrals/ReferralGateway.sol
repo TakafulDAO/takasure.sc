@@ -164,6 +164,7 @@ contract ReferralGateway is
     error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
     error ReferralGateway__NotAuthorizedCaller();
+    error ReferralGateway__IncompatibleSettings();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -716,9 +717,15 @@ contract ReferralGateway is
                 ReferralGateway__InvalidContribution()
             );
 
-        // If there is a parent, it must be KYCed first
-        if (_parent != address(0))
+        // If the referral discount is enabled, the rewards must also be enabled
+        if (nameToDAOData[daoName].referralDiscountEnabled)
+            require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
+
+        // If there is a parent, it must be KYCed first, and the rewards must be enabled
+        if (_parent != address(0)) {
+            require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
             require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
+        }
     }
 
     function _parentRewards(
