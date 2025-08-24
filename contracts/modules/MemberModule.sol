@@ -8,18 +8,16 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
 import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -30,7 +28,6 @@ pragma solidity 0.8.28;
 contract MemberModule is
     Initializable,
     UUPSUpgradeable,
-    AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
@@ -39,10 +36,25 @@ contract MemberModule is
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    IBenefitMultiplierConsumer private bmConsumer;
     ModuleState private moduleState;
 
     error MemberModule__InvalidDate();
+
+    modifier onlyContract(string memory name) {
+        require(
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -52,17 +64,9 @@ contract MemberModule is
     function initialize(address _takasureReserveAddress) external initializer {
         AddressAndStates._notZeroAddress(_takasureReserveAddress);
         __UUPSUpgradeable_init();
-        __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
-        address takadaoOperator = takasureReserve.takadaoOperator();
-        address moduleManager = takasureReserve.moduleManager();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
     }
 
     /**
@@ -71,7 +75,7 @@ contract MemberModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+    ) external override onlyContract("MODULE_MANAGER") {
         moduleState = newState;
     }
 
@@ -87,10 +91,13 @@ contract MemberModule is
 
     function payRecurringContribution(address memberWallet) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+
         require(
-            hasRole(ModuleConstants.ROUTER, msg.sender) || msg.sender == memberWallet,
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
+                msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
+
         (Reserve memory reserve, Member memory activeMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
@@ -128,9 +135,9 @@ contract MemberModule is
             activeMember.memberState = MemberState.Active;
 
         // And we pay the contribution
-        uint256 mintedTokens;
+        uint256 credits;
 
-        (reserve, mintedTokens) = _memberPaymentFlow({
+        (reserve, credits) = _memberPaymentFlow({
             _contributionBeforeFee: contributionBeforeFee,
             _contributionAfterFee: contributionBeforeFee - feeAmount,
             _memberWallet: memberWallet,
@@ -138,7 +145,7 @@ contract MemberModule is
             _takasureReserve: takasureReserve
         });
 
-        activeMember.creditTokensBalance += mintedTokens;
+        activeMember.creditsBalance += credits;
 
         emit TakasureEvents.OnRecurringPayment(
             memberWallet,
@@ -202,5 +209,5 @@ contract MemberModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

@@ -8,42 +8,41 @@
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
 import {IMemberModule} from "contracts/interfaces/IMemberModule.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
-contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
-    ISubscriptionModule private subscriptionModule;
-    IMemberModule private memberModule;
+contract UserRouter is Initializable, UUPSUpgradeable {
+    IAddressManager private addressManager;
+
+    error UserRouter__NotAuthorizedCaller();
+
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(addressManager), role),
+            UserRouter__NotAuthorizedCaller()
+        );
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(
-        address _takasureReserveAddress,
-        address _subscriptionModule,
-        address _memberModule
-    ) external initializer {
+    function initialize(address _takasureReserveAddress) external initializer {
         AddressAndStates._notZeroAddress(_takasureReserveAddress);
-        AddressAndStates._notZeroAddress(_subscriptionModule);
-        AddressAndStates._notZeroAddress(_memberModule);
 
         __UUPSUpgradeable_init();
-        __AccessControl_init();
 
-        subscriptionModule = ISubscriptionModule(_subscriptionModule);
-        memberModule = IMemberModule(_memberModule);
-
-        address takadaoOperator = ITakasureReserve(_takasureReserveAddress).takadaoOperator();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
+        addressManager = IAddressManager(
+            ITakasureReserve(_takasureReserveAddress).addressManager()
+        );
     }
 
     function paySubscription(
@@ -51,6 +50,8 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external {
+        ISubscriptionModule subscriptionModule = _getSubscriptionModule();
+
         subscriptionModule.paySubscription(
             msg.sender,
             memberWallet,
@@ -60,39 +61,53 @@ contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable 
     }
 
     function refund() external {
+        ISubscriptionModule subscriptionModule = _getSubscriptionModule();
+
         subscriptionModule.refund(msg.sender);
     }
 
     function payRecurringContribution() external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.payRecurringContribution(msg.sender);
     }
 
     function cancelMembership() external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.cancelMembership(msg.sender);
     }
 
     function cancelMembership(address memberWallet) external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.cancelMembership(memberWallet);
     }
 
     function defaultMember(address memberWallet) external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.defaultMember(memberWallet);
     }
 
-    function setSubscriptionModule(
-        address _subscriptionModule
-    ) external onlyRole(ModuleConstants.OPERATOR) {
-        AddressAndStates._notZeroAddress(_subscriptionModule);
-        subscriptionModule = ISubscriptionModule(_subscriptionModule);
+    function _getSubscriptionModule()
+        internal
+        view
+        returns (ISubscriptionModule subscriptionModule_)
+    {
+        subscriptionModule_ = ISubscriptionModule(
+            addressManager.getProtocolAddressByName("SUBSCRIPTION_MODULE").addr
+        );
     }
 
-    function setMemberModule(address _memberModule) external onlyRole(ModuleConstants.OPERATOR) {
-        AddressAndStates._notZeroAddress(_memberModule);
-        memberModule = IMemberModule(_memberModule);
+    function _getMemberModule() internal view returns (IMemberModule memberModule_) {
+        memberModule_ = IMemberModule(
+            addressManager.getProtocolAddressByName("MEMBER_MODULE").addr
+        );
     }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

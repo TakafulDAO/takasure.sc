@@ -8,20 +8,19 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
-import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, ModuleState, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -33,7 +32,6 @@ pragma solidity 0.8.28;
 contract SubscriptionModule is
     Initializable,
     UUPSUpgradeable,
-    AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     TLDModuleImplementation,
     ReserveAndMemberValuesHook,
@@ -43,8 +41,6 @@ contract SubscriptionModule is
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    IBenefitMultiplierConsumer private bmConsumer;
-    IModuleManager private moduleManager;
     ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
@@ -54,17 +50,31 @@ contract SubscriptionModule is
 
     address private referralGateway;
     address private couponPool;
-    address private ccipReceiverContract;
 
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => bool) private isMemberCouponRedeemer;
 
     error SubscriptionModule__InvalidContribution();
     error SubscriptionModule__AlreadyJoined();
-    error SubscriptionModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error SubscriptionModule__MemberAlreadyKYCed();
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__TooEarlytoRefund();
+
+    modifier onlyContract(string memory name) {
+        require(
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -74,26 +84,15 @@ contract SubscriptionModule is
     function initialize(
         address _takasureReserveAddress,
         address _referralGateway,
-        address _ccipReceiverContract,
         address _couponPool
     ) external initializer {
         __UUPSUpgradeable_init();
-        __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
-        moduleManager = IModuleManager(takasureReserve.moduleManager());
-
-        address takadaoOperator = takasureReserve.takadaoOperator();
 
         referralGateway = _referralGateway;
-        ccipReceiverContract = _ccipReceiverContract;
         couponPool = _couponPool;
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, address(moduleManager));
-        _grantRole(ModuleConstants.OPERATOR, takadaoOperator);
     }
 
     /**
@@ -102,24 +101,13 @@ contract SubscriptionModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
+    ) external override onlyContract("MODULE_MANAGER") {
         moduleState = newState;
     }
 
-    function setCouponPoolAddress(address _couponPool) external onlyRole(ModuleConstants.OPERATOR) {
+    function setCouponPoolAddress(address _couponPool) external onlyRole(Roles.OPERATOR) {
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
-    }
-
-    function setCCIPReceiverContract(
-        address _ccipReceiverContract
-    ) external onlyRole(ModuleConstants.OPERATOR) {
-        AddressAndStates._notZeroAddress(_ccipReceiverContract);
-        ccipReceiverContract = _ccipReceiverContract;
-    }
-
-    function updateBmAddress() external onlyRole(ModuleConstants.OPERATOR) {
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
     }
 
     function joinFromReferralGateway(
@@ -132,8 +120,7 @@ contract SubscriptionModule is
 
         (
             Reserve memory reserve,
-            Member memory newMember,
-            uint256 benefitMultiplier
+            Member memory newMember
         ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
         _joinFromReferralGateway(
@@ -141,8 +128,7 @@ contract SubscriptionModule is
             newMember,
             memberWallet,
             parentWallet,
-            membershipDuration,
-            benefitMultiplier
+            membershipDuration
         );
     }
 
@@ -166,13 +152,13 @@ contract SubscriptionModule is
     ) external nonReentrant {
         (
             Reserve memory reserve,
-            Member memory newMember,
-            uint256 benefitMultiplier
+            Member memory newMember
         ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
         // Check caller
         require(
-            hasRole(ModuleConstants.ROUTER, msg.sender) || msg.sender == memberWallet,
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
+                msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
@@ -183,13 +169,12 @@ contract SubscriptionModule is
             parentWallet,
             contributionBeforeFee,
             membershipDuration,
-            benefitMultiplier,
             0
         );
     }
 
     /**
-     * @notice Called by backend or CCIP protocol to allow new members to join the pool
+     * @notice Called by backend to allow new members to join the pool
      * @param couponAmount in six decimals
      */
     function paySubscriptionOnBehalfOf(
@@ -198,18 +183,14 @@ contract SubscriptionModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration,
         uint256 couponAmount
-    ) external nonReentrant {
+    ) external nonReentrant onlyRole(Roles.COUPON_REDEEMER) {
         (
             Reserve memory reserve,
-            Member memory newMember,
-            uint256 benefitMultiplier
+            Member memory newMember
         ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
 
         // Check if the coupon amount is valid
         require(couponAmount <= contributionBeforeFee, SubscriptionModule__InvalidContribution());
-
-        // Check caller
-        _onlyCouponRedeemerOrCcipReceiver();
 
         _join(
             reserve,
@@ -218,7 +199,6 @@ contract SubscriptionModule is
             parentWallet,
             contributionBeforeFee,
             membershipDuration,
-            benefitMultiplier,
             couponAmount
         );
 
@@ -233,12 +213,7 @@ contract SubscriptionModule is
         address memberWallet,
         address takasureReserveAddress,
         uint256 contributionAfterFeeAmount
-    ) external {
-        require(
-            moduleManager.isActiveModule(msg.sender),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-
+    ) external onlyContract("KYC_MODULE") {
         _transferContributionToReserve(
             contributionToken,
             memberWallet,
@@ -270,7 +245,7 @@ contract SubscriptionModule is
         uint256 _contributionBeforeFee
     )
         internal
-        returns (Reserve memory reserve_, Member memory newMember_, uint256 benefitMultiplier_)
+        returns (Reserve memory reserve_, Member memory newMember_)
     {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
@@ -285,8 +260,6 @@ contract SubscriptionModule is
             );
         }
 
-        benefitMultiplier_ = _getBenefitMultiplierFromOracle(_memberWallet);
-
         _calculateAmountAndFees(_contributionBeforeFee, reserve_.serviceFee);
     }
 
@@ -295,14 +268,12 @@ contract SubscriptionModule is
         Member memory _newMember,
         address _memberWallet,
         address _parentWallet,
-        uint256 _membershipDuration,
-        uint256 _benefitMultiplier
+        uint256 _membershipDuration
     ) internal {
         _newMember = _createNewMember({
             _newMemberId: ++_reserve.memberIdCounter,
             _allowCustomDuration: _reserve.allowCustomDuration,
             _drr: _reserve.dynamicReserveRatio,
-            _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
             _membershipDuration: _membershipDuration, // From the input
             _isKYCVerified: true, // All members from prejoin are KYCed
             _memberWallet: _memberWallet, // The member wallet
@@ -312,9 +283,9 @@ contract SubscriptionModule is
 
         // Then everyting needed will be updated, proformas, reserves, cash flow,
         // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
-        uint256 mintedTokens;
+        uint256 credits;
 
-        (_reserve, mintedTokens) = _memberPaymentFlow({
+        (_reserve, credits) = _memberPaymentFlow({
             _contributionBeforeFee: _newMember.contribution,
             _contributionAfterFee: contributionAfterFee,
             _memberWallet: _memberWallet,
@@ -322,7 +293,7 @@ contract SubscriptionModule is
             _takasureReserve: takasureReserve
         });
 
-        _newMember.creditTokensBalance += mintedTokens;
+        _newMember.creditsBalance += credits;
 
         emit TakasureEvents.OnMemberJoined(_newMember.memberId, _memberWallet);
 
@@ -338,7 +309,6 @@ contract SubscriptionModule is
         address _parentWallet,
         uint256 _contributionBeforeFee,
         uint256 _membershipDuration,
-        uint256 _benefitMultiplier,
         uint256 _couponAmount
     ) internal {
         require(
@@ -366,7 +336,6 @@ contract SubscriptionModule is
             _newMemberId: memberId,
             _allowCustomDuration: _reserve.allowCustomDuration,
             _drr: _reserve.dynamicReserveRatio,
-            _benefitMultiplier: _benefitMultiplier, // Fetch from oracle
             _membershipDuration: _membershipDuration, // From the input
             _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
             _memberWallet: _memberWallet, // The member wallet
@@ -434,10 +403,12 @@ contract SubscriptionModule is
             _memberWallet
         );
 
+        address addressManager = address(takasureReserve.addressManager());
+
         require(
             _memberWallet == msg.sender ||
-                hasRole(ModuleConstants.ROUTER, msg.sender) ||
-                hasRole(ModuleConstants.OPERATOR, msg.sender),
+                AddressAndStates._checkName(addressManager, "ROUTER") ||
+                AddressAndStates._checkRole(addressManager, Roles.OPERATOR),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         // The member should not be KYCed neither already refunded
@@ -468,7 +439,7 @@ contract SubscriptionModule is
             claimAddAmount: 0,
             totalContributions: 0,
             totalServiceFee: 0,
-            creditTokensBalance: 0,
+            creditsBalance: 0,
             wallet: _memberWallet,
             parent: address(0),
             memberState: MemberState.Inactive,
@@ -511,7 +482,6 @@ contract SubscriptionModule is
         uint256 _newMemberId,
         bool _allowCustomDuration,
         uint256 _drr,
-        uint256 _benefitMultiplier,
         uint256 _membershipDuration,
         bool _isKYCVerified,
         address _memberWallet,
@@ -531,7 +501,7 @@ contract SubscriptionModule is
 
         Member memory newMember = Member({
             memberId: _newMemberId,
-            benefitMultiplier: _benefitMultiplier,
+            benefitMultiplier: 0, // Placeholder, will be set after the KYC
             membershipDuration: userMembershipDuration,
             membershipStartTime: block.timestamp,
             lastPaidYearStartDate: block.timestamp,
@@ -540,7 +510,7 @@ contract SubscriptionModule is
             claimAddAmount: claimAddAmount,
             totalContributions: normalizedContributionBeforeFee,
             totalServiceFee: feeAmount,
-            creditTokensBalance: 0,
+            creditsBalance: 0,
             wallet: _memberWallet,
             parent: _parentWallet,
             memberState: _memberState,
@@ -554,7 +524,6 @@ contract SubscriptionModule is
         emit TakasureEvents.OnMemberCreated(
             newMember.memberId,
             _memberWallet,
-            _benefitMultiplier,
             normalizedContributionBeforeFee,
             feeAmount,
             userMembershipDuration,
@@ -578,31 +547,6 @@ contract SubscriptionModule is
         }
     }
 
-    function _getBenefitMultiplierFromOracle(
-        address _member
-    ) internal returns (uint256 benefitMultiplier_) {
-        string memory memberAddressToString = Strings.toHexString(uint256(uint160(_member)), 20);
-        // First we check if there is already a request id for this member
-        bytes32 requestId = bmConsumer.memberToRequestId(memberAddressToString);
-
-        if (requestId == 0) {
-            // If there is no request id, it means the member has no valid BM yet. So we make a new request
-            string[] memory args = new string[](1);
-            args[0] = memberAddressToString;
-            bmConsumer.sendRequest(args);
-        } else {
-            // If there is a request id, we check if it was successful
-            bool successRequest = bmConsumer.idToSuccessRequest(requestId);
-            if (successRequest) {
-                benefitMultiplier_ = bmConsumer.idToBenefitMultiplier(requestId);
-            } else {
-                // If failed we get the error and revert with it
-                bytes memory errorResponse = bmConsumer.idToErrorResponse(requestId);
-                revert SubscriptionModule__BenefitMultiplierRequestFailed(errorResponse);
-            }
-        }
-    }
-
     function _transferContributionToModule(address _memberWallet, uint256 _couponAmount) internal {
         IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
         uint256 _amountToTransferFromMember;
@@ -615,19 +559,12 @@ contract SubscriptionModule is
 
         // Store temporarily the contribution in this contract, this way will be available for refunds
         if (_amountToTransferFromMember > 0) {
-            if (msg.sender == ccipReceiverContract) {
-                contributionToken.safeTransferFrom(
-                    ccipReceiverContract,
-                    address(this),
-                    _amountToTransferFromMember
-                );
-            } else {
-                contributionToken.safeTransferFrom(
-                    _memberWallet,
-                    address(this),
-                    _amountToTransferFromMember
-                );
-            }
+            contributionToken.safeTransferFrom(
+                _memberWallet,
+                address(this),
+                _amountToTransferFromMember
+            );
+
             // Transfer the coupon amount to this contract
             if (_couponAmount > 0) {
                 contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
@@ -635,22 +572,16 @@ contract SubscriptionModule is
             // Transfer the service fee to the fee claim address
             contributionToken.safeTransferFrom(
                 _memberWallet,
-                takasureReserve.feeClaimAddress(),
+                IAddressManager(address(takasureReserve.addressManager()))
+                    .getProtocolAddressByName("FEE_CLAIM_ADDRESS")
+                    .addr,
                 feeAmount
             );
         }
     }
 
-    function _onlyCouponRedeemerOrCcipReceiver() internal view {
-        require(
-            hasRole(ModuleConstants.COUPON_REDEEMER, msg.sender) ||
-                msg.sender == ccipReceiverContract,
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-    }
-
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

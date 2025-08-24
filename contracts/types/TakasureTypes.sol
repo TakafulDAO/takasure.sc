@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GNU GPLv3
-import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 
 pragma solidity 0.8.28;
 
@@ -34,6 +33,23 @@ enum RevenueType {
     CatLoan
 }
 
+enum ProtocolAddressType {
+    Admin,
+    Module,
+    Protocol
+}
+
+struct ProtocolAddress {
+    bytes32 name;
+    address addr;
+    ProtocolAddressType addressType;
+}
+
+struct ProposedRoleHolder {
+    address proposedHolder;
+    uint256 proposalTime;
+}
+
 struct CashFlowVars {
     uint256 dayDepositTimestamp;
     uint256 monthDepositTimestamp;
@@ -62,7 +78,7 @@ struct Member {
     uint256 claimAddAmount; // amount deposited in the claim reserve, six decimals, and without fees
     uint256 totalContributions; // in stablecoin currency. Six decimals. This is the total contribution made by the member
     uint256 totalServiceFee; // in stablecoin currency six decimals
-    uint256 creditTokensBalance; // 18 decimals
+    uint256 creditsBalance; // 18 decimals
     address wallet;
     address parent;
     MemberState memberState;
@@ -73,24 +89,6 @@ struct Member {
     uint256 lastUcr; // the last UCR calculated
 }
 
-struct tDAO {
-    mapping(address member => PrepaidMember) prepaidMembers;
-    string name;
-    bool preJoinEnabled;
-    bool referralDiscount;
-    address DAOAdmin; // Deprecated. DAOAdmin == Operator
-    address DAOAddress; // To be assigned when the tDAO is deployed
-    uint256 launchDate; // In seconds. An estimated launch date of the DAO
-    uint256 objectiveAmount; // Deprecated
-    uint256 currentAmount; // In USDC, six decimals
-    uint256 collectedFees; // Fees collected after deduct, discounts, referral reserve and repool amounts. In USDC, six decimals
-    address rePoolAddress; // To be assigned when the tDAO is deployed
-    uint256 toRepool; // In USDC, six decimals
-    uint256 referralReserve; // In USDC, six decimals
-    IBenefitMultiplierConsumer bmConsumer;
-    address entryModule; // The module that will be used to enter the DAO
-}
-
 struct Reserve {
     uint8 serviceFee; // Default 27%, max 35%
     uint8 bmaFundReserveShare; // Default 70%
@@ -99,8 +97,8 @@ struct Reserve {
     bool isOptimizerEnabled; // Default true
     bool allowCustomDuration; // Default false
     bool referralDiscount;
-    address daoToken;
     address contributionToken;
+    uint256 totalCredits; // Total credits issued to members, 18 decimals
     uint256 memberIdCounter;
     uint256 minimumThreshold; // Default 25 USDC, 6 decimals
     uint256 maximumThreshold; // Default 250 USDC, 6 decimals
