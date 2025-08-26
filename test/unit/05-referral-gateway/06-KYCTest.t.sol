@@ -20,7 +20,6 @@ contract ReferralGatewayKYCTest is Test {
     address pauseGuardian;
     address addressToKyc = makeAddr("addressToKyc");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "The LifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
 

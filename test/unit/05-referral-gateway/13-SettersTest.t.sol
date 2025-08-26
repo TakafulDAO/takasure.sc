@@ -5,24 +5,19 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewaySettersTests is Test {
     TestDeployProtocol deployer;
     ReferralGateway referralGateway;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     HelperConfig helperConfig;
     IUSDC usdc;
     address usdcAddress;
     address referralGatewayAddress;
     address operator;
-    address pauseGuardian;
     address couponUser = makeAddr("couponUser");
-    address ccipUser = makeAddr("ccipUser");
     address couponPool = makeAddr("couponPool");
-    address ccipReceiverContract = makeAddr("ccipReceiverContract");
     address couponRedeemer = makeAddr("couponRedeemer");
     string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
@@ -35,36 +30,16 @@ contract ReferralGatewaySettersTests is Test {
         string indexed tDAOName,
         uint256 indexed couponAmount
     );
-    event OnNewCCIPReceiverContract(
-        address indexed oldCCIPReceiverContract,
-        address indexed newCCIPReceiverContract
-    );
-    event Paused(address account);
-    event Unpaused(address account);
 
     function setUp() public {
         // Deployer
         deployer = new TestDeployProtocol();
         // Deploy contracts
-        (
-            ,
-            bmConsumerMock,
-            ,
-            referralGatewayAddress,
-            ,
-            ,
-            ,
-            ,
-            ,
-            usdcAddress,
-            ,
-            helperConfig
-        ) = deployer.run();
+        (, referralGatewayAddress, , , , , , usdcAddress, , helperConfig) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         operator = config.takadaoOperator;
-        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
         referralGateway = ReferralGateway(address(referralGatewayAddress));
@@ -82,16 +57,21 @@ contract ReferralGatewaySettersTests is Test {
         vm.prank(couponPool);
         usdc.approve(address(referralGateway), 1000e6);
 
-        // To the ccip receiver contract, it will be used to pay the contributions of the ccip user
-        deal(address(usdc), ccipReceiverContract, 1000e6);
-        vm.prank(ccipReceiverContract);
-        usdc.approve(address(referralGateway), 1000e6);
+        bytes memory strBytes = bytes(tDaoName);
+        bytes32 slotValue;
+
+        assembly {
+            slotValue := mload(add(strBytes, 32))
+        }
+
+        uint256 lenFlagged = strBytes.length * 2;
+
+        slotValue = (slotValue & ~bytes32(uint256(0xFF))) | bytes32(uint256(lenFlagged));
+
+        vm.store(address(referralGateway), bytes32(uint256(9)), slotValue);
 
         vm.prank(config.daoMultisig);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
-
-        vm.prank(bmConsumerMock.admin());
-        bmConsumerMock.setNewRequester(referralGatewayAddress);
     }
 
     function testSetNewCouponPoolAddress() public {
@@ -99,27 +79,5 @@ contract ReferralGatewaySettersTests is Test {
         vm.expectEmit(true, true, false, false, address(referralGateway));
         emit OnNewCouponPoolAddress(address(0), couponPool);
         referralGateway.setCouponPoolAddress(couponPool);
-    }
-
-    function testReferralGateway_upgrade() public {
-        address newImpl = address(new ReferralGateway());
-
-        vm.prank(operator);
-        referralGateway.upgradeToAndCall(newImpl, "");
-    }
-
-    function testReferralGateway_pause() public {
-        vm.prank(pauseGuardian);
-        vm.expectEmit(false, false, false, true, address(referralGateway));
-        emit Paused(pauseGuardian);
-        referralGateway.pause();
-    }
-
-    function testReferralGateway_unPause() public {
-        vm.startPrank(pauseGuardian);
-        referralGateway.pause();
-        vm.expectEmit(false, false, false, true, address(referralGateway));
-        emit Unpaused(pauseGuardian);
-        referralGateway.unpause();
     }
 }

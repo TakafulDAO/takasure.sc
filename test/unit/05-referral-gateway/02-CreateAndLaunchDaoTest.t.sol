@@ -18,7 +18,6 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     address notAllowedAddress = makeAddr("notAllowedAddress");
     address DAO = makeAddr("DAO");
     address subscriptionModule = makeAddr("subscriptionModule");
-    string tDaoName = "The LifeDao";
 
     modifier pauseContract() {
         vm.prank(pauseGuardian);
