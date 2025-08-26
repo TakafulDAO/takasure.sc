@@ -1,0 +1,59 @@
+@startuml Payments without coupon
+autonumber
+
+actor Prepayer
+
+Prepayer -> PrejoinModule: payContribution(contribution, parent)
+
+alt Module is enabled
+    alt preJoinEnabled == true
+        alt Contribution is in range
+            alt Parent is KYCed
+                alt Is not existing member
+
+                    PrejoinModule --> PrejoinModule: apply prejoin discount
+
+                    alt referralDiscount == true                
+                        alt parent != address(0)
+                            PrejoinModule --> PrejoinModule: apply referral discount
+                            PrejoinModule --> PrejoinModule: assign child to parent
+                            PrejoinModule --> PrejoinModule: calculate parent reward
+                        else parent == address(0)
+                            PrejoinModule --> PrejoinModule: increase Referral Reserve
+                        end
+                    end
+
+                    alt Invariant checks pass
+                        PrejoinModule --> PrejoinModule: update repool balance
+                        PrejoinModule --> PrejoinModule: update DAO variables
+                        Prepayer --> PrejoinModule: Transfer Contribution
+                        PrejoinModule --> Operator: Transfer Fee
+                        PrejoinModule --> PrejoinModule: create new member
+                        PrejoinModule --> BMOracle: Request BM
+                        PrejoinModule --> Prepayer: Emit OnPrepayment event
+
+                    else Invariant fails
+                            PrejoinModule --> Prepayer: Revert
+                    end
+
+                else Is existing member
+                    PrejoinModule --> Prepayer: Revert
+                end
+
+            else Parent is not KYCed
+                PrejoinModule --> Prepayer: Revert
+            end
+
+        else Contribution is out of range
+            PrejoinModule --> Prepayer: Revert
+        end
+
+    else preJoinEnabled == false
+        PrejoinModule -> Prepayer: Revert
+    end
+
+else Module is disabled
+    PrejoinModule -> Prepayer : Revert
+end
+
+@enduml    
