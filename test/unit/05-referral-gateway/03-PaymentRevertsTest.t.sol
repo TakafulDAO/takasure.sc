@@ -16,10 +16,10 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     address usdcAddress;
     address referralGatewayAddress;
     address takadao;
+    address pauseGuardian;
     address nonKycParent = makeAddr("nonKycParent");
     address child = makeAddr("child");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "The LifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint8 public constant SERVICE_FEE_RATIO = 27;
@@ -35,6 +35,12 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         uint256 discount
     );
 
+    modifier pauseContract() {
+        vm.prank(pauseGuardian);
+        referralGateway.pause();
+        _;
+    }
+
     function setUp() public {
         // Deployer
         deployer = new TestDeployProtocol();
@@ -44,6 +50,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
+        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
         referralGateway = ReferralGateway(referralGatewayAddress);
@@ -57,7 +64,6 @@ contract ReferralGatewayPaymentRevertsTest is Test {
 
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
     }
@@ -112,7 +118,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = true, invalid referral ========//
     function testPaymentRevertsIfParentIsInvalidCase1() public {
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -128,7 +134,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
             false
         );
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, 0);
     }
@@ -138,7 +144,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
 
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -154,7 +160,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
             false
         );
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, 0);
     }
@@ -193,7 +199,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     function testMustRevertIfTryToJoinTwiceCase3() public {
         // We disable the prejoin discount
         vm.prank(takadao);
-        referralGateway.setPrejoinDiscount(false);
+        referralGateway.switchPrejoinDiscount();
 
         vm.startPrank(couponRedeemer);
         // Child pays the contribution for the first time
@@ -210,7 +216,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     function testMustRevertIfTryToJoinTwiceCase4() public {
         // We disable the prejoin discount and referral discount
         vm.startPrank(takadao);
-        referralGateway.setPrejoinDiscount(false);
+        referralGateway.switchPrejoinDiscount();
 
         referralGateway.switchReferralDiscount();
         vm.stopPrank();
@@ -236,5 +242,11 @@ contract ReferralGatewayPaymentRevertsTest is Test {
             USDC_INITIAL_AMOUNT * 2,
             false
         );
+    }
+
+    function testMustRevertIfContractIsPaused() public pauseContract {
+        vm.prank(couponRedeemer);
+        vm.expectRevert();
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
     }
 }

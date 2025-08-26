@@ -21,7 +21,6 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
     address parent = makeAddr("parent");
     address child = makeAddr("child");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "The LifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant LAYER_ONE_REWARD_RATIO = 4; // Layer one reward ratio 4%
@@ -66,7 +65,6 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
 
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
 
@@ -83,10 +81,10 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         referralGateway.approveKYC(parent);
     }
 
-    //======== preJoinEnabled = true, referralDiscount = true, with parent, no coupon ========//
-    function testPrepaymentCase13() public {
+    //======== preJoinEnabled = true, referralDiscount = true, rewardsEnabled = true, with parent, no coupon ========//
+    function testPrepaymentCase25() public {
         // Already collected fees with the modifiers logic
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 2_500_000);
 
@@ -109,7 +107,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
 
         (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(collectedFees, 1_250_000);
         assertEq(totalCollectedFees, collectedFees + alreadyCollectedFees);
@@ -118,20 +116,35 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         assertEq(discount, expectedDiscount);
     }
 
-    //======== preJoinEnabled = true, referralDiscount = false, with parent, no coupon ========//
-    function testPrepaymentCase14() public {
+    //======== preJoinEnabled = true, referralDiscount = true, rewardsEnabled = false, with parent, no coupon ========//
+    function testPrepaymentCase26() public {
+        vm.prank(takadao);
+        referralGateway.switchRewardsDistribution();
+
+        // Already collected fees with the modifiers logic
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        assertEq(alreadyCollectedFees, 2_500_000);
+
+        vm.prank(couponRedeemer);
+        vm.expectRevert(ReferralGateway.ReferralGateway__IncompatibleSettings.selector);
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
+    }
+
+    //======== preJoinEnabled = true, referralDiscount = false, rewardsEnabled = true, with parent, no coupon ========//
+    function testPrepaymentCase27() public {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
 
         // Already collected fees with the modifiers logic
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
         assertEq(alreadyCollectedFees, 2_500_000);
 
-        uint256 expectedParentReward = 0;
+        uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
 
         uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
         uint256 collectedFees = fees -
             ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100) -
+            ((CONTRIBUTION_AMOUNT * REFERRAL_RESERVE) / 100) -
             ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
 
         uint256 expectedDiscount = ((CONTRIBUTION_AMOUNT * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
@@ -144,21 +157,37 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
 
         (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
-        assertEq(collectedFees, 3_750_000);
+        assertEq(collectedFees, 2_500_000);
         assertEq(totalCollectedFees, collectedFees + alreadyCollectedFees);
         assertEq(referralGateway.getParentRewardsByChild(parent, child), expectedParentReward);
         assertEq(discount, expectedDiscount);
     }
 
-    //======== preJoinEnabled = false, referralDiscount = true, with parent, no coupon ========//
-    function testPrepaymentCase15() public {
-        vm.prank(takadao);
-        referralGateway.setPrejoinDiscount(false);
+    //======== preJoinEnabled = true, referralDiscount = false, rewardsEnabled = false, with parent, no coupon ========//
+    function testPrepaymentCase28() public {
+        vm.startPrank(takadao);
+        referralGateway.switchReferralDiscount();
+        referralGateway.switchRewardsDistribution();
+        vm.stopPrank();
 
         // Already collected fees with the modifiers logic
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        assertEq(alreadyCollectedFees, 2_500_000);
+
+        vm.prank(couponRedeemer);
+        vm.expectRevert(ReferralGateway.ReferralGateway__IncompatibleSettings.selector);
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
+    }
+
+    //======== preJoinEnabled = false, referralDiscount = true, rewardsEnabled = true, with parent, no coupon ========//
+    function testPrepaymentCase29() public {
+        vm.prank(takadao);
+        referralGateway.switchPrejoinDiscount();
+
+        // Already collected fees with the modifiers logic
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 2_500_000);
 
@@ -179,7 +208,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
 
         (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(collectedFees, 3_750_000);
         assertEq(totalCollectedFees, collectedFees + alreadyCollectedFees);
@@ -188,22 +217,41 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         assertEq(discount, expectedDiscount);
     }
 
-    //======== preJoinEnabled = false, referralDiscount = false, with parent, no coupon ========//
-    function testPrepaymentCase16() public {
+    //======== preJoinEnabled = false, referralDiscount = true, rewardsEnabled = false, with parent, no coupon ========//
+    function testPrepaymentCase30() public {
         vm.startPrank(takadao);
-        referralGateway.switchReferralDiscount();
-
-        referralGateway.setPrejoinDiscount(false);
+        referralGateway.switchPrejoinDiscount();
+        referralGateway.switchRewardsDistribution();
         vm.stopPrank();
 
         // Already collected fees with the modifiers logic
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+
         assertEq(alreadyCollectedFees, 2_500_000);
 
-        uint256 expectedParentReward = 0;
+        vm.prank(couponRedeemer);
+        vm.expectRevert(ReferralGateway.ReferralGateway__IncompatibleSettings.selector);
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
+    }
+
+    //======== preJoinEnabled = false, referralDiscount = false, rewardsEnabled = true, with parent, no coupon ========//
+    function testPrepaymentCase31() public {
+        vm.startPrank(takadao);
+        referralGateway.switchPrejoinDiscount();
+        referralGateway.switchReferralDiscount();
+        vm.stopPrank();
+
+        // Already collected fees with the modifiers logic
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+
+        assertEq(alreadyCollectedFees, 2_500_000);
+
+        uint256 expectedParentReward = (CONTRIBUTION_AMOUNT * LAYER_ONE_REWARD_RATIO) / 100;
 
         uint256 fees = (CONTRIBUTION_AMOUNT * SERVICE_FEE_RATIO) / 100;
-        uint256 collectedFees = fees - ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
+        uint256 collectedFees = fees -
+            ((CONTRIBUTION_AMOUNT * REFERRAL_RESERVE) / 100) -
+            ((CONTRIBUTION_AMOUNT * REPOOL_FEE_RATIO) / 100);
 
         uint256 expectedDiscount = 0;
 
@@ -214,11 +262,28 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
 
         (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
-        assertEq(collectedFees, 6_250_000);
+        assertEq(collectedFees, 5_000_000);
         assertEq(totalCollectedFees, collectedFees + alreadyCollectedFees);
         assertEq(referralGateway.getParentRewardsByChild(parent, child), expectedParentReward);
         assertEq(discount, expectedDiscount);
+    }
+
+    //======== preJoinEnabled = false, referralDiscount = false, rewardsEnabled = true, with parent, no coupon ========//
+    function testPrepaymentCase32() public {
+        vm.startPrank(takadao);
+        referralGateway.switchReferralDiscount();
+        referralGateway.switchPrejoinDiscount();
+        referralGateway.switchRewardsDistribution();
+        vm.stopPrank();
+
+        // Already collected fees with the modifiers logic
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        assertEq(alreadyCollectedFees, 2_500_000);
+
+        vm.prank(couponRedeemer);
+        vm.expectRevert(ReferralGateway.ReferralGateway__IncompatibleSettings.selector);
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
     }
 }

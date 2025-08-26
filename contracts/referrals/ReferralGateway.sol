@@ -57,7 +57,7 @@ contract ReferralGateway is
         mapping(address member => PrepaidMember) prepaidMembers;
         string name;
         bool preJoinDiscountEnabled;
-        bool referralDiscount;
+        bool referralDiscountEnabled;
         address DAOAdmin; // The one that can modify the DAO settings
         address DAOAddress; // To be assigned when the tDAO is deployed
         uint256 launchDate; // In seconds. An estimated launch date of the DAO
@@ -69,6 +69,7 @@ contract ReferralGateway is
         uint256 referralReserve; // In USDC, six decimals
         address bmConsumer; // DEPRECATED!!!
         address subscriptionModule;
+        bool rewardsEnabled;
     }
 
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
@@ -148,6 +149,7 @@ contract ReferralGateway is
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
     event OnPrejoinDiscountSwitched(bool indexed preJoinDiscountEnabled);
+    event OnRewardsDistributionSwitched(bool indexed rewardsEnabled);
 
     error ReferralGateway__ZeroAddress();
     error ReferralGateway__InvalidLaunchDate();
@@ -162,6 +164,11 @@ contract ReferralGateway is
     error ReferralGateway__tDAONotReadyYet();
     error ReferralGateway__NotEnoughFunds(uint256 amountToRefund, uint256 neededAmount);
     error ReferralGateway__NotAuthorizedCaller();
+    error ReferralGateway__IncompatibleSettings();
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -187,7 +194,7 @@ contract ReferralGateway is
     }
 
     /*//////////////////////////////////////////////////////////////
-                               DAO ADMIN
+                                  DAO
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -212,11 +219,12 @@ contract ReferralGateway is
         // Create the new DAO
         nameToDAOData[daoName].name = daoName;
         nameToDAOData[daoName].preJoinDiscountEnabled = isPreJoinDiscountEnabled;
-        nameToDAOData[daoName].referralDiscount = isReferralDiscountEnabled;
+        nameToDAOData[daoName].referralDiscountEnabled = isReferralDiscountEnabled;
         nameToDAOData[daoName].DAOAdmin = msg.sender;
         nameToDAOData[daoName].launchDate = launchDate;
         nameToDAOData[daoName].objectiveAmount = objectiveAmount;
         nameToDAOData[daoName].bmConsumer = address(0); // DEPRECATED!!!
+        nameToDAOData[daoName].rewardsEnabled = true;
 
         emit OnNewDAO(
             isPreJoinDiscountEnabled,
@@ -261,21 +269,12 @@ contract ReferralGateway is
         );
 
         nameToDAOData[daoName].preJoinDiscountEnabled = false;
-        nameToDAOData[daoName].referralDiscount = isReferralDiscountEnabled;
+        nameToDAOData[daoName].referralDiscountEnabled = isReferralDiscountEnabled;
         nameToDAOData[daoName].DAOAddress = tDAOAddress;
         nameToDAOData[daoName].subscriptionModule = subscriptionModule;
         nameToDAOData[daoName].launchDate = block.timestamp;
 
         emit OnDAOLaunched(tDAOAddress);
-    }
-
-    /**
-     * @notice Switch the referralDiscount status of a DAO
-     */
-    function switchReferralDiscount() external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].referralDiscount = !nameToDAOData[daoName].referralDiscount;
-
-        emit OnReferralDiscountSwitched(nameToDAOData[daoName].referralDiscount);
     }
 
     /**
@@ -492,9 +491,25 @@ contract ReferralGateway is
         emit OnNewCouponPoolAddress(oldCouponPool, _couponPool);
     }
 
-    function setPrejoinDiscount(bool _preJoinDiscountEnabled) external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].preJoinDiscountEnabled = _preJoinDiscountEnabled;
-        emit OnPrejoinDiscountSwitched(_preJoinDiscountEnabled);
+    /**
+     * @notice Switch the referralDiscount status of a DAO
+     */
+    function switchReferralDiscount() external onlyRole(OPERATOR) {
+        nameToDAOData[daoName].referralDiscountEnabled = !nameToDAOData[daoName]
+            .referralDiscountEnabled;
+
+        emit OnReferralDiscountSwitched(nameToDAOData[daoName].referralDiscountEnabled);
+    }
+
+    function switchPrejoinDiscount() external onlyRole(OPERATOR) {
+        nameToDAOData[daoName].preJoinDiscountEnabled = !nameToDAOData[daoName]
+            .preJoinDiscountEnabled;
+        emit OnPrejoinDiscountSwitched(nameToDAOData[daoName].preJoinDiscountEnabled);
+    }
+
+    function switchRewardsDistribution() external onlyRole(OPERATOR) {
+        nameToDAOData[daoName].rewardsEnabled = !nameToDAOData[daoName].rewardsEnabled;
+        emit OnRewardsDistributionSwitched(nameToDAOData[daoName].rewardsEnabled);
     }
 
     function pause() external onlyRole(PAUSE_GUARDIAN) {
@@ -546,7 +561,8 @@ contract ReferralGateway is
         view
         returns (
             bool preJoinDiscountEnabled,
-            bool referralDiscount,
+            bool referralDiscountEnabled,
+            bool rewardsEnabled,
             address DAOAdmin,
             address DAOAddress,
             uint256 launchDate,
@@ -559,7 +575,8 @@ contract ReferralGateway is
         )
     {
         preJoinDiscountEnabled = nameToDAOData[daoName].preJoinDiscountEnabled;
-        referralDiscount = nameToDAOData[daoName].referralDiscount;
+        referralDiscountEnabled = nameToDAOData[daoName].referralDiscountEnabled;
+        rewardsEnabled = nameToDAOData[daoName].rewardsEnabled;
         DAOAdmin = nameToDAOData[daoName].DAOAdmin;
         DAOAddress = nameToDAOData[daoName].DAOAddress;
         launchDate = nameToDAOData[daoName].launchDate;
@@ -609,18 +626,17 @@ contract ReferralGateway is
                 ((normalizedContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
                 100;
 
+        if (nameToDAOData[daoName].referralDiscountEnabled && _parent != address(0))
+            _discount += ((normalizedContribution - _couponAmount) * REFERRAL_DISCOUNT_RATIO) / 100;
+
         // And if the DAO has the referral discount enabled, it will get a discount as a referrer
         uint256 toReferralReserve;
 
-        if (nameToDAOData[daoName].referralDiscount) {
+        if (nameToDAOData[daoName].rewardsEnabled) {
             toReferralReserve = (normalizedContribution * REFERRAL_RESERVE) / 100;
 
             // The discount will be only valid if the parent is valid
             if (_parent != address(0)) {
-                uint256 referralDiscount = ((normalizedContribution - _couponAmount) *
-                    REFERRAL_DISCOUNT_RATIO) / 100;
-                _discount += referralDiscount;
-
                 childToParent[_newMember] = _parent;
 
                 (_finalFee, nameToDAOData[daoName].referralReserve) = _parentRewards(
@@ -701,9 +717,15 @@ contract ReferralGateway is
                 ReferralGateway__InvalidContribution()
             );
 
-        // If there is a parent, it must be KYCed first
-        if (_parent != address(0))
+        // If the referral discount is enabled, the rewards must also be enabled
+        if (nameToDAOData[daoName].referralDiscountEnabled)
+            require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
+
+        // If there is a parent, it must be KYCed first, and the rewards must be enabled
+        if (_parent != address(0)) {
+            require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
             require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
+        }
     }
 
     function _parentRewards(
@@ -844,15 +866,5 @@ contract ReferralGateway is
 
     function _notZeroAddress(address _address) internal pure {
         require(_address != address(0), ReferralGateway__ZeroAddress());
-    }
-
-    function setDaoName(string memory _daoName) external onlyRole(OPERATOR) {
-        daoName = _daoName;
-    }
-
-    function defaultDaoConfig() external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].DAOAddress = address(0);
-        nameToDAOData[daoName].DAOAdmin = address(0);
-        nameToDAOData[daoName].referralDiscount = true;
     }
 }

@@ -14,10 +14,16 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     address referralGatewayAddress;
     address takadao;
     address daoAdmin;
+    address pauseGuardian;
     address notAllowedAddress = makeAddr("notAllowedAddress");
     address DAO = makeAddr("DAO");
     address subscriptionModule = makeAddr("subscriptionModule");
-    string tDaoName = "The LifeDao";
+
+    modifier pauseContract() {
+        vm.prank(pauseGuardian);
+        referralGateway.pause();
+        _;
+    }
 
     function setUp() public {
         // Deployer
@@ -29,6 +35,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
         daoAdmin = config.daoMultisig;
+        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
         referralGateway = ReferralGateway(referralGatewayAddress);
@@ -44,6 +51,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
 
         (
             bool prejoinEnabled,
+            ,
             ,
             address DAOAdmin,
             address DAOAddress,
@@ -75,9 +83,14 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         referralGateway.updateLaunchDate(block.timestamp + 32_000_000);
     }
 
+    function testCreateANewDaoRevertIfContractPaused() public pauseContract {
+        vm.prank(takadao);
+        vm.expectRevert();
+        referralGateway.createDAO(true, true, (block.timestamp + 31_536_000), 100e6);
+    }
+
     modifier createDao() {
         vm.startPrank(takadao);
-        referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
         _;
@@ -91,6 +104,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         (
             bool prejoinEnabled,
             bool referralDiscount,
+            ,
             address DAOAdmin,
             address DAOAddress,
             uint256 launchDate,
@@ -120,6 +134,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         (
             prejoinEnabled,
             referralDiscount,
+            ,
             DAOAdmin,
             DAOAddress,
             launchDate,
@@ -147,7 +162,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         vm.prank(daoAdmin);
         referralGateway.switchReferralDiscount();
 
-        (, referralDiscount, , , , , , , , , ) = referralGateway.getDAOData();
+        (, referralDiscount, , , , , , , , , , ) = referralGateway.getDAOData();
 
         assert(!referralDiscount);
 
@@ -160,7 +175,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         vm.prank(daoAdmin);
         referralGateway.enableRepool(newRePoolAddress);
 
-        (, , , , , , , , rePoolAddress, , ) = referralGateway.getDAOData();
+        (, , , , , , , , , rePoolAddress, , ) = referralGateway.getDAOData();
 
         assertEq(rePoolAddress, newRePoolAddress);
     }
