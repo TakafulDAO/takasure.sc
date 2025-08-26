@@ -38,6 +38,10 @@ contract RevenueShareModule is Initializable, UUPSUpgradeable, TLDModuleImplemen
         _;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -50,6 +54,10 @@ contract RevenueShareModule is Initializable, UUPSUpgradeable, TLDModuleImplemen
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Set the module state
      * @dev Only callable from the Module Manager
@@ -59,6 +67,10 @@ contract RevenueShareModule is Initializable, UUPSUpgradeable, TLDModuleImplemen
     ) external override onlyContract("MODULE_MANAGER") {
         moduleState = newState;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                        INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
