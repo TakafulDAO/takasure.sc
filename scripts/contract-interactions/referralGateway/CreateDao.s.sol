@@ -14,7 +14,6 @@ contract CreateDao is Script, GetContractAddress {
 
     function run() public {
         address referralGatewayAddress = _getContractAddress(block.chainid, "ReferralGateway");
-        address bmConsumerAddress = _getContractAddress(block.chainid, "BenefitMultiplierConsumer");
 
         ReferralGateway referralGateway = ReferralGateway(referralGatewayAddress);
 
@@ -25,8 +24,7 @@ contract CreateDao is Script, GetContractAddress {
             isPreJoinEnabled: preJoinEnabled,
             isReferralDiscountEnabled: referralDiscount,
             launchDate: launchDate,
-            objectiveAmount: objectiveAmount,
-            _bmConsumer: bmConsumerAddress
+            objectiveAmount: objectiveAmount
         });
 
         vm.stopBroadcast();
