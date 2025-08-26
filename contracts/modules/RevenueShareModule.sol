@@ -9,15 +9,26 @@
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
+import {ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
 
-contract RevenueShareModule is Initializable, UUPSUpgradeable {
+contract RevenueShareModule is Initializable, UUPSUpgradeable, TLDModuleImplementation {
     ITakasureReserve private takasureReserve;
+    ModuleState private moduleState;
+
+    modifier onlyContract(string memory name) {
+        require(
+            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
 
     modifier onlyRole(bytes32 role) {
         require(
@@ -37,6 +48,16 @@ contract RevenueShareModule is Initializable, UUPSUpgradeable {
         __UUPSUpgradeable_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
+    }
+
+    /**
+     * @notice Set the module state
+     * @dev Only callable from the Module Manager
+     */
+    function setContractState(
+        ModuleState newState
+    ) external override onlyContract("MODULE_MANAGER") {
+        moduleState = newState;
     }
 
     ///@dev required by the OZ UUPS module
