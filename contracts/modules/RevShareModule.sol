@@ -40,6 +40,7 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
 
     mapping(address pioneer => uint256 revenue) public revenuePerPioneer;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
+    mapping(address => bool) public takadao; // Allowed addresses to claim Takadao's share of the revenues
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -47,6 +48,8 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
 
     event OnAvailableDateSet(uint256 timestamp);
     event OnDistributionsActiveSet(bool active, uint256 periodFinish);
+    event OnTakadaoAddressAdded(address indexed addr);
+    event OnTakadaoAddressRemoved(address indexed addr);
     event OnRevenueShareClaimed(address indexed pioneer, uint256 amount);
 
     error RevShareModule__RevenuesNotAvailableYet();
@@ -138,6 +141,20 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
         emit OnDistributionsActiveSet(distributionsActive, lastTimestampToDistributeRevenues);
     }
 
+    function addNewTakadaoAddress(address addr) external onlyRole(Roles.OPERATOR) {
+        AddressAndStates._notZeroAddress(addr);
+        takadao[addr] = true;
+
+        emit OnTakadaoAddressAdded(addr);
+    }
+
+    function removeTakadaoAddress(address addr) external onlyRole(Roles.OPERATOR) {
+        AddressAndStates._notZeroAddress(addr);
+        takadao[addr] = false;
+
+        emit OnTakadaoAddressRemoved(addr);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  CLAIMS
     //////////////////////////////////////////////////////////////*/
@@ -211,6 +228,10 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
         return duration * rewardRate;
     }
 
+    function isTakadao(address addr) external view returns (bool) {
+        return takadao[addr];
+    }
+
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -249,6 +270,8 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
             addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
         );
 
+        // TODO: Ask when finish the contract and tests
+        // ? Question: Which balance do I take into account for Takadao? All none minted NFTs?
         return
             (revShareNFT.balanceOf(_pioneer) *
                 (_revenuePerNft() - pioneerRevenuePerNftPaid[_pioneer])) /
