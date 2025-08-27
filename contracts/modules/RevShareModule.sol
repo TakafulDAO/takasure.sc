@@ -21,7 +21,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
-contract RevenueShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
+contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     uint256 public revenuesAvailableDate;
@@ -33,7 +33,7 @@ contract RevenueShareModule is TLDModuleImplementation, Initializable, UUPSUpgra
 
     event OnRevenueShareClaimed(address indexed pioneer, uint256 amount);
 
-    error RevenueShareModule__RevenuesNotAvailableYet();
+    error RevShareModule__RevenuesNotAvailableYet();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -92,7 +92,7 @@ contract RevenueShareModule is TLDModuleImplementation, Initializable, UUPSUpgra
     function claimRevenueShare() external returns (uint256 revenue) {
         require(
             block.timestamp >= revenuesAvailableDate,
-            RevenueShareModule__RevenuesNotAvailableYet()
+            RevShareModule__RevenuesNotAvailableYet()
         );
 
         _updateRevenue(msg.sender);
