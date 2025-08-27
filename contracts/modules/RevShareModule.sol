@@ -8,6 +8,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IRevShareNFT} from "contracts/interfaces/IRevShareNFT.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
@@ -28,8 +29,12 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
     uint256 public lastTimestampToDistributeRevenues; // Last timestamp to distribute revenues when distributions are turned off. 0 if distributions are active
     bool public distributionsActive;
 
+    // TODO: aAsk at the end, deliver the math first. For now will be 0
+    // ? Question: Still not clear if this is 75% and 25% and we differentiate different reward rate according the caller
+    // ? Or if it is the same reward rate for all th callers but we apply the formula just for the 75% or 25% of the balance depending on the caller
+    uint256 public rewardRate; // Reward rate per second to distribute among NFT holders
     uint256 public lastUpdateTime;
-    uint256 public revenuePerNftOwned;
+    uint256 public revenuePerNftOwned; // Accumulates the total revenue a single NFT has earned if it was owned since the beginning
 
     mapping(address pioneer => uint256 revenue) public revenuePerPioneer;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
@@ -204,7 +209,17 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
         pioneerRevenuePerNftPaid[_pioneer] = revenuePerNftOwned;
     }
 
-    function _revenuePerNft() internal view returns (uint256) {}
+    function _revenuePerNft() internal view returns (uint256) {
+        IRevShareNFT revShareNFT = IRevShareNFT(
+            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
+        );
+
+        // TODO: Ask when finish the contract and tests
+        // ? Question: Do we take into account the case where there are no NFTs minted from Takadao?
+        if (revShareNFT.totalSupply() == 0) return revenuePerNftOwned;
+
+        return revenuePerNftOwned + (lastTimeApplicable() - lastUpdateTime) * rewardRate;
+    }
 
     function _earned(address _pioneer) internal view returns (uint256) {}
 

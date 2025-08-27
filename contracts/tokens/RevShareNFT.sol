@@ -4,7 +4,6 @@
  * @title RevShareNFT
  * @author Maikel Ordaz
  */
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
@@ -15,7 +14,6 @@ import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC72
 
 import {ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 pragma solidity 0.8.28;
@@ -28,8 +26,6 @@ contract RevShareNFT is
     ReentrancyGuardTransientUpgradeable,
     ERC721Upgradeable
 {
-    using SafeERC20 for IERC20;
-
     IAddressManager private addressManager;
 
     string public baseURI; // Base URI for the NFTs
