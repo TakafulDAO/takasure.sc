@@ -91,6 +91,7 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
         addressManager = IAddressManager(_addressManagerAddress);
 
         distributionsActive = true;
+        revenuesAvailableDate = block.timestamp; // TODO: Change if needed
     }
 
     /*//////////////////////////////////////////////////////////////
