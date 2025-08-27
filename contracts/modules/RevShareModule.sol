@@ -24,16 +24,26 @@ pragma solidity 0.8.28;
 contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
-    uint256 public revenuesAvailableDate;
+    uint256 public revenuesAvailableDate; // Timestamp to start the distribution. It does not mean the calculation starts at this date
+    uint256 public lastTimestampToDistributeRevenues; // Last timestamp to distribute revenues when distributions are turned off. 0 if distributions are active
+    bool public distributionsActive;
+
+    uint256 public lastUpdateTime;
+    uint256 public revenuePerNftOwned;
 
     mapping(address pioneer => uint256 revenue) public revenuePerPioneer;
+    mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
+
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    event OnAvailableDateSet(uint256 timestamp);
+    event OnDistributionsActiveSet(bool active, uint256 periodFinish);
     event OnRevenueShareClaimed(address indexed pioneer, uint256 amount);
 
     error RevShareModule__RevenuesNotAvailableYet();
+    error RevShareModule__InvalidDate();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -69,6 +79,8 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
         __UUPSUpgradeable_init();
 
         addressManager = IAddressManager(_addressManagerAddress);
+
+        distributionsActive = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -85,10 +97,48 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
         moduleState = newState;
     }
 
+    /**
+     * @notice Set the date when revenues will be available to claim
+     * @param timestamp The timestamp when revenues will be available to claim
+     */
+    function setAvailableDate(uint256 timestamp) external onlyRole(Roles.OPERATOR) {
+        require(timestamp > block.timestamp, RevShareModule__InvalidDate());
+        revenuesAvailableDate = timestamp;
+
+        emit OnAvailableDateSet(timestamp);
+    }
+
+    /**
+     * @notice Set if distributions are active or not
+     * @param active True if distributions are active, false otherwise
+     * @param periodFinish Timestamp to stop the distributions if active is false
+     * @dev Only callable by an operator
+     */
+    function setDistributionsActive(
+        bool active,
+        uint256 periodFinish
+    ) external onlyRole(Roles.OPERATOR) {
+        distributionsActive = active;
+
+        // If active is true, reset the timestamp, but if false, set the timestamp when distributions will stop
+        if (active) {
+            lastTimestampToDistributeRevenues = 0;
+        } else {
+            require(periodFinish > block.timestamp, RevShareModule__InvalidDate());
+            lastTimestampToDistributeRevenues = periodFinish;
+        }
+
+        emit OnDistributionsActiveSet(distributionsActive, lastTimestampToDistributeRevenues);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  CLAIMS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Claim the revenue share earned by the pioneer
+     * @return revenue The amount of revenue share claimed
+     */
     function claimRevenueShare() external returns (uint256 revenue) {
         require(
             block.timestamp >= revenuesAvailableDate,
@@ -111,15 +161,52 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
         }
     }
 
+    /**
+     * @notice Update the revenue share for a pioneer
+     * @param pioneer The address of the pioneer
+     */
     function updateRevenue(address pioneer) external {
         _updateRevenue(pioneer);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function revenuePerNft() external view returns (uint256) {
+        return _revenuePerNft();
+    }
+
+    function earned(address pioneer) public view returns (uint256) {
+        return _earned(pioneer);
+    }
+
+    function lastTimeApplicable() public view returns (uint256) {
+        if (distributionsActive) return block.timestamp;
+        else
+            return
+                block.timestamp < lastTimestampToDistributeRevenues
+                    ? block.timestamp
+                    : lastTimestampToDistributeRevenues;
     }
 
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _updateRevenue(address _pioneer) internal {}
+    function _updateRevenue(address _pioneer) internal {
+        AddressAndStates._notZeroAddress(_pioneer);
+
+        revenuePerNftOwned = _revenuePerNft();
+        lastUpdateTime = lastTimeApplicable();
+
+        revenuePerPioneer[_pioneer] = _earned(_pioneer);
+        pioneerRevenuePerNftPaid[_pioneer] = revenuePerNftOwned;
+    }
+
+    function _revenuePerNft() internal view returns (uint256) {}
+
+    function _earned(address _pioneer) internal view returns (uint256) {}
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
