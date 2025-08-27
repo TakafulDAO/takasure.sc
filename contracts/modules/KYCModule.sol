@@ -38,7 +38,6 @@ contract KYCModule is
     ParentRewards
 {
     ITakasureReserve private takasureReserve;
-    ModuleState private moduleState;
 
     error KYCModule__ContributionRequired();
     error KYCModule__BenefitMultiplierRequestFailed(bytes errorResponse);

@@ -36,7 +36,6 @@ contract MemberModule is
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    ModuleState private moduleState;
 
     error MemberModule__InvalidDate();
 

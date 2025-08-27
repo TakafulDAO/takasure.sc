@@ -41,7 +41,6 @@ contract SubscriptionModule is
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
     uint256 private transient feeAmount;

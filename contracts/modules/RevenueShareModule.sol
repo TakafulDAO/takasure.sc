@@ -18,10 +18,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-contract RevenueShareModule is Initializable, UUPSUpgradeable, TLDModuleImplementation {
-    IAddressManager private addressManager;
-    ModuleState private moduleState;
-
+contract RevenueShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
     modifier onlyContract(string memory name) {
         require(
             AddressAndStates._checkName(address(addressManager), name),
