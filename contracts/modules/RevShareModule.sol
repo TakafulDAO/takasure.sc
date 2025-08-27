@@ -120,6 +120,17 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
     }
 
     /**
+     * @notice Early release the revenues to be available to claim
+     * @dev Only callable by an operator
+     * @dev To be called in case the revenuesAvailableDate is set too far in the future
+     */
+    function releaseRevenues() external onlyRole(Roles.OPERATOR) {
+        require(block.timestamp < revenuesAvailableDate, RevShareModule__InvalidDate());
+        revenuesAvailableDate = block.timestamp;
+        emit OnAvailableDateSet(block.timestamp);
+    }
+
+    /**
      * @notice Set if distributions are active or not
      * @param active True if distributions are active, false otherwise
      * @param periodFinish Timestamp to stop the distributions if active is false
