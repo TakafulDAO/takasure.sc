@@ -36,6 +36,8 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
     uint256 public lastUpdateTime;
     uint256 public revenuePerNftOwned; // Accumulates the total revenue a single NFT has earned if it was owned since the beginning
 
+    uint256 private constant PRECISION_FACTOR = 1e6;
+
     mapping(address pioneer => uint256 revenue) public revenuePerPioneer;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
 
@@ -216,9 +218,14 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
 
         // TODO: Ask when finish the contract and tests
         // ? Question: Do we take into account the case where there are no NFTs minted from Takadao?
-        if (revShareNFT.totalSupply() == 0) return revenuePerNftOwned;
+        uint256 totalSupply = revShareNFT.totalSupply();
 
-        return revenuePerNftOwned + (lastTimeApplicable() - lastUpdateTime) * rewardRate;
+        if (totalSupply == 0) return revenuePerNftOwned;
+
+        return
+            revenuePerNftOwned +
+            ((lastTimeApplicable() - lastUpdateTime) * rewardRate) /
+            totalSupply;
     }
 
     function _earned(address _pioneer) internal view returns (uint256) {}
