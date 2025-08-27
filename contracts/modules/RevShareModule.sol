@@ -184,6 +184,11 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
         return _revenuePerNft();
     }
 
+    /**
+     * @notice View the revenue share earned by a pioneer so far
+     * @param pioneer The address of the pioneer
+     * @return The amount of revenue share earned
+     */
     function earned(address pioneer) public view returns (uint256) {
         return _earned(pioneer);
     }
@@ -228,7 +233,19 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
             totalSupply;
     }
 
-    function _earned(address _pioneer) internal view returns (uint256) {}
+    function _earned(address _pioneer) internal view returns (uint256) {
+        AddressAndStates._notZeroAddress(_pioneer);
+
+        IRevShareNFT revShareNFT = IRevShareNFT(
+            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
+        );
+
+        return
+            (revShareNFT.balanceOf(_pioneer) *
+                (_revenuePerNft() - pioneerRevenuePerNftPaid[_pioneer])) /
+            PRECISION_FACTOR +
+            revenuePerPioneer[_pioneer];
+    }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
