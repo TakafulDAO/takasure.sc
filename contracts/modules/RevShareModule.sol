@@ -202,6 +202,15 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
                     : lastTimestampToDistributeRevenues;
     }
 
+    /**
+     * @notice View the revenue to be distributed for a given duration
+     * @param duration The duration in seconds
+     * @return The amount of revenue to be distributed
+     */
+    function getRevenueForDuration(uint256 duration) external view returns (uint256) {
+        return duration * rewardRate;
+    }
+
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
