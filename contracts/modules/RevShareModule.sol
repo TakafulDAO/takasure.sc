@@ -62,26 +62,6 @@ contract RevShareModule is
     error RevShareModule__InvalidDate();
 
     /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    modifier onlyContract(string memory name) {
-        require(
-            AddressAndStates._checkName(address(addressManager), name),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(address(addressManager), role),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
@@ -111,7 +91,7 @@ contract RevShareModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER") {
+    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
         moduleState = newState;
     }
 
@@ -119,7 +99,9 @@ contract RevShareModule is
      * @notice Set the date when revenues will be available to claim
      * @param timestamp The timestamp when revenues will be available to claim
      */
-    function setAvailableDate(uint256 timestamp) external onlyRole(Roles.OPERATOR) {
+    function setAvailableDate(
+        uint256 timestamp
+    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(timestamp > block.timestamp, RevShareModule__InvalidDate());
         revenuesAvailableDate = timestamp;
@@ -132,7 +114,7 @@ contract RevShareModule is
      * @dev Only callable by an operator
      * @dev To be called in case the revenuesAvailableDate is set too far in the future
      */
-    function releaseRevenues() external onlyRole(Roles.OPERATOR) {
+    function releaseRevenues() external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(block.timestamp < revenuesAvailableDate, RevShareModule__InvalidDate());
         revenuesAvailableDate = block.timestamp;
@@ -148,7 +130,7 @@ contract RevShareModule is
     function setDistributionsActive(
         bool active,
         uint256 periodFinish
-    ) external onlyRole(Roles.OPERATOR) {
+    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         distributionsActive = active;
 
@@ -163,7 +145,9 @@ contract RevShareModule is
         emit OnDistributionsActiveSet(distributionsActive, lastTimestampToDistributeRevenues);
     }
 
-    function addNewTakadaoAddress(address addr) external onlyRole(Roles.OPERATOR) {
+    function addNewTakadaoAddress(
+        address addr
+    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(addr);
         takadao[addr] = true;
@@ -171,7 +155,9 @@ contract RevShareModule is
         emit OnTakadaoAddressAdded(addr);
     }
 
-    function removeTakadaoAddress(address addr) external onlyRole(Roles.OPERATOR) {
+    function removeTakadaoAddress(
+        address addr
+    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(addr);
 
@@ -179,6 +165,18 @@ contract RevShareModule is
 
         emit OnTakadaoAddressRemoved(addr);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                DEPOSITS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Notify the contract about new revenue to be distributed
+     * @param amount The amount of revenue to be distributed
+     * @dev Only callable by specic contracts
+     * @dev The contract must have enough allowance to transfer the tokens
+     */
+    function notifyNewRevenue(uint256 amount) external {}
 
     /*//////////////////////////////////////////////////////////////
                                EMERGENCY
@@ -189,7 +187,7 @@ contract RevShareModule is
      * @dev Only callable by an operator
      * @dev Withdraws all the balance of the revenue token to the operator
      */
-    function emergencyWithdraw() external onlyRole(Roles.OPERATOR) {
+    function emergencyWithdraw() external onlyRole(Roles.OPERATOR, address(addressManager)) {
         IERC20 contributionToken = IERC20(
             addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
         );
@@ -300,10 +298,16 @@ contract RevShareModule is
 
         if (totalSupply == 0) return revenuePerNftOwned;
 
+        // TODO: Check this decimals!!!!!
+        // return
+        //     revenuePerNftOwned +
+        //     ((lastTimeApplicable() - lastUpdateTime) * rewardRate) /
+        //     totalSupply;
+
         return
             revenuePerNftOwned +
-            ((lastTimeApplicable() - lastUpdateTime) * rewardRate) /
-            totalSupply;
+            (((lastTimeApplicable() - lastUpdateTime) * rewardRate * PRECISION_FACTOR) /
+                totalSupply);
     }
 
     function _earned(address _pioneer) internal view returns (uint256) {
@@ -325,5 +329,5 @@ contract RevShareModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
 }

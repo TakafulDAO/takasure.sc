@@ -43,22 +43,6 @@ contract KYCModule is
     error KYCModule__BenefitMultiplierRequestFailed(bytes errorResponse);
     error KYCModule__MemberAlreadyKYCed();
 
-    modifier onlyContract(string memory name) {
-        require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -77,7 +61,7 @@ contract KYCModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER") {
+    ) external override onlyContract("MODULE_MANAGER", address(takasureReserve.addressManager())) {
         moduleState = newState;
     }
 
@@ -90,7 +74,7 @@ contract KYCModule is
     function approveKYC(
         address memberWallet,
         uint256 benefitMultiplier
-    ) external onlyRole(Roles.KYC_PROVIDER) {
+    ) external onlyRole(Roles.KYC_PROVIDER, address(takasureReserve.addressManager())) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(memberWallet);
 
@@ -184,5 +168,5 @@ contract KYCModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {}
 }

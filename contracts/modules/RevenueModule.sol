@@ -30,22 +30,6 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
 
     error RevenueModule__WrongRevenueType();
 
-    modifier onlyContract(string memory name) {
-        require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -64,7 +48,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER") {
+    ) external override onlyContract("MODULE_MANAGER", address(takasureReserve.addressManager())) {
         moduleState = newState;
     }
 
@@ -76,7 +60,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
     function depositRevenue(
         uint256 newRevenue,
         RevenueType revenueType
-    ) external onlyRole(Roles.DAO_MULTISIG) {
+    ) external onlyRole(Roles.DAO_MULTISIG, address(takasureReserve.addressManager())) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
@@ -197,5 +181,5 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {}
 }
