@@ -7,7 +7,7 @@
  */
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
@@ -30,6 +30,14 @@ abstract contract TLDModuleImplementation {
     modifier onlyRole(bytes32 role, address addressManagerAddress) {
         require(
             AddressAndStates._checkRole(addressManagerAddress, role),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyType(ProtocolAddressType addressType, address addressManagerAddress) {
+        require(
+            AddressAndStates._checkType(addressManagerAddress, addressType),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;

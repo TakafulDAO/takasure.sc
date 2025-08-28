@@ -6,7 +6,7 @@
  * @notice This contract will have simple checks for the addresses and module states
  */
 
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 pragma solidity 0.8.28;
@@ -22,6 +22,13 @@ library AddressAndStates {
 
     function _checkRole(address addressManager, bytes32 role) internal view returns (bool) {
         return IAddressManager(addressManager).hasRole(role, msg.sender);
+    }
+
+    function _checkType(
+        address addressManager,
+        ProtocolAddressType addressType
+    ) internal view returns (bool) {
+        return IAddressManager(addressManager).hasType(msg.sender, addressType);
     }
 
     function _notZeroAddress(address _address) internal pure {
