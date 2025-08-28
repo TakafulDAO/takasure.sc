@@ -43,6 +43,7 @@ contract KycFlow_KYCModuleTest is StdCheats, Test {
             ,
             ,
             ,
+            ,
             contributionTokenAddress,
             ,
             helperConfig

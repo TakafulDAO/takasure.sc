@@ -47,6 +47,7 @@ contract Reverts_KYCModuleTest is StdCheats, Test {
             ,
             ,
             ,
+            ,
             contributionTokenAddress,
             ,
             helperConfig

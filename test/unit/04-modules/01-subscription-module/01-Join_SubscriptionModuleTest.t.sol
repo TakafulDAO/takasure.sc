@@ -42,6 +42,7 @@ contract Join_SubscriptionModuleTest is StdCheats, Test {
             ,
             ,
             ,
+            ,
             userRouterAddress,
             contributionTokenAddress,
             ,

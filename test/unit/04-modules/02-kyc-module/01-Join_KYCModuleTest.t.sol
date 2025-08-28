@@ -47,6 +47,7 @@ contract Join_SubscriptionModuleTest is StdCheats, Test {
             kycModuleAddress,
             ,
             ,
+            ,
             userRouterAddress,
             contributionTokenAddress,
             ,

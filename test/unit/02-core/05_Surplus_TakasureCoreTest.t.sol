@@ -52,6 +52,7 @@ contract Surplus_TakasureCoreTest is StdCheats, Test {
             kycModuleAddress,
             ,
             ,
+            ,
             userRouterAddress,
             contributionTokenAddress,
             ,

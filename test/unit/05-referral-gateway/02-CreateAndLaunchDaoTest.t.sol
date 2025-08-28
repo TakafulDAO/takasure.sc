@@ -23,7 +23,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         // Deployer
         deployer = new TestDeployProtocol();
         // Deploy contracts
-        (, referralGatewayAddress, , , , , , , , helperConfig) = deployer.run();
+        (, referralGatewayAddress, , , , , , , , , helperConfig) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);

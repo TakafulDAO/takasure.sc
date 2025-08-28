@@ -41,6 +41,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test {
             ,
             ,
             ,
+            ,
             contributionTokenAddress,
             ,
             helperConfig

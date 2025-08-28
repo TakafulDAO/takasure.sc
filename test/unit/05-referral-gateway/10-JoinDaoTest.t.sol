@@ -41,6 +41,7 @@ contract ReferralGatewayJoinDaoTest is Test {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig

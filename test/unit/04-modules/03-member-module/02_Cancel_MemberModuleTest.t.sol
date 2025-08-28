@@ -46,6 +46,7 @@ contract Cancel_MemberModuleTest is StdCheats, Test {
             memberModuleAddress,
             ,
             ,
+            ,
             contributionTokenAddress,
             ,
             helperConfig

@@ -11,6 +11,7 @@ import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
+import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
@@ -61,6 +62,7 @@ contract TestDeployProtocol is Script {
             address kycModuleAddress,
             address memberModuleAddress,
             address revenueModuleAddress,
+            address revShareModuleAddress,
             address routerAddress,
             address contributionTokenAddress,
             address kycProvider,
@@ -114,6 +116,8 @@ contract TestDeployProtocol is Script {
             })
         );
 
+        revShareModuleAddress = _deployRemainingModule(address(addressManager));
+
         addressManager.addProtocolAddress(
             "SUBSCRIPTION_MODULE",
             subscriptionModuleAddress,
@@ -132,6 +136,12 @@ contract TestDeployProtocol is Script {
             ProtocolAddressType.Module
         );
 
+        addressManager.addProtocolAddress(
+            "REVENUE_MODULE",
+            revenueModuleAddress,
+            ProtocolAddressType.Module
+        );
+
         // Deploy router
         userRouterImplementation = address(new UserRouter());
         routerAddress = UnsafeUpgrades.deployUUPSProxy(
@@ -145,7 +155,8 @@ contract TestDeployProtocol is Script {
             subscriptionModuleAddress,
             kycModuleAddress,
             memberModuleAddress,
-            revenueModuleAddress
+            revenueModuleAddress,
+            revShareModuleAddress
         );
 
         _createRoles(address(addressManager));
@@ -184,6 +195,7 @@ contract TestDeployProtocol is Script {
             kycModuleAddress,
             memberModuleAddress,
             revenueModuleAddress,
+            revShareModuleAddress,
             routerAddress,
             contributionTokenAddress,
             kycProvider,
@@ -257,17 +269,30 @@ contract TestDeployProtocol is Script {
         );
     }
 
+    function _deployRemainingModule(
+        address _addressManager
+    ) internal returns (address revShareModuleAddress_) {
+        address revShareModuleImplementation = address(new RevShareModule());
+
+        revShareModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
+            revShareModuleImplementation,
+            abi.encodeCall(RevShareModule.initialize, (_addressManager))
+        );
+    }
+
     function _setContracts(
         address _subscriptionModuleAddress,
         address _kycModuleAddress,
         address _memberModuleAddress,
-        address _revenueModuleAddress
+        address _revenueModuleAddress,
+        address _revShareModuleAddress
     ) internal {
         // Set modules contracts in TakasureReserve
         moduleManager.addModule(_subscriptionModuleAddress);
         moduleManager.addModule(_kycModuleAddress);
         moduleManager.addModule(_memberModuleAddress);
         moduleManager.addModule(_revenueModuleAddress);
+        moduleManager.addModule(_revShareModuleAddress);
     }
 
     function _createRoles(address _addressManager) internal {

@@ -41,6 +41,7 @@ contract ReferralGatewayFuzzTest is Test {
             ,
             ,
             ,
+            ,
             usdcAddress,
             ,
             helperConfig

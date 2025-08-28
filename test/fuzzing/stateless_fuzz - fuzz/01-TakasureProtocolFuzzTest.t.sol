@@ -43,6 +43,7 @@ contract TakasureProtocolFuzzTest is Test {
             memberModuleAddress,
             ,
             ,
+            ,
             contributionTokenAddress,
             ,
             helperConfig

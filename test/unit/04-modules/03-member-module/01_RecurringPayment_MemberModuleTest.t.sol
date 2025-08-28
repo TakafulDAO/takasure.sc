@@ -46,6 +46,7 @@ contract RecurringPayment_MemberModuleTest is StdCheats, Test {
             memberModuleAddress,
             ,
             ,
+            ,
             contributionTokenAddress,
             ,
             helperConfig
