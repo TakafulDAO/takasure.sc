@@ -108,11 +108,12 @@ contract RevShareNFT is
      * @dev Only callable by someone with owner
      */
     function mint(address pioneer) external onlyOwner nonReentrant mintChecks(pioneer) {
+        // Update the revenues if the contract is set up to do so
+        // Take current snapshot of totalSupply before it gets incremented
+        bool revUpdated = _updateRevenuesIfProtocolIsSetUp(pioneer);
+
         uint256 tokenId = totalSupply;
         ++totalSupply;
-
-        // Update the revenues if the contract is set up to do so
-        bool revUpdated = _updateRevenuesIfProtocolIsSetUp(pioneer);
 
         if (!revUpdated) pioneerMintedAt[pioneer][tokenId] = block.timestamp;
 
@@ -133,12 +134,13 @@ contract RevShareNFT is
     ) external onlyOwner nonReentrant mintChecks(pioneer) {
         require(tokensToMint > 1, RevShareNFT__BatchMintMoreThanOne());
 
+        // Update the revenues if the contract is set up to do so
+        // Take current snapshot of totalSupply before it gets incremented
+        bool revUpdated = _updateRevenuesIfProtocolIsSetUp(pioneer);
+
         uint256 firstNewTokenId = totalSupply;
         totalSupply += tokensToMint; // Update the total supply to the last token ID that will be minted
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint - 1;
-
-        // Update the revenues if the contract is set up to do so
-        bool revUpdated = _updateRevenuesIfProtocolIsSetUp(pioneer);
 
         for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
             if (!revUpdated) pioneerMintedAt[pioneer][i] = block.timestamp;
