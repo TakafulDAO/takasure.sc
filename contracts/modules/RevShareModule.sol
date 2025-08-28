@@ -35,7 +35,7 @@ contract RevShareModule is
     uint256 public lastTimestampToDistributeRevenues; // Last timestamp to distribute revenues when distributions are turned off. 0 if distributions are active
     bool public distributionsActive;
 
-    // TODO: aAsk at the end, deliver the math first. For now will be 0
+    // TODO: Ask at the end, deliver the math first. For now will be 0
     // ? Question: Still not clear if this is 75% and 25% and we differentiate different reward rate according the caller
     // ? Or if it is the same reward rate for all th callers but we apply the formula just for the 75% or 25% of the balance depending on the caller
     uint256 public rewardRate; // Reward rate per second to distribute among NFT holders
