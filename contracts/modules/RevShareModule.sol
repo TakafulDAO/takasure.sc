@@ -168,6 +168,23 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
     }
 
     /*//////////////////////////////////////////////////////////////
+                               EMERGENCY
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Emergency withdraw tokens from the contract
+     * @dev Only callable by an operator
+     * @dev Withdraws all the balance of the revenue token to the operator
+     */
+    function emergencyWithdraw() external onlyRole(Roles.OPERATOR) {
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+        uint256 balance = contributionToken.balanceOf(address(this));
+        contributionToken.safeTransfer(msg.sender, balance);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  CLAIMS
     //////////////////////////////////////////////////////////////*/
 
