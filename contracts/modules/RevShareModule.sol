@@ -14,7 +14,7 @@ import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeabl
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
 
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -31,6 +31,7 @@ contract RevShareModule is
 {
     using SafeERC20 for IERC20;
 
+    uint256 public approvedDeposits; // Total amount of approved deposits to be distributed as revenue
     uint256 public revenuesAvailableDate; // Timestamp to start the distribution. It does not mean the calculation starts at this date
     uint256 public lastTimestampToDistributeRevenues; // Last timestamp to distribute revenues when distributions are turned off. 0 if distributions are active
     bool public distributionsActive;
@@ -56,10 +57,13 @@ contract RevShareModule is
     event OnDistributionsActiveSet(bool active, uint256 periodFinish);
     event OnTakadaoAddressAdded(address indexed addr);
     event OnTakadaoAddressRemoved(address indexed addr);
+    event OnDeposit(uint256 amount);
+    event OnBalanceSwept(uint256 amount);
     event OnRevenueShareClaimed(address indexed pioneer, uint256 amount);
 
     error RevShareModule__RevenuesNotAvailableYet();
     error RevShareModule__InvalidDate();
+    error RevShareModule__NothingToSweep();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -176,7 +180,37 @@ contract RevShareModule is
      * @dev Only callable by specic contracts
      * @dev The contract must have enough allowance to transfer the tokens
      */
-    function notifyNewRevenue(uint256 amount) external {}
+    function notifyNewRevenue(
+        uint256 amount
+    ) external onlyType(ProtocolAddressType.Module, address(addressManager)) {
+        approvedDeposits += amount;
+
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+
+        contributionToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        emit OnDeposit(amount);
+    }
+
+    /**
+     * @notice Sweep the non approved deposits to avoid accounting issues
+     * @dev Only callable by an operator
+     */
+    function sweepNonApprovedDeposits() external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+        uint256 balanceToSweep = contributionToken.balanceOf(address(this)) - approvedDeposits;
+
+        if (balanceToSweep > 0) contributionToken.safeTransfer(msg.sender, balanceToSweep);
+        else revert RevShareModule__NothingToSweep();
+
+        emit OnBalanceSwept(balanceToSweep);
+    }
 
     /*//////////////////////////////////////////////////////////////
                                EMERGENCY
