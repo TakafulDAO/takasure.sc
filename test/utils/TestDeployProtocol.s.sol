@@ -232,7 +232,8 @@ contract TestDeployProtocol is Script {
                     _params.takadaoOperator,
                     _params.kycProvider,
                     _params.pauseGuardian,
-                    _params.contributionToken
+                    _params.contributionToken,
+                    "The LifeDAO"
                 )
             )
         );

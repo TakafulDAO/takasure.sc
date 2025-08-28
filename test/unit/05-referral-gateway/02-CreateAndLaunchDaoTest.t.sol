@@ -17,7 +17,6 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     address notAllowedAddress = makeAddr("notAllowedAddress");
     address DAO = makeAddr("DAO");
     address subscriptionModule = makeAddr("subscriptionModule");
-    string tDaoName = "The LifeDao";
 
     function setUp() public {
         // Deployer
@@ -77,7 +76,6 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
 
     modifier createDao() {
         vm.startPrank(takadao);
-        referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
         _;

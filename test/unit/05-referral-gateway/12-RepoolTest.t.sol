@@ -22,7 +22,6 @@ contract ReferralGatewayRepoolTest is Test {
     address KYCProvider;
     address child = makeAddr("child");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "The LifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
 
@@ -62,7 +61,6 @@ contract ReferralGatewayRepoolTest is Test {
 
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
     }

@@ -172,7 +172,8 @@ contract ReferralGateway is
         address _operator,
         address _KYCProvider,
         address _pauseGuardian,
-        address _usdcAddress
+        address _usdcAddress,
+        string memory _daoName
     ) external initializer {
         _notZeroAddress(_operator);
         _notZeroAddress(_KYCProvider);
@@ -184,6 +185,8 @@ contract ReferralGateway is
 
         operator = _operator;
         usdc = IERC20(_usdcAddress);
+
+        daoName = _daoName;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -844,15 +847,5 @@ contract ReferralGateway is
 
     function _notZeroAddress(address _address) internal pure {
         require(_address != address(0), ReferralGateway__ZeroAddress());
-    }
-
-    function setDaoName(string memory _daoName) external onlyRole(OPERATOR) {
-        daoName = _daoName;
-    }
-
-    function defaultDaoConfig() external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].DAOAddress = address(0);
-        nameToDAOData[daoName].DAOAdmin = address(0);
-        nameToDAOData[daoName].referralDiscount = true;
     }
 }

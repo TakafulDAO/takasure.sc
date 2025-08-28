@@ -21,7 +21,7 @@ contract ReferralGatewayWithCouponWithParentPaymentTest is Test {
     address parent = makeAddr("parent");
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "The LifeDao";
+    string tDaoName = "The LifeDAO";
     uint256 public constant USDC_INITIAL_AMOUNT = 1000e6; // 1000 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 250e6; // 250 USDC
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
@@ -63,9 +63,6 @@ contract ReferralGatewayWithCouponWithParentPaymentTest is Test {
 
         vm.prank(couponPool);
         usdc.approve(address(referralGateway), 1000e6);
-
-        vm.prank(takadao);
-        referralGateway.setDaoName(tDaoName);
 
         vm.prank(config.daoMultisig);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
