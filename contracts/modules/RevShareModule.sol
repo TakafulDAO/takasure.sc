@@ -113,6 +113,7 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
      * @param timestamp The timestamp when revenues will be available to claim
      */
     function setAvailableDate(uint256 timestamp) external onlyRole(Roles.OPERATOR) {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(timestamp > block.timestamp, RevShareModule__InvalidDate());
         revenuesAvailableDate = timestamp;
 
@@ -125,6 +126,7 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
      * @dev To be called in case the revenuesAvailableDate is set too far in the future
      */
     function releaseRevenues() external onlyRole(Roles.OPERATOR) {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(block.timestamp < revenuesAvailableDate, RevShareModule__InvalidDate());
         revenuesAvailableDate = block.timestamp;
         emit OnAvailableDateSet(block.timestamp);
@@ -140,6 +142,7 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
         bool active,
         uint256 periodFinish
     ) external onlyRole(Roles.OPERATOR) {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         distributionsActive = active;
 
         // If active is true, reset the timestamp, but if false, set the timestamp when distributions will stop
@@ -154,6 +157,7 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
     }
 
     function addNewTakadaoAddress(address addr) external onlyRole(Roles.OPERATOR) {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(addr);
         takadao[addr] = true;
 
@@ -161,7 +165,9 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
     }
 
     function removeTakadaoAddress(address addr) external onlyRole(Roles.OPERATOR) {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(addr);
+
         takadao[addr] = false;
 
         emit OnTakadaoAddressRemoved(addr);
@@ -193,6 +199,7 @@ contract RevShareModule is TLDModuleImplementation, Initializable, UUPSUpgradeab
      * @return revenue The amount of revenue share claimed
      */
     function claimRevenueShare() external returns (uint256 revenue) {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(
             block.timestamp >= revenuesAvailableDate,
             RevShareModule__RevenuesNotAvailableYet()
