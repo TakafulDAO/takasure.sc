@@ -93,7 +93,8 @@ contract ReferralGatewayRefundTest is Test {
             uint256 contributionBeforeFee,
             uint256 contributionAfterFee,
             uint256 feeToOperator,
-            uint256 discount
+            uint256 discount,
+
         ) = referralGateway.getPrepaidMember(child);
 
         assert(contributionBeforeFee > 0);
@@ -138,7 +139,7 @@ contract ReferralGatewayRefundTest is Test {
         referralGateway.refundIfDAOIsNotLaunched(child);
         vm.stopPrank();
 
-        (contributionBeforeFee, contributionAfterFee, feeToOperator, discount) = referralGateway
+        (contributionBeforeFee, contributionAfterFee, feeToOperator, discount, ) = referralGateway
             .getPrepaidMember(child);
 
         assertEq(contributionBeforeFee, 0);

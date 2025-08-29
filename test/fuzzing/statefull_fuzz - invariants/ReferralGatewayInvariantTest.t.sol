@@ -27,7 +27,6 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     address couponPool = makeAddr("couponPool");
     uint256 operatorInitialBalance;
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
-    string constant DAO_NAME = "The LifeDAO";
 
     function setUp() public {
         deployer = new TestDeployProtocol();
