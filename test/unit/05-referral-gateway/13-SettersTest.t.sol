@@ -19,7 +19,6 @@ contract ReferralGatewaySettersTests is Test {
     address couponUser = makeAddr("couponUser");
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
@@ -56,19 +55,6 @@ contract ReferralGatewaySettersTests is Test {
         deal(address(usdc), couponPool, 1000e6);
         vm.prank(couponPool);
         usdc.approve(address(referralGateway), 1000e6);
-
-        bytes memory strBytes = bytes(tDaoName);
-        bytes32 slotValue;
-
-        assembly {
-            slotValue := mload(add(strBytes, 32))
-        }
-
-        uint256 lenFlagged = strBytes.length * 2;
-
-        slotValue = (slotValue & ~bytes32(uint256(0xFF))) | bytes32(uint256(lenFlagged));
-
-        vm.store(address(referralGateway), bytes32(uint256(9)), slotValue);
 
         vm.prank(config.daoMultisig);
         referralGateway.createDAO(true, true, 1743479999, 1e12);

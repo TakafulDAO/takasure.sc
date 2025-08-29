@@ -21,7 +21,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
     address parent = makeAddr("parent");
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "The LifeDao";
+    string tDaoName = "The LifeDAO";
     uint256 public constant USDC_INITIAL_AMOUNT = 1000e6; // 1000 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 250e6; // 250 USDC
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
@@ -63,19 +63,6 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
         vm.prank(couponPool);
         usdc.approve(address(referralGateway), 1000e6);
-
-        bytes memory strBytes = bytes(tDaoName);
-        bytes32 slotValue;
-
-        assembly {
-            slotValue := mload(add(strBytes, 32))
-        }
-
-        uint256 lenFlagged = strBytes.length * 2;
-
-        slotValue = (slotValue & ~bytes32(uint256(0xFF))) | bytes32(uint256(lenFlagged));
-
-        vm.store(address(referralGateway), bytes32(uint256(9)), slotValue);
 
         vm.prank(config.daoMultisig);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
@@ -129,7 +116,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         // (250 * 27%) - 0 - (250 * 5%) - (250 * 2%) = 67.5 - 0 - 12.5 - 5 = 50
         assertEq(feeToOp, 50e6);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -178,7 +165,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         assertEq(feeToOp, 35e6);
         assertEq(expectedDiscount, 15e6);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -258,7 +245,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         // (250 * 27%) - 0 - (250 * 5%) - (250 * 2%) = 67.5 - 0 - 12.5 - 5 = 50
         assertEq(feeToOp, 50_000_000);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -310,7 +297,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         assertEq(feeToOp, 35_000_000);
         assertEq(expectedDiscount, 15e6);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -356,7 +343,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         // (250 * 27%) - 0 - (250 * 2%) = 67.5 - 0 - 5 = 62.5
         assertEq(feeToOp, 625e5);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -410,7 +397,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         assertEq(feeToOp, 475e5);
         assertEq(expectedDiscount, 15e6);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -454,7 +441,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         // (250 * 27%) - 0 - (250 * 5%) - (250 * 2%) = 67.5 - 0 - 12.5 - 5 = 50
         assertEq(feeToOp, 50e6);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -504,7 +491,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         // (250 * 27%) - (250 * 5%) - (250 * 2%) = 67.5 - 12.5 - 5 = 50
         assertEq(feeToOp, 50e6);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -590,7 +577,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         // (250 * 27%) - 0 - (250 * 5%) - (250 * 2%) = 67.5 - 0 - 12.5 - 5 = 50
         assertEq(feeToOp, 50_000_000);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -642,7 +629,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         // (250 * 27%) - (250 * 5%) - (250 * 2%) = 67.5 - 12.5 - 5 = 50
         assertEq(feeToOp, 50_000_000);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -689,7 +676,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         // (250 * 27%) - 0 - 0 - (250 * 2%) = 67.5 - 0 - 0 - 5 = 62.5
         assertEq(feeToOp, 625e5);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
@@ -742,7 +729,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
         // (250 * 27%) - (250 * 2%) = 67.5 - 5 = 62.5
         assertEq(feeToOp, 625e5);
 
-        (uint256 contributionBeforeFee, , , uint256 discount) = referralGateway.getPrepaidMember(
+        (uint256 contributionBeforeFee, , , uint256 discount, ) = referralGateway.getPrepaidMember(
             child
         );
 
