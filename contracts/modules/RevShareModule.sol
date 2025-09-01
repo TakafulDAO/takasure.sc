@@ -63,6 +63,7 @@ contract RevShareModule is
 
     error RevShareModule__RevenuesNotAvailableYet();
     error RevShareModule__InvalidDate();
+    error RevShareModule__NotTakadaoAddress();
     error RevShareModule__NothingToSweep();
 
     /*//////////////////////////////////////////////////////////////
@@ -164,6 +165,8 @@ contract RevShareModule is
     ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         AddressAndStates._notZeroAddress(addr);
+
+        require(takadao[addr], RevShareModule__NotTakadaoAddress());
 
         takadao[addr] = false;
 
