@@ -67,7 +67,7 @@ contract RevShareModule is
     //////////////////////////////////////////////////////////////*/
 
     event OnAvailableDateSet(uint256 timestamp);
-    event OnRewardsDistributionSet(uint256 duration);
+    event OnRewardsDurationSet(uint256 duration);
     event OnDistributionsActiveSet(bool active, uint256 periodFinish);
     event OnTakadaoAddressAdded(address indexed addr);
     event OnTakadaoAddressRemoved(address indexed addr);
