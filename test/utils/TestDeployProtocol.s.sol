@@ -83,6 +83,12 @@ contract TestDeployProtocol is Script {
             ProtocolAddressType.Protocol
         );
 
+        addressManager.addProtocolAddress(
+            "CONTRIBUTION_TOKEN",
+            config.contributionToken,
+            ProtocolAddressType.Protocol
+        );
+
         // Deploy TakasureReserve
         takasureReserveImplementation = address(new TakasureReserve());
         takasureReserve = UnsafeUpgrades.deployUUPSProxy(
