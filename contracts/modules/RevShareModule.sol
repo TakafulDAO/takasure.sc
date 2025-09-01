@@ -67,6 +67,7 @@ contract RevShareModule is
     //////////////////////////////////////////////////////////////*/
 
     event OnAvailableDateSet(uint256 timestamp);
+    event OnRewardsDistributionSet(uint256 duration);
     event OnDistributionsActiveSet(bool active, uint256 periodFinish);
     event OnTakadaoAddressAdded(address indexed addr);
     event OnTakadaoAddressRemoved(address indexed addr);
@@ -75,7 +76,7 @@ contract RevShareModule is
     event OnRevenueShareClaimed(address indexed pioneer, uint256 amount);
 
     error RevShareModule__RevenuesNotAvailableYet();
-    error RevShareModule__NotZeroAmount();
+    error RevShareModule__NotZeroValue();
     error RevShareModule__InvalidDate();
     error RevShareModule__NotTakadaoAddress();
     error RevShareModule__NothingToSweep();
@@ -130,6 +131,15 @@ contract RevShareModule is
         emit OnAvailableDateSet(timestamp);
     }
 
+    function setRewardsDuration(
+        uint256 duration
+    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        require(duration > 0, RevShareModule__NotZeroValue());
+        rewardsDuration = duration;
+        emit OnRewardsDurationSet(duration);
+    }
+
     /**
      * @notice Early release the revenues to be available to claim
      * @dev Only callable by an operator
@@ -179,7 +189,7 @@ contract RevShareModule is
     function notifyNewRevenue(
         uint256 amount
     ) external onlyType(ProtocolAddressType.Module, address(addressManager)) nonReentrant {
-        require(amount > 0, RevShareModule__NotZeroAmount());
+        require(amount > 0, RevShareModule__NotZeroValue());
 
         // Checkpoint
         _updatePools();
