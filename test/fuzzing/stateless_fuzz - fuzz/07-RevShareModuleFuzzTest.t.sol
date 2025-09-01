@@ -83,27 +83,6 @@ contract RevShareModuleFuzzTest is Test {
         revShareModule.setDistributionsActive(false, block.timestamp + 1 days);
     }
 
-    function testAddNewTakadaoAddressRevertsIfCallerIsInvalid(address caller) public {
-        vm.assume(caller != takadao);
-
-        vm.prank(caller);
-        vm.expectRevert();
-        revShareModule.addNewTakadaoAddress(makeAddr("newTakadao"));
-    }
-
-    function testRemoveTakadaoAddressRevertsIfCallerIsInvalid(address caller) public {
-        vm.assume(caller != takadao);
-
-        address newTakadao = makeAddr("newTakadao");
-
-        vm.prank(takadao);
-        revShareModule.addNewTakadaoAddress(newTakadao);
-
-        vm.prank(caller);
-        vm.expectRevert();
-        revShareModule.removeTakadaoAddress(newTakadao);
-    }
-
     function testSweepNonApprovedDepositsRevertsIfCallerIsInvalid(address caller) public {
         vm.assume(caller != takadao);
 

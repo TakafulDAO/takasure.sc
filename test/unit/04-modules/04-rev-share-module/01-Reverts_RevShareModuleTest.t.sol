@@ -93,47 +93,6 @@ contract Reverts_RevShareModuleTest is Test {
         revShareModule.setDistributionsActive(false, block.timestamp);
     }
 
-    function testRevShareModule_addNewTakadaoAddressRevertsIfModuleIsNotEnabled() public {
-        vm.prank(moduleManagerAddress);
-        revShareModule.setContractState(ModuleState.Paused);
-
-        vm.prank(takadao);
-        vm.expectRevert(ModuleErrors.Module__WrongModuleState.selector);
-        revShareModule.addNewTakadaoAddress(makeAddr("newTakadao"));
-    }
-
-    function testRevShareModule_addNewTakadaoAddressRevertsIfIsAddressZero() public {
-        vm.prank(takadao);
-        vm.expectRevert();
-        revShareModule.addNewTakadaoAddress(address(0));
-    }
-
-    function testRevShareModule_removeTakadaoAddressRevertsIfModuleIsNotEnabled() public {
-        address newTakadao = makeAddr("newTakadao");
-
-        vm.prank(takadao);
-        revShareModule.addNewTakadaoAddress(newTakadao);
-
-        vm.prank(moduleManagerAddress);
-        revShareModule.setContractState(ModuleState.Paused);
-
-        vm.prank(takadao);
-        vm.expectRevert(ModuleErrors.Module__WrongModuleState.selector);
-        revShareModule.removeTakadaoAddress(newTakadao);
-    }
-
-    function testRevShareModule_removeTakadaoAddressRevertsIfIsAddressZero() public {
-        vm.prank(takadao);
-        vm.expectRevert();
-        revShareModule.removeTakadaoAddress(address(0));
-    }
-
-    function testRevShareModule_removeTakadaoAddressRevertsIfIsNotATakadaoAddress() public {
-        vm.prank(takadao);
-        vm.expectRevert();
-        revShareModule.removeTakadaoAddress(makeAddr("notTakadao"));
-    }
-
     function testRevShareModule_sweepNonApprovedDepositsRevertsIfModuleIsNotEnabled() public {
         vm.prank(moduleManagerAddress);
         revShareModule.setContractState(ModuleState.Paused);

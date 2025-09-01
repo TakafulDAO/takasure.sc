@@ -49,7 +49,6 @@ contract RevShareModule is
 
     mapping(address pioneer => uint256 revenue) public revenuePerPioneer;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
-    mapping(address => bool) public takadao; // Allowed addresses to claim Takadao's share of the revenues
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -151,29 +150,6 @@ contract RevShareModule is
         }
 
         emit OnDistributionsActiveSet(distributionsActive, lastTimestampToDistributeRevenues);
-    }
-
-    function addNewTakadaoAddress(
-        address addr
-    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        AddressAndStates._notZeroAddress(addr);
-        takadao[addr] = true;
-
-        emit OnTakadaoAddressAdded(addr);
-    }
-
-    function removeTakadaoAddress(
-        address addr
-    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        AddressAndStates._notZeroAddress(addr);
-
-        require(takadao[addr], RevShareModule__NotTakadaoAddress());
-
-        takadao[addr] = false;
-
-        emit OnTakadaoAddressRemoved(addr);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -309,10 +285,6 @@ contract RevShareModule is
      */
     function getRevenueForDuration(uint256 duration) external view returns (uint256) {
         return duration * rewardRate;
-    }
-
-    function isTakadao(address addr) external view returns (bool) {
-        return takadao[addr];
     }
 
     /*//////////////////////////////////////////////////////////////
