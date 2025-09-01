@@ -44,6 +44,8 @@ contract RevShareModule is
     uint256 public revenuePerNftOwned; // Accumulates the total revenue a single NFT has earned if it was owned since the beginning
 
     uint256 private constant PRECISION_FACTOR = 1e6;
+    uint256 private constant TAKADAO_SHARE = 25; // In percentage (25%)
+    uint256 private constant PIONEERS_SHARE = 75; // In percentage (75%)
 
     mapping(address pioneer => uint256 revenue) public revenuePerPioneer;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
@@ -62,6 +64,7 @@ contract RevShareModule is
     event OnRevenueShareClaimed(address indexed pioneer, uint256 amount);
 
     error RevShareModule__RevenuesNotAvailableYet();
+    error RevShareModule__NotZeroAmount();
     error RevShareModule__InvalidDate();
     error RevShareModule__NotTakadaoAddress();
     error RevShareModule__NothingToSweep();
@@ -185,7 +188,9 @@ contract RevShareModule is
      */
     function notifyNewRevenue(
         uint256 amount
-    ) external onlyType(ProtocolAddressType.Module, address(addressManager)) {
+    ) external onlyType(ProtocolAddressType.Module, address(addressManager)) nonReentrant {
+        require(amount > 0, RevShareModule__NotZeroAmount());
+
         approvedDeposits += amount;
 
         IERC20 contributionToken = IERC20(
