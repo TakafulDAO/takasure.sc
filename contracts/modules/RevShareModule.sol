@@ -50,6 +50,8 @@ contract RevShareModule is
     uint256 public rewardRate; // Reward rate per second to distribute among NFT holders
     uint256 public lastUpdateTime;
     uint256 public revenuePerNftOwned; // Accumulates the total revenue a single NFT has earned if it was owned since the beginning
+    uint256 public revenuePerNftPioneers; // Cumulative revenue per NFT for pioneers pool
+    uint256 public revenuePerNftTakadao; // Cumulative revenue per NFT for Takadao pool
 
     uint256 private constant PRECISION_FACTOR = 1e6;
 
