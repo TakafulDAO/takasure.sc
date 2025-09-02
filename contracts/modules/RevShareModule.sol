@@ -68,6 +68,7 @@ contract RevShareModule is
     error RevShareModule__InvalidDate();
     error RevShareModule__NothingToSweep();
     error RevShareModule__ActiveStreamOngoing();
+    error RevShareModule__InsufficientApprovedDeposits();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -229,7 +230,14 @@ contract RevShareModule is
             addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
         );
         uint256 balance = contributionToken.balanceOf(address(this));
+
+        // Halt streams & reset accounting
+        rewardRatePioneers = 0;
+        rewardRateTakadao = 0;
+        periodFinish = block.timestamp;
+        lastUpdateTime = block.timestamp;
         approvedDeposits = 0; // Reset approved deposits
+
         contributionToken.safeTransfer(msg.sender, balance);
     }
 
@@ -277,6 +285,7 @@ contract RevShareModule is
             contributionToken.safeTransfer(beneficiary, revenue);
 
             // Sync approved deposits
+            if (approvedDeposits < revenue) revert RevShareModule__InsufficientApprovedDeposits();
             approvedDeposits -= revenue;
 
             emit OnRevenueShareClaimed(beneficiary, revenue);
@@ -310,11 +319,13 @@ contract RevShareModule is
 
     /// @notice View the revenue earned by a pioneer
     function earnedPioneers(address account) external view returns (uint256) {
+        if (account == _getRevenueReceiver()) return 0; // Takadao does not earn from this stream
         return _earnedPioneers(account);
     }
 
     /// @notice View the revenue earned by Takadao
     function earnedTakadao(address account) external view returns (uint256) {
+        if (account != _getRevenueReceiver()) return 0; // Only the revenue receiver earns from this stream
         return _earnedTakadao(account);
     }
 
