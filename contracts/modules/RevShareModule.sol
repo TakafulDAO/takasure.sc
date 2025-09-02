@@ -203,10 +203,12 @@ contract RevShareModule is
         IERC20 contributionToken = IERC20(
             addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
         );
-        uint256 balanceToSweep = contributionToken.balanceOf(address(this)) - approvedDeposits;
+        uint256 bal = contributionToken.balanceOf(address(this));
+        if (bal <= approvedDeposits) revert RevShareModule__NothingToSweep();
 
-        if (balanceToSweep > 0) contributionToken.safeTransfer(msg.sender, balanceToSweep);
-        else revert RevShareModule__NothingToSweep();
+        uint256 balanceToSweep = bal - approvedDeposits;
+
+        contributionToken.safeTransfer(msg.sender, balanceToSweep);
 
         emit OnBalanceSwept(balanceToSweep);
     }
