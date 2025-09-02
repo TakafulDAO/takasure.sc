@@ -27,19 +27,19 @@ contract Initialization_RevShareModuleTest is Test {
         takadao = config.takadaoOperator;
     }
 
-    function testRevShareModule_availableDate() public {
+    function testRevShareModule_availableDate() public view {
         assertEq(revShareModule.revenuesAvailableDate(), block.timestamp);
     }
 
-    function testRevShareModule_nonApprovedDepositsYet() public {
+    function testRevShareModule_nonApprovedDepositsYet() public view {
         assertEq(revShareModule.approvedDeposits(), 0);
     }
 
-    function testRevShareModule_nonTimeToStopRevenues() public {
+    function testRevShareModule_nonTimeToStopRevenues() public view {
         assertEq(revShareModule.lastTimestampToDistributeRevenues(), 0);
     }
 
-    function testRevShareModule_noOneHasInteract() public {
+    function testRevShareModule_noOneHasInteract() public view {
         assertEq(revShareModule.lastUpdateTime(), 0);
     }
 }
