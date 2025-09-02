@@ -252,19 +252,38 @@ contract RevShareModule is
             RevShareModule__RevenuesNotAvailableYet()
         );
 
-        _updateRevenue(msg.sender);
+        IRevShareNFT revShareNFT = IRevShareNFT(
+            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
+        );
 
-        revenue = revenuePerPioneer[msg.sender];
+        address revenueReceiver = _getRevenueReceiver();
+        bool isPioneer = revShareNFT.balanceOf(revenueReceiver) > 0;
+
+        address beneficiary;
+
+        if (isPioneer)
+            beneficiary = msg.sender; // earns from pioneers stream
+        else if (_callerIsClaimer())
+            beneficiary = revenueReceiver; // earns from Takadao stream
+        else revert ModuleErrors.Module__NotAuthorizedCaller(); // Only pioneers or the revenue claimer can call
+
+        // Update global and user accruals
+        _updateRevenue(beneficiary);
+
+        revenue = revenuePerPioneer[beneficiary];
 
         if (revenue > 0) {
-            revenuePerPioneer[msg.sender] = 0;
+            revenuePerPioneer[beneficiary] = 0;
 
             IERC20 contributionToken = IERC20(
                 addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
             );
-            contributionToken.safeTransfer(msg.sender, revenue);
+            contributionToken.safeTransfer(beneficiary, revenue);
 
-            emit OnRevenueShareClaimed(msg.sender, revenue);
+            // Sync approved deposits
+            approvedDeposits -= revenue;
+
+            emit OnRevenueShareClaimed(beneficiary, revenue);
         }
     }
 
@@ -312,6 +331,14 @@ contract RevShareModule is
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _getRevenueReceiver() internal view returns (address) {
+        return addressManager.getProtocolAddressByName("REVENUE_RECEIVER").addr;
+    }
+
+    function _callerIsClaimer() internal view returns (bool) {
+        return addressManager.hasRole(Roles.REVENUE_CLAIMER, msg.sender);
+    }
 
     /// @dev Updates the global revenue for both pools
     function _updateGlobal() internal {
