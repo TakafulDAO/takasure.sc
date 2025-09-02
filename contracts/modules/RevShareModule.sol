@@ -361,6 +361,38 @@ contract RevShareModule is
                 totalSupply);
     }
 
+    function _revenuePerNftPioneers() internal view returns (uint256) {
+        IRevShareNFT revShareNFT = IRevShareNFT(
+            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
+        );
+
+        uint256 currentSupply = revShareNFT.totalSupply();
+
+        if (currentSupply == 0) return revenuePerNftPioneers;
+
+        uint256 elapsed = lastTimeApplicable() - lastUpdateTime;
+
+        return
+            revenuePerNftPioneers +
+            ((elapsed * rewardRatePioneers * PRECISION_FACTOR) / currentSupply);
+    }
+
+    function _revenuePerNftTakadao() internal view returns (uint256) {
+        IRevShareNFT revShareNFT = IRevShareNFT(
+            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
+        );
+
+        uint256 currentSupply = revShareNFT.totalSupply();
+
+        if (currentSupply == 0) return revenuePerNftTakadao;
+
+        uint256 elapsed = lastTimeApplicable() - lastUpdateTime;
+
+        return
+            revenuePerNftTakadao +
+            ((elapsed * rewardRateTakadao * PRECISION_FACTOR) / currentSupply);
+    }
+
     function _earned(address _pioneer) internal view returns (uint256) {
         AddressAndStates._notZeroAddress(_pioneer);
 
