@@ -61,12 +61,13 @@ contract RevShareModule is
     event OnRewardsDurationSet(uint256 duration);
     event OnDeposit(uint256 amount);
     event OnBalanceSwept(uint256 amount);
-    event OnRevenueShareClaimed(address indexed pioneer, uint256 amount);
+    event OnRevenueShareClaimed(address indexed account, uint256 amount);
 
     error RevShareModule__RevenuesNotAvailableYet();
     error RevShareModule__NotZeroValue();
     error RevShareModule__InvalidDate();
     error RevShareModule__NothingToSweep();
+    error RevShareModule__ActiveStreamOngoing();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -122,6 +123,7 @@ contract RevShareModule is
     ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
         require(duration > 0, RevShareModule__NotZeroValue());
+        require(block.timestamp >= periodFinish, RevShareModule__ActiveStreamOngoing()); // Avoid mid-stream changes
         rewardsDuration = duration;
         emit OnRewardsDurationSet(duration);
     }
@@ -156,13 +158,13 @@ contract RevShareModule is
     ) external onlyType(ProtocolAddressType.Module, address(addressManager)) nonReentrant {
         require(amount > 0, RevShareModule__NotZeroValue());
 
-        // Update approved depoosits for accounting purposes
+        // Update approved deposits for accounting purposes
         approvedDeposits += amount;
 
         // Checkpoint (old rates are settled up to now)
         _updateGlobal();
 
-        // Split betwen Takadao and pioneers
+        // Split between Takadao and pioneers
         uint256 pioneersShare = (amount * PIONEERS_SHARE) / 100;
         uint256 takadaoShare = (amount * TAKADAO_SHARE) / 100;
 
@@ -227,6 +229,7 @@ contract RevShareModule is
             addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
         );
         uint256 balance = contributionToken.balanceOf(address(this));
+        approvedDeposits = 0; // Reset approved deposits
         contributionToken.safeTransfer(msg.sender, balance);
     }
 
@@ -250,7 +253,7 @@ contract RevShareModule is
         );
 
         address revenueReceiver = _getRevenueReceiver();
-        bool isPioneer = revShareNFT.balanceOf(revenueReceiver) > 0;
+        bool isPioneer = revShareNFT.balanceOf(msg.sender) > 0;
 
         address beneficiary;
 
