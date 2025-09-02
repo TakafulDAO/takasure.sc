@@ -37,23 +37,17 @@ contract RevShareModule is
 
     uint256 public approvedDeposits; // Total amount of approved deposits to be distributed as revenue
     uint256 public revenuesAvailableDate; // Timestamp to start the distribution. It does not mean the calculation starts at this date
-    uint256 public lastTimestampToDistributeRevenues; // Last timestamp to distribute revenues when distributions are turned off. 0 if distributions are active
 
-    // TODO: Ask at the end, deliver the math first. For now will be 0
-    // ? Question: Still not clear if this is 75% and 25% and we differentiate different reward rate according the caller
-    // ? Or if it is the same reward rate for all th callers but we apply the formula just for the 75% or 25% of the balance depending on the caller
     uint256 private constant PIONEERS_SHARE = 75; // In percentage (75%)
     uint256 private constant TAKADAO_SHARE = 25; // In percentage (25%)
+    uint256 private constant PRECISION_FACTOR = 1e6;
+
     uint256 public rewardRateTakadao; // Reward rate per second to distribute among Takadao (25%)
     uint256 public rewardRatePioneers; // Reward rate per second to distribute among pioneers (75%)
 
-    uint256 public rewardRate; // Reward rate per second to distribute among NFT holders
     uint256 public lastUpdateTime;
-    uint256 public revenuePerNftOwned; // Accumulates the total revenue a single NFT has earned if it was owned since the beginning
     uint256 public revenuePerNftPioneers; // Cumulative revenue per NFT for pioneers pool
     uint256 public revenuePerNftTakadao; // Cumulative revenue per NFT for Takadao pool
-
-    uint256 private constant PRECISION_FACTOR = 1e6;
 
     mapping(address pioneer => uint256 revenue) public revenuePerPioneer;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
@@ -65,9 +59,6 @@ contract RevShareModule is
 
     event OnAvailableDateSet(uint256 timestamp);
     event OnRewardsDurationSet(uint256 duration);
-    event OnDistributionsActiveSet(bool active, uint256 periodFinish);
-    event OnTakadaoAddressAdded(address indexed addr);
-    event OnTakadaoAddressRemoved(address indexed addr);
     event OnDeposit(uint256 amount);
     event OnBalanceSwept(uint256 amount);
     event OnRevenueShareClaimed(address indexed pioneer, uint256 amount);
@@ -75,7 +66,6 @@ contract RevShareModule is
     error RevShareModule__RevenuesNotAvailableYet();
     error RevShareModule__NotZeroValue();
     error RevShareModule__InvalidDate();
-    error RevShareModule__NotTakadaoAddress();
     error RevShareModule__NothingToSweep();
 
     /*//////////////////////////////////////////////////////////////
@@ -300,24 +290,8 @@ contract RevShareModule is
                              VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function revenuePerNft() external view returns (uint256) {
-        return _revenuePerNft();
-    }
-
-    /**
-     * @notice View the revenue share earned by a pioneer so far
-     * @param pioneer The address of the pioneer
-     * @return The amount of revenue share earned
-     */
-    function earned(address pioneer) public view returns (uint256) {
-        return _earned(pioneer);
-    }
-
     function lastTimeApplicable() public view returns (uint256) {
-        uint256 pf = periodFinish;
-
-        if (pf == 0) return block.timestamp;
-        return block.timestamp < pf ? block.timestamp : pf;
+        return _lastTimeApplicable();
     }
 
     /**
@@ -325,13 +299,40 @@ contract RevShareModule is
      * @param duration The duration in seconds
      * @return The amount of revenue to be distributed
      */
-    function getRevenueForDuration(uint256 duration) external view returns (uint256) {
-        return duration * rewardRate;
+    function getRevenueForDuration(uint256 duration) external view returns (uint256, uint256) {
+        return (duration * rewardRatePioneers, duration * rewardRateTakadao);
+    }
+
+    /// @notice View the revenue earned by a pioneer
+    function earnedPioneers(address account) external view returns (uint256) {
+        return _earnedPioneers(account);
+    }
+
+    /// @notice View the revenue earned by Takadao
+    function earnedTakadao(address account) external view returns (uint256) {
+        return _earnedTakadao(account);
+    }
+
+    /// @notice View the revenue per NFT for pioneers
+    function getRevenuePerNftPioneers() external view returns (uint256) {
+        return _revenuePerNftPioneers();
+    }
+
+    /// @notice View the revenue per NFT for Takadao
+    function getRevenuePerNftTakadao() external view returns (uint256) {
+        return _revenuePerNftTakadao();
     }
 
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _lastTimeApplicable() internal view returns (uint256) {
+        uint256 _pf = periodFinish;
+
+        if (_pf == 0) return block.timestamp;
+        return block.timestamp < _pf ? block.timestamp : _pf;
+    }
 
     function _getRevenueReceiver() internal view returns (address) {
         return addressManager.getProtocolAddressByName("REVENUE_RECEIVER").addr;
@@ -349,13 +350,13 @@ contract RevShareModule is
         uint256 currentSupply = revShareNFT.totalSupply();
 
         if (currentSupply == 0) {
-            lastUpdateTime = lastTimeApplicable();
+            lastUpdateTime = _lastTimeApplicable();
             return; // Nothing to accumulate if there are no NFTs
         }
 
         revenuePerNftPioneers = _revenuePerNftPioneers();
         revenuePerNftTakadao = _revenuePerNftTakadao();
-        lastUpdateTime = lastTimeApplicable();
+        lastUpdateTime = _lastTimeApplicable();
     }
 
     function _updateRevenue(address _account) internal {
@@ -385,29 +386,6 @@ contract RevShareModule is
         }
     }
 
-    function _revenuePerNft() internal view returns (uint256) {
-        IRevShareNFT revShareNFT = IRevShareNFT(
-            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
-        );
-
-        // TODO: Ask when finish the contract and tests
-        // ? Question: Do we take into account the case where there are no NFTs minted from Takadao?
-        uint256 totalSupply = revShareNFT.totalSupply();
-
-        if (totalSupply == 0) return revenuePerNftOwned;
-
-        // TODO: Check this decimals!!!!!
-        // return
-        //     revenuePerNftOwned +
-        //     ((lastTimeApplicable() - lastUpdateTime) * rewardRate) /
-        //     totalSupply;
-
-        return
-            revenuePerNftOwned +
-            (((lastTimeApplicable() - lastUpdateTime) * rewardRate * PRECISION_FACTOR) /
-                totalSupply);
-    }
-
     function _revenuePerNftPioneers() internal view returns (uint256) {
         IRevShareNFT revShareNFT = IRevShareNFT(
             addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
@@ -417,7 +395,7 @@ contract RevShareModule is
 
         if (currentSupply == 0) return revenuePerNftPioneers;
 
-        uint256 elapsed = lastTimeApplicable() - lastUpdateTime;
+        uint256 elapsed = _lastTimeApplicable() - lastUpdateTime;
 
         return
             revenuePerNftPioneers +
@@ -433,27 +411,11 @@ contract RevShareModule is
 
         if (currentSupply == 0) return revenuePerNftTakadao;
 
-        uint256 elapsed = lastTimeApplicable() - lastUpdateTime;
+        uint256 elapsed = _lastTimeApplicable() - lastUpdateTime;
 
         return
             revenuePerNftTakadao +
             ((elapsed * rewardRateTakadao * PRECISION_FACTOR) / currentSupply);
-    }
-
-    function _earned(address _pioneer) internal view returns (uint256) {
-        AddressAndStates._notZeroAddress(_pioneer);
-
-        IRevShareNFT revShareNFT = IRevShareNFT(
-            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
-        );
-
-        // TODO: Ask when finish the contract and tests
-        // ? Question: Which balance do I take into account for Takadao? All none minted NFTs?
-        return
-            (revShareNFT.balanceOf(_pioneer) *
-                (_revenuePerNft() - pioneerRevenuePerNftPaid[_pioneer])) /
-            PRECISION_FACTOR +
-            revenuePerPioneer[_pioneer];
     }
 
     function _earnedTakadao(address _account) internal view returns (uint256) {

@@ -35,10 +35,6 @@ contract Initialization_RevShareModuleTest is Test {
         assertEq(revShareModule.approvedDeposits(), 0);
     }
 
-    function testRevShareModule_nonTimeToStopRevenues() public view {
-        assertEq(revShareModule.lastTimestampToDistributeRevenues(), 0);
-    }
-
     function testRevShareModule_noOneHasInteract() public view {
         assertEq(revShareModule.lastUpdateTime(), 0);
     }
