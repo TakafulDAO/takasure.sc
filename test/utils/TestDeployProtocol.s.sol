@@ -105,6 +105,12 @@ contract TestDeployProtocol is Script {
             ProtocolAddressType.Admin
         );
 
+        addressManager.addProtocolAddress(
+            "REVENUE_RECEIVER",
+            makeAddr("revenueReceiver"),
+            ProtocolAddressType.Admin
+        );
+
         (
             referralGatewayAddress,
             subscriptionModuleAddress,
@@ -185,8 +191,10 @@ contract TestDeployProtocol is Script {
             .getReserveValues()
             .contributionToken;
 
-        vm.prank(config.takadaoOperator);
+        vm.startPrank(config.takadaoOperator);
         addressManager.acceptProposedRole(Roles.OPERATOR);
+        addressManager.acceptProposedRole(Roles.REVENUE_CLAIMER);
+        vm.stopPrank();
 
         vm.prank(config.daoMultisig);
         addressManager.acceptProposedRole(Roles.DAO_MULTISIG);
@@ -306,6 +314,7 @@ contract TestDeployProtocol is Script {
         AddressManager(_addressManager).createNewRole(Roles.OPERATOR);
         AddressManager(_addressManager).createNewRole(Roles.DAO_MULTISIG);
         AddressManager(_addressManager).createNewRole(Roles.KYC_PROVIDER);
+        AddressManager(_addressManager).createNewRole(Roles.REVENUE_CLAIMER);
     }
 
     function _assignRoles(AssignRolesFunctionParams memory _params) internal {
@@ -321,6 +330,10 @@ contract TestDeployProtocol is Script {
         AddressManager(_params.addressManager).proposeRoleHolder(
             Roles.KYC_PROVIDER,
             _params.kycProvider
+        );
+        AddressManager(_params.addressManager).proposeRoleHolder(
+            Roles.REVENUE_CLAIMER,
+            _params.takadaoOperator
         );
     }
 
