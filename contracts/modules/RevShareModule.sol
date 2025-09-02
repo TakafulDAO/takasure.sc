@@ -57,6 +57,7 @@ contract RevShareModule is
 
     mapping(address pioneer => uint256 revenue) public revenuePerPioneer;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
+    mapping(address => uint256) public takadaoRevenuePerNftPaid;
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -357,14 +358,31 @@ contract RevShareModule is
         lastUpdateTime = lastTimeApplicable();
     }
 
-    function _updateRevenue(address _pioneer) internal {
-        AddressAndStates._notZeroAddress(_pioneer);
+    function _updateRevenue(address _account) internal {
+        // Always update global state first
+        _updateGlobal();
 
-        revenuePerNftOwned = _revenuePerNft();
-        lastUpdateTime = lastTimeApplicable();
+        // If account is address zero, we are done
+        if (_account == address(0)) return;
 
-        revenuePerPioneer[_pioneer] = _earned(_pioneer);
-        pioneerRevenuePerNftPaid[_pioneer] = revenuePerNftOwned;
+        // Settle the account accruals on the corresponding stream
+        // In pioneers stream everyone but the revenue receiver earns
+        address revenueReceiver = _getRevenueReceiver();
+
+        // Pioneers stream (75%)
+        if (_account != revenueReceiver) {
+            uint256 newEarnedPioneers = _earnedPioneers(_account);
+            revenuePerPioneer[_account] = newEarnedPioneers;
+            pioneerRevenuePerNftPaid[_account] = revenuePerNftPioneers;
+        }
+
+        // Takadao stream (25%)
+        // Only the revenue receiver earns
+        if (_account == revenueReceiver) {
+            uint256 newEarnedTakadao = _earnedTakadao(_account);
+            revenuePerPioneer[_account] = newEarnedTakadao; // Reuse the same revenue bucket
+            takadaoRevenuePerNftPaid[_account] = revenuePerNftTakadao;
+        }
     }
 
     function _revenuePerNft() internal view returns (uint256) {
