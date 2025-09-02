@@ -31,26 +31,20 @@ contract RevShareModule is
 {
     using SafeERC20 for IERC20;
 
-    // Streaming / pools configs
+    // New streaming state
     uint256 public rewardsDuration;
+    uint256 public periodFinish; // Shared for both pools
 
     uint256 public approvedDeposits; // Total amount of approved deposits to be distributed as revenue
     uint256 public revenuesAvailableDate; // Timestamp to start the distribution. It does not mean the calculation starts at this date
     uint256 public lastTimestampToDistributeRevenues; // Last timestamp to distribute revenues when distributions are turned off. 0 if distributions are active
-    bool public distributionsActive;
 
     // TODO: Ask at the end, deliver the math first. For now will be 0
     // ? Question: Still not clear if this is 75% and 25% and we differentiate different reward rate according the caller
     // ? Or if it is the same reward rate for all th callers but we apply the formula just for the 75% or 25% of the balance depending on the caller
-    // Takadao pool (25%)
-    uint256 public lastUpdateTimeTakadao;
-    uint256 public periodFinishTakadao;
-    uint256 public rewardRateTakadao; // Reward rate per second to distribute among Takadao (25%)
-
-    // Pioneers pool (75%)
     uint256 private constant PIONEERS_SHARE = 75; // In percentage (75%)
-    uint256 public lastUpdateTimePioneers;
-    uint256 public periodFinishPioneers;
+    uint256 private constant TAKADAO_SHARE = 25; // In percentage (25%)
+    uint256 public rewardRateTakadao; // Reward rate per second to distribute among Takadao (25%)
     uint256 public rewardRatePioneers; // Reward rate per second to distribute among pioneers (75%)
 
     uint256 public rewardRate; // Reward rate per second to distribute among NFT holders
@@ -97,7 +91,6 @@ contract RevShareModule is
 
         addressManager = IAddressManager(_addressManagerAddress);
 
-        distributionsActive = true;
         revenuesAvailableDate = block.timestamp; // TODO: Change if needed
 
         rewardsDuration = 7 days; // default stream windows
@@ -152,30 +145,6 @@ contract RevShareModule is
         emit OnAvailableDateSet(block.timestamp);
     }
 
-    /**
-     * @notice Set if distributions are active or not
-     * @param active True if distributions are active, false otherwise
-     * @param periodFinish Timestamp to stop the distributions if active is false
-     * @dev Only callable by an operator
-     */
-    function setDistributionsActive(
-        bool active,
-        uint256 periodFinish
-    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        distributionsActive = active;
-
-        // If active is true, reset the timestamp, but if false, set the timestamp when distributions will stop
-        if (active) {
-            lastTimestampToDistributeRevenues = 0;
-        } else {
-            require(periodFinish > block.timestamp, RevShareModule__InvalidDate());
-            lastTimestampToDistributeRevenues = periodFinish;
-        }
-
-        emit OnDistributionsActiveSet(distributionsActive, lastTimestampToDistributeRevenues);
-    }
-
     /*//////////////////////////////////////////////////////////////
                                 DEPOSITS
     //////////////////////////////////////////////////////////////*/
@@ -191,45 +160,39 @@ contract RevShareModule is
     ) external onlyType(ProtocolAddressType.Module, address(addressManager)) nonReentrant {
         require(amount > 0, RevShareModule__NotZeroValue());
 
-        // Checkpoint
-        _updatePools();
-
-        // Split betwen Takadao and pioneers
-        uint256 amountPioneers = (amount * PIONEERS_SHARE) / 100;
-        uint256 amountTakadao = amount - amountPioneers; // remaining
-
-        // Compute leftover for pioneers pool
-        uint256 leftoverPioneers = 0;
-        if (block.timestamp < periodFinishPioneers) {
-            uint256 remaining = periodFinishPioneers - block.timestamp;
-            leftoverPioneers = remaining * rewardRatePioneers;
-        }
-
-        // Compute leftover reward for takadao pool
-        uint256 leftoverTakadao = 0;
-        if (block.timestamp < periodFinishTakadao) {
-            uint256 remaining = periodFinishTakadao - block.timestamp;
-            leftoverTakadao = remaining * rewardRateTakadao;
-        }
-
-        // New reward rates for each pool
-        rewardRatePioneers = (leftoverPioneers + amountPioneers) / rewardsDuration;
-        rewardRateTakadao = (leftoverTakadao + amountTakadao) / rewardsDuration;
-
-        // Update period finish for each pool
-        periodFinishPioneers = block.timestamp + rewardsDuration;
-        periodFinishTakadao = block.timestamp + rewardsDuration;
-
+        // Update approved depoosits for accounting purposes
         approvedDeposits += amount;
 
+        // Checkpoint (old rates are settled up to now)
+        _updateGlobal();
+
+        // Split betwen Takadao and pioneers
+        uint256 pioneersShare = (amount * PIONEERS_SHARE) / 100;
+        uint256 takadaoShare = (amount * TAKADAO_SHARE) / 100;
+
+        // Recompute reward rates with carry-over
+        uint256 currentTime = block.timestamp;
+        if (currentTime >= block.timestamp) {
+            rewardRatePioneers = pioneersShare / rewardsDuration;
+            rewardRateTakadao = takadaoShare / rewardsDuration;
+        } else {
+            uint256 remaining = periodFinish - currentTime;
+            uint256 leftoverPioneers = remaining * rewardRatePioneers;
+            uint256 leftoverTakadao = remaining * rewardRateTakadao;
+
+            rewardRatePioneers = (pioneersShare + leftoverPioneers) / rewardsDuration;
+            rewardRateTakadao = (takadaoShare + leftoverTakadao) / rewardsDuration;
+        }
+
+        lastUpdateTime = currentTime;
+        periodFinish = currentTime + rewardsDuration;
+
+        // Pull the tokens from the sender
         IERC20 contributionToken = IERC20(
             addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
         );
 
         contributionToken.safeTransferFrom(msg.sender, address(this), amount);
-
-        if (lastUpdateTimePioneers == 0) lastUpdateTimePioneers = block.timestamp;
-        if (lastUpdateTimeTakadao == 0) lastUpdateTimeTakadao = block.timestamp;
 
         emit OnDeposit(amount);
     }
@@ -326,12 +289,10 @@ contract RevShareModule is
     }
 
     function lastTimeApplicable() public view returns (uint256) {
-        if (distributionsActive) return block.timestamp;
-        else
-            return
-                block.timestamp < lastTimestampToDistributeRevenues
-                    ? block.timestamp
-                    : lastTimestampToDistributeRevenues;
+        uint256 pf = periodFinish;
+
+        if (pf == 0) return block.timestamp;
+        return block.timestamp < pf ? block.timestamp : pf;
     }
 
     /**
