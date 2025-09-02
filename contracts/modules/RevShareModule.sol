@@ -51,7 +51,7 @@ contract RevShareModule is
 
     mapping(address pioneer => uint256 revenue) public revenuePerPioneer;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
-    mapping(address => uint256) public takadaoRevenuePerNftPaid;
+    uint256 public takadaoRevenuePerNftPaid; // No need to track per address, only the revenue receiver earns from this stream
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -382,7 +382,7 @@ contract RevShareModule is
         if (_account == revenueReceiver) {
             uint256 newEarnedTakadao = _earnedTakadao(_account);
             revenuePerPioneer[_account] = newEarnedTakadao; // Reuse the same revenue bucket
-            takadaoRevenuePerNftPaid[_account] = revenuePerNftTakadao;
+            takadaoRevenuePerNftPaid = revenuePerNftTakadao;
         }
     }
 
@@ -428,7 +428,7 @@ contract RevShareModule is
         );
 
         uint256 balance = revShareNFT.balanceOf(_account);
-        uint256 delta = _revenuePerNftTakadao() - takadaoRevenuePerNftPaid[_account];
+        uint256 delta = _revenuePerNftTakadao() - takadaoRevenuePerNftPaid;
 
         return (balance * delta) / PRECISION_FACTOR + revenuePerPioneer[_account];
     }
