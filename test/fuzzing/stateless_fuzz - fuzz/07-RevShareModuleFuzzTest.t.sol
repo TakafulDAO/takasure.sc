@@ -75,14 +75,6 @@ contract RevShareModuleFuzzTest is Test {
         revShareModule.releaseRevenues();
     }
 
-    function testSetDistributionsActiveRevertsIfCallerIsInvalid(address caller) public {
-        vm.assume(caller != takadao);
-
-        vm.prank(caller);
-        vm.expectRevert();
-        revShareModule.setDistributionsActive(false, block.timestamp + 1 days);
-    }
-
     function testSweepNonApprovedDepositsRevertsIfCallerIsInvalid(address caller) public {
         vm.assume(caller != takadao);
 

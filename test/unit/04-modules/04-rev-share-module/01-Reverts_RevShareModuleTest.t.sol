@@ -78,21 +78,6 @@ contract Reverts_RevShareModuleTest is Test {
         revShareModule.releaseRevenues();
     }
 
-    function testRevShareModule_setDistributionsActiveRevertsIfModuleIsNotEnabled() public {
-        vm.prank(moduleManagerAddress);
-        revShareModule.setContractState(ModuleState.Paused);
-
-        vm.prank(takadao);
-        vm.expectRevert(ModuleErrors.Module__WrongModuleState.selector);
-        revShareModule.setDistributionsActive(false, block.timestamp + 1 days);
-    }
-
-    function testRevShareModule_setDistributionsActiveRevertsIfDateIsInvalid() public {
-        vm.prank(takadao);
-        vm.expectRevert(RevShareModule.RevShareModule__InvalidDate.selector);
-        revShareModule.setDistributionsActive(false, block.timestamp);
-    }
-
     function testRevShareModule_sweepNonApprovedDepositsRevertsIfModuleIsNotEnabled() public {
         vm.prank(moduleManagerAddress);
         revShareModule.setContractState(ModuleState.Paused);

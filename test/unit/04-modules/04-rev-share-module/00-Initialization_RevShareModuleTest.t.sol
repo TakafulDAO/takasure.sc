@@ -27,10 +27,6 @@ contract Initialization_RevShareModuleTest is Test {
         takadao = config.takadaoOperator;
     }
 
-    function testRevShareModule_distributionsAreActive() public {
-        assert(revShareModule.distributionsActive());
-    }
-
     function testRevShareModule_availableDate() public {
         assertEq(revShareModule.revenuesAvailableDate(), block.timestamp);
     }
