@@ -154,6 +154,9 @@ contract RevShareModule is
      * @param amount The amount of revenue to be distributed
      * @dev Only callable by specic contracts
      * @dev The contract must have enough allowance to transfer the tokens
+     * @dev Splits deposits between Takadao (25%) and pioneers (75%)
+     * @dev Sets new reward rates for both pools, with carry-over if the previous stream was not finished
+     * @dev Increases the approved deposits for accounting purposes
      */
     function notifyNewRevenue(
         uint256 amount
@@ -307,6 +310,23 @@ contract RevShareModule is
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev Updates the global revenue for both pools
+    function _updateGlobal() internal {
+        IRevShareNFT revShareNFT = IRevShareNFT(
+            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
+        );
+        uint256 currentSupply = revShareNFT.totalSupply();
+
+        if (currentSupply == 0) {
+            lastUpdateTime = lastTimeApplicable();
+            return; // Nothing to accumulate if there are no NFTs
+        }
+
+        revenuePerNftPioneers = _revenuePerNftPioneers();
+        revenuePerNftTakadao = _revenuePerNftTakadao();
+        lastUpdateTime = lastTimeApplicable();
+    }
 
     function _updateRevenue(address _pioneer) internal {
         AddressAndStates._notZeroAddress(_pioneer);
