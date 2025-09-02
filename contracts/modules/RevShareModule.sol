@@ -86,9 +86,9 @@ contract RevShareModule is
 
         addressManager = IAddressManager(_addressManagerAddress);
 
-        revenuesAvailableDate = block.timestamp; // TODO: Change if needed
+        revenuesAvailableDate = block.timestamp;
 
-        rewardsDuration = 7 days; // default stream windows
+        rewardsDuration = 365 days; // default stream windows
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -275,6 +275,8 @@ contract RevShareModule is
         _updateRevenue(beneficiary);
 
         revenue = revenuePerAccount[beneficiary];
+
+        if (revenue == 0) return 0;
 
         if (revenue > 0) {
             revenuePerAccount[beneficiary] = 0;
