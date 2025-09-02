@@ -49,7 +49,7 @@ contract RevShareModule is
     uint256 public revenuePerNftPioneers; // Cumulative revenue per NFT for pioneers pool
     uint256 public revenuePerNftTakadao; // Cumulative revenue per NFT for Takadao pool
 
-    mapping(address pioneer => uint256 revenue) public revenuePerPioneer;
+    mapping(address account => uint256 revenue) public revenuePerAccount;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
     uint256 public takadaoRevenuePerNftPaid; // No need to track per address, only the revenue receiver earns from this stream
 
@@ -168,7 +168,7 @@ contract RevShareModule is
 
         // Recompute reward rates with carry-over
         uint256 currentTime = block.timestamp;
-        if (currentTime >= block.timestamp) {
+        if (currentTime >= periodFinish) {
             rewardRatePioneers = pioneersShare / rewardsDuration;
             rewardRateTakadao = takadaoShare / rewardsDuration;
         } else {
@@ -261,10 +261,10 @@ contract RevShareModule is
         // Update global and user accruals
         _updateRevenue(beneficiary);
 
-        revenue = revenuePerPioneer[beneficiary];
+        revenue = revenuePerAccount[beneficiary];
 
         if (revenue > 0) {
-            revenuePerPioneer[beneficiary] = 0;
+            revenuePerAccount[beneficiary] = 0;
 
             IERC20 contributionToken = IERC20(
                 addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
@@ -373,7 +373,7 @@ contract RevShareModule is
         // Pioneers stream (75%)
         if (_account != revenueReceiver) {
             uint256 newEarnedPioneers = _earnedPioneers(_account);
-            revenuePerPioneer[_account] = newEarnedPioneers;
+            revenuePerAccount[_account] = newEarnedPioneers;
             pioneerRevenuePerNftPaid[_account] = revenuePerNftPioneers;
         }
 
@@ -381,7 +381,7 @@ contract RevShareModule is
         // Only the revenue receiver earns
         if (_account == revenueReceiver) {
             uint256 newEarnedTakadao = _earnedTakadao(_account);
-            revenuePerPioneer[_account] = newEarnedTakadao; // Reuse the same revenue bucket
+            revenuePerAccount[_account] = newEarnedTakadao; // Reuse the same revenue bucket
             takadaoRevenuePerNftPaid = revenuePerNftTakadao;
         }
     }
@@ -421,7 +421,7 @@ contract RevShareModule is
     function _earnedTakadao(address _account) internal view returns (uint256) {
         // Only the revenue receiver earns from this stream
         address revenueReceiver = _getRevenueReceiver();
-        if (_account != revenueReceiver) return revenuePerPioneer[_account];
+        if (_account != revenueReceiver) return revenuePerAccount[_account];
 
         IRevShareNFT revShareNFT = IRevShareNFT(
             addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
@@ -430,7 +430,7 @@ contract RevShareModule is
         uint256 balance = revShareNFT.balanceOf(_account);
         uint256 delta = _revenuePerNftTakadao() - takadaoRevenuePerNftPaid;
 
-        return (balance * delta) / PRECISION_FACTOR + revenuePerPioneer[_account];
+        return (balance * delta) / PRECISION_FACTOR + revenuePerAccount[_account];
     }
 
     function _earnedPioneers(address account) internal view returns (uint256) {
@@ -441,13 +441,13 @@ contract RevShareModule is
 
         if (account == revenueReceiver) {
             // Takadao does not participate in the 75% stream
-            return revenuePerPioneer[account];
+            return revenuePerAccount[account];
         }
 
         uint256 balance = revShareNFT.balanceOf(account);
         uint256 delta = _revenuePerNftPioneers() - pioneerRevenuePerNftPaid[account];
 
-        return (balance * delta) / PRECISION_FACTOR + revenuePerPioneer[account];
+        return (balance * delta) / PRECISION_FACTOR + revenuePerAccount[account];
     }
 
     ///@dev required by the OZ UUPS module
