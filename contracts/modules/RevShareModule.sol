@@ -456,6 +456,38 @@ contract RevShareModule is
             revenuePerPioneer[_pioneer];
     }
 
+    function _earnedTakadao(address _account) internal view returns (uint256) {
+        // Only the revenue receiver earns from this stream
+        address revenueReceiver = _getRevenueReceiver();
+        if (_account != revenueReceiver) return revenuePerPioneer[_account];
+
+        IRevShareNFT revShareNFT = IRevShareNFT(
+            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
+        );
+
+        uint256 balance = revShareNFT.balanceOf(_account);
+        uint256 delta = _revenuePerNftTakadao() - takadaoRevenuePerNftPaid[_account];
+
+        return (balance * delta) / PRECISION_FACTOR + revenuePerPioneer[_account];
+    }
+
+    function _earnedPioneers(address account) internal view returns (uint256) {
+        IRevShareNFT revShareNFT = IRevShareNFT(
+            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
+        );
+        address revenueReceiver = _getRevenueReceiver();
+
+        if (account == revenueReceiver) {
+            // Takadao does not participate in the 75% stream
+            return revenuePerPioneer[account];
+        }
+
+        uint256 balance = revShareNFT.balanceOf(account);
+        uint256 delta = _revenuePerNftPioneers() - pioneerRevenuePerNftPaid[account];
+
+        return (balance * delta) / PRECISION_FACTOR + revenuePerPioneer[account];
+    }
+
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
