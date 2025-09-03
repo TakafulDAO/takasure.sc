@@ -8,7 +8,7 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
@@ -16,6 +16,8 @@ contract Reverts_RevShareModuleTest is Test {
     TestDeployProtocol deployer;
     RevShareModule revShareModule;
     HelperConfig helperConfig;
+    IUSDC usdc;
+    address module = makeAddr("module");
     address takadao;
     address revShareModuleAddress;
     address moduleManagerAddress;
@@ -40,6 +42,10 @@ contract Reverts_RevShareModuleTest is Test {
         );
 
         moduleManagerAddress = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
+        usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+
+        vm.prank(addressManager.owner());
+        addressManager.addProtocolAddress("RANDOM_MODULE", module, ProtocolAddressType.Module);
     }
 
     function testRevShareModule_setAvailableDateRevertsIfModuleIsNotEnabled() public {
@@ -63,6 +69,12 @@ contract Reverts_RevShareModuleTest is Test {
 
         vm.prank(takadao);
         vm.expectRevert(ModuleErrors.Module__WrongModuleState.selector);
+        revShareModule.releaseRevenues();
+    }
+
+    function testRevShareModule_releaseRevenuesRevertWhenAlreadyAvailable() public {
+        vm.expectRevert(RevShareModule.RevShareModule__InvalidDate.selector);
+        vm.prank(takadao);
         revShareModule.releaseRevenues();
     }
 
@@ -109,5 +121,26 @@ contract Reverts_RevShareModuleTest is Test {
         vm.prank(takadao);
         vm.expectRevert(RevShareModule.RevShareModule__RevenuesNotAvailableYet.selector);
         revShareModule.claimRevenueShare();
+    }
+
+    function testRevShareModule_notifyRevertOnZeroAmount() public {
+        vm.startPrank(module);
+        usdc.approve(address(revShareModule), 0);
+        vm.expectRevert(RevShareModule.RevShareModule__NotZeroValue.selector);
+        revShareModule.notifyNewRevenue(0);
+        vm.stopPrank();
+    }
+
+    function testRevShareModule_sweepNoExtraReverts() public {
+        vm.expectRevert(RevShareModule.RevShareModule__NothingToSweep.selector);
+        vm.prank(takadao);
+        revShareModule.sweepNonApprovedDeposits();
+    }
+
+    // setRewardsDuration: operator-only; duration > 0; cannot change mid-stream; can change after finish; emits event
+    function testRevShareModule_setRewardsDurationRevertZero() public {
+        vm.expectRevert(RevShareModule.RevShareModule__NotZeroValue.selector);
+        vm.prank(takadao);
+        revShareModule.setRewardsDuration(0);
     }
 }
