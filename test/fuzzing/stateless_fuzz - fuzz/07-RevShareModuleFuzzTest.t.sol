@@ -9,12 +9,14 @@ import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 
 contract RevShareModuleFuzzTest is Test {
     TestDeployProtocol deployer;
     RevShareModule revShareModule;
     HelperConfig helperConfig;
+    IUSDC usdc;
+    address module = makeAddr("module");
     address takadao;
     address revShareModuleAddress;
     address moduleManagerAddress;
@@ -39,6 +41,10 @@ contract RevShareModuleFuzzTest is Test {
         );
 
         moduleManagerAddress = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
+        usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+
+        vm.prank(addressManager.owner());
+        addressManager.addProtocolAddress("RANDOM_MODULE", module, ProtocolAddressType.Module);
     }
 
     function testSetContractStateRevertsIfCallerIsWrong(address caller) public {
@@ -89,5 +95,53 @@ contract RevShareModuleFuzzTest is Test {
         vm.prank(caller);
         vm.expectRevert();
         revShareModule.emergencyWithdraw();
+    }
+
+    function testNotifyNewRevenueRevertsIfCallerIsInvalid(address caller) public {
+        vm.assume(caller != module);
+        vm.assume(caller != address(0));
+
+        deal(address(usdc), caller, 1e6);
+
+        vm.startPrank(caller);
+        usdc.approve(address(revShareModule), 1e6);
+        vm.expectRevert();
+        revShareModule.notifyNewRevenue(1e6);
+        vm.stopPrank();
+    }
+
+    function testRevShareModule_sweepRevertsIfCallerIsInvalid(address caller) public {
+        vm.assume(caller != takadao);
+
+        // Some extra to ensure different revert isn’t triggered
+        uint256 extra = 100e6;
+        deal(
+            address(usdc),
+            address(revShareModule),
+            usdc.balanceOf(address(revShareModule)) + extra
+        );
+
+        vm.expectRevert();
+        vm.prank(caller);
+        revShareModule.sweepNonApprovedDeposits();
+    }
+
+    function testRevShareModule_setRewardsDurationRevertsIfCallerIsInvalid(address caller) public {
+        vm.assume(caller != takadao);
+
+        // warp to finish to avoid ActiveStreamOngoing masking the role error
+        uint256 pf = revShareModule.periodFinish();
+        if (pf == 0 || block.timestamp <= pf) {
+            _warp((pf == 0 ? 0 : (pf - block.timestamp)) + 1);
+        }
+
+        vm.prank(caller);
+        vm.expectRevert();
+        revShareModule.setRewardsDuration(123);
+    }
+
+    function _warp(uint256 secs) internal {
+        vm.warp(block.timestamp + secs);
+        vm.roll(block.number + 1);
     }
 }
