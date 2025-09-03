@@ -38,4 +38,26 @@ contract Initialization_RevShareModuleTest is Test {
     function testRevShareModule_noOneHasInteract() public view {
         assertEq(revShareModule.lastUpdateTime(), 0);
     }
+
+    function testRevShareModule_lastTimeApplicableWhenPfZeroReturnsNow() public view {
+        // periodFinish should be zero right after deployment
+        assertEq(revShareModule.periodFinish(), 0, "pf must be zero on init");
+        // When pf == 0, lastTimeApplicable() should return the current block.timestamp
+        assertEq(
+            revShareModule.lastTimeApplicable(),
+            block.timestamp,
+            "should return now when pf==0"
+        );
+    }
+
+    function testRevShareModule_lastTimeApplicablePfZeroTracksWarp() public {
+        assertEq(revShareModule.periodFinish(), 0, "pf must be zero on init");
+        vm.warp(block.timestamp + 12345);
+        vm.roll(block.number + 1);
+        assertEq(
+            revShareModule.lastTimeApplicable(),
+            block.timestamp,
+            "should return now after warp"
+        );
+    }
 }
