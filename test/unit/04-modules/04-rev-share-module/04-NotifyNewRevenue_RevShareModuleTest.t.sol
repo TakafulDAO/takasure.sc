@@ -206,7 +206,7 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
     }
 
     // 7) getRevenueForDuration scales with duration using current rates
-    function testRevShareModule_getRevenueForDurationScales() public {
+    function testRevShareModule_getRevenueForDurationScales() public view {
         // arbitrary sub-duration (e.g., 3 days)
         uint256 sub = 3 days;
         (uint256 p, uint256 t) = revShareModule.getRevenueForDuration(sub);

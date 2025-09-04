@@ -206,7 +206,7 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         assertGt(b, a, "pioneers per-NFT accumulator should increase");
     }
 
-    function testRevShareModule_getRevenueForDurationSumsToDepositAmount() public {
+    function testRevShareModule_getRevenueForDurationSumsToDepositAmount() public view {
         uint256 dur = revShareModule.rewardsDuration();
         (uint256 p, uint256 t) = revShareModule.getRevenueForDuration(dur);
 

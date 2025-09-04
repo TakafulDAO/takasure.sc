@@ -76,11 +76,11 @@ contract Reserves_TakasureCoreTest is StdCheats, Test {
         subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
         Reserve memory reserve = takasureReserve.getReserveValues();
-        uint256 initialReserveRatio = reserve.initialReserveRatio;
-        uint256 initialClaimReserve = reserve.totalClaimReserve;
-        uint256 initialFundReserve = reserve.totalFundReserve;
-        uint8 serviceFee = reserve.serviceFee;
-        uint8 fundMarketExpendsShare = reserve.fundMarketExpendsAddShare;
+        // uint256 initialReserveRatio = reserve.initialReserveRatio;
+        // uint256 initialClaimReserve = reserve.totalClaimReserve;
+        // uint256 initialFundReserve = reserve.totalFundReserve;
+        // uint8 serviceFee = reserve.serviceFee;
+        // uint8 fundMarketExpendsShare = reserve.fundMarketExpendsAddShare;
 
         vm.prank(kycService);
         kycModule.approveKYC(alice, BM);
