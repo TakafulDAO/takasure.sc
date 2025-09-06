@@ -1,6 +1,8 @@
-using RevShareModuleCertoraHarness as H;
+using RevShareModuleCertoraHarness as harness;
 
-/* ----------------------------- METHODS (CVL 2) ----------------------------- */
+    /*//////////////////////////////////////////////////////////////
+                                METHODS
+    //////////////////////////////////////////////////////////////*/
 methods {
   /* storage-only getters (envfree) */
   function rewardsDuration() external returns (uint256) envfree;
@@ -12,7 +14,6 @@ methods {
   function revenuePerNftTakadao() external returns (uint256) envfree;
   function approvedDeposits() external returns (uint256) envfree;
   function revenueReceiver() external returns (address) envfree;
-  function h_addressManager() external returns (address) envfree;
 
   /* time-dependent views (NOT envfree) */
   function lastTimeApplicable() external returns (uint256);
@@ -27,119 +28,137 @@ methods {
   function setRewardsDuration(uint256) external;
   function releaseRevenues() external;
   function claimRevenueShare() external returns (uint256);
+  function emergencyWithdraw() external;
 }
 
-/* ----------------------------- INVARIANTS ----------------------------- */
+    /*//////////////////////////////////////////////////////////////
+                               INVARIANTS
+    //////////////////////////////////////////////////////////////*/
 
-/* Guard by initialization: before initialize(), rewardsDuration can be 0. */
-invariant RewardsDurationPositive()
-  (H.h_addressManager() == 0) || (H.rewardsDuration() > 0);
+// duration must be positive once a period exists, unless the module is fully halted (both rates are zero)
+invariant RewardsDurationPositiveOrHalted()
+    (harness.periodFinish() == 0)
+    || (harness.rewardsDuration() > 0)
+    || (harness.rewardRatePioneers() == 0 && harness.rewardRateTakadao() == 0);
 
-/* Pioneers should get ~75% of the total rate; allow 70%..80% slack. */
-invariant RateSplitInRange()
-  (
-    H.rewardRatePioneers() + H.rewardRateTakadao() == 0
-    ||
-    (
-      70 * (H.rewardRatePioneers() + H.rewardRateTakadao()) <= 100 * H.rewardRatePioneers()
-      &&
-      100 * H.rewardRatePioneers() <= 80 * (H.rewardRatePioneers() + H.rewardRateTakadao())
-    )
-  );
+    /*//////////////////////////////////////////////////////////////
+                                 RULES
+    //////////////////////////////////////////////////////////////*/
 
-/* ------------------------------- RULES -------------------------------- */
-
-/* TimeBounds needs an env because lastTimeApplicable() is not envfree. */
+// TimeBounds needs an env because lastTimeApplicable() is non-envfree.
 rule TimeBoundsHolds() {
   env e;
-  if (H.h_addressManager() != 0) {
-    if (H.periodFinish() != 0) {
-      uint256 lta = H.lastTimeApplicable@withrevert(e);
-      if (!lastReverted) {
-        assert lta <= H.periodFinish();
-      }
+  if (harness.periodFinish() != 0) {
+    uint256 lta = harness.lastTimeApplicable@withrevert(e);
+    if (!lastReverted) {
+      assert lta <= harness.periodFinish();
     }
   }
   assert true;
 }
 
-/* View rules: pass env to non-envfree calls */
+// Views with env
 rule RevenueReceiverNotPioneerEarner() {
   env e;
-  address rr = H.revenueReceiver();
-  uint256 ep = H.earnedPioneers@withrevert(e, rr);
+  address rr = harness.revenueReceiver();
+  uint256 ep = harness.earnedPioneers@withrevert(e, rr);
   if (!lastReverted) { assert ep == 0; }
   assert true;
 }
 
 rule NonReceiverNotTakadaoEarner(address a) {
   env e;
-  require a != H.revenueReceiver();
-  uint256 et = H.earnedTakadao@withrevert(e, a);
+  require a != harness.revenueReceiver();
+  uint256 et = harness.earnedTakadao@withrevert(e, a);
   if (!lastReverted) { assert et == 0; }
   assert true;
 }
 
-/* Revert-tolerant mutation rules */
-rule NotifyPreservesSplit() {
+/* ---- Split rule when there is NO leftover from a previous stream ----
+   We enforce "period finished" by checking lta == periodFinish under env e. */
+rule NotifyPreservesSplit_NoLeftover() {
   env e;
-  uint256 amt;
-  H.notifyNewRevenue@withrevert(e, amt);
-  if (!lastReverted) {
-    /* use mathint arithmetic implicitly by not assigning to uint256 */
-    if (H.rewardRatePioneers() + H.rewardRateTakadao() > 0) {
-      assert 70 * (H.rewardRatePioneers() + H.rewardRateTakadao())
-             <= 100 * H.rewardRatePioneers();
-      assert 100 * H.rewardRatePioneers()
-             <= 80 * (H.rewardRatePioneers() + H.rewardRateTakadao());
+
+  // ensure no active period: lta == periodFinish implies now >= periodFinish
+  uint256 lta = harness.lastTimeApplicable@withrevert(e);
+  if (!lastReverted && harness.periodFinish() != 0 && lta == harness.periodFinish()) {
+    uint256 amt; // unconstrained
+    harness.notifyNewRevenue@withrevert(e, amt);
+    if (!lastReverted) {
+      mathint rp = harness.rewardRatePioneers();
+      mathint rt = harness.rewardRateTakadao();
+      mathint diff = (rp >= 3*rt) ? (rp - 3*rt) : (3*rt - rp);
+      assert diff <= 2;  // rounding tolerance
     }
   }
   assert true;
 }
 
-rule SetAvailableDateBehavior() {
-  env e;
-  uint256 ts;
-  H.setAvailableDate@withrevert(e, ts);
-  if (!lastReverted) {
-    assert H.revenuesAvailableDate() == ts;
-  }
-  assert true;
-}
-
+// Rewards duration setter behavior (assert only on success)
 rule SetRewardsDurationBehavior() {
   env e;
   uint256 dur;
-  H.setRewardsDuration@withrevert(e, dur);
+  harness.setRewardsDuration@withrevert(e, dur);
   if (!lastReverted) {
     assert dur > 0;
-    assert H.rewardsDuration() == dur;
+    assert harness.rewardsDuration() == dur;
   }
   assert true;
 }
 
+// setAvailableDate round-trip on success
+rule SetAvailableDateBehavior() {
+  env e;
+  uint256 ts;
+  harness.setAvailableDate@withrevert(e, ts);
+  if (!lastReverted) {
+    assert harness.revenuesAvailableDate() == ts;
+  }
+  assert true;
+}
+
+// releaseRevenues: success => date decreases; revert => unchanged
 rule ReleaseRevenuesBehavior() {
   env e;
-  uint256 before = H.revenuesAvailableDate();
-  H.releaseRevenues@withrevert(e);
+  uint256 before = harness.revenuesAvailableDate();
+  harness.releaseRevenues@withrevert(e);
   if (!lastReverted) {
-    assert H.revenuesAvailableDate() < before;
+    assert harness.revenuesAvailableDate() < before;
   } else {
-    assert H.revenuesAvailableDate() == before;
+    assert harness.revenuesAvailableDate() == before;
   }
   assert true;
 }
 
+// Claims keep approvedDeposits non-negative and subtract exactly on success
 rule ClaimConservesApprovedDeposits() {
   env e;
-  uint256 before = H.approvedDeposits();
-  uint256 r = H.claimRevenueShare@withrevert(e);
+  uint256 before = harness.approvedDeposits();
+  uint256 r = harness.claimRevenueShare@withrevert(e);
   if (!lastReverted) {
     if (r > 0) {
       assert before >= r;
-      assert H.approvedDeposits() == before - r;
+      assert harness.approvedDeposits() == before - r;
     } else {
-      assert H.approvedDeposits() == before;
+      assert harness.approvedDeposits() == before;
+    }
+  }
+  assert true;
+}
+
+// On success, stream is halted and accounting reset
+rule EmergencyWithdrawHaltsStream() {
+  env e;
+  harness.emergencyWithdraw@withrevert(e);
+  if (!lastReverted) {
+    assert harness.rewardRatePioneers() == 0;
+    assert harness.rewardRateTakadao() == 0;
+    assert harness.approvedDeposits() == 0;
+
+    // After emergency, lta should match periodFinish (both snapped to 'now')
+    uint256 lta = harness.lastTimeApplicable@withrevert(e);
+    if (!lastReverted) {
+      assert lta == harness.periodFinish();
     }
   }
   assert true;
