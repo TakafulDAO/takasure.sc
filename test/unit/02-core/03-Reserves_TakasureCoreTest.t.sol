@@ -75,7 +75,7 @@ contract Reserves_TakasureCoreTest is StdCheats, Test {
         vm.prank(alice);
         subscriptionModule.paySubscription(alice, address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
 
-        Reserve memory reserve = takasureReserve.getReserveValues();
+        // Reserve memory reserve = takasureReserve.getReserveValues();
         // uint256 initialReserveRatio = reserve.initialReserveRatio;
         // uint256 initialClaimReserve = reserve.totalClaimReserve;
         // uint256 initialFundReserve = reserve.totalFundReserve;
