@@ -31,6 +31,8 @@ broadcast/*
 # certora
 /certora/munged/
 .certora_*
+.configuration_*
+run.conf
 
 # openzeppelin deployments
 .openzeppelin/
