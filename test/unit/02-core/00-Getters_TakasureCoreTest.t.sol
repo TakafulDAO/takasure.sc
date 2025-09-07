@@ -3,33 +3,28 @@
 pragma solidity 0.8.28;
 
 import {Test, console} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
+import {DeployReserve} from "test/utils/05-DeployReserve.s.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {Reserve} from "contracts/types/TakasureTypes.sol";
 
 contract Getters_TakasureCoreTest is StdCheats, Test {
-    TestDeployProtocol deployer;
+    DeployManagers managersDeployer;
+    DeployReserve deployer;
     TakasureReserve takasureReserve;
-    address takasureReserveProxy;
-    address contributionTokenAddress;
-    IUSDC usdc;
-    address public user = makeAddr("user");
-    uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
 
     function setUp() public {
-        deployer = new TestDeployProtocol();
-        (takasureReserveProxy, , , , , , , contributionTokenAddress, , ) = deployer.run();
+        managersDeployer = new DeployManagers();
+        deployer = new DeployReserve();
+        (
+            HelperConfig.NetworkConfig memory config,
+            AddressManager addressManager,
 
-        takasureReserve = TakasureReserve(takasureReserveProxy);
-        usdc = IUSDC(contributionTokenAddress);
-
-        // For easier testing there is a minimal USDC mock contract without restrictions
-        vm.startPrank(user);
-        usdc.mintUSDC(user, USDC_INITIAL_AMOUNT);
-        usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
-        vm.stopPrank();
+        ) = managersDeployer.run();
+        takasureReserve = deployer.run(config, addressManager);
     }
 
     function testTakasureCore_getServiceFee() public view {
