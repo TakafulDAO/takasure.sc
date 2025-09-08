@@ -18,7 +18,7 @@ contract ReferralGatewayInitializationTest is Test {
     address KYCProvider;
     address pauseGuardian;
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "The LifeDao";
+    string tDaoName = "The LifeDAO";
 
     function setUp() public {
         deployer = new DeployReferralGateway();
@@ -32,9 +32,6 @@ contract ReferralGatewayInitializationTest is Test {
 
         // Assign implementations
         usdc = IUSDC(config.contributionToken);
-
-        vm.prank(takadao);
-        referralGateway.setDaoName(tDaoName);
     }
 
     function testOperatorAddressIsNotZero() public view {
@@ -55,7 +52,7 @@ contract ReferralGatewayInitializationTest is Test {
 
     function testDAONameAssignCorrectly() public view {
         string memory name = referralGateway.daoName();
-        assertEq(name, "The LifeDao");
+        assertEq(name, "The LifeDAO");
     }
 
     function testOperatorRoleAssignedCorrectly() public view {

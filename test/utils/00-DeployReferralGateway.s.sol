@@ -28,7 +28,8 @@ contract DeployReferralGateway is Script {
                     config.takadaoOperator,
                     config.kycProvider,
                     config.pauseGuardian,
-                    config.contributionToken
+                    config.contributionToken,
+                    "The LifeDAO"
                 )
             )
         );

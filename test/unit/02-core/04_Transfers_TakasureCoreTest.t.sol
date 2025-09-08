@@ -105,8 +105,6 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
 
     /// @dev Test service fee is transferred when the member joins the pool
     function testTakasureCore_serviceFeeAmountTransferedWhenJoinsPool() public {
-        Reserve memory reserve = takasureReserve.getReserveValues();
-        uint8 serviceFee = reserve.serviceFee;
         address serviceFeeReceiver = IAddressManager(takasureReserve.addressManager())
             .getProtocolAddressByName("FEE_CLAIM_ADDRESS")
             .addr;

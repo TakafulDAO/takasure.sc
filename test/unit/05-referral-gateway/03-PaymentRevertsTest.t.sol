@@ -61,7 +61,6 @@ contract ReferralGatewayPaymentRevertsTest is Test {
 
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
     }
@@ -116,7 +115,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = true, invalid referral ========//
     function testPaymentRevertsIfParentIsInvalidCase1() public {
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -132,7 +131,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
             false
         );
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, 0);
     }
@@ -142,7 +141,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
 
-        (, , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -158,7 +157,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
             false
         );
 
-        (, , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
         assertEq(totalCollectedFees, 0);
     }
@@ -197,7 +196,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     function testMustRevertIfTryToJoinTwiceCase3() public {
         // We disable the prejoin discount
         vm.prank(takadao);
-        referralGateway.setPrejoinDiscount(false);
+        referralGateway.switchPrejoinDiscount();
 
         vm.startPrank(couponRedeemer);
         // Child pays the contribution for the first time
@@ -214,7 +213,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     function testMustRevertIfTryToJoinTwiceCase4() public {
         // We disable the prejoin discount and referral discount
         vm.startPrank(takadao);
-        referralGateway.setPrejoinDiscount(false);
+        referralGateway.switchPrejoinDiscount();
 
         referralGateway.switchReferralDiscount();
         vm.stopPrank();

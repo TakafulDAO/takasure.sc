@@ -17,15 +17,9 @@ contract ReferralGatewayGrantAndRevokeRolesTest is Test {
 
     function setUp() public {
         // Deployer
-<<<<<<<< HEAD:test/unit/05-referral-gateway/01-GrantAndRevokeRolesTest.t.sol
         deployer = new DeployReferralGateway();
         HelperConfig.NetworkConfig memory config;
         (config, referralGateway) = deployer.run();
-========
-        deployer = new TestDeployProtocol();
-        // Deploy contracts
-        (, referralGatewayAddress, , , , , , , , helperConfig) = deployer.run();
->>>>>>>> main:test/unit/05-referral-gateway/01-GrantAndRevokeRolesTest.t copy.sol
 
         // Get config values
         takadao = config.takadaoOperator;

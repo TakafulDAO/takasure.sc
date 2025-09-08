@@ -44,14 +44,11 @@ contract BenefitFuzzTest is StdCheats, Test {
             ModuleManager moduleMgr
         ) = managersDeployer.run();
 
-        (
-            address operator,
-            ,
-            address kyc,
-            address redeemer,
-            address feeClaimer,
-            address pool
-        ) = addressesAndRoles.run(addressManager, config, address(moduleMgr));
+        (address operator, , , , , ) = addressesAndRoles.run(
+            addressManager,
+            config,
+            address(moduleMgr)
+        );
 
         (lifeModule, , , , , , ) = moduleDeployer.run(addressManager);
 

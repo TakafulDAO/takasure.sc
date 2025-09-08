@@ -47,7 +47,6 @@ contract ReferralGatewayFuzzTest is Test {
 
         vm.startPrank(takadao);
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
-        referralGateway.setDaoName(tDaoName);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
         vm.stopPrank();
 
@@ -81,7 +80,7 @@ contract ReferralGatewayFuzzTest is Test {
         vm.prank(couponRedeemer);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
-        (, , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
+        (, , , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
