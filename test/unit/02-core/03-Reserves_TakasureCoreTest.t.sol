@@ -36,7 +36,6 @@ contract Reserves_TakasureCoreTest is StdCheats, Test {
     uint256 public constant CONTRIBUTION_AMOUNT = 225e6; // 225 USDC
     uint256 public constant DEPOSITED_ON_SUBSCRIPTION = 25e6;
     uint256 public constant YEAR = 365 days;
-    uint256 public constant BM = 1;
 
     function setUp() public {
         managersDeployer = new DeployManagers();
