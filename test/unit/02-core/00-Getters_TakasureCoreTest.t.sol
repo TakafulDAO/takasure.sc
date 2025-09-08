@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Test, console} from "forge-std/Test.sol";
 import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
-import {DeployReserve} from "test/utils/05-DeployReserve.s.sol";
+import {DeployReserve} from "test/utils/02-DeployReserve.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";

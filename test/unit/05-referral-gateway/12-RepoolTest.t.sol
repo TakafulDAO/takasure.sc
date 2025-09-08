@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployReferralGateway} from "test/utils/00-DeployReferralGateway.s.sol";
-import {DeployTakasureReserve} from "test/utils/02-DeployTakasureReserve.s.sol";
+import {DeployReserve} from "test/utils/02-DeployReserve.s.sol";
 import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
@@ -14,7 +14,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewayRepoolTest is Test {
     DeployReferralGateway deployer;
-    DeployTakasureReserve takasureDeployer;
+    DeployReserve takasureDeployer;
     DeployManagers managersDeployer;
     ReferralGateway referralGateway;
     TakasureReserve takasureReserve;
@@ -36,7 +36,7 @@ contract ReferralGatewayRepoolTest is Test {
         managersDeployer = new DeployManagers();
         (, AddressManager addressManager, ) = managersDeployer.run();
 
-        takasureDeployer = new DeployTakasureReserve();
+        takasureDeployer = new DeployReserve();
         takasureReserve = takasureDeployer.run(config, addressManager);
 
         // Get config values
