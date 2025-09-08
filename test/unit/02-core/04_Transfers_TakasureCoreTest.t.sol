@@ -1,128 +1,122 @@
-// // SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GPL-3.0
 
-// pragma solidity 0.8.28;
+pragma solidity 0.8.28;
 
-// import {Test, console2} from "forge-std/Test.sol";
-// import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
-// import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-// import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-// import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
-// import {UserRouter} from "contracts/router/UserRouter.sol";
-// import {StdCheats} from "forge-std/StdCheats.sol";
-// import {BenefitMember, Reserve} from "contracts/types/TakasureTypes.sol";
-// import {IUSDC} from "test/mocks/IUSDCmock.sol";
-// import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {Test, console2} from "forge-std/Test.sol";
+import {DeployReserve} from "test/utils/05-DeployReserve.s.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
+import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
+import {DeployModules} from "test/utils/03-DeployModules.s.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {BenefitModule} from "contracts/modules/BenefitModule.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
+import {KYCModule} from "contracts/modules/KYCModule.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
+import {BenefitMember, Reserve} from "contracts/types/TakasureTypes.sol";
+import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
-// contract Transfers_TakasureCoreTest is StdCheats, Test {
-//     TestDeployProtocol deployer;
-//     TakasureReserve takasureReserve;
-//     HelperConfig helperConfig;
-//     SubscriptionModule subscriptionModule;
-//     UserRouter userRouter;
-//     address takasureReserveProxy;
-//     address contributionTokenAddress;
-//     address admin;
-//     address kycService;
-//     address takadao;
-//     address subscriptionModuleAddress;
-//     address userRouterAddress;
-//     IUSDC usdc;
-//     address public alice = makeAddr("alice");
-//     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
-//     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-//     uint256 public constant YEAR = 365 days;
+contract Transfers_TakasureCoreTest is StdCheats, Test {
+    DeployManagers managersDeployer;
+    AddAddressesAndRoles addressesAndRoles;
+    DeployModules moduleDeployer;
+    DeployReserve deployer;
+    TakasureReserve takasureReserve;
+    BenefitModule lifeBenefitModule;
+    SubscriptionModule subscriptionModule;
+    KYCModule kycModule;
+    address kycProvider;
+    address couponRedeemer;
+    address takadao;
+    IUSDC usdc;
+    address public alice = makeAddr("alice");
+    uint256 public constant USDC_INITIAL_AMOUNT = 1000e6; // 1000 USDC
+    uint256 public constant CONTRIBUTION_AMOUNT = 225e6; // 225 USDC
+    uint256 public constant DEPOSITED_ON_SUBSCRIPTION = 25e6;
+    uint256 public constant YEAR = 365 days;
 
-//     function setUp() public {
-//         deployer = new TestDeployProtocol();
-//         (
-//             takasureReserveProxy,
-//             ,
-//             subscriptionModuleAddress,
-//             ,
-//             ,
-//             ,
-//             userRouterAddress,
-//             contributionTokenAddress,
-//             ,
-//             helperConfig
-//         ) = deployer.run();
+    function setUp() public {
+        managersDeployer = new DeployManagers();
+        addressesAndRoles = new AddAddressesAndRoles();
+        moduleDeployer = new DeployModules();
+        deployer = new DeployReserve();
 
-//         subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
-//         userRouter = UserRouter(userRouterAddress);
+        (
+            HelperConfig.NetworkConfig memory config,
+            AddressManager addressManager,
+            ModuleManager moduleManager
+        ) = managersDeployer.run();
 
-//         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        (takadao, , kycProvider, couponRedeemer, , ) = addressesAndRoles.run(
+            addressManager,
+            config,
+            address(moduleManager)
+        );
 
-//         admin = config.daoMultisig;
-//         kycService = config.kycProvider;
-//         takadao = config.takadaoOperator;
+        (lifeBenefitModule, , kycModule, , , , subscriptionModule) = moduleDeployer.run(
+            addressManager
+        );
 
-//         takasureReserve = TakasureReserve(takasureReserveProxy);
-//         usdc = IUSDC(contributionTokenAddress);
+        takasureReserve = deployer.run(config, addressManager);
 
-//         // For easier testing there is a minimal USDC mock contract without restrictions
-//         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
+        usdc = IUSDC(config.contributionToken);
 
-//         vm.startPrank(alice);
-//         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
-//         vm.stopPrank();
-//     }
+        // For easier testing there is a minimal USDC mock contract without restrictions
+        deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
-//     /*//////////////////////////////////////////////////////////////
-//                     JOIN POOL::TRANSFER AMOUNTS
-//     //////////////////////////////////////////////////////////////*/
+        vm.startPrank(alice);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
+        usdc.approve(address(lifeBenefitModule), USDC_INITIAL_AMOUNT);
+        vm.stopPrank();
 
-//     /// @dev Test contribution amount is not transferred to the contract if only the KYC is done
-//     function testTakasureCore_contributionAmountNotTransferToContractWhenKycMissing() public {
-//         uint256 takasureReserveBalanceBefore = usdc.balanceOf(address(takasureReserve));
-//         uint256 subscriptionModuleBalanceBefore = usdc.balanceOf(address(subscriptionModule));
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
 
-//         vm.prank(alice);
-//         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        vm.prank(kycProvider);
+        kycModule.approveKYC(alice);
+    }
 
-//         uint256 takasureReserveBalanceAfter = usdc.balanceOf(address(takasureReserve));
-//         uint256 subscriptionModuleBalanceAfter = usdc.balanceOf(address(subscriptionModule));
+    /*//////////////////////////////////////////////////////////////
+                    JOIN POOL::TRANSFER AMOUNTS
+    //////////////////////////////////////////////////////////////*/
 
-//         assertEq(takasureReserveBalanceAfter, takasureReserveBalanceBefore);
-//         assert(subscriptionModuleBalanceAfter > subscriptionModuleBalanceBefore);
-//     }
+    /// @dev Test contribution amount is transferred to the contract when joins the pool
+    function testTakasureCore_contributionAmountTransferToContractWhenJoinPool() public {
+        uint256 takasureReserveBalanceBefore = usdc.balanceOf(address(takasureReserve));
 
-//     /// @dev Test contribution amount is transferred to the contract when joins the pool
-//     function testTakasureCore_contributionAmountTransferToContractWhenJoinPool() public {
-//         uint256 takasureReserveBalanceBefore = usdc.balanceOf(address(takasureReserve));
-//         uint256 subscriptionModuleBalanceBefore = usdc.balanceOf(address(subscriptionModule));
+        Reserve memory reserve = takasureReserve.getReserveValues();
+        uint8 serviceFee = reserve.serviceFee;
 
-//         Reserve memory reserve = takasureReserve.getReserveValues();
-//         uint8 serviceFee = reserve.serviceFee;
+        vm.prank(couponRedeemer);
+        lifeBenefitModule.joinBenefitOnBehalfOf(alice, CONTRIBUTION_AMOUNT, (5 * YEAR), 0);
 
-//         vm.prank(alice);
-//         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        uint256 takasureReserveBalanceAfter = usdc.balanceOf(address(takasureReserve));
 
-//         uint256 takasureReserveBalanceAfter = usdc.balanceOf(address(takasureReserve));
-//         uint256 subscriptionModuleBalanceAfter = usdc.balanceOf(address(subscriptionModule));
+        uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100;
+        uint256 deposited = CONTRIBUTION_AMOUNT - fee;
 
-//         uint256 fee = (CONTRIBUTION_AMOUNT * serviceFee) / 100;
-//         uint256 deposited = CONTRIBUTION_AMOUNT - fee;
+        assertEq(takasureReserveBalanceBefore, 0); // No one joined before
+        assertGt(takasureReserveBalanceAfter, takasureReserveBalanceBefore);
+        assertEq(takasureReserveBalanceAfter, takasureReserveBalanceBefore + deposited);
+    }
 
-//         assertEq(takasureReserveBalanceAfter, takasureReserveBalanceBefore);
-//         assertEq(subscriptionModuleBalanceAfter, subscriptionModuleBalanceBefore + deposited);
-//     }
+    /// @dev Test service fee is transferred when the member joins the pool
+    function testTakasureCore_serviceFeeAmountTransferedWhenJoinsPool() public {
+        Reserve memory reserve = takasureReserve.getReserveValues();
+        uint8 serviceFee = reserve.serviceFee;
+        address serviceFeeReceiver = IAddressManager(takasureReserve.addressManager())
+            .getProtocolAddressByName("FEE_CLAIM_ADDRESS")
+            .addr;
+        uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
 
-//     /// @dev Test service fee is transferred when the member joins the pool
-//     function testTakasureCore_serviceFeeAmountTransferedWhenJoinsPool() public {
-//         Reserve memory reserve = takasureReserve.getReserveValues();
-//         uint8 serviceFee = reserve.serviceFee;
-//         address serviceFeeReceiver = IAddressManager(takasureReserve.addressManager())
-//             .getProtocolAddressByName("FEE_CLAIM_ADDRESS")
-//             .addr;
-//         uint256 serviceFeeReceiverBalanceBefore = usdc.balanceOf(serviceFeeReceiver);
+        vm.prank(couponRedeemer);
+        lifeBenefitModule.joinBenefitOnBehalfOf(alice, CONTRIBUTION_AMOUNT, (5 * YEAR), 0);
 
-//         vm.prank(alice);
-//         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, (5 * YEAR));
+        uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
 
-//         uint256 serviceFeeReceiverBalanceAfter = usdc.balanceOf(serviceFeeReceiver);
-
-//         uint256 feeColected = (CONTRIBUTION_AMOUNT * serviceFee) / 100; // 25USDC * 20% = 5USDC
-
-//         assertEq(serviceFeeReceiverBalanceAfter, serviceFeeReceiverBalanceBefore + feeColected);
-//     }
-// }
+        assertGt(serviceFeeReceiverBalanceAfter, serviceFeeReceiverBalanceBefore);
+    }
+}
