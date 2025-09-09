@@ -7,7 +7,7 @@ import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {RevShareModuleMock} from "test/mocks/RevShareModuleMock.sol";
 import {ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 contract RevShareNftFuzzTest is Test {
     RevShareNFT nft;

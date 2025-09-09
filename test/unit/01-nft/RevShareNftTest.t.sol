@@ -6,7 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {RevShareModuleMock} from "test/mocks/RevShareModuleMock.sol";
 
 contract RevShareNftTest is Test {
