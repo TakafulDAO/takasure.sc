@@ -7,6 +7,7 @@ import {DeployReferralGateway} from "test/utils/00-DeployReferralGateway.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {DaoDataReader, IReferralGateway} from "test/helpers/lowLevelCall/DaoDataReader.sol";
 
 contract ReferralGatewayFuzzTest is Test {
     DeployReferralGateway deployer;
@@ -80,7 +81,7 @@ contract ReferralGatewayFuzzTest is Test {
         vm.prank(couponRedeemer);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
-        (, , , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
+        uint256 launchDate = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 5);
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
