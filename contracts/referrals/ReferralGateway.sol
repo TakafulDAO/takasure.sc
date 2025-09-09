@@ -129,12 +129,14 @@ contract ReferralGateway is
         address indexed child,
         uint256 indexed contribution,
         uint256 fee,
-        uint256 discount
+        uint256 discount,
+        bool isDonated
     );
     event OnPrepaidMemberModified(
         uint256 indexed extraContribution,
         uint256 indexed fee,
-        uint256 indexed discount
+        uint256 indexed discount,
+        bool isDonated
     );
     event OnCouponRedeemed(
         address indexed member,
@@ -732,7 +734,14 @@ contract ReferralGateway is
             nameToDAOData[daoName].prepaidMembers[_member].discount = _discount;
             nameToDAOData[daoName].prepaidMembers[_member].isDonated = _isDonated;
 
-            emit OnPrepayment(_parent, _member, normalizedContribution, _finalFee, _discount);
+            emit OnPrepayment(
+                _parent,
+                _member,
+                normalizedContribution,
+                _finalFee,
+                _discount,
+                _isDonated
+            );
         } else {
             // If we are modifying, we update the existing prepaid member
             // But we require that the member exists and is not a donated member
@@ -752,7 +761,7 @@ contract ReferralGateway is
             nameToDAOData[daoName].prepaidMembers[_member].discount += _discount;
             nameToDAOData[daoName].prepaidMembers[_member].isDonated = _isDonated;
 
-            emit OnPrepaidMemberModified(normalizedContribution, _finalFee, _discount);
+            emit OnPrepaidMemberModified(normalizedContribution, _finalFee, _discount, _isDonated);
         }
     }
 
