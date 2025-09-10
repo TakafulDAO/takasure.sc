@@ -27,14 +27,6 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     uint256 public constant REFERRAL_RESERVE = 5; // 5% of contribution TO Referral Reserve
     uint256 public constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
 
-    event OnPrepayment(
-        address indexed parent,
-        address indexed child,
-        uint256 indexed contribution,
-        uint256 fee,
-        uint256 discount
-    );
-
     modifier pauseContract() {
         vm.prank(pauseGuardian);
         referralGateway.pause();

@@ -32,8 +32,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         address indexed child,
         uint256 indexed contribution,
         uint256 fee,
-        uint256 discount,
-        bool isDonated
+        uint256 discount
     );
 
     function setUp() public {
@@ -88,14 +87,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(
-            address(0),
-            child,
-            CONTRIBUTION_AMOUNT,
-            collectedFees,
-            expectedDiscount,
-            false
-        );
+        emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
@@ -137,14 +129,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(
-            address(0),
-            child,
-            CONTRIBUTION_AMOUNT,
-            collectedFees,
-            expectedDiscount,
-            false
-        );
+        emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
@@ -177,14 +162,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(
-            address(0),
-            child,
-            CONTRIBUTION_AMOUNT,
-            collectedFees,
-            expectedDiscount,
-            false
-        );
+        emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
@@ -214,14 +192,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(
-            address(0),
-            child,
-            CONTRIBUTION_AMOUNT,
-            collectedFees,
-            expectedDiscount,
-            false
-        );
+        emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
@@ -265,14 +236,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(
-            address(0),
-            child,
-            CONTRIBUTION_AMOUNT,
-            collectedFees,
-            expectedDiscount,
-            false
-        );
+        emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
@@ -303,14 +267,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, true, address(referralGateway));
-        emit OnPrepayment(
-            address(0),
-            child,
-            CONTRIBUTION_AMOUNT,
-            collectedFees,
-            expectedDiscount,
-            false
-        );
+        emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
