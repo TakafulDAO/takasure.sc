@@ -105,7 +105,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         emit OnPrepayment(parent, child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
+        (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
 
         (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -155,7 +155,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         emit OnPrepayment(parent, child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
+        (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
 
         (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -206,7 +206,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         emit OnPrepayment(parent, child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
+        (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
 
         (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -260,7 +260,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         emit OnPrepayment(parent, child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
+        (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
 
         (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
