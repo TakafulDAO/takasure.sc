@@ -104,7 +104,8 @@
                 { "name": "contributionBeforeFee", "type": "uint256", "internalType": "uint256" },
                 { "name": "contributionAfterFee", "type": "uint256", "internalType": "uint256" },
                 { "name": "feeToOperator", "type": "uint256", "internalType": "uint256" },
-                { "name": "discount", "type": "uint256", "internalType": "uint256" }
+                { "name": "discount", "type": "uint256", "internalType": "uint256" },
+                { "name": "isDonated", "type": "bool", "internalType": "bool" }
             ],
             "stateMutability": "view"
         },

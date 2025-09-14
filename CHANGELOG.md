@@ -39,6 +39,8 @@ function getDAOData()
     );
 ```
 
+[Back to top](#changelog)
+
 ---
 
 ## 27 August 2025
@@ -49,6 +51,8 @@ function getDAOData()
 
 -   Deployment of invite-only feature
 -   Related testnet changes from [24 August 2025](#24-august-2025)
+
+[Back to top](#changelog)
 
 ---
 
@@ -75,5 +79,20 @@ function getPrepaidMember(
             bool isDonated
         );
 ```
+
+[Back to top](#changelog)
+
+---
+
+## 27 August 2025
+
+### ![status](https://img.shields.io/badge/status-released-brightgreen)
+
+#### Changed
+
+-   Deployment with the new `isDonated` flag in `getPrepaidMember` function
+-   Related testnet changes from [12 September 2025](#12-september-2025)
+
+[Back to top](#changelog)
 
 ---
