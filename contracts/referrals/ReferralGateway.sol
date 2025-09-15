@@ -77,6 +77,8 @@ contract ReferralGateway is
 
     string public daoName;
 
+    uint256 public donationsFromCoupons; // In USDC, six decimals
+
     /*//////////////////////////////////////////////////////////////
                               FIXED RATIOS
     //////////////////////////////////////////////////////////////*/
@@ -419,11 +421,11 @@ contract ReferralGateway is
         returns (uint256 finalFee, uint256 discount)
     {
         uint256 proRatedCouponAmount;
-        uint256 donationFromCoupon;
+        uint256 donationFromProRatedCoupon;
 
         if (couponAmount > proRatedContribution) {
             proRatedCouponAmount = proRatedContribution;
-            donationFromCoupon = couponAmount - proRatedContribution;
+            donationFromProRatedCoupon = couponAmount - proRatedContribution;
         } else {
             proRatedCouponAmount = couponAmount;
         }
@@ -436,6 +438,11 @@ contract ReferralGateway is
             _isDonated: false,
             _isModifying: true
         });
+
+        if (donationFromProRatedCoupon > 0) {
+            donationsFromCoupons += donationFromProRatedCoupon;
+            usdc.safeTransferFrom(couponPool, address(this), donationFromProRatedCoupon);
+        }
 
         // Set as a coupon redeemer if not already
         if (couponAmount > 0 && !isMemberCouponRedeemer[prepaidMember])
