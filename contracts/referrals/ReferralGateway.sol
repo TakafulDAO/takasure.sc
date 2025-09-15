@@ -402,8 +402,14 @@ contract ReferralGateway is
         emit OnMemberKYCVerified(child);
     }
 
+    /**
+     * @notice Modify a prepaid member who previously donated
+     * @param proRatedContribution The amount of the extra contribution. In USDC six decimals
+     * @param prepaidMember The address of the prepaid member
+     * @param couponAmount The amount of the coupon. In USDC six decimals
+     */
     function modifyPrepaidMember(
-        uint256 extraContribution,
+        uint256 proRatedContribution,
         address prepaidMember,
         uint256 couponAmount
     )
@@ -412,22 +418,26 @@ contract ReferralGateway is
         onlyRole(COUPON_REDEEMER)
         returns (uint256 finalFee, uint256 discount)
     {
-        // As we can only modify members who donated before, those members contributions is fixed to MINIMUM_CONTRIBUTION
-        // so the extraContribution must be between 0 and (MAXIMUM_CONTRIBUTION - MINIMUM_CONTRIBUTION) = 225e6
-        require(
-            extraContribution <= MAXIMUM_CONTRIBUTION - MINIMUM_CONTRIBUTION,
-            ReferralGateway__InvalidContribution()
-        );
+        uint256 proRatedCouponAmount;
+        uint256 donationFromCoupon;
+
+        if (couponAmount > proRatedContribution) {
+            proRatedCouponAmount = proRatedContribution;
+            donationFromCoupon = couponAmount - proRatedContribution;
+        } else {
+            proRatedCouponAmount = couponAmount;
+        }
 
         (finalFee, discount) = _payContribution({
-            _contribution: extraContribution,
+            _contribution: proRatedContribution,
             _parent: childToParent[prepaidMember],
             _member: prepaidMember,
-            _couponAmount: couponAmount,
+            _couponAmount: proRatedCouponAmount,
             _isDonated: false,
             _isModifying: true
         });
 
+        // Set as a coupon redeemer if not already
         if (couponAmount > 0 && !isMemberCouponRedeemer[prepaidMember])
             _assignAsCouponRedeemer(prepaidMember, couponAmount);
     }
@@ -765,28 +775,7 @@ contract ReferralGateway is
         bool _isDonated,
         bool _isModifying
     ) internal view {
-        // If we are not modifying a member, the payer must be different than the zero address and cannot be already a member
-        if (!_isModifying) {
-            require(_newMember != address(0), ReferralGateway__ZeroAddress());
-            require(
-                nameToDAOData[daoName].prepaidMembers[_newMember].contributionBeforeFee == 0,
-                ReferralGateway__AlreadyMember()
-            );
-        }
-
-        // If the member is valid, the contribution must be between the minimum and maximum contribution,
-        // the same for the coupon amount, if any
-        require(
-            _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
-            ReferralGateway__InvalidContribution()
-        );
-        if (_couponAmount > 0) {
-            require(_couponAmount <= _contribution, ReferralGateway__InvalidContribution());
-            require(
-                _couponAmount >= MINIMUM_CONTRIBUTION && _couponAmount <= MAXIMUM_CONTRIBUTION,
-                ReferralGateway__InvalidContribution()
-            );
-        }
+        if (!_isModifying) _checksIfNotModifying(_newMember, _contribution, _couponAmount);
 
         // If the contribution is a donation, it must be exactly the minimum contribution
         if (_isDonated)
@@ -800,6 +789,33 @@ contract ReferralGateway is
         if (_parent != address(0)) {
             require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
             require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
+        }
+    }
+
+    function _checksIfNotModifying(
+        address _newMember,
+        uint256 _contribution,
+        uint256 _couponAmount
+    ) internal view {
+        // If we are not modifying a member, the payer must be different than the zero address and cannot be already a member
+        require(_newMember != address(0), ReferralGateway__ZeroAddress());
+        require(
+            nameToDAOData[daoName].prepaidMembers[_newMember].contributionBeforeFee == 0,
+            ReferralGateway__AlreadyMember()
+        );
+
+        // If the member is valid, the contribution must be between the minimum and maximum contribution,
+        // the same for the coupon amount, if any
+        require(
+            _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
+            ReferralGateway__InvalidContribution()
+        );
+        if (_couponAmount > 0) {
+            require(_couponAmount <= _contribution, ReferralGateway__InvalidContribution());
+            require(
+                _couponAmount >= MINIMUM_CONTRIBUTION && _couponAmount <= MAXIMUM_CONTRIBUTION,
+                ReferralGateway__InvalidContribution()
+            );
         }
     }
 
