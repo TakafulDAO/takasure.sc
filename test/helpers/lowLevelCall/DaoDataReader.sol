@@ -45,4 +45,7 @@ library DaoDataReader {
     function getBool(IReferralGateway g, uint256 idx) internal view returns (bool) {
         return uint256(_rawWord(g, idx)) != 0;
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }
