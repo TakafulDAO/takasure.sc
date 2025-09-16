@@ -6,6 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
+import {DaoDataReader, IReferralGateway} from "test/helpers/lowLevelCall/DaoDataReader.sol";
 
 contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     TestDeployProtocol deployer;
@@ -49,20 +50,21 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         vm.prank(takadao);
         referralGateway.createDAO(true, true, (block.timestamp + 31_536_000), 100e6);
 
-        (
-            bool prejoinEnabled,
-            ,
-            ,
-            address DAOAdmin,
-            address DAOAddress,
-            uint256 launchDate,
-            uint256 objectiveAmount,
-            uint256 currentAmount,
-            ,
-            ,
-            ,
-
-        ) = referralGateway.getDAOData();
+        bool prejoinEnabled = DaoDataReader.getBool(IReferralGateway(address(referralGateway)), 0);
+        address DAOAdmin = DaoDataReader.getAddress(IReferralGateway(address(referralGateway)), 3);
+        address DAOAddress = DaoDataReader.getAddress(
+            IReferralGateway(address(referralGateway)),
+            4
+        );
+        uint256 launchDate = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 5);
+        uint256 objectiveAmount = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            6
+        );
+        uint256 currentAmount = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            7
+        );
 
         assertEq(prejoinEnabled, true);
         assertEq(DAOAdmin, daoAdmin);
@@ -101,20 +103,29 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         //////////////////////////////////////////////////////////////*/
 
     function testLaunchDAO() public createDao {
-        (
-            bool prejoinEnabled,
-            bool referralDiscount,
-            ,
-            address DAOAdmin,
-            address DAOAddress,
-            uint256 launchDate,
-            uint256 objectiveAmount,
-            uint256 currentAmount,
-            ,
-            address rePoolAddress,
-            ,
-
-        ) = referralGateway.getDAOData();
+        bool prejoinEnabled = DaoDataReader.getBool(IReferralGateway(address(referralGateway)), 0);
+        bool referralDiscount = DaoDataReader.getBool(
+            IReferralGateway(address(referralGateway)),
+            1
+        );
+        address DAOAdmin = DaoDataReader.getAddress(IReferralGateway(address(referralGateway)), 3);
+        address DAOAddress = DaoDataReader.getAddress(
+            IReferralGateway(address(referralGateway)),
+            4
+        );
+        uint256 launchDate = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 5);
+        uint256 objectiveAmount = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            6
+        );
+        uint256 currentAmount = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            7
+        );
+        address rePoolAddress = DaoDataReader.getAddress(
+            IReferralGateway(address(referralGateway)),
+            9
+        );
 
         assertEq(DAOAddress, address(0));
         assertEq(prejoinEnabled, true);
@@ -131,20 +142,14 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         vm.prank(daoAdmin);
         referralGateway.launchDAO(DAO, subscriptionModule, true);
 
-        (
-            prejoinEnabled,
-            referralDiscount,
-            ,
-            DAOAdmin,
-            DAOAddress,
-            launchDate,
-            objectiveAmount,
-            currentAmount,
-            ,
-            rePoolAddress,
-            ,
-
-        ) = referralGateway.getDAOData();
+        prejoinEnabled = DaoDataReader.getBool(IReferralGateway(address(referralGateway)), 0);
+        referralDiscount = DaoDataReader.getBool(IReferralGateway(address(referralGateway)), 1);
+        DAOAdmin = DaoDataReader.getAddress(IReferralGateway(address(referralGateway)), 3);
+        DAOAddress = DaoDataReader.getAddress(IReferralGateway(address(referralGateway)), 4);
+        launchDate = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 5);
+        objectiveAmount = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 6);
+        currentAmount = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 7);
+        rePoolAddress = DaoDataReader.getAddress(IReferralGateway(address(referralGateway)), 9);
 
         assertEq(DAOAddress, DAO);
         assert(!prejoinEnabled);
@@ -162,7 +167,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         vm.prank(daoAdmin);
         referralGateway.switchReferralDiscount();
 
-        (, referralDiscount, , , , , , , , , , ) = referralGateway.getDAOData();
+        referralDiscount = DaoDataReader.getBool(IReferralGateway(address(referralGateway)), 1);
 
         assert(!referralDiscount);
 
@@ -175,7 +180,7 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
         vm.prank(daoAdmin);
         referralGateway.enableRepool(newRePoolAddress);
 
-        (, , , , , , , , , rePoolAddress, , ) = referralGateway.getDAOData();
+        rePoolAddress = DaoDataReader.getAddress(IReferralGateway(address(referralGateway)), 9);
 
         assertEq(rePoolAddress, newRePoolAddress);
     }

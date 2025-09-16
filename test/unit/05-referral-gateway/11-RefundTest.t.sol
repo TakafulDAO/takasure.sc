@@ -8,6 +8,7 @@ import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {DaoDataReader, IReferralGateway} from "test/helpers/lowLevelCall/DaoDataReader.sol";
 
 contract ReferralGatewayRefundTest is Test {
     TestDeployProtocol deployer;
@@ -93,7 +94,8 @@ contract ReferralGatewayRefundTest is Test {
             uint256 contributionBeforeFee,
             uint256 contributionAfterFee,
             uint256 feeToOperator,
-            uint256 discount
+            uint256 discount,
+
         ) = referralGateway.getPrepaidMember(child);
 
         assert(contributionBeforeFee > 0);
@@ -112,7 +114,7 @@ contract ReferralGatewayRefundTest is Test {
         referralGateway.refundIfDAOIsNotLaunched(child);
         vm.stopPrank();
 
-        (, , , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
+        uint256 launchDate = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 5);
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
@@ -138,7 +140,7 @@ contract ReferralGatewayRefundTest is Test {
         referralGateway.refundIfDAOIsNotLaunched(child);
         vm.stopPrank();
 
-        (contributionBeforeFee, contributionAfterFee, feeToOperator, discount) = referralGateway
+        (contributionBeforeFee, contributionAfterFee, feeToOperator, discount, ) = referralGateway
             .getPrepaidMember(child);
 
         assertEq(contributionBeforeFee, 0);
@@ -159,20 +161,16 @@ contract ReferralGatewayRefundTest is Test {
         // Balance 39
         assertEq(usdc.balanceOf(address(referralGateway)), 39e6);
 
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 launchDate,
-            ,
-            uint256 currentAmount,
-            ,
-            ,
-            uint256 toRepool,
-            uint256 referralReserve
-        ) = referralGateway.getDAOData();
+        uint256 launchDate = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 5);
+        uint256 currentAmount = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            7
+        );
+        uint256 toRepool = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 10);
+        uint256 referralReserve = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            11
+        );
 
         assertEq(currentAmount, 365e5);
         assertEq(toRepool, 1e6);
@@ -196,7 +194,9 @@ contract ReferralGatewayRefundTest is Test {
 
         assertEq(usdc.balanceOf(address(referralGateway)), newExpectedContractBalance);
 
-        (, , , , , , , currentAmount, , , toRepool, referralReserve) = referralGateway.getDAOData();
+        currentAmount = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 7);
+        toRepool = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 10);
+        referralReserve = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 11);
 
         assertEq(currentAmount, 1825e4); // The new currentAmount should be 36.5 - (25 - 25 * 27%) = 36.5 - (25 - 6.75) = 36.5 - 18.25 = 18.25
         assertEq(referralReserve, 0); // The new rr should be 1.5 - (22.5 - 18.25) = 1.5 - 4.25 = 0
@@ -232,7 +232,9 @@ contract ReferralGatewayRefundTest is Test {
         assertEq(usdc.balanceOf(address(child)), childBalanceBeforeRefund + amountToRefundToChild);
         assertEq(usdc.balanceOf(address(referralGateway)), 0);
 
-        (, , , , , , , currentAmount, , , toRepool, referralReserve) = referralGateway.getDAOData();
+        currentAmount = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 7);
+        toRepool = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 10);
+        referralReserve = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 11);
 
         assertEq(currentAmount, 0);
         assertEq(toRepool, 0);
@@ -240,7 +242,7 @@ contract ReferralGatewayRefundTest is Test {
     }
 
     function testCanNotRefundIfDaoIsLaunched() public {
-        (, , , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
+        uint256 launchDate = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 5);
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
