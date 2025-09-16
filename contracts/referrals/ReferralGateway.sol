@@ -370,36 +370,7 @@ contract ReferralGateway is
         // Update the KYC status
         isMemberKYCed[child] = true;
 
-        address parent = childToParent[child];
-
-        for (uint256 i; i < uint256(MAX_TIER); ++i) {
-            if (parent == address(0)) break;
-
-            uint256 layer = i + 1;
-
-            uint256 parentReward = nameToDAOData[daoName]
-                .prepaidMembers[parent]
-                .parentRewardsByChild[child];
-
-            // Reset the rewards for this child
-            nameToDAOData[daoName].prepaidMembers[parent].parentRewardsByChild[child] = 0;
-
-            try usdc.transfer(parent, parentReward) {
-                // Emit the event only if the transfer was successful
-                emit OnParentRewardTransferStatus(parent, layer, child, parentReward, true);
-            } catch {
-                // If the transfer failed, we need to revert the rewards
-                nameToDAOData[daoName].prepaidMembers[parent].parentRewardsByChild[
-                    child
-                ] = parentReward;
-
-                // Emit an event for off-chain monitoring
-                emit OnParentRewardTransferStatus(parent, layer, child, parentReward, false);
-            }
-
-            // We update the parent address to check the next parent
-            parent = childToParent[parent];
-        }
+        _transferRewardsFromChild(child);
 
         emit OnMemberKYCVerified(child);
     }
@@ -768,6 +739,8 @@ contract ReferralGateway is
                     MAXIMUM_CONTRIBUTION
             );
 
+            if (isMemberKYCed[_member]) _transferRewardsFromChild(_member);
+
             emit OnPrepaidMemberModified(normalizedContribution, _finalFee, _discount, _isDonated);
         }
     }
@@ -866,7 +839,6 @@ contract ReferralGateway is
             parentRewardsAccumulated +=
                 (_contribution * _referralRewardRatioByLayer(i + 1)) /
                 (100 * DECIMAL_CORRECTION);
-
             currentChildToCheck = childToParent[currentChildToCheck];
         }
 
@@ -973,10 +945,43 @@ contract ReferralGateway is
         emit OnRefund(_member, amountToRefund);
     }
 
-    ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
+    function _transferRewardsFromChild(address _child) internal {
+        address _parent = childToParent[_child];
+
+        for (uint256 i; i < uint256(MAX_TIER); ++i) {
+            if (_parent == address(0)) break;
+
+            uint256 _layer = i + 1;
+
+            uint256 _parentReward = nameToDAOData[daoName]
+                .prepaidMembers[_parent]
+                .parentRewardsByChild[_child];
+
+            // Reset the rewards for this child
+            nameToDAOData[daoName].prepaidMembers[_parent].parentRewardsByChild[_child] = 0;
+
+            try usdc.transfer(_parent, _parentReward) {
+                // Emit the event only if the transfer was successful
+                emit OnParentRewardTransferStatus(_parent, _layer, _child, _parentReward, true);
+            } catch {
+                // If the transfer failed, we need to revert the rewards
+                nameToDAOData[daoName].prepaidMembers[_parent].parentRewardsByChild[
+                    _child
+                ] = _parentReward;
+
+                // Emit an event for off-chain monitoring
+                emit OnParentRewardTransferStatus(_parent, _layer, _child, _parentReward, false);
+            }
+
+            // We update the parent address to check the next parent
+            _parent = childToParent[_parent];
+        }
+    }
 
     function _notZeroAddress(address _address) internal pure {
         require(_address != address(0), ReferralGateway__ZeroAddress());
     }
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(OPERATOR) {}
 }
