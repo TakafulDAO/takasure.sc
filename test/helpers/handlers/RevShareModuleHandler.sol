@@ -52,8 +52,8 @@ contract RevShareModuleHandler is Test {
         }
 
         // Initialize baselines from STORAGE (public vars)
-        lastPerNftP = module.revenuePerNftPioneers();
-        lastPerNftT = module.revenuePerNftTakadao();
+        lastPerNftP = module.revenuePerNftOwnedByPioneers();
+        lastPerNftT = module.revenuePerNftOwnedByTakadao();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -178,8 +178,8 @@ contract RevShareModuleHandler is Test {
 
     /// @dev Capture latest STORAGE accumulators as the baseline.
     function _pokeAccumulators() internal {
-        uint256 pStored = module.revenuePerNftPioneers();
-        uint256 tStored = module.revenuePerNftTakadao();
+        uint256 pStored = module.revenuePerNftOwnedByPioneers();
+        uint256 tStored = module.revenuePerNftOwnedByTakadao();
         if (pStored > lastPerNftP) lastPerNftP = pStored;
         if (tStored > lastPerNftT) lastPerNftT = tStored;
     }

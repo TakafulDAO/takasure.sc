@@ -200,9 +200,9 @@ contract ClaimRevenues_RevShareModuleTest is Test {
 
     // Getters: per-NFT accumulators grow with time for pioneers
     function testRevShareModule_perNftAccumulatorGrowsOverTime() public {
-        uint256 a = revShareModule.getRevenuePerNftPioneers();
+        uint256 a = revShareModule.getRevenuePerNftOwnedByPioneers();
         _warp(6 hours);
-        uint256 b = revShareModule.getRevenuePerNftPioneers();
+        uint256 b = revShareModule.getRevenuePerNftOwnedByPioneers();
         assertGt(b, a, "pioneers per-NFT accumulator should increase");
     }
 

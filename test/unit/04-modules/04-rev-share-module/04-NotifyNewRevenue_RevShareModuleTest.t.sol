@@ -91,8 +91,8 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         uint256 oldRateP = revShareModule.rewardRatePioneers();
         uint256 oldRateT = revShareModule.rewardRateTakadao();
         uint256 oldPF = revShareModule.periodFinish();
-        uint256 oldRevPerNftP = revShareModule.getRevenuePerNftPioneers();
-        uint256 oldRevPerNftT = revShareModule.getRevenuePerNftTakadao();
+        uint256 oldRevPerNftP = revShareModule.getRevenuePerNftOwnedByPioneers();
+        uint256 oldRevPerNftT = revShareModule.getRevenuePerNftOwnedByTakadao();
 
         // remaining time
         uint256 remaining = oldPF > block.timestamp ? (oldPF - block.timestamp) : 0;
@@ -133,8 +133,8 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         );
 
         // Global accumulators settled before rate change (monotonic increase when supply > 0)
-        uint256 newRevPerNftP = revShareModule.getRevenuePerNftPioneers();
-        uint256 newRevPerNftT = revShareModule.getRevenuePerNftTakadao();
+        uint256 newRevPerNftP = revShareModule.getRevenuePerNftOwnedByPioneers();
+        uint256 newRevPerNftT = revShareModule.getRevenuePerNftOwnedByTakadao();
         assertGe(newRevPerNftP, oldRevPerNftP, "revenuePerNftPioneers should not decrease");
         assertGe(newRevPerNftT, oldRevPerNftT, "revenuePerNftTakadao should not decrease");
     }
@@ -189,16 +189,16 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         uint256 slotTotalSupply = 2;
         vm.store(address(nft), bytes32(slotTotalSupply), bytes32(uint256(0)));
 
-        uint256 beforeP = revShareModule.getRevenuePerNftPioneers();
-        uint256 beforeT = revShareModule.getRevenuePerNftTakadao();
+        uint256 beforeP = revShareModule.getRevenuePerNftOwnedByPioneers();
+        uint256 beforeT = revShareModule.getRevenuePerNftOwnedByTakadao();
 
         _warp(3 days);
 
         // Another deposit to trigger _updateGlobal inside notify
         _fundAndNotify(module, 1_000e6);
 
-        uint256 afterP = revShareModule.getRevenuePerNftPioneers();
-        uint256 afterT = revShareModule.getRevenuePerNftTakadao();
+        uint256 afterP = revShareModule.getRevenuePerNftOwnedByPioneers();
+        uint256 afterT = revShareModule.getRevenuePerNftOwnedByTakadao();
 
         // With totalSupply == 0, _revenuePerNft* returns previous accumulator unmodified
         assertEq(afterP, beforeP, "pioneers accumulator should remain unchanged when supply == 0");

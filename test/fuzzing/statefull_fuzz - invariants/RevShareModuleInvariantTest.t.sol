@@ -159,8 +159,8 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
     /// @notice Accumulators are monotone non-decreasing.
     /// Compare computed getters against the handler’s baseline from STORAGE.
     function invariant_AccumulatorsMonotone() public view {
-        uint256 p = revShareModule.getRevenuePerNftPioneers();
-        uint256 t = revShareModule.getRevenuePerNftTakadao();
+        uint256 p = revShareModule.getRevenuePerNftOwnedByPioneers();
+        uint256 t = revShareModule.getRevenuePerNftOwnedByTakadao();
         assertGe(p, handler.lastPerNftP(), "pioneers accumulator decreased");
         assertGe(t, handler.lastPerNftT(), "takadao accumulator decreased");
     }

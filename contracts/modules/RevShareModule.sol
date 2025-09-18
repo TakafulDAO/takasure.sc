@@ -46,8 +46,8 @@ contract RevShareModule is
     uint256 public rewardRatePioneers; // Reward rate per second to distribute among pioneers (75%)
 
     uint256 public lastUpdateTime;
-    uint256 public revenuePerNftPioneers; // Cumulative revenue per NFT for pioneers pool
-    uint256 public revenuePerNftTakadao; // Cumulative revenue per NFT for Takadao pool
+    uint256 public revenuePerNftOwnedByPioneers; // Cumulative revenue per NFT for pioneers pool
+    uint256 public revenuePerNftOwnedByTakadao; // Cumulative revenue per NFT for Takadao pool
 
     mapping(address account => uint256 revenue) public revenuePerAccount;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
@@ -332,13 +332,13 @@ contract RevShareModule is
     }
 
     /// @notice View the revenue per NFT for pioneers
-    function getRevenuePerNftPioneers() external view returns (uint256) {
-        return _revenuePerNftPioneers();
+    function getRevenuePerNftOwnedByPioneers() external view returns (uint256) {
+        return _revenuePerNftOwnedByPioneers();
     }
 
     /// @notice View the revenue per NFT for Takadao
-    function getRevenuePerNftTakadao() external view returns (uint256) {
-        return _revenuePerNftTakadao();
+    function getRevenuePerNftOwnedByTakadao() external view returns (uint256) {
+        return _revenuePerNftOwnedByTakadao();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -372,8 +372,8 @@ contract RevShareModule is
             return; // Nothing to accumulate if there are no NFTs
         }
 
-        revenuePerNftPioneers = _revenuePerNftPioneers();
-        revenuePerNftTakadao = _revenuePerNftTakadao();
+        revenuePerNftOwnedByPioneers = _revenuePerNftOwnedByPioneers();
+        revenuePerNftOwnedByTakadao = _revenuePerNftOwnedByTakadao();
         lastUpdateTime = _lastTimeApplicable();
     }
 
@@ -392,7 +392,7 @@ contract RevShareModule is
         if (_account != revenueReceiver) {
             uint256 newEarnedPioneers = _earnedPioneers(_account);
             revenuePerAccount[_account] = newEarnedPioneers;
-            pioneerRevenuePerNftPaid[_account] = revenuePerNftPioneers;
+            pioneerRevenuePerNftPaid[_account] = revenuePerNftOwnedByPioneers;
         }
 
         // Takadao stream (25%)
@@ -400,39 +400,39 @@ contract RevShareModule is
         if (_account == revenueReceiver) {
             uint256 newEarnedTakadao = _earnedTakadao(_account);
             revenuePerAccount[_account] = newEarnedTakadao; // Reuse the same revenue bucket
-            takadaoRevenuePerNftPaid = revenuePerNftTakadao;
+            takadaoRevenuePerNftPaid = revenuePerNftOwnedByTakadao;
         }
     }
 
-    function _revenuePerNftPioneers() internal view returns (uint256) {
+    function _revenuePerNftOwnedByPioneers() internal view returns (uint256) {
         IRevShareNFT revShareNFT = IRevShareNFT(
             addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
         );
 
         uint256 currentSupply = revShareNFT.totalSupply();
 
-        if (currentSupply == 0) return revenuePerNftPioneers;
+        if (currentSupply == 0) return revenuePerNftOwnedByPioneers;
 
         uint256 elapsed = _lastTimeApplicable() - lastUpdateTime;
 
         return
-            revenuePerNftPioneers +
+            revenuePerNftOwnedByPioneers +
             ((elapsed * rewardRatePioneers * PRECISION_FACTOR) / currentSupply);
     }
 
-    function _revenuePerNftTakadao() internal view returns (uint256) {
+    function _revenuePerNftOwnedByTakadao() internal view returns (uint256) {
         IRevShareNFT revShareNFT = IRevShareNFT(
             addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
         );
 
         uint256 currentSupply = revShareNFT.totalSupply();
 
-        if (currentSupply == 0) return revenuePerNftTakadao;
+        if (currentSupply == 0) return revenuePerNftOwnedByTakadao;
 
         uint256 elapsed = _lastTimeApplicable() - lastUpdateTime;
 
         return
-            revenuePerNftTakadao +
+            revenuePerNftOwnedByTakadao +
             ((elapsed * rewardRateTakadao * PRECISION_FACTOR) / currentSupply);
     }
 
@@ -446,7 +446,7 @@ contract RevShareModule is
         );
 
         uint256 balance = revShareNFT.balanceOf(_account);
-        uint256 delta = _revenuePerNftTakadao() - takadaoRevenuePerNftPaid;
+        uint256 delta = _revenuePerNftOwnedByTakadao() - takadaoRevenuePerNftPaid;
 
         return (balance * delta) / PRECISION_FACTOR + revenuePerAccount[_account];
     }
@@ -463,7 +463,7 @@ contract RevShareModule is
         }
 
         uint256 balance = revShareNFT.balanceOf(account);
-        uint256 delta = _revenuePerNftPioneers() - pioneerRevenuePerNftPaid[account];
+        uint256 delta = _revenuePerNftOwnedByPioneers() - pioneerRevenuePerNftPaid[account];
 
         return (balance * delta) / PRECISION_FACTOR + revenuePerAccount[account];
     }
