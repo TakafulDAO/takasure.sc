@@ -87,7 +87,7 @@ contract RevShareModuleHandler is Test {
 
         _ensureAvailable();
 
-        uint256 earned = module.earnedPioneers(p);
+        uint256 earned = module.earnedByPioneers(p);
         if (earned == 0) return;
 
         uint256 approved = module.approvedDeposits();
@@ -105,7 +105,7 @@ contract RevShareModuleHandler is Test {
         if (nft.balanceOf(revenueReceiver) == 0) return; // no accrual path
         _ensureAvailable();
 
-        uint256 earned = module.earnedTakadao(revenueReceiver);
+        uint256 earned = module.earnedByTakadao(revenueReceiver);
         if (earned == 0) return;
 
         uint256 approved = module.approvedDeposits();

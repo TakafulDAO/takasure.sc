@@ -112,15 +112,15 @@ contract ClaimRevenues_RevShareModuleTest is Test {
     function testRevShareModule_gettersEarnedViewsGateProperly() public {
         _warp(2 days);
 
-        uint256 earnedAlice = revShareModule.earnedPioneers(alice);
+        uint256 earnedAlice = revShareModule.earnedByPioneers(alice);
         assertGt(earnedAlice, 0, "pioneer earned should be > 0");
 
         // takadao shouldn't earn from pioneers stream
-        uint256 earnedRRinPioneers = revShareModule.earnedPioneers(revenueReceiver);
+        uint256 earnedRRinPioneers = revShareModule.earnedByPioneers(revenueReceiver);
         assertEq(earnedRRinPioneers, 0, "revenueReceiver should not earn in pioneers view");
 
-        // if takadao has no NFTs, earnedTakadao is 0
-        uint256 earnedRRinTakadao = revShareModule.earnedTakadao(revenueReceiver);
+        // if takadao has no NFTs, earnedByTakadao is 0
+        uint256 earnedRRinTakadao = revShareModule.earnedByTakadao(revenueReceiver);
         // either 0 (no balance) or >0
         assertTrue(earnedRRinTakadao >= 0); // non-reverting smoke check
     }

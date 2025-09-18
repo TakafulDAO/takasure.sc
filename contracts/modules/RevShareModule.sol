@@ -320,15 +320,15 @@ contract RevShareModule is
     }
 
     /// @notice View the revenue earned by a pioneer
-    function earnedPioneers(address account) external view returns (uint256) {
+    function earnedByPioneers(address account) external view returns (uint256) {
         if (account == _getRevenueReceiver()) return 0; // Takadao does not earn from this stream
-        return _earnedPioneers(account);
+        return _earnedByPioneers(account);
     }
 
     /// @notice View the revenue earned by Takadao
-    function earnedTakadao(address account) external view returns (uint256) {
+    function earnedByTakadao(address account) external view returns (uint256) {
         if (account != _getRevenueReceiver()) return 0; // Only the revenue receiver earns from this stream
-        return _earnedTakadao(account);
+        return _earnedByTakadao(account);
     }
 
     /// @notice View the revenue per NFT for pioneers
@@ -390,16 +390,16 @@ contract RevShareModule is
 
         // Pioneers stream (75%)
         if (_account != revenueReceiver) {
-            uint256 newEarnedPioneers = _earnedPioneers(_account);
-            revenuePerAccount[_account] = newEarnedPioneers;
+            uint256 newearnedByPioneers = _earnedByPioneers(_account);
+            revenuePerAccount[_account] = newearnedByPioneers;
             pioneerRevenuePerNftPaid[_account] = revenuePerNftOwnedByPioneers;
         }
 
         // Takadao stream (25%)
         // Only the revenue receiver earns
         if (_account == revenueReceiver) {
-            uint256 newEarnedTakadao = _earnedTakadao(_account);
-            revenuePerAccount[_account] = newEarnedTakadao; // Reuse the same revenue bucket
+            uint256 newearnedByTakadao = _earnedByTakadao(_account);
+            revenuePerAccount[_account] = newearnedByTakadao; // Reuse the same revenue bucket
             takadaoRevenuePerNftPaid = revenuePerNftOwnedByTakadao;
         }
     }
@@ -436,7 +436,7 @@ contract RevShareModule is
             ((elapsed * rewardRateTakadao * PRECISION_FACTOR) / currentSupply);
     }
 
-    function _earnedTakadao(address _account) internal view returns (uint256) {
+    function _earnedByTakadao(address _account) internal view returns (uint256) {
         // Only the revenue receiver earns from this stream
         address revenueReceiver = _getRevenueReceiver();
         if (_account != revenueReceiver) return revenuePerAccount[_account];
@@ -451,7 +451,7 @@ contract RevShareModule is
         return (balance * delta) / PRECISION_FACTOR + revenuePerAccount[_account];
     }
 
-    function _earnedPioneers(address account) internal view returns (uint256) {
+    function _earnedByPioneers(address account) internal view returns (uint256) {
         IRevShareNFT revShareNFT = IRevShareNFT(
             addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
         );

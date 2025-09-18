@@ -132,7 +132,7 @@ contract NotifyClaimInteraction_RevShareModuleTest is Test {
         uint256 expectedAlice = (50 * deltaPerNft) / PRECISION;
 
         // Sanity: view getter should match our math
-        uint256 earnedView = revShareModule.earnedPioneers(alice);
+        uint256 earnedView = revShareModule.earnedByPioneers(alice);
         assertEq(earnedView, expectedAlice, "earned view mismatch with math");
 
         // Claim and verify transfer
@@ -181,7 +181,7 @@ contract NotifyClaimInteraction_RevShareModuleTest is Test {
         uint256 expectedRR = (10 * deltaPerNft) / PRECISION;
 
         // Sanity via getter
-        uint256 viewRR = revShareModule.earnedTakadao(revenueReceiver);
+        uint256 viewRR = revShareModule.earnedByTakadao(revenueReceiver);
         assertEq(viewRR, expectedRR, "takadao earned view mismatch");
 
         // Claim is executed by REVENUE_CLAIMER, funds go to revenueReceiver
@@ -245,7 +245,7 @@ contract NotifyClaimInteraction_RevShareModuleTest is Test {
         uint256 expectedAlice = (50 * (d1 + d2)) / PRECISION;
 
         // Check via view then claim
-        uint256 viewAlice = revShareModule.earnedPioneers(alice);
+        uint256 viewAlice = revShareModule.earnedByPioneers(alice);
         assertEq(viewAlice, expectedAlice, "two-deposit earned view mismatch");
 
         uint256 pre = usdc.balanceOf(alice);
@@ -269,7 +269,7 @@ contract NotifyClaimInteraction_RevShareModuleTest is Test {
         _warp(7 days);
 
         // All earned should be zero because _updateGlobal sees supply==0
-        assertEq(revShareModule.earnedPioneers(alice), 0, "should earn 0 with totalSupply==0");
+        assertEq(revShareModule.earnedByPioneers(alice), 0, "should earn 0 with totalSupply==0");
 
         vm.prank(alice);
         assertEq(revShareModule.claimRevenueShare(), 0, "claim should be 0 with totalSupply==0");
@@ -306,7 +306,7 @@ contract NotifyClaimInteraction_RevShareModuleTest is Test {
         uint256 expectedAlice = (50 * deltaPerNft) / PRECISION;
 
         // Check via view then claim
-        uint256 viewAlice = revShareModule.earnedPioneers(alice);
+        uint256 viewAlice = revShareModule.earnedByPioneers(alice);
         assertEq(viewAlice, expectedAlice, "cap-at-finish earned mismatch");
 
         uint256 pre = usdc.balanceOf(alice);

@@ -169,7 +169,7 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
     function invariant_GetterGating() public view {
         // revenueReceiver must not earn from the pioneers (75%) view
         assertEq(
-            revShareModule.earnedPioneers(revenueReceiver),
+            revShareModule.earnedByPioneers(revenueReceiver),
             0,
             "RR must not earn from pioneers"
         );
@@ -178,7 +178,11 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
         for (uint256 i = 0; i < pioneerSet.length && i < 3; i++) {
             address a = pioneerSet[i];
             if (a == revenueReceiver) continue;
-            assertEq(revShareModule.earnedTakadao(a), 0, "pioneer must not earn from takadao view");
+            assertEq(
+                revShareModule.earnedByTakadao(a),
+                0,
+                "pioneer must not earn from takadao view"
+            );
         }
     }
 
