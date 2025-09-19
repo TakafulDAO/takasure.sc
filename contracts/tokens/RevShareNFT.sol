@@ -35,6 +35,8 @@ contract RevShareNFT is
     mapping(address pioneer => mapping(uint256 tokenId => uint256 timestamp))
         public pioneerMintedAt;
 
+    uint256 public periodTransferLock; // Period after minting during which the NFT cannot be transferred
+
     uint256 public constant MAX_SUPPLY = 8_820;
 
     /*//////////////////////////////////////////////////////////////
@@ -42,8 +44,8 @@ contract RevShareNFT is
     //////////////////////////////////////////////////////////////*/
 
     event OnAddressManagerSet(address indexed oldAddressManager, address indexed newAddressManager);
-    event OnRevShareModuleSet(address indexed oldRevShareModule, address indexed newRevShareModule);
     event OnBaseURISet(string indexed oldBaseUri, string indexed newBaseURI);
+    event OnPeriodTransferLockSet(uint256 indexed oldPeriod, uint256 indexed newPeriod);
     event OnRevShareNFTMinted(address indexed owner, uint256 tokenId);
     event OnBatchRevShareNFTMinted(
         address indexed newOwner,
@@ -96,6 +98,12 @@ contract RevShareNFT is
         string memory oldBaseURI = baseURI;
         baseURI = _newBaseURI;
         emit OnBaseURISet(oldBaseURI, _newBaseURI);
+    }
+
+    function setPeriodTransferLock(uint256 _newPeriod) external onlyOwner {
+        periodTransferLock = _newPeriod;
+
+        emit OnPeriodTransferLockSet(periodTransferLock, _newPeriod);
     }
 
     /*//////////////////////////////////////////////////////////////
