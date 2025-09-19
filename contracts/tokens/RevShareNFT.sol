@@ -110,12 +110,12 @@ contract RevShareNFT is
     function mint(address pioneer) external onlyOwner nonReentrant mintChecks(pioneer) {
         // Update the revenues if the contract is set up to do so
         // Take current snapshot of totalSupply before it gets incremented
-        bool revUpdated = _updateRevenuesIfProtocolIsSetUp(pioneer);
+        _updateRevenuesIfProtocolIsSetUp(pioneer);
 
         uint256 tokenId = totalSupply;
         ++totalSupply;
 
-        if (!revUpdated) pioneerMintedAt[pioneer][tokenId] = block.timestamp;
+        pioneerMintedAt[pioneer][tokenId] = block.timestamp;
 
         _safeMint(pioneer, tokenId);
 
@@ -136,14 +136,14 @@ contract RevShareNFT is
 
         // Update the revenues if the contract is set up to do so
         // Take current snapshot of totalSupply before it gets incremented
-        bool revUpdated = _updateRevenuesIfProtocolIsSetUp(pioneer);
+        _updateRevenuesIfProtocolIsSetUp(pioneer);
 
         uint256 firstNewTokenId = totalSupply;
         totalSupply += tokensToMint; // Update the total supply to the last token ID that will be minted
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint - 1;
 
         for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
-            if (!revUpdated) pioneerMintedAt[pioneer][i] = block.timestamp;
+            pioneerMintedAt[pioneer][i] = block.timestamp;
             _safeMint(pioneer, i);
         }
 
@@ -223,16 +223,11 @@ contract RevShareNFT is
         }
     }
 
-    function _updateRevenuesIfProtocolIsSetUp(
-        address _pioneer
-    ) internal returns (bool revUpdated_) {
+    function _updateRevenuesIfProtocolIsSetUp(address _pioneer) internal {
         address revShareModule = _fetchRevShareModuleAddressIfIsSetUp();
 
-        if (revShareModule != address(0)) {
-            // If the RevShareModule is set up, we update the revenues for the given address
-            IRevShareModule(revShareModule).updateRevenue(_pioneer);
-            revUpdated_ = true;
-        }
+        // If the RevShareModule is set up, we update the revenues for the given address
+        if (revShareModule != address(0)) IRevShareModule(revShareModule).updateRevenue(_pioneer);
     }
 
     ///@dev required by the OZ UUPS module

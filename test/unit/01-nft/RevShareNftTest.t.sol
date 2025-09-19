@@ -121,7 +121,7 @@ contract RevShareNftTest is Test {
         assertEq(nft.balanceOf(alice), 1);
     }
 
-    function testNft_mintStoresPioneerMintedAtIfRevUpdateFails() public {
+    function testNft_mintStoresPioneerMintedAt() public {
         address failingManager = address(0xFEED);
 
         _mockAddressManagerRevert(failingManager);
@@ -135,21 +135,6 @@ contract RevShareNftTest is Test {
         uint256 timestamp = nft.pioneerMintedAt(alice, 0);
         assertGt(timestamp, 0);
         assertLe(timestamp, block.timestamp);
-    }
-
-    function testNft_mintDoesNotStorePioneerMintedAtIfRevUpdateSucceeds() public {
-        RevShareModuleMock rev = new RevShareModuleMock();
-        address mockManager = address(0xD00D);
-
-        _mockAddressManagerReturn(mockManager, address(rev));
-
-        vm.prank(nft.owner());
-        nft.setAddressManager(mockManager);
-
-        vm.prank(nft.owner());
-        nft.mint(alice);
-
-        assertEq(nft.pioneerMintedAt(alice, 0), 0); // Not stored
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -180,7 +165,7 @@ contract RevShareNftTest is Test {
         assertEq(nft.totalSupply(), 3);
     }
 
-    function testNft_batchMintStoresPioneerMintedAtOnlyIfRevFails() public {
+    function testNft_batchMintStoresPioneerMintedAt() public {
         address failingManager = address(0xABCD);
         _mockAddressManagerRevert(failingManager);
 
@@ -192,23 +177,6 @@ contract RevShareNftTest is Test {
 
         for (uint256 i = 0; i < 3; ++i) {
             assertGt(nft.pioneerMintedAt(alice, i), 0);
-        }
-    }
-
-    function testNft_batchMintSkipsPioneerMintedAtIfRevWorks() public {
-        RevShareModuleMock rev = new RevShareModuleMock();
-        address mockManager = address(0xDEAD);
-
-        _mockAddressManagerReturn(mockManager, address(rev));
-
-        vm.prank(nft.owner());
-        nft.setAddressManager(mockManager);
-
-        vm.prank(nft.owner());
-        nft.batchMint(alice, 3);
-
-        for (uint256 i = 0; i < 3; ++i) {
-            assertEq(nft.pioneerMintedAt(alice, i), 0);
         }
     }
 
