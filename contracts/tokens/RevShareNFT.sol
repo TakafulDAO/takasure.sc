@@ -38,6 +38,7 @@ contract RevShareNFT is
     uint256 public periodTransferLock; // Period after minting during which the NFT cannot be transferred
 
     uint256 public constant MAX_SUPPLY = 8_820;
+    uint256 public constant OWNER_LOCK_KEY = type(uint256).max; // A key that will return the pioneer first minted at
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS & ERRORS
@@ -57,6 +58,7 @@ contract RevShareNFT is
     error RevShareNFT__MaxSupplyReached();
     error RevShareNFT__BatchMintMoreThanOne();
     error RevShareNFT__TooEarlyToTransfer();
+    error RevShareNFT__MintedAtNotSet();
 
     modifier mintChecks(address pioneer) {
         AddressAndStates._notZeroAddress(pioneer);
@@ -122,7 +124,11 @@ contract RevShareNFT is
         uint256 tokenId = totalSupply;
         ++totalSupply;
 
-        pioneerMintedAt[pioneer][tokenId] = block.timestamp;
+        uint256 today = block.timestamp;
+        pioneerMintedAt[pioneer][tokenId] = today;
+
+        uint256 prev = pioneerMintedAt[pioneer][OWNER_LOCK_KEY];
+        if (prev == 0 || today < prev) pioneerMintedAt[pioneer][OWNER_LOCK_KEY] = today; // Set the first minted at for the owner
 
         _safeMint(pioneer, tokenId);
 
@@ -149,29 +155,69 @@ contract RevShareNFT is
         totalSupply += tokensToMint; // Update the total supply to the last token ID that will be minted
         uint256 lastNewTokenId = firstNewTokenId + tokensToMint - 1;
 
+        uint256 today = block.timestamp;
         for (uint256 i = firstNewTokenId; i <= lastNewTokenId; ++i) {
-            pioneerMintedAt[pioneer][i] = block.timestamp;
+            pioneerMintedAt[pioneer][i] = today;
             _safeMint(pioneer, i);
         }
+
+        uint256 prev = pioneerMintedAt[pioneer][OWNER_LOCK_KEY];
+        if (prev == 0 || today < prev) pioneerMintedAt[pioneer][OWNER_LOCK_KEY] = today; // Set the first minted at for the owner
 
         emit OnBatchRevShareNFTMinted(pioneer, firstNewTokenId, lastNewTokenId);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                               APPROVALS
+    //////////////////////////////////////////////////////////////*/
+
+    function approve(address to, uint256 tokenId) public override {
+        address pioneer = _ownerOf(tokenId);
+
+        // Only gate when granting approval, not when revoking
+        if (to != address(0))
+            require(
+                block.timestamp >= pioneerMintedAt[pioneer][tokenId] + periodTransferLock,
+                RevShareNFT__TooEarlyToTransfer()
+            );
+        super.approve(to, tokenId);
+    }
+
+    function setApprovalForAll(address operator, bool approved) public override {
+        // Only gate when granting approval, not when revoking
+        if (approved)
+            require(
+                block.timestamp >= pioneerMintedAt[msg.sender][OWNER_LOCK_KEY] + periodTransferLock,
+                RevShareNFT__TooEarlyToTransfer()
+            );
+        super.setApprovalForAll(operator, approved);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               TRANSFERS
+    //////////////////////////////////////////////////////////////*/
+
     /**
-     * @notice Transfers are only allowed if the RevShareModule is set up
+     * @notice Transfers are only allowed if the lock period has passed
      * @dev The revenues are updated for both the sender and the receiver
      */
     function transfer(address to, uint256 tokenId) external nonReentrant {
-        require(
-            block.timestamp >= pioneerMintedAt[msg.sender][tokenId] + periodTransferLock,
-            RevShareNFT__TooEarlyToTransfer()
-        );
+        uint256 ts = pioneerMintedAt[msg.sender][tokenId]; // Minted at from current owner
+        require(ts != 0, RevShareNFT__MintedAtNotSet()); // The token must be owned
+        require(block.timestamp >= ts + periodTransferLock, RevShareNFT__TooEarlyToTransfer());
 
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(msg.sender);
         _updateRevenuesIfProtocolIsSetUp(to);
 
         _safeTransfer(msg.sender, to, tokenId, "");
+
+        // Get the minted at for the new owner
+        uint256 prev = pioneerMintedAt[to][OWNER_LOCK_KEY];
+        if (prev == 0 || ts < prev) pioneerMintedAt[to][OWNER_LOCK_KEY] = ts; // Set the first minted at for the new owner
+        pioneerMintedAt[to][tokenId] = ts; // Set the minted at for the new owner
+
+        delete pioneerMintedAt[msg.sender][tokenId]; // Delete the minted at for the previous owner
     }
 
     /**
@@ -182,18 +228,23 @@ contract RevShareNFT is
         address from,
         address to,
         uint256 tokenId
-    ) public override(ERC721Upgradeable) {
-        // The transfers are disable if the RevShareModule is not set up
-        require(
-            block.timestamp >= pioneerMintedAt[msg.sender][tokenId] + periodTransferLock,
-            RevShareNFT__TooEarlyToTransfer()
-        );
+    ) public override(ERC721Upgradeable) nonReentrant {
+        uint256 ts = pioneerMintedAt[from][tokenId]; // Minted at from current owner
+        require(ts != 0, RevShareNFT__MintedAtNotSet()); // The token must be owned
+        require(block.timestamp >= ts + periodTransferLock, RevShareNFT__TooEarlyToTransfer());
 
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(from);
         _updateRevenuesIfProtocolIsSetUp(to);
 
         super.transferFrom(from, to, tokenId);
+
+        // Get the minted at for the new owner
+        uint256 prev = pioneerMintedAt[to][OWNER_LOCK_KEY];
+        if (prev == 0 || ts < prev) pioneerMintedAt[to][OWNER_LOCK_KEY] = ts; // Set the first minted at for the new owner
+        pioneerMintedAt[to][tokenId] = ts; // Set the minted at for the new owner
+
+        delete pioneerMintedAt[from][tokenId]; // Delete the minted at for the previous owner
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -239,4 +290,23 @@ contract RevShareNFT is
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    /// @dev Temporary function to migrate the pioneerMintedAt[owner][OWNER_LOCK_KEY] for existing owners
+    function migrateOwnerFirstMintForRange(
+        uint256 startId,
+        uint256 endIdExclusive
+    ) external onlyOwner {
+        require(endIdExclusive <= totalSupply, "range exceeds supply");
+        for (uint256 id = startId; id < endIdExclusive; ++id) {
+            address owner = _ownerOf(id);
+            if (owner == address(0)) continue; // burned? (if you ever support burn)
+            uint256 ts = pioneerMintedAt[owner][id];
+            if (ts == 0) continue; // safety
+
+            uint256 prev = pioneerMintedAt[owner][OWNER_LOCK_KEY];
+            if (prev == 0 || ts < prev) {
+                pioneerMintedAt[owner][OWNER_LOCK_KEY] = ts;
+            }
+        }
+    }
 }

@@ -211,12 +211,16 @@ contract RevShareNftTest is Test {
         vm.prank(nft.owner());
         nft.mint(alice);
 
+        // vm.warp(block.timestamp + 1 weeks);
+        // vm.roll(block.number + 1);
+
         vm.prank(alice);
+        vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
         nft.approve(bob, 0);
 
-        vm.prank(bob);
-        vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
-        nft.transferFrom(alice, bob, 0);
+        // vm.prank(bob);
+        // vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
+        // nft.transferFrom(alice, bob, 0);
     }
 
     function testNft_transferWorksIfLockPeriodHasPassed() public transferLockSetup {
