@@ -45,7 +45,7 @@ contract RevShareNFT is
 
     event OnAddressManagerSet(address indexed oldAddressManager, address indexed newAddressManager);
     event OnBaseURISet(string indexed oldBaseUri, string indexed newBaseURI);
-    event OnPeriodTransferLockSet(uint256 indexed oldPeriod, uint256 indexed newPeriod);
+    event OnPeriodTransferLockSet(uint256 indexed newPeriod);
     event OnRevShareNFTMinted(address indexed owner, uint256 tokenId);
     event OnBatchRevShareNFTMinted(
         address indexed newOwner,
@@ -56,8 +56,7 @@ contract RevShareNFT is
     error RevShareNFT__NotAllowedAddress();
     error RevShareNFT__MaxSupplyReached();
     error RevShareNFT__BatchMintMoreThanOne();
-    error RevShareNFT__NotEnoughBalance();
-    error RevShareNFT__RevShareModuleNotSetUp();
+    error RevShareNFT__TooEarlyToTransfer();
 
     modifier mintChecks(address pioneer) {
         AddressAndStates._notZeroAddress(pioneer);
@@ -100,10 +99,10 @@ contract RevShareNFT is
         emit OnBaseURISet(oldBaseURI, _newBaseURI);
     }
 
-    function setPeriodTransferLock(uint256 _newPeriod) external onlyOwner {
-        periodTransferLock = _newPeriod;
+    function setPeriodTransferLock(uint256 newPeriod) external onlyOwner {
+        periodTransferLock = newPeriod;
 
-        emit OnPeriodTransferLockSet(periodTransferLock, _newPeriod);
+        emit OnPeriodTransferLockSet(newPeriod);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -164,8 +163,8 @@ contract RevShareNFT is
      */
     function transfer(address to, uint256 tokenId) external nonReentrant {
         require(
-            _fetchRevShareModuleAddressIfIsSetUp() != address(0),
-            RevShareNFT__RevShareModuleNotSetUp()
+            block.timestamp >= pioneerMintedAt[msg.sender][tokenId] + periodTransferLock,
+            RevShareNFT__TooEarlyToTransfer()
         );
 
         // Update the revenues if the contract is set up to do so
@@ -186,8 +185,8 @@ contract RevShareNFT is
     ) public override(ERC721Upgradeable) {
         // The transfers are disable if the RevShareModule is not set up
         require(
-            _fetchRevShareModuleAddressIfIsSetUp() != address(0),
-            RevShareNFT__RevShareModuleNotSetUp()
+            block.timestamp >= pioneerMintedAt[msg.sender][tokenId] + periodTransferLock,
+            RevShareNFT__TooEarlyToTransfer()
         );
 
         // Update the revenues if the contract is set up to do so

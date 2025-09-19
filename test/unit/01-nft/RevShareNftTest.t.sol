@@ -17,6 +17,7 @@ contract RevShareNftTest is Test {
 
     event OnAddressManagerSet(address indexed oldAddressManager, address indexed newAddressManager);
     event OnBaseURISet(string indexed oldBaseUri, string indexed newBaseURI);
+    event OnPeriodTransferLockSet(uint256 indexed newPeriod);
     event OnRevShareNFTMinted(address indexed owner, uint256 tokenId);
     event OnBatchRevShareNFTMinted(
         address indexed newOwner,
@@ -95,6 +96,13 @@ contract RevShareNftTest is Test {
         noBaseUri.mint(alice);
 
         assertEq(noBaseUri.tokenURI(0), "");
+    }
+
+    function testNft_setPeriodTransferLock() public {
+        vm.prank(nft.owner());
+        vm.expectEmit(true, false, false, false, address(nft));
+        emit OnPeriodTransferLockSet(1 weeks);
+        nft.setPeriodTransferLock(1 weeks);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -184,16 +192,22 @@ contract RevShareNftTest is Test {
                                TRANSFERS
     //////////////////////////////////////////////////////////////*/
 
-    function testNft_transferRevertsIfRevModuleNotSet() public {
+    modifier transferLockSetup() {
+        vm.prank(nft.owner());
+        nft.setPeriodTransferLock(1 weeks);
+        _;
+    }
+
+    function testNft_transferRevertsIfIsTooEarlyToTransfer() public transferLockSetup {
         vm.prank(nft.owner());
         nft.mint(alice);
 
         vm.prank(alice);
-        vm.expectRevert(RevShareNFT.RevShareNFT__RevShareModuleNotSetUp.selector);
+        vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
         nft.transfer(bob, 0);
     }
 
-    function testNft_transferFromRevertsIfRevModuleNotSet() public {
+    function testNft_transferFromRevertsIfIsTooEarlyTooTransfer() public transferLockSetup {
         vm.prank(nft.owner());
         nft.mint(alice);
 
@@ -201,40 +215,29 @@ contract RevShareNftTest is Test {
         nft.approve(bob, 0);
 
         vm.prank(bob);
-        vm.expectRevert(RevShareNFT.RevShareNFT__RevShareModuleNotSetUp.selector);
+        vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
         nft.transferFrom(alice, bob, 0);
     }
 
-    function testNft_transferWorksIfRevModuleSet() public {
-        RevShareModuleMock rev = new RevShareModuleMock();
-        address mockManager = address(0xCAFE);
-
-        _mockAddressManagerReturn(mockManager, address(rev));
-
-        vm.prank(nft.owner());
-        nft.setAddressManager(mockManager);
-
+    function testNft_transferWorksIfLockPeriodHasPassed() public transferLockSetup {
         vm.prank(nft.owner());
         nft.mint(alice);
+
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
 
         vm.prank(alice);
         nft.transfer(bob, 0);
 
         assertEq(nft.ownerOf(0), bob);
-        assertEq(rev.lastUpdated(), bob);
     }
 
-    function testNft_transferFromWorksIfRevModuleSet() public {
-        RevShareModuleMock rev = new RevShareModuleMock();
-        address mockManager = address(0xBEEF);
-
-        _mockAddressManagerReturn(mockManager, address(rev));
-
-        vm.prank(nft.owner());
-        nft.setAddressManager(mockManager);
-
+    function testNft_transferFromWorksIfLockPeriodHasPassed() public transferLockSetup {
         vm.prank(nft.owner());
         nft.mint(alice);
+
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
 
         vm.prank(alice);
         nft.approve(bob, 0);
@@ -243,7 +246,6 @@ contract RevShareNftTest is Test {
         nft.transferFrom(alice, bob, 0);
 
         assertEq(nft.ownerOf(0), bob);
-        assertEq(rev.lastUpdated(), bob);
     }
 
     /*//////////////////////////////////////////////////////////////
