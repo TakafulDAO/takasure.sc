@@ -137,6 +137,7 @@ contract MemberModule is
             memberWallet
         );
 
+        // todo: remove the month period. Everytime after the year works
         require(
             block.timestamp >
                 associationMember.associateStartTime + ModuleConstants.YEAR + ModuleConstants.MONTH,
@@ -155,7 +156,7 @@ contract MemberModule is
             wallet: memberWallet,
             parent: address(0), // Reset the parent
             memberState: AssociationMemberState.Canceled,
-            isRefunded: false, // Set the member as refunded
+            isRefunded: false,
             isLifeProtected: false,
             isFarewellProtected: false
         });

@@ -164,10 +164,11 @@ contract SubscriptionModule is
 
         RevenueType revenueType;
 
+        // todo: this should not be msg.sender but memberWallet
         if (msg.sender == lifeBenefitModuleAddress || msg.sender == farewellBenefitModuleAddress) {
             revenueType = RevenueType.Contribution;
         } else if (isOperator) {
-            revenueType = RevenueType.ContributionDonation;
+            revenueType = RevenueType.ContributionDonation; // todo: waive instead of donation
         } else {
             revert ModuleErrors.Module__NotAuthorizedCaller();
         }
