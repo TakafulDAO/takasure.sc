@@ -8,6 +8,7 @@
 
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
 pragma solidity 0.8.28;
 
@@ -35,7 +36,14 @@ library AddressAndStates {
         require(_address != address(0), TakasureProtocol__ZeroAddress());
     }
 
-    function _onlyModuleState(ModuleState _currentState, ModuleState _neededState) internal pure {
-        require(_currentState == _neededState, Module__WrongModuleState());
+    function _onlyModuleState(
+        address moduleManager,
+        address moduleAddress,
+        ModuleState _neededState
+    ) internal view {
+        require(
+            IModuleManager(moduleManager).getModuleState(moduleAddress) == _neededState,
+            Module__WrongModuleState()
+        );
     }
 }

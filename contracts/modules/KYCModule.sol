@@ -56,16 +56,6 @@ contract KYCModule is
     }
 
     /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER", address(takasureReserve.addressManager())) {
-        moduleState = newState;
-    }
-
-    /**
      * @notice Approves the KYC for a member.
      * @param memberWallet address of the member
      * @dev It reverts if the member is the zero address
@@ -75,7 +65,11 @@ contract KYCModule is
         address memberWallet,
         uint256 benefitMultiplier
     ) external onlyRole(Roles.KYC_PROVIDER, address(takasureReserve.addressManager())) {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            address(this),
+            ModuleState.Enabled
+        );
         AddressAndStates._notZeroAddress(memberWallet);
 
         (Reserve memory reserve, Member memory newMember) = _getReserveAndMemberValuesHook(

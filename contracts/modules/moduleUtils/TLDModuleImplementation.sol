@@ -15,7 +15,6 @@ pragma solidity 0.8.28;
 
 abstract contract TLDModuleImplementation {
     IAddressManager internal addressManager;
-    ModuleState internal moduleState;
 
     string public moduleName;
 
@@ -42,8 +41,6 @@ abstract contract TLDModuleImplementation {
         );
         _;
     }
-
-    function setContractState(ModuleState newState) external virtual;
 
     function isTLDModule() external pure returns (bytes4) {
         return bytes4(keccak256("isTLDModule()"));

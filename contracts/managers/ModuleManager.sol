@@ -59,7 +59,6 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
         addressToModuleState[newModule] = ModuleState.Enabled;
 
         _checkIsModule(newModule);
-        ITLDModuleImplementation(newModule).setContractState(ModuleState.Enabled);
 
         emit OnNewModule(newModule);
     }
@@ -79,8 +78,6 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
 
         ModuleState oldState = addressToModuleState[module];
         addressToModuleState[module] = newState;
-
-        ITLDModuleImplementation(module).setContractState(newState);
 
         emit OnModuleStateChanged(module, oldState, newState);
     }

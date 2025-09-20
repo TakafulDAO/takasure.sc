@@ -78,17 +78,9 @@ contract SubscriptionModule is
         couponPool = _couponPool;
     }
 
-    /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER", address(takasureReserve.addressManager())) {
-        moduleState = newState;
-    }
-
-    function setCouponPoolAddress(address _couponPool) external onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {
+    function setCouponPoolAddress(
+        address _couponPool
+    ) external onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
@@ -101,10 +93,10 @@ contract SubscriptionModule is
     ) external nonReentrant {
         require(msg.sender == referralGateway, ModuleErrors.Module__NotAuthorizedCaller());
 
-        (
-            Reserve memory reserve,
-            Member memory newMember
-        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
+            memberWallet,
+            contributionBeforeFee
+        );
 
         _joinFromReferralGateway(
             reserve,
@@ -133,10 +125,10 @@ contract SubscriptionModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        (
-            Reserve memory reserve,
-            Member memory newMember
-        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
+            memberWallet,
+            contributionBeforeFee
+        );
 
         // Check caller
         require(
@@ -166,11 +158,15 @@ contract SubscriptionModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration,
         uint256 couponAmount
-    ) external nonReentrant onlyRole(Roles.COUPON_REDEEMER, address(takasureReserve.addressManager())) {
-        (
-            Reserve memory reserve,
-            Member memory newMember
-        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+    )
+        external
+        nonReentrant
+        onlyRole(Roles.COUPON_REDEEMER, address(takasureReserve.addressManager()))
+    {
+        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
+            memberWallet,
+            contributionBeforeFee
+        );
 
         // Check if the coupon amount is valid
         require(couponAmount <= contributionBeforeFee, SubscriptionModule__InvalidContribution());
@@ -226,11 +222,12 @@ contract SubscriptionModule is
     function _paySubscriptionChecksAndsettings(
         address _memberWallet,
         uint256 _contributionBeforeFee
-    )
-        internal
-        returns (Reserve memory reserve_, Member memory newMember_)
-    {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+    ) internal returns (Reserve memory reserve_, Member memory newMember_) {
+        AddressAndStates._onlyModuleState(
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            address(this),
+            ModuleState.Enabled
+        );
 
         (reserve_, newMember_) = _getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
 
@@ -379,7 +376,11 @@ contract SubscriptionModule is
      *         The user will need to reach custommer support to get the corresponding amount
      */
     function _refund(address _memberWallet) internal {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            address(this),
+            ModuleState.Enabled
+        );
 
         (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
             takasureReserve,

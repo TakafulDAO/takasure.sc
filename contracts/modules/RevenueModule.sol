@@ -8,6 +8,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
@@ -43,16 +44,6 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
     }
 
     /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER", address(takasureReserve.addressManager())) {
-        moduleState = newState;
-    }
-
-    /**
      * @notice To be called by the DAO to update the Fund reserve with new revenues
      * @param newRevenue the new revenue to be added to the fund reserve
      * @param revenueType the type of revenue to be added
@@ -61,7 +52,11 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
         uint256 newRevenue,
         RevenueType revenueType
     ) external onlyRole(Roles.DAO_MULTISIG, address(takasureReserve.addressManager())) {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            address(this),
+            ModuleState.Enabled
+        );
         require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
         Reserve memory reserve = takasureReserve.getReserveValues();

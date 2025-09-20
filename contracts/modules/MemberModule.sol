@@ -9,6 +9,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
@@ -53,27 +54,25 @@ contract MemberModule is
     }
 
     /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER", address(takasureReserve.addressManager())) {
-        moduleState = newState;
-    }
-
-    /**
      * @notice Method to cancel a membership
      * @dev To be called by anyone
      */
     function cancelMembership(address memberWallet) external {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            address(this),
+            ModuleState.Enabled
+        );
         AddressAndStates._notZeroAddress(memberWallet);
         _cancelMembership(memberWallet);
     }
 
     function payRecurringContribution(address memberWallet) external nonReentrant {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            address(this),
+            ModuleState.Enabled
+        );
 
         require(
             AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
@@ -143,7 +142,11 @@ contract MemberModule is
     }
 
     function defaultMember(address memberWallet) external {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            address(this),
+            ModuleState.Enabled
+        );
         Member memory member = _getMembersValuesHook(takasureReserve, memberWallet);
 
         require(member.memberState == MemberState.Active, ModuleErrors.Module__WrongMemberState());
