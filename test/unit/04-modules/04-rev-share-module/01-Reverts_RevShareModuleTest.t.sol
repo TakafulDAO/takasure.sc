@@ -10,17 +10,18 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 contract Reverts_RevShareModuleTest is Test {
     TestDeployProtocol deployer;
     RevShareModule revShareModule;
     HelperConfig helperConfig;
+    ModuleManager moduleManager;
     IUSDC usdc;
     address module = makeAddr("module");
     address takadao;
     address revShareModuleAddress;
-    address moduleManagerAddress;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
@@ -41,7 +42,9 @@ contract Reverts_RevShareModuleTest is Test {
             address(uint160(uint256(addressManagerAddressSlotBytes)))
         );
 
-        moduleManagerAddress = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
+        moduleManager = ModuleManager(
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
         vm.prank(addressManager.owner());
@@ -49,8 +52,8 @@ contract Reverts_RevShareModuleTest is Test {
     }
 
     function testRevShareModule_setAvailableDateRevertsIfModuleIsNotEnabled() public {
-        vm.prank(moduleManagerAddress);
-        revShareModule.setContractState(ModuleState.Paused);
+        vm.prank(moduleManager.owner());
+        moduleManager.changeModuleState(address(revShareModule), ModuleState.Paused);
 
         vm.prank(takadao);
         vm.expectRevert(ModuleErrors.Module__WrongModuleState.selector);
@@ -64,8 +67,8 @@ contract Reverts_RevShareModuleTest is Test {
     }
 
     function testRevShareModule_releaseRevenuesRevertsIfModuleIsNotEnabled() public {
-        vm.prank(moduleManagerAddress);
-        revShareModule.setContractState(ModuleState.Paused);
+        vm.prank(moduleManager.owner());
+        moduleManager.changeModuleState(address(revShareModule), ModuleState.Paused);
 
         vm.prank(takadao);
         vm.expectRevert(ModuleErrors.Module__WrongModuleState.selector);
@@ -91,8 +94,8 @@ contract Reverts_RevShareModuleTest is Test {
     }
 
     function testRevShareModule_sweepNonApprovedDepositsRevertsIfModuleIsNotEnabled() public {
-        vm.prank(moduleManagerAddress);
-        revShareModule.setContractState(ModuleState.Paused);
+        vm.prank(moduleManager.owner());
+        moduleManager.changeModuleState(address(revShareModule), ModuleState.Paused);
 
         vm.prank(takadao);
         vm.expectRevert(ModuleErrors.Module__WrongModuleState.selector);
@@ -106,8 +109,8 @@ contract Reverts_RevShareModuleTest is Test {
     }
 
     function testRevShareModule_claimRevenueShareRevertsIfModuleIsNotEnabled() public {
-        vm.prank(moduleManagerAddress);
-        revShareModule.setContractState(ModuleState.Paused);
+        vm.prank(moduleManager.owner());
+        moduleManager.changeModuleState(address(revShareModule), ModuleState.Paused);
 
         vm.prank(takadao);
         vm.expectRevert(ModuleErrors.Module__WrongModuleState.selector);

@@ -47,14 +47,6 @@ contract RevShareModuleFuzzTest is Test {
         addressManager.addProtocolAddress("RANDOM_MODULE", module, ProtocolAddressType.Module);
     }
 
-    function testSetContractStateRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != moduleManagerAddress);
-
-        vm.prank(caller);
-        vm.expectRevert();
-        revShareModule.setContractState(ModuleState.Paused);
-    }
-
     function testUpgradeRevertsIfCallerIsInvalid(address caller) public {
         vm.assume(caller != takadao);
         address newImpl = makeAddr("newImpl");
