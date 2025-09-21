@@ -13,7 +13,7 @@ import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol"
 
 pragma solidity 0.8.28;
 
-abstract contract TLDModuleImplementation {
+abstract contract ModuleImplementation {
     IAddressManager internal addressManager;
 
     string public moduleName;
@@ -42,7 +42,7 @@ abstract contract TLDModuleImplementation {
         _;
     }
 
-    function isTLDModule() external pure returns (bytes4) {
-        return bytes4(keccak256("isTLDModule()"));
+    function isValidModule() external pure returns (bytes4) {
+        return bytes4(keccak256("isValidModule()"));
     }
 }

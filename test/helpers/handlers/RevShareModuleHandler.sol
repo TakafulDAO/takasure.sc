@@ -192,4 +192,7 @@ contract RevShareModuleHandler is Test {
             module.releaseRevenues();
         }
     }
+
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

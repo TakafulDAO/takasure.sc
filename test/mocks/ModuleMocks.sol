@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
-contract IsModule is TLDModuleImplementation {
+contract IsModule is ModuleImplementation {
     // To avoid this contract to be count in coverage
     function test() external {}
 }

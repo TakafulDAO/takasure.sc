@@ -12,7 +12,7 @@ import {IRevShareNFT} from "contracts/interfaces/IRevShareNFT.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
@@ -24,7 +24,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 pragma solidity 0.8.28;
 
 contract RevShareModule is
-    TLDModuleImplementation,
+    ModuleImplementation,
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable

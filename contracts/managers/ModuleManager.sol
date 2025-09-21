@@ -11,7 +11,7 @@
  * @dev The state in this contract will be mainly the modules addresses and their status and any other auxiliary data
  */
 
-import {ITLDModuleImplementation} from "contracts/interfaces/ITLDModuleImplementation.sol";
+import {IModuleImplementation} from "contracts/interfaces/IModuleImplementation.sol";
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
@@ -113,8 +113,8 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @notice Check if a given address is a module
      */
     function _checkIsModule(address _newModule) internal {
-        try ITLDModuleImplementation(_newModule).isTLDModule() returns (bytes4 funcSelector) {
-            if (funcSelector != ITLDModuleImplementation.isTLDModule.selector)
+        try IModuleImplementation(_newModule).isValidModule() returns (bytes4 funcSelector) {
+            if (funcSelector != IModuleImplementation.isValidModule.selector)
                 revert ModuleManager__NotModule();
         } catch (bytes memory) {
             revert ModuleManager__NotModule();
