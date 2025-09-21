@@ -53,7 +53,7 @@ contract RevShareModuleHandler is Test {
 
         // Initialize baselines from STORAGE (public vars)
         lastPerNftP = module.revenuePerNftOwnedByPioneers();
-        lastPerNftT = module.revenuePerNftOwnedByTakadao();
+        lastPerNftT = module.takadaoRevenueScaled();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -107,7 +107,6 @@ contract RevShareModuleHandler is Test {
     /// @notice Operator (REVENUE_CLAIMER) triggers claim for 25% stream to revenueReceiver.
     /// Requires RR to hold NFTs and `approvedDeposits` to cover the full `earned`.
     function op_claimTakadao() external {
-        if (nft.balanceOf(revenueReceiver) == 0) return; // no accrual path
         _ensureAvailable();
 
         uint256 earned = module.earnedByTakadao(revenueReceiver);
@@ -184,7 +183,7 @@ contract RevShareModuleHandler is Test {
     /// @dev Capture latest STORAGE accumulators as the baseline.
     function _pokeAccumulators() internal {
         uint256 pStored = module.revenuePerNftOwnedByPioneers();
-        uint256 tStored = module.revenuePerNftOwnedByTakadao();
+        uint256 tStored = module.takadaoRevenueScaled();
         if (pStored > lastPerNftP) lastPerNftP = pStored;
         if (tStored > lastPerNftT) lastPerNftT = tStored;
     }

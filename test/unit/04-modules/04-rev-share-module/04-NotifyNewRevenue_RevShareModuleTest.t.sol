@@ -66,7 +66,7 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         addressManager.addProtocolAddress("RANDOM_MODULE", module, ProtocolAddressType.Module);
         vm.stopPrank();
 
-        // fund + notify (first stream; duration assumed 365 days)
+        // fund + notify (first stream; uses default rewardsDuration)
         deal(address(usdc), module, 11_000e6); // 11,000 USDC
 
         vm.startPrank(module);
@@ -92,7 +92,7 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         uint256 oldRateT = revShareModule.rewardRateTakadaoScaled();
         uint256 oldPF = revShareModule.periodFinish();
         uint256 oldRevPerNftP = revShareModule.getRevenuePerNftOwnedByPioneers();
-        uint256 oldRevPerNftT = revShareModule.getRevenuePerNftOwnedByTakadao();
+        uint256 oldRevPerNftT = revShareModule.getTakadaoRevenueScaled();
 
         // remaining time
         uint256 remaining = oldPF > block.timestamp ? (oldPF - block.timestamp) : 0;
@@ -124,26 +124,22 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         // periodFinish reset to now + dur
         assertEq(revShareModule.periodFinish(), block.timestamp + dur, "period finish not reset");
 
-        // lastUpdateTime bumped
+        // lastUpdateTime bumped (sanity)
         assertEq(
             revShareModule.lastTimeApplicable(),
             revShareModule.lastTimeApplicable(),
             "sanity"
         );
-        assertEq(
-            revShareModule.lastTimeApplicable(),
-            block.timestamp,
-            "last time applicable should be now or capped"
-        );
+        assertEq(revShareModule.lastTimeApplicable(), block.timestamp, "lta should be now/capped");
 
-        // Global accumulators settled before rate change (monotonic increase when supply > 0)
+        // Global accumulators settled before rate change (monotonic)
         uint256 newRevPerNftP = revShareModule.getRevenuePerNftOwnedByPioneers();
-        uint256 newRevPerNftT = revShareModule.getRevenuePerNftOwnedByTakadao();
-        assertGe(newRevPerNftP, oldRevPerNftP, "revenuePerNftPioneers should not decrease");
-        assertGe(newRevPerNftT, oldRevPerNftT, "revenuePerNftTakadao should not decrease");
+        uint256 newRevPerNftT = revShareModule.getTakadaoRevenueScaled();
+        assertGe(newRevPerNftP, oldRevPerNftP, "pioneers accumulator decreased");
+        assertGe(newRevPerNftT, oldRevPerNftT, "takadao accumulator decreased");
     }
 
-    // 4) New stream after finish (no carry-over)
+    // New stream after finish (no carry-over)
     function testRevShareModule_notifyNewStreamAfterFinishNoCarryover() public {
         // Fast-forward to after the current periodFinish
         uint256 pf = revShareModule.periodFinish();
@@ -167,7 +163,7 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         assertEq(revShareModule.periodFinish(), block.timestamp + dur, "period finish mismatch");
     }
 
-    // 5) Accounting + token balance: approvedDeposits & contract USDC increase
+    // Accounting + token balance: approvedDeposits & contract USDC increase
     function testRevShareModule_notifyUpdatesApprovedDepositsAndBalance() public {
         uint256 amount = 777e6;
         uint256 prevApproved = revShareModule.approvedDeposits();
@@ -187,29 +183,38 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         );
     }
 
-    // 6) _updateGlobal with totalSupply == 0: accumulators unchanged
-    function testRevShareModule_notifyUpdateGlobalZeroSupplyNoAccrual() public {
+    /// _updateGlobal with totalSupply == 0:
+    ///  - Pioneers accumulator remains unchanged (75% path short-circuits),
+    ///  - Takadao accumulator *does* increase (25% global stream).
+    function testRevShareModule_notifyUpdateGlobalZeroSupply_GlobalTakadaoContinues() public {
         // Force totalSupply to 0 before calling notify
         uint256 slotTotalSupply = 2;
         vm.store(address(nft), bytes32(slotTotalSupply), bytes32(uint256(0)));
 
+        // Snapshot current Takadao rate & accumulators
         uint256 beforeP = revShareModule.getRevenuePerNftOwnedByPioneers();
-        uint256 beforeT = revShareModule.getRevenuePerNftOwnedByTakadao();
+        uint256 beforeT = revShareModule.getTakadaoRevenueScaled();
+        uint256 oldRateT = revShareModule.rewardRateTakadaoScaled();
 
-        _warp(3 days);
+        // Let time pass so _updateGlobal has elapsed to settle on notify()
+        uint256 elapsed = 3 days;
+        _warp(elapsed);
 
         // Another deposit to trigger _updateGlobal inside notify
         _fundAndNotify(module, 1_000e6);
 
         uint256 afterP = revShareModule.getRevenuePerNftOwnedByPioneers();
-        uint256 afterT = revShareModule.getRevenuePerNftOwnedByTakadao();
+        uint256 afterT = revShareModule.getTakadaoRevenueScaled();
 
-        // With totalSupply == 0, _revenuePerNft* returns previous accumulator unmodified
+        // With totalSupply == 0, pioneers accumulator stays unchanged
         assertEq(afterP, beforeP, "pioneers accumulator should remain unchanged when supply == 0");
-        assertEq(afterT, beforeT, "takadao accumulator should remain unchanged when supply == 0");
+
+        // Takadao accumulator increases by elapsed * oldRateT (global stream keeps accruing)
+        uint256 expectedAfterT = beforeT + (elapsed * oldRateT);
+        assertEq(afterT, expectedAfterT, "takadao accumulator delta mismatch when supply == 0");
     }
 
-    // 7) getRevenueForDuration scales with duration using current rates
+    // getRevenueForDuration scales with duration using current rates
     function testRevShareModule_getRevenueForDurationScales() public view {
         // arbitrary sub-duration (e.g., 3 days)
         uint256 sub = 3 days;

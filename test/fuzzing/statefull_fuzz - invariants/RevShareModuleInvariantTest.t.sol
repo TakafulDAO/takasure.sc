@@ -41,13 +41,13 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
         (, , , , , , revShareModuleProxy, , , , helperConfig) = deployer.run();
         revShareModule = RevShareModule(revShareModuleProxy);
 
-        HelperConfig.NetworkConfig memory cfg = helperConfig.getConfigByChainId(block.chainid);
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         // Read AddressManager from storage slot 0 in RevShareModule
         bytes32 amSlot = vm.load(address(revShareModule), bytes32(uint256(0)));
         addressManager = AddressManager(address(uint160(uint256(amSlot))));
 
-        operator = cfg.takadaoOperator;
+        operator = config.takadaoOperator;
         revenueReceiver = addressManager.getProtocolAddressByName("REVENUE_RECEIVER").addr;
         usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
@@ -74,19 +74,13 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
         // --- Seed a wide pioneer base that sums exactly to totalSupply = 1,500 ---
         uint256 remaining = 1500;
         address[] memory seeds = new address[](30);
-        for (uint256 i = 0; i < seeds.length; i++) {
+        for (uint256 i; i < seeds.length; i++) {
             seeds[i] = makeAddr(string(abi.encodePacked("pioneer_", i)));
         }
 
         vm.startPrank(nft.owner());
-        // Give some NFTs to revenueReceiver so 25% stream has a holder
-        uint256 rrMint = 20;
-        nft.batchMint(revenueReceiver, rrMint);
-        pioneerSet.push(revenueReceiver);
-        remaining -= rrMint;
-
         // Distribute to others deterministically
-        for (uint256 i = 0; i < seeds.length && remaining > 0; i++) {
+        for (uint256 i; i < seeds.length && remaining > 0; i++) {
             uint256 want = 1 + (uint256(keccak256(abi.encode(i))) % 100); // [1..100]
             if (want > remaining) want = remaining;
             nft.batchMint(seeds[i], want);
@@ -169,7 +163,7 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
     /// Compare computed getters against the handler’s baseline from STORAGE.
     function invariant_AccumulatorsMonotone() public view {
         uint256 p = revShareModule.getRevenuePerNftOwnedByPioneers();
-        uint256 t = revShareModule.getRevenuePerNftOwnedByTakadao();
+        uint256 t = revShareModule.getTakadaoRevenueScaled();
         assertGe(p, handler.lastPerNftP(), "pioneers accumulator decreased");
         assertGe(t, handler.lastPerNftT(), "takadao accumulator decreased");
     }
@@ -184,7 +178,7 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
         );
 
         // A few pioneers must not earn from the takadao (25%) view
-        for (uint256 i = 0; i < pioneerSet.length && i < 3; i++) {
+        for (uint256 i; i < pioneerSet.length && i < 3; i++) {
             address a = pioneerSet[i];
             if (a == revenueReceiver) continue;
             assertEq(

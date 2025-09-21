@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
-
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
+
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
-import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
@@ -14,15 +14,15 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
-contract ClaimRevenues_RevShareModuleTest is Test {
+contract ClaimRevenues_RevShareModuleTest is StdCheats, Test {
     TestDeployProtocol deployer;
     RevShareModule revShareModule;
     RevShareNFT nft;
     HelperConfig helperConfig;
     IUSDC usdc;
     address takadao;
-    address revenueClaimer;
-    address revenueReceiver;
+    address revenueClaimer; // has REVENUE_CLAIMER role
+    address revenueReceiver; // destination account for Takadao claims
     address module = makeAddr("module");
     address revShareModuleAddress;
     address alice = makeAddr("alice");
@@ -36,10 +36,10 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         revShareModule = RevShareModule(revShareModuleAddress);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
-
         takadao = config.takadaoOperator;
         revenueClaimer = takadao;
 
+        // Fresh RevShareNFT proxy
         string
             memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
         address nftImplementation = address(new RevShareNFT());
@@ -49,83 +49,77 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         );
         nft = RevShareNFT(nftAddress);
 
-        uint256 addressManagerAddressSlot = 0;
-        bytes32 addressManagerAddressSlotBytes = vm.load(
-            address(revShareModule),
-            bytes32(uint256(addressManagerAddressSlot))
-        );
-        AddressManager addressManager = AddressManager(
-            address(uint160(uint256(addressManagerAddressSlotBytes)))
-        );
+        // Read AddressManager from RevShareModule.storage slot 0
+        bytes32 amSlot = vm.load(address(revShareModule), bytes32(uint256(0)));
+        AddressManager addressManager = AddressManager(address(uint160(uint256(amSlot))));
 
         revenueReceiver = addressManager.getProtocolAddressByName("REVENUE_RECEIVER").addr;
         usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
+        // Register NFT + an authorized Module caller for notifyNewRevenue
         vm.startPrank(addressManager.owner());
         addressManager.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Module);
         addressManager.addProtocolAddress("RANDOM_MODULE", module, ProtocolAddressType.Module);
         vm.stopPrank();
 
+        // Staggered mints to create non-uniform join times
         vm.prank(nft.owner());
         nft.batchMint(alice, 50);
 
-        vm.warp(block.timestamp + 1 days);
-        vm.roll(block.number + 1);
-
+        _warp(1 days);
         vm.prank(nft.owner());
         nft.batchMint(bob, 25);
 
-        vm.warp(block.timestamp + 3 days);
-        vm.roll(block.number + 1);
-
+        _warp(3 days);
         vm.prank(nft.owner());
         nft.batchMint(charlie, 84);
 
-        vm.warp(block.timestamp + 15 days);
-        vm.roll(block.number + 1);
+        _warp(15 days);
 
-        // fund + notify (first stream; duration assumed 365 days)
+        // Fund + notify first stream (module default duration = 90 days unless changed)
         deal(address(usdc), module, 11_000e6); // 11,000 USDC
-
         vm.startPrank(module);
         usdc.approve(address(revShareModule), 11_000e6);
         revShareModule.notifyNewRevenue(11_000e6);
         vm.stopPrank();
 
-        // force totalSupply to a known value
+        // Force totalSupply to a known value for deterministic per-NFT math
         uint256 forcedTotalSupply = 1_500;
         vm.store(
             address(nft),
-            bytes32(uint256(2)), // slot index for totalSupply
+            bytes32(uint256(2)), // totalSupply slot in this NFT
             bytes32(forcedTotalSupply)
         );
     }
 
-    // Claim immediately after deposit -> no elapsed time => 0
+    /*//////////////////////////////////////////////////////////////
+                               TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// Claim immediately after deposit -> no elapsed time => 0
     function testRevShareModule_pioneerImmediateClaimReturnsZero() public {
         vm.prank(alice);
         uint256 claimed = revShareModule.claimRevenueShare();
         assertEq(claimed, 0, "claim should be zero without elapsed time");
     }
 
-    // After some time, pioneers see earned > 0; takadao shows 0 in pioneers view
+    /// After some time: pioneer earns > 0; RR earns 0 in pioneers view; RR earns > 0 in Takadao view
     function testRevShareModule_gettersEarnedViewsGateProperly() public {
         _warp(2 days);
 
         uint256 earnedAlice = revShareModule.earnedByPioneers(alice);
         assertGt(earnedAlice, 0, "pioneer earned should be > 0");
 
-        // takadao shouldn't earn from pioneers stream
+        // RR should not earn from pioneers stream
         uint256 earnedRRinPioneers = revShareModule.earnedByPioneers(revenueReceiver);
         assertEq(earnedRRinPioneers, 0, "revenueReceiver should not earn in pioneers view");
 
-        // if takadao has no NFTs, earnedByTakadao is 0
+        // Takadao accrues globally, independent of NFT balance
         uint256 earnedRRinTakadao = revShareModule.earnedByTakadao(revenueReceiver);
-        // either 0 (no balance) or >0
-        assertTrue(earnedRRinTakadao >= 0); // non-reverting smoke check
+        assertGt(earnedRRinTakadao, 0, "revenueReceiver should accrue in Takadao view");
     }
 
-    // Pioneer successful claim pays out and zeroes account accrual; second claim returns 0
+    /// Pioneer: first claim pays and zeroes; second immediate claim returns 0
     function testRevShareModule_pioneerClaimRevenueAndThenZero() public {
         _warp(3 days);
 
@@ -149,7 +143,7 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         assertEq(claimed2, 0, "second immediate claim should be zero");
     }
 
-    // A random non-pioneer and non-claimer cannot claim
+    /// A random non-pioneer and non-claimer cannot claim
     function testRevShareModule_nonPioneerNonClaimerReverts() public {
         address dave = makeAddr("dave");
         vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
@@ -157,21 +151,8 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         revShareModule.claimRevenueShare();
     }
 
-    // Takadao path: with NO NFT balance -> claim returns 0 (but does not revert)
-    function testRevShareModule_takadaoClaimerNoNFTReturnsZero() public {
-        _warp(1 days);
-
-        vm.prank(revenueClaimer);
-        uint256 claimed = revShareModule.claimRevenueShare();
-        assertEq(claimed, 0, "takadao claim should be zero without NFT balance");
-    }
-
-    // Takadao path: WITH NFT balance -> accrues and pays to revenueReceiver
-    function testRevShareModule_takadaoClaimerWithNFTPaysReceiver() public {
-        // mint some NFTs to revenueReceiver so 25% stream accrues
-        vm.prank(nft.owner());
-        nft.batchMint(revenueReceiver, 10);
-
+    /// Takadao path: WITHOUT NFT balance -> accrues globally and pays to revenueReceiver
+    function testRevShareModule_takadaoClaimerPaysReceiver_NoNFTs() public {
         _warp(2 days);
 
         uint256 preRRBal = usdc.balanceOf(revenueReceiver);
@@ -180,7 +161,7 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         vm.prank(revenueClaimer);
         uint256 claimed = revShareModule.claimRevenueShare();
 
-        assertGt(claimed, 0, "takadao should claim > 0 when holding NFTs");
+        assertGt(claimed, 0, "takadao should claim > 0 without NFT balance");
         assertEq(
             usdc.balanceOf(revenueReceiver),
             preRRBal + claimed,
@@ -198,7 +179,7 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         );
     }
 
-    // Getters: per-NFT accumulators grow with time for pioneers
+    /// Getters: pioneers per-NFT accumulator grows with time
     function testRevShareModule_perNftAccumulatorGrowsOverTime() public {
         uint256 a = revShareModule.getRevenuePerNftOwnedByPioneers();
         _warp(6 hours);
@@ -206,6 +187,7 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         assertGt(b, a, "pioneers per-NFT accumulator should increase");
     }
 
+    /// getRevenueForDuration(dur) returns each pool’s streamed amount (after per-second floors)
     function testRevShareModule_getRevenueForDurationSumsToDepositAmount() public view {
         uint256 dur = revShareModule.rewardsDuration();
         (uint256 p, uint256 t) = revShareModule.getRevenueForDuration(dur);
@@ -217,19 +199,20 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         uint256 pShare = (amount * 75) / 100;
         uint256 tShare = (amount * 25) / 100;
 
-        // Expected streamed amounts after per-pool floor division
+        // Expected streamed amounts after fixed-point floors
         uint256 expectedP = (((pShare * 1e18) / dur) * dur) / 1e18;
         uint256 expectedT = (((tShare * 1e18) / dur) * dur) / 1e18;
 
         assertEq(p, expectedP, "pioneers streamed part mismatches");
         assertEq(t, expectedT, "takadao streamed part mismatches");
         assertEq(p + t, expectedP + expectedT, "sum of streamed parts");
-        // Dust is what’s left from share after streaming with fixed-point floors
+
+        // Dust = unstreamed remainder from per-second floors
         uint256 expectedDust = (pShare - expectedP) + (tShare - expectedT);
         assertEq(amount - (p + t), expectedDust, "dust accounted");
     }
 
-    // lastTimeApplicable caps at periodFinish
+    /// lastTimeApplicable caps at periodFinish
     function testRevShareModule_lastTimeApplicableCapsAtPF() public {
         uint256 pf = revShareModule.periodFinish();
         assertTrue(pf > block.timestamp, "stream should be active at setup");
@@ -237,11 +220,11 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         assertEq(revShareModule.lastTimeApplicable(), pf, "should cap at periodFinish");
     }
 
-    // Guard: insufficient approvedDeposits reverts on payout
+    /// Guard: insufficient approvedDeposits reverts on payout
     function testRevShareModule_approvedDepositsGuardRevertWhenInsufficient() public {
         _warp(2 days);
 
-        // Force approvedDeposits to 0 to trigger guard
+        // Force approvedDeposits to 0 (slot 4 in current layout)
         vm.store(address(revShareModule), bytes32(uint256(4)), bytes32(uint256(0)));
 
         vm.expectRevert(RevShareModule.RevShareModule__InsufficientApprovedDeposits.selector);
@@ -249,9 +232,8 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         revShareModule.claimRevenueShare();
     }
 
-    // updateRevenue(address(0)) path: only updates globals and returns (no revert)
+    /// updateRevenue(address(0)) path: only updates globals and returns (no revert)
     function testRevShareModule_updateRevenueZeroAddressOnlyGlobal() public {
-        // Should not revert; just settles global accumulators
         revShareModule.updateRevenue(address(0));
     }
 
