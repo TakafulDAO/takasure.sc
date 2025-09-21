@@ -218,13 +218,15 @@ contract ClaimRevenues_RevShareModuleTest is Test {
         uint256 tShare = (amount * 25) / 100;
 
         // Expected streamed amounts after per-pool floor division
-        uint256 expectedP = (pShare / dur) * dur;
-        uint256 expectedT = (tShare / dur) * dur;
+        uint256 expectedP = (((pShare * 1e18) / dur) * dur) / 1e18;
+        uint256 expectedT = (((tShare * 1e18) / dur) * dur) / 1e18;
 
         assertEq(p, expectedP, "pioneers streamed part mismatches");
         assertEq(t, expectedT, "takadao streamed part mismatches");
         assertEq(p + t, expectedP + expectedT, "sum of streamed parts");
-        assertEq(amount - (p + t), (pShare % dur) + (tShare % dur), "dust accounted");
+        // Dust is what’s left from share after streaming with fixed-point floors
+        uint256 expectedDust = (pShare - expectedP) + (tShare - expectedT);
+        assertEq(amount - (p + t), expectedDust, "dust accounted");
     }
 
     // lastTimeApplicable caps at periodFinish

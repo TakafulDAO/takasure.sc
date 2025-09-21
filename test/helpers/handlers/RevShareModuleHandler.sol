@@ -66,7 +66,12 @@ contract RevShareModuleHandler is Test {
         uint256 bal = usdc.balanceOf(moduleCaller);
         if (bal == 0) return;
 
-        amt = bound(amt, 1, bal);
+        // Ensure both 75% and 25% shares are non-zero after floor
+        uint256 minAmt = 4; // micro-USDC → 3/1 split
+        if (bal < minAmt) return;
+
+        amt = bound(amt, minAmt, bal);
+
         vm.startPrank(moduleCaller);
         usdc.approve(address(module), amt);
         module.notifyNewRevenue(amt);

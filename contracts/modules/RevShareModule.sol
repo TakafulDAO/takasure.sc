@@ -40,10 +40,11 @@ contract RevShareModule is
 
     uint256 private constant PIONEERS_SHARE = 75; // In percentage (75%)
     uint256 private constant TAKADAO_SHARE = 25; // In percentage (25%)
-    uint256 private constant PRECISION_FACTOR = 1e6;
+    uint256 private constant ACCRUAL_SCALE = 1e18; // Fixed point for per-second rates
 
-    uint256 public rewardRateTakadao; // Reward rate per second to distribute among Takadao (25%)
-    uint256 public rewardRatePioneers; // Reward rate per second to distribute among pioneers (75%)
+    // Scaled rates: tokens * 1e18 / second
+    uint256 public rewardRateTakadaoScaled;
+    uint256 public rewardRatePioneersScaled;
 
     uint256 public lastUpdateTime;
     uint256 public revenuePerNftOwnedByPioneers; // Cumulative revenue per NFT for pioneers pool
@@ -88,7 +89,7 @@ contract RevShareModule is
 
         revenuesAvailableDate = block.timestamp;
 
-        rewardsDuration = 365 days; // default stream windows
+        rewardsDuration = 90 days; // default stream windows
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -174,15 +175,19 @@ contract RevShareModule is
         // Recompute reward rates with carry-over
         uint256 currentTime = block.timestamp;
         if (currentTime >= periodFinish) {
-            rewardRatePioneers = pioneersShare / rewardsDuration;
-            rewardRateTakadao = takadaoShare / rewardsDuration;
+            rewardRatePioneersScaled = (pioneersShare * ACCRUAL_SCALE) / rewardsDuration;
+            rewardRateTakadaoScaled = (takadaoShare * ACCRUAL_SCALE) / rewardsDuration;
         } else {
             uint256 remaining = periodFinish - currentTime;
-            uint256 leftoverPioneers = remaining * rewardRatePioneers;
-            uint256 leftoverTakadao = remaining * rewardRateTakadao;
+            uint256 leftoverPioneersScaled = remaining * rewardRatePioneersScaled;
+            uint256 leftoverTakadaoScaled = remaining * rewardRateTakadaoScaled;
 
-            rewardRatePioneers = (pioneersShare + leftoverPioneers) / rewardsDuration;
-            rewardRateTakadao = (takadaoShare + leftoverTakadao) / rewardsDuration;
+            rewardRatePioneersScaled =
+                (pioneersShare * ACCRUAL_SCALE + leftoverPioneersScaled) /
+                rewardsDuration;
+            rewardRateTakadaoScaled =
+                (takadaoShare * ACCRUAL_SCALE + leftoverTakadaoScaled) /
+                rewardsDuration;
         }
 
         lastUpdateTime = currentTime;
@@ -238,8 +243,8 @@ contract RevShareModule is
         uint256 balance = contributionToken.balanceOf(address(this));
 
         // Halt streams & reset accounting
-        rewardRatePioneers = 0;
-        rewardRateTakadao = 0;
+        rewardRatePioneersScaled = 0;
+        rewardRateTakadaoScaled = 0;
         periodFinish = block.timestamp;
         lastUpdateTime = block.timestamp;
         approvedDeposits = 0; // Reset approved deposits
@@ -326,7 +331,10 @@ contract RevShareModule is
      * @return The amount of revenue to be distributed
      */
     function getRevenueForDuration(uint256 duration) external view returns (uint256, uint256) {
-        return (duration * rewardRatePioneers, duration * rewardRateTakadao);
+        return (
+            (duration * rewardRatePioneersScaled) / ACCRUAL_SCALE,
+            (duration * rewardRateTakadaoScaled) / ACCRUAL_SCALE
+        );
     }
 
     /// @notice View the revenue earned by a pioneer
@@ -425,9 +433,9 @@ contract RevShareModule is
 
         uint256 elapsed = _lastTimeApplicable() - lastUpdateTime;
 
+        // Returns scaled accumulator
         return
-            revenuePerNftOwnedByPioneers +
-            ((elapsed * rewardRatePioneers * PRECISION_FACTOR) / currentSupply);
+            revenuePerNftOwnedByPioneers + ((elapsed * rewardRatePioneersScaled) / currentSupply);
     }
 
     function _revenuePerNftOwnedByTakadao() internal view returns (uint256) {
@@ -441,9 +449,7 @@ contract RevShareModule is
 
         uint256 elapsed = _lastTimeApplicable() - lastUpdateTime;
 
-        return
-            revenuePerNftOwnedByTakadao +
-            ((elapsed * rewardRateTakadao * PRECISION_FACTOR) / currentSupply);
+        return revenuePerNftOwnedByTakadao + ((elapsed * rewardRateTakadaoScaled) / currentSupply);
     }
 
     function _earnedByTakadao(address _account) internal view returns (uint256) {
@@ -456,9 +462,10 @@ contract RevShareModule is
         );
 
         uint256 balance = revShareNFT.balanceOf(_account);
-        uint256 delta = _revenuePerNftOwnedByTakadao() - takadaoRevenuePerNftPaid;
+        uint256 deltaScaled = _revenuePerNftOwnedByTakadao() - takadaoRevenuePerNftPaid;
 
-        return (balance * delta) / PRECISION_FACTOR + revenuePerAccount[_account];
+        // Convert scaled back to token units
+        return (balance * deltaScaled) / ACCRUAL_SCALE + revenuePerAccount[_account];
     }
 
     function _earnedByPioneers(address account) internal view returns (uint256) {
@@ -473,9 +480,10 @@ contract RevShareModule is
         }
 
         uint256 balance = revShareNFT.balanceOf(account);
-        uint256 delta = _revenuePerNftOwnedByPioneers() - pioneerRevenuePerNftPaid[account];
+        uint256 deltaScaled = _revenuePerNftOwnedByPioneers() - pioneerRevenuePerNftPaid[account];
 
-        return (balance * delta) / PRECISION_FACTOR + revenuePerAccount[account];
+        // Convert scaled back to token units
+        return (balance * deltaScaled) / ACCRUAL_SCALE + revenuePerAccount[account];
     }
 
     ///@dev required by the OZ UUPS module

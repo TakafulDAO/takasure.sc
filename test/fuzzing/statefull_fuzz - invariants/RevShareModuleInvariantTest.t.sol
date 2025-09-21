@@ -147,13 +147,22 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
     /// @notice 75/25 split ratio — small integer drift (carry-over + floor) allowed.
     /// |rP - 3*rT| <= 12 wei/sec.
     function invariant_RateRatioApproximatelyThreeToOne() public view {
-        uint256 rp = revShareModule.rewardRatePioneers();
-        uint256 rt = revShareModule.rewardRateTakadao();
+        uint256 rp = revShareModule.rewardRatePioneersScaled();
+        uint256 rt = revShareModule.rewardRateTakadaoScaled();
 
-        if (rp == 0 && rt == 0) return; // no active stream
+        // Skip when no active stream: rates are stale and duration may have changed.
+        uint256 pf = revShareModule.periodFinish();
+        if (pf == 0 || block.timestamp >= pf) return;
 
+        // Degenerate split due to tiny deposits (e.g., amount < 4 micro-USDC) – skip.
+        if (rp == 0 || rt == 0) return;
+
+        // One scaled-rate “tick” is 1e18 / rewardsDuration
+        uint256 unit = 1e18 / revShareModule.rewardsDuration();
+
+        // Allow small rounding drift (carry-over + floors)
         uint256 diff = rp > 3 * rt ? rp - 3 * rt : (3 * rt - rp);
-        assertLe(diff, 12, "rate ratio must remain ~3:1");
+        assertLe(diff, 12 * unit, "rate ratio must remain ~3:1");
     }
 
     /// @notice Accumulators are monotone non-decreasing.

@@ -88,8 +88,8 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         uint256 dur = revShareModule.rewardsDuration();
         _warp(dur / 10); // move ~10% into the stream
 
-        uint256 oldRateP = revShareModule.rewardRatePioneers();
-        uint256 oldRateT = revShareModule.rewardRateTakadao();
+        uint256 oldRateP = revShareModule.rewardRatePioneersScaled();
+        uint256 oldRateT = revShareModule.rewardRateTakadaoScaled();
         uint256 oldPF = revShareModule.periodFinish();
         uint256 oldRevPerNftP = revShareModule.getRevenuePerNftOwnedByPioneers();
         uint256 oldRevPerNftT = revShareModule.getRevenuePerNftOwnedByTakadao();
@@ -103,19 +103,23 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         uint256 pShare = (amount * 75) / 100;
         uint256 tShare = (amount * 25) / 100;
 
-        // Expected new rates = (new share + leftover) / dur
-        uint256 expectedP = (pShare + (remaining * oldRateP)) / dur;
-        uint256 expectedT = (tShare + (remaining * oldRateT)) / dur;
+        // Expected new *scaled* rates = (new share (scaled) + leftover (scaled)) / dur
+        uint256 expectedP = (pShare * 1e18 + (remaining * oldRateP)) / dur;
+        uint256 expectedT = (tShare * 1e18 + (remaining * oldRateT)) / dur;
 
         _fundAndNotify(module, amount);
 
         // Rates updated with carry-over
         assertEq(
-            revShareModule.rewardRatePioneers(),
+            revShareModule.rewardRatePioneersScaled(),
             expectedP,
             "pioneers rate carryover mismatch"
         );
-        assertEq(revShareModule.rewardRateTakadao(), expectedT, "takadao rate carryover mismatch");
+        assertEq(
+            revShareModule.rewardRateTakadaoScaled(),
+            expectedT,
+            "takadao rate carryover mismatch"
+        );
 
         // periodFinish reset to now + dur
         assertEq(revShareModule.periodFinish(), block.timestamp + dur, "period finish not reset");
@@ -153,13 +157,13 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         uint256 pShare = (amount * 75) / 100;
         uint256 tShare = (amount * 25) / 100;
 
-        uint256 expectedP = pShare / dur;
-        uint256 expectedT = tShare / dur;
+        uint256 expectedP = (pShare * 1e18) / dur;
+        uint256 expectedT = (tShare * 1e18) / dur;
 
         _fundAndNotify(module, amount);
 
-        assertEq(revShareModule.rewardRatePioneers(), expectedP, "pioneers rate mismatch");
-        assertEq(revShareModule.rewardRateTakadao(), expectedT, "takadao rate mismatch");
+        assertEq(revShareModule.rewardRatePioneersScaled(), expectedP, "pioneers rate mismatch");
+        assertEq(revShareModule.rewardRateTakadaoScaled(), expectedT, "takadao rate mismatch");
         assertEq(revShareModule.periodFinish(), block.timestamp + dur, "period finish mismatch");
     }
 
@@ -211,9 +215,9 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         uint256 sub = 3 days;
         (uint256 p, uint256 t) = revShareModule.getRevenueForDuration(sub);
 
-        // Expected from current rates
-        uint256 expectedP = revShareModule.rewardRatePioneers() * sub;
-        uint256 expectedT = revShareModule.rewardRateTakadao() * sub;
+        // Expected from current *scaled* rates → convert back to token units
+        uint256 expectedP = (revShareModule.rewardRatePioneersScaled() * sub) / 1e18;
+        uint256 expectedT = (revShareModule.rewardRateTakadaoScaled() * sub) / 1e18;
 
         assertEq(p, expectedP, "pioneers duration scaling mismatch");
         assertEq(t, expectedT, "takadao duration scaling mismatch");

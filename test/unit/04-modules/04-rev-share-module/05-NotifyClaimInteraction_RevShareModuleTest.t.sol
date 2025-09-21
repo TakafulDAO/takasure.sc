@@ -112,24 +112,20 @@ contract NotifyClaimInteraction_RevShareModuleTest is Test {
         uint256 elapsed = 10 days; // 864,000 seconds
         _warp(elapsed);
 
-        // --- Expected math (pioneers stream) ---
-        // PIONEERS share = 75% of amount
+        // --- Expected math (pioneers stream, fixed-point) ---
         uint256 pShare = (amount * 75) / 100; // 37,500e6
-
-        // rewardsDuration = 365 days = 31,536,000 seconds
         uint256 dur = revShareModule.rewardsDuration(); // 31_536_000
-
-        // rewardRateP = floor(pShare / dur)
-        uint256 rewardRateP = pShare / dur;
-
-        // revenuePerNft delta = elapsed * rewardRateP * PRECISION / totalSupply
-        // PRECISION = 1e6
-        uint256 PRECISION = 1e6;
         uint256 totalSupply = 1_500;
-        uint256 deltaPerNft = (elapsed * rewardRateP * PRECISION) / totalSupply;
+        uint256 balance = 50;
 
-        // alice has 50 NFTs -> expected earned = 50 * deltaPerNft / PRECISION
-        uint256 expectedAlice = (50 * deltaPerNft) / PRECISION;
+        // rateScaled = floor(pShare * 1e18 / dur)
+        uint256 rateScaled = (pShare * 1e18) / dur;
+
+        // per-NFT accumulator delta (scaled): floor(elapsed * rateScaled / totalSupply)
+        uint256 deltaPerNftScaled = (elapsed * rateScaled) / totalSupply;
+
+        // expected earned = floor(balance * deltaPerNftScaled / 1e18)
+        uint256 expectedAlice = (balance * deltaPerNftScaled) / 1e18;
 
         // Sanity: view getter should match our math
         uint256 earnedView = revShareModule.earnedByPioneers(alice);
@@ -165,20 +161,16 @@ contract NotifyClaimInteraction_RevShareModuleTest is Test {
         uint256 elapsed = 5 days; // 432,000 sec
         _warp(elapsed);
 
-        // --- Expected math (takadao stream) ---
-        // TAKADAO share = 25% of amount
+        // --- Expected math (takadao stream, fixed-point) ---
         uint256 tShare = (amount * 25) / 100; // 12,500e6
-        uint256 dur = revShareModule.rewardsDuration(); // 31_536_000
-        uint256 rewardRateT = tShare / dur; // floor division
-
-        // per-NFT delta for takadao stream:
-        // delta = elapsed * rewardRateT * PRECISION / totalSupply
-        uint256 PRECISION = 1e6;
+        uint256 dur = revShareModule.rewardsDuration();
         uint256 totalSupply = 1_500;
-        uint256 deltaPerNft = (elapsed * rewardRateT * PRECISION) / totalSupply;
+        uint256 rrBalance = 10;
 
-        // revenueReceiver has 10 NFTs
-        uint256 expectedRR = (10 * deltaPerNft) / PRECISION;
+        uint256 rateScaled = (tShare * 1e18) / dur;
+        uint256 deltaPerNftScaled = (elapsed * rateScaled) / totalSupply;
+
+        uint256 expectedRR = (rrBalance * deltaPerNftScaled) / 1e18;
 
         // Sanity via getter
         uint256 viewRR = revShareModule.earnedByTakadao(revenueReceiver);
@@ -204,45 +196,40 @@ contract NotifyClaimInteraction_RevShareModuleTest is Test {
         vm.store(address(nft), bytes32(uint256(2)), bytes32(uint256(1_500)));
 
         uint256 dur = revShareModule.rewardsDuration(); // 31_536_000
-        uint256 PRECISION = 1e6;
         uint256 totalSupply = 1_500;
 
         // First deposit D1 = 20,000
         uint256 D1 = 20_000e6;
+        uint256 pShare1 = (D1 * 75) / 100;
+        uint256 r1Scaled = (pShare1 * 1e18) / dur;
         _fundAndApprove(module, D1);
         _notify(module, D1);
 
         // Let t1 pass
         uint256 t1 = 10 days; // 864,000
+        uint256 d1Scaled = (t1 * r1Scaled) / totalSupply;
         _warp(t1);
-
-        // For interval 1:
-        uint256 pShare1 = (D1 * 75) / 100; // 15,000e6
-        uint256 r1 = pShare1 / dur; // pioneers rate1
-        uint256 d1 = (t1 * r1 * PRECISION) / totalSupply; // per-NFT accumulator increment for interval 1
 
         // Mid-stream deposit D2 = 12,000
         uint256 D2 = 12_000e6;
+        uint256 pShare2 = (D2 * 75) / 100;
         // carry-over leftover = (remaining * r1)
         uint256 remaining = revShareModule.periodFinish() - block.timestamp;
-        uint256 leftover = remaining * r1;
+        uint256 leftoverScaled = remaining * r1Scaled;
         // new rate r2 = (pShare2 + leftover) / dur
-        uint256 pShare2 = (D2 * 75) / 100; // 9,000e6
-        uint256 r2 = (pShare2 + leftover) / dur;
+        uint256 r2Scaled = (pShare2 * 1e18 + leftoverScaled) / dur;
 
         _fundAndApprove(module, D2);
         _notify(module, D2);
 
         // After notify, the stream resets (periodFinish := now + dur)
         // Let t2 pass
-        uint256 t2 = 5 days; // 432,000
+        uint256 t2 = 5 days; // 432_000
+        uint256 d2Scaled = (t2 * r2Scaled) / totalSupply;
         _warp(t2);
 
-        // Interval 2 increment:
-        uint256 d2 = (t2 * r2 * PRECISION) / totalSupply;
-
         // Alice has 50 NFTs
-        uint256 expectedAlice = (50 * (d1 + d2)) / PRECISION;
+        uint256 expectedAlice = (50 * (d1Scaled + d2Scaled)) / 1e18;
 
         // Check via view then claim
         uint256 viewAlice = revShareModule.earnedByPioneers(alice);
@@ -291,19 +278,16 @@ contract NotifyClaimInteraction_RevShareModuleTest is Test {
         _warp((pf - block.timestamp) + 10 days); // 10 days past finish
 
         // --- Expected math ---
-        // Only accrues up to dur seconds, not past
-        uint256 dur = revShareModule.rewardsDuration(); // 31,536,000
-        uint256 pShare = (amount * 75) / 100; // 22,500e6
-        uint256 r = pShare / dur;
-
-        uint256 PRECISION = 1e6;
+        // Accrual caps at full duration; do fixed-point steps to match contract rounding
+        uint256 dur = revShareModule.rewardsDuration();
         uint256 totalSupply = 1_500;
+        uint256 balance = 50;
 
-        // Per-NFT increment capped at full duration
-        uint256 deltaPerNft = (dur * r * PRECISION) / totalSupply;
+        uint256 pShare = (amount * 75) / 100;
+        uint256 rScaled = (pShare * 1e18) / dur; // floor
+        uint256 fullDurPerNftScaled = (dur * rScaled) / totalSupply; // floor
 
-        // Alice has 50 NFTs
-        uint256 expectedAlice = (50 * deltaPerNft) / PRECISION;
+        uint256 expectedAlice = (balance * fullDurPerNftScaled) / 1e18;
 
         // Check via view then claim
         uint256 viewAlice = revShareModule.earnedByPioneers(alice);
