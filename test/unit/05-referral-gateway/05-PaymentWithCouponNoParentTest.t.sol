@@ -3,25 +3,22 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployReferralGateway} from "test/utils/00-DeployReferralGateway.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
-    TestDeployProtocol deployer;
+    DeployReferralGateway deployer;
     ReferralGateway referralGateway;
-    HelperConfig helperConfig;
     IUSDC usdc;
-    address usdcAddress;
-    address referralGatewayAddress;
     address takadao;
     address kycProvider;
     address child = makeAddr("child");
     address parent = makeAddr("parent");
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "The LifeDao";
+    string tDaoName = "The LifeDAO";
     uint256 public constant USDC_INITIAL_AMOUNT = 1000e6; // 1000 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 250e6; // 250 USDC
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
@@ -36,18 +33,16 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
     function setUp() public {
         // Deployer
-        deployer = new TestDeployProtocol();
-        // Deploy contracts
-        (, referralGatewayAddress, , , , , , usdcAddress, , helperConfig) = deployer.run();
+        deployer = new DeployReferralGateway();
+        HelperConfig.NetworkConfig memory config;
+        (config, referralGateway) = deployer.run();
 
         // Get config values
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
         kycProvider = config.kycProvider;
 
         // Assign implementations
-        referralGateway = ReferralGateway(address(referralGatewayAddress));
-        usdc = IUSDC(usdcAddress);
+        usdc = IUSDC(config.contributionToken);
 
         // Give and approve USDC
         deal(address(usdc), child, USDC_INITIAL_AMOUNT);
@@ -63,19 +58,6 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
         vm.prank(couponPool);
         usdc.approve(address(referralGateway), 1000e6);
-
-        bytes memory strBytes = bytes(tDaoName);
-        bytes32 slotValue;
-
-        assembly {
-            slotValue := mload(add(strBytes, 32))
-        }
-
-        uint256 lenFlagged = strBytes.length * 2;
-
-        slotValue = (slotValue & ~bytes32(uint256(0xFF))) | bytes32(uint256(lenFlagged));
-
-        vm.store(address(referralGateway), bytes32(uint256(9)), slotValue);
 
         vm.prank(config.daoMultisig);
         referralGateway.createDAO(true, true, 1743479999, 1e12);

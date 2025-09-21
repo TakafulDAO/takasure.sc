@@ -3,21 +3,21 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployReferralGateway} from "test/utils/00-DeployReferralGateway.s.sol";
+
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 
 contract ReferralGatewayCreateAndLaunchDaoTest is Test {
-    TestDeployProtocol deployer;
+    DeployReferralGateway deployer;
     ReferralGateway referralGateway;
-    HelperConfig helperConfig;
-    address referralGatewayAddress;
     address takadao;
     address daoAdmin;
     address pauseGuardian;
     address notAllowedAddress = makeAddr("notAllowedAddress");
     address DAO = makeAddr("DAO");
     address subscriptionModule = makeAddr("subscriptionModule");
+    string tDaoName = "The LifeDao";
 
     modifier pauseContract() {
         vm.prank(pauseGuardian);
@@ -27,18 +27,14 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
 
     function setUp() public {
         // Deployer
-        deployer = new TestDeployProtocol();
-        // Deploy contracts
-        (, referralGatewayAddress, , , , , , , , helperConfig) = deployer.run();
+        deployer = new DeployReferralGateway();
+        HelperConfig.NetworkConfig memory config;
+        (config, referralGateway) = deployer.run();
 
         // Get config values
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
         daoAdmin = config.daoMultisig;
         pauseGuardian = config.pauseGuardian;
-
-        // Assign implementations
-        referralGateway = ReferralGateway(referralGatewayAddress);
     }
 
     function testCreateANewDao() public {
@@ -90,9 +86,8 @@ contract ReferralGatewayCreateAndLaunchDaoTest is Test {
     }
 
     modifier createDao() {
-        vm.startPrank(takadao);
+        vm.prank(takadao);
         referralGateway.createDAO(true, true, 1743479999, 1e12);
-        vm.stopPrank();
         _;
     }
 

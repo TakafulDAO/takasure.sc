@@ -5,8 +5,8 @@
  * @author Maikel Ordaz
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IRevShareModule} from "contracts/interfaces/modules/IRevShareModule.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";

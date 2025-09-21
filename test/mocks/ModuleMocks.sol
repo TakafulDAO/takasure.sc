@@ -6,8 +6,6 @@ import {ModuleState} from "contracts/types/TakasureTypes.sol";
 pragma solidity 0.8.28;
 
 contract IsModule is TLDModuleImplementation {
-    ModuleState private moduleState;
-
     /**
      * @notice Set the module state
      * @dev Only callable from the Module Manager

@@ -3,19 +3,22 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 
 import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
 
 contract AddressManagerFuzzTest is Test {
+    DeployManagers managerDeployer;
     AddressManager addressManager;
 
-    address addressManagerOwner = makeAddr("addressManagerOwner");
+    address addressManagerOwner;
     address adminAddress = makeAddr("adminAddress");
 
     function setUp() public {
-        vm.prank(addressManagerOwner);
-        addressManager = new AddressManager();
+        managerDeployer = new DeployManagers();
+        (, addressManager, ) = managerDeployer.run();
+        addressManagerOwner = addressManager.owner();
     }
 
     function testChangeRoleAcceptanceDelayRevertIfCallerIsWrong(address caller) public {
@@ -107,5 +110,14 @@ contract AddressManagerFuzzTest is Test {
         vm.prank(caller);
         vm.expectRevert();
         addressManager.revokeRoleHolder(keccak256("TestRole"), roleHolder);
+    }
+
+    function testUpgradeRevertsIfCallerIsInvalid(address caller) public {
+        vm.assume(caller != addressManagerOwner);
+        address newImpl = makeAddr("newImpl");
+
+        vm.prank(caller);
+        vm.expectRevert();
+        addressManager.upgradeToAndCall(newImpl, "");
     }
 }

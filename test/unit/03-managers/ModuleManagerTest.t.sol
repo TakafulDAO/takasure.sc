@@ -3,17 +3,22 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
+
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {IsModule, IsNotModule} from "test/mocks/ModuleMocks.sol";
 
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 contract ModuleManagerTest is Test {
+    DeployManagers managerDeployer;
     ModuleManager moduleManager;
+    AddressManager addressManagerProxy;
     IsModule isModule;
     IsNotModule isNotModule;
-
-    address moduleManagerOwner = makeAddr("moduleManagerOwner");
+    address moduleManagerOwner;
+    address addressManager;
 
     enum State {
         Unset,
@@ -31,9 +36,12 @@ contract ModuleManagerTest is Test {
     );
 
     function setUp() public {
-        vm.prank(moduleManagerOwner);
+        managerDeployer = new DeployManagers();
+        (, addressManagerProxy, moduleManager) = managerDeployer.run();
 
-        moduleManager = new ModuleManager();
+        addressManager = address(addressManagerProxy);
+        moduleManagerOwner = addressManagerProxy.owner();
+
         isModule = new IsModule();
         isNotModule = new IsNotModule();
     }
@@ -43,13 +51,13 @@ contract ModuleManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testAddAddressZeroAsModuleReverts() public {
-        vm.prank(moduleManagerOwner);
+        vm.prank(addressManager);
         vm.expectRevert(ModuleManager.ModuleManager__AddressZeroNotAllowed.selector);
         moduleManager.addModule(address(0));
     }
 
     function testAddModuleTwiceReverts() public {
-        vm.startPrank(moduleManagerOwner);
+        vm.startPrank(addressManager);
         moduleManager.addModule(address(isModule));
         vm.expectRevert(ModuleManager.ModuleManager__AlreadyModule.selector);
         moduleManager.addModule(address(isModule));
@@ -65,13 +73,13 @@ contract ModuleManagerTest is Test {
     }
 
     function testAddContractIsNotModuleReverts() public {
-        vm.prank(moduleManagerOwner);
+        vm.prank(addressManager);
         vm.expectRevert(ModuleManager.ModuleManager__NotModule.selector);
         moduleManager.addModule(address(isNotModule));
     }
 
     modifier addModule() {
-        vm.prank(moduleManagerOwner);
+        vm.prank(addressManager);
         moduleManager.addModule(address(isModule));
         _;
     }
@@ -103,7 +111,7 @@ contract ModuleManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testAddModuleEmitsEvent() public {
-        vm.prank(moduleManagerOwner);
+        vm.prank(addressManager);
         vm.expectEmit(false, false, false, true, address(moduleManager));
         emit OnNewModule(address(isModule));
         moduleManager.addModule(address(isModule));
@@ -161,5 +169,16 @@ contract ModuleManagerTest is Test {
         moduleManager.changeModuleState(address(isModule), ModuleState.Deprecated);
 
         assert(!moduleManager.isActiveModule(address(isModule)));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                UPGRADES
+    //////////////////////////////////////////////////////////////*/
+
+    function testUpgrades() public {
+        address newImpl = address(new ModuleManager());
+
+        vm.prank(moduleManagerOwner);
+        moduleManager.upgradeToAndCall(newImpl, "");
     }
 }

@@ -3,21 +3,25 @@
 /**
  * @title MemberModule
  * @author Maikel Ordaz
- * @notice This contract will manage defaults, cancelations and recurring payments
- * @dev It will interact with the TakasureReserve contract to update the values
+ * @notice This contract will manage defaults, cancelations and recurring payments. On the Association and
+ *         benefits
+ * @dev It will interact with the TakasureReserve and/or SubscriptionModule contract to update the corresponding values
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
-import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
+import {AssociationHooks} from "contracts/hooks/AssociationHooks.sol";
+import {ReserveHooks} from "contracts/hooks/ReserveHooks.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
-import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, BenefitMember, BenefitMemberState, ModuleState, AssociationMember, AssociationMemberState} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -26,48 +30,43 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 pragma solidity 0.8.28;
 
 contract MemberModule is
+    TLDModuleImplementation,
+    AssociationHooks,
+    ReserveHooks,
+    MemberPaymentFlow,
     Initializable,
     UUPSUpgradeable,
-    ReentrancyGuardTransientUpgradeable,
-    TLDModuleImplementation,
-    ReserveAndMemberValuesHook,
-    MemberPaymentFlow
+    ReentrancyGuardTransientUpgradeable
 {
     using SafeERC20 for IERC20;
 
-    ITakasureReserve private takasureReserve;
-    ModuleState private moduleState;
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
 
     error MemberModule__InvalidDate();
 
-    modifier onlyContract(string memory name) {
-        require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(address _takasureReserveAddress) external initializer {
-        AddressAndStates._notZeroAddress(_takasureReserveAddress);
+    function initialize(address _addressManager, string calldata _moduleName) external initializer {
+        AddressAndStates._notZeroAddress(_addressManager);
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
 
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
+        addressManager = IAddressManager(_addressManager);
+        moduleName = _moduleName;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Set the module state
@@ -75,139 +74,252 @@ contract MemberModule is
      */
     function setContractState(
         ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER") {
+    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
         moduleState = newState;
     }
 
-    /**
-     * @notice Method to cancel a membership
-     * @dev To be called by anyone
-     */
-    function cancelMembership(address memberWallet) external {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        AddressAndStates._notZeroAddress(memberWallet);
-        _cancelMembership(memberWallet);
-    }
+    /*//////////////////////////////////////////////////////////////
+                              ASSOCIATION
+    //////////////////////////////////////////////////////////////*/
 
-    function payRecurringContribution(address memberWallet) external nonReentrant {
+    function payRecurringAssociationSubscription(address memberWallet) external nonReentrant {
         AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
 
-        require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
-                msg.sender == memberWallet,
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
+        require(msg.sender == memberWallet, ModuleErrors.Module__NotAuthorizedCaller());
 
-        (Reserve memory reserve, Member memory activeMember) = _getReserveAndMemberValuesHook(
-            takasureReserve,
+        AssociationMember memory associationMember = _getAssociationMembersValuesHook(
+            addressManager,
             memberWallet
         );
 
         require(
-            activeMember.memberState == MemberState.Active ||
-                activeMember.memberState == MemberState.Defaulted,
-            ModuleErrors.Module__WrongMemberState()
-        );
-
-        uint256 currentTimestamp = block.timestamp;
-        uint256 membershipStartTime = activeMember.membershipStartTime;
-        uint256 membershipDuration = activeMember.membershipDuration;
-        uint256 lastPaidYearStartDate = activeMember.lastPaidYearStartDate;
-        uint256 year = 365 days;
-        uint256 gracePeriod = 30 days;
-
-        require(
-            currentTimestamp <= membershipStartTime + membershipDuration &&
-                currentTimestamp < lastPaidYearStartDate + year + gracePeriod,
+            block.timestamp >= associationMember.associateStartTime + ModuleConstants.YEAR &&
+                block.timestamp <=
+                associationMember.associateStartTime + ModuleConstants.YEAR + ModuleConstants.MONTH,
             MemberModule__InvalidDate()
         );
 
-        uint256 contributionBeforeFee = activeMember.contribution;
-        uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
-
-        // Update the values
-        activeMember.lastPaidYearStartDate += 365 days;
-        activeMember.totalContributions += contributionBeforeFee;
-        activeMember.totalServiceFee += feeAmount;
-        activeMember.lastEcr = 0;
-        activeMember.lastUcr = 0;
-        if (activeMember.memberState == MemberState.Defaulted)
-            activeMember.memberState = MemberState.Active;
-
-        // And we pay the contribution
-        uint256 credits;
-
-        (reserve, credits) = _memberPaymentFlow({
-            _contributionBeforeFee: contributionBeforeFee,
-            _contributionAfterFee: contributionBeforeFee - feeAmount,
-            _memberWallet: memberWallet,
-            _reserve: reserve,
-            _takasureReserve: takasureReserve
-        });
-
-        activeMember.creditsBalance += credits;
-
-        emit TakasureEvents.OnRecurringPayment(
-            memberWallet,
-            activeMember.memberId,
-            activeMember.lastPaidYearStartDate,
-            contributionBeforeFee,
-            activeMember.totalServiceFee
-        );
-
-        _setNewReserveAndMemberValuesHook(takasureReserve, reserve, activeMember);
-        takasureReserve.memberSurplus(activeMember);
-    }
-
-    function defaultMember(address memberWallet) external {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
-        Member memory member = _getMembersValuesHook(takasureReserve, memberWallet);
-
-        require(member.memberState == MemberState.Active, ModuleErrors.Module__WrongMemberState());
-
-        uint256 currentTimestamp = block.timestamp;
-        uint256 lastPaidYearStartDate = member.lastPaidYearStartDate;
-        uint256 limitTimestamp = member.membershipStartTime + lastPaidYearStartDate;
-
-        if (currentTimestamp >= limitTimestamp) {
-            // Update the state, this will allow to cancel the membership
-            member.memberState = MemberState.Defaulted;
-
-            emit TakasureEvents.OnMemberDefaulted(member.memberId, memberWallet);
-
-            _setMembersValuesHook(takasureReserve, member);
-        } else {
-            revert ModuleErrors.Module__TooEarlyToDefault();
-        }
-    }
-
-    function _cancelMembership(address _memberWallet) internal {
-        Member memory member = _getMembersValuesHook(takasureReserve, _memberWallet);
-
         require(
-            member.memberState == MemberState.Defaulted,
+            associationMember.memberState == AssociationMemberState.Active,
             ModuleErrors.Module__WrongMemberState()
         );
 
-        // To cancel the member should be defaulted and at least 30 days have passed from the new year
-        uint256 currentTimestamp = block.timestamp;
-        uint256 limitTimestamp = member.membershipStartTime +
-            member.lastPaidYearStartDate +
-            (30 days);
+        uint256 newAssociationStartTime = associationMember.associateStartTime +
+            ModuleConstants.YEAR;
 
-        if (currentTimestamp >= limitTimestamp) {
-            member.memberState = MemberState.Canceled;
+        associationMember.associateStartTime = newAssociationStartTime;
 
-            emit TakasureEvents.OnMemberCanceled(member.memberId, _memberWallet);
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
 
-            _setMembersValuesHook(takasureReserve, member);
-        } else {
-            revert ModuleErrors.Module__TooEarlyToCancel();
-        }
+        uint256 toTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
+            ((ModuleConstants.ASSOCIATION_SUBSCRIPTION *
+                ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
+
+        // todo: fix this transfer logic
+        contributionToken.safeTransferFrom(msg.sender, address(this), toTransfer);
+
+        _setAssociationMembersValuesHook(addressManager, associationMember);
+
+        emit TakasureEvents.OnRecurringPayment(
+            memberWallet,
+            associationMember.memberId,
+            ModuleConstants.ASSOCIATION_SUBSCRIPTION
+        );
     }
+
+    function cancelAssociationSubscription(address memberWallet) external {
+        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+
+        AssociationMember memory associationMember = _getAssociationMembersValuesHook(
+            addressManager,
+            memberWallet
+        );
+
+        // todo: remove the month period. Everytime after the year works
+        require(
+            block.timestamp >
+                associationMember.associateStartTime + ModuleConstants.YEAR + ModuleConstants.MONTH,
+            MemberModule__InvalidDate()
+        );
+
+        require(
+            associationMember.memberState == AssociationMemberState.Active,
+            ModuleErrors.Module__WrongMemberState()
+        );
+
+        associationMember = AssociationMember({
+            memberId: associationMember.memberId,
+            discount: 0, // Reset the discount
+            associateStartTime: 0, // Reset the start time
+            wallet: memberWallet,
+            parent: address(0), // Reset the parent
+            memberState: AssociationMemberState.Canceled,
+            isRefunded: false,
+            isLifeProtected: false,
+            isFarewellProtected: false
+        });
+
+        _setAssociationMembersValuesHook(addressManager, associationMember);
+
+        emit TakasureEvents.OnMemberCanceled(associationMember.memberId, memberWallet);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                BENEFITS
+    //////////////////////////////////////////////////////////////*/
+
+    // /**
+    //  * @notice Method to cancel a membership
+    //  * @dev To be called by anyone
+    //  */
+    // function cancelMembership(address memberWallet) external {
+    //     AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+    //     AddressAndStates._notZeroAddress(memberWallet);
+    //     _cancelMembership(memberWallet);
+    // }
+
+    // // function payRecurringContribution(address memberWallet) external nonReentrant {
+    // //     AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+
+    // //     require(
+    // //         AddressAndStates._checkName(address(addressManager), "ROUTER") ||
+    // //             msg.sender == memberWallet,
+    // //         ModuleErrors.Module__NotAuthorizedCaller()
+    // //     );
+
+    // //     (
+    // //         Reserve memory reserve,
+    // //         BenefitMember memory activeMember
+    // //     ) = _getReserveAndMemberValuesHook(
+    // //             ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr),
+    // //             memberWallet
+    // //         );
+
+    // //     require(
+    // //         activeMember.memberState == BenefitMemberState.Active ||
+    // //             activeMember.memberState == BenefitMemberState.Defaulted,
+    // //         ModuleErrors.Module__WrongMemberState()
+    // //     );
+
+    // //     uint256 currentTimestamp = block.timestamp;
+    // //     uint256 membershipStartTime = activeMember.membershipStartTime;
+    // //     uint256 membershipDuration = activeMember.membershipDuration;
+    // //     uint256 lastPaidYearStartDate = activeMember.lastPaidYearStartDate;
+    // //     uint256 year = 365 days;
+    // //     uint256 gracePeriod = 30 days;
+
+    // //     require(
+    // //         currentTimestamp <= membershipStartTime + membershipDuration &&
+    // //             currentTimestamp < lastPaidYearStartDate + year + gracePeriod,
+    // //         MemberModule__InvalidDate()
+    // //     );
+
+    // //     uint256 contributionBeforeFee = activeMember.contribution;
+    // //     uint256 feeAmount = (contributionBeforeFee * reserve.serviceFee) / 100;
+
+    // //     // Update the values
+    // //     activeMember.lastPaidYearStartDate += 365 days;
+    // //     activeMember.totalContributions += contributionBeforeFee;
+    // //     activeMember.totalServiceFee += feeAmount;
+    // //     activeMember.lastEcr = 0;
+    // //     activeMember.lastUcr = 0;
+    // //     if (activeMember.memberState == BenefitMemberState.Defaulted)
+    // //         activeMember.memberState = BenefitMemberState.Active;
+
+    // //     // And we pay the contribution
+    // //     uint256 credits;
+
+    // //     (reserve, credits) = _memberPaymentFlow({
+    // //         _contributionBeforeFee: contributionBeforeFee,
+    // //         _contributionAfterFee: contributionBeforeFee - feeAmount,
+    // //         _memberWallet: memberWallet,
+    // //         _reserve: reserve,
+    // //         _takasureReserve: ITakasureReserve(
+    // //             addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
+    // //         )
+    // //     });
+
+    // //     activeMember.creditsBalance += credits;
+
+    // //     // emit TakasureEvents.OnRecurringPayment(
+    // //     //     memberWallet,
+    // //     //     activeMember.memberId,
+    // //     //     activeMember.lastPaidYearStartDate,
+    // //     //     contributionBeforeFee,
+    // //     //     activeMember.totalServiceFee
+    // //     // );
+
+    // //     _setNewReserveAndMemberValuesHook(
+    // //         ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr),
+    // //         reserve,
+    // //         activeMember
+    // //     );
+    // //     ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr)
+    // //         .memberSurplus(activeMember);
+    // // }
+
+    // function defaultMember(address memberWallet) external {
+    //     AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+    //     ITakasureReserve takasureReserve = ITakasureReserve(
+    //         addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
+    //     );
+
+    //     BenefitMember memory member = _getBenefitMembersValuesHook(takasureReserve, memberWallet);
+
+    //     require(
+    //         member.memberState == BenefitMemberState.Active,
+    //         ModuleErrors.Module__WrongMemberState()
+    //     );
+
+    //     uint256 currentTimestamp = block.timestamp;
+    //     uint256 lastPaidYearStartDate = member.lastPaidYearStartDate;
+    //     uint256 limitTimestamp = member.membershipStartTime + lastPaidYearStartDate;
+
+    //     if (currentTimestamp >= limitTimestamp) {
+    //         // Update the state, this will allow to cancel the membership
+    //         member.memberState = BenefitMemberState.Defaulted;
+
+    //         emit TakasureEvents.OnMemberDefaulted(member.memberId, memberWallet);
+
+    //         _setBenefitMembersValuesHook(takasureReserve, member);
+    //     } else {
+    //         revert ModuleErrors.Module__TooEarlyToDefault();
+    //     }
+    // }
+
+    // function _cancelMembership(address _memberWallet) internal {
+    //     ITakasureReserve takasureReserve = ITakasureReserve(
+    //         addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
+    //     );
+
+    //     BenefitMember memory member = _getBenefitMembersValuesHook(takasureReserve, _memberWallet);
+
+    //     require(
+    //         member.memberState == BenefitMemberState.Defaulted,
+    //         ModuleErrors.Module__WrongMemberState()
+    //     );
+
+    //     // To cancel the member should be defaulted and at least 30 days have passed from the new year
+    //     uint256 currentTimestamp = block.timestamp;
+    //     uint256 limitTimestamp = member.membershipStartTime +
+    //         member.lastPaidYearStartDate +
+    //         (30 days);
+
+    //     if (currentTimestamp >= limitTimestamp) {
+    //         member.memberState = BenefitMemberState.Canceled;
+
+    //         emit TakasureEvents.OnMemberCanceled(member.memberId, _memberWallet);
+
+    //         _setBenefitMembersValuesHook(takasureReserve, member);
+    //     } else {
+    //         revert ModuleErrors.Module__TooEarlyToCancel();
+    //     }
+    // }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
 }

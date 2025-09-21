@@ -3,23 +3,22 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployReferralGateway} from "test/utils/00-DeployReferralGateway.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewayPaymentRevertsTest is Test {
-    TestDeployProtocol deployer;
+    DeployReferralGateway deployer;
     ReferralGateway referralGateway;
-    HelperConfig helperConfig;
     IUSDC usdc;
     address usdcAddress;
-    address referralGatewayAddress;
     address takadao;
     address pauseGuardian;
     address nonKycParent = makeAddr("nonKycParent");
     address child = makeAddr("child");
     address couponRedeemer = makeAddr("couponRedeemer");
+    string tDaoName = "The LifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint8 public constant SERVICE_FEE_RATIO = 27;
@@ -43,18 +42,16 @@ contract ReferralGatewayPaymentRevertsTest is Test {
 
     function setUp() public {
         // Deployer
-        deployer = new TestDeployProtocol();
-        // Deploy contracts
-        (, referralGatewayAddress, , , , , , usdcAddress, , helperConfig) = deployer.run();
+        deployer = new DeployReferralGateway();
+        HelperConfig.NetworkConfig memory config;
+        (config, referralGateway) = deployer.run();
 
         // Get config values
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
         pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
-        referralGateway = ReferralGateway(referralGatewayAddress);
-        usdc = IUSDC(usdcAddress);
+        usdc = IUSDC(config.contributionToken);
 
         // Give and approve USDC
         deal(address(usdc), child, USDC_INITIAL_AMOUNT);

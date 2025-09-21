@@ -8,7 +8,7 @@
 
 pragma solidity 0.8.28;
 
-import {Member} from "contracts/types/TakasureTypes.sol";
+import {BenefitMember} from "contracts/types/TakasureTypes.sol";
 
 library ReserveMathAlgorithms {
     error WrongTimestamps();
@@ -188,22 +188,22 @@ library ReserveMathAlgorithms {
     /**
      * @notice Calculate the earned and unearned contribution reserves for a member
      * @dev If the member is in the grace period, the function will return 0, 0
-     * @param member Member struct
+     * @param benefitMember Member struct
      * @return ecr Earned contribution reserve. Six decimals
      * @return ucr Unearned contribution reserve. Six decimals
      */
     function _calculateEcrAndUcrByMember(
-        Member storage member
+        BenefitMember storage benefitMember
     ) internal returns (uint256, uint256) {
         uint256 currentTimestamp = block.timestamp;
-        uint256 claimReserveAdd = member.claimAddAmount;
+        uint256 claimReserveAdd = benefitMember.claimAddAmount;
         uint256 year = 365;
         uint256 ecr;
 
         // Time passed since the membership started
         uint256 membershipTerm = _calculateDaysPassed(
             currentTimestamp,
-            member.lastPaidYearStartDate
+            benefitMember.lastPaidYearStartDate
         );
 
         if (membershipTerm > year) {
@@ -212,10 +212,10 @@ library ReserveMathAlgorithms {
         } else {
             ecr = (claimReserveAdd * (year - membershipTerm)) / year;
 
-            member.lastEcr = ecr;
-            member.lastUcr = claimReserveAdd - member.lastEcr;
+            benefitMember.lastEcr = ecr;
+            benefitMember.lastUcr = claimReserveAdd - benefitMember.lastEcr;
 
-            return (member.lastEcr, member.lastUcr);
+            return (benefitMember.lastEcr, benefitMember.lastUcr);
         }
     }
 

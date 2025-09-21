@@ -3,23 +3,18 @@
 pragma solidity 0.8.28;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployReferralGateway} from "test/utils/00-DeployReferralGateway.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ReferralGatewayHandler} from "test/helpers/handlers/ReferralGatewayHandler.t.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {DaoDataReader, IReferralGateway} from "test/helpers/lowLevelCall/DaoDataReader.sol";
 
 contract ReferralGatewayInvariantTest is StdInvariant, Test {
-    TestDeployProtocol deployer;
+    DeployReferralGateway deployer;
     ReferralGateway referralGateway;
-    TakasureReserve takasureReserve;
-    HelperConfig helperConfig;
     ReferralGatewayHandler handler;
     IUSDC usdc;
-    address referralGatewayAddress;
-    address reserve;
-    address contributionTokenAddress;
     address daoAdmin;
     address operator;
     address public user = makeAddr("user");
@@ -27,31 +22,17 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     address couponPool = makeAddr("couponPool");
     uint256 operatorInitialBalance;
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
-    string constant DAO_NAME = "The LifeDAO";
 
     function setUp() public {
-        deployer = new TestDeployProtocol();
-        (
-            reserve,
-            referralGatewayAddress,
-            ,
-            ,
-            ,
-            ,
-            ,
-            contributionTokenAddress,
-            ,
-            helperConfig
-        ) = deployer.run();
+        deployer = new DeployReferralGateway();
+        HelperConfig.NetworkConfig memory config;
+        (config, referralGateway) = deployer.run();
 
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         operator = config.takadaoOperator;
         daoAdmin = config.daoMultisig;
 
         // Assign implementations
-        referralGateway = ReferralGateway(referralGatewayAddress);
-        takasureReserve = TakasureReserve(reserve);
-        usdc = IUSDC(contributionTokenAddress);
+        usdc = IUSDC(config.contributionToken);
 
         deal(address(usdc), couponPool, 1000e6);
 
@@ -87,30 +68,16 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     /// 2. The discount is within the limits (10% - 15%)
     function invariant_feeCalculatedCorrectly() public view {
         // This will also run some assertions in the handler
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 currentAmount,
-            ,
-            ,
-            uint256 toRepool,
-            uint256 referralReserve
-        ) = referralGateway.getDAOData();
+        uint256 currentAmount = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            7
+        );
+        uint256 toRepool = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 10);
+        uint256 referralReserve = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            11
+        );
         uint256 contractBalance = usdc.balanceOf(address(referralGateway));
         assertEq(contractBalance, currentAmount + toRepool + referralReserve);
-    }
-
-    /// @dev Invariant to check if getters do not revert
-    /// forge-config: default.invariant.runs = 100
-    /// forge-config: default.invariant.depth = 2
-    /// forge-config: default.invariant.fail-on-revert = true
-    function invariant_gettersShouldNotRevert() public view {
-        referralGateway.getDAOData();
-        referralGateway.usdc();
     }
 }

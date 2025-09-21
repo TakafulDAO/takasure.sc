@@ -5,11 +5,43 @@
  * @author Maikel Ordaz
  * @notice This contract is intended to be inherited by every module in the Takasure protocol
  */
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 pragma solidity 0.8.28;
 
 abstract contract TLDModuleImplementation {
+    IAddressManager internal addressManager;
+    ModuleState internal moduleState;
+
+    string public moduleName;
+
+    modifier onlyContract(string memory name, address addressManagerAddress) {
+        require(
+            AddressAndStates._checkName(addressManagerAddress, name),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyRole(bytes32 role, address addressManagerAddress) {
+        require(
+            AddressAndStates._checkRole(addressManagerAddress, role),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyType(ProtocolAddressType addressType, address addressManagerAddress) {
+        require(
+            AddressAndStates._checkType(addressManagerAddress, addressType),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     function setContractState(ModuleState newState) external virtual;
 
     function isTLDModule() external pure returns (bytes4) {

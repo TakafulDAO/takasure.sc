@@ -3,15 +3,14 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployReferralGateway} from "test/utils/00-DeployReferralGateway.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewayInitializationTest is Test {
-    TestDeployProtocol deployer;
+    DeployReferralGateway deployer;
     ReferralGateway referralGateway;
-    HelperConfig helperConfig;
     IUSDC usdc;
     address usdcAddress;
     address referralGatewayAddress;
@@ -19,36 +18,20 @@ contract ReferralGatewayInitializationTest is Test {
     address KYCProvider;
     address pauseGuardian;
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "The LifeDao";
+    string tDaoName = "The LifeDAO";
 
     function setUp() public {
-        // Deployer
-        deployer = new TestDeployProtocol();
-        // Deploy contracts
-        (, referralGatewayAddress, , , , , , usdcAddress, , helperConfig) = deployer.run();
+        deployer = new DeployReferralGateway();
+        HelperConfig.NetworkConfig memory config;
+        (config, referralGateway) = deployer.run();
 
         // Get config values
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
         KYCProvider = config.kycProvider;
         pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
-        referralGateway = ReferralGateway(referralGatewayAddress);
-        usdc = IUSDC(usdcAddress);
-
-        bytes memory strBytes = bytes(tDaoName);
-        bytes32 slotValue;
-
-        assembly {
-            slotValue := mload(add(strBytes, 32))
-        }
-
-        uint256 lenFlagged = strBytes.length * 2;
-
-        slotValue = (slotValue & ~bytes32(uint256(0xFF))) | bytes32(uint256(lenFlagged));
-
-        vm.store(address(referralGateway), bytes32(uint256(9)), slotValue);
+        usdc = IUSDC(config.contributionToken);
     }
 
     function testOperatorAddressIsNotZero() public view {
@@ -62,13 +45,14 @@ contract ReferralGatewayInitializationTest is Test {
     }
 
     function testUsdcAddressIsNotZero() public view {
+        console2.log("USDC Address:", address(referralGateway.usdc()));
         assert(address(referralGateway.usdc()) != address(0));
-        assertEq(address(referralGateway.usdc()), usdcAddress);
+        assertEq(address(referralGateway.usdc()), address(usdc));
     }
 
     function testDAONameAssignCorrectly() public view {
         string memory name = referralGateway.daoName();
-        assertEq(name, "The LifeDao");
+        assertEq(name, "The LifeDAO");
     }
 
     function testOperatorRoleAssignedCorrectly() public view {

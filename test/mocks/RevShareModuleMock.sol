@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
-import {IRevShareModule} from "contracts/interfaces/IRevShareModule.sol";
+import {IRevShareModule} from "contracts/interfaces/modules/IRevShareModule.sol";
 
 contract RevShareModuleMock is IRevShareModule {
     address private _lastUpdated;
