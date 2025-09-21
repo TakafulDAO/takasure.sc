@@ -83,16 +83,3 @@ function getPrepaidMember(
 [Back to top](#changelog)
 
 ---
-
-## 27 August 2025
-
-### ![status](https://img.shields.io/badge/status-released-brightgreen)
-
-#### Changed
-
--   Deployment with the new `isDonated` flag in `getPrepaidMember` function
--   Related testnet changes from [12 September 2025](#12-september-2025)
-
-[Back to top](#changelog)
-
----
