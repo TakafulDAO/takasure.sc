@@ -48,11 +48,11 @@ contract RevShareModule is
 
     uint256 public lastUpdateTime;
     uint256 public revenuePerNftOwnedByPioneers; // Cumulative revenue per NFT for pioneers pool
-    uint256 public revenuePerNftOwnedByTakadao; // Cumulative revenue per NFT for Takadao pool
+    uint256 public takadaoRevenueScaled; // Cumulative revenue per NFT for Takadao pool
 
     mapping(address account => uint256 revenue) public revenuePerAccount;
     mapping(address pioneer => uint256 revenue) public pioneerRevenuePerNftPaid;
-    uint256 public takadaoRevenuePerNftPaid; // No need to track per address, only the revenue receiver earns from this stream
+    uint256 public takadaoRevenuePaidScaled; // No need to track per address, only the revenue receiver can earn from this stream
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -358,8 +358,8 @@ contract RevShareModule is
     }
 
     /// @notice View the revenue per NFT for Takadao
-    function getRevenuePerNftOwnedByTakadao() external view returns (uint256) {
-        return _revenuePerNftOwnedByTakadao();
+    function getTakadaoRevenueScaled() external view returns (uint256) {
+        return _takadaoRevenueScaled();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -386,16 +386,25 @@ contract RevShareModule is
         IRevShareNFT revShareNFT = IRevShareNFT(
             addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
         );
+
+        uint256 applicableTime = _lastTimeApplicable();
+        uint256 elapsed = applicableTime - lastUpdateTime;
+
+        if (elapsed == 0) return; // No time has passed since last update
+
+        // Takadao 25%: accrued globally, not per NFT
+        takadaoRevenueScaled = takadaoRevenueScaled + (elapsed * rewardRateTakadaoScaled);
+
+        // Pioneers 75%: accrued per NFT
         uint256 currentSupply = revShareNFT.totalSupply();
 
-        if (currentSupply == 0) {
-            lastUpdateTime = _lastTimeApplicable();
-            return; // Nothing to accumulate if there are no NFTs
+        if (currentSupply > 0) {
+            revenuePerNftOwnedByPioneers =
+                revenuePerNftOwnedByPioneers +
+                ((elapsed * rewardRatePioneersScaled) / currentSupply);
         }
 
-        revenuePerNftOwnedByPioneers = _revenuePerNftOwnedByPioneers();
-        revenuePerNftOwnedByTakadao = _revenuePerNftOwnedByTakadao();
-        lastUpdateTime = _lastTimeApplicable();
+        lastUpdateTime = applicableTime;
     }
 
     function _updateRevenue(address _account) internal {
@@ -421,7 +430,7 @@ contract RevShareModule is
         if (_account == revenueReceiver) {
             uint256 newearnedByTakadao = _earnedByTakadao(_account);
             revenuePerAccount[_account] = newearnedByTakadao; // Reuse the same revenue bucket
-            takadaoRevenuePerNftPaid = revenuePerNftOwnedByTakadao;
+            takadaoRevenuePaidScaled = takadaoRevenueScaled;
         }
     }
 
@@ -441,18 +450,11 @@ contract RevShareModule is
             revenuePerNftOwnedByPioneers + ((elapsed * rewardRatePioneersScaled) / currentSupply);
     }
 
-    function _revenuePerNftOwnedByTakadao() internal view returns (uint256) {
-        IRevShareNFT revShareNFT = IRevShareNFT(
-            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
-        );
-
-        uint256 currentSupply = revShareNFT.totalSupply();
-
-        if (currentSupply == 0) return revenuePerNftOwnedByTakadao;
-
+    function _takadaoRevenueScaled() internal view returns (uint256) {
         uint256 elapsed = _lastTimeApplicable() - lastUpdateTime;
 
-        return revenuePerNftOwnedByTakadao + ((elapsed * rewardRateTakadaoScaled) / currentSupply);
+        // Returns a global scaled accumulator, not per NFT
+        return takadaoRevenueScaled + (elapsed * rewardRateTakadaoScaled);
     }
 
     function _earnedByTakadao(address _account) internal view returns (uint256) {
@@ -460,15 +462,10 @@ contract RevShareModule is
         address revenueReceiver = _getRevenueReceiver();
         if (_account != revenueReceiver) return revenuePerAccount[_account];
 
-        IRevShareNFT revShareNFT = IRevShareNFT(
-            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
-        );
-
-        uint256 balance = revShareNFT.balanceOf(_account);
-        uint256 deltaScaled = _revenuePerNftOwnedByTakadao() - takadaoRevenuePerNftPaid;
+        uint256 deltaScaled = _takadaoRevenueScaled() - takadaoRevenuePaidScaled;
 
         // Convert scaled back to token units
-        return (balance * deltaScaled) / WAD + revenuePerAccount[_account];
+        return (deltaScaled / WAD) + revenuePerAccount[_account];
     }
 
     function _earnedByPioneers(address account) internal view returns (uint256) {
