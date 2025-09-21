@@ -40,7 +40,7 @@ contract RevShareModule is
 
     uint256 private constant PIONEERS_SHARE = 75; // In percentage (75%)
     uint256 private constant TAKADAO_SHARE = 25; // In percentage (25%)
-    uint256 private constant ACCRUAL_SCALE = 1e18; // Fixed point for per-second rates
+    uint256 private constant WAD = 1e18; // Fixed point for per-second rates
 
     // Scaled rates: tokens * 1e18 / second
     uint256 public rewardRateTakadaoScaled;
@@ -175,18 +175,18 @@ contract RevShareModule is
         // Recompute reward rates with carry-over
         uint256 currentTime = block.timestamp;
         if (currentTime >= periodFinish) {
-            rewardRatePioneersScaled = (pioneersShare * ACCRUAL_SCALE) / rewardsDuration;
-            rewardRateTakadaoScaled = (takadaoShare * ACCRUAL_SCALE) / rewardsDuration;
+            rewardRatePioneersScaled = (pioneersShare * WAD) / rewardsDuration;
+            rewardRateTakadaoScaled = (takadaoShare * WAD) / rewardsDuration;
         } else {
             uint256 remaining = periodFinish - currentTime;
             uint256 leftoverPioneersScaled = remaining * rewardRatePioneersScaled;
             uint256 leftoverTakadaoScaled = remaining * rewardRateTakadaoScaled;
 
             rewardRatePioneersScaled =
-                (pioneersShare * ACCRUAL_SCALE + leftoverPioneersScaled) /
+                (pioneersShare * WAD + leftoverPioneersScaled) /
                 rewardsDuration;
             rewardRateTakadaoScaled =
-                (takadaoShare * ACCRUAL_SCALE + leftoverTakadaoScaled) /
+                (takadaoShare * WAD + leftoverTakadaoScaled) /
                 rewardsDuration;
         }
 
@@ -335,8 +335,8 @@ contract RevShareModule is
      */
     function getRevenueForDuration(uint256 duration) external view returns (uint256, uint256) {
         return (
-            (duration * rewardRatePioneersScaled) / ACCRUAL_SCALE,
-            (duration * rewardRateTakadaoScaled) / ACCRUAL_SCALE
+            (duration * rewardRatePioneersScaled) / WAD,
+            (duration * rewardRateTakadaoScaled) / WAD
         );
     }
 
@@ -468,7 +468,7 @@ contract RevShareModule is
         uint256 deltaScaled = _revenuePerNftOwnedByTakadao() - takadaoRevenuePerNftPaid;
 
         // Convert scaled back to token units
-        return (balance * deltaScaled) / ACCRUAL_SCALE + revenuePerAccount[_account];
+        return (balance * deltaScaled) / WAD + revenuePerAccount[_account];
     }
 
     function _earnedByPioneers(address account) internal view returns (uint256) {
@@ -486,7 +486,7 @@ contract RevShareModule is
         uint256 deltaScaled = _revenuePerNftOwnedByPioneers() - pioneerRevenuePerNftPaid[account];
 
         // Convert scaled back to token units
-        return (balance * deltaScaled) / ACCRUAL_SCALE + revenuePerAccount[account];
+        return (balance * deltaScaled) / WAD + revenuePerAccount[account];
     }
 
     ///@dev required by the OZ UUPS module
