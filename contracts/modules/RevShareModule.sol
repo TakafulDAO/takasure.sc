@@ -276,11 +276,14 @@ contract RevShareModule is
         );
 
         address revenueReceiver = _getRevenueReceiver();
-        bool isPioneer = revShareNFT.balanceOf(msg.sender) > 0;
+
+        // Currently a pioneer or former pioneer with unpaid revenue
+        bool pioneerEligible = (revShareNFT.balanceOf(msg.sender) > 0) ||
+            (revenuePerAccount[msg.sender] > 0);
 
         address beneficiary;
 
-        if (isPioneer)
+        if (pioneerEligible)
             beneficiary = msg.sender; // earns from pioneers stream
         else if (_callerIsClaimer())
             beneficiary = revenueReceiver; // earns from Takadao stream
