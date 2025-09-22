@@ -8,6 +8,19 @@ import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {RevShareModuleMock} from "test/mocks/RevShareModuleMock.sol";
 import {ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+
+/// @dev Minimal ERC721 receiver to test safe mints to contracts.
+contract ERC721ReceiverMock is IERC721Receiver {
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) external pure returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
+    }
+}
 
 contract RevShareNftFuzzTest is Test {
     RevShareNFT nft;
@@ -66,8 +79,9 @@ contract RevShareNftFuzzTest is Test {
         nft.batchMint(alice, 5);
     }
 
+    /// @notice Happy-path fuzz: only EOAs. _safeMint to a non-receiver contract would revert by design.
     function testFuzzMintIncrementsTotalSupplyAndBalance(address to) public {
-        vm.assume(to != address(0) && to != address(nft)); // pass mintChecks
+        vm.assume(to != address(0) && to != address(nft) && to.code.length == 0); // ensure EOA
 
         vm.startPrank(nft.owner());
         nft.mint(to);
@@ -78,8 +92,9 @@ contract RevShareNftFuzzTest is Test {
         assertEq(nft.ownerOf(0), to);
     }
 
+    /// @notice Batch-mint happy path: also restrict to EOAs so _safeMint cannot revert on receiver check.
     function testFuzzBatchMintValidAmounts(address to, uint256 amount) public {
-        vm.assume(to != address(0) && to != address(nft));
+        vm.assume(to != address(0) && to != address(nft) && to.code.length == 0);
         vm.assume(amount > 1 && amount <= 100); // avoid excessive gas
 
         vm.startPrank(nft.owner());
@@ -88,6 +103,18 @@ contract RevShareNftFuzzTest is Test {
 
         assertEq(nft.balanceOf(to), amount);
         assertEq(nft.totalSupply(), amount);
+    }
+
+    /// @notice Proves safe minting to a contract works when the contract implements IERC721Receiver.
+    function testMintToERC721ReceiverContract() public {
+        ERC721ReceiverMock receiver = new ERC721ReceiverMock();
+
+        vm.prank(nft.owner());
+        nft.mint(address(receiver));
+
+        assertEq(nft.ownerOf(0), address(receiver), "receiver should own token 0");
+        assertEq(nft.balanceOf(address(receiver)), 1);
+        assertEq(nft.totalSupply(), 1);
     }
 
     function testFuzzTransferFromApproved(address to) public {

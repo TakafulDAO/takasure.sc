@@ -22,7 +22,7 @@ contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
     address takadao;
     address revenueClaimer; // has REVENUE_CLAIMER role
     address revenueReceiver; // destination account for Takadao claims
-    address module = makeAddr("module");
+    address module;
     address revShareModuleAddress;
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
@@ -30,7 +30,7 @@ contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (, , , , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
+        (, , module, , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
 
         revShareModule = RevShareModule(revShareModuleAddress);
 
@@ -57,8 +57,11 @@ contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
 
         // Register NFT + an authorized Module caller for notifyNewRevenue
         vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Module);
-        addressManager.addProtocolAddress("RANDOM_MODULE", module, ProtocolAddressType.Module);
+        addressManager.addProtocolAddress(
+            "REVSHARE_NFT",
+            address(nft),
+            ProtocolAddressType.Protocol
+        );
         vm.stopPrank();
 
         // Staggered mints to create non-uniform join times
@@ -75,8 +78,8 @@ contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
 
         _warp(15 days);
 
-        // Note: no pre-funding or totalSupply poking here; each test funds and
-        // optionally fixes totalSupply explicitly when it needs to.
+        vm.prank(nft.owner());
+        nft.setAddressManager(address(addressManager));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -276,6 +279,55 @@ contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
         uint256 claimed = revShareModule.claimRevenueShare();
         assertEq(claimed, expectedAlice, "cap-at-finish claim mismatch");
         assertEq(usdc.balanceOf(alice), pre + expectedAlice, "USDC not received by alice");
+    }
+
+    /// Former pioneer can claim accrual after transferring away all NFTs.
+    /// Relies on the NFT's transfer hook calling module.updateRevenue(holder).
+    function testRevShareModule_formerPioneerCanClaimAfterSellingAll() public {
+        _setRewardsDuration365();
+
+        // Start a stream
+        uint256 amount = 20_000e6;
+        _fundAndApprove(module, amount);
+        _notify(module, amount);
+
+        // Mint one NFT to a fresh holder ("former"), then accrue time
+        address former = makeAddr("formerPioneer");
+        uint256 t0 = nft.totalSupply(); // <-- tokenId that WILL be minted
+        vm.startPrank(nft.owner());
+        nft.setPeriodTransferLock(1 days);
+        nft.mint(former);
+        vm.stopPrank();
+
+        uint256 tokenId = t0; // <-- correct id (mint() uses tokenId = totalSupply BEFORE increment)
+        assertEq(nft.ownerOf(tokenId), former, "former should own freshly minted token");
+        assertEq(nft.balanceOf(former), 1);
+
+        // Accrue some time while former holds the NFT (past lock)
+        _warp(10 days);
+
+        // Transfer away the only NFT — hook should snapshot former's accrual
+        vm.prank(former);
+        nft.transfer(bob, tokenId);
+
+        assertEq(nft.balanceOf(former), 0, "former should hold 0 after transfer");
+
+        // Former should have an unpaid bucket recorded at transfer time
+        uint256 owed = revShareModule.earnedByPioneers(former);
+        console2.log("Former pioneer owed (pre-claim):", owed);
+        assertGt(owed, 0, "former should have unpaid accrual recorded on transfer");
+
+        // Claim succeeds and pays former
+        uint256 pre = usdc.balanceOf(former);
+        vm.prank(former);
+        uint256 claimed = revShareModule.claimRevenueShare();
+        assertEq(claimed, owed, "claimed must equal owed snapshot");
+        assertEq(usdc.balanceOf(former), pre + owed, "USDC not paid to former pioneer");
+
+        // Subsequent immediate claim returns 0
+        vm.prank(former);
+        vm.expectRevert();
+        revShareModule.claimRevenueShare();
     }
 
     /*//////////////////////////////////////////////////////////////

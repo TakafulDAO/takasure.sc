@@ -38,7 +38,7 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
         // Deploy protocol (same pattern as unit tests)
         deployer = new TestDeployProtocol();
         address revShareModuleProxy;
-        (, , , , , , revShareModuleProxy, , , , helperConfig) = deployer.run();
+        (, , randomModule, , , , revShareModuleProxy, , , , helperConfig) = deployer.run();
         revShareModule = RevShareModule(revShareModuleProxy);
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -61,14 +61,13 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
         nft = RevShareNFT(nftProxy);
 
         // Register NFT and a module caller
-        randomModule = makeAddr("module");
         vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Module);
         addressManager.addProtocolAddress(
-            "RANDOM_MODULE",
-            randomModule,
-            ProtocolAddressType.Module
+            "REVSHARE_NFT",
+            address(nft),
+            ProtocolAddressType.Protocol
         );
+
         vm.stopPrank();
 
         // --- Seed a wide pioneer base that sums exactly to totalSupply = 1,500 ---

@@ -19,13 +19,13 @@ contract Reverts_RevShareModuleTest is Test {
     HelperConfig helperConfig;
     ModuleManager moduleManager;
     IUSDC usdc;
-    address module = makeAddr("module");
+    address module;
     address takadao;
     address revShareModuleAddress;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (, , , , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
+        (, , module, , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
 
         revShareModule = RevShareModule(revShareModuleAddress);
 
@@ -46,9 +46,6 @@ contract Reverts_RevShareModuleTest is Test {
             addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
         usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
-
-        vm.prank(addressManager.owner());
-        addressManager.addProtocolAddress("RANDOM_MODULE", module, ProtocolAddressType.Module);
     }
 
     function testRevShareModule_setAvailableDateRevertsIfModuleIsNotEnabled() public {

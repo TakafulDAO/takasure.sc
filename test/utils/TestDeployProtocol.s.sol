@@ -21,6 +21,10 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 contract TestDeployProtocol is Script {
     ModuleManager moduleManager;
     AddressManager addressManager;
+    address addressManagerImplementation;
+    address addressManagerAddress;
+    address moduleManagerImplementation;
+    address moduleManagerAddress;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -74,8 +78,19 @@ contract TestDeployProtocol is Script {
 
         vm.startBroadcast(msg.sender);
 
-        addressManager = new AddressManager();
-        moduleManager = new ModuleManager();
+        addressManagerImplementation = address(new AddressManager());
+        addressManagerAddress = UnsafeUpgrades.deployUUPSProxy(
+            addressManagerImplementation,
+            abi.encodeCall(AddressManager.initialize, (msg.sender))
+        );
+        addressManager = AddressManager(addressManagerAddress);
+
+        moduleManagerImplementation = address(new ModuleManager());
+        moduleManagerAddress = UnsafeUpgrades.deployUUPSProxy(
+            address(moduleManagerImplementation),
+            abi.encodeCall(ModuleManager.initialize, (address(addressManager)))
+        );
+        moduleManager = ModuleManager(moduleManagerAddress);
 
         addressManager.addProtocolAddress(
             "MODULE_MANAGER",
@@ -154,6 +169,12 @@ contract TestDeployProtocol is Script {
             ProtocolAddressType.Module
         );
 
+        addressManager.addProtocolAddress(
+            "REVENUE_SHARE_MODULE",
+            revShareModuleAddress,
+            ProtocolAddressType.Module
+        );
+
         // Deploy router
         userRouterImplementation = address(new UserRouter());
         routerAddress = UnsafeUpgrades.deployUUPSProxy(
@@ -163,13 +184,13 @@ contract TestDeployProtocol is Script {
 
         addressManager.addProtocolAddress("ROUTER", routerAddress, ProtocolAddressType.Protocol);
 
-        _setContracts(
-            subscriptionModuleAddress,
-            kycModuleAddress,
-            memberModuleAddress,
-            revenueModuleAddress,
-            revShareModuleAddress
-        );
+        // _setContracts(
+        //     subscriptionModuleAddress,
+        //     kycModuleAddress,
+        //     memberModuleAddress,
+        //     revenueModuleAddress,
+        //     revShareModuleAddress
+        // );
 
         _createRoles(address(addressManager));
 
@@ -295,20 +316,20 @@ contract TestDeployProtocol is Script {
         );
     }
 
-    function _setContracts(
-        address _subscriptionModuleAddress,
-        address _kycModuleAddress,
-        address _memberModuleAddress,
-        address _revenueModuleAddress,
-        address _revShareModuleAddress
-    ) internal {
-        // Set modules contracts in TakasureReserve
-        moduleManager.addModule(_subscriptionModuleAddress);
-        moduleManager.addModule(_kycModuleAddress);
-        moduleManager.addModule(_memberModuleAddress);
-        moduleManager.addModule(_revenueModuleAddress);
-        moduleManager.addModule(_revShareModuleAddress);
-    }
+    // function _setContracts(
+    //     address _subscriptionModuleAddress,
+    //     address _kycModuleAddress,
+    //     address _memberModuleAddress,
+    //     address _revenueModuleAddress,
+    //     address _revShareModuleAddress
+    // ) internal {
+    //     // Set modules contracts in TakasureReserve
+    //     moduleManager.addModule(_subscriptionModuleAddress);
+    //     moduleManager.addModule(_kycModuleAddress);
+    //     moduleManager.addModule(_memberModuleAddress);
+    //     moduleManager.addModule(_revenueModuleAddress);
+    //     moduleManager.addModule(_revShareModuleAddress);
+    // }
 
     function _createRoles(address _addressManager) internal {
         AddressManager(_addressManager).createNewRole(Roles.OPERATOR);

@@ -23,7 +23,7 @@ contract ClaimRevenues_RevShareModuleTest is StdCheats, Test {
     address takadao;
     address revenueClaimer; // has REVENUE_CLAIMER role
     address revenueReceiver; // destination account for Takadao claims
-    address module = makeAddr("module");
+    address module;
     address revShareModuleAddress;
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
@@ -31,7 +31,7 @@ contract ClaimRevenues_RevShareModuleTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (, , , , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
+        (, , module, , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
 
         revShareModule = RevShareModule(revShareModuleAddress);
 
@@ -58,8 +58,11 @@ contract ClaimRevenues_RevShareModuleTest is StdCheats, Test {
 
         // Register NFT + an authorized Module caller for notifyNewRevenue
         vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Module);
-        addressManager.addProtocolAddress("RANDOM_MODULE", module, ProtocolAddressType.Module);
+        addressManager.addProtocolAddress(
+            "REVSHARE_NFT",
+            address(nft),
+            ProtocolAddressType.Protocol
+        );
         vm.stopPrank();
 
         // Staggered mints to create non-uniform join times

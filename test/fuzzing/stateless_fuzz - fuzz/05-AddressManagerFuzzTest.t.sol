@@ -4,22 +4,26 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
 
 contract AddressManagerFuzzTest is Test {
     AddressManager addressManager;
 
-    address addressManagerOwner = makeAddr("addressManagerOwner");
     address adminAddress = makeAddr("adminAddress");
 
     function setUp() public {
-        vm.prank(addressManagerOwner);
-        addressManager = new AddressManager();
+        address addressManagerImplementation = address(new AddressManager());
+        address addressManagerAddress = UnsafeUpgrades.deployUUPSProxy(
+            addressManagerImplementation,
+            abi.encodeCall(AddressManager.initialize, (msg.sender))
+        );
+        addressManager = AddressManager(addressManagerAddress);
     }
 
     function testChangeRoleAcceptanceDelayRevertIfCallerIsWrong(address caller) public {
-        vm.assume(caller != addressManagerOwner);
+        vm.assume(caller != addressManager.owner());
 
         vm.prank(caller);
         vm.expectRevert();
@@ -27,7 +31,7 @@ contract AddressManagerFuzzTest is Test {
     }
 
     function testAddAdminAddressRevertIfCallerIsWrong(address caller) public {
-        vm.assume(caller != addressManagerOwner);
+        vm.assume(caller != addressManager.owner());
 
         vm.prank(caller);
         vm.expectRevert();
@@ -35,13 +39,13 @@ contract AddressManagerFuzzTest is Test {
     }
 
     modifier addAdminAddress() {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.addProtocolAddress("Admin", adminAddress, ProtocolAddressType.Admin);
         _;
     }
 
     function testDeleteAddressRevertIfCallerIsWrong(address caller) public addAdminAddress {
-        vm.assume(caller != addressManagerOwner);
+        vm.assume(caller != addressManager.owner());
 
         vm.prank(caller);
         vm.expectRevert();
@@ -49,7 +53,7 @@ contract AddressManagerFuzzTest is Test {
     }
 
     function testUpdateAddressRevertIfCallerIsWrong(address caller) public addAdminAddress {
-        vm.assume(caller != addressManagerOwner);
+        vm.assume(caller != addressManager.owner());
 
         vm.prank(caller);
         vm.expectRevert();
@@ -57,7 +61,7 @@ contract AddressManagerFuzzTest is Test {
     }
 
     function testCreateNewRoleRevertIfCallerIsWrong(address caller) public {
-        vm.assume(caller != addressManagerOwner);
+        vm.assume(caller != addressManager.owner());
 
         vm.prank(caller);
         vm.expectRevert();
@@ -65,13 +69,13 @@ contract AddressManagerFuzzTest is Test {
     }
 
     modifier addRole() {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.createNewRole(keccak256("TestRole"));
         _;
     }
 
     function testRemoveRoleRevertIfCallerIsWrong(address caller) public addRole {
-        vm.assume(caller != addressManagerOwner);
+        vm.assume(caller != addressManager.owner());
 
         vm.prank(caller);
         vm.expectRevert();
@@ -79,7 +83,7 @@ contract AddressManagerFuzzTest is Test {
     }
 
     function testProposeRoleHolderRevertIfCallerIsWrong(address caller) public addRole {
-        vm.assume(caller != addressManagerOwner);
+        vm.assume(caller != addressManager.owner());
 
         vm.prank(caller);
         vm.expectRevert();
@@ -87,11 +91,11 @@ contract AddressManagerFuzzTest is Test {
     }
 
     modifier acceptRole() {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.createNewRole(keccak256("TestRole"));
 
         address proposedHolder = makeAddr("proposedHolder");
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.proposeRoleHolder(keccak256("TestRole"), proposedHolder);
 
         vm.prank(proposedHolder);
@@ -100,7 +104,7 @@ contract AddressManagerFuzzTest is Test {
     }
 
     function testRevokeRoleHolderRevertIfCallerIsWrong(address caller) public acceptRole {
-        vm.assume(caller != addressManagerOwner);
+        vm.assume(caller != addressManager.owner());
 
         address roleHolder = addressManager.currentRoleHolders(keccak256("TestRole"));
 

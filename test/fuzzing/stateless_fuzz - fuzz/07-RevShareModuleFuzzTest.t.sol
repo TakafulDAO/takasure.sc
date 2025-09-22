@@ -16,14 +16,14 @@ contract RevShareModuleFuzzTest is Test {
     RevShareModule revShareModule;
     HelperConfig helperConfig;
     IUSDC usdc;
-    address module = makeAddr("module");
+    address module;
     address takadao;
     address revShareModuleAddress;
     address moduleManagerAddress;
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (, , , , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
+        (, , module, , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
 
         revShareModule = RevShareModule(revShareModuleAddress);
 
@@ -42,9 +42,6 @@ contract RevShareModuleFuzzTest is Test {
 
         moduleManagerAddress = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
         usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
-
-        vm.prank(addressManager.owner());
-        addressManager.addProtocolAddress("RANDOM_MODULE", module, ProtocolAddressType.Module);
     }
 
     function testUpgradeRevertsIfCallerIsInvalid(address caller) public {

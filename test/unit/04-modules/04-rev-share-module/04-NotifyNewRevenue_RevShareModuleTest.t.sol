@@ -23,7 +23,7 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
     address takadao;
     address revenueClaimer;
     address revenueReceiver;
-    address module = makeAddr("module");
+    address module;
     address revShareModuleAddress;
 
     event OnDeposit(uint256 amount);
@@ -31,7 +31,7 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (, , , , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
+        (, , module, , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
 
         revShareModule = RevShareModule(revShareModuleAddress);
 
@@ -62,8 +62,11 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
         vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Module);
-        addressManager.addProtocolAddress("RANDOM_MODULE", module, ProtocolAddressType.Module);
+        addressManager.addProtocolAddress(
+            "REVSHARE_NFT",
+            address(nft),
+            ProtocolAddressType.Protocol
+        );
         vm.stopPrank();
 
         // fund + notify (first stream; uses default rewardsDuration)
