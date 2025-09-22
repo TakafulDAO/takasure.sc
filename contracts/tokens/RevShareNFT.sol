@@ -299,7 +299,7 @@ contract RevShareNFT is
         require(endIdExclusive <= totalSupply, "range exceeds supply");
         for (uint256 id = startId; id < endIdExclusive; ++id) {
             address owner = _ownerOf(id);
-            if (owner == address(0)) continue; // burned? (if you ever support burn)
+            if (owner == address(0)) continue; // safety
             uint256 ts = pioneerMintedAt[owner][id];
             if (ts == 0) continue; // safety
 
