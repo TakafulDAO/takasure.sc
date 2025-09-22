@@ -20,6 +20,8 @@ contract ERC721ReceiverMock is IERC721Receiver {
     ) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
+
+    function test() external {}
 }
 
 contract RevShareNftFuzzTest is Test {
