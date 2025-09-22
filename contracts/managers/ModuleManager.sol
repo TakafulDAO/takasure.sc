@@ -12,14 +12,22 @@
  */
 
 import {IModuleImplementation} from "contracts/interfaces/IModuleImplementation.sol";
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
-contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
+contract ModuleManager is
+    Initializable,
+    UUPSUpgradeable,
+    Ownable2StepUpgradeable,
+    ReentrancyGuardTransientUpgradeable
+{
+    address private addressManager;
+
     mapping(address moduleAddr => ModuleState) private addressToModuleState;
 
     /*//////////////////////////////////////////////////////////////
@@ -33,12 +41,28 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
         ModuleState newState
     );
 
+    error ModuleManager__InvalidCaller();
     error ModuleManager__AddressZeroNotAllowed();
     error ModuleManager__AlreadyModule();
     error ModuleManager__NotModule();
     error ModuleManager__WrongState();
 
-    constructor() Ownable(msg.sender) {}
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _addressManager) external initializer {
+        __UUPSUpgradeable_init();
+        __Ownable2Step_init();
+        __Ownable_init(msg.sender);
+        __ReentrancyGuardTransient_init();
+        addressManager = _addressManager;
+    }
 
     /*//////////////////////////////////////////////////////////////
                       MODULE MANAGEMENT FUNCTIONS
@@ -48,7 +72,8 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @notice A function to add a new module
      * @param newModule The new module address
      */
-    function addModule(address newModule) external onlyOwner nonReentrant {
+    function addModule(address newModule) external nonReentrant {
+        require(msg.sender == addressManager, ModuleManager__InvalidCaller());
         // New module can not be address 0, can not be already a module, and the status will be enabled
         require(newModule != address(0), ModuleManager__AddressZeroNotAllowed());
         require(
@@ -120,4 +145,7 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
             revert ModuleManager__NotModule();
         }
     }
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
