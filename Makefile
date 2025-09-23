@@ -35,6 +35,10 @@ snapshot :; forge snapshot
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
+# Simulations
+simulate-rev-share-distribution:
+	@forge script scripts/simulations/RevShareMonthSimToCsv.s.sol:RevShareMonthSimToCsv -vvv
+	
 # Protocol deployments
 protocol-deploy-referral:
 	@forge clean
