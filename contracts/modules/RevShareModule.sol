@@ -151,7 +151,7 @@ contract RevShareModule is
     /**
      * @notice Notify the contract about new revenue to be distributed
      * @param amount The amount of revenue to be distributed
-     * @dev Only callable by specic contracts
+     * @dev Only callable by specific contracts
      * @dev The contract must have enough allowance to transfer the tokens
      * @dev Splits deposits between Takadao (25%) and pioneers (75%)
      * @dev Sets new reward rates for both pools, with carry-over if the previous stream was not finished
