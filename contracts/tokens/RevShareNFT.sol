@@ -60,10 +60,10 @@ contract RevShareNFT is
     error RevShareNFT__TooEarlyToTransfer();
     error RevShareNFT__MintedAtNotSet();
 
-    modifier mintChecks(address pioneer) {
+    modifier mintChecks(address pioneer, uint256 toMint) {
         AddressAndStates._notZeroAddress(pioneer);
         require(pioneer != address(this), RevShareNFT__NotAllowedAddress());
-        require(totalSupply < MAX_SUPPLY, RevShareNFT__MaxSupplyReached());
+        require(totalSupply + toMint <= MAX_SUPPLY, RevShareNFT__MaxSupplyReached());
         _;
     }
 
@@ -116,7 +116,7 @@ contract RevShareNFT is
      * @param pioneer The address of the member to mint a single NFT. This is only used for SINGLE_MINT
      * @dev Only callable by someone with owner
      */
-    function mint(address pioneer) external onlyOwner nonReentrant mintChecks(pioneer) {
+    function mint(address pioneer) external onlyOwner nonReentrant mintChecks(pioneer, 1) {
         // Update the revenues if the contract is set up to do so
         // Take current snapshot of totalSupply before it gets incremented
         _updateRevenuesIfProtocolIsSetUp(pioneer);
@@ -144,7 +144,7 @@ contract RevShareNFT is
     function batchMint(
         address pioneer,
         uint256 tokensToMint
-    ) external onlyOwner nonReentrant mintChecks(pioneer) {
+    ) external onlyOwner nonReentrant mintChecks(pioneer, tokensToMint) {
         require(tokensToMint > 1, RevShareNFT__BatchMintMoreThanOne());
 
         // Update the revenues if the contract is set up to do so
