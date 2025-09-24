@@ -77,30 +77,33 @@ rule NonReceiverNotTakadaoEarner(address a) {
 }
 
 /* ---- Split rule when there is NO leftover from a previous stream ----
-   We enforce "period finished" by checking lta == periodFinish under env e. */
-rule NotifyPreservesSplit_NoLeftover() {
+   We enforce "period finished" by checking lta == periodFinish under env e,
+   then assert the *exact* rates set by notifyNewRevenue() in that branch. */
+rule NotifySetsExactRates_NoLeftover() {
   env e;
 
   // ensure no active period: lta == periodFinish implies now >= periodFinish
   uint256 lta = harness.lastTimeApplicable@withrevert(e);
   if (!lastReverted && harness.periodFinish() != 0 && lta == harness.periodFinish()) {
 
-    uint256 amt; // unconstrained
+    uint256 amt;               // unconstrained
+    require amt > 0;           // avoid the obvious revert path in notify
     harness.notifyNewRevenue@withrevert(e, amt);
 
     if (!lastReverted) {
-      // Compute amounts over one full window from the scaled rates
       mathint dur = harness.rewardsDuration();
-      mathint rp  = harness.rewardRatePioneersScaled();
-      mathint rt  = harness.rewardRateTakadaoScaled();
+      assert dur > 0;          // if dur == 0, Solidity would have reverted on division
 
-      // amounts = (duration * rateScaled) / WAD
-      mathint pAmt = (dur * rp) / 1000000000000000000;
-      mathint tAmt = (dur * rt) / 1000000000000000000;
+      // expected split
+      mathint pShare = (amt * 75) / 100;
+      mathint tShare = (amt * 25) / 100;
 
-      // Over a full window (no leftover), pioneers ~= 3 * takadao (allow tiny rounding)
-      mathint diff = (pAmt >= 3*tAmt) ? (pAmt - 3*tAmt) : (3*tAmt - pAmt);
-      assert diff <= 3;
+      // expected scaled rates (exactly what the contract sets in the no-leftover branch)
+      mathint expRp = (pShare * 1000000000000000000) / dur; // WAD = 1e18
+      mathint expRt = (tShare * 1000000000000000000) / dur;
+
+      assert harness.rewardRatePioneersScaled() == expRp;
+      assert harness.rewardRateTakadaoScaled() == expRt;
     }
   }
   assert true;
