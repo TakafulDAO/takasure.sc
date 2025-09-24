@@ -13,7 +13,7 @@ import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
@@ -33,7 +33,7 @@ contract SubscriptionModule is
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable,
-    TLDModuleImplementation,
+    ModuleImplementation,
     ReserveAndMemberValuesHook,
     MemberPaymentFlow,
     ParentRewards
@@ -41,7 +41,6 @@ contract SubscriptionModule is
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    ModuleState private moduleState;
 
     uint256 private transient normalizedContributionBeforeFee;
     uint256 private transient feeAmount;
@@ -59,22 +58,6 @@ contract SubscriptionModule is
     error SubscriptionModule__MemberAlreadyKYCed();
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__TooEarlytoRefund();
-
-    modifier onlyContract(string memory name) {
-        require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -95,17 +78,9 @@ contract SubscriptionModule is
         couponPool = _couponPool;
     }
 
-    /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER") {
-        moduleState = newState;
-    }
-
-    function setCouponPoolAddress(address _couponPool) external onlyRole(Roles.OPERATOR) {
+    function setCouponPoolAddress(
+        address _couponPool
+    ) external onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {
         AddressAndStates._notZeroAddress(_couponPool);
         couponPool = _couponPool;
     }
@@ -118,10 +93,10 @@ contract SubscriptionModule is
     ) external nonReentrant {
         require(msg.sender == referralGateway, ModuleErrors.Module__NotAuthorizedCaller());
 
-        (
-            Reserve memory reserve,
-            Member memory newMember
-        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
+            memberWallet,
+            contributionBeforeFee
+        );
 
         _joinFromReferralGateway(
             reserve,
@@ -150,14 +125,14 @@ contract SubscriptionModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external nonReentrant {
-        (
-            Reserve memory reserve,
-            Member memory newMember
-        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
+            memberWallet,
+            contributionBeforeFee
+        );
 
         // Check caller
         require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
+            AddressAndStates._checkName("ROUTER", address(takasureReserve.addressManager())) ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -183,11 +158,15 @@ contract SubscriptionModule is
         uint256 contributionBeforeFee,
         uint256 membershipDuration,
         uint256 couponAmount
-    ) external nonReentrant onlyRole(Roles.COUPON_REDEEMER) {
-        (
-            Reserve memory reserve,
-            Member memory newMember
-        ) = _paySubscriptionChecksAndsettings(memberWallet, contributionBeforeFee);
+    )
+        external
+        nonReentrant
+        onlyRole(Roles.COUPON_REDEEMER, address(takasureReserve.addressManager()))
+    {
+        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
+            memberWallet,
+            contributionBeforeFee
+        );
 
         // Check if the coupon amount is valid
         require(couponAmount <= contributionBeforeFee, SubscriptionModule__InvalidContribution());
@@ -213,7 +192,7 @@ contract SubscriptionModule is
         address memberWallet,
         address takasureReserveAddress,
         uint256 contributionAfterFeeAmount
-    ) external onlyContract("KYC_MODULE") {
+    ) external onlyContract("KYC_MODULE", address(takasureReserve.addressManager())) {
         _transferContributionToReserve(
             contributionToken,
             memberWallet,
@@ -243,11 +222,12 @@ contract SubscriptionModule is
     function _paySubscriptionChecksAndsettings(
         address _memberWallet,
         uint256 _contributionBeforeFee
-    )
-        internal
-        returns (Reserve memory reserve_, Member memory newMember_)
-    {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+    ) internal returns (Reserve memory reserve_, Member memory newMember_) {
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
 
         (reserve_, newMember_) = _getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
 
@@ -396,7 +376,11 @@ contract SubscriptionModule is
      *         The user will need to reach custommer support to get the corresponding amount
      */
     function _refund(address _memberWallet) internal {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
 
         (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
             takasureReserve,
@@ -407,8 +391,8 @@ contract SubscriptionModule is
 
         require(
             _memberWallet == msg.sender ||
-                AddressAndStates._checkName(addressManager, "ROUTER") ||
-                AddressAndStates._checkRole(addressManager, Roles.OPERATOR),
+                AddressAndStates._checkName("ROUTER", addressManager) ||
+                AddressAndStates._checkRole(Roles.OPERATOR, addressManager),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         // The member should not be KYCed neither already refunded
@@ -583,5 +567,5 @@ contract SubscriptionModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {}
 }

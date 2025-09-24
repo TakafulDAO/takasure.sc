@@ -47,7 +47,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
 
     modifier onlyRole(bytes32 role) {
         require(
-            AddressAndStates._checkRole(address(addressManager), role),
+            AddressAndStates._checkRole(role, address(addressManager)),
             TakasureReserve__UnallowedAccess()
         );
         _;

@@ -7,6 +7,7 @@ import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {IReferralGateway, DaoDataReader} from "test/helpers/lowLevelCall/DaoDataReader.sol";
 
 contract ReferralGatewayPaymentRevertsTest is Test {
     TestDeployProtocol deployer;
@@ -45,7 +46,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         // Deployer
         deployer = new TestDeployProtocol();
         // Deploy contracts
-        (, referralGatewayAddress, , , , , , usdcAddress, , helperConfig) = deployer.run();
+        (, referralGatewayAddress, , , , , , , usdcAddress, , helperConfig) = deployer.run();
 
         // Get config values
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
@@ -118,7 +119,10 @@ contract ReferralGatewayPaymentRevertsTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = true, invalid referral ========//
     function testPaymentRevertsIfParentIsInvalidCase1() public {
-        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        uint256 alreadyCollectedFees = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            8
+        );
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -134,7 +138,10 @@ contract ReferralGatewayPaymentRevertsTest is Test {
             false
         );
 
-        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        uint256 totalCollectedFees = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            8
+        );
 
         assertEq(totalCollectedFees, 0);
     }
@@ -143,8 +150,10 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     function testPaymentRevertsIfParentIsInvalidCase2() public {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
-
-        (, , , , , , , , uint256 alreadyCollectedFees, , , ) = referralGateway.getDAOData();
+        uint256 alreadyCollectedFees = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            8
+        );
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -159,8 +168,10 @@ contract ReferralGatewayPaymentRevertsTest is Test {
             0,
             false
         );
-
-        (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
+        uint256 totalCollectedFees = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            8
+        );
 
         assertEq(totalCollectedFees, 0);
     }

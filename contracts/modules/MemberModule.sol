@@ -9,10 +9,11 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
@@ -29,32 +30,15 @@ contract MemberModule is
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable,
-    TLDModuleImplementation,
+    ModuleImplementation,
     ReserveAndMemberValuesHook,
     MemberPaymentFlow
 {
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    ModuleState private moduleState;
 
     error MemberModule__InvalidDate();
-
-    modifier onlyContract(string memory name) {
-        require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -70,30 +54,28 @@ contract MemberModule is
     }
 
     /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER") {
-        moduleState = newState;
-    }
-
-    /**
      * @notice Method to cancel a membership
      * @dev To be called by anyone
      */
     function cancelMembership(address memberWallet) external {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         AddressAndStates._notZeroAddress(memberWallet);
         _cancelMembership(memberWallet);
     }
 
     function payRecurringContribution(address memberWallet) external nonReentrant {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
 
         require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
+            AddressAndStates._checkName("ROUTER", address(takasureReserve.addressManager())) ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -160,7 +142,11 @@ contract MemberModule is
     }
 
     function defaultMember(address memberWallet) external {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         Member memory member = _getMembersValuesHook(takasureReserve, memberWallet);
 
         require(member.memberState == MemberState.Active, ModuleErrors.Module__WrongMemberState());
@@ -209,5 +195,5 @@ contract MemberModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {}
 }

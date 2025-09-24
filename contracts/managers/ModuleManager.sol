@@ -11,15 +11,23 @@
  * @dev The state in this contract will be mainly the modules addresses and their status and any other auxiliary data
  */
 
-import {ITLDModuleImplementation} from "contracts/interfaces/ITLDModuleImplementation.sol";
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {IModuleImplementation} from "contracts/interfaces/IModuleImplementation.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
-contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
+contract ModuleManager is
+    Initializable,
+    UUPSUpgradeable,
+    Ownable2StepUpgradeable,
+    ReentrancyGuardTransientUpgradeable
+{
+    address private addressManager;
+
     mapping(address moduleAddr => ModuleState) private addressToModuleState;
 
     /*//////////////////////////////////////////////////////////////
@@ -33,12 +41,28 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
         ModuleState newState
     );
 
+    error ModuleManager__InvalidCaller();
     error ModuleManager__AddressZeroNotAllowed();
     error ModuleManager__AlreadyModule();
     error ModuleManager__NotModule();
     error ModuleManager__WrongState();
 
-    constructor() Ownable(msg.sender) {}
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _addressManager) external initializer {
+        __UUPSUpgradeable_init();
+        __Ownable2Step_init();
+        __Ownable_init(msg.sender);
+        __ReentrancyGuardTransient_init();
+        addressManager = _addressManager;
+    }
 
     /*//////////////////////////////////////////////////////////////
                       MODULE MANAGEMENT FUNCTIONS
@@ -48,7 +72,8 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @notice A function to add a new module
      * @param newModule The new module address
      */
-    function addModule(address newModule) external onlyOwner nonReentrant {
+    function addModule(address newModule) external nonReentrant {
+        require(msg.sender == addressManager, ModuleManager__InvalidCaller());
         // New module can not be address 0, can not be already a module, and the status will be enabled
         require(newModule != address(0), ModuleManager__AddressZeroNotAllowed());
         require(
@@ -59,7 +84,6 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
         addressToModuleState[newModule] = ModuleState.Enabled;
 
         _checkIsModule(newModule);
-        ITLDModuleImplementation(newModule).setContractState(ModuleState.Enabled);
 
         emit OnNewModule(newModule);
     }
@@ -79,8 +103,6 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
 
         ModuleState oldState = addressToModuleState[module];
         addressToModuleState[module] = newState;
-
-        ITLDModuleImplementation(module).setContractState(newState);
 
         emit OnModuleStateChanged(module, oldState, newState);
     }
@@ -116,11 +138,14 @@ contract ModuleManager is Ownable2Step, ReentrancyGuardTransient {
      * @notice Check if a given address is a module
      */
     function _checkIsModule(address _newModule) internal {
-        try ITLDModuleImplementation(_newModule).isTLDModule() returns (bytes4 funcSelector) {
-            if (funcSelector != ITLDModuleImplementation.isTLDModule.selector)
+        try IModuleImplementation(_newModule).isValidModule() returns (bytes4 funcSelector) {
+            if (funcSelector != IModuleImplementation.isValidModule.selector)
                 revert ModuleManager__NotModule();
         } catch (bytes memory) {
             revert ModuleManager__NotModule();
         }
     }
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }

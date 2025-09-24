@@ -8,6 +8,7 @@ import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {IReferralGateway, DaoDataReader} from "test/helpers/lowLevelCall/DaoDataReader.sol";
 
 contract ReferralGatewayRepoolTest is Test {
     TestDeployProtocol deployer;
@@ -32,6 +33,7 @@ contract ReferralGatewayRepoolTest is Test {
         (
             takasureReserveAddress,
             referralGatewayAddress,
+            ,
             ,
             ,
             ,
@@ -157,7 +159,7 @@ contract ReferralGatewayRepoolTest is Test {
         vm.prank(takadao);
         referralGateway.enableRepool(rePoolAddress);
 
-        (, , , , , , , , , , uint256 toRepool, ) = referralGateway.getDAOData();
+        uint256 toRepool = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 10);
 
         assert(toRepool > 0);
         assertEq(usdc.balanceOf(rePoolAddress), 0);
@@ -165,7 +167,10 @@ contract ReferralGatewayRepoolTest is Test {
         vm.prank(takadao);
         referralGateway.transferToRepool();
 
-        (, , , , , , , , , , uint256 newRepoolBalance, ) = referralGateway.getDAOData();
+        uint256 newRepoolBalance = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            10
+        );
 
         assertEq(newRepoolBalance, 0);
         assertEq(usdc.balanceOf(rePoolAddress), toRepool);

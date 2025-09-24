@@ -26,7 +26,7 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (takasureReserveProxy, , , , , , , contributionTokenAddress, , helperConfig) = deployer
+        (takasureReserveProxy, , , , , , , , contributionTokenAddress, , helperConfig) = deployer
             .run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);

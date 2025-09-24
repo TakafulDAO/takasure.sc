@@ -32,7 +32,7 @@ contract ReferralGatewayHandler is Test {
         uint256 contributionAmount,
         address parent,
         address newMember,
-        uint256 couponAmount,
+        uint256 /*couponAmount*/,
         bool isDonated
     ) public {
         // 1. User is not the zero address, the parent or the referral gateway address

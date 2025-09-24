@@ -1,0 +1,43 @@
+@startuml Pioneer Claims Revenue Share
+title Pioneer calls RevShareModule.claimRevenueShare
+autonumber
+
+actor Pioneer
+participant RevShareModule
+participant RevShareNFT
+
+Pioneer -> RevShareModule: claimRevenueShare()
+
+alt Module enabled
+  RevShareModule -> RevShareNFT: balanceOf(Pioneer)
+  RevShareNFT --> RevShareModule: nftBalance
+
+  alt nftBalance == 0
+    RevShareModule --> Pioneer: Revert RevShareModule__NoEligibleToken()
+  else nftBalance > 0
+    RevShareModule -> RevShareModule: nowAllowed = (block.timestamp >= revenuesAvailableDate)
+
+    alt nowAllowed == false
+      RevShareModule --> Pioneer: Revert RevShareModule__NotAvailableYet()
+    else nowAllowed == true
+      RevShareModule -> RevShareModule: claimable = earnedPioneers(Pioneer)
+      alt claimable == 0
+        RevShareModule --> Pioneer: Revert RevShareModule__NothingToClaim()
+      else claimable > 0
+        RevShareModule -> RevShareModule: ensure approvedDeposits >= claimable
+        alt approvedDeposits < claimable
+          RevShareModule --> Pioneer: Revert RevShareModule__InsufficientFunds()
+        else sufficient pool
+          RevShareModule -> RevShareModule: approvedDeposits -= claimable
+          RevShareModule -> RevShareModule: update user accounting\n(e.g., paidPerNft / userPaid checkpoints)
+          RevShareModule -> RevShareModule: emit OnRevenueClaimed(Pioneer, claimable)
+          RevShareModule --> Pioneer: return claimable
+        end
+      end
+    end
+  end
+else Module disabled
+  RevShareModule --> Pioneer: Revert Module__WrongModuleState()
+end
+
+@enduml

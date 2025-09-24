@@ -4,13 +4,13 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
 
 contract AddressManagerTest is Test {
     AddressManager addressManager;
 
-    address addressManagerOwner = makeAddr("addressManagerOwner");
     address protocolAddress = makeAddr("protocolAddress");
     address adminAddress = makeAddr("adminAddress");
     address moduleAddress = makeAddr("moduleAddress");
@@ -29,8 +29,12 @@ contract AddressManagerTest is Test {
     event OnNewRoleHolder(bytes32 indexed role, address indexed newHolder);
 
     function setUp() public {
-        vm.prank(addressManagerOwner);
-        addressManager = new AddressManager();
+        address addressManagerImplementation = address(new AddressManager());
+        address addressManagerAddress = UnsafeUpgrades.deployUUPSProxy(
+            addressManagerImplementation,
+            abi.encodeCall(AddressManager.initialize, (msg.sender))
+        );
+        addressManager = AddressManager(addressManagerAddress);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -38,19 +42,19 @@ contract AddressManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testRevertIfRoleAcceptanceDelayIsZero() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectRevert(AddressManager.AddressManager__InvalidDelay.selector);
         addressManager.setRoleAcceptanceDelay(0);
     }
 
     function testAddProtocolAddressRevertsIfThereIsNoName() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectRevert(AddressManager.AddressManager__InvalidNameLength.selector);
         addressManager.addProtocolAddress("", adminAddress, ProtocolAddressType.Admin);
     }
 
     function testAddProtocolAddressRevertsIfNameIsBiggerThan32Bytes() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectRevert(AddressManager.AddressManager__InvalidNameLength.selector);
         addressManager.addProtocolAddress(
             "ThisNameIsWayTooLongAndDefinitelyMoreThanThirtyTwoBytes",
@@ -60,13 +64,13 @@ contract AddressManagerTest is Test {
     }
 
     function testAddProtocolAddressRevertsIfAddressIsZero() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectRevert(AddressManager.AddressManager__AddressZero.selector);
         addressManager.addProtocolAddress("Admin", address(0), ProtocolAddressType.Admin);
     }
 
     function testAddProtocolAddressRevertsIfAddressIsAlreadySet() public {
-        vm.startPrank(addressManagerOwner);
+        vm.startPrank(addressManager.owner());
         addressManager.addProtocolAddress("Admin", adminAddress, ProtocolAddressType.Admin);
 
         vm.expectRevert(AddressManager.AddressManager__AddressAlreadyExists.selector);
@@ -75,19 +79,19 @@ contract AddressManagerTest is Test {
     }
 
     function testDeleteAddressRevertsIfAddressZero() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectRevert(AddressManager.AddressManager__AddressZero.selector);
         addressManager.deleteProtocolAddress(address(0));
     }
 
     function testUpdateAddressRevertsIfAddressZero() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectRevert(AddressManager.AddressManager__AddressZero.selector);
         addressManager.updateProtocolAddress("Admin", address(0));
     }
 
     function testUpdateAddressRevertsIfNameIsInconsistent() public {
-        vm.startPrank(addressManagerOwner);
+        vm.startPrank(addressManager.owner());
         addressManager.addProtocolAddress("Admin", adminAddress, ProtocolAddressType.Admin);
         // Try to update the address with a different name
         vm.expectRevert(AddressManager.AddressManager__AddressDoesNotExist.selector);
@@ -96,7 +100,7 @@ contract AddressManagerTest is Test {
     }
 
     function testUpdateAddressRevertsIfUpdatesToSameAddress() public {
-        vm.startPrank(addressManagerOwner);
+        vm.startPrank(addressManager.owner());
         addressManager.addProtocolAddress("Admin", adminAddress, ProtocolAddressType.Admin);
         // Try to update the address to the same address
         vm.expectRevert(AddressManager.AddressManager__AddressAlreadyExists.selector);
@@ -105,7 +109,7 @@ contract AddressManagerTest is Test {
     }
 
     function testCreateNewRoleRevertsIfRoleAlreadyExists() public {
-        vm.startPrank(addressManagerOwner);
+        vm.startPrank(addressManager.owner());
         addressManager.createNewRole(keccak256("TestRole"));
         vm.expectRevert(AddressManager.AddressManager__RoleAlreadyExists.selector);
         addressManager.createNewRole(keccak256("TestRole"));
@@ -113,14 +117,14 @@ contract AddressManagerTest is Test {
     }
 
     function testRemoveRoleRevertsIfRoleDoesNotExist() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectRevert(AddressManager.AddressManager__RoleDoesNotExist.selector);
         addressManager.removeRole(keccak256("NonExistentRole"));
     }
 
     function testProposeRoleHolderRevertsIfRoleDoesNotExist() public {
         address proposedHolder = makeAddr("proposedHolder");
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectRevert(AddressManager.AddressManager__RoleDoesNotExist.selector);
         addressManager.proposeRoleHolder(keccak256("NonExistentRole"), proposedHolder);
     }
@@ -134,7 +138,7 @@ contract AddressManagerTest is Test {
     }
 
     function testAcceptRoleRevertsIfNoneProposedHolder() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.createNewRole(keccak256("TestRole"));
 
         address proposedHolder = makeAddr("proposedHolder");
@@ -147,7 +151,7 @@ contract AddressManagerTest is Test {
     function testAcceptRoleRevertsIfCallerIsNotProposedHolder() public {
         address proposedHolder = makeAddr("proposedHolder");
 
-        vm.startPrank(addressManagerOwner);
+        vm.startPrank(addressManager.owner());
         addressManager.createNewRole(keccak256("TestRole"));
         addressManager.proposeRoleHolder(keccak256("TestRole"), proposedHolder);
         vm.stopPrank();
@@ -162,7 +166,7 @@ contract AddressManagerTest is Test {
     function testAcceptRoleRevertsIfTimeToAcceptHasExpired() public {
         address proposedHolder = makeAddr("proposedHolder");
 
-        vm.startPrank(addressManagerOwner);
+        vm.startPrank(addressManager.owner());
         addressManager.createNewRole(keccak256("TestRole"));
         addressManager.proposeRoleHolder(keccak256("TestRole"), proposedHolder);
         vm.stopPrank();
@@ -179,7 +183,7 @@ contract AddressManagerTest is Test {
     function testRevokeRoleRevertsIfRoleDoesNotExist() public {
         address roleHolder = makeAddr("roleHolder");
 
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectRevert(AddressManager.AddressManager__RoleDoesNotExist.selector);
         addressManager.revokeRoleHolder(keccak256("NonExistentRole"), roleHolder);
     }
@@ -187,7 +191,7 @@ contract AddressManagerTest is Test {
     function testRevokeRoleRevertsIfHolderIsNotCurrentHolder() public {
         address roleHolder = makeAddr("roleHolder");
 
-        vm.startPrank(addressManagerOwner);
+        vm.startPrank(addressManager.owner());
         addressManager.createNewRole(keccak256("TestRole"));
         addressManager.proposeRoleHolder(keccak256("TestRole"), roleHolder);
         vm.stopPrank();
@@ -198,7 +202,7 @@ contract AddressManagerTest is Test {
 
         address notCurrentHolder = makeAddr("notCurrentHolder");
 
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectRevert(AddressManager.AddressManager__NotRoleHolder.selector);
         addressManager.revokeRoleHolder(keccak256("TestRole"), notCurrentHolder);
     }
@@ -210,7 +214,7 @@ contract AddressManagerTest is Test {
     function testSetRoleAcceptanceDelayAndEmitEvent() public {
         uint256 initialDelay = addressManager.roleAcceptanceDelay();
 
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectEmit(false, false, false, false, address(addressManager));
         emit OnNewRoleAcceptanceDelay(2 days);
         addressManager.setRoleAcceptanceDelay(2 days);
@@ -226,7 +230,7 @@ contract AddressManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testAddAdminAddressAndEmitEvent() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectEmit(true, true, false, false, address(addressManager));
         emit OnNewProtocolAddress("Admin", adminAddress, ProtocolAddressType.Admin);
         addressManager.addProtocolAddress("Admin", adminAddress, ProtocolAddressType.Admin);
@@ -244,25 +248,29 @@ contract AddressManagerTest is Test {
     }
 
     function testAddModuleAddressAndEmitEvent() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectEmit(true, true, false, false, address(addressManager));
-        emit OnNewProtocolAddress("Module", moduleAddress, ProtocolAddressType.Module);
-        addressManager.addProtocolAddress("Module", moduleAddress, ProtocolAddressType.Module);
-
-        bytes32 addressName = addressManager.protocolAddressesNames(moduleAddress);
-
-        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName(
-            "Module"
+        emit OnNewProtocolAddress("Protocol", protocolAddress, ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress(
+            "Protocol",
+            protocolAddress,
+            ProtocolAddressType.Protocol
         );
 
-        assert(addressName == keccak256(abi.encode("Module")));
-        assert(protocolAddressToCheck.name == keccak256(abi.encode("Module")));
-        assert(protocolAddressToCheck.addr == moduleAddress);
-        assert(protocolAddressToCheck.addressType == ProtocolAddressType.Module);
+        bytes32 addressName = addressManager.protocolAddressesNames(protocolAddress);
+
+        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName(
+            "Protocol"
+        );
+
+        assert(addressName == keccak256(abi.encode("Protocol")));
+        assert(protocolAddressToCheck.name == keccak256(abi.encode("Protocol")));
+        assert(protocolAddressToCheck.addr == protocolAddress);
+        assert(protocolAddressToCheck.addressType == ProtocolAddressType.Protocol);
     }
 
     function testAddProtocolAddressAndEmitEvent() public {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectEmit(true, true, false, false, address(addressManager));
         emit OnNewProtocolAddress("Protocol", protocolAddress, ProtocolAddressType.Protocol);
         addressManager.addProtocolAddress(
@@ -284,7 +292,7 @@ contract AddressManagerTest is Test {
     }
 
     modifier addAdminAddress() {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.addProtocolAddress("Admin", adminAddress, ProtocolAddressType.Admin);
         _;
     }
@@ -307,7 +315,7 @@ contract AddressManagerTest is Test {
         assert(protocolAddressToCheck.addressType == ProtocolAddressType.Admin);
 
         // Now delete the address and check that the event is emitted
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectEmit(true, false, false, false, address(addressManager));
         emit OnProtocolAddressDeleted(adminAddress, ProtocolAddressType.Admin);
         addressManager.deleteProtocolAddress(adminAddress);
@@ -339,7 +347,7 @@ contract AddressManagerTest is Test {
         // Now update the address and check that the event is emitted
         address newAdminAddress = makeAddr("newAdminAddress");
 
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectEmit(true, true, false, false, address(addressManager));
         emit OnProtocolAddressUpdated("Admin", newAdminAddress);
         addressManager.updateProtocolAddress("Admin", newAdminAddress);
@@ -367,7 +375,7 @@ contract AddressManagerTest is Test {
         assert(roles.length == 0);
         assert(!addressManager.isValidRole(keccak256("TestRole")));
 
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectEmit(true, false, false, true, address(addressManager));
         emit OnRoleCreated(keccak256("TestRole"));
         bool roleCreated = addressManager.createNewRole(keccak256("TestRole"));
@@ -382,7 +390,7 @@ contract AddressManagerTest is Test {
     }
 
     modifier addRole() {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.createNewRole(keccak256("TestRole"));
         _;
     }
@@ -397,7 +405,7 @@ contract AddressManagerTest is Test {
         assert(roles[0] == keccak256("TestRole"));
         assert(addressManager.isValidRole(keccak256("TestRole")));
 
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectEmit(true, false, false, true, address(addressManager));
         emit OnRoleRemoved(keccak256("TestRole"));
         bool roleRemoved = addressManager.removeRole(keccak256("TestRole"));
@@ -424,7 +432,7 @@ contract AddressManagerTest is Test {
 
         address proposedHolder = makeAddr("proposedHolder");
 
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         vm.expectEmit(true, true, false, false, address(addressManager));
         emit OnProposedRoleHolder(keccak256("TestRole"), proposedHolder);
         addressManager.proposeRoleHolder(keccak256("TestRole"), proposedHolder);
@@ -437,11 +445,11 @@ contract AddressManagerTest is Test {
     }
 
     modifier newRoleAndProposedRoleHolder() {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.createNewRole(keccak256("TestRole"));
 
         address proposedHolder = makeAddr("proposedHolder");
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.proposeRoleHolder(keccak256("TestRole"), proposedHolder);
         _;
     }
@@ -456,7 +464,7 @@ contract AddressManagerTest is Test {
 
         address newProposedHolder = makeAddr("newProposedHolder");
 
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.proposeRoleHolder(keccak256("TestRole"), newProposedHolder);
 
         proposedHolderData = addressManager.getProposedRoleHolder(keccak256("TestRole"));
@@ -473,7 +481,7 @@ contract AddressManagerTest is Test {
         assert(proposedHolderData.proposedHolder != address(0));
         assert(proposedHolderData.proposalTime > 0);
 
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.proposeRoleHolder(keccak256("TestRole"), address(0));
 
         proposedHolderData = addressManager.getProposedRoleHolder(keccak256("TestRole"));
@@ -514,11 +522,11 @@ contract AddressManagerTest is Test {
     }
 
     modifier acceptRole() {
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.createNewRole(keccak256("TestRole"));
 
         address proposedHolder = makeAddr("proposedHolder");
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.proposeRoleHolder(keccak256("TestRole"), proposedHolder);
 
         vm.prank(proposedHolder);
@@ -538,7 +546,7 @@ contract AddressManagerTest is Test {
         assertEq(roles.length, 1);
         assertEq(roles[0], keccak256("TestRole"));
 
-        vm.prank(addressManagerOwner);
+        vm.prank(addressManager.owner());
         addressManager.revokeRoleHolder(keccak256("TestRole"), roleHolder);
 
         roleHolder = addressManager.currentRoleHolders(keccak256("TestRole"));
@@ -553,7 +561,7 @@ contract AddressManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testCheckIfAnAddressHasNameSet() public addAdminAddress {
-        assert(addressManager.hasName(adminAddress, "Admin"));
+        assert(addressManager.hasName("Admin", adminAddress));
     }
 
     function testCheckIfAnAddressHasRoleSet() public acceptRole {

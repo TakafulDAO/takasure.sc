@@ -179,7 +179,8 @@ contract ReferralGateway is
         address _operator,
         address _KYCProvider,
         address _pauseGuardian,
-        address _usdcAddress
+        address _usdcAddress,
+        string memory _daoName
     ) external initializer {
         _notZeroAddress(_operator);
         _notZeroAddress(_KYCProvider);
@@ -191,6 +192,8 @@ contract ReferralGateway is
 
         operator = _operator;
         usdc = IERC20(_usdcAddress);
+
+        daoName = _daoName;
     }
 
     /*//////////////////////////////////////////////////////////////
