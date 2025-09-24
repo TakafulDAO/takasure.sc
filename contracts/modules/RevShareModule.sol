@@ -157,9 +157,12 @@ contract RevShareModule is
      * @dev Sets new reward rates for both pools, with carry-over if the previous stream was not finished
      * @dev Increases the approved deposits for accounting purposes
      */
-    function notifyNewRevenue(
-        uint256 amount
-    ) external onlyType(ProtocolAddressType.Module, address(addressManager)) nonReentrant {
+    function notifyNewRevenue(uint256 amount) external nonReentrant {
+        require(
+            AddressAndStates._checkType(ProtocolAddressType.Module, address(addressManager)) ||
+                AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager)),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
         require(amount > 0, RevShareModule__NotZeroValue());
 
         // Update approved deposits for accounting purposes
