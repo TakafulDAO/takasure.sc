@@ -104,9 +104,9 @@ contract RevShareModule is
         uint256 timestamp
     ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
         require(timestamp > block.timestamp, RevShareModule__InvalidDate());
         revenuesAvailableDate = timestamp;
@@ -118,9 +118,9 @@ contract RevShareModule is
         uint256 duration
     ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
         require(duration > 0, RevShareModule__NotZeroValue());
         require(block.timestamp >= periodFinish, RevShareModule__ActiveStreamOngoing()); // Avoid mid-stream changes
@@ -135,9 +135,9 @@ contract RevShareModule is
      */
     function releaseRevenues() external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
         require(block.timestamp < revenuesAvailableDate, RevShareModule__InvalidDate());
         revenuesAvailableDate = block.timestamp;
@@ -209,9 +209,9 @@ contract RevShareModule is
      */
     function sweepNonApprovedDeposits() external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
         IERC20 contributionToken = IERC20(
@@ -262,9 +262,9 @@ contract RevShareModule is
      */
     function claimRevenueShare() external nonReentrant returns (uint256 revenue) {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
         require(
             block.timestamp >= revenuesAvailableDate,

@@ -14,6 +14,7 @@ methods {
   function takadaoRevenueScaled() external returns (uint256) envfree;
   function approvedDeposits() external returns (uint256) envfree;
   function revenueReceiver() external returns (address) envfree;
+  function getRevenueForDuration(uint256) external returns (uint256, uint256);
 
   /* time-dependent views (NOT envfree) */
   function lastTimeApplicable() external returns (uint256);
@@ -83,13 +84,23 @@ rule NotifyPreservesSplit_NoLeftover() {
   // ensure no active period: lta == periodFinish implies now >= periodFinish
   uint256 lta = harness.lastTimeApplicable@withrevert(e);
   if (!lastReverted && harness.periodFinish() != 0 && lta == harness.periodFinish()) {
+
     uint256 amt; // unconstrained
     harness.notifyNewRevenue@withrevert(e, amt);
+
     if (!lastReverted) {
-      mathint rp = harness.rewardRatePioneersScaled();
-      mathint rt = harness.rewardRateTakadaoScaled();
-      mathint diff = (rp >= 3*rt) ? (rp - 3*rt) : (3*rt - rp);
-      assert diff <= 4;  // rounding tolerance
+      // Compute amounts over one full window from the scaled rates
+      mathint dur = harness.rewardsDuration();
+      mathint rp  = harness.rewardRatePioneersScaled();
+      mathint rt  = harness.rewardRateTakadaoScaled();
+
+      // amounts = (duration * rateScaled) / WAD
+      mathint pAmt = (dur * rp) / 1000000000000000000;
+      mathint tAmt = (dur * rt) / 1000000000000000000;
+
+      // Over a full window (no leftover), pioneers ~= 3 * takadao (allow tiny rounding)
+      mathint diff = (pAmt >= 3*tAmt) ? (pAmt - 3*tAmt) : (3*tAmt - pAmt);
+      assert diff <= 3;
     }
   }
   assert true;

@@ -53,9 +53,9 @@ contract RevenueModule is Initializable, UUPSUpgradeable, ModuleImplementation {
         RevenueType revenueType
     ) external onlyRole(Roles.DAO_MULTISIG, address(takasureReserve.addressManager())) {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
         require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 

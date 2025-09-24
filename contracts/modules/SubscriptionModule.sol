@@ -132,7 +132,7 @@ contract SubscriptionModule is
 
         // Check caller
         require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
+            AddressAndStates._checkName("ROUTER", address(takasureReserve.addressManager())) ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -224,9 +224,9 @@ contract SubscriptionModule is
         uint256 _contributionBeforeFee
     ) internal returns (Reserve memory reserve_, Member memory newMember_) {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
         (reserve_, newMember_) = _getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
@@ -376,10 +376,10 @@ contract SubscriptionModule is
      *         The user will need to reach custommer support to get the corresponding amount
      */
     function _refund(address _memberWallet) internal {
-        AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+        AddressAndStates._onlyModuleState(            
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
         (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
@@ -391,8 +391,8 @@ contract SubscriptionModule is
 
         require(
             _memberWallet == msg.sender ||
-                AddressAndStates._checkName(addressManager, "ROUTER") ||
-                AddressAndStates._checkRole(addressManager, Roles.OPERATOR),
+                AddressAndStates._checkName("ROUTER", addressManager) ||
+                AddressAndStates._checkRole(Roles.OPERATOR, addressManager),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         // The member should not be KYCed neither already refunded

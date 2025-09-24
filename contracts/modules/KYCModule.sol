@@ -66,9 +66,9 @@ contract KYCModule is
         uint256 benefitMultiplier
     ) external onlyRole(Roles.KYC_PROVIDER, address(takasureReserve.addressManager())) {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
         AddressAndStates._notZeroAddress(memberWallet);
 

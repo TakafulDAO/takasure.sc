@@ -59,9 +59,9 @@ contract MemberModule is
      */
     function cancelMembership(address memberWallet) external {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
         AddressAndStates._notZeroAddress(memberWallet);
         _cancelMembership(memberWallet);
@@ -69,13 +69,13 @@ contract MemberModule is
 
     function payRecurringContribution(address memberWallet) external nonReentrant {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
         require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), "ROUTER") ||
+            AddressAndStates._checkName("ROUTER", address(takasureReserve.addressManager())) ||
                 msg.sender == memberWallet,
             ModuleErrors.Module__NotAuthorizedCaller()
         );
@@ -143,9 +143,9 @@ contract MemberModule is
 
     function defaultMember(address memberWallet) external {
         AddressAndStates._onlyModuleState(
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr,
+            ModuleState.Enabled,
             address(this),
-            ModuleState.Enabled
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
         Member memory member = _getMembersValuesHook(takasureReserve, memberWallet);
 

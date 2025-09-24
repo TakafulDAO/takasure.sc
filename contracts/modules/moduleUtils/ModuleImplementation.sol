@@ -20,7 +20,7 @@ abstract contract ModuleImplementation {
 
     modifier onlyContract(string memory name, address addressManagerAddress) {
         require(
-            AddressAndStates._checkName(addressManagerAddress, name),
+            AddressAndStates._checkName(name, addressManagerAddress),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -28,7 +28,7 @@ abstract contract ModuleImplementation {
 
     modifier onlyRole(bytes32 role, address addressManagerAddress) {
         require(
-            AddressAndStates._checkRole(addressManagerAddress, role),
+            AddressAndStates._checkRole(role, addressManagerAddress),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -36,7 +36,7 @@ abstract contract ModuleImplementation {
 
     modifier onlyType(ProtocolAddressType addressType, address addressManagerAddress) {
         require(
-            AddressAndStates._checkType(addressManagerAddress, addressType),
+            AddressAndStates._checkType(addressType, addressManagerAddress),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
