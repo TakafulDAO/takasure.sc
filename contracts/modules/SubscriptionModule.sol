@@ -376,7 +376,7 @@ contract SubscriptionModule is
      *         The user will need to reach custommer support to get the corresponding amount
      */
     function _refund(address _memberWallet) internal {
-        AddressAndStates._onlyModuleState(            
+        AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
             IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr

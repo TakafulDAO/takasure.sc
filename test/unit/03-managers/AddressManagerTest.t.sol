@@ -561,7 +561,7 @@ contract AddressManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testCheckIfAnAddressHasNameSet() public addAdminAddress {
-        assert(addressManager.hasName(adminAddress, "Admin"));
+        assert(addressManager.hasName("Admin", adminAddress));
     }
 
     function testCheckIfAnAddressHasRoleSet() public acceptRole {

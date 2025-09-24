@@ -18,7 +18,7 @@ library AddressAndStates {
     error Module__WrongModuleState();
 
     function _checkName(string memory name, address addressManager) internal view returns (bool) {
-        return IAddressManager(addressManager).hasName(msg.sender, name);
+        return IAddressManager(addressManager).hasName(name, msg.sender);
     }
 
     function _checkRole(bytes32 role, address addressManager) internal view returns (bool) {
@@ -29,7 +29,7 @@ library AddressAndStates {
         ProtocolAddressType addressType,
         address addressManager
     ) internal view returns (bool) {
-        return IAddressManager(addressManager).hasType(msg.sender, addressType);
+        return IAddressManager(addressManager).hasType(addressType, msg.sender);
     }
 
     function _notZeroAddress(address _address) internal pure {

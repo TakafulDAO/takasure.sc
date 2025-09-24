@@ -6,9 +6,9 @@
  * @notice This contract is intended to be inherited by every module in the Takasure protocol
  */
 import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
-import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 pragma solidity 0.8.28;
@@ -20,7 +20,7 @@ abstract contract ModuleImplementation {
 
     modifier onlyContract(string memory name, address addressManagerAddress) {
         require(
-            AddressAndStates._checkName(name, addressManagerAddress),
+            IAddressManager(addressManagerAddress).hasName(name, msg.sender),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -28,7 +28,7 @@ abstract contract ModuleImplementation {
 
     modifier onlyRole(bytes32 role, address addressManagerAddress) {
         require(
-            AddressAndStates._checkRole(role, addressManagerAddress),
+            IAddressManager(addressManagerAddress).hasRole(role, msg.sender),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
@@ -36,7 +36,7 @@ abstract contract ModuleImplementation {
 
     modifier onlyType(ProtocolAddressType addressType, address addressManagerAddress) {
         require(
-            AddressAndStates._checkType(addressType, addressManagerAddress),
+            IAddressManager(addressManagerAddress).hasType(addressType, msg.sender),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;

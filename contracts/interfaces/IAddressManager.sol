@@ -5,9 +5,9 @@ import {ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureType
 pragma solidity 0.8.28;
 
 interface IAddressManager {
-    function hasName(address addr, string memory name) external view returns (bool);
+    function hasName(string memory name, address addr) external view returns (bool);
     function hasRole(bytes32 role, address account) external view returns (bool);
-    function hasType(address addr, ProtocolAddressType addressType) external view returns (bool);
+    function hasType(ProtocolAddressType addressType, address addr) external view returns (bool);
     function getProtocolAddressByName(
         string memory name
     ) external view returns (ProtocolAddress memory protocolAddress);
