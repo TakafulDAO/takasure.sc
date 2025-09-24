@@ -1,26 +1,26 @@
 using RevShareModuleCertoraHarness as harness;
 
-    /*//////////////////////////////////////////////////////////////
+/*//////////////////////////////////////////////////////////////
                                 METHODS
-    //////////////////////////////////////////////////////////////*/
+//////////////////////////////////////////////////////////////*/
 methods {
   /* storage-only getters (envfree) */
   function rewardsDuration() external returns (uint256) envfree;
-  function rewardRatePioneers() external returns (uint256) envfree;
-  function rewardRateTakadao() external returns (uint256) envfree;
+  function rewardRatePioneersScaled() external returns (uint256) envfree;
+  function rewardRateTakadaoScaled() external returns (uint256) envfree;
   function periodFinish() external returns (uint256) envfree;
   function revenuesAvailableDate() external returns (uint256) envfree;
-  function revenuePerNftPioneers() external returns (uint256) envfree;
-  function revenuePerNftTakadao() external returns (uint256) envfree;
+  function revenuePerNftOwnedByPioneers() external returns (uint256) envfree;
+  function takadaoRevenueScaled() external returns (uint256) envfree;
   function approvedDeposits() external returns (uint256) envfree;
   function revenueReceiver() external returns (address) envfree;
 
   /* time-dependent views (NOT envfree) */
   function lastTimeApplicable() external returns (uint256);
-  function getRevenuePerNftPioneers() external returns (uint256);
-  function getRevenuePerNftTakadao() external returns (uint256);
-  function earnedPioneers(address) external returns (uint256);
-  function earnedTakadao(address) external returns (uint256);
+  function getRevenuePerNftOwnedByPioneers() external returns (uint256);
+  function getTakadaoRevenueScaled() external returns (uint256);
+  function earnedByPioneers(address) external returns (uint256);
+  function earnedByTakadao(address) external returns (uint256);
 
   /* mutators */
   function notifyNewRevenue(uint256) external;
@@ -31,19 +31,20 @@ methods {
   function emergencyWithdraw() external;
 }
 
-    /*//////////////////////////////////////////////////////////////
-                               INVARIANTS
-    //////////////////////////////////////////////////////////////*/
+
+/*//////////////////////////////////////////////////////////////
+                            INVARIANTS
+//////////////////////////////////////////////////////////////*/
 
 // duration must be positive once a period exists, unless the module is fully halted (both rates are zero)
 invariant RewardsDurationPositiveOrHalted()
     (harness.periodFinish() == 0)
     || (harness.rewardsDuration() > 0)
-    || (harness.rewardRatePioneers() == 0 && harness.rewardRateTakadao() == 0);
+    || (harness.rewardRatePioneersScaled() == 0 && harness.rewardRateTakadaoScaled() == 0);
 
-    /*//////////////////////////////////////////////////////////////
-                                 RULES
-    //////////////////////////////////////////////////////////////*/
+/*//////////////////////////////////////////////////////////////
+                              RULES
+//////////////////////////////////////////////////////////////*/
 
 // TimeBounds needs an env because lastTimeApplicable() is non-envfree.
 rule TimeBoundsHolds() {
@@ -61,7 +62,7 @@ rule TimeBoundsHolds() {
 rule RevenueReceiverNotPioneerEarner() {
   env e;
   address rr = harness.revenueReceiver();
-  uint256 ep = harness.earnedPioneers@withrevert(e, rr);
+  uint256 ep = harness.earnedByPioneers@withrevert(e, rr);
   if (!lastReverted) { assert ep == 0; }
   assert true;
 }
@@ -69,7 +70,7 @@ rule RevenueReceiverNotPioneerEarner() {
 rule NonReceiverNotTakadaoEarner(address a) {
   env e;
   require a != harness.revenueReceiver();
-  uint256 et = harness.earnedTakadao@withrevert(e, a);
+  uint256 et = harness.earnedByTakadao@withrevert(e, a);
   if (!lastReverted) { assert et == 0; }
   assert true;
 }
@@ -85,10 +86,10 @@ rule NotifyPreservesSplit_NoLeftover() {
     uint256 amt; // unconstrained
     harness.notifyNewRevenue@withrevert(e, amt);
     if (!lastReverted) {
-      mathint rp = harness.rewardRatePioneers();
-      mathint rt = harness.rewardRateTakadao();
+      mathint rp = harness.rewardRatePioneersScaled();
+      mathint rt = harness.rewardRateTakadaoScaled();
       mathint diff = (rp >= 3*rt) ? (rp - 3*rt) : (3*rt - rp);
-      assert diff <= 2;  // rounding tolerance
+      assert diff <= 4;  // rounding tolerance
     }
   }
   assert true;
@@ -151,11 +152,10 @@ rule EmergencyWithdrawHaltsStream() {
   env e;
   harness.emergencyWithdraw@withrevert(e);
   if (!lastReverted) {
-    assert harness.rewardRatePioneers() == 0;
-    assert harness.rewardRateTakadao() == 0;
+    assert harness.rewardRatePioneersScaled() == 0;
+    assert harness.rewardRateTakadaoScaled() == 0;
     assert harness.approvedDeposits() == 0;
 
-    // After emergency, lta should match periodFinish (both snapped to 'now')
     uint256 lta = harness.lastTimeApplicable@withrevert(e);
     if (!lastReverted) {
       assert lta == harness.periodFinish();

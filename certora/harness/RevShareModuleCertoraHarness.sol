@@ -43,7 +43,7 @@ contract RevShareModuleCertoraHarness is RevShareModule {
         return 25;
     }
     function h_precision() external pure returns (uint256) {
-        return 1e6;
+        return 1e18;
     }
 
     /// @notice Expose the AddressManager used by the module
