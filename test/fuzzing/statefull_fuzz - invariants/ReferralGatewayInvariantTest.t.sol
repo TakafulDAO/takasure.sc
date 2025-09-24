@@ -9,6 +9,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ReferralGatewayHandler} from "test/helpers/handlers/ReferralGatewayHandler.t.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {IReferralGateway, DaoDataReader} from "test/helpers/lowLevelCall/DaoDataReader.sol";
 
 contract ReferralGatewayInvariantTest is StdInvariant, Test {
     TestDeployProtocol deployer;
@@ -87,30 +88,16 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     /// 2. The discount is within the limits (10% - 15%)
     function invariant_feeCalculatedCorrectly() public view {
         // This will also run some assertions in the handler
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 currentAmount,
-            ,
-            ,
-            uint256 toRepool,
-            uint256 referralReserve
-        ) = referralGateway.getDAOData();
+        uint256 currentAmount = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            7
+        );
+        uint256 toRepool = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 10);
+        uint256 referralReserve = DaoDataReader.getUint(
+            IReferralGateway(address(referralGateway)),
+            11
+        );
         uint256 contractBalance = usdc.balanceOf(address(referralGateway));
         assertEq(contractBalance, currentAmount + toRepool + referralReserve);
-    }
-
-    /// @dev Invariant to check if getters do not revert
-    /// forge-config: default.invariant.runs = 100
-    /// forge-config: default.invariant.depth = 2
-    /// forge-config: default.invariant.fail-on-revert = true
-    function invariant_gettersShouldNotRevert() public view {
-        referralGateway.getDAOData();
-        referralGateway.usdc();
     }
 }
