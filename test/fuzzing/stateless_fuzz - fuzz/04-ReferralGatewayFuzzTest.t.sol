@@ -100,7 +100,7 @@ contract ReferralGatewayFuzzTest is Test {
         vm.prank(couponRedeemer);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
-        (, , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
+        (, , , , , uint256 launchDate, , , , , , ) = referralGateway.getDAOData();
 
         vm.warp(launchDate);
         vm.roll(block.number + 1);
@@ -116,5 +116,14 @@ contract ReferralGatewayFuzzTest is Test {
         vm.prank(caller);
         vm.expectRevert();
         referralGateway.switchReferralDiscount();
+    }
+
+    function testUpgradeRevertsIfCallerIsInvalid(address caller) public {
+        vm.assume(caller != takadao);
+        address newImpl = makeAddr("newImpl");
+
+        vm.prank(caller);
+        vm.expectRevert();
+        referralGateway.upgradeToAndCall(newImpl, "");
     }
 }
