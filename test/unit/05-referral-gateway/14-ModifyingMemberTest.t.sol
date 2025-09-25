@@ -273,7 +273,7 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         uint256 parentBalanceBefore = usdc.balanceOf(parent);
 
-        assertEq(referralGateway.donationsFromCoupons(), 0);
+        assertEq(referralGateway.totalDonationsFromCoupons(), 0);
 
         vm.prank(couponRedeemer);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.modifyPrepaidMember(
@@ -304,6 +304,6 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         assert(parentBalanceAfter > parentBalanceBefore);
 
-        assertEq(referralGateway.donationsFromCoupons(), 50e6 - proRatedContribution);
+        assertEq(referralGateway.totalDonationsFromCoupons(), 50e6 - proRatedContribution);
     }
 }
