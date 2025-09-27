@@ -380,11 +380,13 @@ contract ReferralGateway is
      * @param newContribution Will be the corresponding amount for the new plan. (Not the amount to transfer) In USDC six decimals
      * @param prepaidMember The address of the prepaid member
      * @param couponAmount The amount of the coupon. In USDC six decimals
+     * @param associationTimestamp The timestamp the first payment was made
      */
     function lateContribution(
         uint256 newContribution,
         address prepaidMember,
-        uint256 couponAmount
+        uint256 couponAmount,
+        uint256 associationTimestamp
     )
         external
         whenNotPaused
