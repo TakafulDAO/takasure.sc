@@ -376,13 +376,13 @@ contract ReferralGateway is
     }
 
     /**
-     * @notice Modify a prepaid member who previously donated
-     * @param proRatedContribution The amount of the extra contribution. In USDC six decimals
+     * @notice Called as a late contribution for users that waived, but change their mind
+     * @param newContribution Will be the corresponding amount for the new plan. (Not the amount to transfer) In USDC six decimals
      * @param prepaidMember The address of the prepaid member
      * @param couponAmount The amount of the coupon. In USDC six decimals
      */
-    function modifyPrepaidMember(
-        uint256 proRatedContribution,
+    function lateContribution(
+        uint256 newContribution,
         address prepaidMember,
         uint256 couponAmount
     )
@@ -394,15 +394,15 @@ contract ReferralGateway is
         uint256 proRatedCouponAmount;
         uint256 donationFromCoupon;
 
-        if (couponAmount > proRatedContribution) {
-            proRatedCouponAmount = proRatedContribution;
-            donationFromCoupon = couponAmount - proRatedContribution;
+        if (couponAmount > newContribution) {
+            proRatedCouponAmount = newContribution;
+            donationFromCoupon = couponAmount - newContribution;
         } else {
             proRatedCouponAmount = couponAmount;
         }
 
         (finalFee, discount) = _payContribution({
-            _contribution: proRatedContribution,
+            _contribution: newContribution,
             _parent: childToParent[prepaidMember],
             _member: prepaidMember,
             _couponAmount: proRatedCouponAmount,
