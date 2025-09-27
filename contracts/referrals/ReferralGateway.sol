@@ -344,7 +344,8 @@ contract ReferralGateway is
             _member: newMember,
             _couponAmount: couponAmount,
             _isDonated: isDonated,
-            _isModifying: false // In this call we never modify, as this will be a new member
+            _isModifying: false, // In this call we never modify, as this will be a new member
+            _associationTimestamp: 0 // Only used for lateContribution
         });
 
         if (couponAmount > 0) _assignAsCouponRedeemer(newMember, couponAmount);
@@ -409,7 +410,8 @@ contract ReferralGateway is
             _member: prepaidMember,
             _couponAmount: proRatedCouponAmount,
             _isDonated: false,
-            _isModifying: true
+            _isModifying: true,
+            _associationTimestamp: associationTimestamp
         });
 
         if (donationFromCoupon > 0) {
@@ -637,7 +639,8 @@ contract ReferralGateway is
         address _member,
         uint256 _couponAmount,
         bool _isDonated,
-        bool _isModifying
+        bool _isModifying,
+        uint256 _associationTimestamp
     ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
         uint256 normalizedContribution = (_contribution / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
@@ -648,7 +651,8 @@ contract ReferralGateway is
             _parent,
             _member,
             _isDonated,
-            _isModifying
+            _isModifying,
+            _associationTimestamp
         );
 
         _finalFee = (normalizedContribution * SERVICE_FEE_RATIO) / 100;
@@ -753,10 +757,11 @@ contract ReferralGateway is
         address _parent,
         address _newMember,
         bool _isDonated,
-        bool _isModifying
+        bool _isModifying,
+        uint256 _associationTimestamp
     ) internal view {
         if (!_isModifying) _checksIfNotModifying(_newMember, _contribution, _couponAmount);
-        else _checksIfModifying(_newMember);
+        else _checksIfModifying(_newMember, _associationTimestamp);
 
         // If the contribution is a donation, it must be exactly the minimum contribution
         if (_isDonated)
@@ -800,7 +805,7 @@ contract ReferralGateway is
         }
     }
 
-    function _checksIfModifying(address _member) internal view {
+    function _checksIfModifying(address _member, uint256 _associationTimestamp) internal view {
         // If we are modifying, we update the existing prepaid member
         // But we require that the member exists and is not a donated member
         require(
@@ -808,6 +813,8 @@ contract ReferralGateway is
                 nameToDAOData[daoName].prepaidMembers[_member].isDonated,
             ReferralGateway__NotAllowedToModify()
         );
+
+        require(_associationTimestamp < block.timestamp, ReferralGateway__IncompatibleSettings());
     }
 
     function _parentRewards(
