@@ -8,12 +8,12 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {ITLDModuleImplementation} from "contracts/interfaces/modules/ITLDModuleImplementation.sol";
+import {IModuleImplementation} from "contracts/interfaces/modules/IModuleImplementation.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IRevenueModule} from "contracts/interfaces/modules/IRevenueModule.sol";
 
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
@@ -28,7 +28,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 pragma solidity 0.8.28;
 
 contract SubscriptionModule is
-    TLDModuleImplementation,
+    ModuleImplementation,
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable
@@ -70,20 +70,6 @@ contract SubscriptionModule is
 
         addressManager = IAddressManager(_addressManager);
         moduleName = _moduleName;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                SETTERS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
-        moduleState = newState;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -160,7 +146,7 @@ contract SubscriptionModule is
             .getProtocolAddressByName("FAREWELL_BENEFIT_MODULE")
             .addr;
 
-        bool isOperator = AddressAndStates._checkRole(address(addressManager), Roles.OPERATOR);
+        bool isOperator = AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager));
 
         RevenueType revenueType;
 
@@ -244,8 +230,8 @@ contract SubscriptionModule is
     ) internal nonReentrant {
         // Check caller
         require(
-            AddressAndStates._checkRole(address(addressManager), Roles.COUPON_REDEEMER) ||
-                AddressAndStates._checkName(address(addressManager), "ROUTER"),
+            AddressAndStates._checkRole(Roles.COUPON_REDEEMER, address(addressManager)) ||
+                AddressAndStates._checkName("ROUTER", address(addressManager)),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
@@ -295,7 +281,11 @@ contract SubscriptionModule is
         uint256 _membershipStartTime
     ) internal view {
         // The module must be enabled
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
 
         // The user state must be inactive or canceled
         require(
@@ -412,11 +402,15 @@ contract SubscriptionModule is
      *         The user will need to reach custommer support to get the corresponding amount
      */
     function _refund(address _memberWallet) internal {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
 
         AssociationMember memory _member = members[_memberWallet];
         require(
-            AddressAndStates._checkRole(address(addressManager), Roles.OPERATOR),
+            AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager)),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 

@@ -24,11 +24,13 @@ contract AddAddressesAndRoles is Script {
             address kycProvider,
             address couponRedeemer,
             address feeClaimAddress,
-            address couponPool
+            address couponPool,
+            address revenueReceiver
         )
     {
         couponRedeemer = makeAddr("couponRedeemer");
         couponPool = makeAddr("couponPool");
+        revenueReceiver = makeAddr("revenueReceiver");
 
         vm.startPrank(addressManager.owner());
         addressManager.createNewRole(Roles.OPERATOR);
@@ -60,6 +62,12 @@ contract AddAddressesAndRoles is Script {
         );
 
         addressManager.addProtocolAddress("COUPON_POOL", couponPool, ProtocolAddressType.Protocol);
+
+        addressManager.addProtocolAddress(
+            "REVENUE_RECEIVER",
+            revenueReceiver,
+            ProtocolAddressType.Admin
+        );
         vm.stopPrank();
 
         vm.prank(config.takadaoOperator);
@@ -80,7 +88,8 @@ contract AddAddressesAndRoles is Script {
             config.kycProvider,
             couponRedeemer,
             config.feeClaimAddress,
-            couponPool
+            couponPool,
+            revenueReceiver
         );
     }
 

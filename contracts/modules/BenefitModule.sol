@@ -14,7 +14,7 @@ import {ISubscriptionModule} from "contracts/interfaces/modules/ISubscriptionMod
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {AssociationHooks} from "contracts/hooks/AssociationHooks.sol";
 import {ReserveHooks} from "contracts/hooks/ReserveHooks.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -32,7 +32,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 pragma solidity 0.8.28;
 
 contract BenefitModule is
-    TLDModuleImplementation,
+    ModuleImplementation,
     AssociationHooks,
     ReserveHooks,
     Initializable,
@@ -75,20 +75,6 @@ contract BenefitModule is
 
         addressManager = IAddressManager(_addressManager);
         moduleName = _moduleName;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                SETTERS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
-        moduleState = newState;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -148,7 +134,11 @@ contract BenefitModule is
         internal
         returns (Reserve memory reserve_, address parentWallet_, AssociationMember memory member_)
     {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+         AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
 
         // Check if the coupon amount is valid
         require(_couponAmount <= _contributionBeforeFee, ModuleErrors.Module__InvalidCoupon());

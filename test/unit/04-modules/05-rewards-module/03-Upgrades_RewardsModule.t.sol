@@ -37,9 +37,13 @@ contract Upgrade_ReferralRewardsModule is Test {
             ModuleManager modMgr
         ) = managersDeployer.run();
 
-        (address operatorAddr, , , , , ) = addressesAndRoles.run(addrMgr, config, address(modMgr));
+        (address operatorAddr, , , , , , ) = addressesAndRoles.run(
+            addrMgr,
+            config,
+            address(modMgr)
+        );
 
-        (, , , , referralRewardsModule, , ) = moduleDeployer.run(addrMgr);
+        (, , , , referralRewardsModule, , , ) = moduleDeployer.run(addrMgr);
 
         addressManager = addrMgr;
         moduleManager = modMgr;

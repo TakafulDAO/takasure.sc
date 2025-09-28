@@ -3,28 +3,44 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
+import {DeployModules} from "test/utils/03-DeployModules.s.sol";
+import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract Initialization_RevShareModuleTest is Test {
-    TestDeployProtocol deployer;
+    DeployManagers managersDeployer;
+    DeployModules moduleDeployer;
+    AddAddressesAndRoles addressesAndRoles;
+
     RevShareModule revShareModule;
-    HelperConfig helperConfig;
     address takadao;
-    address revShareModuleAddress;
 
     function setUp() public {
-        deployer = new TestDeployProtocol();
-        (, , , , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
+        managersDeployer = new DeployManagers();
+        moduleDeployer = new DeployModules();
+        addressesAndRoles = new AddAddressesAndRoles();
 
-        revShareModule = RevShareModule(revShareModuleAddress);
+        (
+            HelperConfig.NetworkConfig memory config,
+            AddressManager addrMgr,
+            ModuleManager modMgr
+        ) = managersDeployer.run();
 
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        (address operatorAddr, , , , , , ) = addressesAndRoles.run(
+            addrMgr,
+            config,
+            address(modMgr)
+        );
 
-        takadao = config.takadaoOperator;
+        (, , , , , , revShareModule, ) = moduleDeployer.run(addrMgr);
+
+        takadao = operatorAddr;
     }
 
     function testRevShareModule_availableDate() public view {

@@ -51,13 +51,13 @@ contract PayRecurring_MemberModule is Test {
             ModuleManager modMgr
         ) = managersDeployer.run();
 
-        (address operatorAddr, , address kyc, address redeemer, , ) = addressesAndRoles.run(
+        (address operatorAddr, , address kyc, address redeemer, , , ) = addressesAndRoles.run(
             addrMgr,
             config,
             address(modMgr)
         );
 
-        (, , kycModule, memberModule, , , subscriptionModule) = moduleDeployer.run(addrMgr);
+        (, , kycModule, memberModule, , , , subscriptionModule) = moduleDeployer.run(addrMgr);
 
         addressManager = addrMgr;
         moduleManager = modMgr;

@@ -46,13 +46,13 @@ contract MemberModuleFuzzTest is Test {
             ModuleManager modMgr
         ) = managersDeployer.run();
 
-        (address operatorAddr, , address kyc, address redeemer, , ) = addressesAndRoles.run(
+        (address operatorAddr, , address kyc, address redeemer, , , ) = addressesAndRoles.run(
             addrMgr,
             config,
             address(modMgr)
         );
 
-        (, , kycModule, memberModule, , , subscriptionModule) = moduleDeployer.run(addrMgr);
+        (, , kycModule, memberModule, , , , subscriptionModule) = moduleDeployer.run(addrMgr);
 
         takadao = operatorAddr;
         kycProvider = kyc;
@@ -81,14 +81,6 @@ contract MemberModuleFuzzTest is Test {
         vm.prank(caller);
         vm.expectRevert();
         memberModule.payRecurringAssociationSubscription(alice);
-    }
-
-    function testSetContractStateRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != address(moduleManager));
-
-        vm.prank(caller);
-        vm.expectRevert();
-        memberModule.setContractState(ModuleState.Paused);
     }
 
     function testUpgradeRevertsIfCallerIsInvalid(address caller) public {

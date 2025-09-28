@@ -55,9 +55,10 @@ contract Refund_SubscriptionModuleTest is StdCheats, Test {
             address kyc,
             address redeemer,
             address feeClaimer,
-            address pool
+            address pool,
+
         ) = addressesAndRoles.run(addressManager, config, address(moduleManager));
-        (, , kycModule, , referralRewardsModule, , subscriptionModule) = moduleDeployer.run(
+        (, , kycModule, , referralRewardsModule, , , subscriptionModule) = moduleDeployer.run(
             addressManager
         );
 

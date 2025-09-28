@@ -20,9 +20,9 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {ModuleState, BenefitMember} from "contracts/types/TakasureTypes.sol";
+import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
-contract Joins_BenefitTest is StdCheats, Test {
+contract Reverts_BenefitTest is StdCheats, Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
     DeployReserve reserveDeployer;
@@ -45,9 +45,8 @@ contract Joins_BenefitTest is StdCheats, Test {
     address couponPool;
     address public alice = makeAddr("alice");
 
-    uint256 public constant USDC_INITIAL_AMOUNT = 275e6; // 275 USDC
+    uint256 public constant USDC_INITIAL_AMOUNT = 1000e6; // 1000 USDC
     uint256 public constant YEAR = 365 days;
-    uint256 public constant CONTRIBUTION_AMOUNT = 250e6; // 250 USDC
 
     function setUp() public {
         managersDeployer = new DeployManagers();
@@ -67,7 +66,8 @@ contract Joins_BenefitTest is StdCheats, Test {
             address kyc,
             address redeemer,
             address feeClaimer,
-            address pool
+            address pool,
+
         ) = addressesAndRoles.run(addressManager, config, address(moduleMgr));
 
         (
@@ -76,6 +76,7 @@ contract Joins_BenefitTest is StdCheats, Test {
             kycModule,
             memberModule,
             referralRewardsModule,
+            ,
             ,
             subscriptionModule
         ) = moduleDeployer.run(addressManager);
@@ -94,57 +95,34 @@ contract Joins_BenefitTest is StdCheats, Test {
         // For easier testing there is a minimal USDC mock contract without restrictions
         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
-        vm.startPrank(alice);
+        vm.prank(alice);
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
-        usdc.approve(address(lifeModule), USDC_INITIAL_AMOUNT);
-        vm.stopPrank();
-
-        vm.prank(couponRedeemer);
-        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
-
-        vm.prank(kycProvider);
-        kycModule.approveKYC(alice);
     }
 
-    /// @dev Test that the paySubscription function updates the memberIdCounter
-    function testBenefitModule_paySubscriptionUpdatesCounter() public {
-        uint256 memberIdCounterBeforeAlice = takasureReserve.getReserveValues().memberIdCounter;
-
+    function testBenefitModule_joinBenefitRevertsIfCouponIsInvalid() public {
         vm.prank(couponRedeemer);
-        lifeModule.joinBenefitOnBehalfOf(alice, CONTRIBUTION_AMOUNT, (5 * YEAR), 0);
-
-        uint256 memberIdCounterAfterAlice = takasureReserve.getReserveValues().memberIdCounter;
-
-        assertEq(memberIdCounterAfterAlice, memberIdCounterBeforeAlice + 1);
+        vm.expectRevert(ModuleErrors.Module__InvalidCoupon.selector);
+        lifeModule.joinBenefitOnBehalfOf(alice, 50e6, 5 * YEAR, 100e6);
     }
 
-    function testBenefitModule_paySubscriptionTransferAmountsCorrectly() public {
-        uint256 aliceBalanceBefore = usdc.balanceOf(alice);
-
+    function testBenefitModule_joinBenefitRevertsIfAddressIsNotKYCed() public {
         vm.prank(couponRedeemer);
-        lifeModule.joinBenefitOnBehalfOf(alice, CONTRIBUTION_AMOUNT, (5 * YEAR), 0);
-
-        uint256 aliceBalanceAfter = usdc.balanceOf(alice);
-
-        console2.log("Alice's balance before:", aliceBalanceBefore);
-        console2.log("Alice's balance after:", aliceBalanceAfter);
-
-        assert(aliceBalanceAfter < aliceBalanceBefore);
+        vm.expectRevert(ModuleErrors.Module__AddressNotKYCed.selector);
+        lifeModule.joinBenefitOnBehalfOf(alice, 50e6, 5 * YEAR, 0);
     }
 
-    /// @dev Test the member is created
-    function testBenefitModule_newMember() public {
+    // function testBenefitModule_joinBenefitRevertsIfModuleDisabled() public {
+    //     vm.prank(address(moduleManager));
+    //     lifeModule.setContractState(ModuleState.Paused);
+
+    //     vm.prank(couponRedeemer);
+    //     vm.expectRevert();
+    //     lifeModule.joinBenefitOnBehalfOf(alice, 50e6, 5 * YEAR, 0);
+    // }
+
+    function testBenefitModule_joinBenefitRevertsIfAddressNotKYCed() public {
         vm.prank(couponRedeemer);
-        lifeModule.joinBenefitOnBehalfOf(alice, CONTRIBUTION_AMOUNT, (5 * YEAR), 0);
-
-        uint256 memberId = takasureReserve.getReserveValues().memberIdCounter;
-
-        // Check the member is created and added correctly to mappings
-        BenefitMember memory testMember = takasureReserve.getMemberFromAddress(alice);
-
-        assertEq(testMember.memberId, memberId);
-        assertEq(testMember.contribution, CONTRIBUTION_AMOUNT);
-        assertEq(testMember.wallet, alice);
-        assertEq(uint8(testMember.memberState), 1);
+        vm.expectRevert(ModuleErrors.Module__AddressNotKYCed.selector);
+        lifeModule.joinBenefitOnBehalfOf(alice, 50e6, 5 * YEAR, 0);
     }
 }

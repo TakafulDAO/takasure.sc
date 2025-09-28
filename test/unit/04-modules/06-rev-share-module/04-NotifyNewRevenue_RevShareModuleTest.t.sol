@@ -3,22 +3,29 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
+import {DeployModules} from "test/utils/03-DeployModules.s.sol";
+import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 contract NotifyNewRevenue_RevShareModuleTest is Test {
-    TestDeployProtocol deployer;
+    DeployManagers managersDeployer;
+    DeployModules moduleDeployer;
+    AddAddressesAndRoles addressesAndRoles;
+
     RevShareModule revShareModule;
     RevShareNFT nft;
-    HelperConfig helperConfig;
+
     IUSDC usdc;
     address takadao;
     address revenueClaimer;
@@ -30,14 +37,28 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
     event OnBalanceSwept(uint256 amount);
 
     function setUp() public {
-        deployer = new TestDeployProtocol();
-        (, , module, , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
+        managersDeployer = new DeployManagers();
+        moduleDeployer = new DeployModules();
+        addressesAndRoles = new AddAddressesAndRoles();
 
-        revShareModule = RevShareModule(revShareModuleAddress);
+        (
+            HelperConfig.NetworkConfig memory config,
+            AddressManager addrMgr,
+            ModuleManager modMgr
+        ) = managersDeployer.run();
 
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        (address operatorAddr, , , , , , address revReceiver) = addressesAndRoles.run(
+            addrMgr,
+            config,
+            address(modMgr)
+        );
 
-        takadao = config.takadaoOperator;
+        SubscriptionModule subscriptions;
+        (, , , , , , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+
+        module = address(subscriptions);
+
+        takadao = operatorAddr;
         revenueClaimer = takadao;
 
         string
@@ -49,24 +70,11 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         );
         nft = RevShareNFT(nftAddress);
 
-        uint256 addressManagerAddressSlot = 0;
-        bytes32 addressManagerAddressSlotBytes = vm.load(
-            address(revShareModule),
-            bytes32(uint256(addressManagerAddressSlot))
-        );
-        AddressManager addressManager = AddressManager(
-            address(uint160(uint256(addressManagerAddressSlotBytes)))
-        );
+        revenueReceiver = revReceiver;
+        usdc = IUSDC(config.contributionToken);
 
-        revenueReceiver = addressManager.getProtocolAddressByName("REVENUE_RECEIVER").addr;
-        usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
-
-        vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress(
-            "REVSHARE_NFT",
-            address(nft),
-            ProtocolAddressType.Protocol
-        );
+        vm.startPrank(addrMgr.owner());
+        addrMgr.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         // fund + notify (first stream; uses default rewardsDuration)

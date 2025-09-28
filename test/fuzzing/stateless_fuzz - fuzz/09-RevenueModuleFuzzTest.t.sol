@@ -42,25 +42,17 @@ contract RevenueModuleFuzzTest is Test {
             ModuleManager modMgr
         ) = managersDeployer.run();
 
-        (address operatorAddr, , address kyc, address redeemer, , ) = addressesAndRoles.run(
+        (address operatorAddr, , address kyc, address redeemer, , , ) = addressesAndRoles.run(
             addrMgr,
             config,
             address(modMgr)
         );
 
-        (, , , , , revenueModule, ) = moduleDeployer.run(addrMgr);
+        (, , , , , revenueModule, , ) = moduleDeployer.run(addrMgr);
 
         takadao = operatorAddr;
         kycProvider = kyc;
         couponRedeemer = redeemer;
-    }
-
-    function testSetContractStateRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != address(moduleManager));
-
-        vm.prank(caller);
-        vm.expectRevert();
-        revenueModule.setContractState(ModuleState.Paused);
     }
 
     function testUpgradeRevertsIfCallerIsInvalid(address caller) public {

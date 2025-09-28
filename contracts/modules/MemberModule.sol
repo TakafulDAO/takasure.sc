@@ -14,7 +14,7 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {AssociationHooks} from "contracts/hooks/AssociationHooks.sol";
 import {ReserveHooks} from "contracts/hooks/ReserveHooks.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
@@ -30,7 +30,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 pragma solidity 0.8.28;
 
 contract MemberModule is
-    TLDModuleImplementation,
+    ModuleImplementation,
     AssociationHooks,
     ReserveHooks,
     MemberPaymentFlow,
@@ -65,25 +65,15 @@ contract MemberModule is
     }
 
     /*//////////////////////////////////////////////////////////////
-                                SETTERS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
-        moduleState = newState;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               ASSOCIATION
     //////////////////////////////////////////////////////////////*/
 
     function payRecurringAssociationSubscription(address memberWallet) external nonReentrant {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
 
         require(msg.sender == memberWallet, ModuleErrors.Module__NotAuthorizedCaller());
 
@@ -130,7 +120,11 @@ contract MemberModule is
     }
 
     function cancelAssociationSubscription(address memberWallet) external {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
 
         AssociationMember memory associationMember = _getAssociationMembersValuesHook(
             addressManager,

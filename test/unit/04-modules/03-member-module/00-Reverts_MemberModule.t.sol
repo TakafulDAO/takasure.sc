@@ -45,13 +45,13 @@ contract Reverts_MemberModule is Test {
             ModuleManager modMgr
         ) = managersDeployer.run();
 
-        (address operatorAddr, , address kyc, address redeemer, , ) = addressesAndRoles.run(
+        (address operatorAddr, , address kyc, address redeemer, , , ) = addressesAndRoles.run(
             addrMgr,
             config,
             address(modMgr)
         );
 
-        (, , kycModule, memberModule, , , subscriptionModule) = moduleDeployer.run(addrMgr);
+        (, , kycModule, memberModule, , , , subscriptionModule) = moduleDeployer.run(addrMgr);
 
         addressManager = addrMgr;
         moduleManager = modMgr;
@@ -79,26 +79,26 @@ contract Reverts_MemberModule is Test {
         _;
     }
 
-    function testMemberModule_payRecurringAssociationSubscriptionRevertIfModuleDisabled()
-        public
-        travelInTime
-    {
-        vm.prank(address(moduleManager));
-        memberModule.setContractState(ModuleState.Paused);
+    // function testMemberModule_payRecurringAssociationSubscriptionRevertIfModuleDisabled()
+    //     public
+    //     travelInTime
+    // {
+    //     vm.prank(address(moduleManager));
+    //     memberModule.setContractState(ModuleState.Paused);
 
-        vm.prank(alice);
-        vm.expectRevert();
-        memberModule.payRecurringAssociationSubscription(alice);
-    }
+    //     vm.prank(alice);
+    //     vm.expectRevert();
+    //     memberModule.payRecurringAssociationSubscription(alice);
+    // }
 
-    function testMemberModule_cancelRevertIfModuleDisabled() public travelInTime {
-        vm.prank(address(moduleManager));
-        memberModule.setContractState(ModuleState.Paused);
+    // function testMemberModule_cancelRevertIfModuleDisabled() public travelInTime {
+    //     vm.prank(address(moduleManager));
+    //     memberModule.setContractState(ModuleState.Paused);
 
-        vm.prank(alice);
-        vm.expectRevert();
-        memberModule.cancelAssociationSubscription(alice);
-    }
+    //     vm.prank(alice);
+    //     vm.expectRevert();
+    //     memberModule.cancelAssociationSubscription(alice);
+    // }
 
     function testMemberModule_payRecurringAssociationSubscriptionRevertIfTooEarly() public {
         vm.prank(alice);

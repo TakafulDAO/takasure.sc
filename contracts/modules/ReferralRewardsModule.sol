@@ -4,7 +4,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
@@ -15,7 +15,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-contract ReferralRewardsModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
+contract ReferralRewardsModule is ModuleImplementation, Initializable, UUPSUpgradeable {
     bool public referralDiscountEnabled;
 
     mapping(address child => address parent) public childToParent;
@@ -53,16 +53,6 @@ contract ReferralRewardsModule is TLDModuleImplementation, Initializable, UUPSUp
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
-        moduleState = newState;
-    }
-
     function setReferralDiscountState(
         bool referralDiscountState
     ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
@@ -79,7 +69,7 @@ contract ReferralRewardsModule is TLDModuleImplementation, Initializable, UUPSUp
         uint256 feeAmount
     ) external returns (uint256 newFeeAmount, uint256 discount, uint256 toReferralReserveAmount) {
         require(
-            AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module),
+            AddressAndStates._checkType(ProtocolAddressType.Module, address(addressManager)),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
@@ -117,7 +107,7 @@ contract ReferralRewardsModule is TLDModuleImplementation, Initializable, UUPSUp
 
     function rewardParents(address child) external {
         require(
-            AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module),
+            AddressAndStates._checkType(ProtocolAddressType.Module, address(addressManager)),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 

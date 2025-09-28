@@ -61,7 +61,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         vm.prank(couponRedeemer);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, true);
 
-        (uint256 contributionBeforeFee, , , ) = referralGateway.getPrepaidMember(child);
+        (uint256 contributionBeforeFee, , , , ) = referralGateway.getPrepaidMember(child);
 
         assertEq(contributionBeforeFee, CONTRIBUTION_AMOUNT);
     }
@@ -86,7 +86,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
+        (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
 
         (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -128,7 +128,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
+        (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
 
         (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -161,7 +161,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
+        (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
 
         (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -191,7 +191,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
+        (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
 
         (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -235,7 +235,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
+        (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
 
         (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 
@@ -266,7 +266,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         emit OnPrepayment(address(0), child, CONTRIBUTION_AMOUNT, collectedFees, expectedDiscount);
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
-        (, , , uint256 discount) = referralGateway.getPrepaidMember(child);
+        (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
 
         (, , , , , , , , uint256 totalCollectedFees, , , ) = referralGateway.getDAOData();
 

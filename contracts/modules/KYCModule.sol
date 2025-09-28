@@ -10,7 +10,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {AssociationHooks} from "contracts/hooks/AssociationHooks.sol";
@@ -23,7 +23,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 pragma solidity 0.8.28;
 
 contract KYCModule is
-    TLDModuleImplementation,
+    ModuleImplementation,
     AssociationHooks,
     Initializable,
     UUPSUpgradeable,
@@ -57,20 +57,6 @@ contract KYCModule is
     }
 
     /*//////////////////////////////////////////////////////////////
-                                SETTERS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
-        moduleState = newState;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                                   KYC
     //////////////////////////////////////////////////////////////*/
 
@@ -83,7 +69,11 @@ contract KYCModule is
     function approveKYC(
         address memberWallet
     ) external onlyRole(Roles.KYC_PROVIDER, address(addressManager)) {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         AddressAndStates._notZeroAddress(memberWallet);
 
         require(!isKYCed[memberWallet], KYCModule__MemberAlreadyKYCed());

@@ -50,13 +50,13 @@ contract Transfers_TakasureCoreTest is StdCheats, Test {
             ModuleManager moduleManager
         ) = managersDeployer.run();
 
-        (takadao, , kycProvider, couponRedeemer, , ) = addressesAndRoles.run(
+        (takadao, , kycProvider, couponRedeemer, , , ) = addressesAndRoles.run(
             addressManager,
             config,
             address(moduleManager)
         );
 
-        (lifeBenefitModule, , kycModule, , , , subscriptionModule) = moduleDeployer.run(
+        (lifeBenefitModule, , kycModule, , , , , subscriptionModule) = moduleDeployer.run(
             addressManager
         );
 

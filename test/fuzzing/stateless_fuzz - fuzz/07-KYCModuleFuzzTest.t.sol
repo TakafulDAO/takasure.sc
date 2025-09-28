@@ -36,24 +36,16 @@ contract KYCModuleFuzzTest is StdCheats, Test {
             AddressManager addressManager,
             ModuleManager moduleManager
         ) = managersDeployer.run();
-        (address operator, , address kyc, , , ) = addressesAndRoles.run(
+        (address operator, , address kyc, , , , ) = addressesAndRoles.run(
             addressManager,
             config,
             address(moduleManager)
         );
-        (, , kycModule, , , , ) = moduleDeployer.run(addressManager);
+        (, , kycModule, , , , , ) = moduleDeployer.run(addressManager);
 
         takadao = operator;
         kycProvider = kyc;
         moduleManagerAddress = address(moduleManager);
-    }
-
-    function testSetContractStateRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != moduleManagerAddress);
-
-        vm.prank(caller);
-        vm.expectRevert();
-        kycModule.setContractState(ModuleState.Paused);
     }
 
     function testApproveKYCRevertsIfCallerIsWrong(address caller) public {

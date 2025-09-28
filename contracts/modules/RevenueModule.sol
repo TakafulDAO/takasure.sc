@@ -11,7 +11,7 @@ import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 
 import {Reserve, RevenueType, CashFlowVars, ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -24,7 +24,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-contract RevenueModule is TLDModuleImplementation, Initializable, UUPSUpgradeable {
+contract RevenueModule is ModuleImplementation, Initializable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -55,25 +55,19 @@ contract RevenueModule is TLDModuleImplementation, Initializable, UUPSUpgradeabl
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER", address(addressManager)) {
-        moduleState = newState;
-    }
-
-    /**
      * @notice To be called by the DAO to update the Fund reserve with new revenues
      * @param newRevenue the new revenue to be added to the fund reserve
      * @param revenueType the type of revenue to be added
      */
     function depositRevenue(uint256 newRevenue, RevenueType revenueType) external {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         require(
-            AddressAndStates._checkRole(address(addressManager), Roles.OPERATOR) ||
-                AddressAndStates._checkType(address(addressManager), ProtocolAddressType.Module),
+            AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager)) ||
+                AddressAndStates._checkType(ProtocolAddressType.Module, address(addressManager)),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 

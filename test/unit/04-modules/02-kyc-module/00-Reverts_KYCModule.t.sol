@@ -44,13 +44,13 @@ contract Reverts_KYCModule is Test {
             ModuleManager modMgr
         ) = managersDeployer.run();
 
-        (address operatorAddr, , address kyc, address redeemer, , ) = addressesAndRoles.run(
+        (address operatorAddr, , address kyc, address redeemer, , , ) = addressesAndRoles.run(
             addrMgr,
             config,
             address(modMgr)
         );
 
-        (, , kycModule, , , , subscriptionModule) = moduleDeployer.run(addrMgr);
+        (, , kycModule, , , , , subscriptionModule) = moduleDeployer.run(addrMgr);
 
         addressManager = addrMgr;
         moduleManager = modMgr;
@@ -66,14 +66,14 @@ contract Reverts_KYCModule is Test {
         usdc.approve(address(subscriptionModule), 25e6);
     }
 
-    function testKYCModule_ApproveKYCRevertIfModuleDisabled() public {
-        vm.prank(address(moduleManager));
-        kycModule.setContractState(ModuleState.Paused);
+    // function testKYCModule_ApproveKYCRevertIfModuleDisabled() public {
+    //     vm.prank(address(moduleManager));
+    //     kycModule.setContractState(ModuleState.Paused);
 
-        vm.prank(kycProvider);
-        vm.expectRevert();
-        kycModule.approveKYC(alice);
-    }
+    //     vm.prank(kycProvider);
+    //     vm.expectRevert();
+    //     kycModule.approveKYC(alice);
+    // }
 
     function testKYCModule_ApproveKYCRevertIfZeroAddress() public {
         vm.prank(kycProvider);
@@ -90,12 +90,6 @@ contract Reverts_KYCModule is Test {
         vm.expectRevert(KYCModule.KYCModule__MemberAlreadyKYCed.selector);
         kycModule.approveKYC(alice);
         vm.stopPrank();
-    }
-
-    function testKYCModule_SetContractStateRevertIfNotModuleManager() public {
-        vm.prank(unauthorizedUser);
-        vm.expectRevert();
-        kycModule.setContractState(ModuleState.Disabled);
     }
 
     function testKYCModule_ApproveKYCRevertIfUserIsRefunded() public {

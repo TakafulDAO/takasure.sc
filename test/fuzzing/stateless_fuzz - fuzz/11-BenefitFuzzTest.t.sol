@@ -44,25 +44,17 @@ contract BenefitFuzzTest is StdCheats, Test {
             ModuleManager moduleMgr
         ) = managersDeployer.run();
 
-        (address operator, , , , , ) = addressesAndRoles.run(
+        (address operator, , , , , , ) = addressesAndRoles.run(
             addressManager,
             config,
             address(moduleMgr)
         );
 
-        (lifeModule, , , , , , ) = moduleDeployer.run(addressManager);
+        (lifeModule, , , , , , , ) = moduleDeployer.run(addressManager);
 
         takasureReserve = reserveDeployer.run(config, addressManager);
 
         takadao = operator;
         moduleManager = moduleMgr;
-    }
-
-    function testSetContractStateRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != address(moduleManager));
-
-        vm.prank(caller);
-        vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
-        lifeModule.setContractState(ModuleState.Paused);
     }
 }

@@ -68,10 +68,19 @@ contract Payment_SubscriptionModuleTest is StdCheats, Test {
             address kyc,
             address redeemer,
             address feeClaimer,
-            address pool
+            address pool,
+
         ) = addressesAndRoles.run(addressManager, config, address(moduleManager));
-        (, , kycModule, memberModule, referralRewardsModule, , subscriptionModule) = moduleDeployer
-            .run(addressManager);
+        (
+            ,
+            ,
+            kycModule,
+            memberModule,
+            referralRewardsModule,
+            ,
+            ,
+            subscriptionModule
+        ) = moduleDeployer.run(addressManager);
         takasureReserve = reserveDeployer.run(config, addressManager);
 
         takadao = operator;

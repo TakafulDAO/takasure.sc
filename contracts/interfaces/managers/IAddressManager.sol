@@ -18,9 +18,9 @@ interface IAddressManager {
     function proposeRoleHolder(bytes32 role, address proposedRoleHolder) external;
     function acceptProposedRole(bytes32 role) external returns (bool success);
     function revokeRoleHolder(bytes32 role, address account) external;
-    function hasName(address addr, string memory name) external view returns (bool);
+    function hasName(string memory name, address addr) external view returns (bool);
     function hasRole(bytes32 role, address account) external view returns (bool);
-    function hasType(address addr, ProtocolAddressType addressType) external view returns (bool);
+    function hasType(ProtocolAddressType addressType, address addr) external view returns (bool);
     function getProtocolAddressByName(
         string memory name
     ) external view returns (ProtocolAddress memory);

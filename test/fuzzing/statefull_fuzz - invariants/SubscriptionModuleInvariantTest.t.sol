@@ -35,12 +35,12 @@ contract SubscriptionInvariantTest is StdInvariant, Test {
             AddressManager addressManager,
             ModuleManager moduleManager
         ) = managersDeployer.run();
-        (address operator, , , address redeemer, , ) = addressesAndRoles.run(
+        (address operator, , , address redeemer, , , ) = addressesAndRoles.run(
             addressManager,
             config,
             address(moduleManager)
         );
-        (, , , , , , subscriptionModule) = moduleDeployer.run(addressManager);
+        (, , , , , , , subscriptionModule) = moduleDeployer.run(addressManager);
 
         takadao = operator;
         couponRedeemer = redeemer;

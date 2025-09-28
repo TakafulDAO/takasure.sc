@@ -3,45 +3,56 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
+import {DeployModules} from "test/utils/03-DeployModules.s.sol";
+import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 
 contract RevShareModuleFuzzTest is Test {
-    TestDeployProtocol deployer;
+    DeployManagers managersDeployer;
+    DeployModules moduleDeployer;
+    AddAddressesAndRoles addressesAndRoles;
+
     RevShareModule revShareModule;
-    HelperConfig helperConfig;
+
     IUSDC usdc;
     address module;
     address takadao;
-    address revShareModuleAddress;
     address moduleManagerAddress;
 
     function setUp() public {
-        deployer = new TestDeployProtocol();
-        (, , module, , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
+        managersDeployer = new DeployManagers();
+        moduleDeployer = new DeployModules();
+        addressesAndRoles = new AddAddressesAndRoles();
 
-        revShareModule = RevShareModule(revShareModuleAddress);
+        (
+            HelperConfig.NetworkConfig memory config,
+            AddressManager addrMgr,
+            ModuleManager modMgr
+        ) = managersDeployer.run();
 
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
-
-        takadao = config.takadaoOperator;
-
-        uint256 addressManagerAddressSlot = 0;
-        bytes32 addressManagerAddressSlotBytes = vm.load(
-            address(revShareModule),
-            bytes32(uint256(addressManagerAddressSlot))
-        );
-        AddressManager addressManager = AddressManager(
-            address(uint160(uint256(addressManagerAddressSlotBytes)))
+        (address operatorAddr, , , , , , ) = addressesAndRoles.run(
+            addrMgr,
+            config,
+            address(modMgr)
         );
 
-        moduleManagerAddress = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
-        usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        SubscriptionModule subscriptions;
+        (, , , , , , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+
+        module = address(subscriptions);
+
+        takadao = operatorAddr;
+
+        moduleManagerAddress = addrMgr.getProtocolAddressByName("MODULE_MANAGER").addr;
+        usdc = IUSDC(config.contributionToken);
     }
 
     function testUpgradeRevertsIfCallerIsInvalid(address caller) public {

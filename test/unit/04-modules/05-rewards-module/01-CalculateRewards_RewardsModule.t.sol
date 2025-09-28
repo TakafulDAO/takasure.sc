@@ -50,13 +50,13 @@ contract CalculateRewards_ReferralRewardsModule is Test {
             AddressManager addrMgr,
             ModuleManager modMgr
         ) = managersDeployer.run();
-        (address operator, , address kyc, address redeemer, , ) = addressesAndRoles.run(
+        (address operator, , address kyc, address redeemer, , , ) = addressesAndRoles.run(
             addrMgr,
             config,
             address(modMgr)
         );
 
-        (, , kycModule, , referralRewardsModule, , subscriptionModule) = moduleDeployer.run(
+        (, , kycModule, , referralRewardsModule, , , subscriptionModule) = moduleDeployer.run(
             addrMgr
         );
 

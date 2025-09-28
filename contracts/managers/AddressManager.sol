@@ -346,7 +346,7 @@ contract AddressManager is
      * @return bool A boolean indicating whether the address has the name
      * @dev To be able to use this function in require statements, it is implemented in a way that does not revert.
      */
-    function hasName(address addr, string memory name) external view returns (bool) {
+    function hasName(string memory name, address addr) external view returns (bool) {
         bytes32 expectedNameHash = protocolAddressesNames[addr]; // Access the mapping to ensure it exists
         bytes32 givenNameHash = keccak256(abi.encode(name));
 
@@ -375,7 +375,7 @@ contract AddressManager is
         else return super.hasRole(role, account);
     }
 
-    function hasType(address addr, ProtocolAddressType addressType) external view returns (bool) {
+    function hasType(ProtocolAddressType addressType, address addr) external view returns (bool) {
         // First check if the address is registered
         if (protocolAddressesNames[addr] == bytes32(0)) return false;
 

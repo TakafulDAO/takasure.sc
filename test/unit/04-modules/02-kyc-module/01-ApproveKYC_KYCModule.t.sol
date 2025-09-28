@@ -47,13 +47,13 @@ contract ApproveKYC_KYCModule is Test {
             ModuleManager modMgr
         ) = managersDeployer.run();
 
-        (address operatorAddr, , address kyc, address redeemer, , ) = addressesAndRoles.run(
+        (address operatorAddr, , address kyc, address redeemer, , , ) = addressesAndRoles.run(
             addrMgr,
             config,
             address(modMgr)
         );
 
-        (, , kycModule, , , , subscriptionModule) = moduleDeployer.run(addrMgr);
+        (, , kycModule, , , , , subscriptionModule) = moduleDeployer.run(addrMgr);
 
         addressManager = addrMgr;
         moduleManager = modMgr;

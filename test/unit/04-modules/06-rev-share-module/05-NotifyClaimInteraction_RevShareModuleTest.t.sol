@@ -3,39 +3,59 @@ pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
+import {DeployModules} from "test/utils/03-DeployModules.s.sol";
+import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 
 contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
-    TestDeployProtocol deployer;
+    DeployManagers managersDeployer;
+    DeployModules moduleDeployer;
+    AddAddressesAndRoles addressesAndRoles;
+
     RevShareModule revShareModule;
     RevShareNFT nft;
-    HelperConfig helperConfig;
+
     IUSDC usdc;
     address takadao;
     address revenueClaimer; // has REVENUE_CLAIMER role
     address revenueReceiver; // destination account for Takadao claims
     address module;
-    address revShareModuleAddress;
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
     address charlie = makeAddr("charlie");
 
     function setUp() public {
-        deployer = new TestDeployProtocol();
-        (, , module, , , , revShareModuleAddress, , , , helperConfig) = deployer.run();
+        managersDeployer = new DeployManagers();
+        moduleDeployer = new DeployModules();
+        addressesAndRoles = new AddAddressesAndRoles();
 
-        revShareModule = RevShareModule(revShareModuleAddress);
+        (
+            HelperConfig.NetworkConfig memory config,
+            AddressManager addrMgr,
+            ModuleManager modMgr
+        ) = managersDeployer.run();
 
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
-        takadao = config.takadaoOperator;
+        (address operatorAddr, , , , , , address revReceiver) = addressesAndRoles.run(
+            addrMgr,
+            config,
+            address(modMgr)
+        );
+
+        SubscriptionModule subscriptions;
+        (, , , , , , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+
+        module = address(subscriptions);
+
+        takadao = operatorAddr;
         revenueClaimer = takadao;
 
         // Fresh RevShareNFT proxy
@@ -48,20 +68,12 @@ contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
         );
         nft = RevShareNFT(nftAddress);
 
-        // Read AddressManager from RevShareModule.storage slot 0
-        bytes32 amSlot = vm.load(address(revShareModule), bytes32(uint256(0)));
-        AddressManager addressManager = AddressManager(address(uint160(uint256(amSlot))));
-
-        revenueReceiver = addressManager.getProtocolAddressByName("REVENUE_RECEIVER").addr;
-        usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        revenueReceiver = revReceiver;
+        usdc = IUSDC(config.contributionToken);
 
         // Register NFT + an authorized Module caller for notifyNewRevenue
-        vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress(
-            "REVSHARE_NFT",
-            address(nft),
-            ProtocolAddressType.Protocol
-        );
+        vm.startPrank(addrMgr.owner());
+        addrMgr.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         // Staggered mints to create non-uniform join times
@@ -79,7 +91,7 @@ contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
         _warp(15 days);
 
         vm.prank(nft.owner());
-        nft.setAddressManager(address(addressManager));
+        nft.setAddressManager(address(addrMgr));
     }
 
     /*//////////////////////////////////////////////////////////////

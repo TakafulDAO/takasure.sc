@@ -4,25 +4,30 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {StdInvariant} from "forge-std/StdInvariant.sol";
-
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
+import {DeployModules} from "test/utils/03-DeployModules.s.sol";
+import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {RevShareModuleHandler} from "test/helpers/handlers/RevShareModuleHandler.sol";
 
 /// @notice Invariants for RevShareModule using a stateful-fuzz handler.
 contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
-    TestDeployProtocol deployer;
-    HelperConfig helperConfig;
+    DeployManagers managersDeployer;
+    DeployModules moduleDeployer;
+    AddAddressesAndRoles addressesAndRoles;
+
     RevShareModule revShareModule;
     RevShareNFT nft;
     AddressManager addressManager;
+
     IUSDC usdc;
 
     address operator; // takadao (OPERATOR & REVENUE_CLAIMER)
@@ -36,20 +41,31 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
 
     function setUp() public {
         // Deploy protocol (same pattern as unit tests)
-        deployer = new TestDeployProtocol();
-        address revShareModuleProxy;
-        (, , randomModule, , , , revShareModuleProxy, , , , helperConfig) = deployer.run();
-        revShareModule = RevShareModule(revShareModuleProxy);
+        managersDeployer = new DeployManagers();
+        moduleDeployer = new DeployModules();
+        addressesAndRoles = new AddAddressesAndRoles();
 
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        (
+            HelperConfig.NetworkConfig memory config,
+            AddressManager addrMgr,
+            ModuleManager modMgr
+        ) = managersDeployer.run();
 
-        // Read AddressManager from storage slot 0 in RevShareModule
-        bytes32 amSlot = vm.load(address(revShareModule), bytes32(uint256(0)));
-        addressManager = AddressManager(address(uint160(uint256(amSlot))));
+        (address operatorAddr, , , , , , address revenueReceiverAddr) = addressesAndRoles.run(
+            addrMgr,
+            config,
+            address(modMgr)
+        );
 
-        operator = config.takadaoOperator;
-        revenueReceiver = addressManager.getProtocolAddressByName("REVENUE_RECEIVER").addr;
-        usdc = IUSDC(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        SubscriptionModule subscriptions;
+        (, , , , , , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+
+        randomModule = address(subscriptions);
+
+        operator = operatorAddr;
+        revenueReceiver = revenueReceiverAddr;
+        usdc = IUSDC(config.contributionToken);
+        addressManager = addrMgr;
 
         // Fresh RevShareNFT, then register it
         string memory baseURI = "ipfs://revshare/";
@@ -94,7 +110,7 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
 
         require(nft.totalSupply() == 1500, "totalSupply != 1500");
 
-        // Preload balances (no notify in setup)
+        // // Preload balances (no notify in setup)
         deal(address(usdc), address(revShareModule), 1_000_000e6); // module balance
         deal(address(usdc), randomModule, 1_000_000e6); // authorized caller funds
 

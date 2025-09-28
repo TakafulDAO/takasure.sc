@@ -31,7 +31,7 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
             AddressManager addressManager,
             ModuleManager moduleManager
         ) = managersDeployer.run();
-        (address operator, , , , , ) = addressesAndRoles.run(
+        (address operator, , , , , , ) = addressesAndRoles.run(
             addressManager,
             config,
             address(moduleManager)

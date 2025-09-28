@@ -7,7 +7,7 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IRevShareNFT} from "contracts/interfaces/IRevShareNFT.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -80,12 +80,16 @@ contract RevShareModule is
         _disableInitializers();
     }
 
-    function initialize(address _addressManagerAddress) external initializer {
+    function initialize(
+        address _addressManagerAddress,
+        string calldata _moduleName
+    ) external initializer {
         AddressAndStates._notZeroAddress(_addressManagerAddress);
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
 
         addressManager = IAddressManager(_addressManagerAddress);
+        moduleName = _moduleName;
 
         revenuesAvailableDate = block.timestamp;
 

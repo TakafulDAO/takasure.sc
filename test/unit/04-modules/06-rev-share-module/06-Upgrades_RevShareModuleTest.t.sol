@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
+
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
@@ -8,27 +9,18 @@ import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {ReferralRewardsModule} from "contracts/modules/ReferralRewardsModule.sol";
-import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
-import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-import {AssociationMemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {RevShareModule} from "contracts/modules/RevShareModule.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
-contract ReferralRewardsModuleFuzzTest is Test {
+contract Upgrade_RevShareModuleTest is Test {
     DeployManagers managersDeployer;
     DeployModules moduleDeployer;
     AddAddressesAndRoles addressesAndRoles;
 
-    ReferralRewardsModule referralRewardsModule;
-    AddressManager addressManager;
-    ModuleManager moduleManager;
-    IUSDC usdc;
+    RevShareModule revShareModule;
 
     address takadao;
-    address kycProvider;
-    address couponRedeemer;
-    address alice = makeAddr("alice");
 
     function setUp() public {
         managersDeployer = new DeployManagers();
@@ -41,25 +33,21 @@ contract ReferralRewardsModuleFuzzTest is Test {
             ModuleManager modMgr
         ) = managersDeployer.run();
 
-        (address operatorAddr, , address kyc, address redeemer, , , ) = addressesAndRoles.run(
+        (address operatorAddr, , , , , , ) = addressesAndRoles.run(
             addrMgr,
             config,
             address(modMgr)
         );
 
-        (, , , , referralRewardsModule, , , ) = moduleDeployer.run(addrMgr);
+        (, , , , , , revShareModule, ) = moduleDeployer.run(addrMgr);
 
         takadao = operatorAddr;
-        kycProvider = kyc;
-        couponRedeemer = redeemer;
     }
 
-    function testUpgradeRevertsIfCallerIsInvalid(address caller) public {
-        vm.assume(caller != takadao);
-        address newImpl = makeAddr("newImpl");
+    function testRevShareModule_upgrade() public {
+        address newImpl = address(new RevShareModule());
 
-        vm.prank(caller);
-        vm.expectRevert();
-        referralRewardsModule.upgradeToAndCall(newImpl, "");
+        vm.prank(takadao);
+        revShareModule.upgradeToAndCall(newImpl, "");
     }
 }

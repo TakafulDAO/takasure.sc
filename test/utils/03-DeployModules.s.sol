@@ -9,6 +9,7 @@ import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {ReferralRewardsModule} from "contracts/modules/ReferralRewardsModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
+import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
@@ -24,6 +25,8 @@ contract DeployModules is Script {
     address referralRewardsModuleAddress;
     address revenueModuleImplementation;
     address revenueModuleAddress;
+    address revShareModuleImplementation;
+    address revShareModuleAddress;
     address subscriptionModuleImplementation;
     address subscriptionModuleAddress;
 
@@ -38,6 +41,7 @@ contract DeployModules is Script {
             MemberModule memberModule,
             ReferralRewardsModule referralRewardsModule,
             RevenueModule revenueModule,
+            RevShareModule revShareModule,
             SubscriptionModule subscriptionModule
         )
     {
@@ -106,6 +110,21 @@ contract DeployModules is Script {
             ProtocolAddressType.Module
         );
 
+        // Deploy RevShareModule
+        revShareModuleImplementation = address(new RevShareModule());
+        revShareModuleAddress = UnsafeUpgrades.deployUUPSProxy(
+            revShareModuleImplementation,
+            abi.encodeCall(RevShareModule.initialize, (address(addressManager), "REVSHARE_MODULE"))
+        );
+
+        revShareModule = RevShareModule(revShareModuleAddress);
+
+        addressManager.addProtocolAddress(
+            "REVSHARE_MODULE",
+            revShareModuleAddress,
+            ProtocolAddressType.Module
+        );
+
         // Deploy SubscriptionModule
         subscriptionModuleImplementation = address(new SubscriptionModule());
         subscriptionModuleAddress = UnsafeUpgrades.deployUUPSProxy(
@@ -146,6 +165,7 @@ contract DeployModules is Script {
             memberModule,
             referralRewardsModule,
             revenueModule,
+            revShareModule,
             subscriptionModule
         );
     }

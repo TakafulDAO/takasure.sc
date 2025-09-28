@@ -38,12 +38,12 @@ contract SubscriptionModuleFuzzTest is StdCheats, Test {
             AddressManager addressManager,
             ModuleManager moduleManager
         ) = managersDeployer.run();
-        (address operator, , , address redeemer, , ) = addressesAndRoles.run(
+        (address operator, , , address redeemer, , , ) = addressesAndRoles.run(
             addressManager,
             config,
             address(moduleManager)
         );
-        (, , , , , , subscriptionModule) = moduleDeployer.run(addressManager);
+        (, , , , , , , subscriptionModule) = moduleDeployer.run(addressManager);
 
         takadao = operator;
         couponRedeemer = redeemer;
@@ -56,14 +56,6 @@ contract SubscriptionModuleFuzzTest is StdCheats, Test {
 
         vm.prank(alice);
         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
-    }
-
-    function testSetContractStateRevertsIfCallerIsWrong(address caller) public {
-        vm.assume(caller != moduleManagerAddress);
-
-        vm.prank(caller);
-        vm.expectRevert();
-        subscriptionModule.setContractState(ModuleState.Paused);
     }
 
     function testPaySubscriptionOnBehalfOfRevertsIfCallerIsWrong(address caller) public {

@@ -69,10 +69,11 @@ contract RewardParents_ReferralRewardsModule is Test {
             address kyc,
             address redeemer,
             address feeClaimer,
+            ,
 
         ) = addressesAndRoles.run(addrMgr, config, address(modMgr));
 
-        (, , kycModule, , referralRewardsModule, , subscriptionModule) = moduleDeployer.run(
+        (, , kycModule, , referralRewardsModule, , , subscriptionModule) = moduleDeployer.run(
             addrMgr
         );
 

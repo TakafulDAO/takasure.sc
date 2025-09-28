@@ -37,9 +37,13 @@ contract Upgrade_MemberModule is Test {
             ModuleManager modMgr
         ) = managersDeployer.run();
 
-        (address operatorAddr, , , , , ) = addressesAndRoles.run(addrMgr, config, address(modMgr));
+        (address operatorAddr, , , , , , ) = addressesAndRoles.run(
+            addrMgr,
+            config,
+            address(modMgr)
+        );
 
-        (, , , memberModule, , , ) = moduleDeployer.run(addrMgr);
+        (, , , memberModule, , , , ) = moduleDeployer.run(addrMgr);
 
         addressManager = addrMgr;
         moduleManager = modMgr;
