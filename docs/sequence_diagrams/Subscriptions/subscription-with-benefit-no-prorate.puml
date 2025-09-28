@@ -1,0 +1,64 @@
+@startuml Subscriptions with benefits no prorate
+title Subscription without benefits no prorate
+autonumber
+
+actor Backend
+participant SubscriptionModule
+participant MembersData
+participant CouponPool
+participant KYCModule
+participant LifeBenefitModule
+participant Reserve
+
+Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
+
+alt Caller is valid
+  alt Module enabled
+    alt Contribution is within limits (25USDC - 250USDC)
+      SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
+      MembersData --> SubscriptionModule: Returns member Data
+
+      alt Member is valid
+        SubscriptionModule -> MembersData: getAssociationMemberData(parentWallet)
+        MembersData --> SubscriptionModule: Returns parent Data
+
+        alt Parent is valid
+          SubscriptionModule -> MembersData: registerAssociationMember(memberWallet, parentWallet, contribution)
+          MembersData -> MembersData: Emits event
+          MembersData --> SubscriptionModule: Returns success
+
+          alt Success
+            CouponPool -> SubscriptionModule: transfer minimum contribution
+            SubscriptionModule -> KYCModule: approveKYC(memberWallet)
+            KYCModule -> KYCModule: Emits event
+            Backend -> LifeBenefitModule: joinBenefit(memberWallet)
+            LifeBenefitModule -> MembersData: updateMember(memberWallet)
+            SubscriptionModule -> Reserve: transfer minimum contribution to Reserve
+            CouponPool -> Reserve: transfer remaining contribution to Reserve
+            Reserve -> Reserve: Run algorithms (include member)
+
+          else Failure
+            SubscriptionModule --> Backend: Revert
+          end
+
+        else Parent is invalid
+          SubscriptionModule --> Backend: Revert
+        end
+
+      else Member is invalid 
+        SubscriptionModule --> Backend: Revert
+      end
+
+    else Contribution is out of limits
+      SubscriptionModule --> Backend: Revert
+    end
+
+  else Module disabled
+    SubscriptionModule --> Backend: Revert
+  end
+
+else Caller is not valid
+  SubscriptionModule --> Backend: Revert
+end
+
+@enduml

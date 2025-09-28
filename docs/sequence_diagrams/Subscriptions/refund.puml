@@ -1,0 +1,80 @@
+@startuml Subscriptions without benefits
+title Subscription without benefits
+autonumber
+
+actor Backend
+actor User
+participant SubscriptionModule
+participant MembersData
+participant KYCModule
+participant CouponPool
+
+Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
+
+alt Caller is valid
+  alt Module enabled
+    alt Contribution is minimum (25USDC)
+      SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
+      MembersData --> SubscriptionModule: Returns member Data
+
+      alt Member is valid
+        SubscriptionModule -> MembersData: getAssociationMemberData(parentWallet)
+        MembersData --> SubscriptionModule: Returns parent Data
+
+        alt Parent is valid
+          SubscriptionModule -> MembersData: registerAssociationMember(memberWallet, parentWallet, contribution)
+          MembersData -> MembersData: Emits event
+          MembersData --> SubscriptionModule: Returns success
+
+          alt Success
+            CouponPool -> SubscriptionModule: transfer contribution
+
+            alt KYC user
+              SubscriptionModule -> KYCModule: approveKYC(memberWallet)
+              KYCModule -> KYCModule: Emits event
+            end
+
+            alt less than30 days passed
+                User -> Backend: User ask for refund
+                Backend -> SubscriptionModule: refund(memberWallet)
+                SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
+                MembersData --> SubscriptionModule: Returns member Data
+
+                alt User is a valid member
+                  SubscriptionModule -> CouponPool: transfer contribution back
+                  SubscriptionModule -> MembersData: deleteAssociationMember(memberWallet)
+                  MembersData -> MembersData: Emits event
+                  SubscriptionModule -> SubscriptionModule: Emits event
+                  CouponPool -> User: transfer contribution back     
+
+                else User is not a valid member
+                  SubscriptionModule --> Backend: Revert
+                end
+
+            end
+
+          else Failure
+            SubscriptionModule --> Backend: Revert
+          end
+
+        else Parent is invalid
+          SubscriptionModule --> Backend: Revert
+        end
+
+      else Member is invalid 
+        SubscriptionModule --> Backend: Revert
+      end
+
+    else Contribution is not minimum
+      SubscriptionModule --> Backend: Revert
+    end
+
+  else Module disabled
+    SubscriptionModule --> Backend: Revert
+  end
+
+else Caller is not valid
+  SubscriptionModule --> Backend: Revert
+end
+
+@enduml
