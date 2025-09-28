@@ -44,7 +44,7 @@ contract ReferralGatewayHandler is Test {
             ghostDiscount = 0;
         } else {
             // 2. User is not already a member
-            (uint256 contributionBeforeFee, , , ) = referralGateway.getPrepaidMember(newMember);
+            (uint256 contributionBeforeFee, , , , ) = referralGateway.getPrepaidMember(newMember);
             if (contributionBeforeFee != 0 || referralGateway.isMemberKYCed(newMember)) {
                 skip = true;
                 ghostFee = 0;
@@ -84,7 +84,7 @@ contract ReferralGatewayHandler is Test {
                 }
             }
             if (!skip) {
-                (contributionBeforeFee, , , ) = referralGateway.getPrepaidMember(newMember);
+                (contributionBeforeFee, , , , ) = referralGateway.getPrepaidMember(newMember);
 
                 uint256 realContribution = (contributionAmount / 1e4) * 1e4;
 

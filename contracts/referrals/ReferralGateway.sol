@@ -536,13 +536,15 @@ contract ReferralGateway is
             uint256 contributionBeforeFee,
             uint256 contributionAfterFee,
             uint256 feeToOperator,
-            uint256 discount
+            uint256 discount,
+            bool isDonated
         )
     {
         contributionBeforeFee = nameToDAOData[daoName].prepaidMembers[member].contributionBeforeFee;
         contributionAfterFee = nameToDAOData[daoName].prepaidMembers[member].contributionAfterFee;
         feeToOperator = nameToDAOData[daoName].prepaidMembers[member].feeToOperator;
         discount = nameToDAOData[daoName].prepaidMembers[member].discount;
+        isDonated = nameToDAOData[daoName].prepaidMembers[member].isDonated;
     }
 
     function getParentRewardsByChild(

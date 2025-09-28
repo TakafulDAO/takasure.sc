@@ -7,7 +7,8 @@
  */
 
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
-import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
 pragma solidity 0.8.28;
 
@@ -16,26 +17,33 @@ library AddressAndStates {
     error TakasureProtocol__ZeroAddress();
     error Module__WrongModuleState();
 
-    function _checkName(address addressManager, string memory name) internal view returns (bool) {
-        return IAddressManager(addressManager).hasName(msg.sender, name);
+    function _checkName(string memory name, address addressManager) internal view returns (bool) {
+        return IAddressManager(addressManager).hasName(name, msg.sender);
     }
 
-    function _checkRole(address addressManager, bytes32 role) internal view returns (bool) {
+    function _checkRole(bytes32 role, address addressManager) internal view returns (bool) {
         return IAddressManager(addressManager).hasRole(role, msg.sender);
     }
 
     function _checkType(
-        address addressManager,
-        ProtocolAddressType addressType
+        ProtocolAddressType addressType,
+        address addressManager
     ) internal view returns (bool) {
-        return IAddressManager(addressManager).hasType(msg.sender, addressType);
+        return IAddressManager(addressManager).hasType(addressType, msg.sender);
     }
 
     function _notZeroAddress(address _address) internal pure {
         require(_address != address(0), TakasureProtocol__ZeroAddress());
     }
 
-    function _onlyModuleState(ModuleState _currentState, ModuleState _neededState) internal pure {
-        require(_currentState == _neededState, Module__WrongModuleState());
+    function _onlyModuleState(
+        ModuleState _neededState,
+        address moduleAddress,
+        address moduleManager
+    ) internal view {
+        require(
+            IModuleManager(moduleManager).getModuleState(moduleAddress) == _neededState,
+            Module__WrongModuleState()
+        );
     }
 }

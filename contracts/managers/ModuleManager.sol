@@ -11,7 +11,7 @@
  * @dev The state in this contract will be mainly the modules addresses and their status and any other auxiliary data
  */
 
-import {ITLDModuleImplementation} from "contracts/interfaces/modules/ITLDModuleImplementation.sol";
+import {IModuleImplementation} from "contracts/interfaces/IModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
@@ -84,7 +84,6 @@ contract ModuleManager is
         addressToModuleState[newModule] = ModuleState.Enabled;
 
         _checkIsModule(newModule);
-        ITLDModuleImplementation(newModule).setContractState(ModuleState.Enabled);
 
         emit OnNewModule(newModule);
     }
@@ -104,8 +103,6 @@ contract ModuleManager is
 
         ModuleState oldState = addressToModuleState[module];
         addressToModuleState[module] = newState;
-
-        ITLDModuleImplementation(module).setContractState(newState);
 
         emit OnModuleStateChanged(module, oldState, newState);
     }
@@ -141,8 +138,8 @@ contract ModuleManager is
      * @notice Check if a given address is a module
      */
     function _checkIsModule(address _newModule) internal {
-        try ITLDModuleImplementation(_newModule).isTLDModule() returns (bytes4 funcSelector) {
-            if (funcSelector != ITLDModuleImplementation.isTLDModule.selector)
+        try IModuleImplementation(_newModule).isValidModule() returns (bytes4 funcSelector) {
+            if (funcSelector != IModuleImplementation.isValidModule.selector)
                 revert ModuleManager__NotModule();
         } catch (bytes memory) {
             revert ModuleManager__NotModule();

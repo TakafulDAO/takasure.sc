@@ -10,6 +10,7 @@
   - [Usage](#usage)
     - [Compile](#compile)
     - [Testing](#testing)
+    - [Formal Verification](#formal-verification)
     - [Deploy](#deploy)
   - [Contribute](#contribute)
      
@@ -77,8 +78,28 @@ Use `forge coverage --ir-minimum` or `make coverage-report` to get the coverage 
 > [!TIP]
 > To run a specific test use `forge test --mt <TEST_NAME>` or `forge test --mc <TEST_CONTRACT_NAME>` to run the tests in a file
 
+### Formal Verification
+
+Some contracts are formally verified using Certora. Some of the rules require the code to be simplified in various ways. The primary tool for performing these simplifications will be a verification on a contract that extends the original contracts and overrides some of the methods. These "harness" contracts can be found in the `certora/harness` directory.
+
+This pattern does require some modifications to the original code: some methods need to be made public or some functions will be rearrange in several internal functions, for example. This is called `unsound test` read more about it [here](https://docs.certora.com/en/latest/docs/user-guide/glossary.html#term-unsound) These changes are handled by applying a patch to the code before verification.
+
 >[!NOTE]
-> Some formal verification is made in this repo. Follow the instructions in the README file in the `certora` folder
+> Although it is possible to set up certora in  a Windows environment, it requires additional checks and steps. If you are using Windows, it is recommended to use WSL2 with a Linux distribution such as Ubuntu.
+
+In order to run this verification you need:
+- Python 3.9 or newer
+- certora CLI 8.x
+- solc 0.8.28
+- java 21 or newer
+- An account in certora and an api key
+
+After this run
+
+```bash
+export CERTORAKEY=<your_certora_api_key>
+certoraRun certora/conf/<config_file>.conf
+``` 
 
 ### Deploy
 TODO
