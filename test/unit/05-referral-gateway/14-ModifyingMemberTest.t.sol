@@ -29,6 +29,12 @@ contract ReferralGatewayModifyMemberTest is Test {
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
     uint256 public constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from fee
 
+    event OnPrepaidMemberModified(
+        uint256 indexed newContribution,
+        uint256 indexed extraFee,
+        uint256 indexed extraDiscount
+    );
+
     event OnCouponRedeemed(
         address indexed member,
         string indexed tDAOName,
@@ -114,6 +120,8 @@ contract ReferralGatewayModifyMemberTest is Test {
         uint256 parentBalanceBefore = usdc.balanceOf(parent);
 
         vm.prank(couponRedeemer);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(newContribution, 1_246_529, 3_739_582);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.lateContribution(
             newContribution,
             child,
@@ -123,13 +131,6 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         uint256 parentBalanceAfter = usdc.balanceOf(parent);
 
-        uint256 expectedTransfer = ((newContribution * (360 - 90)) / 360) -
-            (newContribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
-            100 -
-            (newContribution * REFERRAL_DISCOUNT_RATIO) /
-            100;
-
-        assertEq(expectedTransfer, 15_000_000);
         assertEq(feeToOp, 1_246_529);
         assertEq(newDiscount, 3_739_582);
 
@@ -169,6 +170,8 @@ contract ReferralGatewayModifyMemberTest is Test {
         uint256 parentBalanceBefore = usdc.balanceOf(parent);
 
         vm.prank(couponRedeemer);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(newContribution, 2_493_056, 7_479_166);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.lateContribution(
             newContribution,
             child,
@@ -178,13 +181,6 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         uint256 parentBalanceAfter = usdc.balanceOf(parent);
 
-        uint256 expectedTransfer = ((newContribution * (360 - 90)) / 360) -
-            (newContribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
-            100 -
-            (newContribution * REFERRAL_DISCOUNT_RATIO) /
-            100;
-
-        assertEq(expectedTransfer, 30_000_000);
         assertEq(feeToOp, 2_493_056);
         assertEq(newDiscount, 7_479_166);
 
@@ -224,6 +220,8 @@ contract ReferralGatewayModifyMemberTest is Test {
         uint256 parentBalanceBefore = usdc.balanceOf(parent);
 
         vm.prank(couponRedeemer);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(newContribution, 12_465_279, 37_395_832);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.lateContribution(
             newContribution,
             child,
@@ -233,13 +231,6 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         uint256 parentBalanceAfter = usdc.balanceOf(parent);
 
-        uint256 expectedTransfer = ((newContribution * (360 - 90)) / 360) -
-            (newContribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
-            100 -
-            (newContribution * REFERRAL_DISCOUNT_RATIO) /
-            100;
-
-        assertEq(expectedTransfer, 150_000_000);
         assertEq(feeToOp, 12_465_279);
         assertEq(newDiscount, 37_395_832);
 
@@ -256,6 +247,8 @@ contract ReferralGatewayModifyMemberTest is Test {
     }
 
     function testChildNowWantsThe50DollarPlanAfterThreeMonthsExtraCoupon() public {
+        assertEq(referralGateway.totalDonationsFromCoupons(), 0);
+
         vm.warp(block.timestamp + 90 days);
         vm.roll(block.number + 1);
 
@@ -274,42 +267,42 @@ contract ReferralGatewayModifyMemberTest is Test {
         assert(isDonated);
 
         uint256 newContribution = 50e6;
+        uint256 couponAmount = 100e6; // 100 USDC coupon
 
         uint256 parentBalanceBefore = usdc.balanceOf(parent);
 
         assertEq(referralGateway.totalDonationsFromCoupons(), 0);
 
         vm.prank(couponRedeemer);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(newContribution, 9_972_222, 0);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnCouponRedeemed(child, tDaoName, couponAmount);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.lateContribution(
             newContribution,
             child,
-            100e6, // 100 USDC coupon
+            couponAmount,
             initialContributionTimestamp
         );
 
         uint256 parentBalanceAfter = usdc.balanceOf(parent);
 
-        uint256 expectedTransfer = ((newContribution * (360 - 90)) / 360) -
-            (newContribution * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
-            100 -
-            (newContribution * REFERRAL_DISCOUNT_RATIO) /
-            100;
-
-        assertEq(expectedTransfer, 31_875_000);
         // The fee to operator should be fee-disount-referralReserve-repoolFee
-        assertEq(feeToOp, 7_500_000);
+        assertEq(feeToOp, 9_972_222);
+        assertEq(newDiscount, 0);
 
         (contributionBeforeFee, contributionAfterFee, fee, discount, isDonated) = referralGateway
             .getPrepaidMember(child);
 
-        // assertEq(contributionBeforeFee, 50e6); // new plan
-        // assertEq(contributionAfterFee, 182_500_000);
-        // assertEq(fee, 13_715_279); // previous one + new one
-        // assertEq(discount, 41_145_832);
-        // assert(!isDonated);
+        assertEq(contributionBeforeFee, 50e6); // new plan
+        assertEq(contributionAfterFee, 36_500_000);
+        assertEq(fee, 11_222_222); // previous one + new one
+        assertEq(discount, 3_750_000); // Same as before, no change
+        assert(!isDonated);
 
-        // assert(parentBalanceAfter > parentBalanceBefore);
+        assert(parentBalanceAfter > parentBalanceBefore);
 
-        // assertEq(referralGateway.totalDonationsFromCoupons(), 50e6 - newContribution);
+        assert(referralGateway.totalDonationsFromCoupons() > 0);
+        assert(referralGateway.totalDonationsFromCoupons() < couponAmount);
     }
 }

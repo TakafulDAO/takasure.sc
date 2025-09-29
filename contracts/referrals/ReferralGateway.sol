@@ -134,10 +134,9 @@ contract ReferralGateway is
         uint256 discount
     );
     event OnPrepaidMemberModified(
-        uint256 indexed extraContribution,
-        uint256 indexed fee,
-        uint256 indexed discount,
-        bool isDonated
+        uint256 indexed newContribution,
+        uint256 indexed extraFee,
+        uint256 indexed extraDiscount
     );
     event OnCouponRedeemed(
         address indexed member,
@@ -394,33 +393,15 @@ contract ReferralGateway is
         onlyRole(COUPON_REDEEMER)
         returns (uint256 finalFee, uint256 discount)
     {
-        uint256 fixedCouponAmount;
-        uint256 donationFromCoupon;
-
-        // If the coupon amount is greater than the new contribution, then we need to fix it,
-        // this to avoid underflows in the _payContribution method, the remaining amount will
-        // be considered a donation, and handled inside this method
-        if (couponAmount > newContribution) {
-            fixedCouponAmount = newContribution;
-            donationFromCoupon = couponAmount - newContribution;
-        } else {
-            fixedCouponAmount = couponAmount;
-        }
-
         (finalFee, discount) = _payContribution({
             _contribution: newContribution,
             _parent: childToParent[prepaidMember],
             _member: prepaidMember,
-            _couponAmount: fixedCouponAmount,
+            _couponAmount: couponAmount,
             _isDonated: false, // Late contributions are from users that did not joined and changed their mind so not donated
             _isModifying: true, // We are modifying an existing prepaid member
             _associationTimestamp: associationTimestamp // The timestamp the first payment was made
         });
-
-        if (donationFromCoupon > 0) {
-            totalDonationsFromCoupons += donationFromCoupon;
-            usdc.safeTransferFrom(couponPool, address(this), donationFromCoupon);
-        }
 
         // Set as a coupon redeemer if not already
         if (couponAmount > 0 && !isMemberCouponRedeemer[prepaidMember])
@@ -672,17 +653,31 @@ contract ReferralGateway is
             proratedContribution = (normalizedContribution * (360 - _associationTimestamp)) / 360;
         }
 
+        uint256 fixedCouponAmount;
+
+        // If the coupon amount is greater than the prorated contribution, then we need to fix it,
+        // this to avoid underflows in the calculations, the remaining amount will
+        // be considered a donation, and handled inside this method
+        if (_couponAmount > proratedContribution) {
+            fixedCouponAmount = proratedContribution;
+            totalDonationsFromCoupons += _couponAmount - proratedContribution;
+        } else {
+            fixedCouponAmount = _couponAmount;
+        }
+
         _finalFee = (proratedContribution * SERVICE_FEE_RATIO) / 100;
 
         // If the DAO pre join is enabled, it will get a discount as a pre-joiner
         if (nameToDAOData[daoName].preJoinDiscountEnabled)
             _discount +=
-                ((proratedContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+                ((proratedContribution - fixedCouponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
                 100;
 
         // And if the DAO has the referral discount enabled, it will get a discount as a referrer
         if (nameToDAOData[daoName].referralDiscountEnabled && _parent != address(0))
-            _discount += ((proratedContribution - _couponAmount) * REFERRAL_DISCOUNT_RATIO) / 100;
+            _discount +=
+                ((proratedContribution - fixedCouponAmount) * REFERRAL_DISCOUNT_RATIO) /
+                100;
 
         uint256 toReferralReserve;
 
@@ -722,10 +717,11 @@ contract ReferralGateway is
             100;
         nameToDAOData[daoName].collectedFees += _finalFee;
 
-        uint256 amountToTransfer = proratedContribution - _discount - _couponAmount;
+        uint256 amountToTransfer = proratedContribution - _discount - fixedCouponAmount;
 
         if (amountToTransfer > 0) usdc.safeTransferFrom(_member, address(this), amountToTransfer);
 
+        // Transfer the complete coupon
         if (_couponAmount > 0) usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
 
         usdc.safeTransfer(operator, _finalFee);
@@ -748,7 +744,7 @@ contract ReferralGateway is
             emit OnPrepayment(_parent, _member, normalizedContribution, _finalFee, _discount);
         } else {
             if (isMemberKYCed[_member]) _transferRewardsFromChild(_member);
-            emit OnPrepaidMemberModified(normalizedContribution, _finalFee, _discount, _isDonated);
+            emit OnPrepaidMemberModified(normalizedContribution, _finalFee, _discount);
         }
     }
 
