@@ -3,24 +3,18 @@
 pragma solidity 0.8.28;
 
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployReferralGateway} from "test/utils/00-DeployReferralGateway.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ReferralGatewayHandler} from "test/helpers/handlers/ReferralGatewayHandler.t.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {IReferralGateway, DaoDataReader} from "test/helpers/lowLevelCall/DaoDataReader.sol";
+import {DaoDataReader, IReferralGateway} from "test/helpers/lowLevelCall/DaoDataReader.sol";
 
 contract ReferralGatewayInvariantTest is StdInvariant, Test {
-    TestDeployProtocol deployer;
+    DeployReferralGateway deployer;
     ReferralGateway referralGateway;
-    TakasureReserve takasureReserve;
-    HelperConfig helperConfig;
     ReferralGatewayHandler handler;
     IUSDC usdc;
-    address referralGatewayAddress;
-    address reserve;
-    address contributionTokenAddress;
     address daoAdmin;
     address operator;
     address public user = makeAddr("user");
@@ -30,29 +24,15 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
 
     function setUp() public {
-        deployer = new TestDeployProtocol();
-        (
-            reserve,
-            referralGatewayAddress,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            contributionTokenAddress,
-            ,
-            helperConfig
-        ) = deployer.run();
+        deployer = new DeployReferralGateway();
+        HelperConfig.NetworkConfig memory config;
+        (config, referralGateway) = deployer.run();
 
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         operator = config.takadaoOperator;
         daoAdmin = config.daoMultisig;
 
         // Assign implementations
-        referralGateway = ReferralGateway(referralGatewayAddress);
-        takasureReserve = TakasureReserve(reserve);
-        usdc = IUSDC(contributionTokenAddress);
+        usdc = IUSDC(config.contributionToken);
 
         deal(address(usdc), couponPool, 1000e6);
 

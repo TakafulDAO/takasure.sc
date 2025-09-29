@@ -3,18 +3,22 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
+
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {IsModule, IsNotModule} from "test/mocks/ModuleMocks.sol";
-import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
-import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ModuleState} from "contracts/types/TakasureTypes.sol";
 
 contract ModuleManagerTest is Test {
+    DeployManagers managerDeployer;
     ModuleManager moduleManager;
-    AddressManager addressManager;
+    AddressManager addressManagerProxy;
     IsModule isModule;
     IsNotModule isNotModule;
+    address moduleManagerOwner;
+    address addressManager;
 
     enum State {
         Unset,
@@ -32,31 +36,14 @@ contract ModuleManagerTest is Test {
     );
 
     function setUp() public {
-        address addressManagerImplementation = address(new AddressManager());
-        address addressManagerAddress = UnsafeUpgrades.deployUUPSProxy(
-            addressManagerImplementation,
-            abi.encodeCall(AddressManager.initialize, (msg.sender))
-        );
-        addressManager = AddressManager(addressManagerAddress);
+        managerDeployer = new DeployManagers();
+        (, addressManagerProxy, moduleManager) = managerDeployer.run();
 
-        address moduleManagerImplementation = address(new ModuleManager());
-        address moduleManagerAddress = UnsafeUpgrades.deployUUPSProxy(
-            address(moduleManagerImplementation),
-            abi.encodeCall(ModuleManager.initialize, (address(addressManager)))
-        );
-        moduleManager = ModuleManager(moduleManagerAddress);
+        addressManager = address(addressManagerProxy);
+        moduleManagerOwner = addressManagerProxy.owner();
 
         isModule = new IsModule();
         isNotModule = new IsNotModule();
-
-        vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress(
-            "MODULE_MANAGER",
-            address(moduleManager),
-            ProtocolAddressType.Protocol
-        );
-
-        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -64,35 +51,35 @@ contract ModuleManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testAddAddressZeroAsModuleReverts() public {
-        vm.prank(address(addressManager));
+        vm.prank(addressManager);
         vm.expectRevert(ModuleManager.ModuleManager__AddressZeroNotAllowed.selector);
         moduleManager.addModule(address(0));
     }
 
     function testAddModuleTwiceReverts() public {
-        vm.startPrank(address(addressManager));
+        vm.startPrank(addressManager);
         moduleManager.addModule(address(isModule));
         vm.expectRevert(ModuleManager.ModuleManager__AlreadyModule.selector);
         moduleManager.addModule(address(isModule));
         vm.stopPrank();
     }
 
-    function testOnlyAddressManagerCanAddModules() public {
-        address notAddressManager = makeAddr("notAddressManager");
+    function testOnlyOwnerCanAddModules() public {
+        address notOwner = makeAddr("notOwner");
 
-        vm.prank(notAddressManager);
+        vm.prank(notOwner);
         vm.expectRevert();
         moduleManager.addModule(address(0));
     }
 
     function testAddContractIsNotModuleReverts() public {
-        vm.prank(address(addressManager));
+        vm.prank(addressManager);
         vm.expectRevert(ModuleManager.ModuleManager__NotModule.selector);
         moduleManager.addModule(address(isNotModule));
     }
 
     modifier addModule() {
-        vm.prank(address(addressManager));
+        vm.prank(addressManager);
         moduleManager.addModule(address(isModule));
         _;
     }
@@ -106,7 +93,7 @@ contract ModuleManagerTest is Test {
     }
 
     function testChangeStateFromDeprecatedReverts() public addModule {
-        vm.startPrank(moduleManager.owner());
+        vm.startPrank(moduleManagerOwner);
         moduleManager.changeModuleState(address(isModule), ModuleState.Deprecated);
         vm.expectRevert(ModuleManager.ModuleManager__WrongState.selector);
         moduleManager.changeModuleState(address(isModule), ModuleState.Enabled);
@@ -114,7 +101,7 @@ contract ModuleManagerTest is Test {
     }
 
     function testChangeStateFromNonModuleReverts() public {
-        vm.prank(moduleManager.owner());
+        vm.prank(moduleManagerOwner);
         vm.expectRevert(ModuleManager.ModuleManager__WrongState.selector);
         moduleManager.changeModuleState(address(isModule), ModuleState.Enabled);
     }
@@ -124,7 +111,7 @@ contract ModuleManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testAddModuleEmitsEvent() public {
-        vm.prank(address(addressManager));
+        vm.prank(addressManager);
         vm.expectEmit(false, false, false, true, address(moduleManager));
         emit OnNewModule(address(isModule));
         moduleManager.addModule(address(isModule));
@@ -142,7 +129,7 @@ contract ModuleManagerTest is Test {
         assert(moduleManager.isActiveModule(address(isModule)));
 
         // From ENABLED to DISABLED
-        vm.prank(moduleManager.owner());
+        vm.prank(moduleManagerOwner);
         vm.expectEmit(true, false, false, true, address(moduleManager));
         emit OnModuleStateChanged(address(isModule), ModuleState.Enabled, ModuleState.Disabled);
         moduleManager.changeModuleState(address(isModule), ModuleState.Disabled);
@@ -150,7 +137,7 @@ contract ModuleManagerTest is Test {
         assert(!moduleManager.isActiveModule(address(isModule)));
 
         // From DISABLED to PAUSED
-        vm.prank(moduleManager.owner());
+        vm.prank(moduleManagerOwner);
         vm.expectEmit(true, false, false, true, address(moduleManager));
         emit OnModuleStateChanged(address(isModule), ModuleState.Disabled, ModuleState.Paused);
         moduleManager.changeModuleState(address(isModule), ModuleState.Paused);
@@ -158,7 +145,7 @@ contract ModuleManagerTest is Test {
         assert(!moduleManager.isActiveModule(address(isModule)));
 
         // From PAUSED to DISABLED
-        vm.prank(moduleManager.owner());
+        vm.prank(moduleManagerOwner);
         vm.expectEmit(true, false, false, true, address(moduleManager));
         emit OnModuleStateChanged(address(isModule), ModuleState.Paused, ModuleState.Disabled);
         moduleManager.changeModuleState(address(isModule), ModuleState.Disabled);
@@ -166,7 +153,7 @@ contract ModuleManagerTest is Test {
         assert(!moduleManager.isActiveModule(address(isModule)));
 
         // From ENABLED to PAUSED
-        vm.startPrank(moduleManager.owner());
+        vm.startPrank(moduleManagerOwner);
         moduleManager.changeModuleState(address(isModule), ModuleState.Enabled);
         vm.expectEmit(true, false, false, true, address(moduleManager));
         emit OnModuleStateChanged(address(isModule), ModuleState.Enabled, ModuleState.Paused);
@@ -176,11 +163,22 @@ contract ModuleManagerTest is Test {
         assert(!moduleManager.isActiveModule(address(isModule)));
 
         // DEPRECATED
-        vm.prank(moduleManager.owner());
+        vm.prank(moduleManagerOwner);
         vm.expectEmit(true, false, false, true, address(moduleManager));
         emit OnModuleStateChanged(address(isModule), ModuleState.Paused, ModuleState.Deprecated);
         moduleManager.changeModuleState(address(isModule), ModuleState.Deprecated);
 
         assert(!moduleManager.isActiveModule(address(isModule)));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                UPGRADES
+    //////////////////////////////////////////////////////////////*/
+
+    function testUpgrades() public {
+        address newImpl = address(new ModuleManager());
+
+        vm.prank(moduleManagerOwner);
+        moduleManager.upgradeToAndCall(newImpl, "");
     }
 }

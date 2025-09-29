@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {RevShareModuleMock} from "test/mocks/RevShareModuleMock.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 
 contract RevShareNftHandler is Test {

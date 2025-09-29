@@ -1,135 +1,126 @@
-// // SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GPL-3.0
 
-// pragma solidity 0.8.28;
+pragma solidity 0.8.28;
 
-// import {Test, console2} from "forge-std/Test.sol";
-// import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
-// import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-// import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-// import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
-// import {UserRouter} from "contracts/router/UserRouter.sol";
-// import {StdCheats} from "forge-std/StdCheats.sol";
-// import {IUSDC} from "test/mocks/IUSDCmock.sol";
-// import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
-// import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-// import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {Test, console2} from "forge-std/Test.sol";
+import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
+import {DeployModules} from "test/utils/03-DeployModules.s.sol";
+import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
+import {IUSDC} from "test/mocks/IUSDCmock.sol";
+import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
-// contract Reverts_SubscriptionModuleTest is StdCheats, Test {
-//     TestDeployProtocol deployer;
-//     TakasureReserve takasureReserve;
-//     HelperConfig helperConfig;
-//     SubscriptionModule subscriptionModule;
-//     UserRouter userRouter;
-//     address takasureReserveProxy;
-//     address contributionTokenAddress;
-//     address admin;
-//     address kycService;
-//     address takadao;
-//     address subscriptionModuleAddress;
-//     address userRouterAddress;
-//     IUSDC usdc;
-//     address public alice = makeAddr("alice");
-//     address public bob = makeAddr("bob");
-//     address public charlie = makeAddr("charlie");
-//     address public david = makeAddr("david");
-//     uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 100 USDC
-//     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
-//     uint256 public constant YEAR = 365 days;
+contract Reverts_SubscriptionModuleTest is StdCheats, Test {
+    DeployManagers managersDeployer;
+    DeployModules moduleDeployer;
+    AddAddressesAndRoles addressesAndRoles;
+    SubscriptionModule subscriptionModule;
+    address takadao;
+    address couponRedeemer;
+    IUSDC usdc;
+    address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
+    uint256 public constant USDC_INITIAL_AMOUNT = 150e6; // 150 USDC
 
-//     function setUp() public {
-//         deployer = new TestDeployProtocol();
-//         (
-//             takasureReserveProxy,
-//             ,
-//             subscriptionModuleAddress,
-//             ,
-//             ,
-//             ,
-//             ,
-//             userRouterAddress,
-//             contributionTokenAddress,
-//             ,
-//             helperConfig
-//         ) = deployer.run();
+    function setUp() public {
+        managersDeployer = new DeployManagers();
+        moduleDeployer = new DeployModules();
+        addressesAndRoles = new AddAddressesAndRoles();
 
-//         subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
-//         userRouter = UserRouter(userRouterAddress);
+        (
+            HelperConfig.NetworkConfig memory config,
+            AddressManager addressManager,
+            ModuleManager moduleManager
+        ) = managersDeployer.run();
+        (address operator, , , address redeemer, , , ) = addressesAndRoles.run(
+            addressManager,
+            config,
+            address(moduleManager)
+        );
+        (, , , , , , , subscriptionModule) = moduleDeployer.run(addressManager);
 
-//         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
+        takadao = operator;
+        couponRedeemer = redeemer;
 
-//         admin = config.daoMultisig;
-//         kycService = config.kycProvider;
-//         takadao = config.takadaoOperator;
+        usdc = IUSDC(config.contributionToken);
 
-//         takasureReserve = TakasureReserve(takasureReserveProxy);
-//         usdc = IUSDC(contributionTokenAddress);
+        // For easier testing there is a minimal USDC mock contract without restrictions
+        deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
 
-//         // For easier testing there is a minimal USDC mock contract without restrictions
-//         deal(address(usdc), alice, USDC_INITIAL_AMOUNT);
-//         deal(address(usdc), bob, USDC_INITIAL_AMOUNT);
-//         deal(address(usdc), charlie, USDC_INITIAL_AMOUNT);
-//         deal(address(usdc), david, USDC_INITIAL_AMOUNT);
+        vm.prank(alice);
+        usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
+    }
 
-//         vm.startPrank(alice);
-//         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
-//         vm.stopPrank();
-//         vm.startPrank(bob);
-//         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
-//         vm.stopPrank();
-//         vm.startPrank(charlie);
-//         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
-//         vm.stopPrank();
-//         vm.startPrank(david);
-//         usdc.approve(address(subscriptionModule), USDC_INITIAL_AMOUNT);
-//         vm.stopPrank();
-//     }
+    /*//////////////////////////////////////////////////////////////
+                                    REVERTS
+        //////////////////////////////////////////////////////////////*/
 
-//     /*//////////////////////////////////////////////////////////////
-//                                 REVERTS
-//     //////////////////////////////////////////////////////////////*/
+    function testSubscriptionModule_revertsIfTryToPayTwice() public {
+        vm.startPrank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
 
-//     /// @dev `paySubscription` must revert if the contribution is less than the minimum threshold
-//     function testSubscriptionModule_paySubscriptionMustRevertIfDepositLessThanMinimum() public {
-//         uint256 wrongContribution = CONTRIBUTION_AMOUNT / 2;
-//         vm.prank(alice);
-//         vm.expectRevert(SubscriptionModule.SubscriptionModule__InvalidContribution.selector);
-//         userRouter.paySubscription(address(0), wrongContribution, (5 * YEAR));
-//     }
+        vm.expectRevert(ModuleErrors.Module__AlreadyJoined.selector);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+        vm.stopPrank();
+    }
 
-//     /// @dev can not refund someone already refunded
-//     function testSubscriptionModule_refundRevertIfMemberAlreadyRefunded() public {
-//         deal(address(usdc), address(subscriptionModule), 25e6);
+    function testSubscriptionModule_revertsIfParentIsNotValid() public {
+        vm.prank(couponRedeemer);
+        vm.expectRevert(ModuleErrors.Module__AddressNotKYCed.selector);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, bob, 0, block.timestamp);
+    }
 
-//         vm.startPrank(alice);
-//         // Join and refund
-//         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
+    function testSubscriptionModule_paySubscriptionRevertsIfFutureStartTime() public {
+        vm.prank(couponRedeemer);
+        vm.expectRevert(SubscriptionModule.SubscriptionModule__InvalidDate.selector);
+        subscriptionModule.paySubscriptionOnBehalfOf(
+            alice,
+            address(0),
+            0,
+            block.timestamp + 1 days
+        );
+    }
 
-//         // 14 days passed
-//         vm.warp(15 days);
-//         vm.roll(block.number + 1);
+    function testSubscriptionModule_refundRevertsIfCalledTwice() public {
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
 
-//         subscriptionModule.refund();
+        vm.prank(takadao);
+        subscriptionModule.refund(alice);
 
-//         // Try to refund again
-//         vm.expectRevert(SubscriptionModule.SubscriptionModule__NothingToRefund.selector);
-//         subscriptionModule.refund();
-//         vm.stopPrank();
-//     }
+        vm.prank(takadao);
+        vm.expectRevert(SubscriptionModule.SubscriptionModule__NothingToRefund.selector);
+        subscriptionModule.refund(alice);
+    }
 
-//     /// @dev can not refund after 30 days
-//     function testSubscriptionModule_refundRevertIfMemberRefundAfter30Days() public {
-//         // Join
-//         vm.startPrank(alice);
-//         userRouter.paySubscription(address(0), CONTRIBUTION_AMOUNT, 5 * YEAR);
-//         vm.stopPrank();
+    function testPaySubscriptionRevertsIfParentIsSelf() public {
+        vm.startPrank(couponRedeemer);
+        vm.expectRevert(ModuleErrors.Module__InvalidAddress.selector);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, alice, 0, block.timestamp);
+        vm.stopPrank();
+    }
 
-//         vm.warp(31 days);
-//         vm.roll(block.number + 1);
+    function testSubscriptionModule_transferSubscriptionToReserveRevertsIfUnauthorized() public {
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
 
-//         // Try to refund
-//         vm.startPrank(alice);
-//         vm.expectRevert(SubscriptionModule.SubscriptionModule__TooEarlytoRefund.selector);
-//         subscriptionModule.refund();
-//         vm.stopPrank();
-//     }
-// }
+        vm.expectRevert(ModuleErrors.Module__NotAuthorizedCaller.selector);
+        subscriptionModule.transferSubscriptionToReserve(alice);
+    }
+
+    function testSubscriptionModule_refundRevertsIfAfter30Days() public {
+        vm.prank(couponRedeemer);
+        subscriptionModule.paySubscriptionOnBehalfOf(alice, address(0), 0, block.timestamp);
+
+        skip(31 days);
+
+        vm.prank(takadao);
+        vm.expectRevert(SubscriptionModule.SubscriptionModule__TooLateToRefund.selector);
+        subscriptionModule.refund(alice);
+    }
+}

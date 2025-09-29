@@ -8,12 +8,12 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 
-import {Reserve, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Reserve, RevenueType, CashFlowVars, ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
@@ -24,45 +24,61 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-contract RevenueModule is Initializable, UUPSUpgradeable, ModuleImplementation {
+contract RevenueModule is ModuleImplementation, Initializable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
-    ITakasureReserve private takasureReserve;
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
 
     error RevenueModule__WrongRevenueType();
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(address _takasureReserveAddress) external initializer {
-        AddressAndStates._notZeroAddress(_takasureReserveAddress);
+    function initialize(address _addressManager, string calldata _moduleName) external initializer {
+        AddressAndStates._notZeroAddress(_addressManager);
         __UUPSUpgradeable_init();
 
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
+        addressManager = IAddressManager(_addressManager);
+        moduleName = _moduleName;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice To be called by the DAO to update the Fund reserve with new revenues
      * @param newRevenue the new revenue to be added to the fund reserve
      * @param revenueType the type of revenue to be added
      */
-    function depositRevenue(
-        uint256 newRevenue,
-        RevenueType revenueType
-    ) external onlyRole(Roles.DAO_MULTISIG, address(takasureReserve.addressManager())) {
+    function depositRevenue(uint256 newRevenue, RevenueType revenueType) external {
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
             IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
-        require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
+        require(
+            AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager)) ||
+                AddressAndStates._checkType(ProtocolAddressType.Module, address(addressManager)),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+
+        ITakasureReserve takasureReserve = ITakasureReserve(
+            addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr
+        );
 
         Reserve memory reserve = takasureReserve.getReserveValues();
 
         reserve.totalFundRevenues += newRevenue;
-        _updateCashMappings(newRevenue);
+        _updateCashMappings(newRevenue, takasureReserve);
         reserve.totalFundReserve += newRevenue;
 
         address contributionToken = reserve.contributionToken;
@@ -78,8 +94,8 @@ contract RevenueModule is Initializable, UUPSUpgradeable, ModuleImplementation {
         emit TakasureEvents.OnExternalRevenue(newRevenue, reserve.totalFundReserve, revenueType);
     }
 
-    function _updateCashMappings(uint256 _cashIn) internal {
-        CashFlowVars memory cashFlowVars = takasureReserve.getCashFlowValues();
+    function _updateCashMappings(uint256 _cashIn, ITakasureReserve _takasureReserve) internal {
+        CashFlowVars memory cashFlowVars = _takasureReserve.getCashFlowValues();
 
         uint256 currentTimestamp = block.timestamp;
         uint256 prevCashIn;
@@ -89,11 +105,11 @@ contract RevenueModule is Initializable, UUPSUpgradeable, ModuleImplementation {
             // Set the initial values for future calculations and reference
             cashFlowVars.dayDepositTimestamp = currentTimestamp;
             cashFlowVars.monthDepositTimestamp = currentTimestamp;
-            takasureReserve.setMonthToCashFlowValuesFromModule(
+            _takasureReserve.setMonthToCashFlowValuesFromModule(
                 cashFlowVars.monthReference,
                 _cashIn
             );
-            takasureReserve.setDayToCashFlowValuesFromModule(
+            _takasureReserve.setDayToCashFlowValuesFromModule(
                 cashFlowVars.monthReference,
                 cashFlowVars.dayReference,
                 _cashIn
@@ -111,18 +127,18 @@ contract RevenueModule is Initializable, UUPSUpgradeable, ModuleImplementation {
 
             if (monthsPassed == 0) {
                 // If no months have passed, update the mapping for the current month
-                prevCashIn = takasureReserve.monthToCashFlow(cashFlowVars.monthReference);
-                takasureReserve.setMonthToCashFlowValuesFromModule(
+                prevCashIn = _takasureReserve.monthToCashFlow(cashFlowVars.monthReference);
+                _takasureReserve.setMonthToCashFlowValuesFromModule(
                     cashFlowVars.monthReference,
                     prevCashIn + _cashIn
                 );
                 if (daysPassed == 0) {
                     // If no days have passed, update the mapping for the current day
-                    prevCashIn = takasureReserve.dayToCashFlow(
+                    prevCashIn = _takasureReserve.dayToCashFlow(
                         cashFlowVars.monthReference,
                         cashFlowVars.dayReference
                     );
-                    takasureReserve.setDayToCashFlowValuesFromModule(
+                    _takasureReserve.setDayToCashFlowValuesFromModule(
                         cashFlowVars.monthReference,
                         cashFlowVars.dayReference,
                         prevCashIn + _cashIn
@@ -133,7 +149,7 @@ contract RevenueModule is Initializable, UUPSUpgradeable, ModuleImplementation {
                     cashFlowVars.dayReference += uint8(daysPassed);
 
                     // Update the mapping for the new day
-                    takasureReserve.setDayToCashFlowValuesFromModule(
+                    _takasureReserve.setDayToCashFlowValuesFromModule(
                         cashFlowVars.monthReference,
                         cashFlowVars.dayReference,
                         _cashIn
@@ -158,11 +174,11 @@ contract RevenueModule is Initializable, UUPSUpgradeable, ModuleImplementation {
                 cashFlowVars.dayReference = uint8(daysPassed) + initialDay;
 
                 // Update the mappings for the new month and day
-                takasureReserve.setMonthToCashFlowValuesFromModule(
+                _takasureReserve.setMonthToCashFlowValuesFromModule(
                     cashFlowVars.monthReference,
                     _cashIn
                 );
-                takasureReserve.setDayToCashFlowValuesFromModule(
+                _takasureReserve.setDayToCashFlowValuesFromModule(
                     cashFlowVars.monthReference,
                     cashFlowVars.dayReference,
                     _cashIn
@@ -170,11 +186,11 @@ contract RevenueModule is Initializable, UUPSUpgradeable, ModuleImplementation {
             }
         }
 
-        takasureReserve.setCashFlowValuesFromModule(cashFlowVars);
+        _takasureReserve.setCashFlowValuesFromModule(cashFlowVars);
     }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
 }

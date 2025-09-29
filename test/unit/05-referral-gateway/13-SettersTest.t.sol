@@ -3,23 +3,21 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployReferralGateway} from "test/utils/00-DeployReferralGateway.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewaySettersTests is Test {
-    TestDeployProtocol deployer;
+    DeployReferralGateway deployer;
     ReferralGateway referralGateway;
-    HelperConfig helperConfig;
     IUSDC usdc;
-    address usdcAddress;
-    address referralGatewayAddress;
     address operator;
     address couponUser = makeAddr("couponUser");
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
-    string tDaoName = "TheLifeDAO";
+    address pauseGuardian;
+    string tDaoName = "TheLifeDao";
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
@@ -30,20 +28,21 @@ contract ReferralGatewaySettersTests is Test {
         string indexed tDAOName,
         uint256 indexed couponAmount
     );
+    event Paused(address account);
+    event Unpaused(address account);
 
     function setUp() public {
         // Deployer
-        deployer = new TestDeployProtocol();
-        // Deploy contracts
-        (, referralGatewayAddress, , , , , , , usdcAddress, , helperConfig) = deployer.run();
+        deployer = new DeployReferralGateway();
+        HelperConfig.NetworkConfig memory config;
+        (config, referralGateway) = deployer.run();
 
         // Get config values
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         operator = config.takadaoOperator;
+        pauseGuardian = config.pauseGuardian;
 
         // Assign implementations
-        referralGateway = ReferralGateway(address(referralGatewayAddress));
-        usdc = IUSDC(usdcAddress);
+        usdc = IUSDC(config.contributionToken);
 
         // Give and approve USDC
 
@@ -66,5 +65,27 @@ contract ReferralGatewaySettersTests is Test {
         vm.expectEmit(true, true, false, false, address(referralGateway));
         emit OnNewCouponPoolAddress(address(0), couponPool);
         referralGateway.setCouponPoolAddress(couponPool);
+    }
+
+    function testReferralGateway_upgrade() public {
+        address newImpl = address(new ReferralGateway());
+
+        vm.prank(operator);
+        referralGateway.upgradeToAndCall(newImpl, "");
+    }
+
+    function testReferralGateway_pause() public {
+        vm.prank(pauseGuardian);
+        vm.expectEmit(false, false, false, true, address(referralGateway));
+        emit Paused(pauseGuardian);
+        referralGateway.pause();
+    }
+
+    function testReferralGateway_unPause() public {
+        vm.startPrank(pauseGuardian);
+        referralGateway.pause();
+        vm.expectEmit(false, false, false, true, address(referralGateway));
+        emit Unpaused(pauseGuardian);
+        referralGateway.unpause();
     }
 }

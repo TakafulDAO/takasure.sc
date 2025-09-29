@@ -8,10 +8,13 @@
 pragma solidity 0.8.28;
 
 library ModuleErrors {
-    error Module__MintFailed();
+    error Module__InvalidCoupon();
+    error Module__AlreadyJoined();
+    error Module__AddressNotKYCed();
     error Module__WrongMemberState();
     error Module__WrongModuleState();
     error Module__TooEarlyToCancel();
     error Module__TooEarlyToDefault();
     error Module__NotAuthorizedCaller();
+    error Module__InvalidAddress();
 }
