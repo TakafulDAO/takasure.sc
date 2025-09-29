@@ -104,7 +104,8 @@
                 { "name": "contributionBeforeFee", "type": "uint256", "internalType": "uint256" },
                 { "name": "contributionAfterFee", "type": "uint256", "internalType": "uint256" },
                 { "name": "feeToOperator", "type": "uint256", "internalType": "uint256" },
-                { "name": "discount", "type": "uint256", "internalType": "uint256" }
+                { "name": "discount", "type": "uint256", "internalType": "uint256" },
+                { "name": "isDonated", "type": "bool", "internalType": "bool" }
             ],
             "stateMutability": "view"
         },
@@ -142,7 +143,8 @@
                 { "name": "_operator", "type": "address", "internalType": "address" },
                 { "name": "_KYCProvider", "type": "address", "internalType": "address" },
                 { "name": "_pauseGuardian", "type": "address", "internalType": "address" },
-                { "name": "_usdcAddress", "type": "address", "internalType": "address" }
+                { "name": "_usdcAddress", "type": "address", "internalType": "address" },
+                { "name": "_daoName", "type": "string", "internalType": "string" }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
