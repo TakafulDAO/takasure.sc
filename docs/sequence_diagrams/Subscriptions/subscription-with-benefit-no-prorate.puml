@@ -1,64 +1,77 @@
-@startuml Subscriptions with benefits no prorate
-title Subscription with benefits no prorate
+@startuml Subscription_with_benefits_no_prorate
+title Subscription with benefits — no prorate
 autonumber
 
 actor Backend
+actor Parent
 participant SubscriptionModule
 participant MembersData
 participant CouponPool
+participant RewardsModule
 participant KYCModule
 participant LifeBenefitModule
 participant Reserve
 
 Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
 
-alt Caller is valid
-  alt Module enabled
-    alt Contribution is within limits (25USDC - 250USDC)
-      SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
-      MembersData --> SubscriptionModule: Returns member Data
+break [Caller-NOT-valid]
+  SubscriptionModule -x Backend: revert InvalidCaller()
+end
 
-      alt Member is valid
-        SubscriptionModule -> MembersData: getAssociationMemberData(parentWallet)
-        MembersData --> SubscriptionModule: Returns parent Data
+break [Module-disabled]
+  SubscriptionModule -x Backend: revert ModuleDisabled()
+end
 
-        alt Parent is valid
-          SubscriptionModule -> MembersData: registerAssociationMember(memberWallet, parentWallet, contribution)
-          MembersData -> MembersData: Emits event
-          MembersData --> SubscriptionModule: Returns success
+break [Contribution-out-of-limits-(<25-or->250-USDC)]
+  SubscriptionModule -x Backend: revert WrongContribution()
+end
 
-          alt Success
-            CouponPool -> SubscriptionModule: transfer minimum contribution
-            SubscriptionModule -> KYCModule: approveKYC(memberWallet)
-            KYCModule -> KYCModule: Emits event
-            Backend -> LifeBenefitModule: joinBenefit(memberWallet)
-            LifeBenefitModule -> MembersData: updateMember(memberWallet)
-            SubscriptionModule -> Reserve: transfer minimum contribution to Reserve
-            CouponPool -> Reserve: transfer remaining contribution to Reserve
-            Reserve -> Reserve: Run algorithms (include member)
+SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
+MembersData --> SubscriptionModule: Member data
 
-          else Failure
-            SubscriptionModule --> Backend: Revert
-          end
+break [Member-invalid]
+  SubscriptionModule -x Backend: revert InvalidMember()
+end
 
-        else Parent is invalid
-          SubscriptionModule --> Backend: Revert
-        end
+opt [Parent-wallet-not-zero]
+  SubscriptionModule -> MembersData: getAssociationMemberData(parentWallet)
+  MembersData --> SubscriptionModule: Parent data
 
-      else Member is invalid 
-        SubscriptionModule --> Backend: Revert
-      end
-
-    else Contribution is out of limits
-      SubscriptionModule --> Backend: Revert
-    end
-
-  else Module disabled
-    SubscriptionModule --> Backend: Revert
+  break [Parent-invalid]
+    SubscriptionModule -x Backend: revert InvalidParent()
   end
 
-else Caller is not valid
-  SubscriptionModule --> Backend: Revert
+  SubscriptionModule -> RewardsModule: assignParentReward(for the minimum contribution)
 end
+
+SubscriptionModule -> MembersData: registerAssociationMember(memberWallet, parentWallet, contribution)
+MembersData -> MembersData: Emits event
+MembersData --> SubscriptionModule: success
+
+CouponPool -> SubscriptionModule: transfer minimum contribution
+SubscriptionModule -> KYCModule: approveKYC(memberWallet)
+KYCModule -> KYCModule: Emits event
+
+Backend -> LifeBenefitModule: joinBenefit(memberWallet)
+LifeBenefitModule -> MembersData: updateMember(memberWallet)
+
+SubscriptionModule -> Reserve: transfer minimum contribution to Reserve
+
+opt [there-was-a-parent]
+  SubscriptionModule -> RewardsModule: rewardParent
+  RewardsModule -> RewardsModule: Emits event
+  RewardsModule --> Parent: transfer parent reward
+end
+
+CouponPool -> Reserve: transfer remaining contribution to Reserve
+
+opt [there-was-a-parent]
+  LifeBenefitModule -> RewardsModule: assignParentReward(for the remaining contribution)
+  LifeBenefitModule -> RewardsModule: rewardParent
+  RewardsModule -> RewardsModule: Emits event
+  RewardsModule --> Parent: transfer parent reward
+end
+
+Reserve -> Reserve: Run algorithms (include member)
 
 @enduml

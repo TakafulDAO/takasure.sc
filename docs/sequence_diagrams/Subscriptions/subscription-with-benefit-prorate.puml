@@ -1,73 +1,87 @@
-@startuml Subscriptions with benefits prorate
-title Subscription with benefits prorate
+@startuml Subscription_with_benefits_prorate
+title Subscription with benefits — prorate
 autonumber
 
 actor Backend
+actor Parent
+actor User
 participant SubscriptionModule
 participant MembersData
 participant KYCModule
 participant CouponPool
+participant RewardsModule
 participant LifeBenefitModule
 participant Reserve
 
 Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
 
-alt Caller is valid
-  alt Module enabled
-    alt Contribution is minimum (25USDC)
-      SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
-      MembersData --> SubscriptionModule: Returns member Data
+break [Caller-NOT-valid]
+  SubscriptionModule -x Backend: revert InvalidCaller()
+end
 
-      alt Member is valid
-        SubscriptionModule -> MembersData: getAssociationMemberData(parentWallet)
-        MembersData --> SubscriptionModule: Returns parent Data
+break [Module-disabled]
+  SubscriptionModule -x Backend: revert ModuleDisabled()
+end
 
-        alt Parent is valid
-          SubscriptionModule -> MembersData: registerAssociationMember(memberWallet, parentWallet, contribution)
-          MembersData -> MembersData: Emits event
-          MembersData --> SubscriptionModule: Returns success
+break [Contribution-IS-NOT-minimum-(25-USDC)]
+  SubscriptionModule -x Backend: revert WrongContribution()
+end
 
-          alt Success
-            SubscriptionModule -> KYCModule: approveKYC(memberWallet)
-            KYCModule -> KYCModule: Emits event
+SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
+MembersData --> SubscriptionModule: Member data
 
-            alt 30 days passed, (cronjob)
-                SubscriptionModule -> Reserve: transfer minimum contribution
-                Reserve -> Reserve: Run algorithms (Do not include member)
-            end
+break [Member-invalid]
+  SubscriptionModule -x Backend: revert InvalidMember()
+end
 
-            alt More than 30 days passed
-                Backend -> LifeBenefitModule: joinBenefit(memberWallet, proratedContribution)
-                LifeBenefitModule -> MembersData: getAssociationMemberData(memberWallet)
-                MembersData --> LifeBenefitModule: Returns member Data
-                LifeBenefitModule -> LifeBenefitModule: Calculates prorated contribution
-                LifeBenefitModule -> MembersData: updateMember(memberWallet)
-                CouponPool -> Reserve: transfer prorated contribution to Reserve 
-                Reserve -> Reserve: Run algorithms (include member)
-            end            
+opt [Parent-wallet-not-zero]
+  SubscriptionModule -> MembersData: getAssociationMemberData(parentWallet)
+  MembersData --> SubscriptionModule: Parent data
 
-          else Failure
-            SubscriptionModule --> Backend: Revert
-          end
-
-        else Parent is invalid
-          SubscriptionModule --> Backend: Revert
-        end
-
-      else Member is invalid 
-        SubscriptionModule --> Backend: Revert
-      end
-
-    else Contribution is not minimum
-      SubscriptionModule --> Backend: Revert
-    end
-
-  else Module disabled
-    SubscriptionModule --> Backend: Revert
+  break [Parent-invalid]
+    SubscriptionModule -x Backend: revert InvalidParent()
   end
 
-else Caller is not valid
-  SubscriptionModule --> Backend: Revert
+  SubscriptionModule -> RewardsModule: assignParentReward(for the minimum contribution)
+end
+
+SubscriptionModule -> MembersData: registerAssociationMember(memberWallet, parentWallet, contribution)
+MembersData -> MembersData: Emits event
+MembersData --> SubscriptionModule: success
+
+CouponPool -> SubscriptionModule: transfer minimum contribution
+
+SubscriptionModule -> KYCModule: approveKYC(memberWallet)
+KYCModule -> KYCModule: Emits event
+
+opt [30d-passed-(cronjob)]
+  SubscriptionModule -> Reserve: transfer minimum contribution
+  Reserve -> Reserve: Run algorithms (Do not include member)
+
+  opt [there-was-a-parent]
+    SubscriptionModule -> RewardsModule: rewardParent
+    RewardsModule -> RewardsModule: Emits event
+    RewardsModule --> Parent: transfer parent reward
+  end
+end
+
+opt [>30d-passed]
+  User -> Backend: asks for benefit
+  Backend -> LifeBenefitModule: joinBenefit(memberWallet)
+  LifeBenefitModule -> MembersData: getAssociationMemberData(memberWallet)
+  MembersData --> LifeBenefitModule: Member data
+  LifeBenefitModule -> LifeBenefitModule: Calculate prorated contribution
+
+  opt [there-was-a-parent]
+    LifeBenefitModule -> RewardsModule: assignParentReward(for the prorated contribution)
+    LifeBenefitModule -> RewardsModule: rewardParent
+    RewardsModule -> RewardsModule: Emits event
+    RewardsModule --> Parent: transfer parent reward
+  end
+
+  LifeBenefitModule -> MembersData: updateMember(memberWallet)
+  CouponPool -> Reserve: transfer prorated contribution to Reserve
+  Reserve -> Reserve: Run algorithms (include member)
 end
 
 @enduml
