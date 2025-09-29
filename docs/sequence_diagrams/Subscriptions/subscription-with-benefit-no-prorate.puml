@@ -1,5 +1,5 @@
 @startuml Subscriptions with benefits no prorate
-title Subscription without benefits no prorate
+title Subscription with benefits no prorate
 autonumber
 
 actor Backend

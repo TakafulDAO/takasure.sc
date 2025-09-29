@@ -34,7 +34,7 @@ alt Caller is valid
               KYCModule -> KYCModule: Emits event
             end
 
-            alt 30 days passed
+            alt more than 30 days passed || apply to service
               SubscriptionModule -> Reserve: transfer contribution to Reserve
               Reserve -> Reserve: Run algorithms (Do not include member)           
             end

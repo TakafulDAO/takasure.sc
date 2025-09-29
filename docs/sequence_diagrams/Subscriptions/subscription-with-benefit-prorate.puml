@@ -1,14 +1,14 @@
 @startuml Subscriptions with benefits prorate
-title Subscription without benefits prorate
+title Subscription with benefits prorate
 autonumber
 
 actor Backend
 participant SubscriptionModule
 participant MembersData
 participant KYCModule
-' participant CouponPool
-' participant LifeBenefitModule
-' participant Reserve
+participant CouponPool
+participant LifeBenefitModule
+participant Reserve
 
 Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
 
@@ -31,13 +31,15 @@ alt Caller is valid
             SubscriptionModule -> KYCModule: approveKYC(memberWallet)
             KYCModule -> KYCModule: Emits event
 
-            alt 30 days passed
-                CouponPool -> SubscriptionModule: transfer minimum contribution
+            alt 30 days passed, (cronjob)
+                SubscriptionModule -> Reserve: transfer minimum contribution
                 Reserve -> Reserve: Run algorithms (Do not include member)
             end
 
             alt More than 30 days passed
-                Backend -> LifeBenefitModule: joinBenefit(memberWallet)
+                Backend -> LifeBenefitModule: joinBenefit(memberWallet, proratedContribution)
+                LifeBenefitModule -> MembersData: getAssociationMemberData(memberWallet)
+                MembersData --> LifeBenefitModule: Returns member Data
                 LifeBenefitModule -> LifeBenefitModule: Calculates prorated contribution
                 LifeBenefitModule -> MembersData: updateMember(memberWallet)
                 CouponPool -> Reserve: transfer prorated contribution to Reserve 
