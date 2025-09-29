@@ -3,12 +3,10 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
-import {TakasureReserve} from "contracts/takasure/core/TakasureReserve.sol";
-import {TSToken} from "contracts/token/TSToken.sol";
-import {EntryModule} from "contracts/takasure/modules/EntryModule.sol";
-import {MemberModule} from "contracts/takasure/modules/MemberModule.sol";
-import {RevenueModule} from "contracts/takasure/modules/RevenueModule.sol";
-import {BenefitMultiplierConsumer} from "contracts/helpers/chainlink/functions/BenefitMultiplierConsumer.sol";
+import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
+import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {RevenueModule} from "contracts/modules/RevenueModule.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
@@ -30,13 +28,6 @@ contract DeployTakasureReserve is Script {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
-        string memory root = vm.projectRoot();
-        string memory scriptPath = string.concat(
-            root,
-            "/scripts/chainlink-functions/bmFetchCode.js"
-        );
-        string memory bmFetchScript = vm.readFile(scriptPath);
-
         vm.startBroadcast();
 
         // Deploy TakasureReserve
@@ -50,20 +41,9 @@ contract DeployTakasureReserve is Script {
                     config.daoMultisig,
                     config.takadaoOperator,
                     config.kycProvider,
-                    config.pauseGuardian,
-                    config.tokenAdmin,
-                    config.tokenName,
-                    config.tokenSymbol
+                    config.pauseGuardian
                 )
             )
-        );
-
-        // Deploy BenefitMultiplierConsumer
-        BenefitMultiplierConsumer benefitMultiplierConsumer = new BenefitMultiplierConsumer(
-            config.functionsRouter,
-            config.donId,
-            config.gasLimit,
-            config.subscriptionId
         );
 
         // Deploy EntryModule
@@ -84,17 +64,6 @@ contract DeployTakasureReserve is Script {
             abi.encodeCall(RevenueModule.initialize, (takasureReserve))
         );
 
-        // Set BenefitMultiplierConsumer as an oracle in TakasurePool
-        TakasureReserve(takasureReserve).setNewBenefitMultiplierConsumerAddress(
-            address(benefitMultiplierConsumer)
-        );
-
-        // Add new source code to BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setBMSourceRequestCode(bmFetchScript);
-
-        // Setting EntryModule as a requester in BenefitMultiplierConsumer
-        benefitMultiplierConsumer.setNewRequester(entryModule);
-
         // Set EntryModule as a module in TakasurePool
         // TakasureReserve(takasureReserve).setNewModuleContract(entryModule);
 
@@ -104,21 +73,11 @@ contract DeployTakasureReserve is Script {
         // Set RevenueModule as a module in TakasurePool
         // TakasureReserve(takasureReserve).setNewModuleContract(revenueModule);
 
-        TSToken creditToken = TSToken(TakasureReserve(takasureReserve).getReserveValues().daoToken);
-
         // After this set the dao multisig as the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(takasureReserve).grantRole(0x00, config.daoMultisig);
-        // And the modules as burner and minters
-        creditToken.grantRole(MINTER_ROLE, entryModule);
-        creditToken.grantRole(MINTER_ROLE, memberModule);
-        creditToken.grantRole(BURNER_ROLE, entryModule);
-        creditToken.grantRole(BURNER_ROLE, memberModule);
 
         // And renounce the DEFAULT_ADMIN_ROLE in TakasureReserve
         TakasureReserve(takasureReserve).renounceRole(0x00, msg.sender);
-        // And the burner and minter admins
-        creditToken.renounceRole(MINTER_ADMIN_ROLE, msg.sender);
-        creditToken.renounceRole(BURNER_ADMIN_ROLE, msg.sender);
 
         vm.stopBroadcast();
     }

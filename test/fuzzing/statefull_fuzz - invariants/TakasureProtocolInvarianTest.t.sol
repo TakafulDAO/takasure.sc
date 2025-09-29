@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Test, StdInvariant, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {EntryModule} from "contracts/modules/EntryModule.sol";
+import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
@@ -14,12 +14,12 @@ import {TakasureProtocolHandler} from "test/helpers/handlers/TakasureProtocolHan
 contract TakasureProtocolInvariantTest is StdInvariant, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
-    EntryModule entryModule;
+    SubscriptionModule subscriptionModule;
     MemberModule memberModule;
     TakasureProtocolHandler handler;
     UserRouter userRouter;
     address takasureReserveProxy;
-    address entryModuleAddress;
+    address subscriptionModuleAddress;
     address memberModuleAddress;
     address contributionTokenAddress;
     address userRouterAddress;
@@ -30,12 +30,12 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
     function setUp() public {
         deployer = new TestDeployProtocol();
         (
-            ,
-            ,
             takasureReserveProxy,
             ,
-            entryModuleAddress,
+            subscriptionModuleAddress,
+            ,
             memberModuleAddress,
+            ,
             ,
             userRouterAddress,
             contributionTokenAddress,
@@ -44,14 +44,14 @@ contract TakasureProtocolInvariantTest is StdInvariant, Test {
         ) = deployer.run();
 
         takasureReserve = TakasureReserve(address(takasureReserveProxy));
-        entryModule = EntryModule(entryModuleAddress);
+        subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
         memberModule = MemberModule(memberModuleAddress);
         userRouter = UserRouter(userRouterAddress);
         usdc = IUSDC(contributionTokenAddress);
 
         handler = new TakasureProtocolHandler(
             takasureReserve,
-            entryModule,
+            subscriptionModule,
             memberModule,
             userRouter
         );

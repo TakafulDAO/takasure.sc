@@ -8,24 +8,20 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IBenefitMultiplierConsumer} from "contracts/interfaces/IBenefitMultiplierConsumer.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {ITSToken} from "contracts/interfaces/ITSToken.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
-import {Reserve, Member, MemberState, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
-import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
+import {Reserve, Member, MemberState, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
@@ -33,17 +29,14 @@ pragma solidity 0.8.28;
 contract MemberModule is
     Initializable,
     UUPSUpgradeable,
-    AccessControlUpgradeable,
     ReentrancyGuardTransientUpgradeable,
-    TLDModuleImplementation,
+    ModuleImplementation,
     ReserveAndMemberValuesHook,
     MemberPaymentFlow
 {
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    IBenefitMultiplierConsumer private bmConsumer;
-    ModuleState private moduleState;
 
     error MemberModule__InvalidDate();
 
@@ -55,27 +48,9 @@ contract MemberModule is
     function initialize(address _takasureReserveAddress) external initializer {
         AddressAndStates._notZeroAddress(_takasureReserveAddress);
         __UUPSUpgradeable_init();
-        __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
         takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        bmConsumer = IBenefitMultiplierConsumer(takasureReserve.bmConsumer());
-        address takadaoOperator = takasureReserve.takadaoOperator();
-        address moduleManager = takasureReserve.moduleManager();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.MODULE_MANAGER, moduleManager);
-        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
-    }
-
-    /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyRole(ModuleConstants.MODULE_MANAGER) {
-        moduleState = newState;
     }
 
     /**
@@ -83,21 +58,36 @@ contract MemberModule is
      * @dev To be called by anyone
      */
     function cancelMembership(address memberWallet) external {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         AddressAndStates._notZeroAddress(memberWallet);
         _cancelMembership(memberWallet);
     }
 
     function payRecurringContribution(address memberWallet) external nonReentrant {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+
+        require(
+            AddressAndStates._checkName("ROUTER", address(takasureReserve.addressManager())) ||
+                msg.sender == memberWallet,
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+
         (Reserve memory reserve, Member memory activeMember) = _getReserveAndMemberValuesHook(
             takasureReserve,
             memberWallet
         );
 
         require(
-            activeMember.memberState == MemberState.Active &&
-                activeMember.memberState != MemberState.Defaulted,
+            activeMember.memberState == MemberState.Active ||
+                activeMember.memberState == MemberState.Defaulted,
             ModuleErrors.Module__WrongMemberState()
         );
 
@@ -123,11 +113,13 @@ contract MemberModule is
         activeMember.totalServiceFee += feeAmount;
         activeMember.lastEcr = 0;
         activeMember.lastUcr = 0;
+        if (activeMember.memberState == MemberState.Defaulted)
+            activeMember.memberState = MemberState.Active;
 
         // And we pay the contribution
-        uint256 mintedTokens;
+        uint256 credits;
 
-        (reserve, mintedTokens) = _memberPaymentFlow({
+        (reserve, credits) = _memberPaymentFlow({
             _contributionBeforeFee: contributionBeforeFee,
             _contributionAfterFee: contributionBeforeFee - feeAmount,
             _memberWallet: memberWallet,
@@ -135,7 +127,7 @@ contract MemberModule is
             _takasureReserve: takasureReserve
         });
 
-        activeMember.creditTokensBalance += mintedTokens;
+        activeMember.creditsBalance += credits;
 
         emit TakasureEvents.OnRecurringPayment(
             memberWallet,
@@ -150,7 +142,11 @@ contract MemberModule is
     }
 
     function defaultMember(address memberWallet) external {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         Member memory member = _getMembersValuesHook(takasureReserve, memberWallet);
 
         require(member.memberState == MemberState.Active, ModuleErrors.Module__WrongMemberState());
@@ -163,7 +159,7 @@ contract MemberModule is
             // Update the state, this will allow to cancel the membership
             member.memberState = MemberState.Defaulted;
 
-            emit TakasureEvents.OnMemberDefaulted(member.memberId, msg.sender);
+            emit TakasureEvents.OnMemberDefaulted(member.memberId, memberWallet);
 
             _setMembersValuesHook(takasureReserve, member);
         } else {
@@ -199,5 +195,5 @@ contract MemberModule is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {}
 }

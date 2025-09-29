@@ -9,52 +9,35 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {TSToken} from "contracts/token/TSToken.sol";
 
-import {Reserve, Member, MemberState, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, Member, MemberState, CashFlowVars, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 pragma solidity 0.8.28;
 
-contract TakasureReserve is
-    Initializable,
-    UUPSUpgradeable,
-    AccessControlUpgradeable,
-    PausableUpgradeable
-{
-    IModuleManager public moduleManager;
+contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable {
+    IAddressManager public addressManager;
 
     Reserve private reserve;
     CashFlowVars private cashFlowVars;
 
-    address public bmConsumer;
-    address public kycProvider;
-    address public feeClaimAddress;
-    address public takadaoOperator;
-    address public daoMultisig;
-    address private pauseGuardian;
-
-    uint256 private RPOOL; // todo: define this value
-
-    bytes32 internal constant TAKADAO_OPERATOR = keccak256("TAKADAO_OPERATOR");
-    bytes32 internal constant DAO_MULTISIG = keccak256("DAO_MULTISIG");
-    bytes32 private constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
+    uint256 private RPOOL;
 
     mapping(uint16 month => uint256 monthCashFlow) public monthToCashFlow;
-    mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) public dayToCashFlow; // ? Maybe better block.timestamp => dailyDeposits for this one?
+    mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) public dayToCashFlow;
 
     mapping(address member => Member) private members;
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
     error TakasureReserve__OnlyDaoOrTakadao();
-    error TakasureReserve__WrongServiceFee();
-    error TakasureReserve__WrongFundMarketExpendsShare();
+    error TakasureReserve__WrongValue();
     error TakasureReserve__UnallowedAccess();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -62,52 +45,31 @@ contract TakasureReserve is
         _disableInitializers();
     }
 
-    /**
-     * @param _contributionToken default USDC
-     * @param _feeClaimAddress address allowed to claim the service fee
-     * @param _daoOperator address allowed to manage the DAO
-     * @dev it reverts if any of the addresses is zero
-     */
-    function initialize(
-        address _contributionToken,
-        address _feeClaimAddress,
-        address _daoOperator,
-        address _takadaoOperator,
-        address _kycProvider,
-        address _pauseGuardian,
-        address _tokenAdmin,
-        address _moduleManager,
-        string memory _tokenName,
-        string memory _tokenSymbol
-    ) external initializer {
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(role, address(addressManager)),
+            TakasureReserve__UnallowedAccess()
+        );
+        _;
+    }
+
+    function initialize(address contributionToken, address _addressManager) external initializer {
         __UUPSUpgradeable_init();
-        __AccessControl_init();
         __Pausable_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(TAKADAO_OPERATOR, _takadaoOperator);
-        _grantRole(DAO_MULTISIG, _daoOperator);
-        _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
 
-        moduleManager = IModuleManager(_moduleManager);
-        takadaoOperator = _takadaoOperator;
-        daoMultisig = _daoOperator;
-        kycProvider = _kycProvider;
-        feeClaimAddress = _feeClaimAddress;
-        pauseGuardian = _pauseGuardian;
-
-        TSToken daoToken = new TSToken(_tokenAdmin, msg.sender, _tokenName, _tokenSymbol);
+        addressManager = IAddressManager(_addressManager);
 
         cashFlowVars.monthReference = 1;
         cashFlowVars.dayReference = 1;
 
+        reserve.referralDiscount = true; // Default
         reserve.serviceFee = 27; // 27% of the contribution amount. Default
         reserve.lossRatioThreshold = 80; // 80% Default
         reserve.bmaFundReserveShare = 70; // 70% Default
         reserve.fundMarketExpendsAddShare = 20; // 20% Default
         reserve.riskMultiplier = 2; // 2% Default
         reserve.isOptimizerEnabled = true; // Default
-        reserve.daoToken = address(daoToken);
-        reserve.contributionToken = _contributionToken;
+        reserve.contributionToken = contributionToken;
         reserve.minimumThreshold = 25e6; // 25 USDC // 6 decimals
         reserve.maximumThreshold = 250e6; // 250 USDC // 6 decimals
         reserve.initialReserveRatio = 40; // 40% Default
@@ -121,16 +83,15 @@ contract TakasureReserve is
             reserve.serviceFee,
             reserve.bmaFundReserveShare,
             reserve.isOptimizerEnabled,
-            reserve.contributionToken,
-            reserve.daoToken
+            reserve.contributionToken
         );
     }
 
-    function pause() external onlyRole(PAUSE_GUARDIAN) {
+    function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _pause();
     }
 
-    function unpause() external onlyRole(PAUSE_GUARDIAN) {
+    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _unpause();
     }
 
@@ -169,14 +130,14 @@ contract TakasureReserve is
         dayToCashFlow[month][day] = dayCashFlow;
     }
 
-    function setModuleManagerContract(address newModuleManagerContract) external {
+    function setAddressManagerContract(address newAddressManagerContract) external {
         _onlyDaoOrTakadao();
-        AddressAndStates._notZeroAddress(newModuleManagerContract);
-        moduleManager = IModuleManager(newModuleManagerContract);
+        AddressAndStates._notZeroAddress(newAddressManagerContract);
+        addressManager = IAddressManager(newAddressManagerContract);
     }
 
-    function setNewServiceFee(uint8 newServiceFee) external onlyRole(TAKADAO_OPERATOR) {
-        require(newServiceFee <= 35, TakasureReserve__WrongServiceFee());
+    function setNewServiceFee(uint8 newServiceFee) external onlyRole(Roles.OPERATOR) {
+        require(newServiceFee <= 35, TakasureReserve__WrongValue());
         reserve.serviceFee = newServiceFee;
 
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
@@ -184,8 +145,8 @@ contract TakasureReserve is
 
     function setNewFundMarketExpendsShare(
         uint8 newFundMarketExpendsAddShare
-    ) external onlyRole(DAO_MULTISIG) {
-        require(newFundMarketExpendsAddShare <= 35, TakasureReserve__WrongFundMarketExpendsShare());
+    ) external onlyRole(Roles.DAO_MULTISIG) {
+        require(newFundMarketExpendsAddShare <= 35, TakasureReserve__WrongValue());
 
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
         reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
@@ -196,61 +157,41 @@ contract TakasureReserve is
         );
     }
 
-    function setAllowCustomDuration(bool _allowCustomDuration) external onlyRole(DAO_MULTISIG) {
+    function setAllowCustomDuration(
+        bool _allowCustomDuration
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.allowCustomDuration = _allowCustomDuration;
 
         emit TakasureEvents.OnAllowCustomDuration(_allowCustomDuration);
     }
 
-    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyRole(DAO_MULTISIG) {
+    function setNewMinimumThreshold(
+        uint256 newMinimumThreshold
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.minimumThreshold = newMinimumThreshold;
 
         emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
     }
 
-    function setNewMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(DAO_MULTISIG) {
+    function setNewMaximumThreshold(
+        uint256 newMaximumThreshold
+    ) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.maximumThreshold = newMaximumThreshold;
 
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
     }
 
-    function setNewContributionToken(address newContributionToken) external onlyRole(DAO_MULTISIG) {
-        AddressAndStates._notZeroAddress(newContributionToken);
-        reserve.contributionToken = newContributionToken;
+    function setRiskMultiplier(uint8 newRiskMultiplier) external onlyRole(Roles.DAO_MULTISIG) {
+        require(newRiskMultiplier <= 100, TakasureReserve__WrongValue());
+        reserve.riskMultiplier = newRiskMultiplier;
+
+        emit TakasureEvents.OnNewRiskMultiplier(newRiskMultiplier);
     }
 
-    function setNewFeeClaimAddress(address newFeeClaimAddress) external onlyRole(TAKADAO_OPERATOR) {
-        AddressAndStates._notZeroAddress(newFeeClaimAddress);
-        feeClaimAddress = newFeeClaimAddress;
-    }
-
-    function setNewBenefitMultiplierConsumerAddress(
-        address newBenefitMultiplierConsumerAddress
-    ) external {
-        _onlyDaoOrTakadao();
-        AddressAndStates._notZeroAddress(newBenefitMultiplierConsumerAddress);
-        address oldBenefitMultiplierConsumer = address(bmConsumer);
-        bmConsumer = newBenefitMultiplierConsumerAddress;
-
-        emit TakasureEvents.OnBenefitMultiplierConsumerChanged(
-            newBenefitMultiplierConsumerAddress,
-            oldBenefitMultiplierConsumer
-        );
-    }
-
-    function setNewKycProviderAddress(
-        address newKycProviderAddress
-    ) external onlyRole(DAO_MULTISIG) {
-        kycProvider = newKycProviderAddress;
-    }
-
-    function setNewPauseGuardianAddress(address newPauseGuardianAddress) external {
-        _onlyDaoOrTakadao();
-        address oldPauseGuardian = pauseGuardian;
-        pauseGuardian = newPauseGuardianAddress;
-
-        _grantRole(PAUSE_GUARDIAN, newPauseGuardianAddress);
-        _revokeRole(PAUSE_GUARDIAN, oldPauseGuardian);
+    function setReferralDiscountState(
+        bool referralDiscountState
+    ) external onlyRole(Roles.OPERATOR) {
+        reserve.referralDiscount = referralDiscountState;
     }
 
     /**
@@ -259,11 +200,9 @@ contract TakasureReserve is
     function memberSurplus(Member memory newMemberValues) external {
         _onlyModule();
         uint256 totalSurplus = _calculateSurplus();
-        uint256 userCreditTokensBalance = newMemberValues.creditTokensBalance;
-        address daoToken = reserve.daoToken;
-        uint256 totalCreditTokens = IERC20(daoToken).balanceOf(address(this)) +
-            userCreditTokensBalance;
-        uint256 userSurplus = (totalSurplus * userCreditTokensBalance) / totalCreditTokens;
+        uint256 userCreditsBalance = newMemberValues.creditsBalance;
+        uint256 totalCreditsInReserve = reserve.totalCredits + userCreditsBalance;
+        uint256 userSurplus = (totalSurplus * userCreditsBalance) / totalCreditsInReserve;
         members[newMemberValues.wallet].memberSurplus = userSurplus;
         emit TakasureEvents.OnMemberSurplusUpdated(
             members[newMemberValues.wallet].memberId,
@@ -350,13 +289,13 @@ contract TakasureReserve is
 
         // Then make the iterations, according the month and day this function is called
         if (_currentMonth < 13) {
-            // Less than a complete year, iterate through every month passed
+            // If less than a complete year, iterate through every month passed
             // Return everything stored in the mappings until now
             for (uint8 i = 1; i <= _currentMonth; ++i) {
                 cash += monthToCashFlow[i];
             }
         } else {
-            // More than a complete year has passed, iterate the last 11 completed months
+            // If more than a complete year, iterate the last 11 completed months
             // This happens since month 13
             uint16 monthBackCounter;
             uint16 monthsInYear = 12;
@@ -391,13 +330,11 @@ contract TakasureReserve is
      * @return totalECRes_ the total earned contribution reserve. Six decimals
      * @return totalUCRes_ the total unearned contribution reserve. Six decimals
      */
-    // Todo: This will need another approach to avoid DoS, for now it is mainly to be able to test the algorithm
     function _totalECResAndUCResUnboundedLoop()
         internal
         returns (uint256 totalECRes_, uint256 totalUCRes_)
     {
         Reserve memory currentReserve = reserve;
-        uint256 newECRes;
         // We check for every member except the recently added
         for (uint256 i = 1; i <= currentReserve.memberIdCounter - 1; ++i) {
             address memberWallet = idToMemberWallet[i];
@@ -406,15 +343,13 @@ contract TakasureReserve is
                 (uint256 memberEcr, uint256 memberUcr) = ReserveMathAlgorithms
                     ._calculateEcrAndUcrByMember(memberToCheck);
 
-                newECRes += memberEcr;
+                totalECRes_ += memberEcr;
                 totalUCRes_ += memberUcr;
             }
         }
 
-        reserve.ECRes = newECRes;
+        reserve.ECRes = totalECRes_;
         reserve.UCRes = totalUCRes_;
-
-        totalECRes_ = reserve.ECRes;
     }
 
     /**
@@ -445,14 +380,18 @@ contract TakasureReserve is
     }
 
     function _onlyModule() internal view {
-        require(moduleManager.isActiveModule(msg.sender), TakasureReserve__UnallowedAccess());
+        address moduleManager = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
+
+        require(
+            IModuleManager(moduleManager).isActiveModule(msg.sender),
+            TakasureReserve__UnallowedAccess()
+        );
     }
 
     function _onlyDaoOrTakadao() internal view {
         require(
-            hasRole(TAKADAO_OPERATOR, msg.sender) ||
-                hasRole(DAO_MULTISIG, msg.sender) ||
-                hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            addressManager.hasRole(Roles.OPERATOR, msg.sender) ||
+                addressManager.hasRole(Roles.DAO_MULTISIG, msg.sender),
             TakasureReserve__OnlyDaoOrTakadao()
         );
     }
@@ -460,5 +399,5 @@ contract TakasureReserve is
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(DAO_MULTISIG) {}
+    ) internal override onlyRole(Roles.DAO_MULTISIG) {}
 }

@@ -5,10 +5,10 @@ import {Reserve, Member, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 pragma solidity 0.8.28;
 
 interface ITakasureReserve {
-    function bmConsumer() external view returns (address);
     function kycProvider() external view returns (address);
     function feeClaimAddress() external view returns (address);
     function moduleManager() external view returns (address);
+    function addressManager() external view returns (address);
     function takadaoOperator() external view returns (address);
     function daoMultisig() external view returns (address);
     function monthToCashFlow(uint16 month) external view returns (uint256 monthCashFlow);

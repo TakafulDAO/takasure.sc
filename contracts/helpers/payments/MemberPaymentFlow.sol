@@ -18,10 +18,11 @@ import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlo
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 
 pragma solidity 0.8.28;
 
-abstract contract MemberPaymentFlow {
+contract MemberPaymentFlow {
     using SafeERC20 for IERC20;
 
     /**
@@ -43,23 +44,25 @@ abstract contract MemberPaymentFlow {
         );
 
         // Transfer the contribution to the reserves
-        _transferContribution(
+        _transferContributionToReserve(
             IERC20(_reserve.contributionToken),
             _memberWallet,
             address(_takasureReserve),
             _contributionAfterFee
         );
 
-        // Mint the DAO Tokens
-        uint256 mintedTokens_ = CashFlowAlgorithms._mintDaoTokens(
-            _takasureReserve,
-            _contributionBeforeFee
-        );
+        uint256 credits_ = _contributionBeforeFee * ModuleConstants.DECIMALS_CONVERSION_FACTOR; // 6 decimals to 18 decimals
 
-        return (_reserve, mintedTokens_);
+        _reserve.totalCredits += credits_;
+
+        return (_reserve, credits_);
     }
 
-    function _transferContribution(
+    /**
+     * @notice This function will transfer the contribution from the module to the reserves
+     * @dev Override in module if the transfer is handled differently
+     */
+    function _transferContributionToReserve(
         IERC20 _contributionToken,
         address _memberWallet,
         address _takasureReserve,

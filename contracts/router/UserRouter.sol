@@ -6,92 +6,108 @@
  * @notice This contract allows an easier implementation of the user's actions
  */
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {IEntryModule} from "contracts/interfaces/IEntryModule.sol";
+import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
 import {IMemberModule} from "contracts/interfaces/IMemberModule.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-
-import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
+import {ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
-contract UserRouter is Initializable, UUPSUpgradeable, AccessControlUpgradeable {
-    ITakasureReserve private takasureReserve;
-    IEntryModule private entryModule;
-    IMemberModule private memberModule;
+contract UserRouter is Initializable, UUPSUpgradeable {
+    IAddressManager private addressManager;
+
+    error UserRouter__NotAuthorizedCaller();
+
+    modifier onlyRole(bytes32 role) {
+        require(
+            AddressAndStates._checkRole(role, address(addressManager)),
+            UserRouter__NotAuthorizedCaller()
+        );
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(
-        address _takasureReserveAddress,
-        address _entryModule,
-        address _memberModule
-    ) external initializer {
+    function initialize(address _takasureReserveAddress) external initializer {
+        AddressAndStates._notZeroAddress(_takasureReserveAddress);
+
         __UUPSUpgradeable_init();
-        __AccessControl_init();
 
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
-        entryModule = IEntryModule(_entryModule);
-        memberModule = IMemberModule(_memberModule);
-
-        address takadaoOperator = takasureReserve.takadaoOperator();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, takadaoOperator);
-        _grantRole(ModuleConstants.TAKADAO_OPERATOR, takadaoOperator);
+        addressManager = IAddressManager(
+            ITakasureReserve(_takasureReserveAddress).addressManager()
+        );
     }
 
-    function joinPool(
-        address parentWallet,
+    function paySubscription(
+        address memberWallet,
         uint256 contributionBeforeFee,
         uint256 membershipDuration
     ) external {
-        entryModule.joinPool(msg.sender, parentWallet, contributionBeforeFee, membershipDuration);
+        ISubscriptionModule subscriptionModule = _getSubscriptionModule();
+
+        subscriptionModule.paySubscription(
+            msg.sender,
+            memberWallet,
+            contributionBeforeFee,
+            membershipDuration
+        );
     }
 
     function refund() external {
-        entryModule.refund(msg.sender);
+        ISubscriptionModule subscriptionModule = _getSubscriptionModule();
+
+        subscriptionModule.refund(msg.sender);
     }
 
     function payRecurringContribution() external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.payRecurringContribution(msg.sender);
     }
 
     function cancelMembership() external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.cancelMembership(msg.sender);
     }
 
     function cancelMembership(address memberWallet) external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.cancelMembership(memberWallet);
     }
 
     function defaultMember(address memberWallet) external {
+        IMemberModule memberModule = _getMemberModule();
+
         memberModule.defaultMember(memberWallet);
     }
 
-    function setTakasureReserve(
-        address _takasureReserveAddress
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
+    function _getSubscriptionModule()
+        internal
+        view
+        returns (ISubscriptionModule subscriptionModule_)
+    {
+        subscriptionModule_ = ISubscriptionModule(
+            addressManager.getProtocolAddressByName("SUBSCRIPTION_MODULE").addr
+        );
     }
 
-    function setEntryModule(
-        address _entryModule
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        entryModule = IEntryModule(_entryModule);
-    }
-
-    function setMemberModule(
-        address _memberModule
-    ) external onlyRole(ModuleConstants.TAKADAO_OPERATOR) {
-        memberModule = IMemberModule(_memberModule);
+    function _getMemberModule() internal view returns (IMemberModule memberModule_) {
+        memberModule_ = IMemberModule(
+            addressManager.getProtocolAddressByName("MEMBER_MODULE").addr
+        );
     }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(ModuleConstants.TAKADAO_OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR) {}
 }

@@ -13,22 +13,12 @@ library TakasureEvents {
     event OnMemberCreated(
         uint256 indexed memberId,
         address indexed member,
-        uint256 indexed benefitMultiplier,
         uint256 contributionBeforeFee,
         uint256 serviceFee,
         uint256 membershipDuration,
         uint256 membershipStartTime,
         bool isKycVerified
     ); // Emited when a new member is created
-    event OnMemberUpdated(
-        uint256 indexed memberId,
-        address indexed member,
-        uint256 indexed benefitMultiplier,
-        uint256 contributionBeforeFee,
-        uint256 serviceFee,
-        uint256 membershipDuration,
-        uint256 membershipStartTime
-    ); // Emited when a member is updated. This is used when a member first KYCed and then paid the contribution
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
     event OnMemberKycVerified(uint256 indexed memberId, address indexed member);
     event OnRecurringPayment(
@@ -46,8 +36,7 @@ library TakasureEvents {
         uint256 indexed serviceFee,
         uint256 bmaFundReserveShare,
         bool isOptimizerEnabled,
-        address contributionToken,
-        address daoToken
+        address contributionToken
     );
     event OnNewProFormaValues(
         uint256 indexed proFormaFundReserve,
@@ -64,10 +53,6 @@ library TakasureEvents {
     event OnRefund(uint256 indexed memberId, address indexed member, uint256 indexed amount);
     event OnNewMinimumThreshold(uint256 indexed minimumThreshold);
     event OnNewMaximumThreshold(uint256 indexed maximumThreshold);
-    event OnBenefitMultiplierConsumerChanged(
-        address indexed newBenefitMultiplierConsumer,
-        address indexed oldBenefitMultiplierConsumer
-    );
     event OnNewMarketExpendsFundReserveAddShare(
         uint8 indexed newMarketExpendsFundReserveAddShare,
         uint8 indexed oldMarketExpendsFundReserveAddShare
@@ -90,4 +75,12 @@ library TakasureEvents {
         address indexed child,
         uint256 reward
     );
+    event OnNewRiskMultiplier(uint8 riskMultiplier);
+    event OnParentRewardTransferFailed(
+        address indexed parent,
+        uint256 indexed layer,
+        address indexed child,
+        uint256 reward
+    );
+    event OnOperatorChanged(address indexed newOperator, address indexed oldOperator);
 }

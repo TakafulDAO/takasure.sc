@@ -6,7 +6,6 @@ import {Test, console2} from "forge-std/Test.sol";
 import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {BenefitMultiplierConsumerMock} from "test/mocks/BenefitMultiplierConsumerMock.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
@@ -16,7 +15,6 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
     TestDeployProtocol deployer;
     TakasureReserve takasureReserve;
     HelperConfig helperConfig;
-    BenefitMultiplierConsumerMock bmConsumerMock;
     address takasureReserveProxy;
     address contributionTokenAddress;
     address admin;
@@ -28,19 +26,8 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
 
     function setUp() public {
         deployer = new TestDeployProtocol();
-        (
-            ,
-            bmConsumerMock,
-            takasureReserveProxy,
-            ,
-            ,
-            ,
-            ,
-            ,
-            contributionTokenAddress,
-            ,
-            helperConfig
-        ) = deployer.run();
+        (takasureReserveProxy, , , , , , , , contributionTokenAddress, , helperConfig) = deployer
+            .run();
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
@@ -56,9 +43,6 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         vm.startPrank(alice);
         usdc.approve(address(takasureReserve), USDC_INITIAL_AMOUNT);
         vm.stopPrank();
-
-        vm.prank(admin);
-        takasureReserve.setNewBenefitMultiplierConsumerAddress(address(bmConsumerMock));
     }
 
     /// @dev Test the owner can set a new service fee
@@ -100,22 +84,6 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         assertEq(newMaximumThreshold, takasureReserve.getReserveValues().maximumThreshold);
     }
 
-    /// @dev Test the owner can set a new contribution token
-    function testTakasureCore_setNewContributionToken() public {
-        vm.prank(admin);
-        takasureReserve.setNewContributionToken(alice);
-
-        assertEq(alice, takasureReserve.getReserveValues().contributionToken);
-    }
-
-    /// @dev Test the owner can set a new service claim address
-    function testTakasureCore_cansetNewServiceClaimAddress() public {
-        vm.prank(admin);
-        takasureReserve.setNewFeeClaimAddress(alice);
-
-        assertEq(alice, takasureReserve.feeClaimAddress());
-    }
-
     /// @dev Test the owner can set custom duration
     function testTakasureCore_setAllowCustomDuration() public {
         vm.prank(admin);
@@ -124,15 +92,15 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         assertEq(true, takasureReserve.getReserveValues().allowCustomDuration);
     }
 
-    function testTakasureCore_setModuleManagerContract() public {
+    function testTakasureCore_setAddressManagerContract() public {
         vm.prank(admin);
-        takasureReserve.setModuleManagerContract(alice);
+        takasureReserve.setAddressManagerContract(alice);
 
-        assertEq(alice, address(takasureReserve.moduleManager()));
+        assertEq(alice, address(takasureReserve.addressManager()));
 
         vm.prank(alice);
-        vm.expectRevert(TakasureReserve.TakasureReserve__OnlyDaoOrTakadao.selector);
-        takasureReserve.setModuleManagerContract(admin);
+        vm.expectRevert();
+        takasureReserve.setAddressManagerContract(admin);
     }
 
     function testTakasureCore_onlyModuleFunctions() public {
@@ -166,39 +134,11 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         takasureReserve.setNewFundMarketExpendsShare(10);
 
         vm.prank(admin);
-        vm.expectRevert(TakasureReserve.TakasureReserve__WrongFundMarketExpendsShare.selector);
+        vm.expectRevert(TakasureReserve.TakasureReserve__WrongValue.selector);
         takasureReserve.setNewFundMarketExpendsShare(36);
 
         vm.prank(alice);
         vm.expectRevert();
         takasureReserve.setNewFundMarketExpendsShare(10);
-    }
-
-    function testTakasureCore_setNewKycProviderAddress() public {
-        vm.prank(admin);
-        takasureReserve.setNewKycProviderAddress(alice);
-
-        assertEq(alice, address(takasureReserve.kycProvider()));
-
-        vm.prank(alice);
-        vm.expectRevert();
-        takasureReserve.setNewKycProviderAddress(admin);
-    }
-
-    function testTakasureCore_setNewPauseGuardianAddress() public {
-        vm.prank(admin);
-        takasureReserve.setNewPauseGuardianAddress(alice);
-
-        vm.prank(alice);
-        vm.expectRevert(TakasureReserve.TakasureReserve__OnlyDaoOrTakadao.selector);
-        takasureReserve.setNewPauseGuardianAddress(admin);
-
-        vm.prank(alice);
-        takasureReserve.pause();
-        assert(takasureReserve.paused());
-
-        vm.prank(alice);
-        takasureReserve.unpause();
-        assert(!takasureReserve.paused());
     }
 }

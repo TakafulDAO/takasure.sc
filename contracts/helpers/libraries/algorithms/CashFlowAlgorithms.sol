@@ -6,7 +6,6 @@
  * @notice It help to calculate the needed algorithms on the payment process
  */
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {ITSToken} from "contracts/interfaces/ITSToken.sol";
 
 import {Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -17,7 +16,7 @@ import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol"
 pragma solidity 0.8.28;
 
 library CashFlowAlgorithms {
-    uint256 private constant MONTH = 30 days; // Todo: manage a better way for 365 days and leap years maybe?
+    uint256 private constant MONTH = 30 days;
     uint256 private constant DAY = 1 days;
 
     function _updateNewReserveValues(
@@ -37,7 +36,7 @@ library CashFlowAlgorithms {
             uint256 toFundReserve,
             uint256 toClaimReserve,
             uint256 marketExpenditure
-        ) = _updateReserveBalaces(_contributionAfterFee, _reserve);
+        ) = _updateReserveBalances(_contributionAfterFee, _reserve);
 
         _reserve.totalFundReserve += toFundReserve;
         _reserve.totalClaimReserve += toClaimReserve;
@@ -84,7 +83,7 @@ library CashFlowAlgorithms {
         );
     }
 
-    function _updateReserveBalaces(
+    function _updateReserveBalances(
         uint256 _contributionAfterFee,
         Reserve memory _reserve
     )
@@ -288,17 +287,5 @@ library CashFlowAlgorithms {
         );
 
         emit TakasureEvents.OnNewBenefitMultiplierAdjuster(updatedBMA_);
-    }
-
-    function _mintDaoTokens(
-        ITakasureReserve _takasureReserve,
-        uint256 _contributionBeforeFee
-    ) internal returns (uint256 mintedTokens_) {
-        // Mint needed DAO Tokens
-        Reserve memory _reserve = _takasureReserve.getReserveValues();
-        mintedTokens_ = _contributionBeforeFee * ModuleConstants.DECIMALS_PRECISION; // 6 decimals to 18 decimals
-
-        bool success = ITSToken(_reserve.daoToken).mint(address(_takasureReserve), mintedTokens_);
-        require(success, ModuleErrors.Module__MintFailed());
     }
 }

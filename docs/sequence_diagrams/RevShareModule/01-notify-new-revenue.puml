@@ -1,0 +1,51 @@
+@startuml Notify New Revenue (via SubscriptionModule)
+title Subscription payment triggers RevShareModule.notifyNewRevenue
+autonumber
+
+actor User as Subscriber
+participant SubscriptionModule
+participant RevShareModule
+participant AddressManager
+
+Subscriber -> SubscriptionModule: paySubscription
+
+alt SubscriptionModule is enabled
+    ' --- Authorization path via AddressManager (example role) ---
+    SubscriptionModule -> AddressManager: hasType(MODULE)
+    alt Authorized
+      SubscriptionModule -> RevShareModule: notifyNewRevenue(netAmount)
+
+      alt netAmount == 0
+        RevShareModule --> SubscriptionModule: Revert RevShareModule__ZeroAmount()
+      else netAmount > 0
+        ' Determine whether previous stream is still active
+        RevShareModule -> RevShareModule: ongoing = (block.timestamp < periodFinish)
+
+        alt ongoing == true (carry leftover)
+          RevShareModule -> RevShareModule: remaining = periodFinish - block.timestamp
+          RevShareModule -> RevShareModule: leftoverP = remaining * rewardRatePioneers
+          RevShareModule -> RevShareModule: leftoverT = remaining * rewardRateTakadao
+          RevShareModule -> RevShareModule: total = netAmount + leftoverP + leftoverT
+          RevShareModule -> RevShareModule: rp = total * 75% / rewardsDuration
+          RevShareModule -> RevShareModule: rt = total * 25% / rewardsDuration
+          RevShareModule -> RevShareModule: set rewardRatePioneers = rp\nset rewardRateTakadao = rt
+          RevShareModule -> RevShareModule: set periodFinish = block.timestamp + rewardsDuration
+          RevShareModule -> RevShareModule: emit OnNewRevenue(netAmount, rp, rt, periodFinish)
+        else ongoing == false (fresh period)
+          RevShareModule -> RevShareModule: rp = netAmount * 75% / rewardsDuration
+          RevShareModule -> RevShareModule: rt = netAmount * 25% / rewardsDuration
+          RevShareModule -> RevShareModule: set rewardRatePioneers = rp\nset rewardRateTakadao = rt
+          RevShareModule -> RevShareModule: set periodFinish = block.timestamp + rewardsDuration
+          RevShareModule -> RevShareModule: emit OnNewRevenue(netAmount, rp, rt, periodFinish)
+        end
+      end
+
+    else Not authorized
+      SubscriptionModule --> Subscriber: Revert Module__NotAuthorizedCaller()
+    end
+
+else SubscriptionModule disabled
+  SubscriptionModule --> Subscriber: Revert Module__WrongModuleState()
+end
+
+@enduml
