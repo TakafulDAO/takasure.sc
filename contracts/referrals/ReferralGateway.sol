@@ -394,24 +394,27 @@ contract ReferralGateway is
         onlyRole(COUPON_REDEEMER)
         returns (uint256 finalFee, uint256 discount)
     {
-        uint256 proRatedCouponAmount;
+        uint256 fixedCouponAmount;
         uint256 donationFromCoupon;
 
+        // If the coupon amount is greater than the new contribution, then we need to fix it,
+        // this to avoid underflows in the _payContribution method, the remaining amount will
+        // be considered a donation, and handled inside this method
         if (couponAmount > newContribution) {
-            proRatedCouponAmount = newContribution;
+            fixedCouponAmount = newContribution;
             donationFromCoupon = couponAmount - newContribution;
         } else {
-            proRatedCouponAmount = couponAmount;
+            fixedCouponAmount = couponAmount;
         }
 
         (finalFee, discount) = _payContribution({
             _contribution: newContribution,
             _parent: childToParent[prepaidMember],
             _member: prepaidMember,
-            _couponAmount: proRatedCouponAmount,
-            _isDonated: false,
-            _isModifying: true,
-            _associationTimestamp: associationTimestamp
+            _couponAmount: fixedCouponAmount,
+            _isDonated: false, // Late contributions are from users that did not joined and changed their mind so not donated
+            _isModifying: true, // We are modifying an existing prepaid member
+            _associationTimestamp: associationTimestamp // The timestamp the first payment was made
         });
 
         if (donationFromCoupon > 0) {
@@ -645,6 +648,7 @@ contract ReferralGateway is
         uint256 normalizedContribution = (_contribution / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
 
+        // Perform the necessary checks
         _payContributionChecks(
             normalizedContribution,
             _couponAmount,
@@ -655,23 +659,36 @@ contract ReferralGateway is
             _associationTimestamp
         );
 
-        _finalFee = (normalizedContribution * SERVICE_FEE_RATIO) / 100;
+        // Calculate the amount to be transferred to calculate the fees, discounts and rewards
+        uint256 proratedContribution;
+
+        // If this is not modifying a member then we use the full normalized contribution
+        if (!_isModifying) {
+            proratedContribution = normalizedContribution;
+        } else {
+            // If we are modifying, we need to calculate the prorated contribution based on the association timestamp
+            // The formula will be _contribution * (YEAR - (associationTimestamp)) / YEAR
+            // And the YEAR is considered as 12 months of 30 days each, this is 360 days
+            proratedContribution = (normalizedContribution * (360 - _associationTimestamp)) / 360;
+        }
+
+        _finalFee = (proratedContribution * SERVICE_FEE_RATIO) / 100;
 
         // If the DAO pre join is enabled, it will get a discount as a pre-joiner
         if (nameToDAOData[daoName].preJoinDiscountEnabled)
             _discount +=
-                ((normalizedContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
+                ((proratedContribution - _couponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
                 100;
 
         // And if the DAO has the referral discount enabled, it will get a discount as a referrer
         if (nameToDAOData[daoName].referralDiscountEnabled && _parent != address(0))
-            _discount += ((normalizedContribution - _couponAmount) * REFERRAL_DISCOUNT_RATIO) / 100;
+            _discount += ((proratedContribution - _couponAmount) * REFERRAL_DISCOUNT_RATIO) / 100;
 
         uint256 toReferralReserve;
 
         // If rewards are enabled, we distribute them accordingly
         if (nameToDAOData[daoName].rewardsEnabled) {
-            toReferralReserve = (normalizedContribution * REFERRAL_RESERVE) / 100;
+            toReferralReserve = (proratedContribution * REFERRAL_RESERVE) / 100;
 
             // The discount will be only valid if the parent is valid
             if (_parent != address(0)) {
@@ -679,7 +696,7 @@ contract ReferralGateway is
 
                 (_finalFee, nameToDAOData[daoName].referralReserve) = _parentRewards(
                     _member,
-                    normalizedContribution,
+                    proratedContribution,
                     nameToDAOData[daoName].referralReserve,
                     toReferralReserve,
                     _finalFee
@@ -689,23 +706,23 @@ contract ReferralGateway is
             }
         }
 
-        uint256 rePoolFee = (normalizedContribution * REPOOL_FEE_RATIO) / 100;
+        uint256 rePoolFee = (proratedContribution * REPOOL_FEE_RATIO) / 100;
 
         _finalFee -= _discount + toReferralReserve + rePoolFee;
 
         assert(
-            (normalizedContribution * SERVICE_FEE_RATIO) / 100 ==
+            (proratedContribution * SERVICE_FEE_RATIO) / 100 ==
                 _finalFee + _discount + toReferralReserve + rePoolFee
         );
 
         nameToDAOData[daoName].toRepool += rePoolFee;
         nameToDAOData[daoName].currentAmount +=
-            normalizedContribution -
-            (normalizedContribution * SERVICE_FEE_RATIO) /
+            proratedContribution -
+            (proratedContribution * SERVICE_FEE_RATIO) /
             100;
         nameToDAOData[daoName].collectedFees += _finalFee;
 
-        uint256 amountToTransfer = normalizedContribution - _discount - _couponAmount;
+        uint256 amountToTransfer = proratedContribution - _discount - _couponAmount;
 
         if (amountToTransfer > 0) usdc.safeTransferFrom(_member, address(this), amountToTransfer);
 
@@ -713,40 +730,24 @@ contract ReferralGateway is
 
         usdc.safeTransfer(operator, _finalFee);
 
+        nameToDAOData[daoName]
+            .prepaidMembers[_member]
+            .contributionBeforeFee = normalizedContribution;
+        nameToDAOData[daoName].prepaidMembers[_member].contributionAfterFee =
+            normalizedContribution -
+            (normalizedContribution * SERVICE_FEE_RATIO) /
+            100;
+        nameToDAOData[daoName].prepaidMembers[_member].feeToOperator += _finalFee;
+        nameToDAOData[daoName].prepaidMembers[_member].discount += _discount;
+        nameToDAOData[daoName].prepaidMembers[_member].isDonated = _isDonated;
+
         if (!_isModifying) {
             // If we are not modifying, we create a new prepaid member
             nameToDAOData[daoName].prepaidMembers[_member].member = _member;
-            nameToDAOData[daoName]
-                .prepaidMembers[_member]
-                .contributionBeforeFee = normalizedContribution;
-            nameToDAOData[daoName].prepaidMembers[_member].contributionAfterFee =
-                normalizedContribution -
-                (normalizedContribution * SERVICE_FEE_RATIO) /
-                100;
-            nameToDAOData[daoName].prepaidMembers[_member].feeToOperator = _finalFee;
-            nameToDAOData[daoName].prepaidMembers[_member].discount = _discount;
-            nameToDAOData[daoName].prepaidMembers[_member].isDonated = _isDonated;
 
             emit OnPrepayment(_parent, _member, normalizedContribution, _finalFee, _discount);
         } else {
-            nameToDAOData[daoName]
-                .prepaidMembers[_member]
-                .contributionBeforeFee += normalizedContribution;
-            nameToDAOData[daoName].prepaidMembers[_member].contributionAfterFee +=
-                normalizedContribution -
-                (normalizedContribution * SERVICE_FEE_RATIO) /
-                100;
-            nameToDAOData[daoName].prepaidMembers[_member].feeToOperator += _finalFee;
-            nameToDAOData[daoName].prepaidMembers[_member].discount += _discount;
-            nameToDAOData[daoName].prepaidMembers[_member].isDonated = _isDonated;
-
-            assert(
-                nameToDAOData[daoName].prepaidMembers[_member].contributionBeforeFee <=
-                    MAXIMUM_CONTRIBUTION
-            );
-
             if (isMemberKYCed[_member]) _transferRewardsFromChild(_member);
-
             emit OnPrepaidMemberModified(normalizedContribution, _finalFee, _discount, _isDonated);
         }
     }
@@ -761,21 +762,8 @@ contract ReferralGateway is
         uint256 _associationTimestamp
     ) internal view {
         if (!_isModifying) _checksIfNotModifying(_newMember, _contribution, _couponAmount);
-        else _checksIfModifying(_newMember, _associationTimestamp);
-
-        // If the contribution is a donation, it must be exactly the minimum contribution
-        if (_isDonated)
-            require(_contribution == MINIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
-
-        // If the referral discount is enabled, the rewards must also be enabled
-        if (nameToDAOData[daoName].referralDiscountEnabled)
-            require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
-
-        // If there is a parent, it must be KYCed first, and the rewards must be enabled
-        if (_parent != address(0)) {
-            require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
-            require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
-        }
+        else _checksIfModifying(_newMember, _couponAmount, _associationTimestamp);
+        _commonChecks(_contribution, _parent, _isDonated);
     }
 
     function _checksIfNotModifying(
@@ -790,12 +778,6 @@ contract ReferralGateway is
             ReferralGateway__AlreadyMember()
         );
 
-        // If the member is valid, the contribution must be between the minimum and maximum contribution,
-        // the same for the coupon amount, if any
-        require(
-            _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
-            ReferralGateway__InvalidContribution()
-        );
         if (_couponAmount > 0) {
             require(_couponAmount <= _contribution, ReferralGateway__InvalidContribution());
             require(
@@ -805,7 +787,11 @@ contract ReferralGateway is
         }
     }
 
-    function _checksIfModifying(address _member, uint256 _associationTimestamp) internal view {
+    function _checksIfModifying(
+        address _member,
+        uint256 _couponAmount,
+        uint256 _associationTimestamp
+    ) internal view {
         // If we are modifying, we update the existing prepaid member
         // But we require that the member exists and is not a donated member
         require(
@@ -814,7 +800,32 @@ contract ReferralGateway is
             ReferralGateway__NotAllowedToModify()
         );
 
+        if (_couponAmount > 0)
+            require(_couponAmount <= MAXIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
+
         require(_associationTimestamp < block.timestamp, ReferralGateway__IncompatibleSettings());
+    }
+
+    function _commonChecks(uint256 _contribution, address _parent, bool _isDonated) internal view {
+        // If the member is valid, the contribution must be between the minimum and maximum contributio
+        require(
+            _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
+            ReferralGateway__InvalidContribution()
+        );
+
+        // If the contribution is a donation, it must be exactly the minimum contribution
+        if (_isDonated)
+            require(_contribution == MINIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
+
+        // If the referral discount is enabled, the rewards must also be enabled
+        if (nameToDAOData[daoName].referralDiscountEnabled)
+            require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
+
+        // If there is a parent, it must be KYCed first, and the rewards must be enabled
+        if (_parent != address(0)) {
+            require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
+            require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
+        }
     }
 
     function _parentRewards(
