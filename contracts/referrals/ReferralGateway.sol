@@ -650,9 +650,7 @@ contract ReferralGateway is
             // If we are modifying, we need to calculate the prorated contribution based on the association timestamp
             // The formula will be _contribution * (YEAR - (block.timestamp - associationTimestamp)) / YEAR
             // And the YEAR is considered always as 365 days, no leap years or any other factor
-            proratedContribution =
-                (normalizedContribution * (365 days - (block.timestamp - _associationTimestamp))) /
-                365 days;
+            proratedContribution = _prorateOneYear(normalizedContribution, _associationTimestamp);
         }
 
         uint256 fixedCouponAmount;
@@ -750,6 +748,14 @@ contract ReferralGateway is
         }
     }
 
+    function _prorateOneYear(uint256 amount, uint256 start) internal view returns (uint256) {
+        uint256 YEAR = 365 days;
+        if (start >= block.timestamp) return amount;
+        uint256 elapsed = block.timestamp - start;
+        if (elapsed >= YEAR) return 0;
+        return (amount * (YEAR - elapsed)) / YEAR;
+    }
+
     function _payContributionChecks(
         uint256 _contribution,
         uint256 _couponAmount,
@@ -791,7 +797,7 @@ contract ReferralGateway is
         uint256 _associationTimestamp
     ) internal view {
         // If we are modifying, we update the existing prepaid member
-        // But we require that the member exists and is not a donated member
+        // But we require that the member exists and is a member who donated
         require(
             nameToDAOData[daoName].prepaidMembers[_member].member != address(0) &&
                 nameToDAOData[daoName].prepaidMembers[_member].isDonated,
@@ -844,7 +850,7 @@ contract ReferralGateway is
 
             nameToDAOData[daoName]
                 .prepaidMembers[childToParent[currentChildToCheck]]
-                .parentRewardsByChild[_initialChildToCheck] =
+                .parentRewardsByChild[_initialChildToCheck] +=
                 (_contribution * _referralRewardRatioByLayer(i + 1)) /
                 (100 * DECIMAL_CORRECTION);
 
