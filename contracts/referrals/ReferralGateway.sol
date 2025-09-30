@@ -648,9 +648,11 @@ contract ReferralGateway is
             proratedContribution = normalizedContribution;
         } else {
             // If we are modifying, we need to calculate the prorated contribution based on the association timestamp
-            // The formula will be _contribution * (YEAR - (associationTimestamp)) / YEAR
-            // And the YEAR is considered as 12 months of 30 days each, this is 360 days
-            proratedContribution = (normalizedContribution * (360 - _associationTimestamp)) / 360;
+            // The formula will be _contribution * (YEAR - (block.timestamp - associationTimestamp)) / YEAR
+            // And the YEAR is considered always as 365 days, no leap years or any other factor
+            proratedContribution =
+                (normalizedContribution * (365 days - (block.timestamp - _associationTimestamp))) /
+                365 days;
         }
 
         uint256 fixedCouponAmount;
