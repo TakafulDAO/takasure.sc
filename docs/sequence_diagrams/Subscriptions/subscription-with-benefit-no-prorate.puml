@@ -2,6 +2,8 @@
 title Subscription with benefits — no prorate
 autonumber
 
+!include subscription-common.puml
+
 actor Backend
 actor Parent
 participant SubscriptionModule
@@ -14,43 +16,21 @@ participant Reserve
 
 Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
 
-break [Caller-NOT-valid]
-  SubscriptionModule -x Backend: revert InvalidCaller()
-end
+PRECHECKS_CALLER_MODULE()
+PRECHECKS_CONTRIB_RANGE25_250()
+LOAD_MEMBER_AND_VALIDATE()
+OPTIONAL_PARENT_VALIDATE()
 
-break [Module-disabled]
-  SubscriptionModule -x Backend: revert ModuleDisabled()
-end
-
-break [Contribution-out-of-limits-(<25-or->250-USDC)]
-  SubscriptionModule -x Backend: revert WrongContribution()
-end
-
-SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
-MembersData --> SubscriptionModule: Member data
-
-break [Member-invalid]
-  SubscriptionModule -x Backend: revert InvalidMember()
-end
-
-opt [Parent-wallet-not-zero]
-  SubscriptionModule -> MembersData: getAssociationMemberData(parentWallet)
-  MembersData --> SubscriptionModule: Parent data
-
-  break [Parent-invalid]
-    SubscriptionModule -x Backend: revert InvalidParent()
-  end
-
+' Asignar reward por la contribución mínima (si hubo parent)
+opt [there-was-a-parent]
   SubscriptionModule -> RewardsModule: assignParentReward(for the minimum contribution)
 end
 
-SubscriptionModule -> MembersData: registerAssociationMember(memberWallet, parentWallet, contribution)
-MembersData -> MembersData: Emits event
-MembersData --> SubscriptionModule: success
+REGISTER_AND_CONFIRM()
 
+' Flujo de fondos/beneficios (no prorate)
 CouponPool -> SubscriptionModule: transfer minimum contribution
-SubscriptionModule -> KYCModule: approveKYC(memberWallet)
-KYCModule -> KYCModule: Emits event
+KYC_MANDATORY()
 
 Backend -> LifeBenefitModule: joinBenefit(memberWallet)
 LifeBenefitModule -> MembersData: updateMember(memberWallet)

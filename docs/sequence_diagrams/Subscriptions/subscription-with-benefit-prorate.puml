@@ -2,6 +2,8 @@
 title Subscription with benefits — prorate
 autonumber
 
+!include subscription-common.puml
+
 actor Backend
 actor Parent
 actor User
@@ -15,45 +17,23 @@ participant Reserve
 
 Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
 
-break [Caller-NOT-valid]
-  SubscriptionModule -x Backend: revert InvalidCaller()
-end
+PRECHECKS_CALLER_MODULE()
+PRECHECKS_CONTRIB_MIN25_NOTMIN()
+LOAD_MEMBER_AND_VALIDATE()
+OPTIONAL_PARENT_VALIDATE()
 
-break [Module-disabled]
-  SubscriptionModule -x Backend: revert ModuleDisabled()
-end
-
-break [Contribution-IS-NOT-minimum-(25-USDC)]
-  SubscriptionModule -x Backend: revert WrongContribution()
-end
-
-SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
-MembersData --> SubscriptionModule: Member data
-
-break [Member-invalid]
-  SubscriptionModule -x Backend: revert InvalidMember()
-end
-
-opt [Parent-wallet-not-zero]
-  SubscriptionModule -> MembersData: getAssociationMemberData(parentWallet)
-  MembersData --> SubscriptionModule: Parent data
-
-  break [Parent-invalid]
-    SubscriptionModule -x Backend: revert InvalidParent()
-  end
-
+' Asignar reward por contribución mínima (si hubo parent)
+opt [there-was-a-parent]
   SubscriptionModule -> RewardsModule: assignParentReward(for the minimum contribution)
 end
 
-SubscriptionModule -> MembersData: registerAssociationMember(memberWallet, parentWallet, contribution)
-MembersData -> MembersData: Emits event
-MembersData --> SubscriptionModule: success
+REGISTER_AND_CONFIRM()
 
+' Recibir mínimo para moverlo al día 30
 CouponPool -> SubscriptionModule: transfer minimum contribution
+KYC_MANDATORY()
 
-SubscriptionModule -> KYCModule: approveKYC(memberWallet)
-KYCModule -> KYCModule: Emits event
-
+' Día 30: mover mínimo a reserva, aún sin incluir al miembro
 opt [30d-passed-(cronjob)]
   SubscriptionModule -> Reserve: transfer minimum contribution
   Reserve -> Reserve: Run algorithms (Do not include member)
@@ -65,6 +45,7 @@ opt [30d-passed-(cronjob)]
   end
 end
 
+' >30d: usuario pide beneficio; LifeBenefit calcula prorate internamente
 opt [>30d-passed]
   User -> Backend: asks for benefit
   Backend -> LifeBenefitModule: joinBenefit(memberWallet)
