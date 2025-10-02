@@ -108,18 +108,16 @@ contract AddressManagerTest is Test {
         vm.stopPrank();
     }
 
-    function testCreateNewRoleRevertsIfRoleAlreadyExists() public {
+    function testCreateNewRoleReturnsFalseIfRoleAlreadyExists() public {
         vm.startPrank(addressManager.owner());
-        addressManager.createNewRole(keccak256("TestRole"));
-        vm.expectRevert(AddressManager.AddressManager__RoleAlreadyExists.selector);
-        addressManager.createNewRole(keccak256("TestRole"));
+        assert(addressManager.createNewRole(keccak256("TestRole")));
+        assert(!addressManager.createNewRole(keccak256("TestRole")));
         vm.stopPrank();
     }
 
-    function testRemoveRoleRevertsIfRoleDoesNotExist() public {
+    function testRemoveRoleReturnsFalseIfRoleDoesNotExist() public {
         vm.prank(addressManager.owner());
-        vm.expectRevert(AddressManager.AddressManager__RoleDoesNotExist.selector);
-        addressManager.removeRole(keccak256("NonExistentRole"));
+        assert(!addressManager.removeRole(keccak256("NonExistentRole")));
     }
 
     function testProposeRoleHolderRevertsIfRoleDoesNotExist() public {
