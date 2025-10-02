@@ -65,7 +65,6 @@ contract AddressManager is
     error AddressManager__AddressAlreadyExists();
     error AddressManager__AddressDoesNotExist();
     error AddressManager__AddModuleManagerFirst();
-    error AddressManager__RoleAlreadyExists();
     error AddressManager__RoleDoesNotExist();
     error AddressManager__AlreadyRoleHolder();
     error AddressManager__InvalidCaller();
@@ -184,7 +183,6 @@ contract AddressManager is
      * @return success A boolean indicating whether the role was successfully created
      */
     function createNewRole(bytes32 newRole) external onlyOwner returns (bool success) {
-        require(!_protocolRoles.contains(newRole), AddressManager__RoleAlreadyExists());
         success = _protocolRoles.add(newRole);
 
         emit OnRoleCreated(newRole);
@@ -197,7 +195,6 @@ contract AddressManager is
      * @return success A boolean indicating whether the role was successfully removed
      */
     function removeRole(bytes32 roleToRemove) external onlyOwner returns (bool success) {
-        require(_protocolRoles.contains(roleToRemove), AddressManager__RoleDoesNotExist());
         success = _protocolRoles.remove(roleToRemove);
 
         emit OnRoleRemoved(roleToRemove);
