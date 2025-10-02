@@ -142,6 +142,16 @@ contract AddressManager is
         delete protocolAddressesByName[nameHash];
         delete protocolAddressesNames[addr];
 
+        if (protocolAddress.addressType == ProtocolAddressType.Module) {
+            // If it is a module, we need to add the new address as a module in the ModuleManager, and deprecate the old one
+            IModuleManager moduleManager = IModuleManager(
+                _getProtocolAddressByName("MODULE_MANAGER").addr
+            );
+            require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
+
+            moduleManager.changeModuleState(addr, ModuleState.Deprecated);
+        }
+
         emit OnProtocolAddressDeleted(addr, addressType);
     }
 
@@ -152,7 +162,10 @@ contract AddressManager is
      * @dev This function can only be called by the owner of the contract.
      * @dev The name must already exist in the AddressManager.
      */
-    function updateProtocolAddress(string memory name, address newAddr) external onlyOwner {
+    function updateProtocolAddress(
+        string memory name,
+        address newAddr
+    ) external onlyOwner nonReentrant {
         require(newAddr != address(0), AddressManager__AddressZero());
 
         bytes32 nameHash = keccak256(abi.encode(name));
