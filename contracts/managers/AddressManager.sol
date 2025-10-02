@@ -259,7 +259,7 @@ contract AddressManager is
         // Revoke the role for the current holder if it exists
         address currentHolder = currentRoleHolders[role];
 
-        if (currentHolder != address(0)) _revokeRole(role, currentHolder);
+        if (currentHolder != address(0)) _revokeRoleHolder(role, currentHolder);
 
         // Assign the role to the proposed holder
         success = _grantRole(role, msg.sender);
