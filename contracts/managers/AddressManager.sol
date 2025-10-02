@@ -431,17 +431,19 @@ contract AddressManager is
         protocolAddressesByName[nameHash] = newProtocolAddress;
         protocolAddressesNames[_addr] = nameHash;
 
-        if (_addressType == ProtocolAddressType.Module) {
-            // If the address is a module, then we call the ModuleManager to register it
-            // This means to add any module, the ModuleManager must be deployed first
-            address moduleManager = _getProtocolAddressByName("MODULE_MANAGER").addr;
-            require(moduleManager != address(0), AddressManager__AddModuleManagerFirst());
-
-            // The ModuleManager will be in charge to check if the address is a valid module
-            IModuleManager(moduleManager).addModule(_addr);
-        }
+        // If the address is a module, then we call the ModuleManager to register it
+        // This means to add any module, the ModuleManager must be deployed first
+        if (_addressType == ProtocolAddressType.Module) _addNewModule(_addr);
 
         emit OnNewProtocolAddress(_name, _addr, _addressType);
+    }
+
+    function _addNewModule(address _newModuleAddr) internal {
+        address moduleManager = _getProtocolAddressByName("MODULE_MANAGER").addr;
+        require(moduleManager != address(0), AddressManager__AddModuleManagerFirst());
+
+        // The ModuleManager will be in charge to check if the address is a valid module
+        IModuleManager(moduleManager).addModule(_newModuleAddr);
     }
 
     function _getProtocolAddressByName(
