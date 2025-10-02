@@ -93,8 +93,13 @@ contract ModuleManager is
      * @param module The module address to change the state
      * @param newState The new state of the module
      * @dev The module can not be DEPRECATED
+     * @dev Only the owner or the AddressManager can call this function
      */
-    function changeModuleState(address module, ModuleState newState) external onlyOwner {
+    function changeModuleState(address module, ModuleState newState) external {
+        require(
+            msg.sender == owner() || msg.sender == addressManager,
+            ModuleManager__InvalidCaller()
+        );
         require(
             addressToModuleState[module] != ModuleState.Unset &&
                 addressToModuleState[module] != ModuleState.Deprecated,
