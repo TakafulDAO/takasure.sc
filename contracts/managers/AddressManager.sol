@@ -179,7 +179,7 @@ contract AddressManager is
             );
             require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
 
-            moduleManager.addModule(oldAddr);
+            moduleManager.addModule(newAddr);
             moduleManager.changeModuleState(oldAddr, ModuleState.Deprecated);
         }
 
