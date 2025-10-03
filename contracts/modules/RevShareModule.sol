@@ -80,12 +80,16 @@ contract RevShareModule is
         _disableInitializers();
     }
 
-    function initialize(address _addressManagerAddress) external initializer {
+    function initialize(
+        address _addressManagerAddress,
+        string calldata _moduleName
+    ) external initializer {
         AddressAndStates._notZeroAddress(_addressManagerAddress);
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
 
         addressManager = IAddressManager(_addressManagerAddress);
+        moduleName = _moduleName;
 
         revenuesAvailableDate = block.timestamp;
 
