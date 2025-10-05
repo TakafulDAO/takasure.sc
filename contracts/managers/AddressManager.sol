@@ -285,7 +285,7 @@ contract AddressManager is
         // Revoke the role for the current holder if it exists
         address currentHolder = currentRoleHolders[role];
 
-        if (currentHolder != address(0)) _revokeRole(role, currentHolder);
+        if (currentHolder != address(0)) _revokeRoleHolder(role, currentHolder);
 
         // Assign the role to the proposed holder
         success = _grantRole(role, msg.sender);
@@ -311,23 +311,7 @@ contract AddressManager is
      * @dev This function can only be called by the owner of the contract.
      */
     function revokeRoleHolder(bytes32 role, address account) external onlyOwner {
-        require(_protocolRoles.contains(role), AddressManager__RoleDoesNotExist());
-        require(currentRoleHolders[role] == account, AddressManager__NotRoleHolder());
-
-        _revokeRole(role, account);
-
-        // Remove the role from the rolesByAddress mapping
-        bytes32[] storage roles = rolesByAddress[account];
-        for (uint256 i; i < roles.length; ++i) {
-            if (roles[i] == role) {
-                roles[i] = roles[roles.length - 1]; // Move the last element to the current position
-                roles.pop(); // Remove the last element
-                break;
-            }
-        }
-
-        // Clear the current role holder mapping
-        delete currentRoleHolders[role];
+        _revokeRoleHolder(role, account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -470,6 +454,26 @@ contract AddressManager is
         }
 
         emit OnNewProtocolAddress(_name, _addr, _addressType);
+    }
+
+    function _revokeRoleHolder(bytes32 _role, address _account) internal {
+        require(_protocolRoles.contains(_role), AddressManager__RoleDoesNotExist());
+        require(currentRoleHolders[_role] == _account, AddressManager__NotRoleHolder());
+
+        _revokeRole(_role, _account);
+
+        // Remove the role from the rolesByAddress mapping
+        bytes32[] storage roles = rolesByAddress[_account];
+        for (uint256 i; i < roles.length; ++i) {
+            if (roles[i] == _role) {
+                roles[i] = roles[roles.length - 1]; // Move the last element to the current position
+                roles.pop(); // Remove the last element
+                break;
+            }
+        }
+
+        // Clear the current role holder mapping
+        delete currentRoleHolders[_role];
     }
 
     function _getProtocolAddressByName(
