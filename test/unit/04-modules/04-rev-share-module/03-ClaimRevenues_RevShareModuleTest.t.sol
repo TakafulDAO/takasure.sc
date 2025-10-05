@@ -230,6 +230,13 @@ contract ClaimRevenues_RevShareModuleTest is StdCheats, Test {
         // Force approvedDeposits to 0 (slot 4 in current layout)
         vm.store(address(revShareModule), bytes32(uint256(4)), bytes32(uint256(0)));
 
+        uint256 earned = revShareModule.earnedByPioneers(bob);
+        assertGt(earned, 0, "precondition: bob must have earnings");
+
+        // Make the contract underfunded for this payout
+        // (USDC mock + Foundry cheatcode)
+        deal(address(usdc), address(revShareModule), 0);
+
         vm.expectRevert(RevShareModule.RevShareModule__InsufficientApprovedDeposits.selector);
         vm.prank(bob);
         revShareModule.claimRevenueShare();

@@ -255,6 +255,18 @@ contract RevShareModule is
         contributionToken.safeTransfer(msg.sender, balance);
     }
 
+    /**
+     * @notice Increase the approved deposits in case of emergency withdraw
+     * @param amount The amount to increase the approved deposits
+     * @dev Only callable by an operator
+     */
+    function increaseApprovedDeposits(
+        uint256 amount
+    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        if (amount == 0) revert RevShareModule__NotZeroValue();
+        approvedDeposits += amount;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  CLAIMS
     //////////////////////////////////////////////////////////////*/
@@ -305,11 +317,13 @@ contract RevShareModule is
             IERC20 contributionToken = IERC20(
                 addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
             );
+            if (contributionToken.balanceOf(address(this)) < revenue)
+                revert RevShareModule__InsufficientApprovedDeposits();
             contributionToken.safeTransfer(beneficiary, revenue);
 
-            // Sync approved deposits
-            if (approvedDeposits < revenue) revert RevShareModule__InsufficientApprovedDeposits();
-            approvedDeposits -= revenue;
+            // Avoid under flow post emergency withdraw
+            if (approvedDeposits >= revenue) approvedDeposits -= revenue;
+            else approvedDeposits = 0;
 
             emit OnRevenueShareClaimed(beneficiary, revenue);
         }
