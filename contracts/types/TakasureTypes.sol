@@ -2,61 +2,54 @@
 
 pragma solidity 0.8.28;
 
+/*//////////////////////////////////////////////////////////////
+                                MODULES
+//////////////////////////////////////////////////////////////*/
+
+// Possible states a module can be in
 enum ModuleState {
-    Unset,
-    Disabled,
-    Enabled,
-    Paused,
-    Deprecated
+    Unset, // Default state
+    Disabled, // It will disable selected functionalities
+    Enabled, // Everything is enabled
+    Paused, // All the functionalities are temporarily paused
+    Deprecated // The module is deprecated, and no new interactions are allowed. This state cannot be changed
 }
 
-enum MemberState {
-    Inactive,
-    Active,
-    Defaulted,
-    Canceled,
-    Deceased
-}
+/*//////////////////////////////////////////////////////////////
+                               ADDRESSES
+//////////////////////////////////////////////////////////////*/
 
-enum CostTypes {
-    Marketing,
-    Claim,
-    Surplus,
-    CatFees,
-    CastRepayment // Risk payment
-}
-
-enum RevenueType {
-    Contribution,
-    InvestmentReturn,
-    CatDonation,
-    CatLoan
-}
-
+// Types of addresses in the protocol
 enum ProtocolAddressType {
-    Admin,
-    Module,
-    Protocol
+    Admin, // Admin EOAs or multisigs
+    Module, // Modules that are part of the protocol
+    Protocol // Core protocol contracts
 }
 
+// Struct to represent an address in the protocol
 struct ProtocolAddress {
-    bytes32 name;
+    bytes32 name; // Name of the address, e.g., "FEE_CLAIM_ADDRESS", "TAKASURE_RESERVE", "KYC_MODULE"
     address addr;
     ProtocolAddressType addressType;
 }
 
+/*//////////////////////////////////////////////////////////////
+                                 ROLES
+//////////////////////////////////////////////////////////////*/
+
+// The ProposedRoleHolder struct is used to propose a new role holder, it contains
+// the proposed holder address and the proposal time. The proposal time is used to
+// ensure that the proposal is valid for a certain period of time.
 struct ProposedRoleHolder {
     address proposedHolder;
     uint256 proposalTime;
 }
 
-struct CashFlowVars {
-    uint256 dayDepositTimestamp;
-    uint256 monthDepositTimestamp;
-    uint16 monthReference;
-    uint8 dayReference;
-}
+/*//////////////////////////////////////////////////////////////
+                                MEMBERS
+//////////////////////////////////////////////////////////////*/
 
+// Prepayer. From here it will became a member of the association
 struct PrepaidMember {
     address member;
     uint256 contributionBeforeFee;
@@ -67,7 +60,22 @@ struct PrepaidMember {
     mapping(uint256 layer => uint256 rewards) parentRewardsByLayer;
 }
 
-struct Member {
+// Every protocol member is an AssociationMember, it could be prepaid or
+// not if the protocol is already deployed
+struct AssociationMember {
+    uint256 memberId;
+    uint256 discount;
+    uint256 associateStartTime; // in seconds
+    address wallet;
+    address parent;
+    AssociationMemberState memberState;
+    bool isRefunded; // Can not be true if isKYCVerified is true
+    bool isLifeProtected;
+    bool isFarewellProtected;
+}
+
+// Only those AssociationMembers that have paid some benefit can be BenefitMembers
+struct BenefitMember {
     uint256 memberId;
     uint256 benefitMultiplier;
     uint256 membershipDuration; // in years
@@ -81,13 +89,33 @@ struct Member {
     uint256 creditsBalance; // 18 decimals
     address wallet;
     address parent;
-    MemberState memberState;
+    BenefitMemberState memberState;
     uint256 memberSurplus; //Ratio of Net Contribution to the total net Contributions collected from all participants.
-    bool isKYCVerified; // Can not be true if isRefunded is true
-    bool isRefunded; // Can not be true if isKYCVerified is true
     uint256 lastEcr; // the last ECR calculated
     uint256 lastUcr; // the last UCR calculated
 }
+
+/*//////////////////////////////////////////////////////////////
+                             MEMBERS STATES
+//////////////////////////////////////////////////////////////*/
+
+enum AssociationMemberState {
+    Inactive, // Default state. The member has not been activated yet
+    Active, // The member has paid the association membership and performed KYC
+    Canceled // The member has canceled the association membership
+}
+
+enum BenefitMemberState {
+    Inactive, // Default state. The member has not paid any benefit yet. From Inactive can only go to Active
+    Active, // The member has paid the benefit contribution. From Active can change to: Defaulted, Canceled, Deceased
+    Defaulted, // The member has defaulted on their benefit payment. From Defaulted can change to: Active, Canceled, Deceased
+    Canceled, // The member has canceled their benefit membership. From Canceled can change to: Active
+    Deceased // The member is deceased. This state is final and cannot be changed
+}
+
+/*//////////////////////////////////////////////////////////////
+                                RESERVE
+//////////////////////////////////////////////////////////////*/
 
 struct Reserve {
     uint8 serviceFee; // Default 27%, max 35%
@@ -118,4 +146,31 @@ struct Reserve {
     uint256 UCRes; // Default 0
     uint256 surplus; // Default 0
     uint256 referralReserve; // In USDC, six decimals
+}
+
+/*//////////////////////////////////////////////////////////////
+                                  CASH
+//////////////////////////////////////////////////////////////*/
+
+enum CostTypes {
+    Marketing,
+    Claim,
+    Surplus,
+    CatFees,
+    CastRepayment // Risk payment
+}
+
+enum RevenueType {
+    Contribution,
+    ContributionDonation,
+    InvestmentReturn,
+    CatDonation,
+    CatLoan
+}
+
+struct CashFlowVars {
+    uint256 dayDepositTimestamp;
+    uint256 monthDepositTimestamp;
+    uint16 monthReference;
+    uint8 dayReference;
 }
