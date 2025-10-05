@@ -14,7 +14,7 @@ import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contrac
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder, ModuleState} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
@@ -142,6 +142,16 @@ contract AddressManager is
         delete protocolAddressesByName[nameHash];
         delete protocolAddressesNames[addr];
 
+        if (protocolAddress.addressType == ProtocolAddressType.Module) {
+            // If it is a module, we need to add the new address as a module in the ModuleManager, and deprecate the old one
+            IModuleManager moduleManager = IModuleManager(
+                _getProtocolAddressByName("MODULE_MANAGER").addr
+            );
+            require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
+
+            moduleManager.changeModuleState(addr, ModuleState.Deprecated);
+        }
+
         emit OnProtocolAddressDeleted(addr, addressType);
     }
 
@@ -152,23 +162,39 @@ contract AddressManager is
      * @dev This function can only be called by the owner of the contract.
      * @dev The name must already exist in the AddressManager.
      */
-    function updateProtocolAddress(string memory name, address newAddr) external onlyOwner {
+    function updateProtocolAddress(
+        string memory name,
+        address newAddr
+    ) external onlyOwner nonReentrant {
         require(newAddr != address(0), AddressManager__AddressZero());
 
         bytes32 nameHash = keccak256(abi.encode(name));
 
         ProtocolAddress storage protocolAddress = protocolAddressesByName[nameHash];
 
-        require(protocolAddress.addr != address(0), AddressManager__AddressDoesNotExist());
-        require(protocolAddress.addr != newAddr, AddressManager__AddressAlreadyExists());
+        address oldAddr = protocolAddress.addr;
+
+        require(oldAddr != address(0), AddressManager__AddressDoesNotExist());
+        require(oldAddr != newAddr, AddressManager__AddressAlreadyExists());
 
         // Remove the old address from the protocolAddressesNames mapping
-        delete protocolAddressesNames[protocolAddress.addr];
+        delete protocolAddressesNames[oldAddr];
         // And add the new address to the protocolAddressesNames mapping
         protocolAddressesNames[newAddr] = nameHash;
 
         // In the protocolAddresses mapping, update the address value in the ProtocolAddress struct
         protocolAddress.addr = newAddr;
+
+        if (protocolAddress.addressType == ProtocolAddressType.Module) {
+            // If it is a module, we need to add the new address as a module in the ModuleManager, and deprecate the old one
+            IModuleManager moduleManager = IModuleManager(
+                _getProtocolAddressByName("MODULE_MANAGER").addr
+            );
+            require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
+
+            moduleManager.addModule(newAddr);
+            moduleManager.changeModuleState(oldAddr, ModuleState.Deprecated);
+        }
 
         emit OnProtocolAddressUpdated(name, newAddr);
     }
@@ -415,14 +441,16 @@ contract AddressManager is
         protocolAddressesByName[nameHash] = newProtocolAddress;
         protocolAddressesNames[_addr] = nameHash;
 
+        // If the address is a module, then we call the ModuleManager to register it
+        // This means to add any module, the ModuleManager must be deployed first
         if (_addressType == ProtocolAddressType.Module) {
-            // If the address is a module, then we call the ModuleManager to register it
-            // This means to add any module, the ModuleManager must be deployed first
-            address moduleManager = _getProtocolAddressByName("MODULE_MANAGER").addr;
-            require(moduleManager != address(0), AddressManager__AddModuleManagerFirst());
+            IModuleManager moduleManager = IModuleManager(
+                _getProtocolAddressByName("MODULE_MANAGER").addr
+            );
+            require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
 
             // The ModuleManager will be in charge to check if the address is a valid module
-            IModuleManager(moduleManager).addModule(_addr);
+            moduleManager.addModule(_addr);
         }
 
         emit OnNewProtocolAddress(_name, _addr, _addressType);
