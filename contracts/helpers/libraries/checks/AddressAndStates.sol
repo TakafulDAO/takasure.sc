@@ -7,8 +7,8 @@
  */
 
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
-import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {IModuleManager} from "contracts/interfaces/managers/IModuleManager.sol";
 
 pragma solidity 0.8.28;
 

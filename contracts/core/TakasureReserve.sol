@@ -8,13 +8,13 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IModuleManager} from "contracts/interfaces/managers/IModuleManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
-import {Reserve, Member, MemberState, CashFlowVars, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
+import {Reserve, BenefitMember, BenefitMemberState, CashFlowVars, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -33,7 +33,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     mapping(uint16 month => uint256 monthCashFlow) public monthToCashFlow;
     mapping(uint16 month => mapping(uint8 day => uint256 dayCashFlow)) public dayToCashFlow;
 
-    mapping(address member => Member) private members;
+    mapping(address member => BenefitMember) private members;
     mapping(uint256 memberIdCounter => address memberWallet) private idToMemberWallet;
 
     error TakasureReserve__OnlyDaoOrTakadao();
@@ -95,7 +95,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         _unpause();
     }
 
-    function setMemberValuesFromModule(Member memory newMember) external whenNotPaused {
+    function setMemberValuesFromModule(BenefitMember memory newMember) external whenNotPaused {
         _onlyModule();
         members[newMember.wallet] = newMember;
         idToMemberWallet[newMember.memberId] = newMember.wallet;
@@ -197,7 +197,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     /**
      * @notice Calculate the surplus for a member
      */
-    function memberSurplus(Member memory newMemberValues) external {
+    function memberSurplus(BenefitMember memory newMemberValues) external {
         _onlyModule();
         uint256 totalSurplus = _calculateSurplus();
         uint256 userCreditsBalance = newMemberValues.creditsBalance;
@@ -214,7 +214,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         return reserve;
     }
 
-    function getMemberFromAddress(address member) external view returns (Member memory) {
+    function getMemberFromAddress(address member) external view returns (BenefitMember memory) {
         return members[member];
     }
 
@@ -338,8 +338,8 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         // We check for every member except the recently added
         for (uint256 i = 1; i <= currentReserve.memberIdCounter - 1; ++i) {
             address memberWallet = idToMemberWallet[i];
-            Member storage memberToCheck = members[memberWallet];
-            if (memberToCheck.memberState == MemberState.Active) {
+            BenefitMember storage memberToCheck = members[memberWallet];
+            if (memberToCheck.memberState == BenefitMemberState.Active) {
                 (uint256 memberEcr, uint256 memberUcr) = ReserveMathAlgorithms
                     ._calculateEcrAndUcrByMember(memberToCheck);
 

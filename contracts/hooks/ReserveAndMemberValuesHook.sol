@@ -10,7 +10,7 @@
  *      2. Set new values for the reserve and/or a given member in the Core contracts
  */
 
-import {Reserve, Member} from "contracts/types/TakasureTypes.sol";
+import {Reserve, BenefitMember} from "contracts/types/TakasureTypes.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 
 pragma solidity 0.8.28;
@@ -25,14 +25,14 @@ abstract contract ReserveAndMemberValuesHook {
     function _getMembersValuesHook(
         ITakasureReserve _takasureReserve,
         address _memberWallet
-    ) internal view returns (Member memory member_) {
+    ) internal view returns (BenefitMember memory member_) {
         member_ = _takasureReserve.getMemberFromAddress(_memberWallet);
     }
 
     function _getReserveAndMemberValuesHook(
         ITakasureReserve _takasureReserve,
         address _memberWallet
-    ) internal view returns (Reserve memory reserve_, Member memory member_) {
+    ) internal view returns (Reserve memory reserve_, BenefitMember memory member_) {
         reserve_ = _takasureReserve.getReserveValues();
         member_ = _takasureReserve.getMemberFromAddress(_memberWallet);
     }
@@ -46,7 +46,7 @@ abstract contract ReserveAndMemberValuesHook {
 
     function _setMembersValuesHook(
         ITakasureReserve _takasureReserve,
-        Member memory _newMember
+        BenefitMember memory _newMember
     ) internal {
         _takasureReserve.setMemberValuesFromModule(_newMember);
     }
@@ -54,7 +54,7 @@ abstract contract ReserveAndMemberValuesHook {
     function _setNewReserveAndMemberValuesHook(
         ITakasureReserve _takasureReserve,
         Reserve memory _reserve,
-        Member memory _newMember
+        BenefitMember memory _newMember
     ) internal {
         _takasureReserve.setReserveValuesFromModule(_reserve);
         _takasureReserve.setMemberValuesFromModule(_newMember);
