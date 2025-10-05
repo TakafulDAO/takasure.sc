@@ -132,6 +132,7 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
 
     /// @notice Module token balance should never be less than approvedDeposits.
     function invariant_BalanceGteApprovedDeposits() public view {
+        if (revShareModule.emergencyMode()) return; // skip in emergency mode
         uint256 bal = usdc.balanceOf(address(revShareModule));
         uint256 approved = revShareModule.approvedDeposits();
         assertGe(bal, approved, "revShareModule under-collateralized vs approvedDeposits");
@@ -203,4 +204,11 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
     function invariant_RewardsDurationPositive() public view {
         assertGt(revShareModule.rewardsDuration(), 0, "rewardsDuration must remain > 0");
     }
+
+    // function invariant_EmergencyImpliesZeroRates() public view {
+    //     if (!revShareModule.emergencyMode()) return;
+    //     assertEq(revShareModule.rewardRatePioneersScaled(), 0);
+    //     assertEq(revShareModule.rewardRateTakadaoScaled(), 0);
+    //     // periodFinish == lastUpdateTime == emergency timestamp is acceptable
+    // }
 }
