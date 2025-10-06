@@ -1,0 +1,53 @@
+@startuml Subscription and Refund
+title Subscription and refund
+autonumber
+
+!include subscription-common.puml
+
+actor Backend
+actor User
+participant SubscriptionModule
+participant MembersData
+participant KYCModule
+participant CouponPool
+participant RewardsModule
+
+Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
+
+PRECHECKS_CALLER_MODULE()
+PRECHECKS_CONTRIB_MIN25()
+LOAD_MEMBER_AND_VALIDATE()
+OPTIONAL_PARENT_VALIDATE()
+
+' Si hubo parent, asigna reward inicial
+opt [there-was-a-parent]
+  SubscriptionModule -> RewardsModule: assignParentReward
+end
+
+REGISTER_AND_CONFIRM()
+CouponPool -> SubscriptionModule: transfer contribution
+KYC_OPT()
+
+opt [<30-days-and-no-service]
+  User -> Backend: request refund
+  Backend -> SubscriptionModule: refund(memberWallet)
+  SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
+  MembersData --> SubscriptionModule: Member data
+
+  break [Member-invalid]
+    REVERT(InvalidMember())
+  end
+
+  SubscriptionModule -> CouponPool: transfer contribution back
+  SubscriptionModule -> MembersData: updateAssociationMember(memberWallet)
+  MembersData -> MembersData: Emits event
+  SubscriptionModule -> SubscriptionModule: Emits event
+  CouponPool --> User: transfer contribution back
+
+  opt [there-was-a-parent]
+    SubscriptionModule -> RewardsModule: revokeParentReward
+    RewardsModule -> RewardsModule: Emits event
+  end
+end
+
+@enduml
