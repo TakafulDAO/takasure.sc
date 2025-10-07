@@ -95,7 +95,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
             addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
-        _associationMemberChecks(member);
+        _createAssociationMemberChecks(member);
 
         // Get the current member ID counter
         uint256 memberIdCounter = uintStorage[_hashKey("memberIdCounter")];
@@ -259,7 +259,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _associationMemberChecks(AssociationMember memory _member) internal view {
+    function _createAssociationMemberChecks(AssociationMember memory _member) internal view {
         require(members[_member.wallet].wallet == address(0), ModuleErrors.Module__AlreadyJoined());
         require(_member.wallet != address(0), ModuleErrors.Module__InvalidAddress());
         require(_member.wallet != _member.parent, ModuleErrors.Module__InvalidAddress());
@@ -268,7 +268,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         require(
             _member.memberState == AssociationMemberState.Inactive ||
                 _member.memberState == AssociationMemberState.Canceled ||
-                _member.isRefunded,
+                !_member.isRefunded,
             ModuleErrors.Module__WrongMemberState()
         );
 
