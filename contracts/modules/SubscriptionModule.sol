@@ -9,6 +9,7 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IModuleImplementation} from "contracts/interfaces/modules/IModuleImplementation.sol";
+import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IRevenueModule} from "contracts/interfaces/modules/IRevenueModule.sol";
@@ -35,8 +36,6 @@ contract SubscriptionModule is
 {
     using SafeERC20 for IERC20;
 
-    uint256 private memberIdCounter;
-
     mapping(address member => AssociationMember) private members;
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => bool) private isMemberCouponSubscriptionRedeemer;
@@ -44,11 +43,6 @@ contract SubscriptionModule is
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
-    event OnNewAssociationMember(
-        uint256 indexed memberId,
-        address indexed memberWallet,
-        address indexed parentWallet
-    );
 
     error SubscriptionModule__InvalidDate();
     error SubscriptionModule__NothingToRefund();
@@ -216,16 +210,34 @@ contract SubscriptionModule is
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
-        AssociationMember memory newMember = members[_userWallet];
+        IProtocolStorageModule protocolStorageModule = IProtocolStorageModule(
+            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
+        );
 
-        _paySubscriptionChecks(newMember, _userWallet, _parentWallet, _membershipStartTime);
+        // Get the member from storage
+        AssociationMember memory member = protocolStorageModule.getAssociationMember(_userWallet);
 
-        newMember = _createAssociationMember(newMember, _userWallet, _parentWallet);
+        // To know if we are creating a new member or updating an existing one we need to check the wallet and refund state
+        bool isAlreadyMember = member.wallet == _userWallet && member.isRefunded;
+
+        // Create the member profile
+        member = AssociationMember({
+            memberId: 0, // Placeholder, to be set by the ProtocolStorageModule
+            discount: 0, // Placeholder
+            associateStartTime: _membershipStartTime,
+            wallet: _userWallet,
+            parent: _parentWallet,
+            memberState: AssociationMemberState.Inactive, // Set to inactive until the KYC is verified
+            isRefunded: false,
+            isLifeProtected: false, // Placeholder, to be set by the Life module
+            isFarewellProtected: false // Placeholder, to be set by the Farewell module
+        });
 
         // TODO: ReferralRewardsModule to be written
         IReferralRewardsModule referralRewardsModule = IReferralRewardsModule(
             addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
         );
+
         (
             uint256 feeAmount,
             uint256 discount,
@@ -238,7 +250,7 @@ contract SubscriptionModule is
                 feeAmount: (ModuleConstants.ASSOCIATION_SUBSCRIPTION *
                     ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100
             });
-        newMember.discount = discount;
+        member.discount = discount;
 
         // Transfer the contribution amount from the user wallet to this contract
         // Transfer the fee to the fee claim address
@@ -253,81 +265,9 @@ contract SubscriptionModule is
         });
 
         // Update the member mapping
-        members[_userWallet] = newMember;
-    }
 
-    function _paySubscriptionChecks(
-        AssociationMember memory _newMember,
-        address _userWallet,
-        address _parentWallet,
-        uint256 _membershipStartTime
-    ) internal view {
-        // The module must be enabled
-        AddressAndStates._onlyModuleState(
-            ModuleState.Enabled,
-            address(this),
-            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
-        );
-
-        // The user state must be inactive or canceled
-        require(
-            _newMember.memberState == AssociationMemberState.Inactive ||
-                _newMember.memberState == AssociationMemberState.Canceled,
-            ModuleErrors.Module__WrongMemberState()
-        );
-
-        // If the user is not refunded then the wallet must be empty, otherwise it must match the user wallet
-        if (!_newMember.isRefunded && _newMember.memberState == AssociationMemberState.Inactive)
-            require(_newMember.wallet == address(0), ModuleErrors.Module__AlreadyJoined());
-        else
-            require(
-                _newMember.memberId != 0 && _newMember.wallet == _userWallet,
-                ModuleErrors.Module__WrongMemberState()
-            );
-
-        // If a parent wallet is provided, it must be KYCed
-        if (_parentWallet != address(0)) {
-            require(_userWallet != _parentWallet, ModuleErrors.Module__InvalidAddress());
-            address kycModule = addressManager.getProtocolAddressByName("KYC_MODULE").addr;
-            // Check if the parent is KYCed
-            require(
-                IKYCModule(kycModule).isKYCed(_parentWallet),
-                ModuleErrors.Module__AddressNotKYCed()
-            );
-        }
-
-        // The membership start time can not be in the future
-        require(_membershipStartTime <= block.timestamp, SubscriptionModule__InvalidDate());
-    }
-
-    function _createAssociationMember(
-        AssociationMember memory _newMember,
-        address _userWallet,
-        address _parentWallet
-    ) internal returns (AssociationMember memory) {
-        uint256 memberId;
-        if (_newMember.isRefunded || _newMember.memberState == AssociationMemberState.Canceled) {
-            // Refunded or canceled member
-            memberId = _newMember.memberId;
-        } else {
-            // Completely new member
-            memberId = ++memberIdCounter;
-        }
-
-        _newMember = AssociationMember({
-            memberId: memberId,
-            discount: 0, // Placeholder
-            associateStartTime: block.timestamp, // Set the start time to now
-            wallet: _userWallet,
-            parent: _parentWallet,
-            memberState: AssociationMemberState.Inactive, // Set to inactive until the KYC is verified
-            isRefunded: false,
-            isLifeProtected: false, // Placeholder, to be set by the Life module
-            isFarewellProtected: false // Placeholder, to be set by the Farewell module
-        });
-
-        emit OnNewAssociationMember(_newMember.memberId, _userWallet, _parentWallet);
-        return _newMember;
+        if (isAlreadyMember) protocolStorageModule.updateAssociationMember(member);
+        else protocolStorageModule.createAssociationMember(member);
     }
 
     /**

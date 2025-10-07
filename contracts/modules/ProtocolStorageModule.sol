@@ -2,11 +2,12 @@
 pragma solidity 0.8.28;
 
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 
-import {ProtocolAddressType, AssociationMember} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType, AssociationMember, ModuleState, AssociationMemberState} from "contracts/types/TakasureTypes.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -27,10 +28,20 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     // A 2D mapping to store new variables in the future without needing to redeploy
     mapping(bytes32 => mapping(bytes32 => bytes32)) internal bytes32Storage2D;
 
+    /*
+    List of keys used in the protocol storage:
+    - memberIdCounter (uint256): Counter to assign new member IDs
+    */
+
     /*//////////////////////////////////////////////////////////////
-                                 EVENTS
+                           EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    event OnNewAssociationMember(
+        uint256 indexed memberId,
+        address indexed memberWallet,
+        address indexed parentWallet
+    );
     event OnUintValueSet(bytes32 indexed key, uint256 value);
     event OnIntValueSet(bytes32 indexed key, int256 value);
     event OnAddressValueSet(bytes32 indexed key, address value);
@@ -38,6 +49,8 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     event OnBytes32ValueSet(bytes32 indexed key, bytes32 value);
     event OnBytesValueSet(bytes32 indexed key, bytes value);
     event OnBytes32Value2DSet(bytes32 indexed key1, bytes32 indexed key2, bytes32 value);
+
+    error ProtocolStorageModule__InvalidDate();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -72,35 +85,98 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function createMember(AssociationMember memory member) external onlyProtocolOrModule {
+    function createAssociationMember(
+        AssociationMember memory member
+    ) external onlyContract("SUBSCRIPTION_MODULE", address(addressManager)) {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+
+        _associationMemberChecks(member);
+
+        // Get the current member ID counter
+        uint256 memberIdCounter = uintStorage[_hashKey("memberIdCounter")];
+        member.memberId = memberIdCounter;
+
+        members[member.wallet] = member;
+
+        // Increment the member ID counter for the next member
+        uintStorage[_hashKey("memberIdCounter")] = ++memberIdCounter;
+
+        emit OnNewAssociationMember(member.memberId, member.wallet, member.parent);
+    }
+
+    function updateAssociationMember(
+        AssociationMember memory member
+    ) external onlyProtocolOrModule {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+        require(members[member.wallet].wallet != address(0), ModuleErrors.Module__InvalidAddress());
         members[member.wallet] = member;
     }
 
     function setUintValue(string calldata key, uint256 value) external onlyProtocolOrModule {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         bytes32 hashedKey = _hashKey(key);
         uintStorage[hashedKey] = value;
         emit OnUintValueSet(hashedKey, value);
     }
 
     function setIntValue(string calldata key, int256 value) external onlyProtocolOrModule {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         bytes32 hashedKey = _hashKey(key);
         intStorage[hashedKey] = value;
         emit OnIntValueSet(hashedKey, value);
     }
 
     function setAddressValue(string calldata key, address value) external onlyProtocolOrModule {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         bytes32 hashedKey = _hashKey(key);
         addressStorage[hashedKey] = value;
         emit OnAddressValueSet(hashedKey, value);
     }
 
     function setBoolValue(string calldata key, bool value) external onlyProtocolOrModule {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         bytes32 hashedKey = _hashKey(key);
         boolStorage[hashedKey] = value;
         emit OnBoolValueSet(hashedKey, value);
     }
 
     function setBytes32Value(string calldata key, bytes32 value) external onlyProtocolOrModule {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         bytes32 hashedKey = _hashKey(key);
         bytes32Storage[hashedKey] = value;
         emit OnBytes32ValueSet(hashedKey, value);
@@ -110,6 +186,12 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         string calldata key,
         bytes calldata value
     ) external onlyProtocolOrModule {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         bytes32 hashedKey = _hashKey(key);
         bytesStorage[hashedKey] = value;
         emit OnBytesValueSet(hashedKey, value);
@@ -120,6 +202,12 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         string calldata key2,
         bytes32 value
     ) external onlyProtocolOrModule {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         bytes32 hashedKey1 = _hashKey(key1);
         bytes32 hashedKey2 = _hashKey(key2);
         bytes32Storage2D[hashedKey1][hashedKey2] = value;
@@ -130,7 +218,9 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function getMember(address memberAddress) external view returns (AssociationMember memory) {
+    function getAssociationMember(
+        address memberAddress
+    ) external view returns (AssociationMember memory) {
         return members[memberAddress];
     }
 
@@ -168,6 +258,37 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _associationMemberChecks(AssociationMember memory _member) internal view {
+        require(members[_member.wallet].wallet == address(0), ModuleErrors.Module__AlreadyJoined());
+        require(_member.wallet != address(0), ModuleErrors.Module__InvalidAddress());
+        require(_member.wallet != _member.parent, ModuleErrors.Module__InvalidAddress());
+
+        // The user state must be inactive or canceled and not refunded
+        require(
+            _member.memberState == AssociationMemberState.Inactive ||
+                _member.memberState == AssociationMemberState.Canceled ||
+                _member.isRefunded,
+            ModuleErrors.Module__WrongMemberState()
+        );
+
+        // If a parent wallet is provided, it must be KYCed
+        if (_member.parent != address(0)) {
+            require(_member.wallet != _member.parent, ModuleErrors.Module__InvalidAddress());
+            address kycModule = addressManager.getProtocolAddressByName("KYC_MODULE").addr;
+            // Check if the parent is KYCed
+            require(
+                IKYCModule(kycModule).isKYCed(_member.parent),
+                ModuleErrors.Module__AddressNotKYCed()
+            );
+        }
+
+        // The membership start time can not be in the future
+        require(
+            _member.associateStartTime <= block.timestamp,
+            ProtocolStorageModule__InvalidDate()
+        );
+    }
 
     /**
      * @notice Helper function to hash variable names to be used as keys in the storage mappings
