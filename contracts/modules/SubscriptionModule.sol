@@ -165,7 +165,8 @@ contract SubscriptionModule is
             ((ModuleConstants.ASSOCIATION_SUBSCRIPTION *
                 ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
         // Check if the user had any discount
-        uint256 userDiscount = members[memberWallet].discount;
+        (, AssociationMember memory member) = _fetchMemberFromStorageModule(memberWallet);
+        uint256 userDiscount = member.discount;
 
         if (userDiscount > 0) {
             address feeClaimer = addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr;
