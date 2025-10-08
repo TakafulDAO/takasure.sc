@@ -210,12 +210,10 @@ contract SubscriptionModule is
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
-        IProtocolStorageModule protocolStorageModule = IProtocolStorageModule(
-            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
-        );
-
-        // Get the member from storage
-        AssociationMember memory member = protocolStorageModule.getAssociationMember(_userWallet);
+        (
+            IProtocolStorageModule protocolStorageModule,
+            AssociationMember memory member
+        ) = _fetchMemberFromStorageModule(_userWallet);
 
         // To know if we are creating a new member or updating an existing one we need to check the wallet and refund state
         bool isAlreadyMember = member.wallet == _userWallet && member.isRefunded;
@@ -325,7 +323,10 @@ contract SubscriptionModule is
             addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
-        AssociationMember memory _member = members[_memberWallet];
+        (
+            IProtocolStorageModule _protocolStorageModule,
+            AssociationMember memory _member
+        ) = _fetchMemberFromStorageModule(_memberWallet);
 
         // The member should not be refunded
         require(!_member.isRefunded, SubscriptionModule__NothingToRefund());
@@ -371,9 +372,24 @@ contract SubscriptionModule is
             contributionToken.safeTransfer(_memberWallet, amountToRefund);
         }
 
-        // Update the member mapping
-        members[_memberWallet] = _member;
+        // Update the user as refunded
+        _protocolStorageModule.updateAssociationMember(_member);
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
+    }
+
+    function _fetchMemberFromStorageModule(
+        address _userWallet
+    )
+        internal
+        view
+        returns (IProtocolStorageModule protocolStorageModule_, AssociationMember memory member_)
+    {
+        protocolStorageModule_ = IProtocolStorageModule(
+            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
+        );
+
+        // Get the member from storage
+        member_ = protocolStorageModule_.getAssociationMember(_userWallet);
     }
 
     ///@dev required by the OZ UUPS module
