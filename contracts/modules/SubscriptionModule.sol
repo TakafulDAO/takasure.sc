@@ -36,7 +36,6 @@ contract SubscriptionModule is
 {
     using SafeERC20 for IERC20;
 
-    mapping(address member => AssociationMember) private members;
     // Set to true when new members use coupons to pay their contributions. It does not matter the amount
     mapping(address member => bool) private isMemberCouponSubscriptionRedeemer;
 
