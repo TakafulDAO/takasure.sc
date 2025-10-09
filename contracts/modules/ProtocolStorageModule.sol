@@ -42,6 +42,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         address indexed memberWallet,
         address indexed parentWallet
     );
+    event OnAssociationMemberUpdated(uint256 indexed memberId, address indexed memberWallet);
     event OnUintValueSet(bytes32 indexed key, uint256 value);
     event OnIntValueSet(bytes32 indexed key, int256 value);
     event OnAddressValueSet(bytes32 indexed key, address value);
@@ -95,7 +96,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
             addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
-        _createAssociationMemberChecks(member);
+        _associationMemberProfileChecks(member, false);
 
         // Get the current member ID counter
         uint256 memberIdCounter = uintStorage[_hashKey("memberIdCounter")];
@@ -118,8 +119,14 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
             address(this),
             addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
+        _associationMemberProfileChecks(member, true);
         require(members[member.wallet].wallet != address(0), ModuleErrors.Module__InvalidAddress());
+
+        // Ensure the memberId is preserved
+        member.memberId = members[member.wallet].memberId;
         members[member.wallet] = member;
+
+        emit OnAssociationMemberUpdated(member.memberId, member.wallet);
     }
 
     function setUintValue(string calldata key, uint256 value) external onlyProtocolOrModule {
@@ -259,16 +266,23 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _createAssociationMemberChecks(AssociationMember memory _member) internal view {
-        require(members[_member.wallet].wallet == address(0), ModuleErrors.Module__AlreadyJoined());
+    function _associationMemberProfileChecks(
+        AssociationMember memory _member,
+        bool isRejoin
+    ) internal view {
+        if (!isRejoin)
+            require(
+                members[_member.wallet].wallet == address(0),
+                ModuleErrors.Module__AlreadyJoined()
+            );
+
         require(_member.wallet != address(0), ModuleErrors.Module__InvalidAddress());
         require(_member.wallet != _member.parent, ModuleErrors.Module__InvalidAddress());
 
         // The user state must be inactive or canceled and not refunded
         require(
-            _member.memberState == AssociationMemberState.Inactive ||
-                _member.memberState == AssociationMemberState.Canceled ||
-                !_member.isRefunded,
+            (_member.memberState == AssociationMemberState.Inactive ||
+                _member.memberState == AssociationMemberState.Canceled) && !_member.isRefunded,
             ModuleErrors.Module__WrongMemberState()
         );
 

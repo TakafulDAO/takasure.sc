@@ -43,9 +43,7 @@ contract SubscriptionModule is
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    error SubscriptionModule__InvalidDate();
     error SubscriptionModule__NothingToRefund();
-    error SubscriptionModule__TooLateToRefund();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -81,7 +79,7 @@ contract SubscriptionModule is
         address parentWallet,
         uint256 couponAmount,
         uint256 membershipStartTime
-    ) external onlyRole(Roles.COUPON_REDEEMER, address(addressManager)) {
+    ) external {
         require(
             couponAmount == 0 || couponAmount == ModuleConstants.ASSOCIATION_SUBSCRIPTION,
             ModuleErrors.Module__InvalidCoupon()
@@ -122,7 +120,11 @@ contract SubscriptionModule is
      * @dev If the caller is the backend then the Revenue Type will be donation
      * @dev If the caller is a Benefit Module, then the Revenue Type will be Subscription
      */
-    function transferSubscriptionToReserve(address memberWallet) external returns (uint256) {
+    function transferSubscriptionToReserve(
+        address memberWallet
+    ) external nonReentrant returns (uint256) {
+        (, AssociationMember memory member) = _fetchMemberFromStorageModule(memberWallet);
+
         // Access control restrictions
         bool isOperator = AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager));
         RevenueType revenueType;
@@ -139,7 +141,11 @@ contract SubscriptionModule is
             // If the caller is a benefit then we consider this as a contribution
             revenueType = RevenueType.Contribution;
         } else if (isOperator) {
-            // If the caller is the operator, then we consider this as a donation
+            // If the caller is the operator, then we consider this as a donation, and have to be called after the refund period ends
+            require(
+                block.timestamp >= member.associateStartTime + 30 days,
+                ModuleErrors.Module__InvalidDate()
+            );
             revenueType = RevenueType.ContributionDonation; // ? waive instead of donation
         } else {
             // Any other caller is not authorized
@@ -163,8 +169,8 @@ contract SubscriptionModule is
         uint256 amountToTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
             ((ModuleConstants.ASSOCIATION_SUBSCRIPTION *
                 ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
+
         // Check if the user had any discount
-        (, AssociationMember memory member) = _fetchMemberFromStorageModule(memberWallet);
         uint256 userDiscount = member.discount;
 
         if (userDiscount > 0) {
@@ -206,11 +212,11 @@ contract SubscriptionModule is
         ) = _fetchMemberFromStorageModule(_userWallet);
 
         // To know if we are creating a new member or updating an existing one we need to check the wallet and refund state
-        bool isAlreadyMember = member.wallet == _userWallet && member.isRefunded;
+        bool isRejoin = member.wallet == _userWallet && member.isRefunded;
 
         // Create the member profile
         member = AssociationMember({
-            memberId: 0, // Placeholder, to be set by the ProtocolStorageModule
+            memberId: isRejoin ? member.memberId : 0, // If is a rejoin, keep the same memberId, else use 0 as placeholder, will be set in storage module
             discount: 0, // Placeholder
             associateStartTime: _membershipStartTime,
             wallet: _userWallet,
@@ -254,7 +260,7 @@ contract SubscriptionModule is
 
         // Update the member mapping
 
-        if (isAlreadyMember) protocolStorageModule.updateAssociationMember(member);
+        if (isRejoin) protocolStorageModule.updateAssociationMember(member);
         else protocolStorageModule.createAssociationMember(member);
     }
 
@@ -318,14 +324,15 @@ contract SubscriptionModule is
             AssociationMember memory _member
         ) = _fetchMemberFromStorageModule(_memberWallet);
 
-        // The member should not be refunded
+        // The member should exist and not be refunded
+        require(_member.wallet == _memberWallet, ModuleErrors.Module__InvalidAddress());
         require(!_member.isRefunded, SubscriptionModule__NothingToRefund());
         uint256 currentTimestamp = block.timestamp;
         uint256 startTime = _member.associateStartTime;
 
         // The member can refund before 30 days of the payment
         uint256 limitTimestamp = startTime + (30 days);
-        require(currentTimestamp <= limitTimestamp, SubscriptionModule__TooLateToRefund());
+        require(currentTimestamp <= limitTimestamp, ModuleErrors.Module__InvalidDate());
 
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmountAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
