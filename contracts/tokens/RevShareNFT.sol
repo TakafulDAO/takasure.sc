@@ -231,7 +231,6 @@ contract RevShareNFT is
     ) public override(ERC721Upgradeable) nonReentrant {
         uint256 ts = pioneerMintedAt[from][tokenId]; // Minted at from current owner
         require(ts != 0, RevShareNFT__MintedAtNotSet()); // The token must be owned
-        require(block.timestamp >= ts + periodTransferLock, RevShareNFT__TooEarlyToTransfer());
 
         // Update the revenues if the contract is set up to do so
         _updateRevenuesIfProtocolIsSetUp(from);

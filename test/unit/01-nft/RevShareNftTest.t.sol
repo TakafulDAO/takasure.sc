@@ -293,22 +293,6 @@ contract RevShareNftTest is Test {
         _;
     }
 
-    function testNft_safeTransferFromRevertsDuringLock_ThenSucceeds() public transferLockSetup {
-        vm.prank(nft.owner());
-        nft.mint(alice);
-
-        // During lock -> revert
-        vm.prank(alice);
-        vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
-        nft.safeTransferFrom(alice, bob, 0);
-
-        // After lock -> success
-        vm.warp(block.timestamp + 8 days);
-        vm.prank(alice);
-        nft.safeTransferFrom(alice, bob, 0);
-        assertEq(nft.ownerOf(0), bob);
-    }
-
     function testNft_transferFromRevertsWhenMintedAtNotSet() public {
         // Mint to alice so token 0 exists and has mintedAt under alice
         vm.prank(nft.owner());
