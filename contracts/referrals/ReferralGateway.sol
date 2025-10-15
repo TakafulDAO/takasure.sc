@@ -643,14 +643,14 @@ contract ReferralGateway is
         // Calculate the amount to be transferred to calculate the fees, discounts and rewards
         uint256 proratedContribution;
 
-        // If this is not modifying a member then we use the full normalized contribution
-        if (!_isModifying) {
-            proratedContribution = normalizedContribution;
-        } else {
+        if (_isModifying) {
             // If we are modifying, we need to calculate the prorated contribution based on the association timestamp
             // The formula will be _contribution * (YEAR - (block.timestamp - associationTimestamp)) / YEAR
             // And the YEAR is considered always as 365 days, no leap years or any other factor
             proratedContribution = _prorateOneYear(normalizedContribution, _associationTimestamp);
+        } else {
+            // If this is not modifying a member then we use the full normalized contribution
+            proratedContribution = normalizedContribution;
         }
 
         uint256 fixedCouponAmount;
@@ -737,14 +737,14 @@ contract ReferralGateway is
         nameToDAOData[daoName].prepaidMembers[_member].discount += _discount;
         nameToDAOData[daoName].prepaidMembers[_member].isDonated = _isDonated;
 
-        if (!_isModifying) {
+        if (_isModifying) {
+            if (isMemberKYCed[_member]) _transferRewardsFromChild(_member);
+            emit OnPrepaidMemberModified(normalizedContribution, _finalFee, _discount);
+        } else {
             // If we are not modifying, we create a new prepaid member
             nameToDAOData[daoName].prepaidMembers[_member].member = _member;
 
             emit OnPrepayment(_parent, _member, normalizedContribution, _finalFee, _discount);
-        } else {
-            if (isMemberKYCed[_member]) _transferRewardsFromChild(_member);
-            emit OnPrepaidMemberModified(normalizedContribution, _finalFee, _discount);
         }
     }
 
@@ -765,8 +765,8 @@ contract ReferralGateway is
         bool _isModifying,
         uint256 _associationTimestamp
     ) internal view {
-        if (!_isModifying) _checksIfNotModifying(_newMember, _contribution, _couponAmount);
-        else _checksIfModifying(_newMember, _couponAmount, _associationTimestamp);
+        if (_isModifying) _checksIfModifying(_newMember, _couponAmount, _associationTimestamp);
+        else _checksIfNotModifying(_newMember, _contribution, _couponAmount);
         _commonChecks(_contribution, _parent, _isDonated);
     }
 
