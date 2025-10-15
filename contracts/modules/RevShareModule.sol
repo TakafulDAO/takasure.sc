@@ -86,12 +86,16 @@ contract RevShareModule is
         _disableInitializers();
     }
 
-    function initialize(address _addressManagerAddress) external initializer {
+    function initialize(
+        address _addressManagerAddress,
+        string calldata _moduleName
+    ) external initializer {
         AddressAndStates._notZeroAddress(_addressManagerAddress);
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
 
         addressManager = IAddressManager(_addressManagerAddress);
+        moduleName = _moduleName;
 
         revenuesAvailableDate = block.timestamp;
 
@@ -331,6 +335,9 @@ contract RevShareModule is
 
         address revenueReceiver = _getRevenueReceiver();
 
+        // Settle caller so revenuePerAccount is up to date for elegibility check
+        _updateRevenue(msg.sender);
+
         // Currently a pioneer or former pioneer with unpaid revenue
         bool pioneerEligible = (revShareNFT.balanceOf(msg.sender) > 0) ||
             (revenuePerAccount[msg.sender] > 0);
@@ -343,27 +350,25 @@ contract RevShareModule is
             beneficiary = revenueReceiver; // earns from Takadao stream
         else revert ModuleErrors.Module__NotAuthorizedCaller(); // Only pioneers or the revenue claimer can call
 
-        // Update global and user accruals
-        _updateRevenue(beneficiary);
+        // If beneficiary is different from caller, settle its account now
+        if (beneficiary != msg.sender) _updateRevenue(beneficiary);
 
         revenue = revenuePerAccount[beneficiary];
 
         if (revenue == 0) return 0;
 
-        if (revenue > 0) {
-            revenuePerAccount[beneficiary] = 0;
+        revenuePerAccount[beneficiary] = 0;
 
-            IERC20 contributionToken = IERC20(
-                addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-            );
-            contributionToken.safeTransfer(beneficiary, revenue);
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+        contributionToken.safeTransfer(beneficiary, revenue);
 
-            // Sync approved deposits
-            if (approvedDeposits < revenue) revert RevShareModule__InsufficientApprovedDeposits();
-            approvedDeposits -= revenue;
+        // Sync approved deposits
+        if (approvedDeposits < revenue) revert RevShareModule__InsufficientApprovedDeposits();
+        approvedDeposits -= revenue;
 
-            emit OnRevenueShareClaimed(beneficiary, revenue);
-        }
+        emit OnRevenueShareClaimed(beneficiary, revenue);
     }
 
     /**
