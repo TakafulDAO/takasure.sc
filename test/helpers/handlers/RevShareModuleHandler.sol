@@ -63,6 +63,8 @@ contract RevShareModuleHandler is Test {
     /// @notice Authorized module notifies new revenue.
     /// Amount is bounded to the moduleCaller’s current USDC balance.
     function op_notify(uint256 amt) external {
+        if (module.emergencyMode()) return;
+
         uint256 bal = usdc.balanceOf(moduleCaller);
         if (bal == 0) return;
 
@@ -153,6 +155,7 @@ contract RevShareModuleHandler is Test {
 
     /// @notice Set rewards duration only when no active stream.
     function op_setRewardsDuration(uint256 newDur) external {
+        if (module.emergencyMode()) return;
         if (block.timestamp < module.periodFinish()) return; // no mid-stream change
         newDur = bound(newDur, 1 days, 400 days);
         vm.prank(operator);
