@@ -122,7 +122,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrepaidMemberModified(newContribution, 941_783, 2_825_341);
-        (uint256 feeToOp, uint256 newDiscount) = referralGateway.lateContribution(
+        (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newContribution,
             child,
             0, // no coupon
@@ -172,7 +172,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         vm.prank(couponRedeemer);
         // vm.expectEmit(true, true, true, false, address(referralGateway));
         // emit OnPrepaidMemberModified(newContribution, 1_883_563, 5_650_684);
-        (uint256 feeToOp, uint256 newDiscount) = referralGateway.lateContribution(
+        (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newContribution,
             child,
             0, // no coupon
@@ -222,7 +222,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrepaidMemberModified(newContribution, 9_417_809, 28_253_424);
-        (uint256 feeToOp, uint256 newDiscount) = referralGateway.lateContribution(
+        (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newContribution,
             child,
             0, // no coupon
@@ -278,7 +278,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         emit OnPrepaidMemberModified(newContribution, 7_534_247, 0);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnCouponRedeemed(child, tDaoName, couponAmount);
-        (uint256 feeToOp, uint256 newDiscount) = referralGateway.lateContribution(
+        (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newContribution,
             child,
             couponAmount,
