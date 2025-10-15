@@ -123,6 +123,7 @@ contract RevShareModule is
     function setRewardsDuration(
         uint256 duration
     ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        require(!emergencyMode, RevShareModule__EmergencyMode());
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
@@ -164,6 +165,7 @@ contract RevShareModule is
      * @dev Increases the approved deposits for accounting purposes
      */
     function notifyNewRevenue(uint256 amount) external nonReentrant {
+        require(!emergencyMode, RevShareModule__EmergencyMode());
         require(
             AddressAndStates._checkType(ProtocolAddressType.Module, address(addressManager)) ||
                 AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager)),
