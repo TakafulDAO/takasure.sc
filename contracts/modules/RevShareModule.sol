@@ -31,6 +31,8 @@ contract RevShareModule is
 {
     using SafeERC20 for IERC20;
 
+    bool public emergencyMode;
+
     // New streaming state
     uint256 public rewardsDuration;
     uint256 public periodFinish; // Shared for both pools
@@ -63,6 +65,9 @@ contract RevShareModule is
     event OnDeposit(uint256 amount);
     event OnBalanceSwept(uint256 amount);
     event OnRevenueShareClaimed(address indexed account, uint256 amount);
+    event OnEmergencyWithdraw(uint256 amount);
+    event OnEmergencyModeSet(bool enabled);
+    event OnNoStreamDeposit(uint256 amount);
 
     error RevShareModule__RevenuesNotAvailableYet();
     error RevShareModule__NotZeroValue();
@@ -70,6 +75,7 @@ contract RevShareModule is
     error RevShareModule__NothingToSweep();
     error RevShareModule__ActiveStreamOngoing();
     error RevShareModule__InsufficientApprovedDeposits();
+    error RevShareModule__EmergencyMode();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -121,6 +127,7 @@ contract RevShareModule is
     function setRewardsDuration(
         uint256 duration
     ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        require(!emergencyMode, RevShareModule__EmergencyMode());
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
@@ -162,6 +169,7 @@ contract RevShareModule is
      * @dev Increases the approved deposits for accounting purposes
      */
     function notifyNewRevenue(uint256 amount) external nonReentrant {
+        require(!emergencyMode, RevShareModule__EmergencyMode());
         require(
             AddressAndStates._checkType(ProtocolAddressType.Module, address(addressManager)) ||
                 AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager)),
@@ -244,19 +252,60 @@ contract RevShareModule is
      * @dev Withdraws all the balance of the revenue token to the operator
      */
     function emergencyWithdraw() external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        // Settle all streams up to now so nothing is lost
+        _updateGlobal();
+
         IERC20 contributionToken = IERC20(
             addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
         );
         uint256 balance = contributionToken.balanceOf(address(this));
 
-        // Halt streams & reset accounting
+        // Halt streams
         rewardRatePioneersScaled = 0;
         rewardRateTakadaoScaled = 0;
         periodFinish = block.timestamp;
         lastUpdateTime = block.timestamp;
-        approvedDeposits = 0; // Reset approved deposits
+
+        // Set emergency mode
+        emergencyMode = true;
+        emit OnEmergencyModeSet(true);
 
         contributionToken.safeTransfer(msg.sender, balance);
+        emit OnEmergencyWithdraw(balance);
+    }
+
+    /**
+     * @notice Deposit funds that are not meant to be streamed
+     * @param amount The amount to deposit
+     * @dev Only callable by an operator
+     * @dev Does not affect the streaming rates or approved deposits
+     * @dev The contract must have enough allowance to transfer the tokens
+     * @dev The idea is to keep pull over push and to have an easier to track event log
+     */
+    function depositNoStream(
+        uint256 amount
+    ) external onlyRole(Roles.OPERATOR, address(addressManager)) nonReentrant {
+        if (amount == 0) revert RevShareModule__NotZeroValue();
+        IERC20 ct = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        ct.safeTransferFrom(msg.sender, address(this), amount);
+        // No changes to rates, lastUpdateTime, or approvedDeposits.
+        emit OnNoStreamDeposit(amount);
+    }
+
+    /**
+     * @notice Resume normal operations after an emergency
+     * @dev Only callable by an operator
+     * @dev Requires the contract to have enough balance to cover approved deposits
+     */
+    function resumeAfterEmergency() external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+        uint256 balance = contributionToken.balanceOf(address(this));
+        if (balance < approvedDeposits) revert RevShareModule__InsufficientApprovedDeposits();
+
+        emergencyMode = false;
+        emit OnEmergencyModeSet(false);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -268,6 +317,8 @@ contract RevShareModule is
      * @return revenue The amount of revenue share claimed
      */
     function claimRevenueShare() external nonReentrant returns (uint256 revenue) {
+        require(!emergencyMode, RevShareModule__EmergencyMode());
+
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),

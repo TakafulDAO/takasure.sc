@@ -228,7 +228,7 @@ contract ClaimRevenues_RevShareModuleTest is StdCheats, Test {
         _warp(2 days);
 
         // Force approvedDeposits to 0 (slot 4 in current layout)
-        vm.store(address(revShareModule), bytes32(uint256(4)), bytes32(uint256(0)));
+        vm.store(address(revShareModule), bytes32(uint256(5)), bytes32(uint256(0)));
 
         vm.expectRevert(RevShareModule.RevShareModule__InsufficientApprovedDeposits.selector);
         vm.prank(bob);

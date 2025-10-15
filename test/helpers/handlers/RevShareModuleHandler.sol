@@ -63,6 +63,8 @@ contract RevShareModuleHandler is Test {
     /// @notice Authorized module notifies new revenue.
     /// Amount is bounded to the moduleCaller’s current USDC balance.
     function op_notify(uint256 amt) external {
+        if (module.emergencyMode()) return;
+
         uint256 bal = usdc.balanceOf(moduleCaller);
         if (bal == 0) return;
 
@@ -85,6 +87,7 @@ contract RevShareModuleHandler is Test {
     /// - revenues are available (release if needed)
     /// - approvedDeposits is sufficient to fully cover the `earned` amount
     function op_claimPioneer(uint256 idx) external {
+        if (module.emergencyMode()) return; // no claims in emergency mode
         if (pioneers.length == 0) return;
         idx = bound(idx, 0, pioneers.length - 1);
         address p = pioneers[idx];
@@ -107,6 +110,7 @@ contract RevShareModuleHandler is Test {
     /// @notice Operator (REVENUE_CLAIMER) triggers claim for 25% stream to revenueReceiver.
     /// Requires RR to hold NFTs and `approvedDeposits` to cover the full `earned`.
     function op_claimTakadao() external {
+        if (module.emergencyMode()) return; // no claims in emergency mode
         _ensureAvailable();
 
         uint256 earned = module.earnedByTakadao(revenueReceiver);
@@ -151,6 +155,7 @@ contract RevShareModuleHandler is Test {
 
     /// @notice Set rewards duration only when no active stream.
     function op_setRewardsDuration(uint256 newDur) external {
+        if (module.emergencyMode()) return;
         if (block.timestamp < module.periodFinish()) return; // no mid-stream change
         newDur = bound(newDur, 1 days, 400 days);
         vm.prank(operator);
