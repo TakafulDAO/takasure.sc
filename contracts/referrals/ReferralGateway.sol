@@ -344,7 +344,7 @@ contract ReferralGateway is
             _couponAmount: couponAmount,
             _isDonated: isDonated,
             _isModifying: false, // In this call we never modify, as this will be a new member
-            _associationTimestamp: 0 // Only used for lateContribution
+            _associationTimestamp: 0 // Only used for payContributionAfterWaive
         });
 
         if (couponAmount > 0) _assignAsCouponRedeemer(newMember, couponAmount);
@@ -382,7 +382,7 @@ contract ReferralGateway is
      * @param couponAmount The amount of the coupon. In USDC six decimals
      * @param associationTimestamp The timestamp the first payment was made
      */
-    function lateContribution(
+    function payContributionAfterWaive(
         uint256 newContribution,
         address prepaidMember,
         uint256 couponAmount,
