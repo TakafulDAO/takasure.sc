@@ -809,7 +809,7 @@ contract ReferralGateway is
     }
 
     function _payContributionChecks(
-        uint256 _contribution,
+        uint256 _planToApply,
         uint256 _couponAmount,
         address _parent,
         address _newMember,
@@ -818,13 +818,13 @@ contract ReferralGateway is
         uint256 _associationTimestamp
     ) internal view {
         if (_isModifying) _checksIfModifying(_newMember, _couponAmount, _associationTimestamp);
-        else _checksIfNotModifying(_newMember, _contribution, _couponAmount);
-        _commonChecks(_contribution, _parent, _isDonated);
+        else _checksIfNotModifying(_newMember, _planToApply, _couponAmount);
+        _commonChecks(_planToApply, _parent, _isDonated);
     }
 
     function _checksIfNotModifying(
         address _newMember,
-        uint256 _contribution,
+        uint256 _planToApply,
         uint256 _couponAmount
     ) internal view {
         // If we are not modifying a member, the payer must be different than the zero address and cannot be already a member
@@ -835,7 +835,7 @@ contract ReferralGateway is
         );
 
         if (_couponAmount > 0) {
-            require(_couponAmount <= _contribution, ReferralGateway__InvalidContribution());
+            require(_couponAmount <= _planToApply, ReferralGateway__InvalidContribution());
             require(
                 _couponAmount >= MINIMUM_CONTRIBUTION && _couponAmount <= MAXIMUM_CONTRIBUTION,
                 ReferralGateway__InvalidContribution()
@@ -862,16 +862,16 @@ contract ReferralGateway is
         require(_associationTimestamp < block.timestamp, ReferralGateway__IncompatibleSettings());
     }
 
-    function _commonChecks(uint256 _contribution, address _parent, bool _isDonated) internal view {
+    function _commonChecks(uint256 _planToApply, address _parent, bool _isDonated) internal view {
         // If the member is valid, the contribution must be between the minimum and maximum contributio
         require(
-            _contribution >= MINIMUM_CONTRIBUTION && _contribution <= MAXIMUM_CONTRIBUTION,
+            _planToApply >= MINIMUM_CONTRIBUTION && _planToApply <= MAXIMUM_CONTRIBUTION,
             ReferralGateway__InvalidContribution()
         );
 
         // If the contribution is a donation, it must be exactly the minimum contribution
         if (_isDonated)
-            require(_contribution == MINIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
+            require(_planToApply == MINIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
 
         // If the referral discount is enabled, the rewards must also be enabled
         if (nameToDAOData[daoName].referralDiscountEnabled)
