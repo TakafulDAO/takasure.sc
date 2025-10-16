@@ -340,7 +340,7 @@ contract ReferralGateway is
         bool isDonated
     ) external onlyRole(COUPON_REDEEMER) returns (uint256 finalFee, uint256 discount) {
         (finalFee, discount) = _payContribution({
-            _contribution: contribution,
+            _planToApply: contribution,
             _parent: parent,
             _member: newMember,
             _couponAmount: couponAmount,
@@ -396,7 +396,7 @@ contract ReferralGateway is
         returns (uint256 finalFee, uint256 discount)
     {
         (finalFee, discount) = _payContribution({
-            _contribution: newContribution,
+            _planToApply: newContribution,
             _parent: childToParent[prepaidMember],
             _member: prepaidMember,
             _couponAmount: couponAmount,
@@ -620,7 +620,7 @@ contract ReferralGateway is
     }
 
     function _payContribution(
-        uint256 _contribution,
+        uint256 _planToApply,
         address _parent,
         address _member,
         uint256 _couponAmount,
@@ -629,7 +629,7 @@ contract ReferralGateway is
         uint256 _associationTimestamp
     ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
         // Normalize it in case the input has more than 4 decimals
-        uint256 normalizedContribution = (_contribution / DECIMAL_REQUIREMENT_PRECISION_USDC) *
+        uint256 normalizedContribution = (_planToApply / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
 
         // Perform the necessary checks
