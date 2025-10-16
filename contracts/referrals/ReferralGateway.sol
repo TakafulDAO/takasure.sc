@@ -44,7 +44,7 @@ contract ReferralGateway is
 
     struct PrepaidMember {
         address member;
-        uint256 contributionBeforeFee;
+        uint256 contributionBeforeFee; // This will be the plan the user selected
         uint256 contributionAfterFee;
         uint256 feeToOperator; // Fee after all the discounts and rewards
         uint256 discount;
@@ -329,6 +329,8 @@ contract ReferralGateway is
      * @dev The function will create a prepaid member object with the contribution data if
      *      the DAO is not deployed yet, otherwise it will call the DAO to join
      * @dev It will apply the discounts and rewards if the DAO has the features enabled
+     * @dev In this function, the plan is always the same as the contribution,
+     *      so for 25USDC plan -> 25USDC will be pulled from the user/coupon pool
      */
     function payContributionOnBehalfOf(
         uint256 contribution,
@@ -626,6 +628,7 @@ contract ReferralGateway is
         bool _isModifying,
         uint256 _associationTimestamp
     ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
+        // Normalize it in case the input has more than 4 decimals
         uint256 normalizedContribution = (_contribution / DECIMAL_REQUIREMENT_PRECISION_USDC) *
             DECIMAL_REQUIREMENT_PRECISION_USDC;
 
@@ -719,6 +722,9 @@ contract ReferralGateway is
 
         uint256 amountToTransfer = proratedContribution - _discount - fixedCouponAmount;
 
+        // We transfer the corresponding amount either from the member or from the coupon pool
+        // If the tx comes from payContributionOnBehalfOf, the pulled amount will be the normalizedContribution minus fees and discounts
+        // If the tx comes from payContributionAfterWaive, the pulled amount will be the the proratedContribution minus fees and discounts
         if (amountToTransfer > 0) usdc.safeTransferFrom(_member, address(this), amountToTransfer);
 
         // Transfer the complete coupon
@@ -726,6 +732,10 @@ contract ReferralGateway is
 
         usdc.safeTransfer(operator, _finalFee);
 
+        // Finally, we update or create the prepaid member
+        // Some values will be the same if modifying or creating
+        // As the contribution before fee refers to the plan selected, it will be always the normalized contribution
+        // same for the contribution after fee
         nameToDAOData[daoName]
             .prepaidMembers[_member]
             .contributionBeforeFee = normalizedContribution;
@@ -733,15 +743,19 @@ contract ReferralGateway is
             normalizedContribution -
             (normalizedContribution * SERVICE_FEE_RATIO) /
             100;
+        // Fees and discounts are cumulative
         nameToDAOData[daoName].prepaidMembers[_member].feeToOperator += _finalFee;
         nameToDAOData[daoName].prepaidMembers[_member].discount += _discount;
+        // The donation status comes from the input
         nameToDAOData[daoName].prepaidMembers[_member].isDonated = _isDonated;
 
         if (_isModifying) {
+            // If this is modifying, it means the member already exists, and can have parents
+            // We transfer the rewards if needed
             if (isMemberKYCed[_member]) _transferRewardsFromChild(_member);
             emit OnPrepaidMemberModified(normalizedContribution, _finalFee, _discount);
         } else {
-            // If we are not modifying, we create a new prepaid member
+            // If we are not modifying, we create a new prepaid member, so we set the member address as the only value left
             nameToDAOData[daoName].prepaidMembers[_member].member = _member;
 
             emit OnPrepayment(_parent, _member, normalizedContribution, _finalFee, _discount);
