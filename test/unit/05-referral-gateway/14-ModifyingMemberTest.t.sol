@@ -126,7 +126,8 @@ contract ReferralGatewayModifyMemberTest is Test {
             newContribution,
             child,
             0, // no coupon
-            initialContributionTimestamp
+            initialContributionTimestamp,
+            block.timestamp
         );
 
         uint256 parentBalanceAfter = usdc.balanceOf(parent);
@@ -176,7 +177,8 @@ contract ReferralGatewayModifyMemberTest is Test {
             newContribution,
             child,
             0, // no coupon
-            initialContributionTimestamp
+            initialContributionTimestamp,
+            block.timestamp
         );
 
         uint256 parentBalanceAfter = usdc.balanceOf(parent);
@@ -226,7 +228,8 @@ contract ReferralGatewayModifyMemberTest is Test {
             newContribution,
             child,
             0, // no coupon
-            initialContributionTimestamp
+            initialContributionTimestamp,
+            block.timestamp
         );
 
         uint256 parentBalanceAfter = usdc.balanceOf(parent);
@@ -282,7 +285,8 @@ contract ReferralGatewayModifyMemberTest is Test {
             newContribution,
             child,
             couponAmount,
-            initialContributionTimestamp
+            initialContributionTimestamp,
+            block.timestamp
         );
 
         uint256 parentBalanceAfter = usdc.balanceOf(parent);

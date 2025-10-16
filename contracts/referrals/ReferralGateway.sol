@@ -319,6 +319,18 @@ contract ReferralGateway is
                                  JOINS
     //////////////////////////////////////////////////////////////*/
 
+    // Helper struct to avoid "Stack too deep" errors
+    struct InternalPayContributionInputs {
+        uint256 planToApply;
+        address parent;
+        address member;
+        uint256 couponAmount;
+        bool isDonated;
+        bool isModifying;
+        uint256 associationTimestamp;
+        uint256 benefitTimestamp;
+    }
+
     /**
      * @notice Pay a contribution to a DAO
      * @param contribution The amount of the contribution. In USDC six decimals
@@ -339,15 +351,28 @@ contract ReferralGateway is
         uint256 couponAmount,
         bool isDonated
     ) external onlyRole(COUPON_REDEEMER) returns (uint256 finalFee, uint256 discount) {
-        (finalFee, discount) = _payContribution({
-            _planToApply: contribution,
-            _parent: parent,
-            _member: newMember,
-            _couponAmount: couponAmount,
-            _isDonated: isDonated,
-            _isModifying: false, // In this call we never modify, as this will be a new member
-            _associationTimestamp: 0 // Only used for payContributionAfterWaive
-        });
+        // (finalFee, discount) = _payContribution({
+        //     _planToApply: contribution,
+        //     _parent: parent,
+        //     _member: newMember,
+        //     _couponAmount: couponAmount,
+        //     _isDonated: isDonated,
+        //     _isModifying: false, // In this call we never modify, as this will be a new member
+        //     _associationTimestamp: 0, // Only used for payContributionAfterWaive
+        //     _benefitTimestamp: 0 // Only used for payContributionAfterWaive
+        // });
+        (finalFee, discount) = _payContribution(
+            InternalPayContributionInputs({
+                planToApply: contribution,
+                parent: parent,
+                member: newMember,
+                couponAmount: couponAmount,
+                isDonated: isDonated,
+                isModifying: false, // In this call we never modify, as this will be a new member
+                associationTimestamp: 0, // Only used for payContributionAfterWaive
+                benefitTimestamp: 0 // Only used for payContributionAfterWaive
+            })
+        );
 
         if (couponAmount > 0) _assignAsCouponRedeemer(newMember, couponAmount);
     }
@@ -388,22 +413,26 @@ contract ReferralGateway is
         uint256 newContribution,
         address prepaidMember,
         uint256 couponAmount,
-        uint256 associationTimestamp
+        uint256 associationTimestamp,
+        uint256 benefitTimestamp
     )
         external
         whenNotPaused
         onlyRole(COUPON_REDEEMER)
         returns (uint256 finalFee, uint256 discount)
     {
-        (finalFee, discount) = _payContribution({
-            _planToApply: newContribution,
-            _parent: childToParent[prepaidMember],
-            _member: prepaidMember,
-            _couponAmount: couponAmount,
-            _isDonated: false, // Late contributions are from users that did not joined and changed their mind so not donated
-            _isModifying: true, // We are modifying an existing prepaid member
-            _associationTimestamp: associationTimestamp // The timestamp the first payment was made
-        });
+        (finalFee, discount) = _payContribution(
+            InternalPayContributionInputs({
+                planToApply: newContribution,
+                parent: childToParent[prepaidMember],
+                member: prepaidMember,
+                couponAmount: couponAmount,
+                isDonated: false, // Late contributions are from users that did not joined and changed their mind so not donated
+                isModifying: true, // We are modifying an existing prepaid member
+                associationTimestamp: associationTimestamp, // The timestamp the first payment was made
+                benefitTimestamp: benefitTimestamp // The timestamp the benefit starts
+            })
+        );
 
         // Set as a coupon redeemer if not already
         if (couponAmount > 0 && !isMemberCouponRedeemer[prepaidMember])
@@ -620,37 +649,35 @@ contract ReferralGateway is
     }
 
     function _payContribution(
-        uint256 _planToApply,
-        address _parent,
-        address _member,
-        uint256 _couponAmount,
-        bool _isDonated,
-        bool _isModifying,
-        uint256 _associationTimestamp
-    ) internal whenNotPaused nonReentrant returns (uint256 _finalFee, uint256 _discount) {
+        InternalPayContributionInputs memory _inputs
+    ) internal whenNotPaused nonReentrant returns (uint256 finalFee_, uint256 discount_) {
         // Normalize it in case the input has more than 4 decimals
-        uint256 normalizedContribution = (_planToApply / DECIMAL_REQUIREMENT_PRECISION_USDC) *
-            DECIMAL_REQUIREMENT_PRECISION_USDC;
+        uint256 normalizedContribution = (_inputs.planToApply /
+            DECIMAL_REQUIREMENT_PRECISION_USDC) * DECIMAL_REQUIREMENT_PRECISION_USDC;
 
         // Perform the necessary checks
         _payContributionChecks(
             normalizedContribution,
-            _couponAmount,
-            _parent,
-            _member,
-            _isDonated,
-            _isModifying,
-            _associationTimestamp
+            _inputs.couponAmount,
+            _inputs.parent,
+            _inputs.member,
+            _inputs.isDonated,
+            _inputs.isModifying,
+            _inputs.associationTimestamp
         );
 
         // Calculate the amount to be transferred to calculate the fees, discounts and rewards
         uint256 proratedContribution;
 
-        if (_isModifying) {
+        if (_inputs.isModifying) {
             // If we are modifying, we need to calculate the prorated contribution based on the association timestamp
             // The formula will be _contribution * (YEAR - (block.timestamp - associationTimestamp)) / YEAR
             // And the YEAR is considered always as 365 days, no leap years or any other factor
-            proratedContribution = _prorateOneYear(normalizedContribution, _associationTimestamp);
+            proratedContribution = _prorateOneYear(
+                normalizedContribution,
+                _inputs.associationTimestamp,
+                _inputs.benefitTimestamp
+            );
         } else {
             // If this is not modifying a member then we use the full normalized contribution
             proratedContribution = normalizedContribution;
@@ -661,24 +688,24 @@ contract ReferralGateway is
         // If the coupon amount is greater than the prorated contribution, then we need to fix it,
         // this to avoid underflows in the calculations, the remaining amount will
         // be considered a donation, and handled inside this method
-        if (_couponAmount > proratedContribution) {
+        if (_inputs.couponAmount > proratedContribution) {
             fixedCouponAmount = proratedContribution;
-            totalDonationsFromCoupons += _couponAmount - proratedContribution;
+            totalDonationsFromCoupons += _inputs.couponAmount - proratedContribution;
         } else {
-            fixedCouponAmount = _couponAmount;
+            fixedCouponAmount = _inputs.couponAmount;
         }
 
-        _finalFee = (proratedContribution * SERVICE_FEE_RATIO) / 100;
+        finalFee_ = (proratedContribution * SERVICE_FEE_RATIO) / 100;
 
         // If the DAO pre join is enabled, it will get a discount as a pre-joiner
         if (nameToDAOData[daoName].preJoinDiscountEnabled)
-            _discount +=
+            discount_ +=
                 ((proratedContribution - fixedCouponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
                 100;
 
         // And if the DAO has the referral discount enabled, it will get a discount as a referrer
-        if (nameToDAOData[daoName].referralDiscountEnabled && _parent != address(0))
-            _discount +=
+        if (nameToDAOData[daoName].referralDiscountEnabled && _inputs.parent != address(0))
+            discount_ +=
                 ((proratedContribution - fixedCouponAmount) * REFERRAL_DISCOUNT_RATIO) /
                 100;
 
@@ -689,15 +716,15 @@ contract ReferralGateway is
             toReferralReserve = (proratedContribution * REFERRAL_RESERVE) / 100;
 
             // The discount will be only valid if the parent is valid
-            if (_parent != address(0)) {
-                childToParent[_member] = _parent;
+            if (_inputs.parent != address(0)) {
+                childToParent[_inputs.member] = _inputs.parent;
 
-                (_finalFee, nameToDAOData[daoName].referralReserve) = _parentRewards(
-                    _member,
+                (finalFee_, nameToDAOData[daoName].referralReserve) = _parentRewards(
+                    _inputs.member,
                     proratedContribution,
                     nameToDAOData[daoName].referralReserve,
                     toReferralReserve,
-                    _finalFee
+                    finalFee_
                 );
             } else {
                 nameToDAOData[daoName].referralReserve += toReferralReserve;
@@ -706,11 +733,11 @@ contract ReferralGateway is
 
         uint256 rePoolFee = (proratedContribution * REPOOL_FEE_RATIO) / 100;
 
-        _finalFee -= _discount + toReferralReserve + rePoolFee;
+        finalFee_ -= discount_ + toReferralReserve + rePoolFee;
 
         assert(
             (proratedContribution * SERVICE_FEE_RATIO) / 100 ==
-                _finalFee + _discount + toReferralReserve + rePoolFee
+                finalFee_ + discount_ + toReferralReserve + rePoolFee
         );
 
         nameToDAOData[daoName].toRepool += rePoolFee;
@@ -718,56 +745,67 @@ contract ReferralGateway is
             proratedContribution -
             (proratedContribution * SERVICE_FEE_RATIO) /
             100;
-        nameToDAOData[daoName].collectedFees += _finalFee;
+        nameToDAOData[daoName].collectedFees += finalFee_;
 
-        uint256 amountToTransfer = proratedContribution - _discount - fixedCouponAmount;
+        uint256 amountToTransfer = proratedContribution - discount_ - fixedCouponAmount;
 
         // We transfer the corresponding amount either from the member or from the coupon pool
         // If the tx comes from payContributionOnBehalfOf, the pulled amount will be the normalizedContribution minus fees and discounts
         // If the tx comes from payContributionAfterWaive, the pulled amount will be the the proratedContribution minus fees and discounts
-        if (amountToTransfer > 0) usdc.safeTransferFrom(_member, address(this), amountToTransfer);
+        if (amountToTransfer > 0)
+            usdc.safeTransferFrom(_inputs.member, address(this), amountToTransfer);
 
         // Transfer the complete coupon
-        if (_couponAmount > 0) usdc.safeTransferFrom(couponPool, address(this), _couponAmount);
+        if (_inputs.couponAmount > 0)
+            usdc.safeTransferFrom(couponPool, address(this), _inputs.couponAmount);
 
-        usdc.safeTransfer(operator, _finalFee);
+        usdc.safeTransfer(operator, finalFee_);
 
         // Finally, we update or create the prepaid member
         // Some values will be the same if modifying or creating
         // As the contribution before fee refers to the plan selected, it will be always the normalized contribution
         // same for the contribution after fee
         nameToDAOData[daoName]
-            .prepaidMembers[_member]
+            .prepaidMembers[_inputs.member]
             .contributionBeforeFee = normalizedContribution;
-        nameToDAOData[daoName].prepaidMembers[_member].contributionAfterFee =
+        nameToDAOData[daoName].prepaidMembers[_inputs.member].contributionAfterFee =
             normalizedContribution -
             (normalizedContribution * SERVICE_FEE_RATIO) /
             100;
         // Fees and discounts are cumulative
-        nameToDAOData[daoName].prepaidMembers[_member].feeToOperator += _finalFee;
-        nameToDAOData[daoName].prepaidMembers[_member].discount += _discount;
+        nameToDAOData[daoName].prepaidMembers[_inputs.member].feeToOperator += finalFee_;
+        nameToDAOData[daoName].prepaidMembers[_inputs.member].discount += discount_;
         // The donation status comes from the input
-        nameToDAOData[daoName].prepaidMembers[_member].isDonated = _isDonated;
+        nameToDAOData[daoName].prepaidMembers[_inputs.member].isDonated = _inputs.isDonated;
 
-        if (_isModifying) {
+        if (_inputs.isModifying) {
             // If this is modifying, it means the member already exists, and can have parents
             // We transfer the rewards if needed
-            if (isMemberKYCed[_member]) _transferRewardsFromChild(_member);
-            emit OnPrepaidMemberModified(normalizedContribution, _finalFee, _discount);
+            if (isMemberKYCed[_inputs.member]) _transferRewardsFromChild(_inputs.member);
+            emit OnPrepaidMemberModified(normalizedContribution, finalFee_, discount_);
         } else {
             // If we are not modifying, we create a new prepaid member, so we set the member address as the only value left
-            nameToDAOData[daoName].prepaidMembers[_member].member = _member;
-
-            emit OnPrepayment(_parent, _member, normalizedContribution, _finalFee, _discount);
+            nameToDAOData[daoName].prepaidMembers[_inputs.member].member = _inputs.member;
+            emit OnPrepayment(
+                _inputs.parent,
+                _inputs.member,
+                normalizedContribution,
+                finalFee_,
+                discount_
+            );
         }
     }
 
-    function _prorateOneYear(uint256 amount, uint256 start) internal view returns (uint256) {
+    function _prorateOneYear(
+        uint256 _amount,
+        uint256 _associationStartsAt,
+        uint256 _benefitStartsAt
+    ) internal pure returns (uint256) {
         uint256 YEAR = 365 days;
-        if (start >= block.timestamp) return amount;
-        uint256 elapsed = block.timestamp - start;
+        if (_associationStartsAt >= _benefitStartsAt) return _amount;
+        uint256 elapsed = _benefitStartsAt - _associationStartsAt;
         if (elapsed >= YEAR) return 0;
-        return (amount * (YEAR - elapsed)) / YEAR;
+        return (_amount * (YEAR - elapsed)) / YEAR;
     }
 
     function _payContributionChecks(
