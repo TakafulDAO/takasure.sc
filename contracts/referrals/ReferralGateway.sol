@@ -351,16 +351,6 @@ contract ReferralGateway is
         uint256 couponAmount,
         bool isDonated
     ) external onlyRole(COUPON_REDEEMER) returns (uint256 finalFee, uint256 discount) {
-        // (finalFee, discount) = _payContribution({
-        //     _planToApply: contribution,
-        //     _parent: parent,
-        //     _member: newMember,
-        //     _couponAmount: couponAmount,
-        //     _isDonated: isDonated,
-        //     _isModifying: false, // In this call we never modify, as this will be a new member
-        //     _associationTimestamp: 0, // Only used for payContributionAfterWaive
-        //     _benefitTimestamp: 0 // Only used for payContributionAfterWaive
-        // });
         (finalFee, discount) = _payContribution(
             InternalPayContributionInputs({
                 planToApply: contribution,
@@ -671,7 +661,7 @@ contract ReferralGateway is
 
         if (_inputs.isModifying) {
             // If we are modifying, we need to calculate the prorated contribution based on the association timestamp
-            // The formula will be _contribution * (YEAR - (block.timestamp - associationTimestamp)) / YEAR
+            // The formula will be _contribution * (YEAR - (benefitTimestamp - associationTimestamp)) / YEAR
             // And the YEAR is considered always as 365 days, no leap years or any other factor
             proratedContribution = _prorateOneYear(
                 normalizedContribution,
