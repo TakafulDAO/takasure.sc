@@ -791,8 +791,8 @@ contract ReferralGateway is
         uint256 _associationStartsAt,
         uint256 _benefitStartsAt
     ) internal pure returns (uint256) {
+        require(_associationStartsAt < _benefitStartsAt, ReferralGateway__IncompatibleSettings());
         uint256 YEAR = 365 days;
-        if (_associationStartsAt >= _benefitStartsAt) return _amount;
         uint256 elapsed = _benefitStartsAt - _associationStartsAt;
         if (elapsed >= YEAR) return 0;
         return (_amount * (YEAR - elapsed)) / YEAR;
