@@ -30,9 +30,11 @@ contract ReferralGatewayModifyMemberTest is Test {
     uint256 public constant REFERRAL_DISCOUNT_RATIO = 5; // 5% of contribution deducted from fee
 
     event OnPrepaidMemberModified(
-        uint256 indexed newContribution,
-        uint256 indexed extraFee,
-        uint256 indexed extraDiscount
+        address indexed member,
+        uint256 indexed newPlan,
+        uint256 indexed proratedAmount,
+        uint256 extraFee,
+        uint256 extraDiscount
     );
 
     event OnCouponRedeemed(
@@ -121,7 +123,7 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrepaidMemberModified(newContribution, 941_783, 2_825_341);
+        emit OnPrepaidMemberModified(child, newContribution, 18_835_616, 941_783, 2_825_341);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newContribution,
             child,
@@ -171,8 +173,8 @@ contract ReferralGatewayModifyMemberTest is Test {
         uint256 parentBalanceBefore = usdc.balanceOf(parent);
 
         vm.prank(couponRedeemer);
-        // vm.expectEmit(true, true, true, false, address(referralGateway));
-        // emit OnPrepaidMemberModified(newContribution, 1_883_563, 5_650_684);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(child, newContribution, 37_671_232, 1_883_563, 5_650_684);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newContribution,
             child,
@@ -223,7 +225,7 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrepaidMemberModified(newContribution, 9_417_809, 28_253_424);
+        emit OnPrepaidMemberModified(child, newContribution, 188_356_164, 9_417_809, 28_253_424);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newContribution,
             child,
@@ -278,7 +280,7 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrepaidMemberModified(newContribution, 7_534_247, 0);
+        emit OnPrepaidMemberModified(child, newContribution, 37_671_232, 7_534_247, 0);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnCouponRedeemed(child, tDaoName, couponAmount);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(

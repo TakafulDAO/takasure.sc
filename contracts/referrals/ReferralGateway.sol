@@ -134,9 +134,11 @@ contract ReferralGateway is
         uint256 discount
     );
     event OnPrepaidMemberModified(
-        uint256 indexed newContribution,
-        uint256 indexed extraFee,
-        uint256 indexed extraDiscount
+        address indexed member,
+        uint256 indexed newPlan,
+        uint256 indexed proratedAmount,
+        uint256 extraFee,
+        uint256 extraDiscount
     );
     event OnCouponRedeemed(
         address indexed member,
@@ -772,7 +774,13 @@ contract ReferralGateway is
             // If this is modifying, it means the member already exists, and can have parents
             // We transfer the rewards if needed
             if (isMemberKYCed[_inputs.member]) _transferRewardsFromChild(_inputs.member);
-            emit OnPrepaidMemberModified(normalizedContribution, finalFee_, discount_);
+            emit OnPrepaidMemberModified(
+                _inputs.member,
+                normalizedContribution,
+                proratedContribution,
+                finalFee_,
+                discount_
+            );
         } else {
             // If we are not modifying, we create a new prepaid member, so we set the member address as the only value left
             nameToDAOData[daoName].prepaidMembers[_inputs.member].member = _inputs.member;
