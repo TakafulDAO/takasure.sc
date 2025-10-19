@@ -8,7 +8,7 @@ import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {DaoDataReader, IReferralGateway} from "test/helpers/lowLevelCall/DaoDataReader.sol";
+import {IReferralGateway, DaoDataReader} from "test/helpers/lowLevelCall/DaoDataReader.sol";
 
 contract ReferralGatewayFuzzTest is Test {
     TestDeployProtocol deployer;
@@ -36,6 +36,7 @@ contract ReferralGatewayFuzzTest is Test {
         (
             takasureReserveAddress,
             referralGatewayAddress,
+            ,
             ,
             ,
             ,

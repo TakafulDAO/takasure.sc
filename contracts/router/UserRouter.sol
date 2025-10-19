@@ -24,7 +24,7 @@ contract UserRouter is Initializable, UUPSUpgradeable {
 
     modifier onlyRole(bytes32 role) {
         require(
-            AddressAndStates._checkRole(address(addressManager), role),
+            AddressAndStates._checkRole(role, address(addressManager)),
             UserRouter__NotAuthorizedCaller()
         );
         _;

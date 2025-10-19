@@ -11,6 +11,7 @@ import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {KYCModule} from "contracts/modules/KYCModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
 import {RevenueModule} from "contracts/modules/RevenueModule.sol";
+import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {UserRouter} from "contracts/router/UserRouter.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
@@ -20,6 +21,10 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 contract TestDeployProtocol is Script {
     ModuleManager moduleManager;
     AddressManager addressManager;
+    address addressManagerImplementation;
+    address addressManagerAddress;
+    address moduleManagerImplementation;
+    address moduleManagerAddress;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
@@ -61,6 +66,7 @@ contract TestDeployProtocol is Script {
             address kycModuleAddress,
             address memberModuleAddress,
             address revenueModuleAddress,
+            address revShareModuleAddress,
             address routerAddress,
             address contributionTokenAddress,
             address kycProvider,
@@ -72,12 +78,29 @@ contract TestDeployProtocol is Script {
 
         vm.startBroadcast(msg.sender);
 
-        addressManager = new AddressManager();
-        moduleManager = new ModuleManager();
+        addressManagerImplementation = address(new AddressManager());
+        addressManagerAddress = UnsafeUpgrades.deployUUPSProxy(
+            addressManagerImplementation,
+            abi.encodeCall(AddressManager.initialize, (msg.sender))
+        );
+        addressManager = AddressManager(addressManagerAddress);
+
+        moduleManagerImplementation = address(new ModuleManager());
+        moduleManagerAddress = UnsafeUpgrades.deployUUPSProxy(
+            address(moduleManagerImplementation),
+            abi.encodeCall(ModuleManager.initialize, (address(addressManager)))
+        );
+        moduleManager = ModuleManager(moduleManagerAddress);
 
         addressManager.addProtocolAddress(
             "MODULE_MANAGER",
             address(moduleManager),
+            ProtocolAddressType.Protocol
+        );
+
+        addressManager.addProtocolAddress(
+            "CONTRIBUTION_TOKEN",
+            config.contributionToken,
             ProtocolAddressType.Protocol
         );
 
@@ -94,6 +117,12 @@ contract TestDeployProtocol is Script {
         addressManager.addProtocolAddress(
             "FEE_CLAIM_ADDRESS",
             config.feeClaimAddress,
+            ProtocolAddressType.Admin
+        );
+
+        addressManager.addProtocolAddress(
+            "REVENUE_RECEIVER",
+            makeAddr("revenueReceiver"),
             ProtocolAddressType.Admin
         );
 
@@ -114,6 +143,8 @@ contract TestDeployProtocol is Script {
             })
         );
 
+        revShareModuleAddress = _deployRemainingModule(address(addressManager));
+
         addressManager.addProtocolAddress(
             "SUBSCRIPTION_MODULE",
             subscriptionModuleAddress,
@@ -132,6 +163,18 @@ contract TestDeployProtocol is Script {
             ProtocolAddressType.Module
         );
 
+        addressManager.addProtocolAddress(
+            "REVENUE_MODULE",
+            revenueModuleAddress,
+            ProtocolAddressType.Module
+        );
+
+        addressManager.addProtocolAddress(
+            "REVENUE_SHARE_MODULE",
+            revShareModuleAddress,
+            ProtocolAddressType.Module
+        );
+
         // Deploy router
         userRouterImplementation = address(new UserRouter());
         routerAddress = UnsafeUpgrades.deployUUPSProxy(
@@ -141,12 +184,13 @@ contract TestDeployProtocol is Script {
 
         addressManager.addProtocolAddress("ROUTER", routerAddress, ProtocolAddressType.Protocol);
 
-        _setContracts(
-            subscriptionModuleAddress,
-            kycModuleAddress,
-            memberModuleAddress,
-            revenueModuleAddress
-        );
+        // _setContracts(
+        //     subscriptionModuleAddress,
+        //     kycModuleAddress,
+        //     memberModuleAddress,
+        //     revenueModuleAddress,
+        //     revShareModuleAddress
+        // );
 
         _createRoles(address(addressManager));
 
@@ -168,8 +212,10 @@ contract TestDeployProtocol is Script {
             .getReserveValues()
             .contributionToken;
 
-        vm.prank(config.takadaoOperator);
+        vm.startPrank(config.takadaoOperator);
         addressManager.acceptProposedRole(Roles.OPERATOR);
+        addressManager.acceptProposedRole(Roles.REVENUE_CLAIMER);
+        vm.stopPrank();
 
         vm.prank(config.daoMultisig);
         addressManager.acceptProposedRole(Roles.DAO_MULTISIG);
@@ -184,6 +230,7 @@ contract TestDeployProtocol is Script {
             kycModuleAddress,
             memberModuleAddress,
             revenueModuleAddress,
+            revShareModuleAddress,
             routerAddress,
             contributionTokenAddress,
             kycProvider,
@@ -258,23 +305,37 @@ contract TestDeployProtocol is Script {
         );
     }
 
-    function _setContracts(
-        address _subscriptionModuleAddress,
-        address _kycModuleAddress,
-        address _memberModuleAddress,
-        address _revenueModuleAddress
-    ) internal {
-        // Set modules contracts in TakasureReserve
-        moduleManager.addModule(_subscriptionModuleAddress);
-        moduleManager.addModule(_kycModuleAddress);
-        moduleManager.addModule(_memberModuleAddress);
-        moduleManager.addModule(_revenueModuleAddress);
+    function _deployRemainingModule(
+        address _addressManager
+    ) internal returns (address revShareModuleAddress_) {
+        address revShareModuleImplementation = address(new RevShareModule());
+
+        revShareModuleAddress_ = UnsafeUpgrades.deployUUPSProxy(
+            revShareModuleImplementation,
+            abi.encodeCall(RevShareModule.initialize, (_addressManager, "REVENUE_SHARE_MODULE"))
+        );
     }
+
+    // function _setContracts(
+    //     address _subscriptionModuleAddress,
+    //     address _kycModuleAddress,
+    //     address _memberModuleAddress,
+    //     address _revenueModuleAddress,
+    //     address _revShareModuleAddress
+    // ) internal {
+    //     // Set modules contracts in TakasureReserve
+    //     moduleManager.addModule(_subscriptionModuleAddress);
+    //     moduleManager.addModule(_kycModuleAddress);
+    //     moduleManager.addModule(_memberModuleAddress);
+    //     moduleManager.addModule(_revenueModuleAddress);
+    //     moduleManager.addModule(_revShareModuleAddress);
+    // }
 
     function _createRoles(address _addressManager) internal {
         AddressManager(_addressManager).createNewRole(Roles.OPERATOR);
         AddressManager(_addressManager).createNewRole(Roles.DAO_MULTISIG);
         AddressManager(_addressManager).createNewRole(Roles.KYC_PROVIDER);
+        AddressManager(_addressManager).createNewRole(Roles.REVENUE_CLAIMER);
     }
 
     function _assignRoles(AssignRolesFunctionParams memory _params) internal {
@@ -290,6 +351,10 @@ contract TestDeployProtocol is Script {
         AddressManager(_params.addressManager).proposeRoleHolder(
             Roles.KYC_PROVIDER,
             _params.kycProvider
+        );
+        AddressManager(_params.addressManager).proposeRoleHolder(
+            Roles.REVENUE_CLAIMER,
+            _params.takadaoOperator
         );
     }
 

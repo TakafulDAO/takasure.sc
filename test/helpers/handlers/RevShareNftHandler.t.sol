@@ -70,5 +70,6 @@ contract RevShareNftHandler is Test {
         return users.length;
     }
 
-    function test() public {}
+    // To avoid this contract to be count in coverage
+    function test() external {}
 }

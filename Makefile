@@ -35,6 +35,10 @@ snapshot :; forge snapshot
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
+# Simulations
+simulate-rev-share-distribution:
+	@forge script scripts/simulations/RevShareMonthSimToCsv.s.sol:RevShareMonthSimToCsv -vvv
+	
 # Protocol deployments
 protocol-deploy-referral:
 	@forge clean
@@ -45,6 +49,15 @@ protocol-deploy-referral:
 protocol-upgrade-referral:
 	@forge clean
 	@forge script deploy/protocol/upgrades/00-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
+
+protocol-check-upgrade-referral:
+	@forge clean
+	@forge script deploy/protocol/upgrades/01-CheckReferralUpgrade.s.sol:CheckReferralUpgrade $(NETWORK_ARGS)
+
+protocol-prepare-upgrade-referral:
+	@forge clean
+	@forge script deploy/protocol/upgrades/02-PrepareReferralUpgrade.s.sol:PrepareReferralUpgrade $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
 # Token deployments

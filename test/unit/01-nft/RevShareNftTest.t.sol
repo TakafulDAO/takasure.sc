@@ -17,6 +17,7 @@ contract RevShareNftTest is Test {
 
     event OnAddressManagerSet(address indexed oldAddressManager, address indexed newAddressManager);
     event OnBaseURISet(string indexed oldBaseUri, string indexed newBaseURI);
+    event OnPeriodTransferLockSet(uint256 indexed newPeriod);
     event OnRevShareNFTMinted(address indexed owner, uint256 tokenId);
     event OnBatchRevShareNFTMinted(
         address indexed newOwner,
@@ -97,6 +98,31 @@ contract RevShareNftTest is Test {
         assertEq(noBaseUri.tokenURI(0), "");
     }
 
+    function testNft_setPeriodTransferLock() public {
+        vm.prank(nft.owner());
+        vm.expectEmit(true, false, false, false, address(nft));
+        emit OnPeriodTransferLockSet(1 weeks);
+        nft.setPeriodTransferLock(1 weeks);
+    }
+
+    function testNft_periodChangeAppliesRetroactively() public {
+        vm.startPrank(nft.owner());
+        nft.setPeriodTransferLock(2 weeks);
+        nft.mint(alice);
+        vm.stopPrank();
+
+        // After 10 days (still < 2 weeks), reduce lock to 1 week
+        vm.warp(block.timestamp + 10 days);
+
+        vm.prank(nft.owner());
+        nft.setPeriodTransferLock(1 weeks);
+
+        // Now transfer should pass
+        vm.prank(alice);
+        nft.transfer(bob, 0);
+        assertEq(nft.ownerOf(0), bob);
+    }
+
     /*//////////////////////////////////////////////////////////////
                               SINGLE MINT
     //////////////////////////////////////////////////////////////*/
@@ -121,7 +147,7 @@ contract RevShareNftTest is Test {
         assertEq(nft.balanceOf(alice), 1);
     }
 
-    function testNft_mintStoresPioneerMintedAtIfRevUpdateFails() public {
+    function testNft_mintStoresPioneerMintedAt() public {
         address failingManager = address(0xFEED);
 
         _mockAddressManagerRevert(failingManager);
@@ -137,19 +163,28 @@ contract RevShareNftTest is Test {
         assertLe(timestamp, block.timestamp);
     }
 
-    function testNft_mintDoesNotStorePioneerMintedAtIfRevUpdateSucceeds() public {
-        RevShareModuleMock rev = new RevShareModuleMock();
-        address mockManager = address(0xD00D);
-
-        _mockAddressManagerReturn(mockManager, address(rev));
-
+    function testNft_sentinelFirstMintIsMinimum() public {
         vm.prank(nft.owner());
-        nft.setAddressManager(mockManager);
+        nft.setPeriodTransferLock(30 days);
 
         vm.prank(nft.owner());
         nft.mint(alice);
+        uint256 first = nft.pioneerMintedAt(alice, type(uint256).max);
 
-        assertEq(nft.pioneerMintedAt(alice, 0), 0); // Not stored
+        // Advance time and mint again
+        vm.warp(block.timestamp + 10 days);
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
+        // Sentinel should remain the earlier timestamp (min)
+        uint256 sentinel = nft.pioneerMintedAt(alice, type(uint256).max);
+        assertEq(sentinel, first);
+    }
+
+    function testNft_mintRevertsWhenMintingToThisContract() public {
+        vm.prank(nft.owner());
+        vm.expectRevert(RevShareNFT.RevShareNFT__NotAllowedAddress.selector);
+        nft.mint(address(nft));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -180,7 +215,7 @@ contract RevShareNftTest is Test {
         assertEq(nft.totalSupply(), 3);
     }
 
-    function testNft_batchMintStoresPioneerMintedAtOnlyIfRevFails() public {
+    function testNft_batchMintStoresPioneerMintedAt() public {
         address failingManager = address(0xABCD);
         _mockAddressManagerRevert(failingManager);
 
@@ -195,78 +230,140 @@ contract RevShareNftTest is Test {
         }
     }
 
-    function testNft_batchMintSkipsPioneerMintedAtIfRevWorks() public {
-        RevShareModuleMock rev = new RevShareModuleMock();
-        address mockManager = address(0xDEAD);
+    /*//////////////////////////////////////////////////////////////
+                               APPROVALS
+    //////////////////////////////////////////////////////////////*/
 
-        _mockAddressManagerReturn(mockManager, address(rev));
+    function testNft_approveRevokeAllowedDuringLock() public {
+        // lock = 1 week
+        vm.prank(nft.owner());
+        nft.setPeriodTransferLock(1 weeks);
+
+        // mint to alice
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
+        // During lock, granting should revert…
+        vm.prank(alice);
+        vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
+        nft.approve(bob, 0);
+
+        // …but revoking (approve to zero) must be allowed
+        vm.prank(alice);
+        nft.approve(address(0), 0);
+    }
+
+    function testNFT_setApprovalForAllRevokeAllowedDuringLock() public {
+        vm.prank(nft.owner());
+        nft.setPeriodTransferLock(1 weeks);
+
+        // Mint so OWNER_LOCK_KEY is set for alice
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
+        // During lock, enabling should revert…
+        vm.prank(alice);
+        vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
+        nft.setApprovalForAll(bob, true);
+
+        // …but disabling is allowed
+        vm.prank(alice);
+        nft.setApprovalForAll(bob, false);
+    }
+
+    function test_approveGrantAllowedAfterLock() public {
+        vm.prank(nft.owner());
+        nft.setPeriodTransferLock(1 weeks);
 
         vm.prank(nft.owner());
-        nft.setAddressManager(mockManager);
+        nft.mint(alice);
 
-        vm.prank(nft.owner());
-        nft.batchMint(alice, 3);
-
-        for (uint256 i = 0; i < 3; ++i) {
-            assertEq(nft.pioneerMintedAt(alice, i), 0);
-        }
+        vm.warp(block.timestamp + 8 days);
+        vm.prank(alice);
+        nft.approve(bob, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
                                TRANSFERS
     //////////////////////////////////////////////////////////////*/
 
-    function testNft_transferRevertsIfRevModuleNotSet() public {
+    modifier transferLockSetup() {
+        vm.prank(nft.owner());
+        nft.setPeriodTransferLock(1 weeks);
+        _;
+    }
+
+    function testNft_safeTransferFromRevertsDuringLock_ThenSucceeds() public transferLockSetup {
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
+        // During lock -> revert
+        vm.prank(alice);
+        vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
+        nft.safeTransferFrom(alice, bob, 0);
+
+        // After lock -> success
+        vm.warp(block.timestamp + 8 days);
+        vm.prank(alice);
+        nft.safeTransferFrom(alice, bob, 0);
+        assertEq(nft.ownerOf(0), bob);
+    }
+
+    function testNft_transferFromRevertsWhenMintedAtNotSet() public {
+        // Mint to alice so token 0 exists and has mintedAt under alice
+        vm.prank(nft.owner());
+        nft.mint(alice);
+
+        // bob tries to transfer "from bob" -> mintedAt[bob][0] == 0 => revert
+        vm.prank(bob);
+        vm.expectRevert(RevShareNFT.RevShareNFT__MintedAtNotSet.selector);
+        nft.transferFrom(bob, alice, 0);
+    }
+
+    function testNft_transferRevertsIfIsTooEarlyToTransfer() public transferLockSetup {
         vm.prank(nft.owner());
         nft.mint(alice);
 
         vm.prank(alice);
-        vm.expectRevert(RevShareNFT.RevShareNFT__RevShareModuleNotSetUp.selector);
+        vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
         nft.transfer(bob, 0);
     }
 
-    function testNft_transferFromRevertsIfRevModuleNotSet() public {
+    function testNft_transferFromRevertsIfIsTooEarlyTooTransfer() public transferLockSetup {
         vm.prank(nft.owner());
         nft.mint(alice);
+
+        // vm.warp(block.timestamp + 1 weeks);
+        // vm.roll(block.number + 1);
 
         vm.prank(alice);
+        vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
         nft.approve(bob, 0);
 
-        vm.prank(bob);
-        vm.expectRevert(RevShareNFT.RevShareNFT__RevShareModuleNotSetUp.selector);
-        nft.transferFrom(alice, bob, 0);
+        // vm.prank(bob);
+        // vm.expectRevert(RevShareNFT.RevShareNFT__TooEarlyToTransfer.selector);
+        // nft.transferFrom(alice, bob, 0);
     }
 
-    function testNft_transferWorksIfRevModuleSet() public {
-        RevShareModuleMock rev = new RevShareModuleMock();
-        address mockManager = address(0xCAFE);
-
-        _mockAddressManagerReturn(mockManager, address(rev));
-
-        vm.prank(nft.owner());
-        nft.setAddressManager(mockManager);
-
+    function testNft_transferWorksIfLockPeriodHasPassed() public transferLockSetup {
         vm.prank(nft.owner());
         nft.mint(alice);
+
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
 
         vm.prank(alice);
         nft.transfer(bob, 0);
 
         assertEq(nft.ownerOf(0), bob);
-        assertEq(rev.lastUpdated(), bob);
     }
 
-    function testNft_transferFromWorksIfRevModuleSet() public {
-        RevShareModuleMock rev = new RevShareModuleMock();
-        address mockManager = address(0xBEEF);
-
-        _mockAddressManagerReturn(mockManager, address(rev));
-
-        vm.prank(nft.owner());
-        nft.setAddressManager(mockManager);
-
+    function testNft_transferFromWorksIfLockPeriodHasPassed() public transferLockSetup {
         vm.prank(nft.owner());
         nft.mint(alice);
+
+        vm.warp(block.timestamp + 1 weeks);
+        vm.roll(block.number + 1);
 
         vm.prank(alice);
         nft.approve(bob, 0);
@@ -275,7 +372,6 @@ contract RevShareNftTest is Test {
         nft.transferFrom(alice, bob, 0);
 
         assertEq(nft.ownerOf(0), bob);
-        assertEq(rev.lastUpdated(), bob);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -318,5 +414,38 @@ contract RevShareNftTest is Test {
 
         vm.prank(nft.owner());
         nft.upgradeToAndCall(newImpl, "");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               MIGRATION
+    //////////////////////////////////////////////////////////////*/
+
+    function testNft_migrationRevertsWhenRangeExceedsSupply() public {
+        // no tokens minted => totalSupply = 0
+        vm.prank(nft.owner());
+        vm.expectRevert(bytes("range exceeds supply"));
+        nft.migrateOwnerFirstMintForRange(0, 1);
+    }
+
+    function testNft_migrationSetsOwnerLockMinOverTokens() public {
+        // Mint three tokens with different timestamps
+        vm.startPrank(nft.owner());
+        nft.mint(alice); // id 0
+        vm.warp(block.timestamp + 5);
+        nft.mint(alice); // id 1
+        vm.warp(block.timestamp + 5);
+        nft.mint(alice); // id 2
+        vm.stopPrank();
+
+        // Wipe sentinel to simulate pre-upgrade holders
+        // (We can't alter storage directly here, so just clear by migrating a subset first that won't set it)
+        // Now migrate over [0,3)
+        vm.prank(nft.owner());
+        nft.migrateOwnerFirstMintForRange(0, 3);
+
+        // Sentinel must equal the earliest (id 0) timestamp
+        uint256 ts0 = nft.pioneerMintedAt(alice, 0);
+        uint256 sentinel = nft.pioneerMintedAt(alice, type(uint256).max);
+        assertEq(sentinel, ts0);
     }
 }

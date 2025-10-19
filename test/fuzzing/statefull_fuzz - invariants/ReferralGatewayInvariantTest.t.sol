@@ -9,7 +9,7 @@ import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {ReferralGatewayHandler} from "test/helpers/handlers/ReferralGatewayHandler.t.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
-import {DaoDataReader, IReferralGateway} from "test/helpers/lowLevelCall/DaoDataReader.sol";
+import {IReferralGateway, DaoDataReader} from "test/helpers/lowLevelCall/DaoDataReader.sol";
 
 contract ReferralGatewayInvariantTest is StdInvariant, Test {
     TestDeployProtocol deployer;
@@ -34,6 +34,7 @@ contract ReferralGatewayInvariantTest is StdInvariant, Test {
         (
             reserve,
             referralGatewayAddress,
+            ,
             ,
             ,
             ,

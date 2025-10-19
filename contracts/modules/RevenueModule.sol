@@ -8,9 +8,10 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {TLDModuleImplementation} from "contracts/modules/moduleUtils/TLDModuleImplementation.sol";
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 
 import {Reserve, RevenueType, CashFlowVars, ModuleState} from "contracts/types/TakasureTypes.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
@@ -23,29 +24,12 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementation {
+contract RevenueModule is Initializable, UUPSUpgradeable, ModuleImplementation {
     using SafeERC20 for IERC20;
 
     ITakasureReserve private takasureReserve;
-    ModuleState private moduleState;
 
     error RevenueModule__WrongRevenueType();
-
-    modifier onlyContract(string memory name) {
-        require(
-            AddressAndStates._checkName(address(takasureReserve.addressManager()), name),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(address(takasureReserve.addressManager()), role),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -60,16 +44,6 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
     }
 
     /**
-     * @notice Set the module state
-     * @dev Only callable from the Module Manager
-     */
-    function setContractState(
-        ModuleState newState
-    ) external override onlyContract("MODULE_MANAGER") {
-        moduleState = newState;
-    }
-
-    /**
      * @notice To be called by the DAO to update the Fund reserve with new revenues
      * @param newRevenue the new revenue to be added to the fund reserve
      * @param revenueType the type of revenue to be added
@@ -77,8 +51,12 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
     function depositRevenue(
         uint256 newRevenue,
         RevenueType revenueType
-    ) external onlyRole(Roles.DAO_MULTISIG) {
-        AddressAndStates._onlyModuleState(moduleState, ModuleState.Enabled);
+    ) external onlyRole(Roles.DAO_MULTISIG, address(takasureReserve.addressManager())) {
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         require(revenueType != RevenueType.Contribution, RevenueModule__WrongRevenueType());
 
         Reserve memory reserve = takasureReserve.getReserveValues();
@@ -198,5 +176,5 @@ contract RevenueModule is Initializable, UUPSUpgradeable, TLDModuleImplementatio
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {}
 }

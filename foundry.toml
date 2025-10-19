@@ -14,6 +14,7 @@ fs_permissions = [
     { access = 'read', path = './scripts/chainlink-functions/' },
     { access = "read", path = "./broadcast" },
     { access = "read", path = "./reports" },
+    { access = "write", path = "scripts/simulations/" },
 ]
 
 # Compiler settings

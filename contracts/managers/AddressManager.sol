@@ -5,17 +5,27 @@
  * @author Maikel Ordaz
  * @notice This contract will manage the addresses in the TLD protocol of the Takasure protocol
  */
+import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
 
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
-import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder, ModuleState} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
-contract AddressManager is Ownable2Step, AccessControl {
+contract AddressManager is
+    Initializable,
+    UUPSUpgradeable,
+    Ownable2StepUpgradeable,
+    AccessControlUpgradeable,
+    ReentrancyGuardTransientUpgradeable,
+    IAddressManager
+{
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -54,6 +64,7 @@ contract AddressManager is Ownable2Step, AccessControl {
     error AddressManager__AddressZero();
     error AddressManager__AddressAlreadyExists();
     error AddressManager__AddressDoesNotExist();
+    error AddressManager__AddModuleManagerFirst();
     error AddressManager__RoleAlreadyExists();
     error AddressManager__RoleDoesNotExist();
     error AddressManager__AlreadyRoleHolder();
@@ -62,7 +73,22 @@ contract AddressManager is Ownable2Step, AccessControl {
     error AddressManager__TooLateToAccept();
     error AddressManager__NotRoleHolder();
 
-    constructor() Ownable(msg.sender) {
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _owner) external initializer {
+        __UUPSUpgradeable_init();
+        __Ownable2Step_init();
+        __Ownable_init(_owner);
+        __AccessControl_init();
+        __ReentrancyGuardTransient_init();
+
         roleAcceptanceDelay = 1 days;
     }
 
@@ -92,29 +118,8 @@ contract AddressManager is Ownable2Step, AccessControl {
         address addr,
         ProtocolAddressType addressType
     ) external onlyOwner {
-        require(
-            bytes(name).length > 0 && bytes(name).length <= 32,
-            AddressManager__InvalidNameLength()
-        );
-        require(addr != address(0), AddressManager__AddressZero());
-
-        bytes32 nameHash = keccak256(abi.encode(name));
-        require(
-            protocolAddressesByName[nameHash].addr == address(0),
-            AddressManager__AddressAlreadyExists()
-        );
-
-        ProtocolAddress memory newProtocolAddress = ProtocolAddress({
-            name: nameHash,
-            addr: addr,
-            addressType: addressType
-        });
-
-        // protocolAddresses[addr] = newProtocolAddress;
-        protocolAddressesByName[nameHash] = newProtocolAddress;
-        protocolAddressesNames[addr] = nameHash;
-
-        emit OnNewProtocolAddress(name, addr, addressType);
+        _nameChecks(name);
+        _addProtocolAddress(name, addr, addressType);
     }
 
     /**
@@ -137,6 +142,16 @@ contract AddressManager is Ownable2Step, AccessControl {
         delete protocolAddressesByName[nameHash];
         delete protocolAddressesNames[addr];
 
+        if (protocolAddress.addressType == ProtocolAddressType.Module) {
+            // If it is a module, we need to add the new address as a module in the ModuleManager, and deprecate the old one
+            IModuleManager moduleManager = IModuleManager(
+                _getProtocolAddressByName("MODULE_MANAGER").addr
+            );
+            require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
+
+            moduleManager.changeModuleState(addr, ModuleState.Deprecated);
+        }
+
         emit OnProtocolAddressDeleted(addr, addressType);
     }
 
@@ -147,23 +162,39 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @dev This function can only be called by the owner of the contract.
      * @dev The name must already exist in the AddressManager.
      */
-    function updateProtocolAddress(string memory name, address newAddr) external onlyOwner {
+    function updateProtocolAddress(
+        string memory name,
+        address newAddr
+    ) external onlyOwner nonReentrant {
         require(newAddr != address(0), AddressManager__AddressZero());
 
         bytes32 nameHash = keccak256(abi.encode(name));
 
         ProtocolAddress storage protocolAddress = protocolAddressesByName[nameHash];
 
-        require(protocolAddress.addr != address(0), AddressManager__AddressDoesNotExist());
-        require(protocolAddress.addr != newAddr, AddressManager__AddressAlreadyExists());
+        address oldAddr = protocolAddress.addr;
+
+        require(oldAddr != address(0), AddressManager__AddressDoesNotExist());
+        require(oldAddr != newAddr, AddressManager__AddressAlreadyExists());
 
         // Remove the old address from the protocolAddressesNames mapping
-        delete protocolAddressesNames[protocolAddress.addr];
+        delete protocolAddressesNames[oldAddr];
         // And add the new address to the protocolAddressesNames mapping
         protocolAddressesNames[newAddr] = nameHash;
 
         // In the protocolAddresses mapping, update the address value in the ProtocolAddress struct
         protocolAddress.addr = newAddr;
+
+        if (protocolAddress.addressType == ProtocolAddressType.Module) {
+            // If it is a module, we need to add the new address as a module in the ModuleManager, and deprecate the old one
+            IModuleManager moduleManager = IModuleManager(
+                _getProtocolAddressByName("MODULE_MANAGER").addr
+            );
+            require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
+
+            moduleManager.addModule(newAddr);
+            moduleManager.changeModuleState(oldAddr, ModuleState.Deprecated);
+        }
 
         emit OnProtocolAddressUpdated(name, newAddr);
     }
@@ -254,7 +285,7 @@ contract AddressManager is Ownable2Step, AccessControl {
         // Revoke the role for the current holder if it exists
         address currentHolder = currentRoleHolders[role];
 
-        if (currentHolder != address(0)) _revokeRole(role, currentHolder);
+        if (currentHolder != address(0)) _revokeRoleHolder(role, currentHolder);
 
         // Assign the role to the proposed holder
         success = _grantRole(role, msg.sender);
@@ -280,23 +311,7 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @dev This function can only be called by the owner of the contract.
      */
     function revokeRoleHolder(bytes32 role, address account) external onlyOwner {
-        require(_protocolRoles.contains(role), AddressManager__RoleDoesNotExist());
-        require(currentRoleHolders[role] == account, AddressManager__NotRoleHolder());
-
-        _revokeRole(role, account);
-
-        // Remove the role from the rolesByAddress mapping
-        bytes32[] storage roles = rolesByAddress[account];
-        for (uint256 i; i < roles.length; ++i) {
-            if (roles[i] == role) {
-                roles[i] = roles[roles.length - 1]; // Move the last element to the current position
-                roles.pop(); // Remove the last element
-                break;
-            }
-        }
-
-        // Clear the current role holder mapping
-        delete currentRoleHolders[role];
+        _revokeRoleHolder(role, account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -310,7 +325,7 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @return bool A boolean indicating whether the address has the name
      * @dev To be able to use this function in require statements, it is implemented in a way that does not revert.
      */
-    function hasName(address addr, string memory name) external view returns (bool) {
+    function hasName(string memory name, address addr) external view returns (bool) {
         bytes32 expectedNameHash = protocolAddressesNames[addr]; // Access the mapping to ensure it exists
         bytes32 givenNameHash = keccak256(abi.encode(name));
 
@@ -331,9 +346,23 @@ contract AddressManager is Ownable2Step, AccessControl {
      * @return bool A boolean indicating whether the account has the role
      * @dev If the role is not a protocol role, it will return false.
      */
-    function hasRole(bytes32 role, address account) public view override returns (bool) {
+    function hasRole(
+        bytes32 role,
+        address account
+    ) public view override(AccessControlUpgradeable, IAddressManager) returns (bool) {
         if (!_protocolRoles.contains(role)) return false;
         else return super.hasRole(role, account);
+    }
+
+    function hasType(ProtocolAddressType addressType, address addr) external view returns (bool) {
+        // First check if the address is registered
+        if (protocolAddressesNames[addr] == bytes32(0)) return false;
+
+        // Then check if the address type matches
+        ProtocolAddress memory protocolAddress = protocolAddressesByName[
+            protocolAddressesNames[addr]
+        ];
+        return protocolAddress.addressType == addressType;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -343,12 +372,7 @@ contract AddressManager is Ownable2Step, AccessControl {
     function getProtocolAddressByName(
         string memory name
     ) external view returns (ProtocolAddress memory) {
-        bytes32 nameHash = keccak256(abi.encode(name));
-        ProtocolAddress memory protocolAddress = protocolAddressesByName[nameHash];
-
-        require(protocolAddress.addr != address(0), AddressManager__AddressDoesNotExist());
-
-        return protocolAddress;
+        return _getProtocolAddressByName(name);
     }
 
     function getProposedRoleHolder(
@@ -380,4 +404,89 @@ contract AddressManager is Ownable2Step, AccessControl {
             roles[i] = _protocolRoles.at(i);
         }
     }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function _nameChecks(string memory _name) internal view {
+        require(
+            bytes(_name).length > 0 && bytes(_name).length <= 32,
+            AddressManager__InvalidNameLength()
+        );
+
+        bytes32 nameHash = keccak256(abi.encode(_name));
+
+        require(
+            protocolAddressesByName[nameHash].addr == address(0),
+            AddressManager__AddressAlreadyExists()
+        );
+    }
+
+    function _addProtocolAddress(
+        string memory _name,
+        address _addr,
+        ProtocolAddressType _addressType
+    ) internal nonReentrant {
+        require(_addr != address(0), AddressManager__AddressZero());
+
+        bytes32 nameHash = keccak256(abi.encode(_name));
+
+        ProtocolAddress memory newProtocolAddress = ProtocolAddress({
+            name: nameHash,
+            addr: _addr,
+            addressType: _addressType
+        });
+
+        protocolAddressesByName[nameHash] = newProtocolAddress;
+        protocolAddressesNames[_addr] = nameHash;
+
+        // If the address is a module, then we call the ModuleManager to register it
+        // This means to add any module, the ModuleManager must be deployed first
+        if (_addressType == ProtocolAddressType.Module) {
+            IModuleManager moduleManager = IModuleManager(
+                _getProtocolAddressByName("MODULE_MANAGER").addr
+            );
+            require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
+
+            // The ModuleManager will be in charge to check if the address is a valid module
+            moduleManager.addModule(_addr);
+        }
+
+        emit OnNewProtocolAddress(_name, _addr, _addressType);
+    }
+
+    function _revokeRoleHolder(bytes32 _role, address _account) internal {
+        require(_protocolRoles.contains(_role), AddressManager__RoleDoesNotExist());
+        require(currentRoleHolders[_role] == _account, AddressManager__NotRoleHolder());
+
+        _revokeRole(_role, _account);
+
+        // Remove the role from the rolesByAddress mapping
+        bytes32[] storage roles = rolesByAddress[_account];
+        for (uint256 i; i < roles.length; ++i) {
+            if (roles[i] == _role) {
+                roles[i] = roles[roles.length - 1]; // Move the last element to the current position
+                roles.pop(); // Remove the last element
+                break;
+            }
+        }
+
+        // Clear the current role holder mapping
+        delete currentRoleHolders[_role];
+    }
+
+    function _getProtocolAddressByName(
+        string memory _name
+    ) internal view returns (ProtocolAddress memory) {
+        bytes32 nameHash = keccak256(abi.encode(_name));
+        ProtocolAddress memory protocolAddress_ = protocolAddressesByName[nameHash];
+
+        require(protocolAddress_.addr != address(0), AddressManager__AddressDoesNotExist());
+
+        return protocolAddress_;
+    }
+
+    ///@dev required by the OZ UUPS module
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
