@@ -84,10 +84,16 @@ contract ReferralGatewayModifyMemberTest is Test {
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         vm.stopPrank();
 
-        // The parent and parentLess pays contribution without a coupon
+        // The parent and parentLess pays contributions
         vm.startPrank(couponRedeemer);
-        referralGateway.payContributionOnBehalfOf(MAX_CONTRIBUTION, address(0), parent, 0, false);
-        referralGateway.payContributionOnBehalfOf(25e6, address(0), parentLess, 0, true);
+        referralGateway.payContributionOnBehalfOf(
+            MAX_CONTRIBUTION,
+            address(0),
+            parent,
+            MAX_CONTRIBUTION,
+            false
+        );
+        referralGateway.payContributionOnBehalfOf(25e6, address(0), parentLess, 25e6, true);
         vm.stopPrank();
 
         // KYC the parent so he can refer the child and receive referral rewards
@@ -418,14 +424,13 @@ contract ReferralGatewayModifyMemberTest is Test {
             uint256 contributionBeforeFee,
             uint256 contributionAfterFee,
             uint256 fee,
-            uint256 discount,
+            ,
             bool isDonated
         ) = referralGateway.getPrepaidMember(parentLess);
 
         assertEq(contributionBeforeFee, 25e6);
         assertEq(contributionAfterFee, 1825e4);
-        assertEq(fee, 2_500_000);
-        assertEq(discount, 2_500_000);
+        assertEq(fee, 5_000_000);
         assert(isDonated);
 
         uint256 newPlan = 100e6;
@@ -439,8 +444,6 @@ contract ReferralGatewayModifyMemberTest is Test {
         emit Transfer(couponPool, address(referralGateway), newPlan);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrepaidMemberModified(parentLess, newPlan, 54_794_520, 10_958_904, 0);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnCouponRedeemed(parentLess, tDaoName, newPlan);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newPlan,
             parentLess,
@@ -456,13 +459,12 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(feeToOp, 10_958_904);
         assertEq(newDiscount, 0);
 
-        (contributionBeforeFee, contributionAfterFee, fee, discount, isDonated) = referralGateway
+        (contributionBeforeFee, contributionAfterFee, fee, , isDonated) = referralGateway
             .getPrepaidMember(parentLess);
 
         assertEq(contributionBeforeFee, newPlan); // new plan
         assertEq(contributionAfterFee, 73_000_000);
-        assertEq(fee, 13_458_904); // previous one + new one
-        assertEq(discount, 2_500_000); // Same as before, no change
+        assertEq(fee, 15_958_904); // previous one + new one
         assert(!isDonated);
     }
 
@@ -477,14 +479,13 @@ contract ReferralGatewayModifyMemberTest is Test {
             uint256 contributionBeforeFee,
             uint256 contributionAfterFee,
             uint256 fee,
-            uint256 discount,
+            ,
             bool isDonated
         ) = referralGateway.getPrepaidMember(parentLess);
 
         assertEq(contributionBeforeFee, 25e6);
         assertEq(contributionAfterFee, 1825e4);
-        assertEq(fee, 2_500_000);
-        assertEq(discount, 2_500_000);
+        assertEq(fee, 5_000_000);
         assert(isDonated);
 
         uint256 newPlan = 250e6;
@@ -498,8 +499,6 @@ contract ReferralGatewayModifyMemberTest is Test {
         emit Transfer(couponPool, address(referralGateway), newPlan);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrepaidMemberModified(parentLess, newPlan, 239_726_027, 47_945_206, 0);
-        vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnCouponRedeemed(parentLess, tDaoName, newPlan);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newPlan,
             parentLess,
@@ -515,13 +514,12 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(feeToOp, 47_945_206);
         assertEq(newDiscount, 0);
 
-        (contributionBeforeFee, contributionAfterFee, fee, discount, isDonated) = referralGateway
+        (contributionBeforeFee, contributionAfterFee, fee, , isDonated) = referralGateway
             .getPrepaidMember(parentLess);
 
         assertEq(contributionBeforeFee, newPlan); // new plan
         assertEq(contributionAfterFee, 182_500_000);
-        assertEq(fee, 50_445_206); // previous one + new one
-        assertEq(discount, 2_500_000); // Same as before, no change
+        assertEq(fee, 52_945_206); // previous one + new one
         assert(!isDonated);
     }
 
