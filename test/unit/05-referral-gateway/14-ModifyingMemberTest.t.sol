@@ -99,8 +99,17 @@ contract ReferralGatewayModifyMemberTest is Test {
     }
 
     function testChildNowWantsThe25DollarPlanAfterThreeMonthsNoCoupons() public {
+        // Turn off discounts for this test
+        vm.startPrank(takadao);
+        referralGateway.switchPrejoinDiscount();
+        referralGateway.switchReferralDiscount();
+        vm.stopPrank();
+
         vm.warp(block.timestamp + 90 days);
         vm.roll(block.number + 1);
+
+        // Remaining time 365 days - 90 days = 275 days
+        // proratedAmount = 25 USDC * 275 / 365 = 18_835_616 USDC
 
         (
             uint256 contributionBeforeFee,
@@ -119,9 +128,9 @@ contract ReferralGatewayModifyMemberTest is Test {
         // The child now wants to upgrade to the 50 USDC plan, so the new contribution is prorated
         uint256 newContribution = 25e6;
 
-        uint256 parentBalanceBefore = usdc.balanceOf(parent);
-        uint256 childBalanceBefore = usdc.balanceOf(child);
-        uint256 couponPoolBalanceBefore = usdc.balanceOf(couponPool);
+        uint256 parentBalanceBefore = usdc.balanceOf(parent); // 776_000_000
+        uint256 childBalanceBefore = usdc.balanceOf(child); // 978_750_000
+        uint256 couponPoolBalanceBefore = usdc.balanceOf(couponPool); // 1_000_000_000
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
@@ -134,21 +143,28 @@ contract ReferralGatewayModifyMemberTest is Test {
             block.timestamp
         );
 
-        assertEq(feeToOp, 941_783);
-        assertEq(newDiscount, 2_825_341);
+        assertEq(feeToOp, 3_767_124);
+        assertEq(newDiscount, 0);
 
         (contributionBeforeFee, contributionAfterFee, fee, discount, isDonated) = referralGateway
             .getPrepaidMember(child);
 
         assertEq(contributionBeforeFee, 25e6); // new plan
         assertEq(contributionAfterFee, 18_250_000);
-        assertEq(fee, 2_191_783); // previous one + new one
-        assertEq(discount, 6_575_341);
+        assertEq(fee, 5_017_124); // previous one + new one
+        assertEq(discount, 375e4); // Same as before, no change
         assert(!isDonated);
+
+        uint256 parentBalanceDelta = usdc.balanceOf(parent) - parentBalanceBefore;
+        uint256 childBalanceDelta = childBalanceBefore - usdc.balanceOf(child);
+        uint256 reward = (childBalanceDelta * 4) / 100;
 
         assert(usdc.balanceOf(parent) > parentBalanceBefore);
         assert(usdc.balanceOf(child) < childBalanceBefore);
         assertEq(usdc.balanceOf(couponPool), couponPoolBalanceBefore);
+        // The reward should be 4% of the prorated amount:
+        assertEq(parentBalanceDelta, reward);
+        assertEq(childBalanceDelta, 18_835_616);
     }
 
     function testChildNowWantsThe50DollarPlanAfterThreeMonthsNoCoupons() public {
