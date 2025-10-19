@@ -19,6 +19,7 @@ contract ReferralGatewayModifyMemberTest is Test {
     address takadao;
     address kycProvider;
     address child = makeAddr("child");
+    address parentLess = makeAddr("parentLess");
     address parent = makeAddr("parent");
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
@@ -42,6 +43,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         string indexed tDAOName,
         uint256 indexed couponAmount
     );
+    event Transfer(address indexed from, address indexed to, uint256 value);
 
     function setUp() public {
         // Deployer
@@ -60,11 +62,14 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         // Give USDC
         deal(address(usdc), child, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), parentLess, USDC_INITIAL_AMOUNT);
         deal(address(usdc), parent, USDC_INITIAL_AMOUNT);
         deal(address(usdc), couponPool, 1000e6);
 
         // USDC approvals
         vm.prank(child);
+        usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
+        vm.prank(parentLess);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
         vm.prank(parent);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
@@ -79,9 +84,11 @@ contract ReferralGatewayModifyMemberTest is Test {
         referralGateway.grantRole(keccak256("COUPON_REDEEMER"), couponRedeemer);
         vm.stopPrank();
 
-        // The parent pays the full contribution without a coupon
-        vm.prank(couponRedeemer);
+        // The parent and parentLess pays contribution without a coupon
+        vm.startPrank(couponRedeemer);
         referralGateway.payContributionOnBehalfOf(MAX_CONTRIBUTION, address(0), parent, 0, false);
+        referralGateway.payContributionOnBehalfOf(25e6, address(0), parentLess, 0, true);
+        vm.stopPrank();
 
         // KYC the parent so he can refer the child and receive referral rewards
         vm.prank(kycProvider);
@@ -328,5 +335,233 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         assert(referralGateway.totalDonationsFromCoupons() > 0);
         assert(referralGateway.totalDonationsFromCoupons() < couponAmount);
+    }
+
+    modifier turnOffAllDiscounts() {
+        vm.startPrank(takadao);
+        referralGateway.switchPrejoinDiscount();
+        referralGateway.switchReferralDiscount();
+        vm.stopPrank();
+        _;
+    }
+
+    function test25PlanWithParent100daysRemainsCouponEqualsContribution()
+        public
+        turnOffAllDiscounts
+    {
+        vm.warp(block.timestamp + 265 days); // 100 days remaining of 365
+        vm.roll(block.number + 1);
+
+        (
+            uint256 contributionBeforeFee,
+            uint256 contributionAfterFee,
+            uint256 fee,
+            uint256 discount,
+            bool isDonated
+        ) = referralGateway.getPrepaidMember(child);
+
+        assertEq(contributionBeforeFee, 25e6);
+        assertEq(contributionAfterFee, 1825e4);
+        assertEq(fee, 125e4);
+        assertEq(discount, 375e4);
+        assert(isDonated);
+
+        uint256 newPlan = 25e6;
+
+        assertEq(referralGateway.totalDonationsFromCoupons(), 0);
+
+        // proratedAmount = 25 USDC * 100 / 365 = 6_849_315 USDC
+        vm.prank(couponRedeemer);
+        // Transfer from coupon pool to referral gateway, emitted by USDC token
+        vm.expectEmit(true, true, false, true, usdcAddress);
+        emit Transfer(couponPool, address(referralGateway), newPlan);
+        // Transfer the reward, 6_849_315 * 4% = 273_972, emitted by USDC token.
+        vm.expectEmit(true, true, false, true, usdcAddress);
+        emit Transfer(address(referralGateway), parent, 273_972);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(child, newPlan, 6_849_315, 1_369_864, 0);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnCouponRedeemed(child, tDaoName, newPlan);
+        (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
+            newPlan,
+            child,
+            newPlan,
+            initialContributionTimestamp,
+            block.timestamp
+        );
+
+        // coupon - proratedAmount = 25e6 - 6_849_315 = 18_150_685 donated
+        assertEq(referralGateway.totalDonationsFromCoupons(), 18_150_685);
+
+        // The fee to operator should be fee-referralReserve-repoolFee
+        assertEq(feeToOp, 1_369_864);
+        assertEq(newDiscount, 0);
+
+        (contributionBeforeFee, contributionAfterFee, fee, discount, isDonated) = referralGateway
+            .getPrepaidMember(child);
+
+        assertEq(contributionBeforeFee, 25e6); // new plan
+        assertEq(contributionAfterFee, 18_250_000);
+        assertEq(fee, 2_619_864); // previous one + new one
+        assertEq(discount, 375e4); // Same as before, no change
+        assert(!isDonated);
+    }
+
+    function test100PlanWithoutParent200daysRemainsCouponEqualsContribution()
+        public
+        turnOffAllDiscounts
+    {
+        vm.warp(block.timestamp + 165 days); // 200 days remaining of 365
+        vm.roll(block.number + 1);
+
+        (
+            uint256 contributionBeforeFee,
+            uint256 contributionAfterFee,
+            uint256 fee,
+            uint256 discount,
+            bool isDonated
+        ) = referralGateway.getPrepaidMember(parentLess);
+
+        assertEq(contributionBeforeFee, 25e6);
+        assertEq(contributionAfterFee, 1825e4);
+        assertEq(fee, 2_500_000);
+        assertEq(discount, 2_500_000);
+        assert(isDonated);
+
+        uint256 newPlan = 100e6;
+
+        assertEq(referralGateway.totalDonationsFromCoupons(), 0);
+
+        // proratedAmount = 100 USDC * 200 / 365 = 54_794_520 USDC
+        vm.prank(couponRedeemer);
+        // Transfer from coupon pool to referral gateway, emitted by USDC token
+        vm.expectEmit(true, true, false, true, usdcAddress);
+        emit Transfer(couponPool, address(referralGateway), newPlan);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(parentLess, newPlan, 54_794_520, 10_958_904, 0);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnCouponRedeemed(parentLess, tDaoName, newPlan);
+        (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
+            newPlan,
+            parentLess,
+            newPlan,
+            initialContributionTimestamp,
+            block.timestamp
+        );
+
+        // coupon - proratedAmount = 100e6 - 54_794_520 = 45_205_480 donated
+        assertEq(referralGateway.totalDonationsFromCoupons(), 45_205_480);
+
+        // The fee to operator should be fee-referralReserve-repoolFee
+        assertEq(feeToOp, 10_958_904);
+        assertEq(newDiscount, 0);
+
+        (contributionBeforeFee, contributionAfterFee, fee, discount, isDonated) = referralGateway
+            .getPrepaidMember(parentLess);
+
+        assertEq(contributionBeforeFee, newPlan); // new plan
+        assertEq(contributionAfterFee, 73_000_000);
+        assertEq(fee, 13_458_904); // previous one + new one
+        assertEq(discount, 2_500_000); // Same as before, no change
+        assert(!isDonated);
+    }
+
+    function test250PlanWithoutParent350daysRemainsCouponEqualsContribution()
+        public
+        turnOffAllDiscounts
+    {
+        vm.warp(block.timestamp + 15 days); // 350 days remaining of 365
+        vm.roll(block.number + 1);
+
+        (
+            uint256 contributionBeforeFee,
+            uint256 contributionAfterFee,
+            uint256 fee,
+            uint256 discount,
+            bool isDonated
+        ) = referralGateway.getPrepaidMember(parentLess);
+
+        assertEq(contributionBeforeFee, 25e6);
+        assertEq(contributionAfterFee, 1825e4);
+        assertEq(fee, 2_500_000);
+        assertEq(discount, 2_500_000);
+        assert(isDonated);
+
+        uint256 newPlan = 250e6;
+
+        assertEq(referralGateway.totalDonationsFromCoupons(), 0);
+
+        // proratedAmount = 250 USDC * 350 / 365 = 239_726_027 USDC
+        vm.prank(couponRedeemer);
+        // Transfer from coupon pool to referral gateway, emitted by USDC token
+        vm.expectEmit(true, true, false, true, usdcAddress);
+        emit Transfer(couponPool, address(referralGateway), newPlan);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(parentLess, newPlan, 239_726_027, 47_945_206, 0);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnCouponRedeemed(parentLess, tDaoName, newPlan);
+        (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
+            newPlan,
+            parentLess,
+            newPlan,
+            initialContributionTimestamp,
+            block.timestamp
+        );
+
+        // coupon - proratedAmount = 250e6 - 239_726_027 = 10_273_973 donated
+        assertEq(referralGateway.totalDonationsFromCoupons(), 10_273_973);
+
+        // The fee to operator should be fee-referralReserve-repoolFee
+        assertEq(feeToOp, 47_945_206);
+        assertEq(newDiscount, 0);
+
+        (contributionBeforeFee, contributionAfterFee, fee, discount, isDonated) = referralGateway
+            .getPrepaidMember(parentLess);
+
+        assertEq(contributionBeforeFee, newPlan); // new plan
+        assertEq(contributionAfterFee, 182_500_000);
+        assertEq(fee, 50_445_206); // previous one + new one
+        assertEq(discount, 2_500_000); // Same as before, no change
+        assert(!isDonated);
+    }
+
+    function testCanNotWaiveTwice() public {
+        vm.warp(block.timestamp + 15 days);
+        vm.roll(block.number + 1);
+
+        uint256 newPlan = 250e6;
+
+        vm.startPrank(couponRedeemer);
+        referralGateway.payContributionAfterWaive(
+            newPlan,
+            parentLess,
+            newPlan,
+            initialContributionTimestamp,
+            block.timestamp
+        );
+        // Cannot waive twice right away
+        vm.expectRevert(ReferralGateway.ReferralGateway__NotAllowedToModify.selector);
+        referralGateway.payContributionAfterWaive(
+            newPlan,
+            parentLess,
+            newPlan,
+            initialContributionTimestamp,
+            block.timestamp
+        );
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 15 days);
+        vm.roll(block.number + 1);
+
+        // cannot waive twice after time passed
+        vm.prank(couponRedeemer);
+        vm.expectRevert(ReferralGateway.ReferralGateway__NotAllowedToModify.selector);
+        referralGateway.payContributionAfterWaive(
+            newPlan,
+            parentLess,
+            newPlan,
+            initialContributionTimestamp,
+            block.timestamp
+        );
     }
 }
