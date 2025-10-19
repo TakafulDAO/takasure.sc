@@ -120,6 +120,8 @@ contract ReferralGatewayModifyMemberTest is Test {
         uint256 newContribution = 25e6;
 
         uint256 parentBalanceBefore = usdc.balanceOf(parent);
+        uint256 childBalanceBefore = usdc.balanceOf(child);
+        uint256 couponPoolBalanceBefore = usdc.balanceOf(couponPool);
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
@@ -131,8 +133,6 @@ contract ReferralGatewayModifyMemberTest is Test {
             initialContributionTimestamp,
             block.timestamp
         );
-
-        uint256 parentBalanceAfter = usdc.balanceOf(parent);
 
         assertEq(feeToOp, 941_783);
         assertEq(newDiscount, 2_825_341);
@@ -146,7 +146,9 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(discount, 6_575_341);
         assert(!isDonated);
 
-        assert(parentBalanceAfter > parentBalanceBefore);
+        assert(usdc.balanceOf(parent) > parentBalanceBefore);
+        assert(usdc.balanceOf(child) < childBalanceBefore);
+        assertEq(usdc.balanceOf(couponPool), couponPoolBalanceBefore);
     }
 
     function testChildNowWantsThe50DollarPlanAfterThreeMonthsNoCoupons() public {
