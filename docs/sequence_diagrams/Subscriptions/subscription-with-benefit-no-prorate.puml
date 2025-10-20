@@ -18,10 +18,9 @@ participant Reserve
 Member -> Backend: requests subscription
 Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
 
-PRECHECKS_CALLER_MODULE()
 PRECHECKS_CONTRIB_RANGE25_250()
-LOAD_MEMBER_AND_VALIDATE()
-OPTIONAL_PARENT_VALIDATE()
+
+ref over Backend, SubscriptionModule, MembersData, KYCModule, CouponPool, RewardsModule [[refund.puml]] : Refund flow
 
 opt [there-was-a-parent]
   SubscriptionModule -> RewardsModule: assignParentReward(for the minimum contribution)
