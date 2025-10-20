@@ -21,14 +21,12 @@ PRECHECKS_CONTRIB_RANGE25_250()
 LOAD_MEMBER_AND_VALIDATE()
 OPTIONAL_PARENT_VALIDATE()
 
-' Asignar reward por la contribución mínima (si hubo parent)
 opt [there-was-a-parent]
   SubscriptionModule -> RewardsModule: assignParentReward(for the minimum contribution)
 end
 
 REGISTER_AND_CONFIRM()
 
-' Flujo de fondos/beneficios (no prorate)
 CouponPool -> SubscriptionModule: transfer minimum contribution
 KYC_MANDATORY()
 

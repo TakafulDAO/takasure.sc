@@ -19,7 +19,6 @@ PRECHECKS_CONTRIB_MIN25()
 LOAD_MEMBER_AND_VALIDATE()
 OPTIONAL_PARENT_VALIDATE()
 
-' Si hubo parent, asigna reward inicial
 opt [there-was-a-parent]
   SubscriptionModule -> RewardsModule: assignParentReward
 end

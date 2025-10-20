@@ -22,18 +22,15 @@ PRECHECKS_CONTRIB_MIN25_NOTMIN()
 LOAD_MEMBER_AND_VALIDATE()
 OPTIONAL_PARENT_VALIDATE()
 
-' Asignar reward por contribución mínima (si hubo parent)
 opt [there-was-a-parent]
   SubscriptionModule -> RewardsModule: assignParentReward(for the minimum contribution)
 end
 
 REGISTER_AND_CONFIRM()
 
-' Recibir mínimo para moverlo al día 30
 CouponPool -> SubscriptionModule: transfer minimum contribution
 KYC_MANDATORY()
 
-' Día 30: mover mínimo a reserva, aún sin incluir al miembro
 opt [30d-passed-(cronjob)]
   SubscriptionModule -> Reserve: transfer minimum contribution
   Reserve -> Reserve: Run algorithms (Do not include member)
@@ -45,7 +42,6 @@ opt [30d-passed-(cronjob)]
   end
 end
 
-' >30d: usuario pide beneficio; LifeBenefit calcula prorate internamente
 opt [>30d-passed]
   User -> Backend: asks for benefit
   Backend -> LifeBenefitModule: joinBenefit(memberWallet)

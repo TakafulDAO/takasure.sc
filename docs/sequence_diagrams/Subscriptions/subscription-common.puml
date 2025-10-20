@@ -1,6 +1,3 @@
-' ---- Common macros for subscription sequence diagrams ----
-' No @startuml here
-
 !define REVERT(reason) SubscriptionModule -x Backend: revert reason
 
 ' Caller / Module
@@ -13,7 +10,7 @@ break [Module-disabled]
 end
 !enddefinelong
 
-' Contribution guards (elige el que aplique en cada diagrama)
+' Contribution guards
 !definelong PRECHECKS_CONTRIB_MIN25()
 break [Contribution-less-than-25-USDC]
   REVERT(WrongContribution())
@@ -41,7 +38,7 @@ break [Member-invalid]
 end
 !enddefinelong
 
-' Optional parent fetch & validate (sin asignación de reward)
+' Optional parent fetch & validate
 !definelong OPTIONAL_PARENT_VALIDATE()
 opt [Parent-wallet-not-zero]
   SubscriptionModule -> MembersData: getAssociationMemberData(parentWallet)
@@ -59,7 +56,7 @@ MembersData -> MembersData: Emits event
 MembersData --> SubscriptionModule: success
 !enddefinelong
 
-' KYC (opcional o mandatorio)
+' KYC
 !definelong KYC_OPT()
 opt [KYC-user]
   SubscriptionModule -> KYCModule: approveKYC(memberWallet)
