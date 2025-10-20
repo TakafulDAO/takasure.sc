@@ -31,15 +31,15 @@ REGISTER_AND_CONFIRM()
 CouponPool -> SubscriptionModule: transfer contribution
 KYC_OPT()
 
-opt [>30-days-passed-or-apply-to-service]
-  SubscriptionModule -> Reserve: transfer contribution to Reserve
-  Reserve -> Reserve: Run algorithms (Do not include member)
-
-  opt [there-was-a-parent]
-    SubscriptionModule -> RewardsModule: rewardParent
-    RewardsModule -> RewardsModule: Emits event
-    RewardsModule --> Parent: transfer parent reward
+alt [user-requested-a-refund]
+  ref over Backend, SubscriptionModule [[refund.puml]] : Refund flow
+else [apply for service]
+  alt [>-30-days]
+    ref over SubscriptionModule, LifeBenefitModule [[subscription-with-benefit-prorate.puml]] : With proration
+  else [≤-30-days]
+    ref over SubscriptionModule, LifeBenefitModule [[subscription-with-benefit-no-prorate.puml]] : No proration
   end
 end
+
 
 @enduml
