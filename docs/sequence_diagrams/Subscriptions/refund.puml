@@ -38,11 +38,16 @@ opt [<30-days-and-no-service]
     REVERT(InvalidMember())
   end
 
-  SubscriptionModule -> CouponPool: transfer contribution back
   SubscriptionModule -> MembersData: updateAssociationMember(memberWallet)
   MembersData -> MembersData: Emits event
   SubscriptionModule -> SubscriptionModule: Emits event
-  CouponPool --> Member: transfer contribution back
+
+  alt [member-is-coupon-user]
+    SubscriptionModule -> CouponPool: transfer contribution back to pool
+    CouponPool --> Member: refund issued
+  else [member-is-coupon-user-or-EOA]
+    SubscriptionModule -> Member: refund issued
+  end
 
   opt [there-was-a-parent]
     SubscriptionModule -> RewardsModule: revokeParentReward
