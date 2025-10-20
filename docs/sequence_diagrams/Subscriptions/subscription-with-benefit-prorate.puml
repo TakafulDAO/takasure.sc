@@ -6,7 +6,7 @@ autonumber
 
 actor Backend
 actor Parent
-actor User
+actor Member
 participant SubscriptionModule
 participant MembersData
 participant KYCModule
@@ -15,6 +15,7 @@ participant RewardsModule
 participant LifeBenefitModule
 participant Reserve
 
+Member -> Backend: requests subscription
 Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
 
 PRECHECKS_CALLER_MODULE()
@@ -43,7 +44,7 @@ opt [30d-passed-(cronjob)]
 end
 
 opt [>30d-passed]
-  User -> Backend: asks for benefit
+  Member -> Backend: requests benefit
   Backend -> LifeBenefitModule: joinBenefit(memberWallet)
   LifeBenefitModule -> MembersData: getAssociationMemberData(memberWallet)
   MembersData --> LifeBenefitModule: Member data

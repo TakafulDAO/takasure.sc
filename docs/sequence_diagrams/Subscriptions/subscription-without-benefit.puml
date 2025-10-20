@@ -6,6 +6,7 @@ autonumber
 
 actor Backend
 actor Parent
+actor Member
 participant SubscriptionModule
 participant KYCModule
 participant MembersData
@@ -13,6 +14,7 @@ participant RewardsModule
 participant CouponPool
 participant Reserve
 
+Member -> Backend: requests subscription
 Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
 
 PRECHECKS_CALLER_MODULE()

@@ -5,13 +5,14 @@ autonumber
 !include subscription-common.puml
 
 actor Backend
-actor User
+actor Member
 participant SubscriptionModule
 participant MembersData
 participant KYCModule
 participant CouponPool
 participant RewardsModule
 
+Member -> Backend: requests subscription
 Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
 
 PRECHECKS_CALLER_MODULE()
@@ -28,7 +29,7 @@ CouponPool -> SubscriptionModule: transfer contribution
 KYC_OPT()
 
 opt [<30-days-and-no-service]
-  User -> Backend: request refund
+  Member -> Backend: request refund
   Backend -> SubscriptionModule: refund(memberWallet)
   SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
   MembersData --> SubscriptionModule: Member data
@@ -41,7 +42,7 @@ opt [<30-days-and-no-service]
   SubscriptionModule -> MembersData: updateAssociationMember(memberWallet)
   MembersData -> MembersData: Emits event
   SubscriptionModule -> SubscriptionModule: Emits event
-  CouponPool --> User: transfer contribution back
+  CouponPool --> Member: transfer contribution back
 
   opt [there-was-a-parent]
     SubscriptionModule -> RewardsModule: revokeParentReward
