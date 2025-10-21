@@ -276,8 +276,10 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
                 ModuleErrors.Module__AlreadyJoined()
             );
 
-        require(_member.wallet != address(0), ModuleErrors.Module__InvalidAddress());
-        require(_member.wallet != _member.parent, ModuleErrors.Module__InvalidAddress());
+        require(
+            _member.wallet != address(0) && _member.wallet != _member.parent,
+            ModuleErrors.Module__InvalidAddress()
+        );
 
         // The user state must be inactive or canceled and not refunded
         require(
