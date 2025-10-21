@@ -80,6 +80,12 @@ contract SubscriptionModule is
         uint256 couponAmount,
         uint256 membershipStartTime
     ) external {
+        // Module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         require(
             couponAmount == 0 || couponAmount == ModuleConstants.ASSOCIATION_SUBSCRIPTION,
             ModuleErrors.Module__InvalidCoupon()
@@ -105,6 +111,12 @@ contract SubscriptionModule is
     function refund(
         address memberWallet
     ) external onlyRole(Roles.REFUND_ADMIN, address(addressManager)) {
+        // Module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         AddressAndStates._notZeroAddress(memberWallet);
         _refund(memberWallet);
     }
@@ -123,6 +135,12 @@ contract SubscriptionModule is
     function transferSubscriptionToReserve(
         address memberWallet
     ) external nonReentrant returns (uint256) {
+        // Module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
         (, AssociationMember memory member) = _fetchMemberFromStorageModule(memberWallet);
 
         // Access control restrictions
@@ -312,13 +330,6 @@ contract SubscriptionModule is
      *         The user will need to reach custommer support to get the corresponding amount
      */
     function _refund(address _memberWallet) internal {
-        // Module must be enabled
-        AddressAndStates._onlyModuleState(
-            ModuleState.Enabled,
-            address(this),
-            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
-        );
-
         (
             IProtocolStorageModule _protocolStorageModule,
             AssociationMember memory _member
