@@ -299,9 +299,9 @@ contract SubscriptionModule is
             contributionToken.safeTransfer(_referralRewardsModule, _toReferralReserveAmount);
     }
 
-    function _transferFee(IERC20 _contributionToken, address _userWallet, uint256 _fee) internal {
+    function _transferFee(IERC20 _contributionToken, address _fromAddress, uint256 _fee) internal {
         _contributionToken.safeTransferFrom(
-            _userWallet,
+            _fromAddress,
             addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr,
             _fee
         );
