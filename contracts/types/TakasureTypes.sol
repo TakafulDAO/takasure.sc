@@ -65,6 +65,7 @@ struct PrepaidMember {
 struct AssociationMember {
     uint256 memberId;
     uint256 discount;
+    uint256 couponAmountRedeemed; // in stablecoin currency, six decimals
     uint256 associateStartTime; // in seconds
     address wallet;
     address parent;

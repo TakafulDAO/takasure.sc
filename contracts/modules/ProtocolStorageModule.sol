@@ -40,9 +40,14 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     event OnNewAssociationMember(
         uint256 indexed memberId,
         address indexed memberWallet,
-        address indexed parentWallet
+        address indexed parentWallet,
+        uint256 couponAmountRedeemed
     );
-    event OnAssociationMemberUpdated(uint256 indexed memberId, address indexed memberWallet);
+    event OnAssociationMemberUpdated(
+        uint256 indexed memberId,
+        address indexed memberWallet,
+        uint256 couponAmountRedeemed
+    );
     event OnUintValueSet(bytes32 indexed key, uint256 value);
     event OnIntValueSet(bytes32 indexed key, int256 value);
     event OnAddressValueSet(bytes32 indexed key, address value);
@@ -107,7 +112,12 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         // Increment the member ID counter for the next member
         uintStorage[_hashKey("memberIdCounter")] = ++memberIdCounter;
 
-        emit OnNewAssociationMember(member.memberId, member.wallet, member.parent);
+        emit OnNewAssociationMember(
+            member.memberId,
+            member.wallet,
+            member.parent,
+            member.couponAmountRedeemed
+        );
     }
 
     function updateAssociationMember(
@@ -125,7 +135,11 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         member.memberId = members[member.wallet].memberId;
         members[member.wallet] = member;
 
-        emit OnAssociationMemberUpdated(member.memberId, member.wallet);
+        emit OnAssociationMemberUpdated(
+            member.memberId,
+            member.wallet,
+            member.couponAmountRedeemed
+        );
     }
 
     function setUintValue(string calldata key, uint256 value) external onlyProtocolOrModule {

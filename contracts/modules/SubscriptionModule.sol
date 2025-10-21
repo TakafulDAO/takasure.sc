@@ -36,9 +36,6 @@ contract SubscriptionModule is
 {
     using SafeERC20 for IERC20;
 
-    // Set to true when new members use coupons to pay their contributions. It does not matter the amount
-    mapping(address member => bool) private isMemberCouponSubscriptionRedeemer;
-
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -92,8 +89,6 @@ contract SubscriptionModule is
         );
 
         _paySubscription(userWallet, parentWallet, couponAmount, membershipStartTime);
-
-        if (couponAmount > 0) isMemberCouponSubscriptionRedeemer[userWallet] = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -233,6 +228,7 @@ contract SubscriptionModule is
         member = AssociationMember({
             memberId: isRejoin ? member.memberId : 0, // If is a rejoin, keep the same memberId, else use 0 as placeholder, will be set in storage module
             discount: 0, // Placeholder
+            couponAmountRedeemed: _couponAmount, // in six decimals
             associateStartTime: _membershipStartTime,
             wallet: _userWallet,
             parent: _parentWallet,
@@ -349,9 +345,24 @@ contract SubscriptionModule is
         uint256 discountAmount = _member.discount;
         uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+
+        // Transfer the amount to refund
+        if (_member.couponAmountRedeemed > 0) {
+            // We transfer the coupon amount to the coupon pool
+            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+            contributionToken.safeTransfer(couponPool, amountToRefund);
+        } else {
+            // We transfer the amount to the member
+            contributionToken.safeTransfer(_memberWallet, amountToRefund);
+        }
+
         _member = AssociationMember({
             memberId: _member.memberId,
             discount: 0, // Reset the discount
+            couponAmountRedeemed: 0, // Reset the coupon amount redeemed
             associateStartTime: 0, // Reset the start time
             wallet: _memberWallet,
             parent: address(0), // Reset the parent
@@ -360,22 +371,6 @@ contract SubscriptionModule is
             isLifeProtected: false,
             isFarewellProtected: false
         });
-
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
-
-        // Transfer the amount to refund
-        if (isMemberCouponSubscriptionRedeemer[_memberWallet]) {
-            // Reset the coupon redeemer status, this way the member can redeem again
-            isMemberCouponSubscriptionRedeemer[_memberWallet] = false;
-            // We transfer the coupon amount to the coupon pool
-            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
-            contributionToken.safeTransfer(couponPool, amountToRefund);
-        } else {
-            // We transfer the amount to the member
-            contributionToken.safeTransfer(_memberWallet, amountToRefund);
-        }
 
         // Update the user as refunded
         _protocolStorageModule.updateAssociationMember(_member);
