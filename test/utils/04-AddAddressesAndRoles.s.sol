@@ -35,12 +35,12 @@ contract AddAddressesAndRoles is Script {
         addressManager.createNewRole(Roles.OPERATOR);
         addressManager.createNewRole(Roles.DAO_MULTISIG);
         addressManager.createNewRole(Roles.KYC_PROVIDER);
-        addressManager.createNewRole(Roles.COUPON_REDEEMER);
+        addressManager.createNewRole(Roles.BACKEND_ADMIN);
 
         addressManager.proposeRoleHolder(Roles.OPERATOR, config.takadaoOperator);
         addressManager.proposeRoleHolder(Roles.DAO_MULTISIG, config.daoMultisig);
         addressManager.proposeRoleHolder(Roles.KYC_PROVIDER, config.kycProvider);
-        addressManager.proposeRoleHolder(Roles.COUPON_REDEEMER, couponRedeemer);
+        addressManager.proposeRoleHolder(Roles.BACKEND_ADMIN, couponRedeemer);
 
         addressManager.addProtocolAddress(
             "MODULE_MANAGER",
@@ -79,7 +79,7 @@ contract AddAddressesAndRoles is Script {
         addressManager.acceptProposedRole(Roles.KYC_PROVIDER);
 
         vm.prank(couponRedeemer);
-        addressManager.acceptProposedRole(Roles.COUPON_REDEEMER);
+        addressManager.acceptProposedRole(Roles.BACKEND_ADMIN);
 
         return (
             config.takadaoOperator,

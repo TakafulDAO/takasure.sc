@@ -110,7 +110,7 @@ contract SubscriptionModule is
      */
     function refund(
         address memberWallet
-    ) external onlyRole(Roles.REFUND_ADMIN, address(addressManager)) {
+    ) external onlyRole(Roles.BACKEND_ADMIN, address(addressManager)) {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
@@ -144,7 +144,7 @@ contract SubscriptionModule is
         (, AssociationMember memory member) = _fetchMemberFromStorageModule(memberWallet);
 
         // Access control restrictions
-        bool isOperator = AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager));
+        bool isBackend = AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager));
         RevenueType revenueType;
 
         // Get the Benefit Module address
@@ -158,7 +158,7 @@ contract SubscriptionModule is
         if (msg.sender == lifeBenefitModuleAddress || msg.sender == farewellBenefitModuleAddress) {
             // If the caller is a benefit then we consider this as a contribution
             revenueType = RevenueType.Contribution;
-        } else if (isOperator) {
+        } else if (isBackend) {
             // If the caller is the operator, then we consider this as a donation, and have to be called after the refund period ends
             require(
                 block.timestamp >= member.associateStartTime + 30 days,
@@ -219,7 +219,7 @@ contract SubscriptionModule is
     ) internal nonReentrant {
         // Check caller
         require(
-            AddressAndStates._checkRole(Roles.COUPON_REDEEMER, address(addressManager)) ||
+            AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager)) ||
                 AddressAndStates._checkName("ROUTER", address(addressManager)),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
