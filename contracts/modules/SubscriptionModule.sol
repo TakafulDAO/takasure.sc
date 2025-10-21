@@ -152,10 +152,6 @@ contract SubscriptionModule is
             revenueType = RevenueType.Contribution;
         } else if (isBackend) {
             // If the caller is the operator, then we consider this as a donation, and have to be called after the refund period ends
-            require(
-                block.timestamp >= member.associateStartTime + 30 days,
-                ModuleErrors.Module__InvalidDate()
-            );
             revenueType = RevenueType.ContributionDonation; // ? waive instead of donation
         } else {
             // Any other caller is not authorized
