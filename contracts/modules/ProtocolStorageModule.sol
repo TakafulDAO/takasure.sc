@@ -271,7 +271,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     ) internal view {
         if (isRejoin)
             require(
-                members[member.wallet].wallet != address(0),
+                members[_member.wallet].wallet != address(0),
                 ModuleErrors.Module__InvalidAddress()
             );
         else

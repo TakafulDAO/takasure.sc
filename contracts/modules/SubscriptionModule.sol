@@ -93,10 +93,7 @@ contract SubscriptionModule is
 
         _paySubscription(userWallet, parentWallet, couponAmount, membershipStartTime);
 
-        if (couponAmount > 0) {
-            isMemberCouponSubscriptionRedeemer[userWallet] = true;
-            emit TakasureEvents.OnCouponRedeemed(userWallet, couponAmount);
-        }
+        if (couponAmount > 0) isMemberCouponSubscriptionRedeemer[userWallet] = true;
     }
 
     /*//////////////////////////////////////////////////////////////
