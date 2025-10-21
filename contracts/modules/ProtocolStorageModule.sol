@@ -120,7 +120,6 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
             addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
         _associationMemberProfileChecks(member, true);
-        require(members[member.wallet].wallet != address(0), ModuleErrors.Module__InvalidAddress());
 
         // Ensure the memberId is preserved
         member.memberId = members[member.wallet].memberId;
@@ -270,7 +269,12 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         AssociationMember memory _member,
         bool isRejoin
     ) internal view {
-        if (!isRejoin)
+        if (isRejoin)
+            require(
+                members[member.wallet].wallet != address(0),
+                ModuleErrors.Module__InvalidAddress()
+            );
+        else
             require(
                 members[_member.wallet].wallet == address(0),
                 ModuleErrors.Module__AlreadyJoined()
