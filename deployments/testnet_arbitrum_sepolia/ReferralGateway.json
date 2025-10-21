@@ -176,20 +176,6 @@
         },
         {
             "type": "function",
-            "name": "modifyPrepaidMember",
-            "inputs": [
-                { "name": "extraContribution", "type": "uint256", "internalType": "uint256" },
-                { "name": "prepaidMember", "type": "address", "internalType": "address" },
-                { "name": "couponAmount", "type": "uint256", "internalType": "uint256" }
-            ],
-            "outputs": [
-                { "name": "finalFee", "type": "uint256", "internalType": "uint256" },
-                { "name": "discount", "type": "uint256", "internalType": "uint256" }
-            ],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
             "name": "pause",
             "inputs": [],
             "outputs": [],
@@ -201,6 +187,22 @@
             "inputs": [],
             "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
             "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "payContributionAfterWaive",
+            "inputs": [
+                { "name": "newContribution", "type": "uint256", "internalType": "uint256" },
+                { "name": "prepaidMember", "type": "address", "internalType": "address" },
+                { "name": "couponAmount", "type": "uint256", "internalType": "uint256" },
+                { "name": "associationTimestamp", "type": "uint256", "internalType": "uint256" },
+                { "name": "benefitTimestamp", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [
+                { "name": "finalFee", "type": "uint256", "internalType": "uint256" },
+                { "name": "discount", "type": "uint256", "internalType": "uint256" }
+            ],
+            "stateMutability": "nonpayable"
         },
         {
             "type": "function",
@@ -300,6 +302,13 @@
             "inputs": [],
             "outputs": [],
             "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "totalDonationsFromCoupons",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "view"
         },
         {
             "type": "function",
@@ -499,20 +508,31 @@
             "type": "event",
             "name": "OnPrepaidMemberModified",
             "inputs": [
+                { "name": "member", "type": "address", "indexed": true, "internalType": "address" },
                 {
-                    "name": "extraContribution",
+                    "name": "newPlan",
                     "type": "uint256",
                     "indexed": true,
                     "internalType": "uint256"
                 },
-                { "name": "fee", "type": "uint256", "indexed": true, "internalType": "uint256" },
                 {
-                    "name": "discount",
+                    "name": "proratedAmount",
                     "type": "uint256",
                     "indexed": true,
                     "internalType": "uint256"
                 },
-                { "name": "isDonated", "type": "bool", "indexed": false, "internalType": "bool" }
+                {
+                    "name": "extraFee",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "extraDiscount",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                }
             ],
             "anonymous": false
         },
