@@ -10,4 +10,5 @@ library Roles {
     bytes32 internal constant COUPON_REDEEMER = keccak256("COUPON_REDEEMER");
     bytes32 internal constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
     bytes32 internal constant REVENUE_CLAIMER = keccak256("REVENUE_CLAIMER");
+    bytes32 internal constant REFUND_ADMIN = keccak256("REFUND_ADMIN");
 }

@@ -104,7 +104,7 @@ contract SubscriptionModule is
      */
     function refund(
         address memberWallet
-    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+    ) external onlyRole(Roles.REFUND_ADMIN, address(addressManager)) {
         AddressAndStates._notZeroAddress(memberWallet);
         _refund(memberWallet);
     }
