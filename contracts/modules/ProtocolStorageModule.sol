@@ -290,7 +290,6 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
 
         // If a parent wallet is provided, it must be KYCed
         if (_member.parent != address(0)) {
-            require(_member.wallet != _member.parent, ModuleErrors.Module__InvalidAddress());
             address kycModule = addressManager.getProtocolAddressByName("KYC_MODULE").addr;
             // Check if the parent is KYCed
             require(
