@@ -22,9 +22,9 @@ enum ModuleState {
 // Types of addresses in the protocol
 enum ProtocolAddressType {
     Admin, // Admin EOAs or multisigs
+    Benefit, // Special type of module that manages benefits (e.g., life, farewell)
     Module, // Modules that are part of the protocol
-    Protocol, // Core protocol contracts
-    Benefit // Special type of module that manages benefits (e.g., life, farewell)
+    Protocol // Core protocol contracts
 }
 
 // Struct to represent an address in the protocol

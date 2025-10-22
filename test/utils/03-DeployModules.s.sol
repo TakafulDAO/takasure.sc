@@ -7,6 +7,7 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 // import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 // import {KYCModule} from "contracts/modules/KYCModule.sol";
 // import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {ProtocolStorageModule} from "contracts/modules/ProtocolStorageModule.sol";
 // import {ReferralRewardsModule} from "contracts/modules/ReferralRewardsModule.sol";
 // import {RevenueModule} from "contracts/modules/RevenueModule.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
@@ -21,6 +22,8 @@ contract DeployModules is Script {
     // address kycModuleAddress;
     // address memberModuleImplementation;
     // address memberModuleAddress;
+    address protocolStorageImplementation;
+    address protocolStorageAddress;
     // address referralRewardsModuleImplementation;
     // address referralRewardsModuleAddress;
     // address revenueModuleImplementation;
@@ -39,6 +42,7 @@ contract DeployModules is Script {
             // BenefitModule farewellBenefitModule,
             // KYCModule kycModule,
             // MemberModule memberModule,
+            ProtocolStorageModule protocolStorageModule,
             // ReferralRewardsModule referralRewardsModule,
             // RevenueModule revenueModule,
             RevShareModule revShareModule,
@@ -76,6 +80,24 @@ contract DeployModules is Script {
         //     memberModuleAddress,
         //     ProtocolAddressType.Module
         // );
+
+        // Deploy ProtocolStorageModule
+        protocolStorageImplementation = address(new ProtocolStorageModule());
+        protocolStorageAddress = UnsafeUpgrades.deployUUPSProxy(
+            protocolStorageImplementation,
+            abi.encodeCall(
+                ProtocolStorageModule.initialize,
+                (address(addressManager), "PROTOCOL_STORAGE_MODULE")
+            )
+        );
+
+        protocolStorageModule = ProtocolStorageModule(protocolStorageAddress);
+
+        addressManager.addProtocolAddress(
+            "PROTOCOL_STORAGE_MODULE",
+            protocolStorageAddress,
+            ProtocolAddressType.Module
+        );
 
         // Deploy ReferralRewardsModule
         // referralRewardsModuleImplementation = address(new ReferralRewardsModule());
@@ -163,6 +185,7 @@ contract DeployModules is Script {
             // farewellBenefitModule,
             // kycModule,
             // memberModule,
+            protocolStorageModule,
             // referralRewardsModule,
             // revenueModule,
             revShareModule,

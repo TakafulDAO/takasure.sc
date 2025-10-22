@@ -38,7 +38,7 @@ contract Initialization_RevShareModuleTest is Test {
             address(modMgr)
         );
 
-        (revShareModule, ) = moduleDeployer.run(addrMgr);
+        (, revShareModule, ) = moduleDeployer.run(addrMgr);
 
         takadao = operatorAddr;
     }

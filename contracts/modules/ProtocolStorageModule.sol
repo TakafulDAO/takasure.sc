@@ -99,6 +99,17 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         _;
     }
 
+    modifier onlyProtocolsAddresses() {
+        require(
+            addressManager.hasType(ProtocolAddressType.Admin, msg.sender) ||
+                addressManager.hasType(ProtocolAddressType.Benefit, msg.sender) ||
+                addressManager.hasType(ProtocolAddressType.Module, msg.sender) ||
+                addressManager.hasType(ProtocolAddressType.Protocol, msg.sender),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
@@ -157,7 +168,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         );
     }
 
-    function setUintValue(string calldata key, uint256 value) external onlyProtocolOrModule {
+    function setUintValue(string calldata key, uint256 value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
@@ -177,7 +188,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         emit OnUintValueSet(hashedKey, value);
     }
 
-    function setIntValue(string calldata key, int256 value) external onlyProtocolOrModule {
+    function setIntValue(string calldata key, int256 value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
@@ -189,7 +200,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         emit OnIntValueSet(hashedKey, value);
     }
 
-    function setAddressValue(string calldata key, address value) external onlyProtocolOrModule {
+    function setAddressValue(string calldata key, address value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
@@ -201,7 +212,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         emit OnAddressValueSet(hashedKey, value);
     }
 
-    function setBoolValue(string calldata key, bool value) external onlyProtocolOrModule {
+    function setBoolValue(string calldata key, bool value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
@@ -213,7 +224,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         emit OnBoolValueSet(hashedKey, value);
     }
 
-    function setBytes32Value(string calldata key, bytes32 value) external onlyProtocolOrModule {
+    function setBytes32Value(string calldata key, bytes32 value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
@@ -228,7 +239,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     function setBytesValue(
         string calldata key,
         bytes calldata value
-    ) external onlyProtocolOrModule {
+    ) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
@@ -244,7 +255,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         string calldata key1,
         string calldata key2,
         bytes32 value
-    ) external onlyProtocolOrModule {
+    ) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,

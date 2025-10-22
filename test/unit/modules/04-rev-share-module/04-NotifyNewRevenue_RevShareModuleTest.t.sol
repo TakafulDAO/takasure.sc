@@ -54,7 +54,7 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         );
 
         SubscriptionModule subscriptions;
-        (revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+        (, revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
 
         module = address(subscriptions);
 
