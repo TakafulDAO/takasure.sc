@@ -63,7 +63,11 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     event OnBytesValueSet(bytes32 indexed key, bytes value);
     event OnBytes32Value2DSet(bytes32 indexed key1, bytes32 indexed key2, bytes32 value);
 
-    error ProtocolStorageModule__FeeExceedsMaximum();
+    error ProtocolStorageModule__FeeExceedsMaximum(
+        bytes32 keyHash,
+        uint256 attemptedFee,
+        uint256 maxFee
+    );
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -163,7 +167,10 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
 
         // If the key is a fee, ensure it does not exceed the maximum allowed
         if (_hasFeeSuffix(key))
-            require(value <= MAX_FEE_BPS, ProtocolStorageModule__FeeExceedsMaximum());
+            require(
+                value <= MAX_FEE_BPS,
+                ProtocolStorageModule__FeeExceedsMaximum(hashedKey, value, MAX_FEE_BPS)
+            );
 
         uintStorage[hashedKey] = value;
         emit OnUintValueSet(hashedKey, value);
