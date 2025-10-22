@@ -139,15 +139,7 @@ contract SubscriptionModule is
         bool isBackend = AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager));
         RevenueType revenueType;
 
-        // Get the Benefit Module address
-        address lifeBenefitModuleAddress = addressManager
-            .getProtocolAddressByName("LIFE_BENEFIT_MODULE")
-            .addr;
-        address farewellBenefitModuleAddress = addressManager
-            .getProtocolAddressByName("FAREWELL_BENEFIT_MODULE")
-            .addr;
-
-        if (msg.sender == lifeBenefitModuleAddress || msg.sender == farewellBenefitModuleAddress) {
+        if (addressManager.hasType(ProtocolAddressType.Benefit, msg.sender)) {
             // If the caller is a benefit then we consider this as a contribution
             revenueType = RevenueType.Contribution;
         } else if (isBackend) {
