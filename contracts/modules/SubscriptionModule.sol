@@ -222,8 +222,7 @@ contract SubscriptionModule is
             parent: _parentWallet,
             memberState: AssociationMemberState.Inactive, // Set to inactive until the KYC is verified
             isRefunded: false,
-            isLifeProtected: false, // Placeholder, to be set by the Life module
-            isFarewellProtected: false // Placeholder, to be set by the Farewell module
+            benefits: new address[](0) // Reset benefits
         });
 
         // TODO: ReferralRewardsModule to be written
@@ -356,8 +355,7 @@ contract SubscriptionModule is
             parent: address(0), // Reset the parent
             memberState: AssociationMemberState.Inactive, // Set to inactive in case the user already made KYC
             isRefunded: true, // Set the member as refunded
-            isLifeProtected: false,
-            isFarewellProtected: false
+            benefits: new address[](0) // Reset benefits
         });
 
         // Update the user as refunded
