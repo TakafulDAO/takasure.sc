@@ -357,10 +357,10 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         uint256 len = keyBytes.length;
 
         return (len >= 4 &&
-            keyBytes[len - 4] == "_" &&
-            keyBytes[len - 3] == "f" &&
-            keyBytes[len - 2] == "e" &&
-            keyBytes[len - 1] == "e");
+            keyBytes[len - 4] == bytes1(0x5f) && // _
+            keyBytes[len - 3] == bytes1(0x66) && // f
+            keyBytes[len - 2] == bytes1(0x65) && // e
+            keyBytes[len - 1] == bytes1(0x65)); // e
     }
 
     ///@dev required by the OZ UUPS module
