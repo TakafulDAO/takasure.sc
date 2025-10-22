@@ -65,8 +65,31 @@ contract SubscriptionModule is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Called by backend to allow new members to join the pool
-     * @notice Allow new members to pay subscriptions. All members must pay first, and KYC afterwards.
+     * @notice Allow new members to join the association.
+     * @param parentWallet Optional parent address. If there is no parent it must be address(0)
+     *                     If a parent is provided, it must be KYCed
+     */
+    function paySubscription(address parentWallet) external {
+        // Module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+
+        IProtocolStorageModule protocolStorageModule = IProtocolStorageModule(
+            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
+        );
+
+        bool allowUsersToPay = protocolStorageModule.getBoolValue("allowUsersToJoinAssociation");
+        require(allowUsersToPay, ModuleErrors.Module__NotAuthorizedCaller());
+
+        _paySubscription(msg.sender, parentWallet, 0, block.timestamp);
+    }
+
+    /**
+     * @notice Called by backend to allow new members to join the association
+     * @notice Allow new members to pay subscriptions.
      * @param userWallet address of the member
      * @param parentWallet Optional parent address. If there is no parent it must be address(0)
      *                     If a parent is provided, it must be KYCed
