@@ -73,6 +73,7 @@ struct AssociationMember {
     AssociationMemberState memberState;
     bool isRefunded; // Can not be true if isKYCVerified is true
     address[] benefits; // List of benefit memberships
+    address[] childs; // List of direct referrals
 }
 
 // Only those AssociationMembers that have paid some benefit can be BenefitMembers

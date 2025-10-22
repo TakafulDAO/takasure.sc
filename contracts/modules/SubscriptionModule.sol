@@ -41,6 +41,8 @@ contract SubscriptionModule is
     //////////////////////////////////////////////////////////////*/
 
     error SubscriptionModule__NothingToRefund();
+    error SubscriptionModule__IsBenefitMember();
+    error SubscriptionModule__HasReferrals();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -109,7 +111,6 @@ contract SubscriptionModule is
             address(this),
             addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
-        AddressAndStates._notZeroAddress(memberWallet);
         _refund(memberWallet);
     }
 
@@ -222,7 +223,8 @@ contract SubscriptionModule is
             parent: _parentWallet,
             memberState: AssociationMemberState.Inactive, // Set to inactive until the KYC is verified
             isRefunded: false,
-            benefits: new address[](0) // Reset benefits
+            benefits: new address[](0), // Clean benefits array
+            childs: new address[](0) // Clean childs array
         });
 
         // TODO: ReferralRewardsModule to be written
@@ -310,6 +312,7 @@ contract SubscriptionModule is
      *         The user will need to reach custommer support to get the corresponding amount
      */
     function _refund(address _memberWallet) internal {
+        AddressAndStates._notZeroAddress(_memberWallet);
         (
             IProtocolStorageModule _protocolStorageModule,
             AssociationMember memory _member
@@ -324,6 +327,10 @@ contract SubscriptionModule is
         // The member can refund before 30 days of the payment
         uint256 limitTimestamp = startTime + (30 days);
         require(currentTimestamp <= limitTimestamp, ModuleErrors.Module__InvalidDate());
+
+        // Check if it has any benefit membership and any child
+        require(_member.benefits.length == 0, SubscriptionModule__IsBenefitMember());
+        require(_member.childs.length == 0, SubscriptionModule__HasReferrals());
 
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmountAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
@@ -355,7 +362,8 @@ contract SubscriptionModule is
             parent: address(0), // Reset the parent
             memberState: AssociationMemberState.Inactive, // Set to inactive in case the user already made KYC
             isRefunded: true, // Set the member as refunded
-            benefits: new address[](0) // Reset benefits
+            benefits: new address[](0), // Reset benefits
+            childs: new address[](0) // Reset childs
         });
 
         // Update the user as refunded
