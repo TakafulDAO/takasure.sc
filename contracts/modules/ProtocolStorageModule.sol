@@ -37,6 +37,9 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
 
     uint256 public constant MAX_FEE_BPS = 3_500; // 3500 basis points = 35%
 
+    // Frequently read/write keys can be added as constants here for gas efficiency
+    bytes32 internal constant MEMBER_ID_COUNTER = keccak256(abi.encode("memberIdCounter"));
+
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -108,13 +111,16 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         _associationMemberProfileChecks(member, false);
 
         // Get the current member ID counter
-        uint256 memberIdCounter = uintStorage[_hashKey("memberIdCounter")];
+        uint256 memberIdCounter = uintStorage[MEMBER_ID_COUNTER];
         member.memberId = memberIdCounter;
 
         members[member.wallet] = member;
 
         // Increment the member ID counter for the next member
-        uintStorage[_hashKey("memberIdCounter")] = ++memberIdCounter;
+        unchecked {
+            ++memberIdCounter;
+        }
+        uintStorage[MEMBER_ID_COUNTER] = memberIdCounter;
 
         emit OnNewAssociationMember(
             member.memberId,
