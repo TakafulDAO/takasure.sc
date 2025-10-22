@@ -31,7 +31,11 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     /*
     List of keys used in the protocol storage:
     - memberIdCounter (uint256): Counter to assign new member IDs
+    - allowUsersToJoinAssociation (bool): Flag to allow or disallow users to call paySubscription in SubscriptionModule
+    - ... (other keys can be added as needed)
     */
+
+    uint256 public constant MAX_FEE_BPS = 3_500; // 3500 basis points = 35%
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -56,7 +60,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     event OnBytesValueSet(bytes32 indexed key, bytes value);
     event OnBytes32Value2DSet(bytes32 indexed key1, bytes32 indexed key2, bytes32 value);
 
-    error ProtocolStorageModule__InvalidDate();
+    error ProtocolStorageModule__FeeExceedsMaximum();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -150,6 +154,11 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
             addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
         bytes32 hashedKey = _hashKey(key);
+
+        // If the key is a fee, ensure it does not exceed the maximum allowed
+        if (_hasFeeSuffix(key))
+            require(value <= MAX_FEE_BPS, ProtocolStorageModule__FeeExceedsMaximum());
+
         uintStorage[hashedKey] = value;
         emit OnUintValueSet(hashedKey, value);
     }
@@ -317,10 +326,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
         }
 
         // The membership start time can not be in the future
-        require(
-            _member.associateStartTime <= block.timestamp,
-            ProtocolStorageModule__InvalidDate()
-        );
+        require(_member.associateStartTime <= block.timestamp, ModuleErrors.Module__InvalidDate());
     }
 
     /**
@@ -328,6 +334,20 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
      */
     function _hashKey(string memory variableName) internal pure returns (bytes32) {
         return keccak256(abi.encode(variableName));
+    }
+
+    /**
+     * @dev Checks if a key has fee suffix in its name
+     */
+    function _hasFeeSuffix(string calldata _key) internal pure returns (bool) {
+        bytes calldata keyBytes = bytes(_key);
+        uint256 len = keyBytes.length;
+
+        return (len >= 4 &&
+            keyBytes[len - 4] == "_" &&
+            keyBytes[len - 3] == "f" &&
+            keyBytes[len - 2] == "e" &&
+            keyBytes[len - 1] == "e");
     }
 
     ///@dev required by the OZ UUPS module
