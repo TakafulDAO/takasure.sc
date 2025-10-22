@@ -38,7 +38,8 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     uint256 public constant MAX_FEE_BPS = 3_500; // 3500 basis points = 35%
 
     // Frequently read/write keys can be added as constants here for gas efficiency
-    bytes32 internal constant MEMBER_ID_COUNTER = keccak256(abi.encode("memberIdCounter"));
+    bytes32 internal constant MEMBER_ID_COUNTER =
+        0x2b5d5fdc61aab63670213f6da13321480a5157a1cc7f8263f9c36641ff091666; // keccak256(abi.encode("memberIdCounter"))
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
