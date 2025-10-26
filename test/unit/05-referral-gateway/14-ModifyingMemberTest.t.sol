@@ -144,7 +144,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(discount, 375e4);
         assert(isDonated);
 
-        // The child now wants to upgrade to the 50 USDC plan, so the new contribution is prorated
+        // The child now wants to upgrade to the 25 USDC plan, so the new contribution is prorated
         uint256 newContribution = MIN_CONTRIBUTION;
 
         uint256 parentBalanceBefore = usdc.balanceOf(parent); // 776_000_000
