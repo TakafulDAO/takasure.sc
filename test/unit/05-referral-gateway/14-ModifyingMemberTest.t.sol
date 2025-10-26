@@ -123,13 +123,18 @@ contract ReferralGatewayModifyMemberTest is Test {
         referralGateway.approveKYC(child);
     }
 
-    function testChildNowWantsThe25DollarPlanAfterThreeMonthsNoCoupons() public {
-        // Turn off discounts for this test
+    modifier turnOffAllDiscounts() {
         vm.startPrank(takadao);
         referralGateway.switchPrejoinDiscount();
         referralGateway.switchReferralDiscount();
         vm.stopPrank();
+        _;
+    }
 
+    function testChildNowWantsThe25DollarPlanAfterThreeMonthsNoCoupons()
+        public
+        turnOffAllDiscounts
+    {
         vm.warp(block.timestamp + 90 days);
         vm.roll(block.number + 1);
 
@@ -308,7 +313,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         assert(isDonated);
 
         uint256 newContribution = 50e6;
-        uint256 couponAmount = 100e6; // 100 USDC coupon
+        uint256 couponAmount = 50e6; // 50 USDC coupon
 
         uint256 parentBalanceBefore = usdc.balanceOf(parent);
 
@@ -343,14 +348,6 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         assert(referralGateway.totalDonationsFromCoupons() > 0);
         assert(referralGateway.totalDonationsFromCoupons() < couponAmount);
-    }
-
-    modifier turnOffAllDiscounts() {
-        vm.startPrank(takadao);
-        referralGateway.switchPrejoinDiscount();
-        referralGateway.switchReferralDiscount();
-        vm.stopPrank();
-        _;
     }
 
     function test25PlanWithParent100daysRemainsCouponEqualsContribution()

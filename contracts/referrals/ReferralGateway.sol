@@ -815,53 +815,23 @@ contract ReferralGateway is
         bool _isModifying,
         uint256 _associationTimestamp
     ) internal view {
+        _commonChecks(_newMember, _planToApply, _couponAmount, _parent, _isDonated);
+
         if (_isModifying) _checksIfModifying(_newMember, _couponAmount, _associationTimestamp);
         else _checksIfNotModifying(_newMember, _planToApply, _couponAmount);
-        _commonChecks(_planToApply, _parent, _isDonated);
     }
 
-    function _checksIfNotModifying(
-        address _newMember,
-        uint256 _planToApply,
-        uint256 _couponAmount
-    ) internal view {
-        // If we are not modifying a member, the payer must be different than the zero address and cannot be already a member
-        require(_newMember != address(0), ReferralGateway__ZeroAddress());
-        require(
-            nameToDAOData[daoName].prepaidMembers[_newMember].contributionBeforeFee == 0,
-            ReferralGateway__AlreadyMember()
-        );
-
-        if (_couponAmount > 0) {
-            require(_couponAmount <= _planToApply, ReferralGateway__InvalidContribution());
-            require(
-                _couponAmount >= MINIMUM_CONTRIBUTION && _couponAmount <= MAXIMUM_CONTRIBUTION,
-                ReferralGateway__InvalidContribution()
-            );
-        }
-    }
-
-    function _checksIfModifying(
+    function _commonChecks(
         address _member,
+        uint256 _planToApply,
         uint256 _couponAmount,
-        uint256 _associationTimestamp
+        address _parent,
+        bool _isDonated
     ) internal view {
-        // If we are modifying, we update the existing prepaid member
-        // But we require that the member exists and is a member who donated
-        require(
-            nameToDAOData[daoName].prepaidMembers[_member].member != address(0) &&
-                nameToDAOData[daoName].prepaidMembers[_member].isDonated,
-            ReferralGateway__NotAllowedToModify()
-        );
+        // The new member must be different than the zero address
+        require(_member != address(0), ReferralGateway__ZeroAddress());
 
-        if (_couponAmount > 0)
-            require(_couponAmount <= MAXIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
-
-        require(_associationTimestamp < block.timestamp, ReferralGateway__IncompatibleSettings());
-    }
-
-    function _commonChecks(uint256 _planToApply, address _parent, bool _isDonated) internal view {
-        // If the member is valid, the contribution must be between the minimum and maximum contributio
+        // The plan to apply must be between the minimum and maximum contribution
         require(
             _planToApply >= MINIMUM_CONTRIBUTION && _planToApply <= MAXIMUM_CONTRIBUTION,
             ReferralGateway__InvalidContribution()
@@ -880,6 +850,40 @@ contract ReferralGateway is
             require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
             require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
         }
+
+        if (_couponAmount > 0)
+            require(
+                _couponAmount <= _planToApply && _couponAmount >= MINIMUM_CONTRIBUTION,
+                ReferralGateway__InvalidContribution()
+            );
+    }
+
+    function _checksIfNotModifying(
+        address _newMember,
+        uint256 _planToApply,
+        uint256 _couponAmount
+    ) internal view {
+        // If we are not modifying a member, the payer  cannot be already a member
+        require(
+            nameToDAOData[daoName].prepaidMembers[_newMember].contributionBeforeFee == 0,
+            ReferralGateway__AlreadyMember()
+        );
+    }
+
+    function _checksIfModifying(
+        address _member,
+        uint256 _couponAmount,
+        uint256 _associationTimestamp
+    ) internal view {
+        // If we are modifying, we update the existing prepaid member
+        // But we require that the member exists and is a member who donated
+        require(
+            nameToDAOData[daoName].prepaidMembers[_member].member != address(0) &&
+                nameToDAOData[daoName].prepaidMembers[_member].isDonated,
+            ReferralGateway__NotAllowedToModify()
+        );
+
+        require(_associationTimestamp < block.timestamp, ReferralGateway__IncompatibleSettings());
     }
 
     function _parentRewards(

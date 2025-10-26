@@ -78,20 +78,20 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         vm.startPrank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
         referralGateway.payContributionOnBehalfOf(
-            USDC_INITIAL_AMOUNT,
+            24_999_999,
             nonKycParent,
             child,
-            249e4,
+            24_999_999,
             false
         );
 
         // 250.01 USDC
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
         referralGateway.payContributionOnBehalfOf(
-            USDC_INITIAL_AMOUNT,
+            250_010_000,
             nonKycParent,
             child,
-            25001e4,
+            250_010_000,
             false
         );
         vm.stopPrank();
