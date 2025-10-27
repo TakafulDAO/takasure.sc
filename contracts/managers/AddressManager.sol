@@ -5,8 +5,8 @@
  * @author Maikel Ordaz
  * @notice This contract will manage the addresses in the TLD protocol of the Takasure protocol
  */
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
-import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {IModuleManager} from "contracts/interfaces/managers/IModuleManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
