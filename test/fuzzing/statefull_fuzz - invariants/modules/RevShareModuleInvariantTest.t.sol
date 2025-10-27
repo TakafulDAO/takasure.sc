@@ -146,79 +146,87 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
                                INVARIANTS
     //////////////////////////////////////////////////////////////*/
 
-    // /// @notice Module token balance should never be less than approvedDeposits.
-    // function invariant_BalanceGteApprovedDeposits() public view {
-    //     uint256 bal = usdc.balanceOf(address(revShareModule));
-    //     uint256 approved = revShareModule.approvedDeposits();
-    //     assertGe(bal, approved, "revShareModule under-collateralized vs approvedDeposits");
-    // }
+    /// @notice Module token balance should never be less than approvedDeposits.
+    function invariant_BalanceGteApprovedDeposits() public view {
+        if (revShareModule.emergencyMode()) return; // skip in emergency mode
+        uint256 bal = usdc.balanceOf(address(revShareModule));
+        uint256 approved = revShareModule.approvedDeposits();
+        assertGe(bal, approved, "revShareModule under-collateralized vs approvedDeposits");
+    }
 
-    // /// @notice 75/25 split ratio — small integer drift (carry-over + floor) allowed.
-    // /// |rP - 3*rT| <= 12 wei/sec.
-    // function invariant_RateRatioApproximatelyThreeToOne() public view {
-    //     uint256 rp = revShareModule.rewardRatePioneersScaled();
-    //     uint256 rt = revShareModule.rewardRateTakadaoScaled();
+    /// @notice 75/25 split ratio — small integer drift (carry-over + floor) allowed.
+    /// |rP - 3*rT| <= 12 wei/sec.
+    function invariant_RateRatioApproximatelyThreeToOne() public view {
+        uint256 rp = revShareModule.rewardRatePioneersScaled();
+        uint256 rt = revShareModule.rewardRateTakadaoScaled();
 
-    //     // Skip when no active stream: rates are stale and duration may have changed.
-    //     uint256 pf = revShareModule.periodFinish();
-    //     if (pf == 0 || block.timestamp >= pf) return;
+        // Skip when no active stream: rates are stale and duration may have changed.
+        uint256 pf = revShareModule.periodFinish();
+        if (pf == 0 || block.timestamp >= pf) return;
 
-    //     // Degenerate split due to tiny deposits (e.g., amount < 4 micro-USDC) – skip.
-    //     if (rp == 0 || rt == 0) return;
+        // Degenerate split due to tiny deposits (e.g., amount < 4 micro-USDC) – skip.
+        if (rp == 0 || rt == 0) return;
 
-    //     // One scaled-rate “tick” is 1e18 / rewardsDuration
-    //     uint256 unit = 1e18 / revShareModule.rewardsDuration();
+        // One scaled-rate “tick” is 1e18 / rewardsDuration
+        uint256 unit = 1e18 / revShareModule.rewardsDuration();
 
-    //     // Allow small rounding drift (carry-over + floors)
-    //     uint256 diff = rp > 3 * rt ? rp - 3 * rt : (3 * rt - rp);
-    //     assertLe(diff, 12 * unit, "rate ratio must remain ~3:1");
-    // }
+        // Allow small rounding drift (carry-over + floors)
+        uint256 diff = rp > 3 * rt ? rp - 3 * rt : (3 * rt - rp);
+        assertLe(diff, 12 * unit, "rate ratio must remain ~3:1");
+    }
 
-    // /// @notice Accumulators are monotone non-decreasing.
-    // /// Compare computed getters against the handler’s baseline from STORAGE.
-    // function invariant_AccumulatorsMonotone() public view {
-    //     uint256 p = revShareModule.getRevenuePerNftOwnedByPioneers();
-    //     uint256 t = revShareModule.getTakadaoRevenueScaled();
-    //     assertGe(p, handler.lastPerNftP(), "pioneers accumulator decreased");
-    //     assertGe(t, handler.lastPerNftT(), "takadao accumulator decreased");
-    // }
+    /// @notice Accumulators are monotone non-decreasing.
+    /// Compare computed getters against the handler’s baseline from STORAGE.
+    function invariant_AccumulatorsMonotone() public view {
+        uint256 p = revShareModule.getRevenuePerNftOwnedByPioneers();
+        uint256 t = revShareModule.getTakadaoRevenueScaled();
+        assertGe(p, handler.lastPerNftP(), "pioneers accumulator decreased");
+        assertGe(t, handler.lastPerNftT(), "takadao accumulator decreased");
+    }
 
-    // /// @notice Getter gating is always enforced.
-    // function invariant_GetterGating() public view {
-    //     // revenueReceiver must not earn from the pioneers (75%) view
-    //     assertEq(
-    //         revShareModule.earnedByPioneers(revenueReceiver),
-    //         0,
-    //         "RR must not earn from pioneers"
-    //     );
+    /// @notice Getter gating is always enforced.
+    function invariant_GetterGating() public view {
+        // revenueReceiver must not earn from the pioneers (75%) view
+        assertEq(
+            revShareModule.earnedByPioneers(revenueReceiver),
+            0,
+            "RR must not earn from pioneers"
+        );
 
-    //     // A few pioneers must not earn from the takadao (25%) view
-    //     for (uint256 i; i < pioneerSet.length && i < 3; i++) {
-    //         address a = pioneerSet[i];
-    //         if (a == revenueReceiver) continue;
-    //         assertEq(
-    //             revShareModule.earnedByTakadao(a),
-    //             0,
-    //             "pioneer must not earn from takadao view"
-    //         );
-    //     }
-    // }
+        // A few pioneers must not earn from the takadao (25%) view
+        for (uint256 i; i < pioneerSet.length && i < 3; i++) {
+            address a = pioneerSet[i];
+            if (a == revenueReceiver) continue;
+            assertEq(
+                revShareModule.earnedByTakadao(a),
+                0,
+                "pioneer must not earn from takadao view"
+            );
+        }
+    }
 
-    // /// @notice Time-related properties.
-    // function invariant_TimeBounds() public view {
-    //     uint256 lta = revShareModule.lastTimeApplicable();
-    //     uint256 pf = revShareModule.periodFinish();
-    //     uint256 lut = revShareModule.lastUpdateTime();
+    /// @notice Time-related properties.
+    function invariant_TimeBounds() public view {
+        uint256 lta = revShareModule.lastTimeApplicable();
+        uint256 pf = revShareModule.periodFinish();
+        uint256 lut = revShareModule.lastUpdateTime();
 
-    //     assertLe(lta, block.timestamp, "lta must be <= now");
-    //     assertTrue(pf == 0 || lta <= pf, "lta must be <= pf (or pf==0)");
-    //     assertLe(lut, lta, "lastUpdateTime must be <= lastTimeApplicable");
-    // }
+        assertLe(lta, block.timestamp, "lta must be <= now");
+        assertTrue(pf == 0 || lta <= pf, "lta must be <= pf (or pf==0)");
+        assertLe(lut, lta, "lastUpdateTime must be <= lastTimeApplicable");
+    }
 
-    // /// @notice rewardsDuration must remain > 0.
-    // function invariant_RewardsDurationPositive() public view {
-    //     assertGt(revShareModule.rewardsDuration(), 0, "rewardsDuration must remain > 0");
-    // }
+    /// @notice rewardsDuration must remain > 0.
+    function invariant_RewardsDurationPositive() public view {
+        assertGt(revShareModule.rewardsDuration(), 0, "rewardsDuration must remain > 0");
+    }
+
+    function invariant_EmergencyImpliesZeroRates() public view {
+        if (!revShareModule.emergencyMode()) return;
+        assertEq(revShareModule.rewardRatePioneersScaled(), 0);
+        assertEq(revShareModule.rewardRateTakadaoScaled(), 0);
+        // periodFinish == lastUpdateTime == emergency timestamp is acceptable
+    }
 
     function test() public {}
 }
