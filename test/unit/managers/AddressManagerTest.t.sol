@@ -5,12 +5,16 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
-
+import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {IsModule, IsNotModule} from "test/mocks/ModuleMocks.sol";
 import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
 
 contract AddressManagerTest is Test {
     DeployManagers managerDeployer;
     AddressManager addressManager;
+    ModuleManager moduleManager;
+    IsModule isModule;
+    IsNotModule isNotModule;
 
     address addressManagerOwner;
     address protocolAddress = makeAddr("protocolAddress");
@@ -35,8 +39,18 @@ contract AddressManagerTest is Test {
 
     function setUp() public {
         managerDeployer = new DeployManagers();
-        (, addressManager, ) = managerDeployer.run();
+        (, addressManager, moduleManager) = managerDeployer.run();
         addressManagerOwner = addressManager.owner();
+
+        isModule = new IsModule();
+        isNotModule = new IsNotModule();
+
+        vm.prank(addressManager.owner());
+        addressManager.addProtocolAddress(
+            "MODULE_MANAGER",
+            address(moduleManager),
+            ProtocolAddressType.Protocol
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -350,6 +364,57 @@ contract AddressManagerTest is Test {
         bytes32 oldAddressName = addressManager.protocolAddressesNames(adminAddress);
 
         assert(oldAddressName == 0x00);
+    }
+
+    function testUpdateAddressModuleUpdatesModuleState() public {
+        vm.prank(addressManager.owner());
+        addressManager.addProtocolAddress("Module", address(isModule), ProtocolAddressType.Module);
+
+        // Check that the address is added correctly to the AddressManager
+        bytes32 addressName = addressManager.protocolAddressesNames(address(isModule));
+
+        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName(
+            "Module"
+        );
+
+        assert(addressName == keccak256(abi.encode("Module")));
+        assert(protocolAddressToCheck.name == keccak256(abi.encode("Module")));
+        assert(protocolAddressToCheck.addr == address(isModule));
+        assert(protocolAddressToCheck.addressType == ProtocolAddressType.Module);
+
+        // Check that the address is added correctly to the ModuleManager
+        // At this moment It should be an active module with the older address
+        bool initialAddressModuleState = moduleManager.isActiveModule(address(isModule));
+        assert(initialAddressModuleState);
+
+        // Now update the address and check that the event is emitted
+        IsModule newIsModule = new IsModule();
+
+        vm.prank(addressManager.owner());
+        addressManager.updateProtocolAddress("Module", address(newIsModule));
+
+        // Check that the address is updated in the AddressManager
+        addressName = addressManager.protocolAddressesNames(address(newIsModule));
+        protocolAddressToCheck = addressManager.getProtocolAddressByName("Module");
+
+        assert(addressName == keccak256(abi.encode("Module")));
+        assert(protocolAddressToCheck.name == keccak256(abi.encode("Module")));
+        assert(protocolAddressToCheck.addr == address(newIsModule));
+
+        // Check that the old address is not in the mapping anymore
+        bytes32 oldAddressName = addressManager.protocolAddressesNames(address(isModule));
+
+        assert(oldAddressName == 0x00);
+
+        // Check that the old address is not a module anymore and the new one is
+        // added correctly to the ModuleManager
+        // The old address should not be an active module anymore
+        initialAddressModuleState = moduleManager.isActiveModule(address(isModule));
+        assert(!initialAddressModuleState);
+
+        // The new address should be an active module
+        bool newAddressModuleState = moduleManager.isActiveModule(address(newIsModule));
+        assert(newAddressModuleState);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -45,4 +45,6 @@ library DaoDataReader {
     function getBool(IReferralGateway g, uint256 idx) internal view returns (bool) {
         return uint256(_rawWord(g, idx)) != 0;
     }
+
+    function test() external {}
 }

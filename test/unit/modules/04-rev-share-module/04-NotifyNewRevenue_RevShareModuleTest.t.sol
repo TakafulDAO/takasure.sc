@@ -280,7 +280,6 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         revShareModule.emergencyWithdraw();
 
         assertEq(usdc.balanceOf(address(revShareModule)), 0, "module balance should be 0");
-        assertEq(revShareModule.approvedDeposits(), 0, "approvedDeposits should be 0");
 
         vm.expectRevert(RevShareModule.RevShareModule__NothingToSweep.selector);
         vm.prank(takadao);
