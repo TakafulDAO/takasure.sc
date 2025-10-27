@@ -353,7 +353,7 @@ contract SubscriptionModule is
 
         // Check if it has any benefit membership and any child
         require(_member.benefits.length == 0, SubscriptionModule__IsBenefitMember());
-        require(_member.childs.length == 0, SubscriptionModule__HasReferrals());
+        require(_member.childs.length == 0, SubscriptionModule__HasReferrals()); // todo: ask this to the rewards module
 
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmountAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
