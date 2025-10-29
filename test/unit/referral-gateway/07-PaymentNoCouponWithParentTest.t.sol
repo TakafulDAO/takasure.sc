@@ -106,6 +106,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
+
         uint256 totalCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -164,6 +165,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
+
         uint256 totalCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -223,6 +225,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
+
         uint256 totalCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -285,6 +288,7 @@ contract ReferralGatewayNoCouponWithParentPaymentTest is Test {
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, parent, child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
+
         uint256 totalCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8

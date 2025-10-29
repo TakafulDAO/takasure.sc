@@ -143,7 +143,8 @@
                 { "name": "_operator", "type": "address", "internalType": "address" },
                 { "name": "_KYCProvider", "type": "address", "internalType": "address" },
                 { "name": "_pauseGuardian", "type": "address", "internalType": "address" },
-                { "name": "_usdcAddress", "type": "address", "internalType": "address" }
+                { "name": "_usdcAddress", "type": "address", "internalType": "address" },
+                { "name": "_daoName", "type": "string", "internalType": "string" }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
@@ -186,6 +187,22 @@
             "inputs": [],
             "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
             "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "payContributionAfterWaive",
+            "inputs": [
+                { "name": "newContribution", "type": "uint256", "internalType": "uint256" },
+                { "name": "prepaidMember", "type": "address", "internalType": "address" },
+                { "name": "couponAmount", "type": "uint256", "internalType": "uint256" },
+                { "name": "associationTimestamp", "type": "uint256", "internalType": "uint256" },
+                { "name": "benefitTimestamp", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [
+                { "name": "finalFee", "type": "uint256", "internalType": "uint256" },
+                { "name": "discount", "type": "uint256", "internalType": "uint256" }
+            ],
+            "stateMutability": "nonpayable"
         },
         {
             "type": "function",
@@ -285,6 +302,13 @@
             "inputs": [],
             "outputs": [],
             "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "totalDonationsFromCoupons",
+            "inputs": [],
+            "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "view"
         },
         {
             "type": "function",
@@ -476,6 +500,38 @@
                     "type": "bool",
                     "indexed": true,
                     "internalType": "bool"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnPrepaidMemberModified",
+            "inputs": [
+                { "name": "member", "type": "address", "indexed": true, "internalType": "address" },
+                {
+                    "name": "newPlan",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "proratedAmount",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "extraFee",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "extraDiscount",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
                 }
             ],
             "anonymous": false
@@ -686,6 +742,7 @@
         { "type": "error", "name": "ReferralGateway__InvalidContribution", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__InvalidLaunchDate", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__MemberAlreadyKYCed", "inputs": [] },
+        { "type": "error", "name": "ReferralGateway__NotAllowedToModify", "inputs": [] },
         { "type": "error", "name": "ReferralGateway__NotAuthorizedCaller", "inputs": [] },
         {
             "type": "error",

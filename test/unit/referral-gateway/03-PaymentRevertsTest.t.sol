@@ -27,14 +27,6 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     uint256 public constant REFERRAL_RESERVE = 5; // 5% of contribution TO Referral Reserve
     uint256 public constant REPOOL_FEE_RATIO = 2; // 2% of contribution deducted from fee
 
-    event OnPrepayment(
-        address indexed parent,
-        address indexed child,
-        uint256 indexed contribution,
-        uint256 fee,
-        uint256 discount
-    );
-
     modifier pauseContract() {
         vm.prank(pauseGuardian);
         referralGateway.pause();
@@ -83,20 +75,20 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         vm.startPrank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
         referralGateway.payContributionOnBehalfOf(
-            USDC_INITIAL_AMOUNT,
+            24_999_999,
             nonKycParent,
             child,
-            249e4,
+            24_999_999,
             false
         );
 
         // 250.01 USDC
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
         referralGateway.payContributionOnBehalfOf(
-            USDC_INITIAL_AMOUNT,
+            250_010_000,
             nonKycParent,
             child,
-            25001e4,
+            250_010_000,
             false
         );
         vm.stopPrank();

@@ -46,5 +46,6 @@ library DaoDataReader {
         return uint256(_rawWord(g, idx)) != 0;
     }
 
+    // To avoid this contract to be count in coverage
     function test() external {}
 }

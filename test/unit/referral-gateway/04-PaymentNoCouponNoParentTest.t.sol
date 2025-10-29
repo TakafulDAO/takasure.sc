@@ -91,6 +91,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
+
         uint256 totalCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -115,6 +116,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
     function testPrepaymentCase3() public {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
+
         uint256 alreadyCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -137,6 +139,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
+
         uint256 totalCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -153,6 +156,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         referralGateway.switchReferralDiscount();
         referralGateway.switchRewardsDistribution();
         vm.stopPrank();
+
         uint256 alreadyCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -174,6 +178,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
+
         uint256 totalCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -188,6 +193,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
     function testPrepaymentCase5() public {
         vm.prank(takadao);
         referralGateway.switchPrejoinDiscount();
+
         uint256 alreadyCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -208,6 +214,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
+
         uint256 totalCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -236,6 +243,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         referralGateway.switchPrejoinDiscount();
         referralGateway.switchReferralDiscount();
         vm.stopPrank();
+
         uint256 alreadyCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -256,6 +264,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
+
         uint256 totalCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -272,6 +281,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         referralGateway.switchReferralDiscount();
         referralGateway.switchRewardsDistribution();
         vm.stopPrank();
+
         uint256 alreadyCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8
@@ -290,6 +300,7 @@ contract ReferralGatewayNoCouponNoParentPaymentTest is Test {
         referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, address(0), child, 0, false);
 
         (, , , uint256 discount, ) = referralGateway.getPrepaidMember(child);
+
         uint256 totalCollectedFees = DaoDataReader.getUint(
             IReferralGateway(address(referralGateway)),
             8

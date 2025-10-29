@@ -95,3 +95,32 @@ function getPrepaidMember(
 [Back to top](#changelog)
 
 ---
+
+## 28 October 2025
+
+### [Testnet] ![status](https://img.shields.io/badge/status-unreleased-orange)
+
+#### Changed
+
+-   New function added so users can opt to pay a prorated contribution if previously they donated
+
+```solidity
+    function payContributionAfterWaive(
+        uint256 newContribution,
+        address prepaidMember,
+        uint256 couponAmount,
+        uint256 associationTimestamp,
+        uint256 benefitTimestamp
+    )
+        external
+        returns (uint256 finalFee, uint256 discount);
+```
+
+Where:
+
+-   newContribution Will be the corresponding amount for the new plan. (Not the amount to transfer) In USDC six decimals
+-   prepaidMember The address of the prepaid member
+-   couponAmount The amount of the coupon. In USDC six decimals
+-   associationTimestamp The timestamp the first payment was made
+
+This function will reward the same parent (if any)

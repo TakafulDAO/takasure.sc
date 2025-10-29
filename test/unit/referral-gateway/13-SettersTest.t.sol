@@ -17,17 +17,12 @@ contract ReferralGatewaySettersTests is Test {
     address couponPool = makeAddr("couponPool");
     address couponRedeemer = makeAddr("couponRedeemer");
     address pauseGuardian;
-    string tDaoName = "TheLifeDao";
+
     uint256 public constant USDC_INITIAL_AMOUNT = 100e6; // 100 USDC
     uint256 public constant CONTRIBUTION_AMOUNT = 25e6; // 25 USDC
     uint256 public constant CONTRIBUTION_PREJOIN_DISCOUNT_RATIO = 10; // 10% of contribution deducted from fee
 
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
-    event OnCouponRedeemed(
-        address indexed member,
-        string indexed tDAOName,
-        uint256 indexed couponAmount
-    );
     event Paused(address account);
     event Unpaused(address account);
 
