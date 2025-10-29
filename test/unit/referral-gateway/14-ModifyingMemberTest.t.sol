@@ -3,19 +3,17 @@
 pragma solidity 0.8.28;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TestDeployProtocol} from "test/utils/TestDeployProtocol.s.sol";
+import {DeployReferralGateway} from "test/utils/00-DeployReferralGateway.s.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
 contract ReferralGatewayModifyMemberTest is Test {
-    TestDeployProtocol deployer;
+    DeployReferralGateway deployer;
     ReferralGateway referralGateway;
     HelperConfig helperConfig;
     IUSDC usdc;
     uint256 initialContributionTimestamp;
-    address usdcAddress;
-    address referralGatewayAddress;
     address takadao;
     address kycProvider;
     address child = makeAddr("child");
@@ -47,18 +45,16 @@ contract ReferralGatewayModifyMemberTest is Test {
 
     function setUp() public {
         // Deployer
-        deployer = new TestDeployProtocol();
-        // Deploy contracts
-        (, referralGatewayAddress, , , , , , , usdcAddress, , helperConfig) = deployer.run();
+        deployer = new DeployReferralGateway();
+        HelperConfig.NetworkConfig memory config;
+        (config, referralGateway) = deployer.run();
 
         // Get config values
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
         takadao = config.takadaoOperator;
         kycProvider = config.kycProvider;
 
         // Assign implementations
-        referralGateway = ReferralGateway(address(referralGatewayAddress));
-        usdc = IUSDC(usdcAddress);
+        usdc = IUSDC(config.contributionToken);
 
         // Give USDC
         deal(address(usdc), child, USDC_INITIAL_AMOUNT);
@@ -377,10 +373,10 @@ contract ReferralGatewayModifyMemberTest is Test {
         // proratedAmount = 25 USDC * 100 / 365 = 6_849_315 USDC
         vm.prank(couponRedeemer);
         // Transfer from coupon pool to referral gateway, emitted by USDC token
-        vm.expectEmit(true, true, false, true, usdcAddress);
+        vm.expectEmit(true, true, false, true, address(usdc));
         emit Transfer(couponPool, address(referralGateway), newPlan);
         // Transfer the reward, 6_849_315 * 4% = 273_972, emitted by USDC token.
-        vm.expectEmit(true, true, false, true, usdcAddress);
+        vm.expectEmit(true, true, false, true, address(usdc));
         emit Transfer(address(referralGateway), parent, 273_972);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrepaidMemberModified(child, newPlan, 6_849_315, 1_369_864, 0);
@@ -435,7 +431,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         // proratedAmount = 100 USDC * 200 / 365 = 54_794_520 USDC
         vm.prank(couponRedeemer);
         // Transfer from coupon pool to referral gateway, emitted by USDC token
-        vm.expectEmit(true, true, false, true, usdcAddress);
+        vm.expectEmit(true, true, false, true, address(usdc));
         emit Transfer(couponPool, address(referralGateway), newPlan);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrepaidMemberModified(parentLess, newPlan, 54_794_520, 10_958_904, 0);
@@ -490,7 +486,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         // proratedAmount = 250 USDC * 350 / 365 = 239_726_027 USDC
         vm.prank(couponRedeemer);
         // Transfer from coupon pool to referral gateway, emitted by USDC token
-        vm.expectEmit(true, true, false, true, usdcAddress);
+        vm.expectEmit(true, true, false, true, address(usdc));
         emit Transfer(couponPool, address(referralGateway), newPlan);
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrepaidMemberModified(parentLess, newPlan, 239_726_027, 47_945_206, 0);
