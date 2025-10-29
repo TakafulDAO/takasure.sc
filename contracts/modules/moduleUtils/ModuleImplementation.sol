@@ -5,8 +5,8 @@
  * @author Maikel Ordaz
  * @notice This contract is intended to be inherited by every module in the Takasure protocol
  */
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
-import {IModuleManager} from "contracts/interfaces/IModuleManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {IModuleManager} from "contracts/interfaces/managers/IModuleManager.sol";
 
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";

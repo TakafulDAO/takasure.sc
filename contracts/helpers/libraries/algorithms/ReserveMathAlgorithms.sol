@@ -8,7 +8,7 @@
 
 pragma solidity 0.8.28;
 
-import {Member} from "contracts/types/TakasureTypes.sol";
+import {BenefitMember} from "contracts/types/TakasureTypes.sol";
 
 library ReserveMathAlgorithms {
     error WrongTimestamps();
@@ -193,7 +193,7 @@ library ReserveMathAlgorithms {
      * @return ucr Unearned contribution reserve. Six decimals
      */
     function _calculateEcrAndUcrByMember(
-        Member storage member
+        BenefitMember storage member
     ) internal returns (uint256, uint256) {
         uint256 currentTimestamp = block.timestamp;
         uint256 claimReserveAdd = member.claimAddAmount;

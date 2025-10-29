@@ -3,372 +3,331 @@
 /**
  * @title SubscriptionModule
  * @author Maikel Ordaz
- * @notice This contract manage all the subscriptions/refunds to/from the LifeDAO protocol
- * @dev It will interact with the TakasureReserve contract to update the values
+ * @notice This contract manage all the subscriptions/refunds to/from the LifeDAO association
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
-import {IAddressManager} from "contracts/interfaces/IAddressManager.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {IModuleImplementation} from "contracts/interfaces/modules/IModuleImplementation.sol";
+import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
+import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
+import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
+import {IRevenueModule} from "contracts/interfaces/modules/IRevenueModule.sol";
 
+import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
-import {ReserveAndMemberValuesHook} from "contracts/hooks/ReserveAndMemberValuesHook.sol";
-import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
-import {ParentRewards} from "contracts/helpers/payments/ParentRewards.sol";
 
-import {Reserve, Member, MemberState, ModuleState, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
-import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
+import {AssociationMember, AssociationMemberState, ModuleState, ProtocolAddress, ProtocolAddressType, RevenueType} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
 
 contract SubscriptionModule is
+    ModuleImplementation,
     Initializable,
     UUPSUpgradeable,
-    ReentrancyGuardTransientUpgradeable,
-    ModuleImplementation,
-    ReserveAndMemberValuesHook,
-    MemberPaymentFlow,
-    ParentRewards
+    ReentrancyGuardTransientUpgradeable
 {
     using SafeERC20 for IERC20;
 
-    ITakasureReserve private takasureReserve;
+    /*//////////////////////////////////////////////////////////////
+                           EVENTS AND ERRORS
+    //////////////////////////////////////////////////////////////*/
 
-    uint256 private transient normalizedContributionBeforeFee;
-    uint256 private transient feeAmount;
-    uint256 private transient contributionAfterFee;
-    uint256 private transient discount;
-
-    address private referralGateway;
-    address private couponPool;
-
-    // Set to true when new members use coupons to pay their contributions. It does not matter the amount
-    mapping(address member => bool) private isMemberCouponRedeemer;
-
-    error SubscriptionModule__InvalidContribution();
-    error SubscriptionModule__AlreadyJoined();
-    error SubscriptionModule__MemberAlreadyKYCed();
     error SubscriptionModule__NothingToRefund();
-    error SubscriptionModule__TooEarlytoRefund();
+    error SubscriptionModule__IsBenefitMember();
+    error SubscriptionModule__HasReferrals();
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(
-        address _takasureReserveAddress,
-        address _referralGateway,
-        address _couponPool
-    ) external initializer {
+    function initialize(address _addressManager, string calldata _moduleName) external initializer {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
-
-        takasureReserve = ITakasureReserve(_takasureReserveAddress);
-
-        referralGateway = _referralGateway;
-        couponPool = _couponPool;
+        addressManager = IAddressManager(_addressManager);
+        moduleName = _moduleName;
     }
 
-    function setCouponPoolAddress(
-        address _couponPool
-    ) external onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {
-        AddressAndStates._notZeroAddress(_couponPool);
-        couponPool = _couponPool;
-    }
-
-    function joinFromReferralGateway(
-        address memberWallet,
-        address parentWallet,
-        uint256 contributionBeforeFee,
-        uint256 membershipDuration
-    ) external nonReentrant {
-        require(msg.sender == referralGateway, ModuleErrors.Module__NotAuthorizedCaller());
-
-        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
-            memberWallet,
-            contributionBeforeFee
-        );
-
-        _joinFromReferralGateway(
-            reserve,
-            newMember,
-            memberWallet,
-            parentWallet,
-            membershipDuration
-        );
-    }
+    /*//////////////////////////////////////////////////////////////
+                         SUBSCRIPTION PAYMENTS
+    //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Allow new members to join the pool. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.
-     * @param memberWallet address of the member
-     * @param contributionBeforeFee in six decimals
-     * @param membershipDuration default 5 years
-     * @param parentWallet address of the parent
-     * @dev it reverts if the contribution is less than the minimum threshold defaultes to `minimumThreshold`
-     * @dev it reverts if the member is already active
-     * @dev the contribution amount will be round down so the last four decimals will be zero. This means
-     *      that the minimum contribution amount is 0.01 USDC
-     * @dev the contribution amount will be round down so the last four decimals will be zero
+     * @notice Allow new members to join the association.
+     * @param parentWallet Optional parent address. If there is no parent it must be address(0)
+     *                     If a parent is provided, it must be KYCed
      */
-    function paySubscription(
-        address memberWallet,
-        address parentWallet,
-        uint256 contributionBeforeFee,
-        uint256 membershipDuration
-    ) external nonReentrant {
-        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
-            memberWallet,
-            contributionBeforeFee
-        );
-
-        // Check caller
-        require(
-            AddressAndStates._checkName("ROUTER", address(takasureReserve.addressManager())) ||
-                msg.sender == memberWallet,
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-
-        _join(
-            reserve,
-            newMember,
-            memberWallet,
-            parentWallet,
-            contributionBeforeFee,
-            membershipDuration,
-            0
-        );
-    }
-
-    /**
-     * @notice Called by backend to allow new members to join the pool
-     * @param couponAmount in six decimals
-     */
-    function paySubscriptionOnBehalfOf(
-        address memberWallet,
-        address parentWallet,
-        uint256 contributionBeforeFee,
-        uint256 membershipDuration,
-        uint256 couponAmount
-    )
-        external
-        nonReentrant
-        onlyRole(Roles.COUPON_REDEEMER, address(takasureReserve.addressManager()))
-    {
-        (Reserve memory reserve, Member memory newMember) = _paySubscriptionChecksAndsettings(
-            memberWallet,
-            contributionBeforeFee
-        );
-
-        // Check if the coupon amount is valid
-        require(couponAmount <= contributionBeforeFee, SubscriptionModule__InvalidContribution());
-
-        _join(
-            reserve,
-            newMember,
-            memberWallet,
-            parentWallet,
-            contributionBeforeFee,
-            membershipDuration,
-            couponAmount
-        );
-
-        if (couponAmount > 0) {
-            isMemberCouponRedeemer[memberWallet] = true;
-            emit TakasureEvents.OnCouponRedeemed(memberWallet, couponAmount);
-        }
-    }
-
-    function transferContributionAfterKyc(
-        IERC20 contributionToken,
-        address memberWallet,
-        address takasureReserveAddress,
-        uint256 contributionAfterFeeAmount
-    ) external onlyContract("KYC_MODULE", address(takasureReserve.addressManager())) {
-        _transferContributionToReserve(
-            contributionToken,
-            memberWallet,
-            takasureReserveAddress,
-            contributionAfterFeeAmount
-        );
-    }
-
-    /**
-     * @notice Method to refunds a user
-     * @dev To be called by the user itself
-     */
-    function refund() external {
-        _refund(msg.sender);
-    }
-
-    /**
-     * @notice Method to refunds a user
-     * @dev To be called by anyone
-     * @param memberWallet address to be refunded
-     */
-    function refund(address memberWallet) external {
-        AddressAndStates._notZeroAddress(memberWallet);
-        _refund(memberWallet);
-    }
-
-    function _paySubscriptionChecksAndsettings(
-        address _memberWallet,
-        uint256 _contributionBeforeFee
-    ) internal returns (Reserve memory reserve_, Member memory newMember_) {
+    function paySubscription(address parentWallet) external {
+        // Module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
-        (reserve_, newMember_) = _getReserveAndMemberValuesHook(takasureReserve, _memberWallet);
+        IProtocolStorageModule protocolStorageModule = IProtocolStorageModule(
+            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
+        );
 
-        if (!newMember_.isRefunded) {
-            require(newMember_.wallet == address(0), SubscriptionModule__AlreadyJoined());
-        } else {
-            require(
-                newMember_.memberId != 0 && newMember_.wallet == _memberWallet,
-                ModuleErrors.Module__WrongMemberState()
-            );
-        }
+        bool allowUsersToPay = protocolStorageModule.getBoolValue("allowUsersToJoinAssociation");
+        require(allowUsersToPay, ModuleErrors.Module__NotAuthorizedCaller());
 
-        _calculateAmountAndFees(_contributionBeforeFee, reserve_.serviceFee);
+        _paySubscription(msg.sender, parentWallet, 0, block.timestamp);
     }
 
-    function _joinFromReferralGateway(
-        Reserve memory _reserve,
-        Member memory _newMember,
-        address _memberWallet,
-        address _parentWallet,
-        uint256 _membershipDuration
-    ) internal {
-        _newMember = _createNewMember({
-            _newMemberId: ++_reserve.memberIdCounter,
-            _allowCustomDuration: _reserve.allowCustomDuration,
-            _drr: _reserve.dynamicReserveRatio,
-            _membershipDuration: _membershipDuration, // From the input
-            _isKYCVerified: true, // All members from prejoin are KYCed
-            _memberWallet: _memberWallet, // The member wallet
-            _parentWallet: _parentWallet, // The parent wallet
-            _memberState: MemberState.Active // All members from prejoin are active
-        });
-
-        // Then everyting needed will be updated, proformas, reserves, cash flow,
-        // DRR, BMA, tokens minted, no need to transfer the amounts as they are already paid
-        uint256 credits;
-
-        (_reserve, credits) = _memberPaymentFlow({
-            _contributionBeforeFee: _newMember.contribution,
-            _contributionAfterFee: contributionAfterFee,
-            _memberWallet: _memberWallet,
-            _reserve: _reserve,
-            _takasureReserve: takasureReserve
-        });
-
-        _newMember.creditsBalance += credits;
-
-        emit TakasureEvents.OnMemberJoined(_newMember.memberId, _memberWallet);
-
-        _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
-
-        takasureReserve.memberSurplus(_newMember);
-    }
-
-    function _join(
-        Reserve memory _reserve,
-        Member memory _newMember,
-        address _memberWallet,
-        address _parentWallet,
-        uint256 _contributionBeforeFee,
-        uint256 _membershipDuration,
-        uint256 _couponAmount
-    ) internal {
-        require(
-            _newMember.memberState == MemberState.Inactive ||
-                _newMember.memberState == MemberState.Canceled,
-            ModuleErrors.Module__WrongMemberState()
+    /**
+     * @notice Called by backend to allow new members to join the association
+     * @notice Allow new members to pay subscriptions.
+     * @param userWallet address of the member
+     * @param parentWallet Optional parent address. If there is no parent it must be address(0)
+     *                     If a parent is provided, it must be KYCed
+     * @param membershipStartTime when the membership starts, in seconds
+     * @param couponAmount in six decimals
+     */
+    function paySubscriptionOnBehalfOf(
+        address userWallet,
+        address parentWallet,
+        uint256 couponAmount,
+        uint256 membershipStartTime
+    ) external {
+        // Module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
         require(
-            _contributionBeforeFee >= _reserve.minimumThreshold &&
-                _contributionBeforeFee <= _reserve.maximumThreshold,
-            SubscriptionModule__InvalidContribution()
+            couponAmount == 0 || couponAmount == ModuleConstants.ASSOCIATION_SUBSCRIPTION,
+            ModuleErrors.Module__InvalidCoupon()
         );
 
-        uint256 memberId;
-
-        if (!_newMember.isRefunded) {
-            // Flow 1: Join -> KYC
-            memberId = ++_reserve.memberIdCounter;
-        } else {
-            // Flow 2: Join (with flow 1) -> Refund -> Join
-            memberId = _newMember.memberId;
-        }
-
-        _newMember = _createNewMember({
-            _newMemberId: memberId,
-            _allowCustomDuration: _reserve.allowCustomDuration,
-            _drr: _reserve.dynamicReserveRatio,
-            _membershipDuration: _membershipDuration, // From the input
-            _isKYCVerified: _newMember.isKYCVerified, // The current state, in this case false
-            _memberWallet: _memberWallet, // The member wallet
-            _parentWallet: _parentWallet, // The parent wallet
-            _memberState: MemberState.Inactive // Set to inactive until the KYC is verified
-        });
-
-        (_reserve) = _calculateReferralRewards(
-            _reserve,
-            _couponAmount,
-            _memberWallet,
-            _parentWallet
-        );
-
-        _newMember.discount = discount;
-
-        // The member will pay the contribution, but will remain inactive until the KYC is verified
-        // This means the proformas wont be updated, the amounts wont be added to the reserves,
-        // the cash flow mappings wont change, the DRR and BMA wont be updated, the tokens wont be minted
-        _transferContributionToModule({_memberWallet: _memberWallet, _couponAmount: _couponAmount});
-        _setNewReserveAndMemberValuesHook(takasureReserve, _reserve, _newMember);
+        _paySubscription(userWallet, parentWallet, couponAmount, membershipStartTime);
     }
 
-    function _calculateReferralRewards(
-        Reserve memory _reserve,
+    /*//////////////////////////////////////////////////////////////
+                                REFUNDS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Method to refunds a user
+     * @dev To be called by the operator only
+     * @param memberWallet address to be refunded
+     */
+    function refund(
+        address memberWallet
+    ) external onlyRole(Roles.BACKEND_ADMIN, address(addressManager)) {
+        // Module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+        _refund(memberWallet);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         RESERVE CONTRIBUTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Transfer the subscription amount to the reserve
+     * @param memberWallet address of the member
+     * @dev It will transfer the subscription amount to the reserve, this would be 25USDC
+     * @dev If the caller is the backend then the Revenue Type will be donation
+     * @dev If the caller is a Benefit Module, then the Revenue Type will be Subscription
+     */
+    function transferSubscriptionToReserve(
+        address memberWallet
+    ) external nonReentrant returns (uint256) {
+        // Module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+        (, AssociationMember memory member) = _fetchMemberFromStorageModule(memberWallet);
+
+        // Access control restrictions
+        bool isBackend = AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager));
+        RevenueType revenueType;
+
+        if (addressManager.hasType(ProtocolAddressType.Benefit, msg.sender)) {
+            // If the caller is a benefit then we consider this as a contribution
+            revenueType = RevenueType.Contribution;
+        } else if (isBackend) {
+            // If the caller is the operator, then we consider this as a donation, and have to be called after the refund period ends
+            revenueType = RevenueType.ContributionDonation; // ? waive instead of donation
+        } else {
+            // Any other caller is not authorized
+            revert ModuleErrors.Module__NotAuthorizedCaller();
+        }
+
+        // Reward the parents if there is any
+        IReferralRewardsModule(
+            addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
+        ).rewardParents({child: memberWallet});
+
+        // TODO: Revenue module to be written
+        address revenueModuleAddress = addressManager
+            .getProtocolAddressByName("REVENUE_MODULE")
+            .addr;
+        IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+
+        uint256 amountToTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
+            ((ModuleConstants.ASSOCIATION_SUBSCRIPTION *
+                ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
+
+        // Check if the user had any discount
+        uint256 userDiscount = member.discount;
+
+        if (userDiscount > 0) {
+            address feeClaimer = addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr;
+            contributionToken.safeTransferFrom(feeClaimer, address(this), userDiscount);
+        }
+
+        contributionToken.approve(revenueModuleAddress, amountToTransfer);
+        revenueModule.depositRevenue(amountToTransfer, revenueType);
+        return amountToTransfer;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Allow new members to pay subscriptions. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.
+     * @param _userWallet address of the member
+     * @param _parentWallet address of the parent
+     * @param _couponAmount amount of USDC in six decimals to be used as a coupon
+     */
+    function _paySubscription(
+        address _userWallet,
+        address _parentWallet,
         uint256 _couponAmount,
-        address _child,
-        address _parent
-    ) internal returns (Reserve memory) {
-        uint256 toReferralReserve;
+        uint256 _membershipStartTime
+    ) internal nonReentrant {
+        // Check caller
+        require(
+            AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager)) ||
+                AddressAndStates._checkName("ROUTER", address(addressManager)),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
 
-        if (_reserve.referralDiscount) {
-            toReferralReserve =
-                (normalizedContributionBeforeFee * ModuleConstants.REFERRAL_RESERVE) /
-                100;
-            if (_parent != address(0)) {
-                discount =
-                    ((normalizedContributionBeforeFee - _couponAmount) *
-                        ModuleConstants.REFERRAL_DISCOUNT_RATIO) /
-                    100;
-                childToParent[_child] = _parent;
-                (feeAmount, _reserve.referralReserve) = _parentRewards({
-                    _initialChildToCheck: _child,
-                    _contribution: normalizedContributionBeforeFee,
-                    _currentReferralReserve: _reserve.referralReserve,
-                    _toReferralReserve: toReferralReserve,
-                    _currentFee: feeAmount
-                });
-            } else {
-                _reserve.referralReserve += toReferralReserve;
-            }
+        (
+            IProtocolStorageModule protocolStorageModule,
+            AssociationMember memory member
+        ) = _fetchMemberFromStorageModule(_userWallet);
+
+        // To know if we are creating a new member or updating an existing one we need to check the wallet and refund state
+        bool isRejoin = member.wallet == _userWallet && member.isRefunded;
+
+        // Create the member profile
+        member = AssociationMember({
+            memberId: isRejoin ? member.memberId : 0, // If is a rejoin, keep the same memberId, else use 0 as placeholder, will be set in storage module
+            discount: 0, // Placeholder
+            couponAmountRedeemed: _couponAmount, // in six decimals
+            associateStartTime: _membershipStartTime,
+            wallet: _userWallet,
+            parent: _parentWallet,
+            memberState: AssociationMemberState.Inactive, // Set to inactive until the KYC is verified
+            isRefunded: false,
+            benefits: new address[](0), // Clean benefits array
+            childs: new address[](0) // Clean childs array
+        });
+
+        // TODO: ReferralRewardsModule to be written
+        IReferralRewardsModule referralRewardsModule = IReferralRewardsModule(
+            addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
+        );
+
+        (
+            uint256 feeAmount,
+            uint256 discount,
+            uint256 toReferralReserveAmount
+        ) = referralRewardsModule.calculateReferralRewards({
+                contribution: ModuleConstants.ASSOCIATION_SUBSCRIPTION,
+                couponAmount: _couponAmount,
+                child: _userWallet,
+                parent: _parentWallet,
+                feeAmount: (ModuleConstants.ASSOCIATION_SUBSCRIPTION *
+                    ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100
+            });
+        member.discount = discount;
+
+        // Transfer the contribution amount from the user wallet to this contract
+        // Transfer the fee to the fee claim address
+        // Transfer the referral reserve amount to the referral rewards module to be distributed later
+        _performTransfers({
+            _fee: feeAmount,
+            _discount: discount,
+            _couponAmount: _couponAmount,
+            _toReferralReserveAmount: toReferralReserveAmount,
+            _userWallet: _userWallet,
+            _referralRewardsModule: address(referralRewardsModule)
+        });
+
+        // Update the member mapping
+
+        if (isRejoin) protocolStorageModule.updateAssociationMember(member);
+        else protocolStorageModule.createAssociationMember(member);
+    }
+
+    /**
+     * @dev The subscription amount is fixed at 25 USDC
+     */
+    function _performTransfers(
+        uint256 _fee,
+        uint256 _discount,
+        uint256 _couponAmount,
+        uint256 _toReferralReserveAmount,
+        address _userWallet,
+        address _referralRewardsModule
+    ) internal {
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+
+        uint256 contributionAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION - _fee;
+        bool transferFromMember = _couponAmount == 0 ? true : false;
+        uint256 amountToTransfer;
+
+        if (transferFromMember) {
+            amountToTransfer = contributionAfterFee - _discount;
+            contributionToken.safeTransferFrom(_userWallet, address(this), amountToTransfer);
+            _transferFee(contributionToken, _userWallet, _fee);
+        } else {
+            amountToTransfer = contributionAfterFee;
+            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+            contributionToken.safeTransferFrom(couponPool, address(this), amountToTransfer);
+            _transferFee(contributionToken, couponPool, _fee);
         }
-        return (_reserve);
+
+        // Transfer the referral reserve amount to the corresponding module
+        if (_toReferralReserveAmount > 0)
+            contributionToken.safeTransfer(_referralRewardsModule, _toReferralReserveAmount);
+    }
+
+    function _transferFee(IERC20 _contributionToken, address _fromAddress, uint256 _fee) internal {
+        _contributionToken.safeTransferFrom(
+            _fromAddress,
+            addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr,
+            _fee
+        );
     }
 
     /**
@@ -376,196 +335,82 @@ contract SubscriptionModule is
      *         The user will need to reach custommer support to get the corresponding amount
      */
     function _refund(address _memberWallet) internal {
-        AddressAndStates._onlyModuleState(
-            ModuleState.Enabled,
-            address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
-        );
+        AddressAndStates._notZeroAddress(_memberWallet);
+        (
+            IProtocolStorageModule _protocolStorageModule,
+            AssociationMember memory _member
+        ) = _fetchMemberFromStorageModule(_memberWallet);
 
-        (Reserve memory _reserve, Member memory _member) = _getReserveAndMemberValuesHook(
-            takasureReserve,
-            _memberWallet
-        );
-
-        address addressManager = address(takasureReserve.addressManager());
-
-        require(
-            _memberWallet == msg.sender ||
-                AddressAndStates._checkName("ROUTER", addressManager) ||
-                AddressAndStates._checkRole(Roles.OPERATOR, addressManager),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        // The member should not be KYCed neither already refunded
+        // The member should exist and not be refunded
+        require(_member.wallet == _memberWallet, ModuleErrors.Module__InvalidAddress());
         require(!_member.isRefunded, SubscriptionModule__NothingToRefund());
-
         uint256 currentTimestamp = block.timestamp;
-        uint256 membershipStartTime = _member.membershipStartTime;
-        // The member can refund after 30 days of the payment
-        uint256 limitTimestamp = membershipStartTime + (30 days);
+        uint256 startTime = _member.associateStartTime;
 
-        require(currentTimestamp <= limitTimestamp, SubscriptionModule__TooEarlytoRefund());
+        // The member can refund before 30 days of the payment
+        uint256 limitTimestamp = startTime + (30 days);
+        require(currentTimestamp <= limitTimestamp, ModuleErrors.Module__InvalidDate());
+
+        // Check if it has any benefit membership and any child
+        require(_member.benefits.length == 0, SubscriptionModule__IsBenefitMember());
+        require(_member.childs.length == 0, SubscriptionModule__HasReferrals()); // todo: ask this to the rewards module
 
         // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmountAfterFee = _member.contribution -
-            (_member.contribution * _reserve.serviceFee) /
-            100;
+        uint256 contributionAmountAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
+            ((ModuleConstants.ASSOCIATION_SUBSCRIPTION *
+                ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
         uint256 discountAmount = _member.discount;
         uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
-        Member memory newMember = Member({
-            memberId: _member.memberId,
-            benefitMultiplier: 0,
-            membershipDuration: 0,
-            membershipStartTime: 0,
-            lastPaidYearStartDate: 0,
-            contribution: 0,
-            discount: 0,
-            claimAddAmount: 0,
-            totalContributions: 0,
-            totalServiceFee: 0,
-            creditsBalance: 0,
-            wallet: _memberWallet,
-            parent: address(0),
-            memberState: MemberState.Inactive,
-            memberSurplus: 0,
-            isKYCVerified: false,
-            isRefunded: true,
-            lastEcr: 0,
-            lastUcr: 0
-        });
-
-        _member = newMember;
-
-        // Transfer the amount to refund
-        if (isMemberCouponRedeemer[_memberWallet]) {
-            // Reset the coupon redeemer status, this way the member can redeem again
-            isMemberCouponRedeemer[_memberWallet] = false;
-            // We transfer the coupon amount to the coupon pool
-            IERC20(_reserve.contributionToken).safeTransfer(couponPool, amountToRefund);
-        } else {
-            // We transfer the amount to the member
-            IERC20(_reserve.contributionToken).safeTransfer(_memberWallet, amountToRefund);
-        }
-
-        emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
-
-        _setMembersValuesHook(takasureReserve, _member);
-    }
-
-    function _calculateAmountAndFees(uint256 _contributionBeforeFee, uint256 _fee) internal {
-        // The minimum we can receive is 0,01 USDC, here we round it. This to prevent rounding errors
-        // i.e. contributionAmount = (25.123456 / 1e4) * 1e4 = 25.12USDC
-        normalizedContributionBeforeFee =
-            (_contributionBeforeFee / ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC) *
-            ModuleConstants.DECIMAL_REQUIREMENT_PRECISION_USDC;
-        feeAmount = (normalizedContributionBeforeFee * _fee) / 100;
-        contributionAfterFee = normalizedContributionBeforeFee - feeAmount;
-    }
-
-    function _createNewMember(
-        uint256 _newMemberId,
-        bool _allowCustomDuration,
-        uint256 _drr,
-        uint256 _membershipDuration,
-        bool _isKYCVerified,
-        address _memberWallet,
-        address _parentWallet,
-        MemberState _memberState
-    ) internal returns (Member memory) {
-        uint256 userMembershipDuration;
-
-        if (_allowCustomDuration) {
-            userMembershipDuration = _membershipDuration;
-        } else {
-            userMembershipDuration = ModuleConstants.DEFAULT_MEMBERSHIP_DURATION;
-        }
-
-        uint256 claimAddAmount = ((normalizedContributionBeforeFee - feeAmount) * (100 - _drr)) /
-            100;
-
-        Member memory newMember = Member({
-            memberId: _newMemberId,
-            benefitMultiplier: 0, // Placeholder, will be set after the KYC
-            membershipDuration: userMembershipDuration,
-            membershipStartTime: block.timestamp,
-            lastPaidYearStartDate: block.timestamp,
-            contribution: normalizedContributionBeforeFee,
-            discount: discount,
-            claimAddAmount: claimAddAmount,
-            totalContributions: normalizedContributionBeforeFee,
-            totalServiceFee: feeAmount,
-            creditsBalance: 0,
-            wallet: _memberWallet,
-            parent: _parentWallet,
-            memberState: _memberState,
-            memberSurplus: 0,
-            isKYCVerified: _isKYCVerified,
-            isRefunded: false,
-            lastEcr: 0,
-            lastUcr: 0
-        });
-
-        emit TakasureEvents.OnMemberCreated(
-            newMember.memberId,
-            _memberWallet,
-            normalizedContributionBeforeFee,
-            feeAmount,
-            userMembershipDuration,
-            block.timestamp,
-            _isKYCVerified
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
         );
 
-        return newMember;
-    }
-
-    function _transferContributionToReserve(
-        IERC20 _contributionToken,
-        address,
-        address _takasureReserve,
-        uint256 _contributionAfterFee
-    ) internal override {
-        // If the caller is the prejoin module, the transfer will be done by the prejoin module
-        // to the takasure reserve. Otherwise, the transfer will be done by this contract
-        if (msg.sender != referralGateway) {
-            _contributionToken.safeTransfer(_takasureReserve, _contributionAfterFee - discount);
-        }
-    }
-
-    function _transferContributionToModule(address _memberWallet, uint256 _couponAmount) internal {
-        IERC20 contributionToken = IERC20(takasureReserve.getReserveValues().contributionToken);
-        uint256 _amountToTransferFromMember;
-
-        if (_couponAmount > 0) {
-            _amountToTransferFromMember = contributionAfterFee - discount - _couponAmount;
+        // Transfer the amount to refund
+        if (_member.couponAmountRedeemed > 0) {
+            // We transfer the coupon amount to the coupon pool
+            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+            contributionToken.safeTransfer(couponPool, amountToRefund);
         } else {
-            _amountToTransferFromMember = contributionAfterFee - discount;
+            // We transfer the amount to the member
+            contributionToken.safeTransfer(_memberWallet, amountToRefund);
         }
 
-        // Store temporarily the contribution in this contract, this way will be available for refunds
-        if (_amountToTransferFromMember > 0) {
-            contributionToken.safeTransferFrom(
-                _memberWallet,
-                address(this),
-                _amountToTransferFromMember
-            );
+        _member = AssociationMember({
+            memberId: _member.memberId,
+            discount: 0, // Reset the discount
+            couponAmountRedeemed: 0, // Reset the coupon amount redeemed
+            associateStartTime: 0, // Reset the start time
+            wallet: _memberWallet,
+            parent: address(0), // Reset the parent
+            memberState: AssociationMemberState.Inactive, // Set to inactive in case the user already made KYC
+            isRefunded: true, // Set the member as refunded
+            benefits: new address[](0), // Reset benefits
+            childs: new address[](0) // Reset childs
+        });
 
-            // Transfer the coupon amount to this contract
-            if (_couponAmount > 0) {
-                contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
-            }
-            // Transfer the service fee to the fee claim address
-            contributionToken.safeTransferFrom(
-                _memberWallet,
-                IAddressManager(address(takasureReserve.addressManager()))
-                    .getProtocolAddressByName("FEE_CLAIM_ADDRESS")
-                    .addr,
-                feeAmount
-            );
-        }
+        // Update the user as refunded
+        _protocolStorageModule.updateAssociationMember(_member);
+        emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
+    }
+
+    function _fetchMemberFromStorageModule(
+        address _userWallet
+    )
+        internal
+        view
+        returns (IProtocolStorageModule protocolStorageModule_, AssociationMember memory member_)
+    {
+        protocolStorageModule_ = IProtocolStorageModule(
+            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
+        );
+
+        // Get the member from storage
+        member_ = protocolStorageModule_.getAssociationMember(_userWallet);
     }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR, address(takasureReserve.addressManager())) {}
+    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
 }

@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: GPL-3.0
 
-import {Reserve, Member, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve, BenefitMember, CashFlowVars} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
@@ -14,8 +14,8 @@ interface ITakasureReserve {
     function monthToCashFlow(uint16 month) external view returns (uint256 monthCashFlow);
     function dayToCashFlow(uint16 month, uint8 day) external view returns (uint256 dayCashFlow);
 
-    function setMemberValuesFromModule(Member memory newMember) external;
-    function memberSurplus(Member memory newMemberValues) external;
+    function setMemberValuesFromModule(BenefitMember memory newMember) external;
+    function memberSurplus(BenefitMember memory newMemberValues) external;
     function setReserveValuesFromModule(Reserve memory reserve) external;
     function setCashFlowValuesFromModule(CashFlowVars memory newCashFlowVars) external;
     function setMonthToCashFlowValuesFromModule(uint16 month, uint256 monthCashFlow) external;
@@ -25,7 +25,7 @@ interface ITakasureReserve {
         uint256 dayCashFlow
     ) external;
 
-    function getMemberFromAddress(address member) external view returns (Member memory);
+    function getMemberFromAddress(address member) external view returns (BenefitMember memory);
     function getMemberFromId(uint256 memberId) external view returns (address);
     function getReserveValues() external view returns (Reserve memory);
     function getCashFlowValues() external view returns (CashFlowVars memory);
