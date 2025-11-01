@@ -21,6 +21,7 @@ library TakasureEvents {
     ); // Emited when a new member is created
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
     event OnMemberKycVerified(uint256 indexed memberId, address indexed member);
+    event OnRecurringAssociationPayment(address member, uint256 indexed memberId);
     event OnRecurringPayment(
         address member,
         uint256 indexed memberId,
