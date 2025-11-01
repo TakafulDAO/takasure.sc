@@ -15,6 +15,9 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgradeable {
     // Association members related
     mapping(address member => AssociationMember) private members;
+    // Benefit members related
+    mapping(address benefit => mapping(address member => BenefitMember)) private benefitMembers;
+    mapping(address benefit => uint256) private benefitMemberIdCounters;
 
     // Generic values
     // All mappings are `variable_name` => `variable_value` one for each type
