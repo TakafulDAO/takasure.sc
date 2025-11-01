@@ -68,6 +68,7 @@ struct AssociationMember {
     uint256 discount;
     uint256 couponAmountRedeemed; // in stablecoin currency, six decimals
     uint256 associateStartTime; // in seconds
+    uint256 latestPaymentTimestamp; // in seconds, only the date for the latest association payment
     address wallet;
     address parent;
     AssociationMemberState memberState;

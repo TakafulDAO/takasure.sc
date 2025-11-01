@@ -54,8 +54,11 @@ contract SubscriptionModule is
     }
 
     function initialize(address _addressManager, string calldata _moduleName) external initializer {
+        AddressAndStates._notZeroAddress(_addressManager);
+
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
+
         addressManager = IAddressManager(_addressManager);
         moduleName = _moduleName;
     }
@@ -242,6 +245,7 @@ contract SubscriptionModule is
             discount: 0, // Placeholder
             couponAmountRedeemed: _couponAmount, // in six decimals
             associateStartTime: _membershipStartTime,
+            latestPaymentTimestamp: _membershipStartTime, // On creation, latest payment is the same as start time
             wallet: _userWallet,
             parent: _parentWallet,
             memberState: AssociationMemberState.Inactive, // Set to inactive until the KYC is verified
@@ -381,6 +385,7 @@ contract SubscriptionModule is
             discount: 0, // Reset the discount
             couponAmountRedeemed: 0, // Reset the coupon amount redeemed
             associateStartTime: 0, // Reset the start time
+            latestPaymentTimestamp: 0, // Reset the latest payment timestamp
             wallet: _memberWallet,
             parent: address(0), // Reset the parent
             memberState: AssociationMemberState.Inactive, // Set to inactive in case the user already made KYC
