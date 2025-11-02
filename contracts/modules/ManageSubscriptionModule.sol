@@ -41,7 +41,8 @@ contract ManageSubscriptionModule is
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    error MemberModule__InvalidDate();
+    error ManageSubscriptionModule__InvalidDate();
+    error ManageSubscriptionModule__InvalidBenefit();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -65,10 +66,13 @@ contract ManageSubscriptionModule is
                               ASSOCIATION
     //////////////////////////////////////////////////////////////*/
 
-    function payRecurringAssociationSubscription(
+    function payRecurringServices(
         address memberWallet,
         bool payAssociationSubscription,
-        uint256 associationCouponAmount
+        uint256 associationCouponAmount,
+        bool[] calldata payBenefitSubscriptions,
+        address[] calldata benefitAddresses,
+        uint256[] calldata benefitCouponAmounts
     ) external nonReentrant {
         // Checks
         AddressAndStates._onlyModuleState(
@@ -80,6 +84,8 @@ contract ManageSubscriptionModule is
         // Pay for the selected services
         if (payAssociationSubscription)
             _payRecurringAssociationSubscription(memberWallet, associationCouponAmount);
+        if (payBenefitSubscriptions.length > 0)
+            _payRecurringBenefitSubscriptions(memberWallet, benefitAddresses, benefitCouponAmounts);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -99,7 +105,7 @@ contract ManageSubscriptionModule is
         (
             IProtocolStorageModule protocolStorageModule,
             AssociationMember memory associationMember
-        ) = _fetchMemberFromStorageModule(_memberWallet);
+        ) = _fetchAssociationMemberFromStorageModule(_memberWallet);
 
         // Validate the date, it should be able to pay only if the grace period for the next payment is not reached
         require(
@@ -107,7 +113,7 @@ contract ManageSubscriptionModule is
                 associationMember.latestPaymentTimestamp +
                     ModuleConstants.YEAR +
                     ModuleConstants.MONTH,
-            MemberModule__InvalidDate()
+            ManageSubscriptionModule__InvalidDate()
         );
 
         require(
@@ -120,36 +126,19 @@ contract ManageSubscriptionModule is
 
         associationMember.latestPaymentTimestamp = newLatestPaymentTimestamp;
 
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
-
         uint256 fee = (ModuleConstants.ASSOCIATION_SUBSCRIPTION *
             ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100;
         uint256 toTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION - fee;
 
-        address feeClaimer = addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr;
-
-        if (_associationCouponAmount == 0) {
-            // The caller must be the member wallet
-            require(msg.sender == _memberWallet, ModuleErrors.Module__NotAuthorizedCaller());
-
-            // In this case, the user is paying with their wallet
-            contributionToken.safeTransferFrom(msg.sender, address(this), toTransfer);
-            contributionToken.safeTransferFrom(msg.sender, feeClaimer, fee);
-        } else {
-            // Able to be called by the backend admin (for automations)
-            require(
-                AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager)),
-                ModuleErrors.Module__NotAuthorizedCaller()
+        if (_associationCouponAmount == 0)
+            _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
+        else
+            _performTransfers(
+                _memberWallet,
+                addressManager.getProtocolAddressByName("COUPON_POOL").addr,
+                toTransfer,
+                fee
             );
-
-            address couponPoolAddress = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
-
-            // In this case, the payment comes from the coupon pool
-            contributionToken.safeTransferFrom(couponPoolAddress, address(this), toTransfer);
-            contributionToken.safeTransferFrom(couponPoolAddress, feeClaimer, fee);
-        }
 
         protocolStorageModule.updateAssociationMember(associationMember);
 
@@ -159,7 +148,155 @@ contract ManageSubscriptionModule is
         );
     }
 
-    function _fetchMemberFromStorageModule(
+    function _payRecurringBenefitSubscriptions(
+        address _memberWallet,
+        address[] calldata _benefitAddresses,
+        uint256[] calldata _benefitCouponAmounts
+    ) internal {
+        _validateBenefits(_memberWallet, _benefitAddresses);
+
+        // Now we loop through all the benefits to pay
+        for (uint256 i; i < _benefitAddresses.length; ++i) {
+            // The coupon must be within the allowed values
+            if (_benefitCouponAmounts[i] > 0)
+                require(
+                    _benefitCouponAmounts[i] >= ModuleConstants.BENEFIT_MIN_SUBSCRIPTION &&
+                        _benefitCouponAmounts[i] <= ModuleConstants.BENEFIT_MAX_SUBSCRIPTION,
+                    ModuleErrors.Module__InvalidCoupon()
+                );
+
+            (
+                IProtocolStorageModule protocolStorageModule,
+                BenefitMember memory benefitMember
+            ) = _fetchBenefitMemberFromStorageModule(_benefitAddresses[i], _memberWallet);
+
+            _validateDateAndState(benefitMember);
+
+            uint256 benefitFee = protocolStorageModule.getUintValue("benefitFee");
+            uint256 toTransfer;
+            uint256 fee;
+
+            if (
+                addressManager.getProtocolAddressByName("LIFE_BENEFIT_MODULE").addr ==
+                _benefitAddresses[i]
+            ) {
+                // If this is the life benefit, then the amount to pay is reduced by the association recurring payment
+                fee =
+                    ((benefitMember.contribution - ModuleConstants.ASSOCIATION_SUBSCRIPTION) *
+                        benefitFee) /
+                    100;
+                toTransfer =
+                    (benefitMember.contribution - ModuleConstants.ASSOCIATION_SUBSCRIPTION) -
+                    fee;
+            } else {
+                fee = (benefitMember.contribution * benefitFee) / 100;
+                toTransfer = benefitMember.contribution - fee;
+            }
+
+            if (_benefitCouponAmounts[i] == 0)
+                _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
+            else
+                _performTransfers(
+                    _memberWallet,
+                    addressManager.getProtocolAddressByName("COUPON_POOL").addr,
+                    toTransfer,
+                    fee
+                );
+
+            // todo: check other values after benefit modules are ready
+            benefitMember.lastPaidYearStartDate =
+                benefitMember.lastPaidYearStartDate +
+                ModuleConstants.YEAR;
+            benefitMember.totalContributions += benefitMember.contribution;
+            benefitMember.totalServiceFee += (benefitMember.contribution * benefitFee) / 100;
+
+            protocolStorageModule.updateBenefitMember(_benefitAddresses[i], benefitMember);
+            emit TakasureEvents.OnRecurringBenefitPayment(
+                _memberWallet,
+                benefitMember.memberId,
+                benefitMember.lastPaidYearStartDate,
+                benefitMember.contribution,
+                benefitMember.totalServiceFee
+            );
+        }
+
+        // todo: we'll need to run model algorithms. Do it later when all benefit modules are ready
+    }
+
+    function _performTransfers(
+        address _userAddress,
+        address _from,
+        uint256 _contribution,
+        uint256 _fee
+    ) internal {
+        address couponPoolAddress = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+        address feeClaimer = addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr;
+        address reserve = addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr;
+        IERC20 contributionToken = IERC20(
+            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
+        );
+
+        if (_from == couponPoolAddress) {
+            // Able to be called by the backend admin (for automations)
+            require(
+                AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager)),
+                ModuleErrors.Module__NotAuthorizedCaller()
+            );
+
+            contributionToken.safeTransferFrom(couponPoolAddress, reserve, _contribution);
+            contributionToken.safeTransferFrom(couponPoolAddress, feeClaimer, _fee);
+        } else {
+            // The caller must be the member wallet
+            require(msg.sender == _userAddress, ModuleErrors.Module__NotAuthorizedCaller());
+
+            contributionToken.safeTransferFrom(_userAddress, reserve, _contribution);
+            contributionToken.safeTransferFrom(_userAddress, feeClaimer, _fee);
+        }
+    }
+
+    function _validateBenefits(
+        address _memberWallet,
+        address[] calldata _benefitAddresses
+    ) internal view {
+        // Get the association member to validate the benefits
+        (, AssociationMember memory associationMember) = _fetchAssociationMemberFromStorageModule(
+            _memberWallet
+        );
+
+        address[] memory memberBenefits = associationMember.benefits;
+
+        // Now we check the benefits addresses belongs to the association member benefits
+        // O(M*N) complexity, but N and M are expected to be small numbers
+        for (uint256 i; i < _benefitAddresses.length; ++i) {
+            address benefit = _benefitAddresses[i];
+            bool found;
+
+            for (uint256 j; j < memberBenefits.length; ++j) {
+                if (memberBenefits[j] == benefit) {
+                    found = true;
+                    break;
+                }
+            }
+
+            require(found, ManageSubscriptionModule__InvalidBenefit());
+        }
+    }
+
+    function _validateDateAndState(BenefitMember memory _benefitMember) internal view {
+        require(
+            _benefitMember.memberState == BenefitMemberState.Active,
+            ModuleErrors.Module__WrongMemberState()
+        );
+
+        // Validate the date, it should be able to pay only if the grace period for the next payment is not reached
+        require(
+            block.timestamp <=
+                _benefitMember.lastPaidYearStartDate + ModuleConstants.YEAR + ModuleConstants.MONTH,
+            ManageSubscriptionModule__InvalidDate()
+        );
+    }
+
+    function _fetchAssociationMemberFromStorageModule(
         address _userWallet
     )
         internal
@@ -172,6 +309,22 @@ contract ManageSubscriptionModule is
 
         // Get the member from storage
         member_ = protocolStorageModule_.getAssociationMember(_userWallet);
+    }
+
+    function _fetchBenefitMemberFromStorageModule(
+        address _benefit,
+        address _userWallet
+    )
+        internal
+        view
+        returns (IProtocolStorageModule protocolStorageModule_, BenefitMember memory member_)
+    {
+        protocolStorageModule_ = IProtocolStorageModule(
+            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
+        );
+
+        // Get the member from storage
+        member_ = protocolStorageModule_.getBenefitMember(_benefit, _userWallet);
     }
 
     ///@dev required by the OZ UUPS module
