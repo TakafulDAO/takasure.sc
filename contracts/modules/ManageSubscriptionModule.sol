@@ -70,7 +70,7 @@ contract ManageSubscriptionModule is
         address memberWallet,
         bool payAssociationSubscription,
         uint256 associationCouponAmount,
-        bool[] calldata payBenefitSubscriptions,
+        bool payBenefitSubscriptions,
         address[] calldata benefitAddresses,
         uint256[] calldata benefitCouponAmounts
     ) external nonReentrant returns (bool associationPaid, bool benefitsPaid) {
@@ -87,7 +87,7 @@ contract ManageSubscriptionModule is
                 memberWallet,
                 associationCouponAmount
             );
-        if (payBenefitSubscriptions.length > 0)
+        if (payBenefitSubscriptions)
             benefitsPaid = _payRecurringBenefitSubscriptions(
                 memberWallet,
                 benefitAddresses,
