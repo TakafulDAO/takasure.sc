@@ -67,8 +67,12 @@ library TakasureEvents {
     event OnFundSurplusUpdated(uint256 indexed surplus);
     event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
     event OnAllowCustomDuration(bool allowCustomDuration);
-    event OnMemberCanceled(uint256 indexed memberId, address indexed member);
-    event OnMemberDefaulted(uint256 indexed memberId, address indexed member);
+    event OnAssociationMemberCanceled(uint256 indexed memberId, address indexed member);
+    event OnBenefitMemberCanceled(
+        uint256 indexed memberId,
+        address indexed benefit,
+        address indexed member
+    );
     event OnParentRewarded(
         address indexed parent,
         uint256 indexed layer,
