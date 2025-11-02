@@ -12,22 +12,6 @@ participant KYCModule
 participant CouponPool
 participant RewardsModule
 
-Member -> Backend: requests subscription
-Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
-
-PRECHECKS_CALLER_MODULE()
-PRECHECKS_CONTRIB_MIN25()
-LOAD_MEMBER_AND_VALIDATE()
-OPTIONAL_PARENT_VALIDATE()
-
-opt [there-was-a-parent]
-  SubscriptionModule -> RewardsModule: assignParentReward
-end
-
-REGISTER_AND_CONFIRM()
-CouponPool -> SubscriptionModule: transfer contribution
-KYC_OPT()
-
 opt [<30-days-and-no-service]
   Member -> Backend: request refund
   Backend -> SubscriptionModule: refund(memberWallet)
