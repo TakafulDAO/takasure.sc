@@ -22,7 +22,7 @@ library TakasureEvents {
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
     event OnMemberKycVerified(uint256 indexed memberId, address indexed member);
     event OnRecurringAssociationPayment(address member, uint256 indexed memberId);
-    event OnRecurringPayment(
+    event OnRecurringBenefitPayment(
         address member,
         uint256 indexed memberId,
         uint256 indexed lastPaidYearDate,
