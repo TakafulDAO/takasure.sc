@@ -10,9 +10,11 @@ library ModuleConstants {
     uint256 internal constant MONTH = 30 days;
     uint256 internal constant DAY = 1 days;
 
-    // Association module constants
+    // Subscription constants
     uint256 internal constant ASSOCIATION_SUBSCRIPTION = 25e6; // 25 USDC in six decimals
     uint256 internal constant ASSOCIATION_SUBSCRIPTION_FEE = 27; // 27% service fee, in percentage
+    uint256 internal constant BENEFIT_MIN_SUBSCRIPTION = 25; // 25 USDC in six decimals
+    uint256 internal constant BENEFIT_MAX_SUBSCRIPTION = 250; // 250 USDC in six decimals
 
     // Contribution constants
     uint256 internal constant DECIMALS_CONVERSION_FACTOR = 1e12;
