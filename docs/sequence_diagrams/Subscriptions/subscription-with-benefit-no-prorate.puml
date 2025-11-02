@@ -26,24 +26,36 @@ alt [NOT KYCed]
 else
   LifeBenefitModule -> MembersData: updateMember(memberWallet)
 
-  SubscriptionModule -> Reserve: transfer minimum contribution to Reserve
+  alt [minimum transfer succeeds]
+    SubscriptionModule -> Reserve: transfer minimum contribution to Reserve
 
-  opt [there-was-a-parent]
-    SubscriptionModule -> RewardsModule: rewardParent
-    RewardsModule -> RewardsModule: Emits event
-    RewardsModule --> Parent: transfer parent reward
+    opt [there-was-a-parent]
+      SubscriptionModule -> RewardsModule: rewardParent
+      RewardsModule -> RewardsModule: Emits event
+      RewardsModule --> Parent: transfer parent reward
+    end
+  else [minimum transfer fails]
+    SubscriptionModule -> Reserve: transfer minimum contribution to Reserve
+    Reserve -x LifeBenefitModule: REVERT(TransferToReserveFailed())
+    LifeBenefitModule -x Backend: REVERT(JoinBenefit_ReserveTransferFailed())
   end
 
-  CouponPool -> Reserve: transfer remaining contribution to Reserve
+  alt [remaining transfer succeeds]
+    CouponPool -> Reserve: transfer remaining contribution to Reserve
 
-  opt [there-was-a-parent]
-    LifeBenefitModule -> RewardsModule: assignParentReward(for the remaining contribution)
-    LifeBenefitModule -> RewardsModule: rewardParent
-    RewardsModule -> RewardsModule: Emits event
-    RewardsModule --> Parent: transfer parent reward
+    opt [there-was-a-parent]
+      LifeBenefitModule -> RewardsModule: assignParentReward(for the remaining contribution)
+      LifeBenefitModule -> RewardsModule: rewardParent
+      RewardsModule -> RewardsModule: Emits event
+      RewardsModule --> Parent: transfer parent reward
+    end
+
+    Reserve -> Reserve: Run algorithms (include member)
+  else [remaining transfer fails]
+    CouponPool -> Reserve: transfer remaining contribution to Reserve
+    Reserve -x LifeBenefitModule: REVERT(TransferRemainingToReserveFailed())
+    LifeBenefitModule -x Backend: REVERT(JoinBenefit_ReserveTransferFailed())
   end
-
-  Reserve -> Reserve: Run algorithms (include member)
 end
 
 @enduml
