@@ -63,7 +63,7 @@ contract ManageSubscriptionModule is
     }
 
     /*//////////////////////////////////////////////////////////////
-                              ASSOCIATION
+                           RECURRING PAYMENTS
     //////////////////////////////////////////////////////////////*/
 
     function payRecurringServices(
@@ -73,7 +73,7 @@ contract ManageSubscriptionModule is
         bool[] calldata payBenefitSubscriptions,
         address[] calldata benefitAddresses,
         uint256[] calldata benefitCouponAmounts
-    ) external nonReentrant {
+    ) external nonReentrant returns (bool associationPaid, bool benefitsPaid) {
         // Checks
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
@@ -83,9 +83,43 @@ contract ManageSubscriptionModule is
 
         // Pay for the selected services
         if (payAssociationSubscription)
-            _payRecurringAssociationSubscription(memberWallet, associationCouponAmount);
+            associationPaid = _payRecurringAssociationSubscription(
+                memberWallet,
+                associationCouponAmount
+            );
         if (payBenefitSubscriptions.length > 0)
-            _payRecurringBenefitSubscriptions(memberWallet, benefitAddresses, benefitCouponAmounts);
+            benefitsPaid = _payRecurringBenefitSubscriptions(
+                memberWallet,
+                benefitAddresses,
+                benefitCouponAmounts
+            );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                CANCELS
+    //////////////////////////////////////////////////////////////*/
+
+    function cancelAssociationSubscription(address memberWallet) external {
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+
+        _cancelAssociationSubscription(memberWallet);
+    }
+
+    function cancelBenefitSubscriptions(
+        address memberWallet,
+        address[] calldata benefitAddresses
+    ) external {
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled,
+            address(this),
+            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+
+        _cancelBenefitSubscriptions(memberWallet, benefitAddresses);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -95,7 +129,7 @@ contract ManageSubscriptionModule is
     function _payRecurringAssociationSubscription(
         address _memberWallet,
         uint256 _associationCouponAmount
-    ) internal {
+    ) internal returns (bool) {
         require(
             _associationCouponAmount == 0 ||
                 _associationCouponAmount == ModuleConstants.ASSOCIATION_SUBSCRIPTION,
@@ -108,13 +142,13 @@ contract ManageSubscriptionModule is
         ) = _fetchAssociationMemberFromStorageModule(_memberWallet);
 
         // Validate the date, it should be able to pay only if the grace period for the next payment is not reached
-        require(
-            block.timestamp <=
-                associationMember.latestPaymentTimestamp +
-                    ModuleConstants.YEAR +
-                    ModuleConstants.MONTH,
-            ManageSubscriptionModule__InvalidDate()
-        );
+        if (
+            block.timestamp >
+            associationMember.latestPaymentTimestamp + ModuleConstants.YEAR + ModuleConstants.MONTH
+        ) {
+            _cancelAssociationSubscription(_memberWallet);
+            return false;
+        }
 
         require(
             associationMember.memberState == AssociationMemberState.Active,
@@ -146,13 +180,15 @@ contract ManageSubscriptionModule is
             _memberWallet,
             associationMember.memberId
         );
+
+        return true;
     }
 
     function _payRecurringBenefitSubscriptions(
         address _memberWallet,
-        address[] calldata _benefitAddresses,
+        address[] memory _benefitAddresses,
         uint256[] calldata _benefitCouponAmounts
-    ) internal {
+    ) internal returns (bool) {
         _validateBenefits(_memberWallet, _benefitAddresses);
 
         // Now we loop through all the benefits to pay
@@ -170,7 +206,17 @@ contract ManageSubscriptionModule is
                 BenefitMember memory benefitMember
             ) = _fetchBenefitMemberFromStorageModule(_benefitAddresses[i], _memberWallet);
 
-            _validateDateAndState(benefitMember);
+            if (!_validateDateAndState(benefitMember)) {
+                // If the member is late paying more than the grace period, we set the member to Defaulted
+                benefitMember.memberState = BenefitMemberState.Canceled;
+                protocolStorageModule.updateBenefitMember(_benefitAddresses[i], benefitMember);
+                emit TakasureEvents.OnBenefitMemberCanceled(
+                    benefitMember.memberId,
+                    _benefitAddresses[i],
+                    _memberWallet
+                );
+                return false;
+            }
 
             uint256 benefitFee = protocolStorageModule.getUintValue("benefitFee");
             uint256 toTransfer;
@@ -221,6 +267,8 @@ contract ManageSubscriptionModule is
         }
 
         // todo: we'll need to run model algorithms. Do it later when all benefit modules are ready
+
+        return true;
     }
 
     function _performTransfers(
@@ -256,7 +304,7 @@ contract ManageSubscriptionModule is
 
     function _validateBenefits(
         address _memberWallet,
-        address[] calldata _benefitAddresses
+        address[] memory _benefitAddresses
     ) internal view {
         // Get the association member to validate the benefits
         (, AssociationMember memory associationMember) = _fetchAssociationMemberFromStorageModule(
@@ -282,18 +330,97 @@ contract ManageSubscriptionModule is
         }
     }
 
-    function _validateDateAndState(BenefitMember memory _benefitMember) internal view {
+    function _validateDateAndState(
+        BenefitMember memory _benefitMember
+    ) internal view returns (bool) {
         require(
             _benefitMember.memberState == BenefitMemberState.Active,
             ModuleErrors.Module__WrongMemberState()
         );
 
         // Validate the date, it should be able to pay only if the grace period for the next payment is not reached
+        if (
+            block.timestamp >
+            _benefitMember.lastPaidYearStartDate + ModuleConstants.YEAR + ModuleConstants.MONTH
+        ) return false;
+
+        return true;
+    }
+
+    function _cancelAssociationSubscription(address _memberWallet) internal {
+        (
+            IProtocolStorageModule protocolStorageModule,
+            AssociationMember memory associationMember
+        ) = _fetchAssociationMemberFromStorageModule(_memberWallet);
+
         require(
-            block.timestamp <=
-                _benefitMember.lastPaidYearStartDate + ModuleConstants.YEAR + ModuleConstants.MONTH,
-            ManageSubscriptionModule__InvalidDate()
+            associationMember.memberState == AssociationMemberState.Active,
+            ModuleErrors.Module__WrongMemberState()
         );
+
+        if (
+            block.timestamp <
+            associationMember.associateStartTime + ModuleConstants.YEAR + ModuleConstants.MONTH
+        ) associationMember.memberState = AssociationMemberState.PendingCancellation;
+        else associationMember.memberState = AssociationMemberState.Canceled;
+
+        address[] memory previousBenefits = associationMember.benefits;
+
+        associationMember = AssociationMember({
+            memberId: associationMember.memberId,
+            discount: 0, // Reset the discount
+            couponAmountRedeemed: 0, // Reset the coupon redeemed
+            associateStartTime: 0, // Reset the start time
+            latestPaymentTimestamp: 0, // Reset the latest payment timestamp
+            wallet: _memberWallet,
+            parent: address(0), // Reset the parent
+            memberState: associationMember.memberState,
+            isRefunded: false,
+            benefits: new address[](0),
+            childs: new address[](0)
+        });
+
+        protocolStorageModule.updateAssociationMember(associationMember);
+
+        emit TakasureEvents.OnAssociationMemberCanceled(associationMember.memberId, _memberWallet);
+
+        // Now cancel all the benefit subscriptions
+        _cancelBenefitSubscriptions(_memberWallet, previousBenefits);
+    }
+
+    function _cancelBenefitSubscriptions(
+        address _memberWallet,
+        address[] memory _benefitAddresses
+    ) internal {
+        // Validate the benefits
+        _validateBenefits(_memberWallet, _benefitAddresses);
+
+        // Now we loop through all the benefits to cancel
+        for (uint256 i; i < _benefitAddresses.length; ++i) {
+            (, BenefitMember memory benefitMember) = _fetchBenefitMemberFromStorageModule(
+                _benefitAddresses[i],
+                _memberWallet
+            );
+
+            require(
+                benefitMember.memberState == BenefitMemberState.Active,
+                ModuleErrors.Module__WrongMemberState()
+            );
+
+            // If the member is within the first year + grace period, we set the member to PendingCancellation
+            if (
+                block.timestamp <
+                benefitMember.membershipStartTime + ModuleConstants.YEAR + ModuleConstants.MONTH
+            ) benefitMember.memberState = BenefitMemberState.PendingCancellation;
+            else benefitMember.memberState = BenefitMemberState.Canceled;
+
+            protocolStorageModule.updateBenefitMember(_benefitAddresses[i], benefitMember);
+            emit TakasureEvents.OnBenefitMemberCanceled(
+                benefitMember.memberId,
+                _benefitAddresses[i],
+                _memberWallet
+            );
+        }
     }
 
     function _fetchAssociationMemberFromStorageModule(
