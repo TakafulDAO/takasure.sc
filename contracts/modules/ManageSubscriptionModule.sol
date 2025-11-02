@@ -395,6 +395,15 @@ contract ManageSubscriptionModule is
         // Validate the benefits
         _validateBenefits(_memberWallet, _benefitAddresses);
 
+        (
+            IProtocolStorageModule protocolStorageModule,
+            AssociationMember memory associationMember
+        ) = _fetchAssociationMemberFromStorageModule(_memberWallet);
+
+        // Track the benefits that are actually canceled
+        address[] memory canceled = new address[](associationMember.benefits.length);
+        uint256 canceledCount;
+
         // Now we loop through all the benefits to cancel
         for (uint256 i; i < _benefitAddresses.length; ++i) {
             (, BenefitMember memory benefitMember) = _fetchBenefitMemberFromStorageModule(
@@ -411,8 +420,13 @@ contract ManageSubscriptionModule is
             if (
                 block.timestamp <
                 benefitMember.membershipStartTime + ModuleConstants.YEAR + ModuleConstants.MONTH
-            ) benefitMember.memberState = BenefitMemberState.PendingCancellation;
-            else benefitMember.memberState = BenefitMemberState.Canceled;
+            ) {
+                benefitMember.memberState = BenefitMemberState.PendingCancellation;
+            } else {
+                benefitMember.memberState = BenefitMemberState.Canceled;
+                ++canceledCount;
+                canceled[canceledCount] = _benefitAddresses[i];
+            }
 
             protocolStorageModule.updateBenefitMember(_benefitAddresses[i], benefitMember);
             emit TakasureEvents.OnBenefitMemberCanceled(
@@ -420,6 +434,39 @@ contract ManageSubscriptionModule is
                 _benefitAddresses[i],
                 _memberWallet
             );
+        }
+
+        // If at least one benefit was canceled, we update the association member benefits list
+        if (canceledCount > 0) {
+            address[] memory oldBenefits = associationMember.benefits;
+            address[] memory temp = new address[](oldBenefits.length);
+            uint256 keep;
+
+            for (uint256 i; i < oldBenefits.length; ++i) {
+                address old = oldBenefits[i];
+                bool remove;
+
+                // Small N expected -> O(N*M) complexity acceptable
+                for (uint256 j; j < canceledCount; ++j) {
+                    if (old == canceled[j]) {
+                        remove = true;
+                        break;
+                    }
+                }
+
+                if (!remove) {
+                    ++keep;
+                    temp[keep] = old;
+                }
+            }
+
+            address[] memory finalBenefits = new address[](keep);
+            for (uint256 i; i < keep; ++i) {
+                finalBenefits[i] = temp[i];
+            }
+
+            associationMember.benefits = finalBenefits;
+            protocolStorageModule.updateAssociationMember(associationMember);
         }
     }
 
