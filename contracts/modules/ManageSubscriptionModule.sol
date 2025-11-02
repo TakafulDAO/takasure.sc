@@ -189,6 +189,11 @@ contract ManageSubscriptionModule is
         address[] memory _benefitAddresses,
         uint256[] calldata _benefitCouponAmounts
     ) internal returns (bool) {
+        require(
+            _benefitAddresses.length == _benefitCouponAmounts.length,
+            ModuleErrors.Module__InvalidInput()
+        );
+
         _validateBenefits(_memberWallet, _benefitAddresses);
 
         // Now we loop through all the benefits to pay
