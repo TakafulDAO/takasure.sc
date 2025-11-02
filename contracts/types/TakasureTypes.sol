@@ -105,13 +105,14 @@ struct BenefitMember {
 enum AssociationMemberState {
     Inactive, // Default state. The member has not been activated yet
     Active, // The member has paid the association membership and performed KYC
+    PendingCancellation, // The member has requested to cancel the association membership
     Canceled // The member has canceled the association membership
 }
 
 enum BenefitMemberState {
     Inactive, // Default state. The member has not paid any benefit yet. From Inactive can only go to Active
     Active, // The member has paid the benefit contribution. From Active can change to: Defaulted, Canceled, Deceased
-    Defaulted, // The member has defaulted on their benefit payment. From Defaulted can change to: Active, Canceled, Deceased
+    PendingCancellation, // The member has requested to cancel their benefit membership. From PendingCancellation can change to: Active, Canceled
     Canceled, // The member has canceled their benefit membership. From Canceled can change to: Active
     Deceased // The member is deceased. This state is final and cannot be changed
 }
