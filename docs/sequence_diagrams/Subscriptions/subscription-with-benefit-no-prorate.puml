@@ -15,43 +15,35 @@ participant KYCModule
 participant LifeBenefitModule
 participant Reserve
 
-Member -> Backend: requests subscription
-Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
-
-PRECHECKS_CALLER_MODULE()
-PRECHECKS_CONTRIB_RANGE25_250()
-LOAD_MEMBER_AND_VALIDATE()
-OPTIONAL_PARENT_VALIDATE()
-
-opt [there-was-a-parent]
-  SubscriptionModule -> RewardsModule: assignParentReward(for the minimum contribution)
-end
-
-REGISTER_AND_CONFIRM()
+ref over Backend, SubscriptionModule [[subscription-without-benefit.puml]] : Base subscription (prechecks, register & confirm)
 
 CouponPool -> SubscriptionModule: transfer minimum contribution
-KYC_MANDATORY()
 
 Backend -> LifeBenefitModule: joinBenefit(memberWallet)
-LifeBenefitModule -> MembersData: updateMember(memberWallet)
+LifeBenefitModule -> KYCModule: KYC_MANDATORY()
+alt [NOT KYCed]
+  LifeBenefitModule -x Backend: REVERT(NotKYCed())
+else
+  LifeBenefitModule -> MembersData: updateMember(memberWallet)
 
-SubscriptionModule -> Reserve: transfer minimum contribution to Reserve
+  SubscriptionModule -> Reserve: transfer minimum contribution to Reserve
 
-opt [there-was-a-parent]
-  SubscriptionModule -> RewardsModule: rewardParent
-  RewardsModule -> RewardsModule: Emits event
-  RewardsModule --> Parent: transfer parent reward
+  opt [there-was-a-parent]
+    SubscriptionModule -> RewardsModule: rewardParent
+    RewardsModule -> RewardsModule: Emits event
+    RewardsModule --> Parent: transfer parent reward
+  end
+
+  CouponPool -> Reserve: transfer remaining contribution to Reserve
+
+  opt [there-was-a-parent]
+    LifeBenefitModule -> RewardsModule: assignParentReward(for the remaining contribution)
+    LifeBenefitModule -> RewardsModule: rewardParent
+    RewardsModule -> RewardsModule: Emits event
+    RewardsModule --> Parent: transfer parent reward
+  end
+
+  Reserve -> Reserve: Run algorithms (include member)
 end
-
-CouponPool -> Reserve: transfer remaining contribution to Reserve
-
-opt [there-was-a-parent]
-  LifeBenefitModule -> RewardsModule: assignParentReward(for the remaining contribution)
-  LifeBenefitModule -> RewardsModule: rewardParent
-  RewardsModule -> RewardsModule: Emits event
-  RewardsModule --> Parent: transfer parent reward
-end
-
-Reserve -> Reserve: Run algorithms (include member)
 
 @enduml
