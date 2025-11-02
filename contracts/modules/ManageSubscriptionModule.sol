@@ -400,11 +400,11 @@ contract ManageSubscriptionModule is
             AssociationMember memory associationMember
         ) = _fetchAssociationMemberFromStorageModule(_memberWallet);
 
-        // Track the benefits that are actually canceled
-        address[] memory canceled = new address[](associationMember.benefits.length);
+        // Track the benefits that actually become CANCELED (only these are removed)
+        address[] memory canceled = new address[](_benefitAddresses.length);
         uint256 canceledCount;
 
-        // Now we loop through all the benefits to cancel
+        // Update each benefit member state
         for (uint256 i; i < _benefitAddresses.length; ++i) {
             (, BenefitMember memory benefitMember) = _fetchBenefitMemberFromStorageModule(
                 _benefitAddresses[i],
@@ -416,7 +416,7 @@ contract ManageSubscriptionModule is
                 ModuleErrors.Module__WrongMemberState()
             );
 
-            // If the member is within the first year + grace period, we set the member to PendingCancellation
+            // Within first year + grace → PendingCancellation (keep it); else → Canceled (remove it)
             if (
                 block.timestamp <
                 benefitMember.membershipStartTime + ModuleConstants.YEAR + ModuleConstants.MONTH
@@ -424,8 +424,8 @@ contract ManageSubscriptionModule is
                 benefitMember.memberState = BenefitMemberState.PendingCancellation;
             } else {
                 benefitMember.memberState = BenefitMemberState.Canceled;
-                ++canceledCount;
                 canceled[canceledCount] = _benefitAddresses[i];
+                ++canceledCount;
             }
 
             protocolStorageModule.updateBenefitMember(_benefitAddresses[i], benefitMember);
@@ -436,9 +436,10 @@ contract ManageSubscriptionModule is
             );
         }
 
-        // If at least one benefit was canceled, we update the association member benefits list
         if (canceledCount > 0) {
             address[] memory oldBenefits = associationMember.benefits;
+
+            // Filter out any address that appears in `canceled[0..canceledCount)`
             address[] memory temp = new address[](oldBenefits.length);
             uint256 keep;
 
@@ -446,7 +447,7 @@ contract ManageSubscriptionModule is
                 address old = oldBenefits[i];
                 bool remove;
 
-                // Small N expected -> O(N*M) complexity acceptable
+                // small N expected → O(N*M) is fine; short-circuits on match
                 for (uint256 j; j < canceledCount; ++j) {
                     if (old == canceled[j]) {
                         remove = true;
@@ -455,14 +456,15 @@ contract ManageSubscriptionModule is
                 }
 
                 if (!remove) {
-                    ++keep;
                     temp[keep] = old;
+                    ++keep;
                 }
             }
 
+            // Shrink to exact size
             address[] memory finalBenefits = new address[](keep);
-            for (uint256 i; i < keep; ++i) {
-                finalBenefits[i] = temp[i];
+            for (uint256 k; k < keep; ++k) {
+                finalBenefits[k] = temp[k];
             }
 
             associationMember.benefits = finalBenefits;
