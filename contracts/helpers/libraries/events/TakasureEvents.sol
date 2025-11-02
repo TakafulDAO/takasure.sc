@@ -5,7 +5,7 @@
  * @author  Maikel Ordaz
  * @notice  This library is used to store the events of the Takasure protocol
  */
-import {RevenueType} from "contracts/types/TakasureTypes.sol";
+import {RevenueType, BenefitMemberState, AssociationMemberState} from "contracts/types/TakasureTypes.sol";
 
 pragma solidity 0.8.28;
 
@@ -67,11 +67,16 @@ library TakasureEvents {
     event OnFundSurplusUpdated(uint256 indexed surplus);
     event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
     event OnAllowCustomDuration(bool allowCustomDuration);
-    event OnAssociationMemberCanceled(uint256 indexed memberId, address indexed member);
+    event OnAssociationMemberCanceled(
+        uint256 indexed memberId,
+        address indexed member,
+        AssociationMemberState memberState
+    );
     event OnBenefitMemberCanceled(
         uint256 indexed memberId,
         address indexed benefit,
-        address indexed member
+        address indexed member,
+        BenefitMemberState memberState
     );
     event OnParentRewarded(
         address indexed parent,

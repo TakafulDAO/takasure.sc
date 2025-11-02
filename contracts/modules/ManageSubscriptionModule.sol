@@ -218,7 +218,8 @@ contract ManageSubscriptionModule is
                 emit TakasureEvents.OnBenefitMemberCanceled(
                     benefitMember.memberId,
                     _benefitAddresses[i],
-                    _memberWallet
+                    _memberWallet,
+                    benefitMember.memberState
                 );
                 return false;
             }
@@ -387,7 +388,11 @@ contract ManageSubscriptionModule is
 
         protocolStorageModule.updateAssociationMember(associationMember);
 
-        emit TakasureEvents.OnAssociationMemberCanceled(associationMember.memberId, _memberWallet);
+        emit TakasureEvents.OnAssociationMemberCanceled(
+            associationMember.memberId,
+            _memberWallet,
+            associationMember.memberState
+        );
 
         // Now cancel all the benefit subscriptions
         _cancelBenefitSubscriptions(_memberWallet, previousBenefits);
@@ -437,7 +442,8 @@ contract ManageSubscriptionModule is
             emit TakasureEvents.OnBenefitMemberCanceled(
                 benefitMember.memberId,
                 _benefitAddresses[i],
-                _memberWallet
+                _memberWallet,
+                benefitMember.memberState
             );
         }
 
