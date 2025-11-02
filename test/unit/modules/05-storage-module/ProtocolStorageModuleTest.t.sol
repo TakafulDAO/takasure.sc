@@ -45,7 +45,7 @@ contract ProtocolStorageModuleTest is Test {
             address(modMgr)
         );
 
-        (protocolStorageModule, , ) = moduleDeployer.run(addrMgr);
+        (, protocolStorageModule, , ) = moduleDeployer.run(addrMgr);
 
         takadao = operatorAddr;
     }
