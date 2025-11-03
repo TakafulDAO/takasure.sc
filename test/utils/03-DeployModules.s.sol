@@ -6,7 +6,7 @@ import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 // import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 // import {KYCModule} from "contracts/modules/KYCModule.sol";
-import {ManageSubscriptionModule} from "contracts/modules/ManageSubscriptionModule.sol";
+import {ManageSubscriptionsModule} from "contracts/modules/ManageSubscriptionsModule.sol";
 import {ProtocolStorageModule} from "contracts/modules/ProtocolStorageModule.sol";
 // import {ReferralRewardsModule} from "contracts/modules/ReferralRewardsModule.sol";
 // import {RevenueModule} from "contracts/modules/RevenueModule.sol";
@@ -20,8 +20,8 @@ contract DeployModules is Script {
     // address farewellBenefitModuleAddress;
     // address kycModuleImplementation;
     // address kycModuleAddress;
-    address manageSubscriptionModuleImplementation;
-    address manageSubscriptionModuleAddress;
+    address manageSubscriptionsModuleImplementation;
+    address manageSubscriptionsModuleAddress;
     address protocolStorageImplementation;
     address protocolStorageAddress;
     // address referralRewardsModuleImplementation;
@@ -41,7 +41,7 @@ contract DeployModules is Script {
             // BenefitModule lifeBenefitModule,
             // BenefitModule farewellBenefitModule,
             // KYCModule kycModule,
-            ManageSubscriptionModule manageSubscriptionModule,
+            ManageSubscriptionsModule manageSubscriptionsModule,
             ProtocolStorageModule protocolStorageModule,
             // ReferralRewardsModule referralRewardsModule,
             // RevenueModule revenueModule,
@@ -66,21 +66,21 @@ contract DeployModules is Script {
         //     ProtocolAddressType.Module
         // );
 
-        // Deploy ManageSubscriptionModule
-        manageSubscriptionModuleImplementation = address(new ManageSubscriptionModule());
-        manageSubscriptionModuleAddress = UnsafeUpgrades.deployUUPSProxy(
-            manageSubscriptionModuleImplementation,
+        // Deploy ManageSubscriptionsModule
+        manageSubscriptionsModuleImplementation = address(new ManageSubscriptionsModule());
+        manageSubscriptionsModuleAddress = UnsafeUpgrades.deployUUPSProxy(
+            manageSubscriptionsModuleImplementation,
             abi.encodeCall(
-                ManageSubscriptionModule.initialize,
-                (address(addressManager), "MANAGE_SUBSCRIPTION_MODULE")
+                ManageSubscriptionsModule.initialize,
+                (address(addressManager), "MANAGE_SUBSCRIPTIONS_MODULE")
             )
         );
 
-        manageSubscriptionModule = ManageSubscriptionModule(manageSubscriptionModuleAddress);
+        manageSubscriptionsModule = ManageSubscriptionsModule(manageSubscriptionsModuleAddress);
 
         addressManager.addProtocolAddress(
             "MANAGE_SUBSCRIPTION_MODULE",
-            manageSubscriptionModuleAddress,
+            manageSubscriptionsModuleAddress,
             ProtocolAddressType.Module
         );
 
@@ -187,7 +187,7 @@ contract DeployModules is Script {
             // lifeBenefitModule,
             // farewellBenefitModule,
             // kycModule,
-            manageSubscriptionModule,
+            manageSubscriptionsModule,
             protocolStorageModule,
             // referralRewardsModule,
             // revenueModule,

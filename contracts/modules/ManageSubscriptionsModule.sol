@@ -149,12 +149,12 @@ contract ManageSubscriptionsModule is
 
     /**
      * @notice Internal function to pay for the recurring association subscription
-     * @return Whether the association subscription was paid successfully
+     * @return paid_ Whether the association subscription was paid successfully
      */
     function _payRecurringAssociationSubscription(
         address _memberWallet,
         uint256 _associationCouponAmount
-    ) internal returns (bool) {
+    ) internal returns (bool paid_) {
         require(
             _associationCouponAmount == 0 ||
                 _associationCouponAmount == ModuleConstants.ASSOCIATION_SUBSCRIPTION,
@@ -170,9 +170,7 @@ contract ManageSubscriptionsModule is
         if (
             block.timestamp >= associationMember.latestPaymentTimestamp + ModuleConstants.YEAR &&
             block.timestamp <=
-            associationMember.latestPaymentTimestamp +
-                ModuleConstants.YEAR +
-                ModuleConstants.GRACE_PERIOD
+            associationMember.latestPaymentTimestamp + ModuleConstants.YEAR + ModuleConstants.MONTH
         ) {
             require(
                 associationMember.memberState == AssociationMemberState.Active,
@@ -205,13 +203,12 @@ contract ManageSubscriptionsModule is
                 associationMember.memberId
             );
 
-            return true;
+            paid_ = true;
         } else if (
             block.timestamp >
             associationMember.latestPaymentTimestamp + ModuleConstants.YEAR + ModuleConstants.MONTH
         ) {
             _cancelAssociationSubscription(_memberWallet);
-            return false;
         }
     }
 
@@ -389,11 +386,11 @@ contract ManageSubscriptionsModule is
     /**
      * @notice Internal function to validate the date and state of a benefit member
      * @param _benefitMember The benefit member to validate
-     * @return Whether the benefit member is valid for payment
+     * @return validated_ Whether the benefit member is valid for payment
      */
     function _validateDateAndState(
         BenefitMember memory _benefitMember
-    ) internal view returns (bool) {
+    ) internal view returns (bool validated_) {
         require(
             _benefitMember.memberState == BenefitMemberState.Active,
             ModuleErrors.Module__WrongMemberState()
@@ -404,7 +401,7 @@ contract ManageSubscriptionsModule is
             block.timestamp >= _benefitMember.lastPaidYearStartDate + ModuleConstants.YEAR &&
             block.timestamp <=
             _benefitMember.lastPaidYearStartDate + ModuleConstants.YEAR + ModuleConstants.MONTH
-        ) return true;
+        ) validated_ = true;
     }
 
     function _cancelAssociationSubscription(address _memberWallet) internal {
