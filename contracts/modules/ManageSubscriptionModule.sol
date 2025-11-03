@@ -1,11 +1,12 @@
 //SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title MemberModule
+ * @title ManageSubscriptionsModule
  * @author Maikel Ordaz
- * @notice This contract will manage defaults, cancelations and recurring payments. On the Association and
+ * @notice This contract will manage cancelations and recurring payments. On the Association and
  *         benefits
  * @dev It will interact with the TakasureReserve and/or SubscriptionModule contract to update the corresponding values
+ * @dev All external functions are allowed to be called either by the member or by a backend admin
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -28,7 +29,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
-contract ManageSubscriptionModule is
+contract ManageSubscriptionsModule is
     ModuleImplementation,
     MemberPaymentFlow,
     Initializable,
@@ -66,6 +67,17 @@ contract ManageSubscriptionModule is
                            RECURRING PAYMENTS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Pay for the recurring services: Association subscription and/or Benefit subscriptions
+     * @param memberWallet The wallet of the member paying for the services
+     * @param payAssociationSubscription Whether to pay for the association subscription
+     * @param associationCouponAmount The coupon amount to use for the association subscription in six decimals (0 if none)
+     * @param payBenefitSubscriptions Whether to pay for benefit subscriptions
+     * @param benefitAddresses The list of benefit addresses to pay for
+     * @param benefitCouponAmounts The list of coupon amounts to use for each benefit in six decimals (0 if none)
+     * @return associationPaid Whether the association subscription was paid successfully
+     * @return benefitsPaid Whether all the benefit subscriptions were paid successfully
+     */
     function payRecurringServices(
         address memberWallet,
         bool payAssociationSubscription,
@@ -99,7 +111,11 @@ contract ManageSubscriptionModule is
                                 CANCELS
     //////////////////////////////////////////////////////////////*/
 
-    function cancelAssociationSubscription(address memberWallet) external {
+    /**
+     * @notice Cancel the association subscription for a member
+     * @param memberWallet The wallet of the member to cancel the association subscription for
+     */
+    function cancelAssociationSubscription(address memberWallet) external nonReentrant {
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
@@ -109,10 +125,15 @@ contract ManageSubscriptionModule is
         _cancelAssociationSubscription(memberWallet);
     }
 
+    /**
+     * @notice Cancel benefit subscriptions for a member
+     * @param memberWallet The wallet of the member to cancel benefit subscriptions for
+     * @param benefitAddresses The list of benefit addresses to cancel subscriptions for
+     */
     function cancelBenefitSubscriptions(
         address memberWallet,
         address[] calldata benefitAddresses
-    ) external {
+    ) external nonReentrant {
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
@@ -126,6 +147,10 @@ contract ManageSubscriptionModule is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Internal function to pay for the recurring association subscription
+     * @return Whether the association subscription was paid successfully
+     */
     function _payRecurringAssociationSubscription(
         address _memberWallet,
         uint256 _associationCouponAmount
@@ -184,6 +209,10 @@ contract ManageSubscriptionModule is
         return true;
     }
 
+    /**
+     * @notice Internal function to pay for the recurring benefit subscriptions
+     * @return Whether all the benefit subscriptions were paid successfully
+     */
     function _payRecurringBenefitSubscriptions(
         address _memberWallet,
         address[] memory _benefitAddresses,
@@ -277,6 +306,15 @@ contract ManageSubscriptionModule is
         return true;
     }
 
+    /**
+     * @notice Internal function to perform the transfers for the contributions and fees
+     * @param _userAddress The wallet of the user making the payment
+     * @param _from The address from which the funds will be taken (either user wallet or coupon pool)
+     * @param _contribution The contribution amount to transfer
+     * @param _fee The fee amount to transfer
+     * @dev If the _from is the coupon pool, then the caller must be a backend admin
+     * @dev If the _from is the user wallet, then the caller must be the user wallet
+     */
     function _performTransfers(
         address _userAddress,
         address _from,
@@ -308,6 +346,12 @@ contract ManageSubscriptionModule is
         }
     }
 
+    /**
+     * @notice Internal function to validate that the benefits belong to the association member
+     * @param _memberWallet The wallet of the association member
+     * @param _benefitAddresses The list of benefit addresses to validate
+     * @dev Reverts if any of the benefit addresses do not belong to the association member
+     */
     function _validateBenefits(
         address _memberWallet,
         address[] memory _benefitAddresses
@@ -336,6 +380,11 @@ contract ManageSubscriptionModule is
         }
     }
 
+    /**
+     * @notice Internal function to validate the date and state of a benefit member
+     * @param _benefitMember The benefit member to validate
+     * @return Whether the benefit member is valid for payment
+     */
     function _validateDateAndState(
         BenefitMember memory _benefitMember
     ) internal view returns (bool) {
