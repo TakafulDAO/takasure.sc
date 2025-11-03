@@ -166,47 +166,53 @@ contract ManageSubscriptionsModule is
             AssociationMember memory associationMember
         ) = _fetchAssociationMemberFromStorageModule(_memberWallet);
 
-        // Validate the date, it should be able to pay only if the grace period for the next payment is not reached
+        // Validate the date, it should be able to pay only if the year has ended and grace period for the next payment is not reached
         if (
+            block.timestamp >= associationMember.latestPaymentTimestamp + ModuleConstants.YEAR &&
+            block.timestamp <=
+            associationMember.latestPaymentTimestamp +
+                ModuleConstants.YEAR +
+                ModuleConstants.GRACE_PERIOD
+        ) {
+            require(
+                associationMember.memberState == AssociationMemberState.Active,
+                ModuleErrors.Module__WrongMemberState()
+            );
+
+            uint256 newLatestPaymentTimestamp = associationMember.latestPaymentTimestamp +
+                ModuleConstants.YEAR;
+
+            associationMember.latestPaymentTimestamp = newLatestPaymentTimestamp;
+
+            uint256 fee = (ModuleConstants.ASSOCIATION_SUBSCRIPTION *
+                ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100;
+            uint256 toTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION - fee;
+
+            if (_associationCouponAmount == 0)
+                _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
+            else
+                _performTransfers(
+                    _memberWallet,
+                    addressManager.getProtocolAddressByName("COUPON_POOL").addr,
+                    toTransfer,
+                    fee
+                );
+
+            protocolStorageModule.updateAssociationMember(associationMember);
+
+            emit TakasureEvents.OnRecurringAssociationPayment(
+                _memberWallet,
+                associationMember.memberId
+            );
+
+            return true;
+        } else if (
             block.timestamp >
             associationMember.latestPaymentTimestamp + ModuleConstants.YEAR + ModuleConstants.MONTH
         ) {
             _cancelAssociationSubscription(_memberWallet);
             return false;
         }
-
-        require(
-            associationMember.memberState == AssociationMemberState.Active,
-            ModuleErrors.Module__WrongMemberState()
-        );
-
-        uint256 newLatestPaymentTimestamp = associationMember.latestPaymentTimestamp +
-            ModuleConstants.YEAR;
-
-        associationMember.latestPaymentTimestamp = newLatestPaymentTimestamp;
-
-        uint256 fee = (ModuleConstants.ASSOCIATION_SUBSCRIPTION *
-            ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100;
-        uint256 toTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION - fee;
-
-        if (_associationCouponAmount == 0)
-            _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
-        else
-            _performTransfers(
-                _memberWallet,
-                addressManager.getProtocolAddressByName("COUPON_POOL").addr,
-                toTransfer,
-                fee
-            );
-
-        protocolStorageModule.updateAssociationMember(associationMember);
-
-        emit TakasureEvents.OnRecurringAssociationPayment(
-            _memberWallet,
-            associationMember.memberId
-        );
-
-        return true;
     }
 
     /**
@@ -240,7 +246,54 @@ contract ManageSubscriptionsModule is
                 BenefitMember memory benefitMember
             ) = _fetchBenefitMemberFromStorageModule(_benefitAddresses[i], _memberWallet);
 
-            if (!_validateDateAndState(benefitMember)) {
+            if (_validateDateAndState(benefitMember)) {
+                uint256 benefitFee = protocolStorageModule.getUintValue("benefitFee");
+                uint256 toTransfer;
+                uint256 fee;
+
+                if (
+                    addressManager.getProtocolAddressByName("LIFE_BENEFIT_MODULE").addr ==
+                    _benefitAddresses[i]
+                ) {
+                    // If this is the life benefit, then the amount to pay is reduced by the association recurring payment
+                    fee =
+                        ((benefitMember.contribution - ModuleConstants.ASSOCIATION_SUBSCRIPTION) *
+                            benefitFee) /
+                        100;
+                    toTransfer =
+                        (benefitMember.contribution - ModuleConstants.ASSOCIATION_SUBSCRIPTION) -
+                        fee;
+                } else {
+                    fee = (benefitMember.contribution * benefitFee) / 100;
+                    toTransfer = benefitMember.contribution - fee;
+                }
+
+                if (_benefitCouponAmounts[i] == 0)
+                    _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
+                else
+                    _performTransfers(
+                        _memberWallet,
+                        addressManager.getProtocolAddressByName("COUPON_POOL").addr,
+                        toTransfer,
+                        fee
+                    );
+
+                // todo: check other values after benefit modules are ready
+                benefitMember.lastPaidYearStartDate =
+                    benefitMember.lastPaidYearStartDate +
+                    ModuleConstants.YEAR;
+                benefitMember.totalContributions += benefitMember.contribution;
+                benefitMember.totalServiceFee += (benefitMember.contribution * benefitFee) / 100;
+
+                protocolStorageModule.updateBenefitMember(_benefitAddresses[i], benefitMember);
+                emit TakasureEvents.OnRecurringBenefitPayment(
+                    _memberWallet,
+                    benefitMember.memberId,
+                    benefitMember.lastPaidYearStartDate,
+                    benefitMember.contribution,
+                    benefitMember.totalServiceFee
+                );
+            } else {
                 // If the member is late paying more than the grace period, we set the member to Defaulted
                 benefitMember.memberState = BenefitMemberState.Canceled;
                 protocolStorageModule.updateBenefitMember(_benefitAddresses[i], benefitMember);
@@ -252,53 +305,6 @@ contract ManageSubscriptionsModule is
                 );
                 return false;
             }
-
-            uint256 benefitFee = protocolStorageModule.getUintValue("benefitFee");
-            uint256 toTransfer;
-            uint256 fee;
-
-            if (
-                addressManager.getProtocolAddressByName("LIFE_BENEFIT_MODULE").addr ==
-                _benefitAddresses[i]
-            ) {
-                // If this is the life benefit, then the amount to pay is reduced by the association recurring payment
-                fee =
-                    ((benefitMember.contribution - ModuleConstants.ASSOCIATION_SUBSCRIPTION) *
-                        benefitFee) /
-                    100;
-                toTransfer =
-                    (benefitMember.contribution - ModuleConstants.ASSOCIATION_SUBSCRIPTION) -
-                    fee;
-            } else {
-                fee = (benefitMember.contribution * benefitFee) / 100;
-                toTransfer = benefitMember.contribution - fee;
-            }
-
-            if (_benefitCouponAmounts[i] == 0)
-                _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
-            else
-                _performTransfers(
-                    _memberWallet,
-                    addressManager.getProtocolAddressByName("COUPON_POOL").addr,
-                    toTransfer,
-                    fee
-                );
-
-            // todo: check other values after benefit modules are ready
-            benefitMember.lastPaidYearStartDate =
-                benefitMember.lastPaidYearStartDate +
-                ModuleConstants.YEAR;
-            benefitMember.totalContributions += benefitMember.contribution;
-            benefitMember.totalServiceFee += (benefitMember.contribution * benefitFee) / 100;
-
-            protocolStorageModule.updateBenefitMember(_benefitAddresses[i], benefitMember);
-            emit TakasureEvents.OnRecurringBenefitPayment(
-                _memberWallet,
-                benefitMember.memberId,
-                benefitMember.lastPaidYearStartDate,
-                benefitMember.contribution,
-                benefitMember.totalServiceFee
-            );
         }
 
         // todo: we'll need to run model algorithms. Do it later when all benefit modules are ready
@@ -393,13 +399,12 @@ contract ManageSubscriptionsModule is
             ModuleErrors.Module__WrongMemberState()
         );
 
-        // Validate the date, it should be able to pay only if the grace period for the next payment is not reached
+        // Validate the date, it should be able to pay only if the year has ended and grace period for the next payment is not reached
         if (
-            block.timestamp >
+            block.timestamp >= _benefitMember.lastPaidYearStartDate + ModuleConstants.YEAR &&
+            block.timestamp <=
             _benefitMember.lastPaidYearStartDate + ModuleConstants.YEAR + ModuleConstants.MONTH
-        ) return false;
-
-        return true;
+        ) return true;
     }
 
     function _cancelAssociationSubscription(address _memberWallet) internal {
