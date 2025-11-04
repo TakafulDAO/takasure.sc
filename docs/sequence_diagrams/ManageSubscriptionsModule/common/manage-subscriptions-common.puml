@@ -1,0 +1,17 @@
+!define REVERT(reason) ManageSubscriptionsModule -x Backend: revert reason
+
+' Shared guards for ManageSubscriptionsModule entrypoints
+!definelong PRECHECKS_MANAGE_SUBSCRIPTIONS()
+break [Module-NOT-enabled]
+  REVERT("ModuleState != Enabled")
+end
+!enddefinelong
+
+' Shared benefit validation (wraps _validateBenefits)
+!definelong VALIDATE_BENEFITS()
+loop [each-benefit-address]
+  alt [benefit-NOT-in-member-benefits]
+    REVERT("ManageSubscriptionModule__InvalidBenefit()")
+  end
+end
+!enddefinelong
