@@ -97,6 +97,7 @@ contract SubscriptionManagementModule is
             address(this),
             IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
+        AddressAndStates._notZeroAddress(memberWallet);
 
         // Pay for the association subscription
         _payRecurringAssociationSubscription(memberWallet, associationCouponAmount);
