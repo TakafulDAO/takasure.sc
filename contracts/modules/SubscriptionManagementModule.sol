@@ -82,18 +82,15 @@ contract SubscriptionManagementModule is
      * @notice Pay for the recurring services: Association subscription and/or Benefit subscriptions
      * @param memberWallet The wallet of the member paying for the services
      * @param associationCouponAmount The coupon amount to use for the association subscription in six decimals (0 if none)
-     * @param payBenefitSubscriptions Whether to pay for benefit subscriptions
      * @param benefitNames The list of benefit names of the benefits to pay for
      * @param benefitCouponAmounts The list of coupon amounts to use for each benefit in six decimals (0 if none)
-     * @return associationPaid Whether the association subscription was paid successfully
-     * @return benefitsPaid Whether all the benefit subscriptions were paid successfully
      */
     function payRecurringSubscription(
         address memberWallet,
         uint256 associationCouponAmount,
         string[] calldata benefitNames,
         uint256[] calldata benefitCouponAmounts
-    ) external nonReentrant returns (bool associationPaid, bool benefitsPaid) {
+    ) external nonReentrant {
         // Checks
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
@@ -102,18 +99,20 @@ contract SubscriptionManagementModule is
         );
 
         // Pay for the association subscription
-        associationPaid = _payRecurringAssociationSubscription(
-            memberWallet,
-            associationCouponAmount
-        );
+        _payRecurringAssociationSubscription(memberWallet, associationCouponAmount);
 
         // And for the selected benefit subscriptions
+        address[] memory benefitsToCancel;
         if (benefitNames.length > 0)
-            benefitsPaid = _payRecurringBenefitSubscriptions(
+            benefitsToCancel = _payRecurringBenefitSubscriptions(
                 memberWallet,
                 benefitNames,
                 benefitCouponAmounts
             );
+
+        // Cancel the benefits that could not be paid if any
+        if (benefitsToCancel.length > 0)
+            _cancelBenefitSubscriptionsThroughAddress(memberWallet, benefitsToCancel);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -158,12 +157,11 @@ contract SubscriptionManagementModule is
 
     /**
      * @notice Internal function to pay for the recurring association subscription
-     * @return paid_ Whether the association subscription was paid successfully
      */
     function _payRecurringAssociationSubscription(
         address _memberWallet,
         uint256 _associationCouponAmount
-    ) internal returns (bool paid_) {
+    ) internal {
         require(
             _associationCouponAmount == 0 ||
                 _associationCouponAmount == ModuleConstants.ASSOCIATION_SUBSCRIPTION,
@@ -211,8 +209,6 @@ contract SubscriptionManagementModule is
                 associationMember.memberId,
                 ModuleConstants.ASSOCIATION_SUBSCRIPTION
             );
-
-            paid_ = true;
         } else if (
             block.timestamp >
             associationMember.latestPayment + ModuleConstants.YEAR + ModuleConstants.MONTH
@@ -223,24 +219,24 @@ contract SubscriptionManagementModule is
 
     /**
      * @notice Internal function to pay for the recurring benefit subscriptions
-     * @return Whether all the benefit subscriptions were paid successfully
+     * @return benefitsToCancel_ The list of benefit addresses that has to canceled due to non-payment
      */
     function _payRecurringBenefitSubscriptions(
         address _memberWallet,
         string[] memory _benefitNames,
         uint256[] calldata _benefitCouponAmounts
-    ) internal returns (bool) {
+    ) internal returns (address[] memory benefitsToCancel_) {
         require(
             _benefitNames.length == _benefitCouponAmounts.length,
             ModuleErrors.Module__InvalidInput()
         );
 
-        address[] memory benefitAddresses = new address[](_benefitNames.length);
+        address[] memory benefitsToPay = new address[](_benefitNames.length);
 
-        benefitAddresses = _validateBenefits(_memberWallet, _benefitNames);
+        (benefitsToPay, benefitsToCancel_) = _validateBenefits(_memberWallet, _benefitNames);
 
         // Now we loop through all the benefits to pay
-        for (uint256 i; i < benefitAddresses.length; ++i) {
+        for (uint256 i; i < benefitsToPay.length; ++i) {
             // The coupon must be within the allowed values
             if (_benefitCouponAmounts[i] > 0)
                 require(
@@ -252,7 +248,7 @@ contract SubscriptionManagementModule is
             (
                 IProtocolStorageModule protocolStorageModule,
                 BenefitMember memory benefitMember
-            ) = _fetchBenefitMemberFromStorageModule(benefitAddresses[i], _memberWallet);
+            ) = _fetchBenefitMemberFromStorageModule(benefitsToPay[i], _memberWallet);
 
             if (_validateDateAndState(benefitMember)) {
                 uint256 benefitFee = protocolStorageModule.getUintValue("benefitFee");
@@ -261,7 +257,7 @@ contract SubscriptionManagementModule is
 
                 if (
                     addressManager.getProtocolAddressByName("LIFE_BENEFIT_MODULE").addr ==
-                    benefitAddresses[i]
+                    benefitsToPay[i]
                 ) {
                     // If this is the life benefit, then the amount to pay is reduced by the association recurring payment
                     fee =
@@ -293,7 +289,7 @@ contract SubscriptionManagementModule is
                 benefitMember.totalContributions += benefitMember.contribution;
                 benefitMember.totalServiceFee += (benefitMember.contribution * benefitFee) / 100;
 
-                protocolStorageModule.updateBenefitMember(benefitAddresses[i], benefitMember);
+                protocolStorageModule.updateBenefitMember(benefitsToPay[i], benefitMember);
                 emit TakasureEvents.OnRecurringBenefitPayment(
                     _memberWallet,
                     _benefitNames[i],
@@ -305,20 +301,17 @@ contract SubscriptionManagementModule is
             } else {
                 // If the member is late paying more than the grace period, we set the member to Defaulted
                 benefitMember.memberState = BenefitMemberState.Canceled;
-                protocolStorageModule.updateBenefitMember(benefitAddresses[i], benefitMember);
+                protocolStorageModule.updateBenefitMember(benefitsToPay[i], benefitMember);
                 emit TakasureEvents.OnBenefitMemberCanceled(
                     benefitMember.memberId,
-                    benefitAddresses[i],
+                    benefitsToPay[i],
                     _memberWallet,
                     benefitMember.memberState
                 );
-                return false;
             }
         }
 
         // todo: we'll need to run model algorithms. Do it later when all benefit modules are ready
-
-        return true;
     }
 
     /**
@@ -370,7 +363,11 @@ contract SubscriptionManagementModule is
     function _validateBenefits(
         address _memberWallet,
         string[] memory _benefitNames
-    ) internal view returns (address[] memory benefitAddresses_) {
+    )
+        internal
+        view
+        returns (address[] memory benefitAddresses_, address[] memory remainingBenefits_)
+    {
         // Get the association member to validate the benefits
         (, AssociationMember memory associationMember) = _fetchAssociationMemberFromStorageModule(
             _memberWallet
@@ -378,21 +375,55 @@ contract SubscriptionManagementModule is
 
         address[] memory memberBenefits = associationMember.benefits;
 
-        // Now we check the benefits addresses belongs to the association member benefits
-        // O(M*N) complexity, but N and M are expected to be small numbers
-        for (uint256 i; i < _benefitNames.length; ++i) {
+        uint256 namesLen = _benefitNames.length;
+        uint256 memberBenefitsLen = memberBenefits.length;
+
+        // Addresses corresponding to each given benefit name
+        benefitAddresses_ = new address[](namesLen);
+
+        // Track which member benefits have been "used" (matched) by the names
+        bool[] memory used = new bool[](memberBenefitsLen);
+
+        // Validate that all requested benefits belong to the member
+        // O(M * N) with small expected sizes
+        for (uint256 i; i < namesLen; ++i) {
             address benefit = addressManager.getProtocolAddressByName(_benefitNames[i]).addr;
             bool found;
 
-            for (uint256 j; j < memberBenefits.length; ++j) {
+            for (uint256 j; j < memberBenefitsLen; ++j) {
                 if (memberBenefits[j] == benefit) {
                     found = true;
                     benefitAddresses_[i] = benefit;
+                    used[j] = true; // mark this benefit as consumed
                     break;
                 }
             }
 
-            require(found, ManageSubscriptionModule__InvalidBenefit());
+            if (!found) {
+                revert ManageSubscriptionModule__InvalidBenefit();
+            }
+        }
+
+        // Count how many benefits remain unused
+        uint256 remainingCount;
+        for (uint256 i; i < memberBenefitsLen; ++i) {
+            if (!used[i]) {
+                unchecked {
+                    ++remainingCount;
+                }
+            }
+        }
+
+        // Populate remainingBenefits_ with those unused benefits
+        remainingBenefits_ = new address[](remainingCount);
+        uint256 k;
+        for (uint256 i; i < memberBenefitsLen; ++i) {
+            if (!used[i]) {
+                remainingBenefits_[k] = memberBenefits[i];
+                unchecked {
+                    ++k;
+                }
+            }
         }
     }
 
@@ -464,11 +495,11 @@ contract SubscriptionManagementModule is
         address _memberWallet,
         string[] memory _benefitNames
     ) internal {
-        address[] memory benefitAddresses = new address[](_benefitNames.length);
+        address[] memory benefitToCancel = new address[](_benefitNames.length);
         // Validate the benefits
-        benefitAddresses = _validateBenefits(_memberWallet, _benefitNames);
+        (benefitToCancel, ) = _validateBenefits(_memberWallet, _benefitNames);
 
-        _cancelBenefitSubscriptionsThroughAddress(_memberWallet, benefitAddresses);
+        _cancelBenefitSubscriptionsThroughAddress(_memberWallet, benefitToCancel);
     }
 
     function _cancelBenefitSubscriptionsThroughAddress(
