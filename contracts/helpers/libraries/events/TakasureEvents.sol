@@ -28,7 +28,8 @@ library TakasureEvents {
     );
     event OnRecurringBenefitPayment(
         address member,
-        uint256 indexed memberId,
+        string indexed benefitName,
+        uint256 memberId,
         uint256 indexed lastPaidYearDate,
         uint256 indexed latestContribution,
         uint256 updatedTotalServiceFee
