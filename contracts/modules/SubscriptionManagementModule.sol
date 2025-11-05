@@ -179,19 +179,18 @@ contract SubscriptionManagementModule is
 
         // Validate the date, it should be able to pay only if the year has ended and grace period for the next payment is not reached
         if (
-            block.timestamp >= associationMember.latestPaymentTimestamp + ModuleConstants.YEAR &&
+            block.timestamp >= associationMember.latestPayment + ModuleConstants.YEAR &&
             block.timestamp <=
-            associationMember.latestPaymentTimestamp + ModuleConstants.YEAR + ModuleConstants.MONTH
+            associationMember.latestPayment + ModuleConstants.YEAR + ModuleConstants.MONTH
         ) {
             require(
                 associationMember.memberState == AssociationMemberState.Active,
                 ModuleErrors.Module__WrongMemberState()
             );
 
-            uint256 newLatestPaymentTimestamp = associationMember.latestPaymentTimestamp +
-                ModuleConstants.YEAR;
+            uint256 newlatestPayment = associationMember.latestPayment + ModuleConstants.YEAR;
 
-            associationMember.latestPaymentTimestamp = newLatestPaymentTimestamp;
+            associationMember.latestPayment = newlatestPayment;
 
             uint256 fee = (ModuleConstants.ASSOCIATION_SUBSCRIPTION *
                 ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100;
@@ -218,7 +217,7 @@ contract SubscriptionManagementModule is
             paid_ = true;
         } else if (
             block.timestamp >
-            associationMember.latestPaymentTimestamp + ModuleConstants.YEAR + ModuleConstants.MONTH
+            associationMember.latestPayment + ModuleConstants.YEAR + ModuleConstants.MONTH
         ) {
             _cancelAssociationSubscription(_memberWallet);
         }
@@ -445,7 +444,7 @@ contract SubscriptionManagementModule is
             discount: 0, // Reset the discount
             couponAmountRedeemed: 0, // Reset the coupon redeemed
             associateStartTime: 0, // Reset the start time
-            latestPaymentTimestamp: 0, // Reset the latest payment timestamp
+            latestPayment: 0, // Reset the latest payment timestamp
             wallet: _memberWallet,
             parent: address(0), // Reset the parent
             memberState: associationMember.memberState,

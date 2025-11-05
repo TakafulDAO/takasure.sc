@@ -15,10 +15,22 @@ import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IRevenueModule} from "contracts/interfaces/modules/IRevenueModule.sol";
 
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
-import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {
+    UUPSUpgradeable,
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {AssociationMember, AssociationMemberState, ModuleState, ProtocolAddress, ProtocolAddressType, RevenueType} from "contracts/types/TakasureTypes.sol";
+import {
+    AssociationMember,
+    AssociationMemberState,
+    ModuleState,
+    ProtocolAddress,
+    ProtocolAddressType,
+    RevenueType
+} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
@@ -245,7 +257,7 @@ contract SubscriptionModule is
             discount: 0, // Placeholder
             couponAmountRedeemed: _couponAmount, // in six decimals
             associateStartTime: _membershipStartTime,
-            latestPaymentTimestamp: _membershipStartTime, // On creation, latest payment is the same as start time
+            latestPayment: _membershipStartTime, // On creation, latest payment is the same as start time
             wallet: _userWallet,
             parent: _parentWallet,
             memberState: AssociationMemberState.Inactive, // Set to inactive until the KYC is verified
@@ -385,7 +397,7 @@ contract SubscriptionModule is
             discount: 0, // Reset the discount
             couponAmountRedeemed: 0, // Reset the coupon amount redeemed
             associateStartTime: 0, // Reset the start time
-            latestPaymentTimestamp: 0, // Reset the latest payment timestamp
+            latestPayment: 0, // Reset the latest payment timestamp
             wallet: _memberWallet,
             parent: address(0), // Reset the parent
             memberState: AssociationMemberState.Inactive, // Set to inactive in case the user already made KYC
