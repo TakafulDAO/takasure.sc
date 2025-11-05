@@ -3,8 +3,7 @@
 /**
  * @title SubscriptionManagementModule
  * @author Maikel Ordaz
- * @notice This contract will manage cancelations and recurring payments. On the Association and
- *         benefits
+ * @notice This contract will manage cancellations and recurring payments for the TLD Association and its benefits
  * @dev It will interact with the TakasureReserve and/or SubscriptionModule contract to update the corresponding values
  * @dev All external functions are allowed to be called either by the member or by a backend admin
  * @dev Upgradeable contract with UUPS pattern
