@@ -81,7 +81,6 @@ contract SubscriptionManagementModule is
     /**
      * @notice Pay for the recurring services: Association subscription and/or Benefit subscriptions
      * @param memberWallet The wallet of the member paying for the services
-     * @param payAssociationSubscription Whether to pay for the association subscription
      * @param associationCouponAmount The coupon amount to use for the association subscription in six decimals (0 if none)
      * @param payBenefitSubscriptions Whether to pay for benefit subscriptions
      * @param benefitNames The list of benefit names of the benefits to pay for
@@ -91,9 +90,7 @@ contract SubscriptionManagementModule is
      */
     function payRecurringSubscription(
         address memberWallet,
-        bool payAssociationSubscription,
         uint256 associationCouponAmount,
-        bool payBenefitSubscriptions,
         string[] calldata benefitNames,
         uint256[] calldata benefitCouponAmounts
     ) external nonReentrant returns (bool associationPaid, bool benefitsPaid) {
@@ -104,13 +101,14 @@ contract SubscriptionManagementModule is
             IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
-        // Pay for the selected services
-        if (payAssociationSubscription)
-            associationPaid = _payRecurringAssociationSubscription(
-                memberWallet,
-                associationCouponAmount
-            );
-        if (payBenefitSubscriptions)
+        // Pay for the association subscription
+        associationPaid = _payRecurringAssociationSubscription(
+            memberWallet,
+            associationCouponAmount
+        );
+
+        // And for the selected benefit subscriptions
+        if (benefitNames.length > 0)
             benefitsPaid = _payRecurringBenefitSubscriptions(
                 memberWallet,
                 benefitNames,
