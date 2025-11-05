@@ -77,7 +77,7 @@ contract SubscriptionManagementModule is
      * @return associationPaid Whether the association subscription was paid successfully
      * @return benefitsPaid Whether all the benefit subscriptions were paid successfully
      */
-    function payRecurringServices(
+    function payRecurringSubscription(
         address memberWallet,
         bool payAssociationSubscription,
         uint256 associationCouponAmount,
