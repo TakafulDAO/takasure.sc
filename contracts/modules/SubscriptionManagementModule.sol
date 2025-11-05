@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GPL-3.0
 
 /**
- * @title ManageSubscriptionsModule
+ * @title SubscriptionManagementModule
  * @author Maikel Ordaz
  * @notice This contract will manage cancelations and recurring payments. On the Association and
  *         benefits
@@ -29,7 +29,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
-contract ManageSubscriptionsModule is
+contract SubscriptionManagementModule is
     ModuleImplementation,
     MemberPaymentFlow,
     Initializable,
