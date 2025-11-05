@@ -200,7 +200,8 @@ contract SubscriptionManagementModule is
 
             emit TakasureEvents.OnRecurringAssociationPayment(
                 _memberWallet,
-                associationMember.memberId
+                associationMember.memberId,
+                ModuleConstants.ASSOCIATION_SUBSCRIPTION
             );
 
             paid_ = true;
