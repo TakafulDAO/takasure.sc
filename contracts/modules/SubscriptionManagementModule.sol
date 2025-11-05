@@ -13,12 +13,24 @@ import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
 
-import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {
+    UUPSUpgradeable,
+    Initializable
+} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
-import {Reserve, BenefitMember, BenefitMemberState, ModuleState, AssociationMember, AssociationMemberState} from "contracts/types/TakasureTypes.sol";
+import {
+    Reserve,
+    BenefitMember,
+    BenefitMemberState,
+    ModuleState,
+    AssociationMember,
+    AssociationMemberState
+} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
@@ -425,7 +437,8 @@ contract SubscriptionManagementModule is
         ) associationMember.memberState = AssociationMemberState.PendingCancellation;
         else associationMember.memberState = AssociationMemberState.Canceled;
 
-        address[] memory previousBenefits = associationMember.benefits;
+        // Cancel all the benefit subscriptions
+        _cancelBenefitSubscriptionsThroughAddress(_memberWallet, associationMember.benefits);
 
         associationMember = AssociationMember({
             memberId: associationMember.memberId,
@@ -437,7 +450,7 @@ contract SubscriptionManagementModule is
             parent: address(0), // Reset the parent
             memberState: associationMember.memberState,
             isRefunded: false,
-            benefits: new address[](0),
+            benefits: associationMember.benefits,
             childs: new address[](0)
         });
 
@@ -448,9 +461,6 @@ contract SubscriptionManagementModule is
             _memberWallet,
             associationMember.memberState
         );
-
-        // Now cancel all the benefit subscriptions
-        _cancelBenefitSubscriptionsThroughAddress(_memberWallet, previousBenefits);
     }
 
     function _cancelBenefitSubscriptions(
@@ -468,10 +478,9 @@ contract SubscriptionManagementModule is
         address _memberWallet,
         address[] memory _benefitAddresses
     ) internal {
-        (
-            IProtocolStorageModule protocolStorageModule,
-            AssociationMember memory associationMember
-        ) = _fetchAssociationMemberFromStorageModule(_memberWallet);
+        (IProtocolStorageModule protocolStorageModule, ) = _fetchAssociationMemberFromStorageModule(
+            _memberWallet
+        );
 
         // Track the benefits that actually become CANCELED (only these are removed)
         address[] memory canceled = new address[](_benefitAddresses.length);
@@ -508,41 +517,6 @@ contract SubscriptionManagementModule is
                 _memberWallet,
                 benefitMember.memberState
             );
-        }
-
-        if (canceledCount > 0) {
-            address[] memory oldBenefits = associationMember.benefits;
-
-            // Filter out any address that appears in `canceled[0..canceledCount)`
-            address[] memory temp = new address[](oldBenefits.length);
-            uint256 keep;
-
-            for (uint256 i; i < oldBenefits.length; ++i) {
-                address old = oldBenefits[i];
-                bool remove;
-
-                // small N expected → O(N*M) is fine; short-circuits on match
-                for (uint256 j; j < canceledCount; ++j) {
-                    if (old == canceled[j]) {
-                        remove = true;
-                        break;
-                    }
-                }
-
-                if (!remove) {
-                    temp[keep] = old;
-                    ++keep;
-                }
-            }
-
-            // Shrink to exact size
-            address[] memory finalBenefits = new address[](keep);
-            for (uint256 k; k < keep; ++k) {
-                finalBenefits[k] = temp[k];
-            }
-
-            associationMember.benefits = finalBenefits;
-            protocolStorageModule.updateAssociationMember(associationMember);
         }
     }
 
