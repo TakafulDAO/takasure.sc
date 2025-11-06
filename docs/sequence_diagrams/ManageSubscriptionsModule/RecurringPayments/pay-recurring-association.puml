@@ -1,5 +1,5 @@
 @startuml ManageSubscriptions_payRecurringAssociation
-title payRecurringServices – association subscription flow
+title payRecurringSubscription – association subscription flow
 autonumber
 
 !include ../common/manage-subscriptions-common.puml
@@ -15,7 +15,7 @@ participant FeeClaimer
 participant CouponPool
 
 Member -> Backend: request recurring association payment
-Backend -> ManageSubscriptionsModule: payRecurringServices(memberWallet,\n  payAssociationSubscription=true,\n  associationCouponAmount,\n  payBenefitSubscriptions=false,\n  [], [])
+Backend -> ManageSubscriptionsModule: payRecurringSubscription(memberWallet,\n  associationCouponAmount,\n  [], [])
 
 PRECHECKS_MANAGE_SUBSCRIPTIONS()
 

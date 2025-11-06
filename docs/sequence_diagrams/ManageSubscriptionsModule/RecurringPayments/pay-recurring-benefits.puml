@@ -1,5 +1,5 @@
 @startuml ManageSubscriptions_payRecurringBenefits
-title payRecurringServices – benefit subscriptions flow
+title payRecurringSubscription – benefit subscriptions flow
 autonumber
 
 !include ../common/manage-subscriptions-common.puml
@@ -16,7 +16,7 @@ participant CouponPool
 participant LifeBenefitModule
 
 Member -> Backend: request recurring benefit payments
-Backend -> ManageSubscriptionsModule: payRecurringServices(memberWallet,\n  payAssociationSubscription=false,\n  associationCouponAmount=0,\n  payBenefitSubscriptions=true,\n  benefitAddresses,\n  benefitCouponAmounts)
+Backend -> ManageSubscriptionsModule: payRecurringSubscription(memberWallet,\n  associationCouponAmount=0,\n  benefitAddresses,\n  benefitCouponAmounts)
 
 PRECHECKS_MANAGE_SUBSCRIPTIONS()
 
