@@ -49,6 +49,13 @@ contract SubscriptionManagementModule is
 {
     using SafeERC20 for IERC20;
 
+    // Helper struct to avoid stack too deep errors in the benefit payment function
+    struct PayRecurringBenefitParams {
+        address memberWallet;
+        string[] benefitNames;
+        uint256[] benefitCouponAmounts;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -106,9 +113,11 @@ contract SubscriptionManagementModule is
         address[] memory benefitsToCancel;
         if (benefitNames.length > 0)
             benefitsToCancel = _payRecurringBenefitSubscriptions(
-                memberWallet,
-                benefitNames,
-                benefitCouponAmounts
+                PayRecurringBenefitParams({
+                    memberWallet: memberWallet,
+                    benefitNames: benefitNames,
+                    benefitCouponAmounts: benefitCouponAmounts
+                })
             );
 
         // Cancel the benefits that could not be paid if any
@@ -163,16 +172,15 @@ contract SubscriptionManagementModule is
         address _memberWallet,
         uint256 _associationCouponAmount
     ) internal {
-        require(
-            _associationCouponAmount == 0 ||
-                _associationCouponAmount == ModuleConstants.ASSOCIATION_SUBSCRIPTION,
-            ModuleErrors.Module__InvalidCoupon()
-        );
-
         (
             IProtocolStorageModule protocolStorageModule,
             AssociationMember memory associationMember
         ) = _fetchAssociationMemberFromStorageModule(_memberWallet);
+
+        require(
+            _associationCouponAmount >= 0 && _associationCouponAmount <= associationMember.planId,
+            ModuleErrors.Module__InvalidCoupon()
+        );
 
         // Validate the date, it should be able to pay only if the year has ended and grace period for the next payment is not reached
         if (
@@ -189,9 +197,9 @@ contract SubscriptionManagementModule is
 
             associationMember.latestPayment = newlatestPayment;
 
-            uint256 fee = (ModuleConstants.ASSOCIATION_SUBSCRIPTION *
+            uint256 fee = (associationMember.planId *
                 ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100;
-            uint256 toTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION - fee;
+            uint256 toTransfer = associationMember.planId - fee;
 
             if (_associationCouponAmount == 0)
                 _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
@@ -208,7 +216,7 @@ contract SubscriptionManagementModule is
             emit TakasureEvents.OnRecurringAssociationPayment(
                 _memberWallet,
                 associationMember.memberId,
-                ModuleConstants.ASSOCIATION_SUBSCRIPTION
+                associationMember.planId
             );
         } else if (
             block.timestamp >
@@ -223,33 +231,39 @@ contract SubscriptionManagementModule is
      * @return benefitsToCancel_ The list of benefit addresses that has to canceled due to non-payment
      */
     function _payRecurringBenefitSubscriptions(
-        address _memberWallet,
-        string[] memory _benefitNames,
-        uint256[] calldata _benefitCouponAmounts
+        PayRecurringBenefitParams memory _params
     ) internal returns (address[] memory benefitsToCancel_) {
         require(
-            _benefitNames.length == _benefitCouponAmounts.length,
+            _params.benefitNames.length == _params.benefitCouponAmounts.length,
             ModuleErrors.Module__InvalidInput()
         );
 
-        address[] memory benefitsToPay = new address[](_benefitNames.length);
+        address[] memory benefitsToPay = new address[](_params.benefitNames.length);
 
-        (benefitsToPay, benefitsToCancel_) = _validateBenefits(_memberWallet, _benefitNames);
+        (benefitsToPay, benefitsToCancel_) = _validateBenefits(
+            _params.memberWallet,
+            _params.benefitNames
+        );
 
         // Now we loop through all the benefits to pay
         for (uint256 i; i < benefitsToPay.length; ++i) {
             // The coupon must be within the allowed values
-            if (_benefitCouponAmounts[i] > 0)
+            if (_params.benefitCouponAmounts[i] > 0)
                 require(
-                    _benefitCouponAmounts[i] >= ModuleConstants.BENEFIT_MIN_SUBSCRIPTION &&
-                        _benefitCouponAmounts[i] <= ModuleConstants.BENEFIT_MAX_SUBSCRIPTION,
+                    _params.benefitCouponAmounts[i] >= ModuleConstants.BENEFIT_MIN_SUBSCRIPTION &&
+                        _params.benefitCouponAmounts[i] <= ModuleConstants.BENEFIT_MAX_SUBSCRIPTION,
                     ModuleErrors.Module__InvalidCoupon()
                 );
 
             (
                 IProtocolStorageModule protocolStorageModule,
                 BenefitMember memory benefitMember
-            ) = _fetchBenefitMemberFromStorageModule(benefitsToPay[i], _memberWallet);
+            ) = _fetchBenefitMemberFromStorageModule(benefitsToPay[i], _params.memberWallet);
+
+            (
+                ,
+                AssociationMember memory associationMember
+            ) = _fetchAssociationMemberFromStorageModule(_params.memberWallet);
 
             if (_validateDateAndState(benefitMember)) {
                 uint256 benefitFee = protocolStorageModule.getUintValue("benefitFee");
@@ -262,22 +276,19 @@ contract SubscriptionManagementModule is
                 ) {
                     // If this is the life benefit, then the amount to pay is reduced by the association recurring payment
                     fee =
-                        ((benefitMember.contribution - ModuleConstants.ASSOCIATION_SUBSCRIPTION) *
-                            benefitFee) /
+                        ((benefitMember.contribution - associationMember.planId) * benefitFee) /
                         100;
-                    toTransfer =
-                        (benefitMember.contribution - ModuleConstants.ASSOCIATION_SUBSCRIPTION) -
-                        fee;
+                    toTransfer = (benefitMember.contribution - associationMember.planId) - fee;
                 } else {
                     fee = (benefitMember.contribution * benefitFee) / 100;
                     toTransfer = benefitMember.contribution - fee;
                 }
 
-                if (_benefitCouponAmounts[i] == 0)
-                    _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
+                if (_params.benefitCouponAmounts[i] == 0)
+                    _performTransfers(_params.memberWallet, _params.memberWallet, toTransfer, fee);
                 else
                     _performTransfers(
-                        _memberWallet,
+                        _params.memberWallet,
                         addressManager.getProtocolAddressByName("COUPON_POOL").addr,
                         toTransfer,
                         fee
@@ -292,8 +303,8 @@ contract SubscriptionManagementModule is
 
                 protocolStorageModule.updateBenefitMember(benefitsToPay[i], benefitMember);
                 emit TakasureEvents.OnRecurringBenefitPayment(
-                    _memberWallet,
-                    _benefitNames[i],
+                    _params.memberWallet,
+                    _params.benefitNames[i],
                     benefitMember.memberId,
                     benefitMember.lastPaidYearStartDate,
                     benefitMember.contribution,
@@ -306,7 +317,7 @@ contract SubscriptionManagementModule is
                 emit TakasureEvents.OnBenefitMemberCanceled(
                     benefitMember.memberId,
                     benefitsToPay[i],
-                    _memberWallet,
+                    _params.memberWallet,
                     benefitMember.memberState
                 );
             }
@@ -471,6 +482,7 @@ contract SubscriptionManagementModule is
 
         associationMember = AssociationMember({
             memberId: associationMember.memberId,
+            planId: 0, // Reset the plan id
             discount: 0, // Reset the discount
             couponAmountRedeemed: 0, // Reset the coupon redeemed
             associateStartTime: 0, // Reset the start time

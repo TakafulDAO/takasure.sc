@@ -17,4 +17,5 @@ library ModuleErrors {
     error Module__InvalidDate();
     error Module__NotAuthorizedCaller();
     error Module__InvalidAddress();
+    error Module__InvalidPlanId();
 }

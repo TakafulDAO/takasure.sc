@@ -65,6 +65,7 @@ struct PrepaidMember {
 // not if the protocol is already deployed
 struct AssociationMember {
     uint256 memberId;
+    uint256 planId; // Corresponds to the contribution plan selected in six decimals
     uint256 discount;
     uint256 couponAmountRedeemed; // in stablecoin currency, six decimals
     uint256 associateStartTime; // in seconds

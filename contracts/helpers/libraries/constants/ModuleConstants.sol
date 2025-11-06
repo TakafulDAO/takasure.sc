@@ -11,7 +11,6 @@ library ModuleConstants {
     uint256 internal constant DAY = 1 days;
 
     // Subscription constants
-    uint256 internal constant ASSOCIATION_SUBSCRIPTION = 25e6; // 25 USDC in six decimals
     uint256 internal constant ASSOCIATION_SUBSCRIPTION_FEE = 27; // 27% service fee, in percentage
     uint256 internal constant BENEFIT_MIN_SUBSCRIPTION = 25; // 25 USDC in six decimals
     uint256 internal constant BENEFIT_MAX_SUBSCRIPTION = 250; // 250 USDC in six decimals
