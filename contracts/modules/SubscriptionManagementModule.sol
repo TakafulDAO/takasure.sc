@@ -60,7 +60,6 @@ contract SubscriptionManagementModule is
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    error ManageSubscriptionModule__InvalidDate();
     error ManageSubscriptionModule__InvalidBenefit();
 
     /*//////////////////////////////////////////////////////////////
@@ -223,6 +222,8 @@ contract SubscriptionManagementModule is
             associationMember.latestPayment + ModuleConstants.YEAR + ModuleConstants.MONTH
         ) {
             _cancelAssociationSubscription(_memberWallet);
+        } else {
+            revert ModuleErrors.Module__InvalidDate();
         }
     }
 
