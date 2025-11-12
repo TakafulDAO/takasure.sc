@@ -249,7 +249,6 @@ contract SubscriptionModule is
             childs: new address[](0) // Clean childs array
         });
 
-        // TODO: ReferralRewardsModule to be written
         IReferralRewardsModule referralRewardsModule =
             IReferralRewardsModule(addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr);
 
@@ -275,9 +274,31 @@ contract SubscriptionModule is
         });
 
         // Update the member mapping
-
         if (isRejoin) protocolStorageModule.updateAssociationMember(member);
         else protocolStorageModule.createAssociationMember(member);
+
+        if (_parentWallet != address(0)) _addChildToParent(_userWallet, _parentWallet);
+    }
+
+    function _addChildToParent(address _childAddress, address _parentAddress) internal {
+        // Add the member as a child to the parent
+        (IProtocolStorageModule protocolStorageModule, AssociationMember memory parent) =
+            _fetchMemberFromStorageModule(_parentAddress);
+
+        // Take current childs and create a new array with one more slot
+        address[] memory childs = parent.childs;
+        uint256 childsLength = childs.length;
+        address[] memory newChilds = new address[](childsLength + 1);
+
+        // Copy old childs to new array
+        for (uint256 i = 0; i < childsLength; ++i) {
+            newChilds[i] = childs[i];
+        }
+
+        // Add the new child at the end and update the parent's childs array
+        newChilds[childsLength] = _childAddress;
+        parent.childs = newChilds;
+        protocolStorageModule.updateAssociationMember(parent);
     }
 
     /**
@@ -341,7 +362,7 @@ contract SubscriptionModule is
 
         // Check if it has any benefit membership and any child
         require(_member.benefits.length == 0, SubscriptionModule__IsBenefitMember());
-        require(_member.childs.length == 0, SubscriptionModule__HasReferrals()); // todo: ask this to the rewards module
+        require(_member.childs.length == 0, SubscriptionModule__HasReferrals());
 
         // As there is only one contribution, is easy to calculte with the Member struct values
         uint256 contributionAmountAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION
