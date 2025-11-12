@@ -13,12 +13,22 @@ import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStor
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IRevenueModule} from "contracts/interfaces/modules/IRevenueModule.sol";
+import {ISubscriptionModule} from "contracts/interfaces/modules/ISubscriptionModule.sol";
 
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {AssociationMember, AssociationMemberState, ModuleState, ProtocolAddress, ProtocolAddressType, RevenueType} from "contracts/types/TakasureTypes.sol";
+import {
+    AssociationMember,
+    AssociationMemberState,
+    ModuleState,
+    ProtocolAddress,
+    ProtocolAddressType,
+    RevenueType
+} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
@@ -30,6 +40,7 @@ pragma solidity 0.8.28;
 
 contract SubscriptionModule is
     ModuleImplementation,
+    ISubscriptionModule,
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable
@@ -64,6 +75,15 @@ contract SubscriptionModule is
                          SUBSCRIPTION PAYMENTS
     //////////////////////////////////////////////////////////////*/
 
+    function joinFromReferralGateway(
+        address userWallet,
+        address parentWallet,
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration
+    ) external {
+        // TODO: to impleent on benefit PR
+    }
+
     /**
      * @notice Allow new members to join the association.
      * @param parentWallet Optional parent address. If there is no parent it must be address(0)
@@ -72,14 +92,11 @@ contract SubscriptionModule is
     function paySubscription(address parentWallet) external {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled,
-            address(this),
-            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
-        IProtocolStorageModule protocolStorageModule = IProtocolStorageModule(
-            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
-        );
+        IProtocolStorageModule protocolStorageModule =
+            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
 
         bool allowUsersToPay = protocolStorageModule.getBoolValue("allowUsersToJoinAssociation");
         require(allowUsersToPay, ModuleErrors.Module__NotAuthorizedCaller());
@@ -104,9 +121,7 @@ contract SubscriptionModule is
     ) external {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled,
-            address(this),
-            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
         require(
             couponAmount == 0 || couponAmount == ModuleConstants.ASSOCIATION_SUBSCRIPTION,
@@ -125,14 +140,10 @@ contract SubscriptionModule is
      * @dev To be called by the operator only
      * @param memberWallet address to be refunded
      */
-    function refund(
-        address memberWallet
-    ) external onlyRole(Roles.BACKEND_ADMIN, address(addressManager)) {
+    function refund(address memberWallet) external onlyRole(Roles.BACKEND_ADMIN, address(addressManager)) {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled,
-            address(this),
-            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
         _refund(memberWallet);
     }
@@ -148,14 +159,10 @@ contract SubscriptionModule is
      * @dev If the caller is the backend then the Revenue Type will be donation
      * @dev If the caller is a Benefit Module, then the Revenue Type will be Subscription
      */
-    function transferSubscriptionToReserve(
-        address memberWallet
-    ) external nonReentrant returns (uint256) {
+    function transferSubscriptionToReserve(address memberWallet) external nonReentrant returns (uint256) {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled,
-            address(this),
-            addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
         (, AssociationMember memory member) = _fetchMemberFromStorageModule(memberWallet);
 
@@ -175,22 +182,16 @@ contract SubscriptionModule is
         }
 
         // Reward the parents if there is any
-        IReferralRewardsModule(
-            addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
-        ).rewardParents({child: memberWallet});
+        IReferralRewardsModule(addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr)
+            .rewardParents({child: memberWallet});
 
         // TODO: Revenue module to be written
-        address revenueModuleAddress = addressManager
-            .getProtocolAddressByName("REVENUE_MODULE")
-            .addr;
+        address revenueModuleAddress = addressManager.getProtocolAddressByName("REVENUE_MODULE").addr;
         IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
-        uint256 amountToTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
-            ((ModuleConstants.ASSOCIATION_SUBSCRIPTION *
-                ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
+        uint256 amountToTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION
+            - ((ModuleConstants.ASSOCIATION_SUBSCRIPTION * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
 
         // Check if the user had any discount
         uint256 userDiscount = member.discount;
@@ -223,15 +224,13 @@ contract SubscriptionModule is
     ) internal nonReentrant {
         // Check caller
         require(
-            AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager)) ||
-                AddressAndStates._checkName("ROUTER", address(addressManager)),
+            AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager))
+                || AddressAndStates._checkName("ROUTER", address(addressManager)),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
-        (
-            IProtocolStorageModule protocolStorageModule,
-            AssociationMember memory member
-        ) = _fetchMemberFromStorageModule(_userWallet);
+        (IProtocolStorageModule protocolStorageModule, AssociationMember memory member) =
+            _fetchMemberFromStorageModule(_userWallet);
 
         // To know if we are creating a new member or updating an existing one we need to check the wallet and refund state
         bool isRejoin = member.wallet == _userWallet && member.isRefunded;
@@ -251,22 +250,16 @@ contract SubscriptionModule is
         });
 
         // TODO: ReferralRewardsModule to be written
-        IReferralRewardsModule referralRewardsModule = IReferralRewardsModule(
-            addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr
-        );
+        IReferralRewardsModule referralRewardsModule =
+            IReferralRewardsModule(addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr);
 
-        (
-            uint256 feeAmount,
-            uint256 discount,
-            uint256 toReferralReserveAmount
-        ) = referralRewardsModule.calculateReferralRewards({
-                contribution: ModuleConstants.ASSOCIATION_SUBSCRIPTION,
-                couponAmount: _couponAmount,
-                child: _userWallet,
-                parent: _parentWallet,
-                feeAmount: (ModuleConstants.ASSOCIATION_SUBSCRIPTION *
-                    ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100
-            });
+        (uint256 feeAmount, uint256 discount, uint256 toReferralReserveAmount) = referralRewardsModule.calculateReferralRewards({
+            contribution: ModuleConstants.ASSOCIATION_SUBSCRIPTION,
+            couponAmount: _couponAmount,
+            child: _userWallet,
+            parent: _parentWallet,
+            feeAmount: (ModuleConstants.ASSOCIATION_SUBSCRIPTION * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100
+        });
         member.discount = discount;
 
         // Transfer the contribution amount from the user wallet to this contract
@@ -298,9 +291,7 @@ contract SubscriptionModule is
         address _userWallet,
         address _referralRewardsModule
     ) internal {
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
         uint256 contributionAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION - _fee;
         bool transferFromMember = _couponAmount == 0 ? true : false;
@@ -318,15 +309,14 @@ contract SubscriptionModule is
         }
 
         // Transfer the referral reserve amount to the corresponding module
-        if (_toReferralReserveAmount > 0)
+        if (_toReferralReserveAmount > 0) {
             contributionToken.safeTransfer(_referralRewardsModule, _toReferralReserveAmount);
+        }
     }
 
     function _transferFee(IERC20 _contributionToken, address _fromAddress, uint256 _fee) internal {
         _contributionToken.safeTransferFrom(
-            _fromAddress,
-            addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr,
-            _fee
+            _fromAddress, addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr, _fee
         );
     }
 
@@ -336,10 +326,8 @@ contract SubscriptionModule is
      */
     function _refund(address _memberWallet) internal {
         AddressAndStates._notZeroAddress(_memberWallet);
-        (
-            IProtocolStorageModule _protocolStorageModule,
-            AssociationMember memory _member
-        ) = _fetchMemberFromStorageModule(_memberWallet);
+        (IProtocolStorageModule _protocolStorageModule, AssociationMember memory _member) =
+            _fetchMemberFromStorageModule(_memberWallet);
 
         // The member should exist and not be refunded
         require(_member.wallet == _memberWallet, ModuleErrors.Module__InvalidAddress());
@@ -356,15 +344,12 @@ contract SubscriptionModule is
         require(_member.childs.length == 0, SubscriptionModule__HasReferrals()); // todo: ask this to the rewards module
 
         // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmountAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION -
-            ((ModuleConstants.ASSOCIATION_SUBSCRIPTION *
-                ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
+        uint256 contributionAmountAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION
+            - ((ModuleConstants.ASSOCIATION_SUBSCRIPTION * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
         uint256 discountAmount = _member.discount;
         uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
         // Transfer the amount to refund
         if (_member.couponAmountRedeemed > 0) {
@@ -394,23 +379,22 @@ contract SubscriptionModule is
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
     }
 
-    function _fetchMemberFromStorageModule(
-        address _userWallet
-    )
+    function _fetchMemberFromStorageModule(address _userWallet)
         internal
         view
         returns (IProtocolStorageModule protocolStorageModule_, AssociationMember memory member_)
     {
-        protocolStorageModule_ = IProtocolStorageModule(
-            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
-        );
+        protocolStorageModule_ =
+            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
 
         // Get the member from storage
         member_ = protocolStorageModule_.getAssociationMember(_userWallet);
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {}
 }
