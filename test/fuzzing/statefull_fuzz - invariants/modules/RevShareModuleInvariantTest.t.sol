@@ -58,7 +58,7 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
         );
 
         SubscriptionModule subscriptions;
-        (, revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+        (, , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
 
         randomModule = address(subscriptions);
 

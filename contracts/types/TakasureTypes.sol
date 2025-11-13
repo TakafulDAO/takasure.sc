@@ -65,9 +65,11 @@ struct PrepaidMember {
 // not if the protocol is already deployed
 struct AssociationMember {
     uint256 memberId;
+    uint256 planPrice; // Corresponds to the contribution plan selected in six decimals
     uint256 discount;
     uint256 couponAmountRedeemed; // in stablecoin currency, six decimals
     uint256 associateStartTime; // in seconds
+    uint256 latestPayment; // in seconds, only the date for the latest association payment
     address wallet;
     address parent;
     AssociationMemberState memberState;
@@ -104,13 +106,14 @@ struct BenefitMember {
 enum AssociationMemberState {
     Inactive, // Default state. The member has not been activated yet
     Active, // The member has paid the association membership and performed KYC
+    PendingCancelation, // The member has requested to cancel the association membership
     Canceled // The member has canceled the association membership
 }
 
 enum BenefitMemberState {
     Inactive, // Default state. The member has not paid any benefit yet. From Inactive can only go to Active
     Active, // The member has paid the benefit contribution. From Active can change to: Defaulted, Canceled, Deceased
-    Defaulted, // The member has defaulted on their benefit payment. From Defaulted can change to: Active, Canceled, Deceased
+    PendingCancelation, // The member has requested to cancel their benefit membership. From PendingCancelation can change to: Active, Canceled
     Canceled, // The member has canceled their benefit membership. From Canceled can change to: Active
     Deceased // The member is deceased. This state is final and cannot be changed
 }

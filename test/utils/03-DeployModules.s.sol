@@ -6,7 +6,7 @@ import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 // import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 // import {KYCModule} from "contracts/modules/KYCModule.sol";
-// import {MemberModule} from "contracts/modules/MemberModule.sol";
+import {SubscriptionManagementModule} from "contracts/modules/SubscriptionManagementModule.sol";
 import {ProtocolStorageModule} from "contracts/modules/ProtocolStorageModule.sol";
 // import {ReferralRewardsModule} from "contracts/modules/ReferralRewardsModule.sol";
 // import {RevenueModule} from "contracts/modules/RevenueModule.sol";
@@ -20,8 +20,8 @@ contract DeployModules is Script {
     // address farewellBenefitModuleAddress;
     // address kycModuleImplementation;
     // address kycModuleAddress;
-    // address memberModuleImplementation;
-    // address memberModuleAddress;
+    address subscriptionManagementModuleImplementation;
+    address subscriptionManagementModuleAddress;
     address protocolStorageImplementation;
     address protocolStorageAddress;
     // address referralRewardsModuleImplementation;
@@ -41,7 +41,7 @@ contract DeployModules is Script {
             // BenefitModule lifeBenefitModule,
             // BenefitModule farewellBenefitModule,
             // KYCModule kycModule,
-            // MemberModule memberModule,
+            SubscriptionManagementModule subscriptionManagementModule,
             ProtocolStorageModule protocolStorageModule,
             // ReferralRewardsModule referralRewardsModule,
             // RevenueModule revenueModule,
@@ -66,20 +66,25 @@ contract DeployModules is Script {
         //     ProtocolAddressType.Module
         // );
 
-        // Deploy MemberModule
-        // memberModuleImplementation = address(new MemberModule());
-        // memberModuleAddress = UnsafeUpgrades.deployUUPSProxy(
-        //     memberModuleImplementation,
-        //     abi.encodeCall(MemberModule.initialize, (address(addressManager), "MEMBER_MODULE"))
-        // );
+        // Deploy SubscriptionManagementModule
+        subscriptionManagementModuleImplementation = address(new SubscriptionManagementModule());
+        subscriptionManagementModuleAddress = UnsafeUpgrades.deployUUPSProxy(
+            subscriptionManagementModuleImplementation,
+            abi.encodeCall(
+                SubscriptionManagementModule.initialize,
+                (address(addressManager), "SUBSCRIPTION_MANAGEMENT_MODULE")
+            )
+        );
 
-        // memberModule = MemberModule(memberModuleAddress);
+        subscriptionManagementModule = SubscriptionManagementModule(
+            subscriptionManagementModuleAddress
+        );
 
-        // addressManager.addProtocolAddress(
-        //     "MEMBER_MODULE",
-        //     memberModuleAddress,
-        //     ProtocolAddressType.Module
-        // );
+        addressManager.addProtocolAddress(
+            "SUBSCRIPTION_MANAGEMENT_MODULE",
+            subscriptionManagementModuleAddress,
+            ProtocolAddressType.Module
+        );
 
         // Deploy ProtocolStorageModule
         protocolStorageImplementation = address(new ProtocolStorageModule());
@@ -184,7 +189,7 @@ contract DeployModules is Script {
             // lifeBenefitModule,
             // farewellBenefitModule,
             // kycModule,
-            // memberModule,
+            subscriptionManagementModule,
             protocolStorageModule,
             // referralRewardsModule,
             // revenueModule,

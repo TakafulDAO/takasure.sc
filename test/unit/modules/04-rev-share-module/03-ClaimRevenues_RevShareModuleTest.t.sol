@@ -52,7 +52,7 @@ contract ClaimRevenues_RevShareModuleTest is StdCheats, Test {
         );
 
         SubscriptionModule subscriptions;
-        (, revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+        (, , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
 
         module = address(subscriptions);
 
