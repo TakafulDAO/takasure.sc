@@ -3,7 +3,7 @@
 /**
  * @title SubscriptionManagementModule
  * @author Maikel Ordaz
- * @notice This contract will manage cancellations and recurring payments for the TLD Association and its benefits
+ * @notice This contract will manage cancelations and recurring payments for the TLD Association and its benefits
  * @dev It will interact with the TakasureReserve and/or SubscriptionModule contract to update the corresponding values
  * @dev All external functions are allowed to be called either by the member or by a backend admin
  * @dev Upgradeable contract with UUPS pattern
@@ -413,7 +413,7 @@ contract SubscriptionManagementModule is
         require(associationMember.memberState == AssociationMemberState.Active, ModuleErrors.Module__WrongMemberState());
 
         if (block.timestamp < associationMember.associateStartTime + ModuleConstants.YEAR + ModuleConstants.MONTH) {
-            associationMember.memberState = AssociationMemberState.PendingCancellation;
+            associationMember.memberState = AssociationMemberState.PendingCancelation;
         } else {
             associationMember.memberState = AssociationMemberState.Canceled;
         }
@@ -467,9 +467,9 @@ contract SubscriptionManagementModule is
 
             require(benefitMember.memberState == BenefitMemberState.Active, ModuleErrors.Module__WrongMemberState());
 
-            // Within first year + grace → PendingCancellation (keep it); else → Canceled (remove it)
+            // Within first year + grace → PendingCancelation (keep it); else → Canceled (remove it)
             if (block.timestamp < benefitMember.membershipStartTime + ModuleConstants.YEAR + ModuleConstants.MONTH) {
-                benefitMember.memberState = BenefitMemberState.PendingCancellation;
+                benefitMember.memberState = BenefitMemberState.PendingCancelation;
             } else {
                 benefitMember.memberState = BenefitMemberState.Canceled;
                 canceled[canceledCount] = _benefitAddresses[i];
