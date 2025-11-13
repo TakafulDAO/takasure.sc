@@ -82,8 +82,8 @@ contract SubscriptionManagementModule is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Pay for the recurring services: Association subscription and/or Benefit subscriptions
-     * @param memberWallet The wallet of the member paying for the services
+     * @notice Pay for the recurring subscriptions: Association subscription and/or Benefit subscriptions
+     * @param memberWallet The wallet of the member paying for the subscriptions
      * @param associationCouponAmount The coupon amount to use for the association subscription in six decimals (0 if none)
      * @param benefitNames The list of benefit names of the benefits to pay for
      * @param benefitCouponAmounts The list of coupon amounts to use for each benefit in six decimals (0 if none)
