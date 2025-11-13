@@ -117,7 +117,7 @@ contract SubscriptionManagementModule is
 
         // Cancel the benefits that could not be paid if any
         if (benefitsToCancel.length > 0) {
-            _cancelBenefitSubscriptionsThroughAddress(memberWallet, benefitsToCancel);
+            _cancelBenefitSubscriptionsByAddress(memberWallet, benefitsToCancel);
         }
     }
 
@@ -419,7 +419,7 @@ contract SubscriptionManagementModule is
         }
 
         // Cancel all the benefit subscriptions
-        _cancelBenefitSubscriptionsThroughAddress(_memberWallet, associationMember.benefits);
+        _cancelBenefitSubscriptionsByAddress(_memberWallet, associationMember.benefits);
 
         associationMember = AssociationMember({
             memberId: associationMember.memberId,
@@ -448,12 +448,10 @@ contract SubscriptionManagementModule is
         // Validate the benefits
         (benefitToCancel,) = _validateBenefits(_memberWallet, _benefitNames);
 
-        _cancelBenefitSubscriptionsThroughAddress(_memberWallet, benefitToCancel);
+        _cancelBenefitSubscriptionsByAddress(_memberWallet, benefitToCancel);
     }
 
-    function _cancelBenefitSubscriptionsThroughAddress(address _memberWallet, address[] memory _benefitAddresses)
-        internal
-    {
+    function _cancelBenefitSubscriptionsByAddress(address _memberWallet, address[] memory _benefitAddresses) internal {
         (IProtocolStorageModule protocolStorageModule,) = _fetchAssociationMemberFromStorageModule(_memberWallet);
 
         // Track the benefits that actually become CANCELED (only these are removed)
