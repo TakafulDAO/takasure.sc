@@ -53,7 +53,7 @@ contract SubscriptionModule is
     struct PaySubscriptionParams {
         address userWallet;
         address parentWallet;
-        uint256 planId;
+        uint256 planPrice;
         uint256 couponAmount;
         uint256 membershipStartTime;
     }
@@ -93,10 +93,10 @@ contract SubscriptionModule is
 
     /**
      * @notice Add a new association plan
-     * @param planId plan identifier. This id is the contribution to be made, with six decimals
+     * @param planPrice plan price. This price is the contribution to be made, with six decimals
      */
-    function addAssociationPlan(uint256 planId) external onlyRole(Roles.OPERATOR, address(addressManager)) {
-        _associationPlans.add(planId);
+    function addAssociationPlan(uint256 planPrice) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        _associationPlans.add(planPrice);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -105,11 +105,11 @@ contract SubscriptionModule is
 
     /**
      * @notice Allow new members to join the association.
-     * @param planId plan identifier. This id is the contribution to be made, with six decimals
+     * @param planPrice plan price. This price is the contribution to be made, with six decimals
      * @param parentWallet Optional parent address. If there is no parent it must be address(0)
      *                     If a parent is provided, it must be KYCed
      */
-    function paySubscription(uint256 planId, address parentWallet) external {
+    function paySubscription(uint256 planPrice, address parentWallet) external {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
@@ -125,7 +125,7 @@ contract SubscriptionModule is
             PaySubscriptionParams({
                 userWallet: msg.sender,
                 parentWallet: parentWallet,
-                planId: planId,
+                planPrice: planPrice,
                 couponAmount: 0,
                 membershipStartTime: block.timestamp
             })
@@ -138,14 +138,14 @@ contract SubscriptionModule is
      * @param userWallet address of the member
      * @param parentWallet Optional parent address. If there is no parent it must be address(0)
      *                     If a parent is provided, it must be KYCed
-     * @param planId plan identifier. This id is the contribution to be made, with six decimals
+     * @param planPrice plan price. This price is the contribution to be made, with six decimals
      * @param membershipStartTime when the membership starts, in seconds
      * @param couponAmount in six decimals
      */
     function paySubscriptionOnBehalfOf(
         address userWallet,
         address parentWallet,
-        uint256 planId,
+        uint256 planPrice,
         uint256 couponAmount,
         uint256 membershipStartTime
     ) external {
@@ -163,7 +163,7 @@ contract SubscriptionModule is
             PaySubscriptionParams({
                 userWallet: userWallet,
                 parentWallet: parentWallet,
-                planId: planId,
+                planPrice: planPrice,
                 couponAmount: couponAmount,
                 membershipStartTime: membershipStartTime
             })
@@ -229,8 +229,8 @@ contract SubscriptionModule is
         IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
         IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
-        uint256 amountToTransfer = member.planId
-            - ((member.planId * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
+        uint256 amountToTransfer =
+            member.planPrice - ((member.planPrice * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
 
         // Check if the user had any discount
         uint256 userDiscount = member.discount;
@@ -266,9 +266,9 @@ contract SubscriptionModule is
      * @notice Allow new members to pay subscriptions. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.
      */
     function _paySubscription(PaySubscriptionParams memory _params) internal nonReentrant {
-        require(_associationPlans.contains(_params.planId), ModuleErrors.Module__InvalidPlanId());
+        require(_associationPlans.contains(_params.planPrice), ModuleErrors.Module__InvalidPlanPrice());
         require(
-            _params.couponAmount >= 0 && _params.couponAmount <= _params.planId, ModuleErrors.Module__InvalidCoupon()
+            _params.couponAmount >= 0 && _params.couponAmount <= _params.planPrice, ModuleErrors.Module__InvalidCoupon()
         );
 
         (IProtocolStorageModule protocolStorageModule, AssociationMember memory member) =
@@ -280,7 +280,7 @@ contract SubscriptionModule is
         // Create the member profile
         member = AssociationMember({
             memberId: isRejoin ? member.memberId : 0, // If is a rejoin, keep the same memberId, else use 0 as placeholder, will be set in storage module
-            planId: _params.planId,
+            planPrice: _params.planPrice,
             discount: 0, // Placeholder
             couponAmountRedeemed: _params.couponAmount, // in six decimals
             associateStartTime: _params.membershipStartTime,
@@ -298,11 +298,11 @@ contract SubscriptionModule is
             IReferralRewardsModule(addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr);
 
         (uint256 feeAmount, uint256 discount, uint256 toReferralReserveAmount) = referralRewardsModule.calculateReferralRewards({
-            contribution: _params.planId,
+            contribution: _params.planPrice,
             couponAmount: _params.couponAmount,
             child: _params.userWallet,
             parent: _params.parentWallet,
-            feeAmount: (_params.planId * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100
+            feeAmount: (_params.planPrice * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100
         });
         member.discount = discount;
 
@@ -310,7 +310,7 @@ contract SubscriptionModule is
         // Transfer the fee to the fee claim address
         // Transfer the referral reserve amount to the referral rewards module to be distributed later
         _performTransfers({
-            _planId: _params.planId,
+            _planPrice: _params.planPrice,
             _fee: feeAmount,
             _discount: discount,
             _couponAmount: _params.couponAmount,
@@ -329,7 +329,7 @@ contract SubscriptionModule is
      * @dev The subscription amount is fixed at 25 USDC
      */
     function _performTransfers(
-        uint256 _planId,
+        uint256 _planPrice,
         uint256 _fee,
         uint256 _discount,
         uint256 _couponAmount,
@@ -339,7 +339,7 @@ contract SubscriptionModule is
     ) internal {
         IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
-        uint256 contributionAfterFee = _planId - _fee;
+        uint256 contributionAfterFee = _planPrice - _fee;
         bool transferFromMember = _couponAmount == 0 ? true : false;
         uint256 amountToTransfer;
 
@@ -390,7 +390,7 @@ contract SubscriptionModule is
         require(_member.childs.length == 0, SubscriptionModule__HasReferrals()); // todo: ask this to the rewards module
 
         uint256 contributionAmountAfterFee =
-            _member.planId - ((_member.planId * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
+            _member.planPrice - ((_member.planPrice * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
         uint256 discountAmount = _member.discount;
         uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
@@ -408,7 +408,7 @@ contract SubscriptionModule is
 
         _member = AssociationMember({
             memberId: _member.memberId,
-            planId: 0, // Reset the plan id
+            planPrice: 0, // Reset the plan price
             discount: 0, // Reset the discount
             couponAmountRedeemed: 0, // Reset the coupon amount redeemed
             associateStartTime: 0, // Reset the start time

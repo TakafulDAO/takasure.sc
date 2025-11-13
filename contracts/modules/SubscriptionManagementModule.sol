@@ -166,7 +166,7 @@ contract SubscriptionManagementModule is
             _fetchAssociationMemberFromStorageModule(_memberWallet);
 
         require(
-            _associationCouponAmount >= 0 && _associationCouponAmount <= associationMember.planId,
+            _associationCouponAmount >= 0 && _associationCouponAmount <= associationMember.planPrice,
             ModuleErrors.Module__InvalidCoupon()
         );
 
@@ -183,8 +183,8 @@ contract SubscriptionManagementModule is
 
             associationMember.latestPayment = newLatestPayment;
 
-            uint256 fee = (associationMember.planId * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100;
-            uint256 toTransfer = associationMember.planId - fee;
+            uint256 fee = (associationMember.planPrice * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100;
+            uint256 toTransfer = associationMember.planPrice - fee;
 
             if (_associationCouponAmount == 0) {
                 _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
@@ -197,7 +197,7 @@ contract SubscriptionManagementModule is
             protocolStorageModule.updateAssociationMember(associationMember);
 
             emit TakasureEvents.OnRecurringAssociationPayment(
-                _memberWallet, associationMember.memberId, associationMember.planId
+                _memberWallet, associationMember.memberId, associationMember.planPrice
             );
         } else if (block.timestamp > associationMember.latestPayment + ModuleConstants.YEAR + ModuleConstants.MONTH) {
             _cancelAssociationSubscription(_memberWallet);
@@ -244,8 +244,8 @@ contract SubscriptionManagementModule is
 
                 if (addressManager.getProtocolAddressByName("LIFE_BENEFIT_MODULE").addr == benefitsToPay[i]) {
                     // If this is the life benefit, then the amount to pay is reduced by the association recurring payment
-                    fee = ((benefitMember.contribution - associationMember.planId) * benefitFee) / 100;
-                    toTransfer = (benefitMember.contribution - associationMember.planId) - fee;
+                    fee = ((benefitMember.contribution - associationMember.planPrice) * benefitFee) / 100;
+                    toTransfer = (benefitMember.contribution - associationMember.planPrice) - fee;
                 } else {
                     fee = (benefitMember.contribution * benefitFee) / 100;
                     toTransfer = benefitMember.contribution - fee;
@@ -423,7 +423,7 @@ contract SubscriptionManagementModule is
 
         associationMember = AssociationMember({
             memberId: associationMember.memberId,
-            planId: 0, // Reset the plan id
+            planPrice: 0, // Reset the plan price
             discount: 0, // Reset the discount
             couponAmountRedeemed: 0, // Reset the coupon redeemed
             associateStartTime: 0, // Reset the start time
