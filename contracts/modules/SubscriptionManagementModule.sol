@@ -179,9 +179,9 @@ contract SubscriptionManagementModule is
                 associationMember.memberState == AssociationMemberState.Active, ModuleErrors.Module__WrongMemberState()
             );
 
-            uint256 newlatestPayment = associationMember.latestPayment + ModuleConstants.YEAR;
+            uint256 newLatestPayment = associationMember.latestPayment + ModuleConstants.YEAR;
 
-            associationMember.latestPayment = newlatestPayment;
+            associationMember.latestPayment = newLatestPayment;
 
             uint256 fee = (associationMember.planId * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100;
             uint256 toTransfer = associationMember.planId - fee;
