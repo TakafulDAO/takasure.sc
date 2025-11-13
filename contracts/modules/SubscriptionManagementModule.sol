@@ -415,26 +415,24 @@ contract SubscriptionManagementModule is
         if (block.timestamp < associationMember.associateStartTime + ModuleConstants.YEAR + ModuleConstants.MONTH) {
             associationMember.memberState = AssociationMemberState.PendingCancelation;
         } else {
-            associationMember.memberState = AssociationMemberState.Canceled;
+            associationMember = AssociationMember({
+                memberId: associationMember.memberId,
+                planPrice: 0, // Reset the plan price
+                discount: 0, // Reset the discount
+                couponAmountRedeemed: 0, // Reset the coupon redeemed
+                associateStartTime: 0, // Reset the start time
+                latestPayment: 0, // Reset the latest payment timestamp
+                wallet: _memberWallet,
+                parent: address(0), // Reset the parent
+                memberState: AssociationMemberState.Canceled,
+                isRefunded: false,
+                benefits: associationMember.benefits,
+                childs: new address[](0)
+            });
         }
 
         // Cancel all the benefit subscriptions
         _cancelBenefitSubscriptionsByAddress(_memberWallet, associationMember.benefits);
-
-        associationMember = AssociationMember({
-            memberId: associationMember.memberId,
-            planPrice: 0, // Reset the plan price
-            discount: 0, // Reset the discount
-            couponAmountRedeemed: 0, // Reset the coupon redeemed
-            associateStartTime: 0, // Reset the start time
-            latestPayment: 0, // Reset the latest payment timestamp
-            wallet: _memberWallet,
-            parent: address(0), // Reset the parent
-            memberState: associationMember.memberState,
-            isRefunded: false,
-            benefits: associationMember.benefits,
-            childs: new address[](0)
-        });
 
         protocolStorageModule.updateAssociationMember(associationMember);
 
