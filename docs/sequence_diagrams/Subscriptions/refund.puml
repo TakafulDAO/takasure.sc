@@ -1,0 +1,42 @@
+@startuml Subscription and Refund
+title Subscription and refund
+autonumber
+
+!include subscription-common.puml
+
+actor Backend
+actor Member
+participant SubscriptionModule
+participant MembersData
+participant KYCModule
+participant CouponPool
+participant RewardsModule
+
+opt [<30-days-and-no-service]
+  Member -> Backend: request refund
+  Backend -> SubscriptionModule: refund(memberWallet)
+  SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
+  MembersData --> SubscriptionModule: Member data
+
+  break [Member-invalid]
+    REVERT(InvalidMember())
+  end
+
+  SubscriptionModule -> MembersData: updateAssociationMember(memberWallet)
+  MembersData -> MembersData: Emits event
+  SubscriptionModule -> SubscriptionModule: Emits event
+
+  alt [member-is-coupon-user]
+    SubscriptionModule -> CouponPool: transfer contribution back to pool
+    CouponPool --> Member: refund issued
+  else [member-is-coupon-user-or-EOA]
+    SubscriptionModule -> Member: refund issued
+  end
+
+  opt [there-was-a-parent]
+    SubscriptionModule -> RewardsModule: revokeParentReward
+    RewardsModule -> RewardsModule: Emits event
+  end
+end
+
+@enduml
