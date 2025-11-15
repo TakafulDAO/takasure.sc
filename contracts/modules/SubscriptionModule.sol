@@ -48,6 +48,7 @@ contract SubscriptionModule is
     using EnumerableSet for EnumerableSet.UintSet;
 
     EnumerableSet.UintSet private _associationPlans;
+    EnumerableSet.UintSet private _disabledPlans;
 
     // Helper struct to avoid stack too deep errors in _paySubscription
     struct PaySubscriptionParams {
@@ -65,6 +66,8 @@ contract SubscriptionModule is
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__IsBenefitMember();
     error SubscriptionModule__HasReferrals();
+    error SubscriptionModule__PlanAlreadyExists();
+    error SubscriptionModule__PlanAlreadyDisabled();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -96,7 +99,24 @@ contract SubscriptionModule is
      * @param planPrice plan price. This price is the contribution to be made, with six decimals
      */
     function addAssociationPlan(uint256 planPrice) external onlyRole(Roles.OPERATOR, address(addressManager)) {
-        _associationPlans.add(planPrice);
+        require(_associationPlans.add(planPrice), SubscriptionModule__PlanAlreadyExists());
+    }
+
+    /**
+     * @notice Remove an association plan
+     * @param planPrice plan price. This price is the contribution to be made, with six decimals
+     */
+    function removeAssociationPlan(uint256 planPrice) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        require(_associationPlans.remove(planPrice), ModuleErrors.Module__InvalidPlanPrice());
+    }
+
+    /**
+     * @notice Disable an association plan
+     * @param planPrice plan price. This price is the contribution to be made, with six decimals
+     */
+    function disableAssociationPlan(uint256 planPrice) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        require(_associationPlans.remove(planPrice), ModuleErrors.Module__InvalidPlanPrice());
+        require(_disabledPlans.add(planPrice), SubscriptionModule__PlanAlreadyDisabled());
     }
 
     /*//////////////////////////////////////////////////////////////
