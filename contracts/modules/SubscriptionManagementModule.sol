@@ -313,6 +313,12 @@ contract SubscriptionManagementModule is
             contributionToken.safeTransferFrom(couponPoolAddress, feeClaimer, _fee);
         } else {
             // The caller must be the member wallet
+            IProtocolStorageModule protocolStorageModule =
+                IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+            require(
+                protocolStorageModule.getBoolValue("allowUserInitiatedCalls"),
+                ModuleErrors.Module__NotAuthorizedCaller()
+            );
             require(msg.sender == _userAddress, ModuleErrors.Module__NotAuthorizedCaller());
 
             contributionToken.safeTransferFrom(_userAddress, reserve, _contribution);
