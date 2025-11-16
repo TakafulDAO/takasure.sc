@@ -86,8 +86,6 @@ contract SubscriptionModule is
 
         addressManager = IAddressManager(_addressManager);
         moduleName = _moduleName;
-
-        _associationPlans.add(25e6); // Default plan of 25 USDC
     }
 
     /*//////////////////////////////////////////////////////////////
