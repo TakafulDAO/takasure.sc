@@ -107,13 +107,11 @@ contract SubscriptionManagementModule is
 
         // And for the selected benefit subscriptions
         address[] memory benefitsToCancel;
-        if (benefitNames.length > 0) {
-            benefitsToCancel = _payRecurringBenefitSubscriptions(
-                PayRecurringBenefitParams({
-                    memberWallet: memberWallet, benefitNames: benefitNames, benefitCouponAmounts: benefitCouponAmounts
-                })
-            );
-        }
+        benefitsToCancel = _payRecurringBenefitSubscriptions(
+            PayRecurringBenefitParams({
+                memberWallet: memberWallet, benefitNames: benefitNames, benefitCouponAmounts: benefitCouponAmounts
+            })
+        );
 
         // Cancel the benefits that could not be paid if any
         if (benefitsToCancel.length > 0) {
@@ -339,52 +337,58 @@ contract SubscriptionManagementModule is
         address[] memory memberBenefits = associationMember.benefits;
 
         uint256 namesLen = _benefitNames.length;
-        uint256 memberBenefitsLen = memberBenefits.length;
 
-        // Addresses corresponding to each given benefit name
-        benefitAddresses_ = new address[](namesLen);
+        if (namesLen == 0) {
+            benefitAddresses_ = new address[](0);
+            remainingBenefits_ = memberBenefits;
+        } else {
+            uint256 memberBenefitsLen = memberBenefits.length;
 
-        // Track which member benefits have been "used" (matched) by the names
-        bool[] memory used = new bool[](memberBenefitsLen);
+            // Addresses corresponding to each given benefit name
+            benefitAddresses_ = new address[](namesLen);
 
-        // Validate that all requested benefits belong to the member
-        // O(M * N) with small expected sizes
-        for (uint256 i; i < namesLen; ++i) {
-            address benefit = addressManager.getProtocolAddressByName(_benefitNames[i]).addr;
-            bool found;
+            // Track which member benefits have been "used" (matched) by the names
+            bool[] memory used = new bool[](memberBenefitsLen);
 
-            for (uint256 j; j < memberBenefitsLen; ++j) {
-                if (memberBenefits[j] == benefit) {
-                    found = true;
-                    benefitAddresses_[i] = benefit;
-                    used[j] = true; // mark this benefit as consumed
-                    break;
+            // Validate that all requested benefits belong to the member
+            // O(M * N) with small expected sizes
+            for (uint256 i; i < namesLen; ++i) {
+                address benefit = addressManager.getProtocolAddressByName(_benefitNames[i]).addr;
+                bool found;
+
+                for (uint256 j; j < memberBenefitsLen; ++j) {
+                    if (memberBenefits[j] == benefit) {
+                        found = true;
+                        benefitAddresses_[i] = benefit;
+                        used[j] = true; // mark this benefit as consumed
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    revert ManageSubscriptionModule__InvalidBenefit();
                 }
             }
 
-            if (!found) {
-                revert ManageSubscriptionModule__InvalidBenefit();
-            }
-        }
-
-        // Count how many benefits remain unused
-        uint256 remainingCount;
-        for (uint256 i; i < memberBenefitsLen; ++i) {
-            if (!used[i]) {
-                unchecked {
-                    ++remainingCount;
+            // Count how many benefits remain unused
+            uint256 remainingCount;
+            for (uint256 i; i < memberBenefitsLen; ++i) {
+                if (!used[i]) {
+                    unchecked {
+                        ++remainingCount;
+                    }
                 }
             }
-        }
 
-        // Populate remainingBenefits_ with those unused benefits
-        remainingBenefits_ = new address[](remainingCount);
-        uint256 k;
-        for (uint256 i; i < memberBenefitsLen; ++i) {
-            if (!used[i]) {
-                remainingBenefits_[k] = memberBenefits[i];
-                unchecked {
-                    ++k;
+            // Populate remainingBenefits_ with those unused benefits
+            remainingBenefits_ = new address[](remainingCount);
+            uint256 k;
+            for (uint256 i; i < memberBenefitsLen; ++i) {
+                if (!used[i]) {
+                    remainingBenefits_[k] = memberBenefits[i];
+                    unchecked {
+                        ++k;
+                    }
                 }
             }
         }
