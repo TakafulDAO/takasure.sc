@@ -136,7 +136,7 @@ contract SubscriptionModule is
         IProtocolStorageModule protocolStorageModule =
             IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
 
-        bool allowUsersToPay = protocolStorageModule.getBoolValue("allowUsersToJoinAssociation");
+        bool allowUsersToPay = protocolStorageModule.getBoolValue("allowUserInitiatedCalls");
         require(allowUsersToPay, ModuleErrors.Module__NotAuthorizedCaller());
 
         _paySubscription(
