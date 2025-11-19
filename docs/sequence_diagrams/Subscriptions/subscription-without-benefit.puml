@@ -15,7 +15,7 @@ participant CouponPool
 participant Reserve
 
 Member -> Backend: requests subscription
-Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
+Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, planPrice, contribution)
 
 ref over Backend, SubscriptionModule, MembersData, KYCModule, CouponPool, RewardsModule [[refund.puml]] : Refund flow
 

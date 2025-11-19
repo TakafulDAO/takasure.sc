@@ -16,8 +16,9 @@ participant LifeBenefitModule
 participant Reserve
 
 Member -> Backend: requests subscription
-Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, contribution)
+Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, planPrice, contribution)
 
+PRECHECKS_PLAN_EXISTS()
 PRECHECKS_CALLER_MODULE()
 PRECHECKS_CONTRIB_MIN25_NOTMIN()
 LOAD_MEMBER_AND_VALIDATE()

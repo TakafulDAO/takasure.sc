@@ -1,5 +1,12 @@
 !define REVERT(reason) SubscriptionModule -x Backend: revert reason
 
+' Plan exists
+!definelong PRECHECKS_PLAN_EXISTS()
+break [Plan-NOT-found]
+  REVERT(PlanNotFound())
+end
+!enddefinelong
+
 ' Caller / Module
 !definelong PRECHECKS_CALLER_MODULE()
 break [Caller-NOT-valid]
