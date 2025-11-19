@@ -9,9 +9,16 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 import {IModuleManager} from "contracts/interfaces/managers/IModuleManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
-import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable,
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder, ModuleState} from "contracts/types/TakasureTypes.sol";
@@ -28,6 +35,8 @@ contract AddressManager is
 {
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
+
+    address public beacon;
 
     uint256 public roleAcceptanceDelay; // Maximum time allowed to accept a proposed role
 
@@ -47,13 +56,10 @@ contract AddressManager is
     //////////////////////////////////////////////////////////////*/
 
     event OnNewRoleAcceptanceDelay(uint256 newDelay);
-    event OnNewProtocolAddress(
-        string indexed name,
-        address indexed addr,
-        ProtocolAddressType addressType
-    );
+    event OnNewProtocolAddress(string indexed name, address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressDeleted(address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
+    event OnNewBenefitModuleDeployed(string indexed name, address indexed moduleAddress);
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
     event OnProposedRoleHolder(bytes32 indexed role, address indexed proposedHolder);
@@ -82,13 +88,14 @@ contract AddressManager is
         _disableInitializers();
     }
 
-    function initialize(address _owner) external initializer {
+    function initialize(address _owner, address _beacon) external initializer {
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __Ownable_init(_owner);
         __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
+        beacon = _beacon;
         roleAcceptanceDelay = 1 days;
     }
 
@@ -113,11 +120,7 @@ contract AddressManager is
      * @param addressType The type of the address (ADMIN, MODULE, PROTOCOL)
      * @dev This function can only be called by the owner of the contract.
      */
-    function addProtocolAddress(
-        string memory name,
-        address addr,
-        ProtocolAddressType addressType
-    ) external onlyOwner {
+    function addProtocolAddress(string memory name, address addr, ProtocolAddressType addressType) external onlyOwner {
         _nameChecks(name);
         _addProtocolAddress(name, addr, addressType);
     }
@@ -144,9 +147,7 @@ contract AddressManager is
 
         if (protocolAddress.addressType == ProtocolAddressType.Module) {
             // If it is a module, we need to add the new address as a module in the ModuleManager, and deprecate the old one
-            IModuleManager moduleManager = IModuleManager(
-                _getProtocolAddressByName("MODULE_MANAGER").addr
-            );
+            IModuleManager moduleManager = IModuleManager(_getProtocolAddressByName("MODULE_MANAGER").addr);
             require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
 
             moduleManager.changeModuleState(addr, ModuleState.Deprecated);
@@ -162,10 +163,7 @@ contract AddressManager is
      * @dev This function can only be called by the owner of the contract.
      * @dev The name must already exist in the AddressManager.
      */
-    function updateProtocolAddress(
-        string memory name,
-        address newAddr
-    ) external onlyOwner nonReentrant {
+    function updateProtocolAddress(string memory name, address newAddr) external onlyOwner nonReentrant {
         require(newAddr != address(0), AddressManager__AddressZero());
 
         bytes32 nameHash = keccak256(abi.encode(name));
@@ -187,9 +185,7 @@ contract AddressManager is
 
         if (protocolAddress.addressType == ProtocolAddressType.Module) {
             // If it is a module, we need to add the new address as a module in the ModuleManager, and deprecate the old one
-            IModuleManager moduleManager = IModuleManager(
-                _getProtocolAddressByName("MODULE_MANAGER").addr
-            );
+            IModuleManager moduleManager = IModuleManager(_getProtocolAddressByName("MODULE_MANAGER").addr);
             require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
 
             moduleManager.addModule(newAddr);
@@ -197,6 +193,19 @@ contract AddressManager is
         }
 
         emit OnProtocolAddressUpdated(name, newAddr);
+    }
+
+    function deployBenefitModule(string memory benefitName) external onlyOwner returns (address) {
+        _nameChecks(benefitName);
+
+        BeaconProxy newBenefitModule =
+            new BeaconProxy(beacon, abi.encodeCall(BenefitModule.initialize, (address(this), benefitName)));
+
+        _addProtocolAddress(benefitName, address(newBenefitModule), ProtocolAddressType.Module);
+
+        emit OnNewBenefitModuleDeployed(benefitName, address(newBenefitModule));
+
+        return address(newBenefitModule);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -251,10 +260,8 @@ contract AddressManager is
             if (currentRoles[i] == role) revert AddressManager__AlreadyRoleHolder();
         }
 
-        ProposedRoleHolder memory proposed = ProposedRoleHolder({
-            proposedHolder: proposedRoleHolder,
-            proposalTime: block.timestamp
-        });
+        ProposedRoleHolder memory proposed =
+            ProposedRoleHolder({proposedHolder: proposedRoleHolder, proposalTime: block.timestamp});
 
         // Assign the proposed holder with a delay
         proposedRoleHolders[role] = proposed;
@@ -277,10 +284,7 @@ contract AddressManager is
         require(proposedHolder.proposedHolder == msg.sender, AddressManager__InvalidCaller());
 
         // Check if the proposal time has passed
-        require(
-            block.timestamp <= proposedHolder.proposalTime + roleAcceptanceDelay,
-            AddressManager__TooLateToAccept()
-        );
+        require(block.timestamp <= proposedHolder.proposalTime + roleAcceptanceDelay, AddressManager__TooLateToAccept());
 
         // Revoke the role for the current holder if it exists
         address currentHolder = currentRoleHolders[role];
@@ -330,10 +334,8 @@ contract AddressManager is
         bytes32 givenNameHash = keccak256(abi.encode(name));
 
         if (
-            addr == address(0) ||
-            bytes(name).length == 0 ||
-            bytes(name).length > 32 ||
-            expectedNameHash != givenNameHash
+            addr == address(0) || bytes(name).length == 0 || bytes(name).length > 32
+                || expectedNameHash != givenNameHash
         ) return false; // Address is zero
 
         return true; // Address has the name
@@ -346,10 +348,12 @@ contract AddressManager is
      * @return bool A boolean indicating whether the account has the role
      * @dev If the role is not a protocol role, it will return false.
      */
-    function hasRole(
-        bytes32 role,
-        address account
-    ) public view override(AccessControlUpgradeable, IAddressManager) returns (bool) {
+    function hasRole(bytes32 role, address account)
+        public
+        view
+        override(AccessControlUpgradeable, IAddressManager)
+        returns (bool)
+    {
         if (!_protocolRoles.contains(role)) return false;
         else return super.hasRole(role, account);
     }
@@ -359,9 +363,7 @@ contract AddressManager is
         if (protocolAddressesNames[addr] == bytes32(0)) return false;
 
         // Then check if the address type matches
-        ProtocolAddress memory protocolAddress = protocolAddressesByName[
-            protocolAddressesNames[addr]
-        ];
+        ProtocolAddress memory protocolAddress = protocolAddressesByName[protocolAddressesNames[addr]];
         return protocolAddress.addressType == addressType;
     }
 
@@ -369,15 +371,11 @@ contract AddressManager is
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function getProtocolAddressByName(
-        string memory name
-    ) external view returns (ProtocolAddress memory) {
+    function getProtocolAddressByName(string memory name) external view returns (ProtocolAddress memory) {
         return _getProtocolAddressByName(name);
     }
 
-    function getProposedRoleHolder(
-        bytes32 role
-    ) external view returns (ProposedRoleHolder memory proposedHolder) {
+    function getProposedRoleHolder(bytes32 role) external view returns (ProposedRoleHolder memory proposedHolder) {
         proposedHolder = proposedRoleHolders[role];
     }
 
@@ -410,33 +408,23 @@ contract AddressManager is
     //////////////////////////////////////////////////////////////*/
 
     function _nameChecks(string memory _name) internal view {
-        require(
-            bytes(_name).length > 0 && bytes(_name).length <= 32,
-            AddressManager__InvalidNameLength()
-        );
+        require(bytes(_name).length > 0 && bytes(_name).length <= 32, AddressManager__InvalidNameLength());
 
         bytes32 nameHash = keccak256(abi.encode(_name));
 
-        require(
-            protocolAddressesByName[nameHash].addr == address(0),
-            AddressManager__AddressAlreadyExists()
-        );
+        require(protocolAddressesByName[nameHash].addr == address(0), AddressManager__AddressAlreadyExists());
     }
 
-    function _addProtocolAddress(
-        string memory _name,
-        address _addr,
-        ProtocolAddressType _addressType
-    ) internal nonReentrant {
+    function _addProtocolAddress(string memory _name, address _addr, ProtocolAddressType _addressType)
+        internal
+        nonReentrant
+    {
         require(_addr != address(0), AddressManager__AddressZero());
 
         bytes32 nameHash = keccak256(abi.encode(_name));
 
-        ProtocolAddress memory newProtocolAddress = ProtocolAddress({
-            name: nameHash,
-            addr: _addr,
-            addressType: _addressType
-        });
+        ProtocolAddress memory newProtocolAddress =
+            ProtocolAddress({name: nameHash, addr: _addr, addressType: _addressType});
 
         protocolAddressesByName[nameHash] = newProtocolAddress;
         protocolAddressesNames[_addr] = nameHash;
@@ -444,9 +432,7 @@ contract AddressManager is
         // If the address is a module, then we call the ModuleManager to register it
         // This means to add any module, the ModuleManager must be deployed first
         if (_addressType == ProtocolAddressType.Module) {
-            IModuleManager moduleManager = IModuleManager(
-                _getProtocolAddressByName("MODULE_MANAGER").addr
-            );
+            IModuleManager moduleManager = IModuleManager(_getProtocolAddressByName("MODULE_MANAGER").addr);
             require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
 
             // The ModuleManager will be in charge to check if the address is a valid module
@@ -476,9 +462,7 @@ contract AddressManager is
         delete currentRoleHolders[_role];
     }
 
-    function _getProtocolAddressByName(
-        string memory _name
-    ) internal view returns (ProtocolAddress memory) {
+    function _getProtocolAddressByName(string memory _name) internal view returns (ProtocolAddress memory) {
         bytes32 nameHash = keccak256(abi.encode(_name));
         ProtocolAddress memory protocolAddress_ = protocolAddressesByName[nameHash];
 
