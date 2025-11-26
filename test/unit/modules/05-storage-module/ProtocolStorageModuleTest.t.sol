@@ -45,7 +45,7 @@ contract ProtocolStorageModuleTest is Test {
             address(modMgr)
         );
 
-        (protocolStorageModule, , ) = moduleDeployer.run(addrMgr);
+        (, protocolStorageModule, , ) = moduleDeployer.run(addrMgr);
 
         takadao = operatorAddr;
     }
@@ -76,7 +76,7 @@ contract ProtocolStorageModuleTest is Test {
 
     function testProtocolStorageModule_SetUint_FeeWithinMax() public {
         string memory key = "platform_fee"; // ends with "_fee"
-        uint256 okVal = protocolStorageModule.MAX_FEE_BPS(); // boundary OK
+        uint256 okVal = protocolStorageModule.MAX_FEE(); // boundary OK
 
         vm.prank(takadao);
         protocolStorageModule.setUintValue(key, okVal);
@@ -86,14 +86,14 @@ contract ProtocolStorageModuleTest is Test {
 
     function testProtocolStorageModule_SetUint_FeeOverMaxReverts() public {
         string memory key = "platform_fee"; // ends with "_fee"
-        uint256 badVal = protocolStorageModule.MAX_FEE_BPS() + 1;
+        uint256 badVal = protocolStorageModule.MAX_FEE() + 1;
         bytes32 hashed = _hashKey(key);
 
         bytes memory err = abi.encodeWithSelector(
             ProtocolStorageModule.ProtocolStorageModule__FeeExceedsMaximum.selector,
             hashed,
             badVal,
-            protocolStorageModule.MAX_FEE_BPS()
+            protocolStorageModule.MAX_FEE()
         );
 
         vm.startPrank(takadao);
@@ -105,7 +105,7 @@ contract ProtocolStorageModuleTest is Test {
     function testProtocolStorageModule_FeeSuffix_IsCaseSensitive() public {
         // Over max but key DOES NOT end with lowercase "_fee" → should NOT revert
         string memory key = "platform_FEE";
-        uint256 badVal = protocolStorageModule.MAX_FEE_BPS() + 999;
+        uint256 badVal = protocolStorageModule.MAX_FEE() + 999;
 
         vm.prank(takadao);
         protocolStorageModule.setUintValue(key, badVal); // no revert expected
@@ -116,7 +116,7 @@ contract ProtocolStorageModuleTest is Test {
     function testProtocolStorageModule_FeeSuffix_MustBeAtEnd() public {
         // Contains "_fee" but not at the end → should NOT trigger the cap
         string memory key = "contains_fee_suffix_but_more";
-        uint256 badVal = protocolStorageModule.MAX_FEE_BPS() + 888;
+        uint256 badVal = protocolStorageModule.MAX_FEE() + 888;
 
         vm.prank(takadao);
         protocolStorageModule.setUintValue(key, badVal); // no revert expected
