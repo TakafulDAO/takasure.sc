@@ -8,7 +8,6 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {IModuleImplementation} from "contracts/interfaces/modules/IModuleImplementation.sol";
 import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
