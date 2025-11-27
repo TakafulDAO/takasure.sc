@@ -1,0 +1,23 @@
+@startuml
+title Save Fund (SF) – High-Level Sequence
+
+participant "SF Vault\n(Smart Contract)" as Vault
+participant "Strategy / Router\n(Smart Contracts)" as Strat
+database Subgraph as SG
+participant "Backend\n(Algo + Bots)" as BE
+participant "Uniswap v3/v4\n& CCIP" as Ext
+
+== Backend runs strategy / rebalancing loop ==
+
+BE -> Vault: Read vault state\n(balances, caps, whitelisted tokens)
+BE -> SG: (optional) Read historical data\nfor strategy inputs
+BE -> BE: Compute desired portfolio\nwithin on-chain caps
+
+BE -> Strat: Call swap / LP functions\n(within whitelists & caps)
+Strat -> Vault: Move funds on behalf of Vault
+Strat -> Ext: Perform swaps / LP operations
+Ext --> Strat: Resulting tokens / LP positions
+Strat -> Vault: Finalize balances
+Vault -> SG: Emit events (swaps, LP changes)
+
+@enduml
