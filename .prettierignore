@@ -10,3 +10,6 @@ img
 README.md
 coverage.json
 deployments
+**/*.sol
+**/*.s.sol
+**/*.t.sol
