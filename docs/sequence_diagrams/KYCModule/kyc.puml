@@ -1,0 +1,55 @@
+@startuml KYC_approveKYC
+title approveKYC – KYC verification flow
+autonumber
+
+!define REVERT(reason) KYCModule -x KYCProvider: reason
+
+actor KYCProvider
+participant KYCModule
+participant AddressManager
+participant ProtocolStorageModule
+
+KYCProvider -> KYCModule: approveKYC(memberWallet)
+
+note over KYCProvider, KYCModule
+onlyRole(Roles.KYC_PROVIDER, address(addressManager))
+end note
+
+KYCModule -> AddressManager: getProtocolAddressByName("MODULE_MANAGER")
+AddressManager --> KYCModule: ProtocolAddress MODULE_MANAGER
+
+alt [Module-Disabled]
+  REVERT("ModuleState != Enabled")
+else [Module-Enabled]
+  KYCModule -> KYCModule: AddressAndStates._notZeroAddress(memberWallet)
+  alt [memberWallet-is-address-zero]
+    REVERT("ModuleErrors.Module__InvalidAddress()")
+  else [memberWallet-is-not-address-zero]
+    alt [memberWallet-is-kyc]
+      REVERT("KYCModule__MemberAlreadyKYCed()")
+    else [memberWallet-is-not-kyc]
+      KYCModule -> AddressManager: getProtocolAddressByName("PROTOCOL_STORAGE_MODULE")
+      AddressManager --> KYCModule: ProtocolAddress PROTOCOL_STORAGE_MODULE
+
+      KYCModule -> ProtocolStorageModule: getAssociationMember(memberWallet)
+      ProtocolStorageModule --> KYCModule: AssociationMember newMember
+
+      ' Member profile previously created in subscription flow
+      ref over KYCModule, ProtocolStorageModule [[subscription-without-benefit.puml]] : Member joins and AssociationMember stored
+
+      alt [no-planId-or-refunded]
+          REVERT("KYCModule__ContributionRequired()")
+      end
+
+      KYCModule -> KYCModule: newMember.memberState = AssociationMemberState.Active
+      KYCModule -> KYCModule: isKYCed[memberWallet] = true
+
+      KYCModule -> ProtocolStorageModule: updateAssociationMember(newMember)
+      KYCModule -> KYCModule: emit OnMemberKycVerified(\n  newMember.memberId,\n  memberWallet)
+
+      KYCModule --> KYCProvider: KYC approved
+    end
+  end
+end
+
+@enduml
