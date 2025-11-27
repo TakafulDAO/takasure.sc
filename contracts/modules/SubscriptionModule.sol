@@ -350,7 +350,7 @@ contract SubscriptionModule is
         if (isRejoin) protocolStorageModule.updateAssociationMember(member);
         else protocolStorageModule.createAssociationMember(member);
 
-        if (_parentWallet != address(0)) _addChildToParent(_userWallet, _parentWallet);
+        if (_params.parentWallet != address(0)) _addChildToParent(_params.userWallet, _params.parentWallet);
     }
 
     function _addChildToParent(address _childAddress, address _parentAddress) internal {

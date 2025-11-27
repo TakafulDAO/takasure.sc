@@ -152,7 +152,7 @@ contract ProtocolStorageModule is ModuleImplementation, IProtocolStorageModule, 
     }
 
     // TODO: Implement this when the benefit module is ready
-    function createBenefitMember() external view {
+    function createBenefitMember(address benefit, BenefitMember memory member) external view {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
