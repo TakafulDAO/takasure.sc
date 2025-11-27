@@ -12,7 +12,8 @@ import {
     ProtocolAddressType,
     AssociationMember,
     ModuleState,
-    AssociationMemberState
+    AssociationMemberState,
+    BenefitMember
 } from "contracts/types/TakasureTypes.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
@@ -21,6 +22,9 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 contract ProtocolStorageModule is ModuleImplementation, IProtocolStorageModule, Initializable, UUPSUpgradeable {
     // Association members related
     mapping(address member => AssociationMember) private members;
+    // Benefit members related
+    mapping(address benefit => mapping(address member => BenefitMember)) private benefitMembers;
+    mapping(address benefit => uint256) private benefitMemberIdCounters;
 
     // Generic values
     // All mappings are `variable_name` => `variable_value` one for each type
@@ -37,11 +41,12 @@ contract ProtocolStorageModule is ModuleImplementation, IProtocolStorageModule, 
     /*
     List of keys used in the protocol storage:
     - memberIdCounter (uint256): Counter to assign new member IDs
-    - allowUsersToJoinAssociation (bool): Flag to allow or disallow users to call paySubscription in SubscriptionModule
+    - allowUserInitiatedCalls (bool): Flag to allow or disallow users to call paySubscription in SubscriptionModule
+    - benefitFee (uint256): Fee in basis points
     - ... (other keys can be added as needed)
     */
 
-    uint256 public constant MAX_FEE_BPS = 3_500; // 3500 basis points = 35%
+    uint256 public constant MAX_FEE = 35; // 35%
 
     // Frequently read/write keys can be added as constants here for gas efficiency
     bytes32 internal constant MEMBER_ID_COUNTER = 0x2b5d5fdc61aab63670213f6da13321480a5157a1cc7f8263f9c36641ff091666; // keccak256(abi.encode("memberIdCounter"))
@@ -86,15 +91,6 @@ contract ProtocolStorageModule is ModuleImplementation, IProtocolStorageModule, 
         moduleName = _moduleName;
     }
 
-    modifier onlyProtocolOrModule() {
-        require(
-            addressManager.hasType(ProtocolAddressType.Protocol, msg.sender)
-                || addressManager.hasType(ProtocolAddressType.Module, msg.sender),
-            ModuleErrors.Module__NotAuthorizedCaller()
-        );
-        _;
-    }
-
     modifier onlyProtocolsAddresses() {
         require(
             addressManager.hasType(ProtocolAddressType.Admin, msg.sender)
@@ -136,10 +132,15 @@ contract ProtocolStorageModule is ModuleImplementation, IProtocolStorageModule, 
         emit OnNewAssociationMember(member.memberId, member.wallet, member.parent, member.couponAmountRedeemed);
     }
 
-    function updateAssociationMember(AssociationMember memory member) external onlyProtocolOrModule {
+    function updateAssociationMember(AssociationMember memory member) external {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+        require(
+            addressManager.hasName("SUBSCRIPTION_MODULE", msg.sender)
+                || addressManager.hasName("MANAGE_SUBSCRIPTION_MODULE", msg.sender),
+            ModuleErrors.Module__NotAuthorizedCaller()
         );
         _associationMemberProfileChecks(member, true);
 
@@ -148,6 +149,33 @@ contract ProtocolStorageModule is ModuleImplementation, IProtocolStorageModule, 
         members[member.wallet] = member;
 
         emit OnAssociationMemberUpdated(member.memberId, member.wallet, member.couponAmountRedeemed);
+    }
+
+    // TODO: Implement this when the benefit module is ready
+    function createBenefitMember() external view {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+    }
+
+    // Todo: This might change on benefit modules implementation
+    function updateBenefitMember(address benefit, BenefitMember memory member) external {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+        require(
+            addressManager.hasType(ProtocolAddressType.Benefit, msg.sender)
+                || addressManager.hasName("MANAGE_SUBSCRIPTION_MODULE", msg.sender),
+            ModuleErrors.Module__NotAuthorizedCaller()
+        );
+
+        require(member.wallet != address(0) && member.wallet != member.parent, ModuleErrors.Module__InvalidAddress());
+
+        // Ensure the memberId is preserved
+        member.memberId = benefitMembers[benefit][member.wallet].memberId;
+        benefitMembers[benefit][member.wallet] = member;
     }
 
     function setUintValue(string calldata key, uint256 value) external onlyProtocolsAddresses {
@@ -159,7 +187,7 @@ contract ProtocolStorageModule is ModuleImplementation, IProtocolStorageModule, 
 
         // If the key is a fee, ensure it does not exceed the maximum allowed
         if (_hasFeeSuffix(key)) {
-            require(value <= MAX_FEE_BPS, ProtocolStorageModule__FeeExceedsMaximum(hashedKey, value, MAX_FEE_BPS));
+            require(value <= MAX_FEE, ProtocolStorageModule__FeeExceedsMaximum(hashedKey, value, MAX_FEE));
         }
 
         uintStorage[hashedKey] = value;
@@ -236,6 +264,10 @@ contract ProtocolStorageModule is ModuleImplementation, IProtocolStorageModule, 
 
     function getAssociationMember(address memberAddress) external view returns (AssociationMember memory) {
         return members[memberAddress];
+    }
+
+    function getBenefitMember(address benefit, address memberAddress) external view returns (BenefitMember memory) {
+        return benefitMembers[benefit][memberAddress];
     }
 
     function getUintValue(string calldata key) external view returns (uint256) {

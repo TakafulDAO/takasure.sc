@@ -749,8 +749,8 @@ contract ReferralGateway is
     ) internal view {
         _commonChecks(_newMember, _planToApply, _couponAmount, _parent, _isDonated);
 
-        if (_isModifying) _checksIfModifying(_newMember, _couponAmount, _associationTimestamp);
-        else _checksIfNotModifying(_newMember, _planToApply, _couponAmount);
+        if (_isModifying) _checksIfModifying(_newMember, _associationTimestamp);
+        else _checksIfNotModifying(_newMember);
     }
 
     function _commonChecks(
@@ -793,7 +793,7 @@ contract ReferralGateway is
         }
     }
 
-    function _checksIfNotModifying(address _newMember, uint256 _planToApply, uint256 _couponAmount) internal view {
+    function _checksIfNotModifying(address _newMember) internal view {
         // If we are not modifying a member, the payer  cannot be already a member
         require(
             nameToDAOData[daoName].prepaidMembers[_newMember].contributionBeforeFee == 0,
@@ -801,7 +801,7 @@ contract ReferralGateway is
         );
     }
 
-    function _checksIfModifying(address _member, uint256 _couponAmount, uint256 _associationTimestamp) internal view {
+    function _checksIfModifying(address _member, uint256 _associationTimestamp) internal view {
         // If we are modifying, we update the existing prepaid member
         // But we require that the member exists and is a member who donated
         require(

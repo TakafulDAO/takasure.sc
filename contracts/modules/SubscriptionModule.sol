@@ -8,7 +8,6 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {IModuleImplementation} from "contracts/interfaces/modules/IModuleImplementation.sol";
 import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
@@ -35,6 +34,7 @@ import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol"
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 pragma solidity 0.8.28;
 
@@ -46,6 +46,19 @@ contract SubscriptionModule is
     ReentrancyGuardTransientUpgradeable
 {
     using SafeERC20 for IERC20;
+    using EnumerableSet for EnumerableSet.UintSet;
+
+    EnumerableSet.UintSet private _associationPlans;
+    EnumerableSet.UintSet private _disabledPlans;
+
+    // Helper struct to avoid stack too deep errors in _paySubscription
+    struct PaySubscriptionParams {
+        address userWallet;
+        address parentWallet;
+        uint256 planPrice;
+        uint256 couponAmount;
+        uint256 membershipStartTime;
+    }
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -54,6 +67,8 @@ contract SubscriptionModule is
     error SubscriptionModule__NothingToRefund();
     error SubscriptionModule__IsBenefitMember();
     error SubscriptionModule__HasReferrals();
+    error SubscriptionModule__PlanAlreadyExists();
+    error SubscriptionModule__PlanAlreadyDisabled();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -65,10 +80,42 @@ contract SubscriptionModule is
     }
 
     function initialize(address _addressManager, string calldata _moduleName) external initializer {
+        AddressAndStates._notZeroAddress(_addressManager);
+
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
+
         addressManager = IAddressManager(_addressManager);
         moduleName = _moduleName;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Add a new association plan
+     * @param planPrice plan price. This price is the contribution to be made, with six decimals
+     */
+    function addAssociationPlan(uint256 planPrice) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        require(_associationPlans.add(planPrice), SubscriptionModule__PlanAlreadyExists());
+    }
+
+    /**
+     * @notice Remove an association plan
+     * @param planPrice plan price. This price is the contribution to be made, with six decimals
+     */
+    function removeAssociationPlan(uint256 planPrice) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        require(_associationPlans.remove(planPrice), ModuleErrors.Module__InvalidPlanPrice());
+    }
+
+    /**
+     * @notice Disable an association plan
+     * @param planPrice plan price. This price is the contribution to be made, with six decimals
+     */
+    function disableAssociationPlan(uint256 planPrice) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        require(_associationPlans.remove(planPrice), ModuleErrors.Module__InvalidPlanPrice());
+        require(_disabledPlans.add(planPrice), SubscriptionModule__PlanAlreadyDisabled());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -86,10 +133,11 @@ contract SubscriptionModule is
 
     /**
      * @notice Allow new members to join the association.
+     * @param planPrice plan price. This price is the contribution to be made, with six decimals
      * @param parentWallet Optional parent address. If there is no parent it must be address(0)
      *                     If a parent is provided, it must be KYCed
      */
-    function paySubscription(address parentWallet) external {
+    function paySubscription(uint256 planPrice, address parentWallet) external {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
@@ -98,10 +146,18 @@ contract SubscriptionModule is
         IProtocolStorageModule protocolStorageModule =
             IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
 
-        bool allowUsersToPay = protocolStorageModule.getBoolValue("allowUsersToJoinAssociation");
+        bool allowUsersToPay = protocolStorageModule.getBoolValue("allowUserInitiatedCalls");
         require(allowUsersToPay, ModuleErrors.Module__NotAuthorizedCaller());
 
-        _paySubscription(msg.sender, parentWallet, 0, block.timestamp);
+        _paySubscription(
+            PaySubscriptionParams({
+                userWallet: msg.sender,
+                parentWallet: parentWallet,
+                planPrice: planPrice,
+                couponAmount: 0,
+                membershipStartTime: block.timestamp
+            })
+        );
     }
 
     /**
@@ -110,12 +166,14 @@ contract SubscriptionModule is
      * @param userWallet address of the member
      * @param parentWallet Optional parent address. If there is no parent it must be address(0)
      *                     If a parent is provided, it must be KYCed
+     * @param planPrice plan price. This price is the contribution to be made, with six decimals
      * @param membershipStartTime when the membership starts, in seconds
      * @param couponAmount in six decimals
      */
     function paySubscriptionOnBehalfOf(
         address userWallet,
         address parentWallet,
+        uint256 planPrice,
         uint256 couponAmount,
         uint256 membershipStartTime
     ) external {
@@ -124,11 +182,20 @@ contract SubscriptionModule is
             ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
         require(
-            couponAmount == 0 || couponAmount == ModuleConstants.ASSOCIATION_SUBSCRIPTION,
-            ModuleErrors.Module__InvalidCoupon()
+            AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager))
+                || AddressAndStates._checkName("ROUTER", address(addressManager)),
+            ModuleErrors.Module__NotAuthorizedCaller()
         );
 
-        _paySubscription(userWallet, parentWallet, couponAmount, membershipStartTime);
+        _paySubscription(
+            PaySubscriptionParams({
+                userWallet: userWallet,
+                parentWallet: parentWallet,
+                planPrice: planPrice,
+                couponAmount: couponAmount,
+                membershipStartTime: membershipStartTime
+            })
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -190,8 +257,8 @@ contract SubscriptionModule is
         IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
         IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
-        uint256 amountToTransfer = ModuleConstants.ASSOCIATION_SUBSCRIPTION
-            - ((ModuleConstants.ASSOCIATION_SUBSCRIPTION * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
+        uint256 amountToTransfer =
+            member.planPrice - ((member.planPrice * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
 
         // Check if the user had any discount
         uint256 userDiscount = member.discount;
@@ -207,42 +274,47 @@ contract SubscriptionModule is
     }
 
     /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
+
+    function getAssociationPlans() external view returns (uint256[] memory plans_) {
+        uint256 length = _associationPlans.length();
+        plans_ = new uint256[](length);
+        for (uint256 i = 0; i < length; i++) {
+            plans_[i] = _associationPlans.at(i);
+        }
+        return plans_;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Allow new members to pay subscriptions. All members must pay first, and KYC afterwards. Prejoiners are KYCed by default.
-     * @param _userWallet address of the member
-     * @param _parentWallet address of the parent
-     * @param _couponAmount amount of USDC in six decimals to be used as a coupon
      */
-    function _paySubscription(
-        address _userWallet,
-        address _parentWallet,
-        uint256 _couponAmount,
-        uint256 _membershipStartTime
-    ) internal nonReentrant {
-        // Check caller
+    function _paySubscription(PaySubscriptionParams memory _params) internal nonReentrant {
+        require(_associationPlans.contains(_params.planPrice), ModuleErrors.Module__InvalidPlanPrice());
         require(
-            AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager))
-                || AddressAndStates._checkName("ROUTER", address(addressManager)),
-            ModuleErrors.Module__NotAuthorizedCaller()
+            _params.couponAmount >= 0 && _params.couponAmount <= _params.planPrice, ModuleErrors.Module__InvalidCoupon()
         );
 
         (IProtocolStorageModule protocolStorageModule, AssociationMember memory member) =
-            _fetchMemberFromStorageModule(_userWallet);
+            _fetchMemberFromStorageModule(_params.userWallet);
 
         // To know if we are creating a new member or updating an existing one we need to check the wallet and refund state
-        bool isRejoin = member.wallet == _userWallet && member.isRefunded;
+        bool isRejoin = member.wallet == _params.userWallet && member.isRefunded;
 
         // Create the member profile
         member = AssociationMember({
             memberId: isRejoin ? member.memberId : 0, // If is a rejoin, keep the same memberId, else use 0 as placeholder, will be set in storage module
+            planPrice: _params.planPrice,
             discount: 0, // Placeholder
-            couponAmountRedeemed: _couponAmount, // in six decimals
-            associateStartTime: _membershipStartTime,
-            wallet: _userWallet,
-            parent: _parentWallet,
+            couponAmountRedeemed: _params.couponAmount, // in six decimals
+            associateStartTime: _params.membershipStartTime,
+            latestPayment: _params.membershipStartTime, // On creation, latest payment is the same as start time
+            wallet: _params.userWallet,
+            parent: _params.parentWallet,
             memberState: AssociationMemberState.Inactive, // Set to inactive until the KYC is verified
             isRefunded: false,
             benefits: new address[](0), // Clean benefits array
@@ -253,11 +325,11 @@ contract SubscriptionModule is
             IReferralRewardsModule(addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr);
 
         (uint256 feeAmount, uint256 discount, uint256 toReferralReserveAmount) = referralRewardsModule.calculateReferralRewards({
-            contribution: ModuleConstants.ASSOCIATION_SUBSCRIPTION,
-            couponAmount: _couponAmount,
-            child: _userWallet,
-            parent: _parentWallet,
-            feeAmount: (ModuleConstants.ASSOCIATION_SUBSCRIPTION * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100
+            contribution: _params.planPrice,
+            couponAmount: _params.couponAmount,
+            child: _params.userWallet,
+            parent: _params.parentWallet,
+            feeAmount: (_params.planPrice * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100
         });
         member.discount = discount;
 
@@ -265,11 +337,12 @@ contract SubscriptionModule is
         // Transfer the fee to the fee claim address
         // Transfer the referral reserve amount to the referral rewards module to be distributed later
         _performTransfers({
+            _planPrice: _params.planPrice,
             _fee: feeAmount,
             _discount: discount,
-            _couponAmount: _couponAmount,
+            _couponAmount: _params.couponAmount,
             _toReferralReserveAmount: toReferralReserveAmount,
-            _userWallet: _userWallet,
+            _userWallet: _params.userWallet,
             _referralRewardsModule: address(referralRewardsModule)
         });
 
@@ -305,6 +378,7 @@ contract SubscriptionModule is
      * @dev The subscription amount is fixed at 25 USDC
      */
     function _performTransfers(
+        uint256 _planPrice,
         uint256 _fee,
         uint256 _discount,
         uint256 _couponAmount,
@@ -314,7 +388,7 @@ contract SubscriptionModule is
     ) internal {
         IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
-        uint256 contributionAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION - _fee;
+        uint256 contributionAfterFee = _planPrice - _fee;
         bool transferFromMember = _couponAmount == 0 ? true : false;
         uint256 amountToTransfer;
 
@@ -364,9 +438,8 @@ contract SubscriptionModule is
         require(_member.benefits.length == 0, SubscriptionModule__IsBenefitMember());
         require(_member.childs.length == 0, SubscriptionModule__HasReferrals());
 
-        // As there is only one contribution, is easy to calculte with the Member struct values
-        uint256 contributionAmountAfterFee = ModuleConstants.ASSOCIATION_SUBSCRIPTION
-            - ((ModuleConstants.ASSOCIATION_SUBSCRIPTION * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
+        uint256 contributionAmountAfterFee =
+            _member.planPrice - ((_member.planPrice * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
         uint256 discountAmount = _member.discount;
         uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
@@ -384,9 +457,11 @@ contract SubscriptionModule is
 
         _member = AssociationMember({
             memberId: _member.memberId,
+            planPrice: 0, // Reset the plan price
             discount: 0, // Reset the discount
             couponAmountRedeemed: 0, // Reset the coupon amount redeemed
             associateStartTime: 0, // Reset the start time
+            latestPayment: 0, // Reset the latest payment timestamp
             wallet: _memberWallet,
             parent: address(0), // Reset the parent
             memberState: AssociationMemberState.Inactive, // Set to inactive in case the user already made KYC
