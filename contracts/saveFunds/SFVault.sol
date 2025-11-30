@@ -26,7 +26,7 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
-    error SFVault__OnlyRedeemable();
+    error NonTransferableShares();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -44,32 +44,14 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               TRANSFERS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Shares are not transferrable between users
-     */
-    function transfer(address to, uint256 value) public override(ERC20Upgradeable, IERC20) returns (bool) {
-        require(to == address(this), SFVault__OnlyRedeemable());
-        return super.transfer(to, value);
-    }
-
-    /**
-     * @notice Shares are not transferrable between users
-     */
-    function transferFrom(address from, address to, uint256 value)
-        public
-        override(ERC20Upgradeable, IERC20)
-        returns (bool)
-    {
-        require(to == address(this), SFVault__OnlyRedeemable());
-        return super.transferFrom(from, to, value);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Shares are not transferrable between users
+    function _update(address from, address to, uint256 value) internal override {
+        require(from == address(0) || to == address(0), SFVault__NonTransferableShares());
+        super._update(from, to, value);
+    }
 
     ///@dev required by the OZ UUPS module
     function _authorizeUpgrade(address newImplementation) internal override {}
