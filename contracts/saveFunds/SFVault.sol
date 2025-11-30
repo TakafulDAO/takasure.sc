@@ -37,9 +37,10 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
         _disableInitializers();
     }
 
-    function initialize(IERC20 _underlying) external initializer {
+    function initialize(IERC20 _underlying, string memory _name, string memory _symbol) external initializer {
         __UUPSUpgradeable_init();
         __ERC4626_init(_underlying);
+        __ERC20_init(_name, _symbol);
     }
 
     /*//////////////////////////////////////////////////////////////
