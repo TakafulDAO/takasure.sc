@@ -39,9 +39,9 @@ interface ISaveFundVault {
     function decimals() external view returns (uint8);
 
     // TODO: Additional to implement
-    event FeesTaken(uint256 feeRecipient, uint256 feeAssetsOrShares, uint256 feeType);
-    event StrategyUpdated(address indexed newStrategy, uint256 newCap, bool active);
-    event TVLCapUpdated(uint256 newCap);
+    event OnFeesTaken(uint256 feeRecipient, uint256 feeAssetsOrShares, uint256 feeType);
+    event OnStrategyUpdated(address indexed newStrategy, uint256 newCap, bool active);
+    event OnTVLCapUpdated(uint256 newCap);
 
     function pause() external;
     function unpause() external;
@@ -60,4 +60,5 @@ interface ISaveFundVault {
     function withdrawFromStrategy(address strategy, uint256 assets) external;
     function rebalance(address fromStrategy, address toStrategy, uint256 assets) external;
     function harvest(address strategy) external;
+    function getLastReport() external view returns (uint256 lastReportTimestamp, uint256 lastReportAssets);
 }
