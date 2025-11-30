@@ -11,7 +11,10 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {
+    ERC4626Upgradeable,
+    ERC20Upgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -19,6 +22,11 @@ pragma solidity 0.8.28;
 
 contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     using SafeERC20 for IERC20;
+
+    /*//////////////////////////////////////////////////////////////
+                           EVENTS AND ERRORS
+    //////////////////////////////////////////////////////////////*/
+    error SFVault__OnlyRedeemable();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -32,6 +40,30 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     function initialize(IERC20 _underlying) external initializer {
         __UUPSUpgradeable_init();
         __ERC4626_init(_underlying);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               TRANSFERS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Shares are not transferrable between users
+     */
+    function transfer(address to, uint256 value) public override(ERC20Upgradeable, IERC20) returns (bool) {
+        require(to == address(this), SFVault__OnlyRedeemable());
+        return super.transfer(to, value);
+    }
+
+    /**
+     * @notice Shares are not transferrable between users
+     */
+    function transferFrom(address from, address to, uint256 value)
+        public
+        override(ERC20Upgradeable, IERC20)
+        returns (bool)
+    {
+        require(to == address(this), SFVault__OnlyRedeemable());
+        return super.transferFrom(from, to, value);
     }
 
     /*//////////////////////////////////////////////////////////////
