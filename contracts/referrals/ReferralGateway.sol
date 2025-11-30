@@ -12,7 +12,9 @@ import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol"
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -117,21 +119,14 @@ contract ReferralGateway is
     //////////////////////////////////////////////////////////////*/
 
     event OnNewDAO(
-        bool indexed preJoinDiscountEnabled,
-        bool indexed referralDiscount,
-        uint256 launchDate,
-        uint256 objectiveAmount
+        bool indexed preJoinDiscountEnabled, bool indexed referralDiscount, uint256 launchDate, uint256 objectiveAmount
     );
     event OnDAOLaunchDateUpdated(uint256 indexed launchDate);
     event OnDAOLaunched(address indexed DAOAddress);
     event OnReferralDiscountSwitched(bool indexed referralDiscount);
     event OnRepoolEnabled(address indexed rePoolAddress);
     event OnPrepayment(
-        address indexed parent,
-        address indexed child,
-        uint256 indexed contribution,
-        uint256 fee,
-        uint256 discount
+        address indexed parent, address indexed child, uint256 indexed contribution, uint256 fee, uint256 discount
     );
     event OnPrepaidMemberModified(
         address indexed member,
@@ -140,17 +135,9 @@ contract ReferralGateway is
         uint256 extraFee,
         uint256 extraDiscount
     );
-    event OnCouponRedeemed(
-        address indexed member,
-        string indexed tDAOName,
-        uint256 indexed couponAmount
-    );
+    event OnCouponRedeemed(address indexed member, string indexed tDAOName, uint256 indexed couponAmount);
     event OnParentRewardTransferStatus(
-        address indexed parent,
-        uint256 indexed layer,
-        address indexed child,
-        uint256 reward,
-        bool status
+        address indexed parent, uint256 indexed layer, address indexed child, uint256 reward, bool status
     );
     event OnMemberKYCVerified(address indexed member);
     event OnRefund(address indexed member, uint256 indexed amount);
@@ -239,22 +226,14 @@ contract ReferralGateway is
         nameToDAOData[daoName].bmConsumer = address(0); // DEPRECATED!!!
         nameToDAOData[daoName].rewardsEnabled = true;
 
-        emit OnNewDAO(
-            isPreJoinDiscountEnabled,
-            isReferralDiscountEnabled,
-            launchDate,
-            objectiveAmount
-        );
+        emit OnNewDAO(isPreJoinDiscountEnabled, isReferralDiscountEnabled, launchDate, objectiveAmount);
     }
 
     /**
      * @notice Update the DAO estimated launch date
      */
     function updateLaunchDate(uint256 launchDate) external onlyRole(OPERATOR) {
-        require(
-            nameToDAOData[daoName].DAOAddress == address(0),
-            ReferralGateway__DAOAlreadyLaunched()
-        );
+        require(nameToDAOData[daoName].DAOAddress == address(0), ReferralGateway__DAOAlreadyLaunched());
         nameToDAOData[daoName].launchDate = launchDate;
 
         emit OnDAOLaunchDateUpdated(launchDate);
@@ -269,17 +248,13 @@ contract ReferralGateway is
      * @dev The tDAOAddress must be different from 0
      * @dev It will disable the preJoinDiscountEnabled status of the DAO
      */
-    function launchDAO(
-        address tDAOAddress,
-        address subscriptionModule,
-        bool isReferralDiscountEnabled
-    ) external onlyRole(OPERATOR) {
+    function launchDAO(address tDAOAddress, address subscriptionModule, bool isReferralDiscountEnabled)
+        external
+        onlyRole(OPERATOR)
+    {
         _notZeroAddress(tDAOAddress);
         _notZeroAddress(subscriptionModule);
-        require(
-            nameToDAOData[daoName].DAOAddress == address(0),
-            ReferralGateway__DAOAlreadyLaunched()
-        );
+        require(nameToDAOData[daoName].DAOAddress == address(0), ReferralGateway__DAOAlreadyLaunched());
 
         nameToDAOData[daoName].preJoinDiscountEnabled = false;
         nameToDAOData[daoName].referralDiscountEnabled = isReferralDiscountEnabled;
@@ -296,10 +271,7 @@ contract ReferralGateway is
      */
     function enableRepool(address rePoolAddress) external onlyRole(OPERATOR) {
         _notZeroAddress(rePoolAddress);
-        require(
-            nameToDAOData[daoName].DAOAddress != address(0),
-            ReferralGateway__tDAONotReadyYet()
-        );
+        require(nameToDAOData[daoName].DAOAddress != address(0), ReferralGateway__tDAONotReadyYet());
         nameToDAOData[daoName].rePoolAddress = rePoolAddress;
 
         emit OnRepoolEnabled(rePoolAddress);
@@ -381,10 +353,7 @@ contract ReferralGateway is
         require(!isMemberKYCed[child], ReferralGateway__MemberAlreadyKYCed());
 
         // The member must have already pre-paid
-        require(
-            nameToDAOData[daoName].prepaidMembers[child].contributionBeforeFee != 0,
-            ReferralGateway__HasNotPaid()
-        );
+        require(nameToDAOData[daoName].prepaidMembers[child].contributionBeforeFee != 0, ReferralGateway__HasNotPaid());
 
         // Update the KYC status
         isMemberKYCed[child] = true;
@@ -407,12 +376,7 @@ contract ReferralGateway is
         uint256 couponAmount,
         uint256 associationTimestamp,
         uint256 benefitTimestamp
-    )
-        external
-        whenNotPaused
-        onlyRole(COUPON_REDEEMER)
-        returns (uint256 finalFee, uint256 discount)
-    {
+    ) external whenNotPaused onlyRole(COUPON_REDEEMER) returns (uint256 finalFee, uint256 discount) {
         (finalFee, discount) = _payContribution(
             InternalPayContributionInputs({
                 planToApply: newContribution,
@@ -427,8 +391,9 @@ contract ReferralGateway is
         );
 
         // Set as a coupon redeemer if not already
-        if (couponAmount > 0 && !isMemberCouponRedeemer[prepaidMember])
+        if (couponAmount > 0 && !isMemberCouponRedeemer[prepaidMember]) {
             _assignAsCouponRedeemer(prepaidMember, couponAmount);
+        }
     }
 
     /**
@@ -443,24 +408,23 @@ contract ReferralGateway is
         require(isMemberKYCed[newMember], ReferralGateway__NotKYCed());
 
         require(
-            nameToDAOData[daoName].DAOAddress != address(0) &&
-                nameToDAOData[daoName].launchDate <= block.timestamp,
+            nameToDAOData[daoName].DAOAddress != address(0) && nameToDAOData[daoName].launchDate <= block.timestamp,
             ReferralGateway__tDAONotReadyYet()
         );
 
         uint256 defaultMembershipDuration = 5 * (365 days);
 
         // Finally, we join the prepaidMember to the tDAO
-        ISubscriptionModule(nameToDAOData[daoName].subscriptionModule).joinFromReferralGateway(
-            newMember,
-            childToParent[newMember],
-            nameToDAOData[daoName].prepaidMembers[newMember].contributionBeforeFee,
-            defaultMembershipDuration
-        );
+        ISubscriptionModule(nameToDAOData[daoName].subscriptionModule)
+            .joinFromReferralGateway(
+                newMember,
+                childToParent[newMember],
+                nameToDAOData[daoName].prepaidMembers[newMember].contributionBeforeFee,
+                defaultMembershipDuration
+            );
 
         usdc.safeTransfer(
-            nameToDAOData[daoName].DAOAddress,
-            nameToDAOData[daoName].prepaidMembers[newMember].contributionAfterFee
+            nameToDAOData[daoName].DAOAddress, nameToDAOData[daoName].prepaidMembers[newMember].contributionAfterFee
         );
     }
 
@@ -474,13 +438,9 @@ contract ReferralGateway is
      * @dev Intended to be called by anyone if the DAO is not deployed at launch date
      */
     function refundIfDAOIsNotLaunched(address member) external {
+        require(member == msg.sender || hasRole(OPERATOR, msg.sender), ReferralGateway__NotAuthorizedCaller());
         require(
-            member == msg.sender || hasRole(OPERATOR, msg.sender),
-            ReferralGateway__NotAuthorizedCaller()
-        );
-        require(
-            nameToDAOData[daoName].launchDate < block.timestamp &&
-                nameToDAOData[daoName].DAOAddress == address(0),
+            nameToDAOData[daoName].launchDate < block.timestamp && nameToDAOData[daoName].DAOAddress == address(0),
             ReferralGateway__tDAONotReadyYet()
         );
 
@@ -527,15 +487,13 @@ contract ReferralGateway is
      * @notice Switch the referralDiscount status of a DAO
      */
     function switchReferralDiscount() external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].referralDiscountEnabled = !nameToDAOData[daoName]
-            .referralDiscountEnabled;
+        nameToDAOData[daoName].referralDiscountEnabled = !nameToDAOData[daoName].referralDiscountEnabled;
 
         emit OnReferralDiscountSwitched(nameToDAOData[daoName].referralDiscountEnabled);
     }
 
     function switchPrejoinDiscount() external onlyRole(OPERATOR) {
-        nameToDAOData[daoName].preJoinDiscountEnabled = !nameToDAOData[daoName]
-            .preJoinDiscountEnabled;
+        nameToDAOData[daoName].preJoinDiscountEnabled = !nameToDAOData[daoName].preJoinDiscountEnabled;
         emit OnPrejoinDiscountSwitched(nameToDAOData[daoName].preJoinDiscountEnabled);
     }
 
@@ -556,9 +514,7 @@ contract ReferralGateway is
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function getPrepaidMember(
-        address member
-    )
+    function getPrepaidMember(address member)
         external
         view
         returns (
@@ -576,17 +532,11 @@ contract ReferralGateway is
         isDonated = nameToDAOData[daoName].prepaidMembers[member].isDonated;
     }
 
-    function getParentRewardsByChild(
-        address parent,
-        address child
-    ) external view returns (uint256 rewards) {
+    function getParentRewardsByChild(address parent, address child) external view returns (uint256 rewards) {
         rewards = nameToDAOData[daoName].prepaidMembers[parent].parentRewardsByChild[child];
     }
 
-    function getParentRewardsByLayer(
-        address parent,
-        uint256 layer
-    ) external view returns (uint256 rewards) {
+    function getParentRewardsByLayer(address parent, uint256 layer) external view returns (uint256 rewards) {
         rewards = nameToDAOData[daoName].prepaidMembers[parent].parentRewardsByLayer[layer];
     }
 
@@ -640,12 +590,15 @@ contract ReferralGateway is
         _grantRole(PAUSE_GUARDIAN, _pauseGuardian);
     }
 
-    function _payContribution(
-        InternalPayContributionInputs memory _inputs
-    ) internal whenNotPaused nonReentrant returns (uint256 finalFee_, uint256 discount_) {
+    function _payContribution(InternalPayContributionInputs memory _inputs)
+        internal
+        whenNotPaused
+        nonReentrant
+        returns (uint256 finalFee_, uint256 discount_)
+    {
         // Normalize it in case the input has more than 4 decimals
-        uint256 normalizedContribution = (_inputs.planToApply /
-            DECIMAL_REQUIREMENT_PRECISION_USDC) * DECIMAL_REQUIREMENT_PRECISION_USDC;
+        uint256 normalizedContribution =
+            (_inputs.planToApply / DECIMAL_REQUIREMENT_PRECISION_USDC) * DECIMAL_REQUIREMENT_PRECISION_USDC;
 
         // Perform the necessary checks
         _payContributionChecks(
@@ -665,11 +618,8 @@ contract ReferralGateway is
             // If we are modifying, we need to calculate the prorated contribution based on the association timestamp
             // The formula will be _contribution * (YEAR - (benefitTimestamp - associationTimestamp)) / YEAR
             // And the YEAR is considered always as 365 days, no leap years or any other factor
-            proratedContribution = _prorateOneYear(
-                normalizedContribution,
-                _inputs.associationTimestamp,
-                _inputs.benefitTimestamp
-            );
+            proratedContribution =
+                _prorateOneYear(normalizedContribution, _inputs.associationTimestamp, _inputs.benefitTimestamp);
         } else {
             // If this is not modifying a member then we use the full normalized contribution
             proratedContribution = normalizedContribution;
@@ -690,16 +640,14 @@ contract ReferralGateway is
         finalFee_ = (proratedContribution * SERVICE_FEE_RATIO) / 100;
 
         // If the DAO pre join is enabled, it will get a discount as a pre-joiner
-        if (nameToDAOData[daoName].preJoinDiscountEnabled)
-            discount_ +=
-                ((proratedContribution - fixedCouponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) /
-                100;
+        if (nameToDAOData[daoName].preJoinDiscountEnabled) {
+            discount_ += ((proratedContribution - fixedCouponAmount) * CONTRIBUTION_PREJOIN_DISCOUNT_RATIO) / 100;
+        }
 
         // And if the DAO has the referral discount enabled, it will get a discount as a referrer
-        if (nameToDAOData[daoName].referralDiscountEnabled && _inputs.parent != address(0))
-            discount_ +=
-                ((proratedContribution - fixedCouponAmount) * REFERRAL_DISCOUNT_RATIO) /
-                100;
+        if (nameToDAOData[daoName].referralDiscountEnabled && _inputs.parent != address(0)) {
+            discount_ += ((proratedContribution - fixedCouponAmount) * REFERRAL_DISCOUNT_RATIO) / 100;
+        }
 
         uint256 toReferralReserve;
 
@@ -728,15 +676,11 @@ contract ReferralGateway is
         finalFee_ -= discount_ + toReferralReserve + rePoolFee;
 
         assert(
-            (proratedContribution * SERVICE_FEE_RATIO) / 100 ==
-                finalFee_ + discount_ + toReferralReserve + rePoolFee
+            (proratedContribution * SERVICE_FEE_RATIO) / 100 == finalFee_ + discount_ + toReferralReserve + rePoolFee
         );
 
         nameToDAOData[daoName].toRepool += rePoolFee;
-        nameToDAOData[daoName].currentAmount +=
-            proratedContribution -
-            (proratedContribution * SERVICE_FEE_RATIO) /
-            100;
+        nameToDAOData[daoName].currentAmount += proratedContribution - (proratedContribution * SERVICE_FEE_RATIO) / 100;
         nameToDAOData[daoName].collectedFees += finalFee_;
 
         uint256 amountToTransfer = proratedContribution - discount_ - fixedCouponAmount;
@@ -744,12 +688,14 @@ contract ReferralGateway is
         // We transfer the corresponding amount either from the member or from the coupon pool
         // If the tx comes from payContributionOnBehalfOf, the pulled amount will be the normalizedContribution minus fees and discounts
         // If the tx comes from payContributionAfterWaive, the pulled amount will be the the proratedContribution minus fees and discounts
-        if (amountToTransfer > 0)
+        if (amountToTransfer > 0) {
             usdc.safeTransferFrom(_inputs.member, address(this), amountToTransfer);
+        }
 
         // Transfer the complete coupon
-        if (_inputs.couponAmount > 0)
+        if (_inputs.couponAmount > 0) {
             usdc.safeTransferFrom(couponPool, address(this), _inputs.couponAmount);
+        }
 
         usdc.safeTransfer(operator, finalFee_);
 
@@ -757,13 +703,9 @@ contract ReferralGateway is
         // Some values will be the same if modifying or creating
         // As the contribution before fee refers to the plan selected, it will be always the normalized contribution
         // same for the contribution after fee
-        nameToDAOData[daoName]
-            .prepaidMembers[_inputs.member]
-            .contributionBeforeFee = normalizedContribution;
+        nameToDAOData[daoName].prepaidMembers[_inputs.member].contributionBeforeFee = normalizedContribution;
         nameToDAOData[daoName].prepaidMembers[_inputs.member].contributionAfterFee =
-            normalizedContribution -
-            (normalizedContribution * SERVICE_FEE_RATIO) /
-            100;
+            normalizedContribution - (normalizedContribution * SERVICE_FEE_RATIO) / 100;
         // Fees and discounts are cumulative
         nameToDAOData[daoName].prepaidMembers[_inputs.member].feeToOperator += finalFee_;
         nameToDAOData[daoName].prepaidMembers[_inputs.member].discount += discount_;
@@ -775,30 +717,20 @@ contract ReferralGateway is
             // We transfer the rewards if needed
             if (isMemberKYCed[_inputs.member]) _transferRewardsFromChild(_inputs.member);
             emit OnPrepaidMemberModified(
-                _inputs.member,
-                normalizedContribution,
-                proratedContribution,
-                finalFee_,
-                discount_
+                _inputs.member, normalizedContribution, proratedContribution, finalFee_, discount_
             );
         } else {
             // If we are not modifying, we create a new prepaid member, so we set the member address as the only value left
             nameToDAOData[daoName].prepaidMembers[_inputs.member].member = _inputs.member;
-            emit OnPrepayment(
-                _inputs.parent,
-                _inputs.member,
-                normalizedContribution,
-                finalFee_,
-                discount_
-            );
+            emit OnPrepayment(_inputs.parent, _inputs.member, normalizedContribution, finalFee_, discount_);
         }
     }
 
-    function _prorateOneYear(
-        uint256 _amount,
-        uint256 _associationStartsAt,
-        uint256 _benefitStartsAt
-    ) internal pure returns (uint256) {
+    function _prorateOneYear(uint256 _amount, uint256 _associationStartsAt, uint256 _benefitStartsAt)
+        internal
+        pure
+        returns (uint256)
+    {
         require(_associationStartsAt < _benefitStartsAt, ReferralGateway__IncompatibleSettings());
         uint256 YEAR = 365 days;
         uint256 elapsed = _benefitStartsAt - _associationStartsAt;
@@ -838,12 +770,14 @@ contract ReferralGateway is
         );
 
         // If the contribution is a donation, it must be exactly the minimum contribution
-        if (_isDonated)
+        if (_isDonated) {
             require(_planToApply == MINIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
+        }
 
         // If the referral discount is enabled, the rewards must also be enabled
-        if (nameToDAOData[daoName].referralDiscountEnabled)
+        if (nameToDAOData[daoName].referralDiscountEnabled) {
             require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
+        }
 
         // If there is a parent, it must be KYCed first, and the rewards must be enabled
         if (_parent != address(0)) {
@@ -851,11 +785,12 @@ contract ReferralGateway is
             require(isMemberKYCed[_parent], ReferralGateway__ParentMustKYCFirst());
         }
 
-        if (_couponAmount > 0)
+        if (_couponAmount > 0) {
             require(
                 _couponAmount <= _planToApply && _couponAmount >= MINIMUM_CONTRIBUTION,
                 ReferralGateway__InvalidContribution()
             );
+        }
     }
 
     function _checksIfNotModifying(address _newMember) internal view {
@@ -870,8 +805,8 @@ contract ReferralGateway is
         // If we are modifying, we update the existing prepaid member
         // But we require that the member exists and is a member who donated
         require(
-            nameToDAOData[daoName].prepaidMembers[_member].member != address(0) &&
-                nameToDAOData[daoName].prepaidMembers[_member].isDonated,
+            nameToDAOData[daoName].prepaidMembers[_member].member != address(0)
+                && nameToDAOData[daoName].prepaidMembers[_member].isDonated,
             ReferralGateway__NotAllowedToModify()
         );
 
@@ -894,21 +829,16 @@ contract ReferralGateway is
                 break;
             }
 
-            nameToDAOData[daoName]
-                .prepaidMembers[childToParent[currentChildToCheck]]
-                .parentRewardsByChild[_initialChildToCheck] +=
-                (_contribution * _referralRewardRatioByLayer(i + 1)) /
-                (100 * DECIMAL_CORRECTION);
+            nameToDAOData[daoName].prepaidMembers[childToParent[currentChildToCheck]].parentRewardsByChild[
+                    _initialChildToCheck
+                ] += (_contribution * _referralRewardRatioByLayer(i + 1)) / (100 * DECIMAL_CORRECTION);
 
-            nameToDAOData[daoName]
-                .prepaidMembers[childToParent[currentChildToCheck]]
-                .parentRewardsByLayer[uint256(i + 1)] +=
-                (_contribution * _referralRewardRatioByLayer(i + 1)) /
-                (100 * DECIMAL_CORRECTION);
+            nameToDAOData[daoName].prepaidMembers[childToParent[currentChildToCheck]]
+                    .parentRewardsByLayer[uint256(i + 1)] += (_contribution * _referralRewardRatioByLayer(i + 1))
+                / (100 * DECIMAL_CORRECTION);
 
-            parentRewardsAccumulated +=
-                (_contribution * _referralRewardRatioByLayer(i + 1)) /
-                (100 * DECIMAL_CORRECTION);
+            parentRewardsAccumulated += (_contribution * _referralRewardRatioByLayer(i + 1))
+                / (100 * DECIMAL_CORRECTION);
             currentChildToCheck = childToParent[currentChildToCheck];
         }
 
@@ -934,18 +864,13 @@ contract ReferralGateway is
      *      But this values where multiplied by 10_000 to avoid decimals in the formula so the values are
      *      layer 1 = 40_000, layer 2 = 10_000, layer 3 = 3_500, layer 4 = 1_750
      */
-    function _referralRewardRatioByLayer(
-        int256 _layer
-    ) internal pure returns (uint256 referralRewardRatio_) {
+    function _referralRewardRatioByLayer(int256 _layer) internal pure returns (uint256 referralRewardRatio_) {
         assembly {
             let layerSquare := mul(_layer, _layer) // x^2
             let layerCube := mul(_layer, layerSquare) // x^3
 
             // y = Ax^3 + Bx^2 + Cx + D
-            referralRewardRatio_ := add(
-                add(add(mul(A, layerCube), mul(B, layerSquare)), mul(C, _layer)),
-                D
-            )
+            referralRewardRatio_ := add(add(add(mul(A, layerCube), mul(B, layerSquare)), mul(C, _layer)), D)
         }
     }
 
@@ -956,15 +881,12 @@ contract ReferralGateway is
 
     function _refund(address _member) internal {
         require(
-            nameToDAOData[daoName].prepaidMembers[_member].contributionBeforeFee != 0,
-            ReferralGateway__HasNotPaid()
+            nameToDAOData[daoName].prepaidMembers[_member].contributionBeforeFee != 0, ReferralGateway__HasNotPaid()
         );
 
         uint256 discountReceived = nameToDAOData[daoName].prepaidMembers[_member].discount;
 
-        uint256 amountToRefund = nameToDAOData[daoName]
-            .prepaidMembers[_member]
-            .contributionBeforeFee - discountReceived;
+        uint256 amountToRefund = nameToDAOData[daoName].prepaidMembers[_member].contributionBeforeFee - discountReceived;
 
         require(
             amountToRefund <= usdc.balanceOf(address(this)),
@@ -974,9 +896,7 @@ contract ReferralGateway is
         uint256 leftover = amountToRefund;
 
         // We deduct first from the tDAO currentAmount only the part the member contributed
-        nameToDAOData[daoName].currentAmount -= nameToDAOData[daoName]
-            .prepaidMembers[_member]
-            .contributionAfterFee;
+        nameToDAOData[daoName].currentAmount -= nameToDAOData[daoName].prepaidMembers[_member].contributionAfterFee;
 
         // We update the leftover amount
         leftover -= nameToDAOData[daoName].prepaidMembers[_member].contributionAfterFee;
@@ -1023,9 +943,7 @@ contract ReferralGateway is
 
             uint256 _layer = i + 1;
 
-            uint256 _parentReward = nameToDAOData[daoName]
-                .prepaidMembers[_parent]
-                .parentRewardsByChild[_child];
+            uint256 _parentReward = nameToDAOData[daoName].prepaidMembers[_parent].parentRewardsByChild[_child];
 
             // Reset the rewards for this child
             nameToDAOData[daoName].prepaidMembers[_parent].parentRewardsByChild[_child] = 0;
@@ -1035,9 +953,7 @@ contract ReferralGateway is
                 emit OnParentRewardTransferStatus(_parent, _layer, _child, _parentReward, true);
             } catch {
                 // If the transfer failed, we need to revert the rewards
-                nameToDAOData[daoName].prepaidMembers[_parent].parentRewardsByChild[
-                    _child
-                ] = _parentReward;
+                nameToDAOData[daoName].prepaidMembers[_parent].parentRewardsByChild[_child] = _parentReward;
 
                 // Emit an event for off-chain monitoring
                 emit OnParentRewardTransferStatus(_parent, _layer, _child, _parentReward, false);
