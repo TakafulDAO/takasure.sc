@@ -16,7 +16,8 @@ contract ReferralGatewayModifyMemberTest is Test {
     uint256 initialContributionTimestamp;
     address takadao;
     address kycProvider;
-    address child = makeAddr("child");
+    address minimumDonator = makeAddr("minimumDonator");
+    address intermediateDonator = makeAddr("intermediateDonator");
     address parentLess = makeAddr("parentLess");
     address parent = makeAddr("parent");
     address couponPool = makeAddr("couponPool");
@@ -36,11 +37,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         uint256 extraDiscount
     );
 
-    event OnCouponRedeemed(
-        address indexed member,
-        string indexed tDAOName,
-        uint256 indexed couponAmount
-    );
+    event OnCouponRedeemed(address indexed member, string indexed tDAOName, uint256 indexed couponAmount);
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     function setUp() public {
@@ -57,13 +54,16 @@ contract ReferralGatewayModifyMemberTest is Test {
         usdc = IUSDC(config.contributionToken);
 
         // Give USDC
-        deal(address(usdc), child, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), minimumDonator, USDC_INITIAL_AMOUNT);
+        deal(address(usdc), intermediateDonator, USDC_INITIAL_AMOUNT);
         deal(address(usdc), parentLess, USDC_INITIAL_AMOUNT);
         deal(address(usdc), parent, USDC_INITIAL_AMOUNT);
         deal(address(usdc), couponPool, 1000e6);
 
         // USDC approvals
-        vm.prank(child);
+        vm.prank(minimumDonator);
+        usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
+        vm.prank(intermediateDonator);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
         vm.prank(parentLess);
         usdc.approve(address(referralGateway), USDC_INITIAL_AMOUNT);
@@ -82,41 +82,27 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         // The parent and parentLess pays contributions
         vm.startPrank(couponRedeemer);
-        referralGateway.payContributionOnBehalfOf(
-            MAX_CONTRIBUTION,
-            address(0),
-            parent,
-            MAX_CONTRIBUTION,
-            false
-        );
-        referralGateway.payContributionOnBehalfOf(
-            MIN_CONTRIBUTION,
-            address(0),
-            parentLess,
-            MIN_CONTRIBUTION,
-            true
-        );
+        referralGateway.payContributionOnBehalfOf(MAX_CONTRIBUTION, address(0), parent, MAX_CONTRIBUTION, false);
+        referralGateway.payContributionOnBehalfOf(MIN_CONTRIBUTION, address(0), parentLess, MIN_CONTRIBUTION, true);
         vm.stopPrank();
 
-        // KYC the parent so he can refer the child and receive referral rewards
+        // KYC the parent so he can refer the minimumDonator and receive referral rewards
         vm.prank(kycProvider);
         referralGateway.approveKYC(parent);
 
-        // The child pays the minimum contribution without a coupon, using the parent as a referrer, and donates the contribution
-        vm.prank(couponRedeemer);
-        referralGateway.payContributionOnBehalfOf(
-            MIN_CONTRIBUTION,
-            parent,
-            child,
-            MIN_CONTRIBUTION,
-            true
-        );
+        // The donators pays the minimum contribution without a coupon, using the parent as a referrer, and donates the contribution
+        vm.startPrank(couponRedeemer);
+        referralGateway.payContributionOnBehalfOf(MIN_CONTRIBUTION, parent, minimumDonator, MIN_CONTRIBUTION, true);
+        referralGateway.payContributionOnBehalfOf(125e6, address(0), intermediateDonator, 125e6, true);
+        vm.stopPrank();
 
         initialContributionTimestamp = block.timestamp;
 
-        // KYC the child so the parent receive referral rewards
-        vm.prank(kycProvider);
-        referralGateway.approveKYC(child);
+        // KYC the donators so the parent receive referral rewards
+        vm.startPrank(kycProvider);
+        referralGateway.approveKYC(minimumDonator);
+        referralGateway.approveKYC(intermediateDonator);
+        vm.stopPrank();
     }
 
     modifier turnOffAllDiscounts() {
@@ -127,42 +113,38 @@ contract ReferralGatewayModifyMemberTest is Test {
         _;
     }
 
-    function testChildNowWantsThe25DollarPlanAfterThreeMonthsNoCoupons()
-        public
-        turnOffAllDiscounts
-    {
+    /*//////////////////////////////////////////////////////////////
+                           MINIMUM DONATIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function testMinimumDonatorNowWantsThe25DollarPlanAfterThreeMonthsNoCoupons() public turnOffAllDiscounts {
         vm.warp(block.timestamp + 90 days);
         vm.roll(block.number + 1);
 
         // Remaining time 365 days - 90 days = 275 days
         // proratedAmount = 25 USDC * 275 / 365 = 18_835_616 USDC
 
-        (
-            uint256 contributionBeforeFee,
-            uint256 contributionAfterFee,
-            uint256 fee,
-            ,
-            bool isDonated
-        ) = referralGateway.getPrepaidMember(child);
+        (uint256 contributionBeforeFee, uint256 contributionAfterFee, uint256 fee,, bool isDonated) =
+            referralGateway.getPrepaidMember(minimumDonator);
 
         assertEq(contributionBeforeFee, MIN_CONTRIBUTION);
         assertEq(contributionAfterFee, 1825e4);
         assertEq(fee, 5e6);
         assert(isDonated);
 
-        // The child now wants to upgrade to the 25 USDC plan, so the new contribution is prorated
+        // The minimumDonator now wants to upgrade to the 25 USDC plan, so the new contribution is prorated
         uint256 newContribution = MIN_CONTRIBUTION;
 
         uint256 parentBalanceBefore = usdc.balanceOf(parent); // 776_000_000
-        uint256 childBalanceBefore = usdc.balanceOf(child); // 978_750_000
+        uint256 minimumDonatorBalanceBefore = usdc.balanceOf(minimumDonator); // 978_750_000
         uint256 couponPoolBalanceBefore = usdc.balanceOf(couponPool); // 1_000_000_000
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrepaidMemberModified(child, newContribution, 18_835_616, 941_783, 2_825_341);
+        emit OnPrepaidMemberModified(minimumDonator, newContribution, 18_835_616, 941_783, 2_825_341);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newContribution,
-            child,
+            minimumDonator,
             0, // no coupon
             initialContributionTimestamp,
             block.timestamp
@@ -171,8 +153,8 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(feeToOp, 3_767_124);
         assertEq(newDiscount, 0);
 
-        (contributionBeforeFee, contributionAfterFee, fee, , isDonated) = referralGateway
-            .getPrepaidMember(child);
+        (contributionBeforeFee, contributionAfterFee, fee,, isDonated) =
+            referralGateway.getPrepaidMember(minimumDonator);
 
         assertEq(contributionBeforeFee, MIN_CONTRIBUTION); // new plan
         assertEq(contributionAfterFee, 18_250_000);
@@ -180,45 +162,39 @@ contract ReferralGatewayModifyMemberTest is Test {
         assert(!isDonated);
 
         uint256 parentBalanceDelta = usdc.balanceOf(parent) - parentBalanceBefore;
-        uint256 childBalanceDelta = childBalanceBefore - usdc.balanceOf(child);
-        uint256 reward = (childBalanceDelta * 4) / 100;
+        uint256 minimumDonatorBalanceDelta = minimumDonatorBalanceBefore - usdc.balanceOf(minimumDonator);
+        uint256 reward = (minimumDonatorBalanceDelta * 4) / 100;
 
         assert(usdc.balanceOf(parent) > parentBalanceBefore);
-        assert(usdc.balanceOf(child) < childBalanceBefore);
+        assert(usdc.balanceOf(minimumDonator) < minimumDonatorBalanceBefore);
         assertEq(usdc.balanceOf(couponPool), couponPoolBalanceBefore);
         // The reward should be 4% of the prorated amount:
         assertEq(parentBalanceDelta, reward);
-        assertEq(childBalanceDelta, 18_835_616);
+        assertEq(minimumDonatorBalanceDelta, 18_835_616);
     }
 
-    function testChildNowWantsThe50DollarPlanAfterThreeMonthsNoCoupons() public {
+    function testMinimumDonatorNowWantsThe50DollarPlanAfterThreeMonthsNoCoupons() public {
         vm.warp(block.timestamp + 90 days);
         vm.roll(block.number + 1);
 
-        (
-            uint256 contributionBeforeFee,
-            uint256 contributionAfterFee,
-            uint256 fee,
-            ,
-            bool isDonated
-        ) = referralGateway.getPrepaidMember(child);
-
+        (uint256 contributionBeforeFee, uint256 contributionAfterFee, uint256 fee,, bool isDonated) =
+            referralGateway.getPrepaidMember(minimumDonator);
         assertEq(contributionBeforeFee, MIN_CONTRIBUTION);
         assertEq(contributionAfterFee, 1825e4);
         assertEq(fee, 5e6);
         assert(isDonated);
 
-        // The child now wants to upgrade to the 50 USDC plan, so the new contribution is prorated
+        // The minimumDonator now wants to upgrade to the 50 USDC plan, so the new contribution is prorated
         uint256 newContribution = 50e6; // 50 USDC
 
         uint256 parentBalanceBefore = usdc.balanceOf(parent);
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrepaidMemberModified(child, newContribution, 37_671_232, 1_883_563, 5_650_684);
+        emit OnPrepaidMemberModified(minimumDonator, newContribution, 37_671_232, 1_883_563, 5_650_684);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newContribution,
-            child,
+            minimumDonator,
             0, // no coupon
             initialContributionTimestamp,
             block.timestamp
@@ -229,8 +205,8 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(feeToOp, 1_883_563);
         assertEq(newDiscount, 5_650_684);
 
-        (contributionBeforeFee, contributionAfterFee, fee, , isDonated) = referralGateway
-            .getPrepaidMember(child);
+        (contributionBeforeFee, contributionAfterFee, fee,, isDonated) =
+            referralGateway.getPrepaidMember(minimumDonator);
 
         assertEq(contributionBeforeFee, 50e6); // new plan
         assertEq(contributionAfterFee, 36_500_000);
@@ -240,34 +216,29 @@ contract ReferralGatewayModifyMemberTest is Test {
         assert(parentBalanceAfter > parentBalanceBefore);
     }
 
-    function testChildNowWantsThe250DollarPlanAfterThreeMonthsNoCoupons() public {
+    function testMinimumDonatorNowWantsThe250DollarPlanAfterThreeMonthsNoCoupons() public {
         vm.warp(block.timestamp + 90 days);
         vm.roll(block.number + 1);
 
-        (
-            uint256 contributionBeforeFee,
-            uint256 contributionAfterFee,
-            uint256 fee,
-            ,
-            bool isDonated
-        ) = referralGateway.getPrepaidMember(child);
+        (uint256 contributionBeforeFee, uint256 contributionAfterFee, uint256 fee,, bool isDonated) =
+            referralGateway.getPrepaidMember(minimumDonator);
 
         assertEq(contributionBeforeFee, MIN_CONTRIBUTION);
         assertEq(contributionAfterFee, 1825e4);
         assertEq(fee, 5e6);
         assert(isDonated);
 
-        // The child now wants to upgrade to the 250 USDC plan, so the new contribution is prorated
+        // The minimumDonator now wants to upgrade to the 250 USDC plan, so the new contribution is prorated
         uint256 newContribution = 250e6;
 
         uint256 parentBalanceBefore = usdc.balanceOf(parent);
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrepaidMemberModified(child, newContribution, 188_356_164, 9_417_809, 28_253_424);
+        emit OnPrepaidMemberModified(minimumDonator, newContribution, 188_356_164, 9_417_809, 28_253_424);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
             newContribution,
-            child,
+            minimumDonator,
             0, // no coupon
             initialContributionTimestamp,
             block.timestamp
@@ -278,8 +249,8 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(feeToOp, 9_417_809);
         assertEq(newDiscount, 28_253_424);
 
-        (contributionBeforeFee, contributionAfterFee, fee, , isDonated) = referralGateway
-            .getPrepaidMember(child);
+        (contributionBeforeFee, contributionAfterFee, fee,, isDonated) =
+            referralGateway.getPrepaidMember(minimumDonator);
 
         assertEq(contributionBeforeFee, 250e6); // new plan
         assertEq(contributionAfterFee, 182_500_000);
@@ -289,19 +260,14 @@ contract ReferralGatewayModifyMemberTest is Test {
         assert(parentBalanceAfter > parentBalanceBefore);
     }
 
-    function testChildNowWantsThe50DollarPlanAfterThreeMonthsExtraCoupon() public {
+    function testMinimumDonatorNowWantsThe50DollarPlanAfterThreeMonthsExtraCoupon() public {
         assertEq(referralGateway.totalDonationsFromCoupons(), 0);
 
         vm.warp(block.timestamp + 90 days);
         vm.roll(block.number + 1);
 
-        (
-            uint256 contributionBeforeFee,
-            uint256 contributionAfterFee,
-            uint256 fee,
-            ,
-            bool isDonated
-        ) = referralGateway.getPrepaidMember(child);
+        (uint256 contributionBeforeFee, uint256 contributionAfterFee, uint256 fee,, bool isDonated) =
+            referralGateway.getPrepaidMember(minimumDonator);
 
         assertEq(contributionBeforeFee, MIN_CONTRIBUTION);
         assertEq(contributionAfterFee, 1825e4);
@@ -317,13 +283,9 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrepaidMemberModified(child, newContribution, 37_671_232, 7_534_247, 0);
+        emit OnPrepaidMemberModified(minimumDonator, newContribution, 37_671_232, 7_534_247, 0);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
-            newContribution,
-            child,
-            couponAmount,
-            initialContributionTimestamp,
-            block.timestamp
+            newContribution, minimumDonator, couponAmount, initialContributionTimestamp, block.timestamp
         );
 
         uint256 parentBalanceAfter = usdc.balanceOf(parent);
@@ -332,8 +294,8 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(feeToOp, 7_534_247);
         assertEq(newDiscount, 0);
 
-        (contributionBeforeFee, contributionAfterFee, fee, , isDonated) = referralGateway
-            .getPrepaidMember(child);
+        (contributionBeforeFee, contributionAfterFee, fee,, isDonated) =
+            referralGateway.getPrepaidMember(minimumDonator);
 
         assertEq(contributionBeforeFee, 50e6); // new plan
         assertEq(contributionAfterFee, 36_500_000);
@@ -346,20 +308,12 @@ contract ReferralGatewayModifyMemberTest is Test {
         assert(referralGateway.totalDonationsFromCoupons() < couponAmount);
     }
 
-    function test25PlanWithParent100daysRemainsCouponEqualsContribution()
-        public
-        turnOffAllDiscounts
-    {
+    function test25PlanWithParent100daysRemainsCouponEqualsContribution() public turnOffAllDiscounts {
         vm.warp(block.timestamp + 265 days); // 100 days remaining of 365
         vm.roll(block.number + 1);
 
-        (
-            uint256 contributionBeforeFee,
-            uint256 contributionAfterFee,
-            uint256 fee,
-            ,
-            bool isDonated
-        ) = referralGateway.getPrepaidMember(child);
+        (uint256 contributionBeforeFee, uint256 contributionAfterFee, uint256 fee,, bool isDonated) =
+            referralGateway.getPrepaidMember(minimumDonator);
 
         assertEq(contributionBeforeFee, MIN_CONTRIBUTION);
         assertEq(contributionAfterFee, 1825e4);
@@ -379,13 +333,9 @@ contract ReferralGatewayModifyMemberTest is Test {
         vm.expectEmit(true, true, false, true, address(usdc));
         emit Transfer(address(referralGateway), parent, 273_972);
         vm.expectEmit(true, true, true, false, address(referralGateway));
-        emit OnPrepaidMemberModified(child, newPlan, 6_849_315, 1_369_864, 0);
+        emit OnPrepaidMemberModified(minimumDonator, newPlan, 6_849_315, 1_369_864, 0);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
-            newPlan,
-            child,
-            newPlan,
-            initialContributionTimestamp,
-            block.timestamp
+            newPlan, minimumDonator, newPlan, initialContributionTimestamp, block.timestamp
         );
 
         // coupon - proratedAmount = 25e6 - 6_849_315 = 18_150_685 donated
@@ -395,8 +345,8 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(feeToOp, 1_369_864);
         assertEq(newDiscount, 0);
 
-        (contributionBeforeFee, contributionAfterFee, fee, , isDonated) = referralGateway
-            .getPrepaidMember(child);
+        (contributionBeforeFee, contributionAfterFee, fee,, isDonated) =
+            referralGateway.getPrepaidMember(minimumDonator);
 
         assertEq(contributionBeforeFee, MIN_CONTRIBUTION); // new plan
         assertEq(contributionAfterFee, 18_250_000);
@@ -404,20 +354,12 @@ contract ReferralGatewayModifyMemberTest is Test {
         assert(!isDonated);
     }
 
-    function test100PlanWithoutParent200daysRemainsCouponEqualsContribution()
-        public
-        turnOffAllDiscounts
-    {
+    function test100PlanWithoutParent200daysRemainsCouponEqualsContribution() public turnOffAllDiscounts {
         vm.warp(block.timestamp + 165 days); // 200 days remaining of 365
         vm.roll(block.number + 1);
 
-        (
-            uint256 contributionBeforeFee,
-            uint256 contributionAfterFee,
-            uint256 fee,
-            ,
-            bool isDonated
-        ) = referralGateway.getPrepaidMember(parentLess);
+        (uint256 contributionBeforeFee, uint256 contributionAfterFee, uint256 fee,, bool isDonated) =
+            referralGateway.getPrepaidMember(parentLess);
 
         assertEq(contributionBeforeFee, MIN_CONTRIBUTION);
         assertEq(contributionAfterFee, 1825e4);
@@ -436,11 +378,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrepaidMemberModified(parentLess, newPlan, 54_794_520, 10_958_904, 0);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
-            newPlan,
-            parentLess,
-            newPlan,
-            initialContributionTimestamp,
-            block.timestamp
+            newPlan, parentLess, newPlan, initialContributionTimestamp, block.timestamp
         );
 
         // coupon - proratedAmount = 100e6 - 54_794_520 = 45_205_480 donated
@@ -450,8 +388,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(feeToOp, 10_958_904);
         assertEq(newDiscount, 0);
 
-        (contributionBeforeFee, contributionAfterFee, fee, , isDonated) = referralGateway
-            .getPrepaidMember(parentLess);
+        (contributionBeforeFee, contributionAfterFee, fee,, isDonated) = referralGateway.getPrepaidMember(parentLess);
 
         assertEq(contributionBeforeFee, newPlan); // new plan
         assertEq(contributionAfterFee, 73_000_000);
@@ -459,20 +396,12 @@ contract ReferralGatewayModifyMemberTest is Test {
         assert(!isDonated);
     }
 
-    function test250PlanWithoutParent350daysRemainsCouponEqualsContribution()
-        public
-        turnOffAllDiscounts
-    {
+    function test250PlanWithoutParent350daysRemainsCouponEqualsContribution() public turnOffAllDiscounts {
         vm.warp(block.timestamp + 15 days); // 350 days remaining of 365
         vm.roll(block.number + 1);
 
-        (
-            uint256 contributionBeforeFee,
-            uint256 contributionAfterFee,
-            uint256 fee,
-            ,
-            bool isDonated
-        ) = referralGateway.getPrepaidMember(parentLess);
+        (uint256 contributionBeforeFee, uint256 contributionAfterFee, uint256 fee,, bool isDonated) =
+            referralGateway.getPrepaidMember(parentLess);
 
         assertEq(contributionBeforeFee, MIN_CONTRIBUTION);
         assertEq(contributionAfterFee, 1825e4);
@@ -491,11 +420,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         vm.expectEmit(true, true, true, false, address(referralGateway));
         emit OnPrepaidMemberModified(parentLess, newPlan, 239_726_027, 47_945_206, 0);
         (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
-            newPlan,
-            parentLess,
-            newPlan,
-            initialContributionTimestamp,
-            block.timestamp
+            newPlan, parentLess, newPlan, initialContributionTimestamp, block.timestamp
         );
 
         // coupon - proratedAmount = 250e6 - 239_726_027 = 10_273_973 donated
@@ -505,8 +430,7 @@ contract ReferralGatewayModifyMemberTest is Test {
         assertEq(feeToOp, 47_945_206);
         assertEq(newDiscount, 0);
 
-        (contributionBeforeFee, contributionAfterFee, fee, , isDonated) = referralGateway
-            .getPrepaidMember(parentLess);
+        (contributionBeforeFee, contributionAfterFee, fee,, isDonated) = referralGateway.getPrepaidMember(parentLess);
 
         assertEq(contributionBeforeFee, newPlan); // new plan
         assertEq(contributionAfterFee, 182_500_000);
@@ -522,20 +446,12 @@ contract ReferralGatewayModifyMemberTest is Test {
 
         vm.startPrank(couponRedeemer);
         referralGateway.payContributionAfterWaive(
-            newPlan,
-            parentLess,
-            newPlan,
-            initialContributionTimestamp,
-            block.timestamp
+            newPlan, parentLess, newPlan, initialContributionTimestamp, block.timestamp
         );
         // Cannot waive twice right away
         vm.expectRevert(ReferralGateway.ReferralGateway__NotAllowedToModify.selector);
         referralGateway.payContributionAfterWaive(
-            newPlan,
-            parentLess,
-            newPlan,
-            initialContributionTimestamp,
-            block.timestamp
+            newPlan, parentLess, newPlan, initialContributionTimestamp, block.timestamp
         );
         vm.stopPrank();
 
@@ -546,11 +462,151 @@ contract ReferralGatewayModifyMemberTest is Test {
         vm.prank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__NotAllowedToModify.selector);
         referralGateway.payContributionAfterWaive(
-            newPlan,
-            parentLess,
-            newPlan,
+            newPlan, parentLess, newPlan, initialContributionTimestamp, block.timestamp
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         INTERMEDIATE DONATIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function testIntermediateDonatorNowWantsThe125DollarPlanAfterThreeMonthsNoCoupons() public turnOffAllDiscounts {
+        vm.warp(block.timestamp + 90 days);
+        vm.roll(block.number + 1);
+
+        // Remaining time 365 days - 90 days = 275 days
+        // proratedAmount = 125 USDC * 275 / 365 = 94_178_082 USDC
+
+        (uint256 contributionBeforeFee, uint256 contributionAfterFee, uint256 fee,, bool isDonated) =
+            referralGateway.getPrepaidMember(intermediateDonator);
+
+        assertEq(contributionBeforeFee, 125e6);
+        assertEq(contributionAfterFee, 9125e4);
+        assertEq(fee, 25e6);
+        assert(isDonated);
+
+        // The intermediateDonator now wants to upgrade to the 125 USDC plan, so the new contribution is prorated
+        uint256 newContribution = 125e6;
+
+        uint256 parentBalanceBefore = usdc.balanceOf(parent); // 1_001_000_000
+        uint256 intermediateDonatorBalanceBefore = usdc.balanceOf(intermediateDonator); // 1_000_000_000
+        uint256 couponPoolBalanceBefore = usdc.balanceOf(couponPool); // 575_000_000
+
+        vm.prank(couponRedeemer);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(intermediateDonator, newContribution, 94_178_082, 18_835_617, 0);
+        (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
+            newContribution,
+            intermediateDonator,
+            0, // no coupon
             initialContributionTimestamp,
             block.timestamp
         );
+
+        assertEq(feeToOp, 18_835_617);
+        assertEq(newDiscount, 0);
+
+        (contributionBeforeFee, contributionAfterFee, fee,, isDonated) =
+            referralGateway.getPrepaidMember(intermediateDonator);
+
+        assertEq(contributionBeforeFee, 125e6); // new plan
+        assertEq(contributionAfterFee, 91_250_000);
+        assertEq(fee, 43_835_617); // previous one + new one
+        assert(!isDonated);
+
+        uint256 intermediateDonatorBalanceDelta = intermediateDonatorBalanceBefore - usdc.balanceOf(intermediateDonator);
+
+        assert(usdc.balanceOf(intermediateDonator) < intermediateDonatorBalanceBefore);
+        assertEq(usdc.balanceOf(couponPool), couponPoolBalanceBefore);
+        assertEq(parentBalanceBefore, usdc.balanceOf(parent));
+        assertEq(intermediateDonatorBalanceDelta, 94_178_082);
+    }
+
+    function testIntermediateDonatorNowWantsThe250DollarPlanAfterThreeMonthsNoCoupons() public {
+        vm.warp(block.timestamp + 90 days);
+        vm.roll(block.number + 1);
+
+        (uint256 contributionBeforeFee, uint256 contributionAfterFee, uint256 fee,, bool isDonated) =
+            referralGateway.getPrepaidMember(intermediateDonator);
+
+        assertEq(contributionBeforeFee, 125e6);
+        assertEq(contributionAfterFee, 9125e4);
+        assertEq(fee, 25e6);
+        assert(isDonated);
+
+        // The intermediateDonator now wants to upgrade to the 250 USDC plan, so the new contribution is prorated
+        uint256 newContribution = 250e6;
+
+        uint256 parentBalanceBefore = usdc.balanceOf(parent);
+
+        vm.prank(couponRedeemer);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(intermediateDonator, newContribution, 188_356_164, 18_835_617, 18_835_616);
+        (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
+            newContribution,
+            intermediateDonator,
+            0, // no coupon
+            initialContributionTimestamp,
+            block.timestamp
+        );
+
+        uint256 parentBalanceAfter = usdc.balanceOf(parent);
+
+        assertEq(feeToOp, 18_835_617);
+        assertEq(newDiscount, 18_835_616);
+
+        (contributionBeforeFee, contributionAfterFee, fee,, isDonated) =
+            referralGateway.getPrepaidMember(intermediateDonator);
+
+        assertEq(contributionBeforeFee, 250e6); // new plan
+        assertEq(contributionAfterFee, 182_500_000);
+        assertEq(fee, 43_835_617); // previous one + new one
+        assert(!isDonated);
+    }
+
+    function testIntermediateDonatorNowWantsThe250DollarPlanAfterThreeMonthsExtraCoupon() public {
+        assertEq(referralGateway.totalDonationsFromCoupons(), 0);
+
+        vm.warp(block.timestamp + 90 days);
+        vm.roll(block.number + 1);
+
+        (uint256 contributionBeforeFee, uint256 contributionAfterFee, uint256 fee,, bool isDonated) =
+            referralGateway.getPrepaidMember(intermediateDonator);
+
+        assertEq(contributionBeforeFee, 125e6);
+        assertEq(contributionAfterFee, 9125e4);
+        assertEq(fee, 25e6);
+        assert(isDonated);
+
+        uint256 newContribution = 250e6;
+        uint256 couponAmount = 250e6; // 250 USDC coupon
+
+        uint256 parentBalanceBefore = usdc.balanceOf(parent);
+
+        assertEq(referralGateway.totalDonationsFromCoupons(), 0);
+
+        vm.prank(couponRedeemer);
+        vm.expectEmit(true, true, true, false, address(referralGateway));
+        emit OnPrepaidMemberModified(intermediateDonator, newContribution, 188_356_164, 37_671_233, 0);
+        (uint256 feeToOp, uint256 newDiscount) = referralGateway.payContributionAfterWaive(
+            newContribution, intermediateDonator, couponAmount, initialContributionTimestamp, block.timestamp
+        );
+
+        uint256 parentBalanceAfter = usdc.balanceOf(parent);
+
+        // The fee to operator should be fee-disount-referralReserve-repoolFee
+        assertEq(feeToOp, 37_671_233);
+        assertEq(newDiscount, 0);
+
+        (contributionBeforeFee, contributionAfterFee, fee,, isDonated) =
+            referralGateway.getPrepaidMember(intermediateDonator);
+
+        assertEq(contributionBeforeFee, 250e6); // new plan
+        assertEq(contributionAfterFee, 182_500_000);
+        assertEq(fee, 62_671_233); // previous one + new one
+        assert(!isDonated);
+
+        assert(referralGateway.totalDonationsFromCoupons() > 0);
+        assert(referralGateway.totalDonationsFromCoupons() < couponAmount);
     }
 }
