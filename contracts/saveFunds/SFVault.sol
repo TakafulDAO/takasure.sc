@@ -26,7 +26,7 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
-    error NonTransferableShares();
+    error SFVault__NonTransferableShares();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
