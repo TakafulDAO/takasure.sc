@@ -141,7 +141,6 @@ contract ReferralGateway is
     );
     event OnMemberKYCVerified(address indexed member);
     event OnRefund(address indexed member, uint256 indexed amount);
-    event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
     event OnPrejoinDiscountSwitched(bool indexed preJoinDiscountEnabled);
