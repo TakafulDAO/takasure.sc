@@ -77,6 +77,16 @@
         },
         {
             "type": "function",
+            "name": "getLastReport",
+            "inputs": [],
+            "outputs": [
+                { "name": "lastReportTimestamp", "type": "uint256", "internalType": "uint256" },
+                { "name": "lastReportAssets", "type": "uint256", "internalType": "uint256" }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "getStrategyAllocation",
             "inputs": [],
             "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
@@ -369,7 +379,7 @@
         },
         {
             "type": "event",
-            "name": "FeesTaken",
+            "name": "OnFeesTaken",
             "inputs": [
                 {
                     "name": "feeRecipient",
@@ -394,7 +404,7 @@
         },
         {
             "type": "event",
-            "name": "StrategyUpdated",
+            "name": "OnStrategyUpdated",
             "inputs": [
                 {
                     "name": "newStrategy",
@@ -414,7 +424,7 @@
         },
         {
             "type": "event",
-            "name": "TVLCapUpdated",
+            "name": "OnTVLCapUpdated",
             "inputs": [
                 { "name": "newCap", "type": "uint256", "indexed": false, "internalType": "uint256" }
             ],
