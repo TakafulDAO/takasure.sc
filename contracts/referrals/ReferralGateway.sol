@@ -769,11 +769,6 @@ contract ReferralGateway is
             ReferralGateway__InvalidContribution()
         );
 
-        // If the contribution is a donation, it must be exactly the minimum contribution
-        if (_isDonated) {
-            require(_planToApply == MINIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
-        }
-
         // If the referral discount is enabled, the rewards must also be enabled
         if (nameToDAOData[daoName].referralDiscountEnabled) {
             require(nameToDAOData[daoName].rewardsEnabled, ReferralGateway__IncompatibleSettings());
