@@ -605,7 +605,6 @@ contract ReferralGateway is
             _inputs.couponAmount,
             _inputs.parent,
             _inputs.member,
-            _inputs.isDonated,
             _inputs.isModifying,
             _inputs.associationTimestamp
         );
@@ -742,23 +741,19 @@ contract ReferralGateway is
         uint256 _couponAmount,
         address _parent,
         address _newMember,
-        bool _isDonated,
         bool _isModifying,
         uint256 _associationTimestamp
     ) internal view {
-        _commonChecks(_newMember, _planToApply, _couponAmount, _parent, _isDonated);
+        _commonChecks(_newMember, _planToApply, _couponAmount, _parent);
 
         if (_isModifying) _checksIfModifying(_newMember, _associationTimestamp);
         else _checksIfNotModifying(_newMember);
     }
 
-    function _commonChecks(
-        address _member,
-        uint256 _planToApply,
-        uint256 _couponAmount,
-        address _parent,
-        bool _isDonated
-    ) internal view {
+    function _commonChecks(address _member, uint256 _planToApply, uint256 _couponAmount, address _parent)
+        internal
+        view
+    {
         // The new member must be different than the zero address
         require(_member != address(0), ReferralGateway__ZeroAddress());
 
