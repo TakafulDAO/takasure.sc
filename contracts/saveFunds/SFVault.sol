@@ -23,9 +23,16 @@ pragma solidity 0.8.28;
 contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     using SafeERC20 for IERC20;
 
+    // 0 = no cap
+    uint256 public tvlCap;
+    uint256 public perUserCap;
+
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
+    event OnTvlCapUpdated(uint256 newCap);
+    event OnPerUserCapUpdated(uint256 newCap);
+
     error SFVault__NonTransferableShares();
 
     /*//////////////////////////////////////////////////////////////
@@ -41,11 +48,69 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
         __UUPSUpgradeable_init();
         __ERC4626_init(_underlying);
         __ERC20_init(_name, _symbol);
+
+        // ? Ask if we want to set some caps at deployment
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+
+    // todo: access control
+    function setTvlCap(uint256 newCap) external {
+        tvlCap = newCap;
+        emit OnTvlCapUpdated(newCap);
+    }
+
+    // todo: access control
+    function setPerUserCap(uint256 newCap) external {
+        perUserCap = newCap;
+        emit OnPerUserCapUpdated(newCap);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
+
+    function maxDeposit(address receiver) public view override returns (uint256) {
+        // If both caps are off, use default maxDeposit
+        if (tvlCap == 0 && perUserCap == 0) return super.maxDeposit(receiver);
+
+        uint256 tvlRemaining = _remainingTvlCapacity();
+        uint256 userRemaining = _remainingUserCapacity(receiver);
+
+        // min betwen both remaining capacities
+        return tvlRemaining < userRemaining ? tvlRemaining : userRemaining;
+    }
+
+    function maxMint(address receiver) public view override returns (uint256) {
+        uint256 maxAssets = maxDeposit(receiver);
+        return convertToShares(maxAssets);
     }
 
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _remainingTvlCapacity() internal view returns (uint256) {
+        uint256 cap = tvlCap;
+
+        if (cap == 0) return type(uint256).max;
+
+        uint256 assets = totalAssets();
+        if (assets >= cap) return 0;
+        return cap - assets;
+    }
+
+    function _remainingUserCapacity(address _user) internal view returns (uint256) {
+        uint256 cap = perUserCap;
+
+        if (cap == 0) return type(uint256).max;
+
+        uint256 userAssets = convertToAssets(balanceOf(_user));
+        if (userAssets >= cap) return 0;
+        return cap - userAssets;
+    }
 
     /// @notice Shares are not transferrable between users
     function _update(address from, address to, uint256 value) internal override {
