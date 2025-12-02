@@ -30,14 +30,38 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     uint256 public tvlCap;
     uint256 public perUserCap;
 
+    // Fees
+    address public feeReceipient; // todo: implement with address manager later, leave it like this for now for cleanliness
+    uint16 public managementFeeBps; // annual management fee in basis points e.g., 200 = 2%
+    uint16 public performanceFeeBps; // performance fee in basis points e.g., 2000 = 20% of profits
+    uint16 public performanceFeeHurdleBps; // APY threshold in basis points, can be 0 for no hurdle
+
+    // Performance tracking
+    uint64 public lastReport; // timestamp of the last strategy report
+    uint256 public highWaterMark; // assets per share, scaled by 1e18
+
+    enum FeeType {
+        MANAGEMENT,
+        PERFORMANCE
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+    uint256 private MAX_BPS = 10_000; // 100% in basis points
+    uint256 private constant YEAR = 365 days;
+
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
     event OnTvlCapUpdated(uint256 newCap);
     event OnPerUserCapUpdated(uint256 newCap);
     event OnStrategyUpdated(address indexed newStrategy);
+    event OnFeeConfigUpdated(uint16 managementFeeBps, uint16 performanceFeeBps, uint16 performanceFeeHurdleBps);
+    event OnFeesTaken(uint256 feeShares, FeeType feeType);
 
     error SFVault__NonTransferableShares();
+    error SFVault__InvalidFeeBps();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -57,6 +81,11 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
         __UUPSUpgradeable_init();
         __ERC4626_init(_underlying);
         __ERC20_init(_name, _symbol);
+
+        // fees off by default
+        managementFeeBps = 0;
+        performanceFeeBps = 0;
+        performanceFeeHurdleBps = 0;
 
         // ? Ask if we want to set some caps at deployment
         // ? Ask if we want to set an initial strategy at deployment
@@ -94,6 +123,39 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     function setStrategy(ISFStrategy newStrategy) external {
         strategy = newStrategy;
         emit OnStrategyUpdated(address(newStrategy));
+    }
+
+    /**
+     * @notice Set fee configuration.
+     * @param _managementFeeBps Annual management fee in basis points.
+     * @param _performanceFeeBps Performance fee in basis points.
+     * @param _performanceFeeHurdleBps Performance fee hurdle in basis points.
+     * todo: access control
+     */
+    function setFeeConfig(uint16 _managementFeeBps, uint16 _performanceFeeBps, uint16 _performanceFeeHurdleBps)
+        external
+    {
+        require(_managementFeeBps <= MAX_BPS, SFVault__InvalidFeeBps());
+        require(_performanceFeeBps <= MAX_BPS, SFVault__InvalidFeeBps());
+
+        managementFeeBps = _managementFeeBps;
+        performanceFeeBps = _performanceFeeBps;
+        performanceFeeHurdleBps = _performanceFeeHurdleBps;
+        emit OnFeeConfigUpdated(_managementFeeBps, _performanceFeeBps, _performanceFeeHurdleBps);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                  FEES
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Charge management and performance fees, minting shares to feeRecipient.
+     * @return managementFeeShares Shares minted as management fee.
+     * @return performanceFeeShares Shares minted as performance fee.
+     * todo: access control if you want only keeper/backend to call this, or leave open.
+     */
+    function takeFees() external returns (uint256 managementFeeShares, uint256 performanceFeeShares) {
+        (managementFeeShares, performanceFeeShares) = _chargeFees();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -146,6 +208,12 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Shares are not transferrable.
+    function _update(address from, address to, uint256 value) internal override {
+        require(from == address(0) || to == address(0), SFVault__NonTransferableShares());
+        super._update(from, to, value);
+    }
+
     /**
      * @notice Calculate remaining TVL capacity.
      * @return The remaining TVL capacity in underlying asset units.
@@ -175,11 +243,7 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
         return cap - userAssets;
     }
 
-    /// @notice Shares are not transferrable.
-    function _update(address from, address to, uint256 value) internal override {
-        require(from == address(0) || to == address(0), SFVault__NonTransferableShares());
-        super._update(from, to, value);
-    }
+    function _chargeFees() internal returns (uint256 managementFeeShares, uint256 performanceFeeShares) {}
 
     ///@dev required by the OZ UUPS module.
     function _authorizeUpgrade(address newImplementation) internal override {}

@@ -3,10 +3,6 @@
 pragma solidity 0.8.28;
 
 interface ISFVault {
-    event OnFeesTaken(uint256 feeRecipient, uint256 feeAssetsOrShares, uint256 feeType);
-    event OnStrategyUpdated(address indexed newStrategy, uint256 newCap, bool active);
-    event OnTVLCapUpdated(uint256 newCap);
-
     function getUserAssets(address user) external view returns (uint256);
     function getUserShares(address user) external view returns (uint256);
     function getUserTotalDeposited(address user) external view returns (uint256);
