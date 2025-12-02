@@ -31,7 +31,7 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     uint256 public perUserCap;
 
     // Fees
-    address public feeReceipient; // todo: implement with address manager later, leave it like this for now for cleanliness
+    address public feeRecipient; // todo: implement with address manager later, leave it like this for now for cleanliness
     uint16 public managementFeeBps; // annual management fee in basis points e.g., 200 = 2%
     uint16 public performanceFeeBps; // performance fee in basis points e.g., 2000 = 20% of profits
     uint16 public performanceFeeHurdleBps; // APY threshold in basis points, can be 0 for no hurdle
@@ -243,7 +243,119 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
         return cap - userAssets;
     }
 
-    function _chargeFees() internal returns (uint256 managementFeeShares, uint256 performanceFeeShares) {}
+    /**
+     * @notice Internal function to charge management and performance fees.
+     * @dev Fees are taken in shares by minting new shares to feeRecipient.
+     *      Uses a high-water mark on assets-per-share to avoid charging
+     *      performance fees on fresh deposits.
+     */
+    function _chargeFees() internal returns (uint256 managementFeeShares_, uint256 performanceFeeShares_) {
+        if (feeRecipient == address(0)) {
+            // Skip fees
+            lastReport = uint64(block.timestamp);
+            return (0, 0);
+        }
+
+        uint256 _totalAssets = totalAssets();
+        uint256 _totalShares = totalSupply();
+        uint256 _timestamp = block.timestamp;
+        uint256 _elapsed = _timestamp - uint256(lastReport);
+
+        // No users/assets, skip fees
+        if (_totalShares == 0 || _totalAssets == 0) {
+            lastReport = uint64(_timestamp);
+            highWaterMark = 0;
+            return (0, 0);
+        }
+
+        // Management fees in assets
+        uint256 _managementFeeAssets;
+        if (managementFeeBps > 0 && _elapsed > 0) {
+            // Linear pro-rata fee based on time elapsed
+            // A * (mgmtFeeBps / 1e4) * (Δt / YEAR)
+            _managementFeeAssets = (_totalAssets * managementFeeBps * _elapsed) / (MAX_BPS * YEAR);
+        }
+
+        // Performance fees in assets, based on high-water mark
+        uint256 _currentAssetsPerShareWad = (_totalAssets * 1e18) / _totalShares;
+
+        // Init high-water mark if it's the first time
+        if (highWaterMark == 0) {
+            highWaterMark = _currentAssetsPerShareWad;
+        }
+
+        uint256 _performanceFeeAssets;
+
+        if (performanceFeeBps > 0 && _currentAssetsPerShareWad > highWaterMark) {
+            uint256 _gainPerShareWad = _currentAssetsPerShareWad - highWaterMark;
+            // Total profit above high-water mark in assets units
+            uint256 _profitAssets = (_gainPerShareWad * _totalShares) / 1e18;
+
+            // Optional APY hurdle
+            bool _hurdle = true;
+            if (performanceFeeHurdleBps > 0 && _elapsed > 0) {
+                // APY ~ (profit / (A - profit? approx A)) * (YEAR / Δt)
+                // assets per share to avoid deposit distortion:
+                // apyBps = (gain / highWaterMark) * (YEAR / Δt) in bps
+                uint256 _apyBps = (_gainPerShareWad * MAX_BPS * YEAR) / (highWaterMark * _elapsed);
+
+                if (_apyBps <= performanceFeeHurdleBps) {
+                    _hurdle = false;
+                }
+            }
+
+            if (_hurdle) {
+                _performanceFeeAssets = (_profitAssets * performanceFeeBps) / MAX_BPS;
+            }
+        }
+
+        // Total fees in assets
+        uint256 _totalFeeAssets = _managementFeeAssets + _performanceFeeAssets;
+
+        if (_totalFeeAssets == 0) {
+            // No fees to charge
+            lastReport = uint64(_timestamp);
+            highWaterMark = _currentAssetsPerShareWad;
+            return (0, 0);
+        }
+
+        // Bound to avoid division by zero
+        if (_totalFeeAssets > _totalAssets) {
+            _totalFeeAssets = _totalAssets - 1;
+        }
+
+        // Fee recipient should get shares equivalent to _totalFeeAssets
+        // X / (S + X) = F / A => X =  S * F / (A - F)
+        // where X = shares to mint, S = supply, F = _totalFeeAssets, A = assets
+        uint256 _feeSharesTotal = (_totalShares * _totalFeeAssets) / (_totalAssets - _totalFeeAssets);
+        if (_feeSharesTotal == 0) {
+            lastReport = uint64(_timestamp);
+            highWaterMark = _currentAssetsPerShareWad;
+            return (0, 0);
+        }
+
+        // Index each fee type
+        if (_managementFeeAssets > 0) {
+            managementFeeShares_ = (_feeSharesTotal * _managementFeeAssets) / _totalFeeAssets;
+            emit OnFeesTaken(managementFeeShares_, FeeType.MANAGEMENT);
+        }
+
+        if (_performanceFeeAssets > 0) {
+            performanceFeeShares_ = _feeSharesTotal - managementFeeShares_;
+            emit OnFeesTaken(performanceFeeShares_, FeeType.PERFORMANCE);
+        }
+
+        _mint(feeRecipient, _feeSharesTotal);
+
+        // Update state
+        uint256 _newTotalShares = _totalShares + _feeSharesTotal;
+        uint256 _newAssetsPerShareWad = (_totalAssets * 1e18) / _newTotalShares;
+
+        highWaterMark = _newAssetsPerShareWad;
+        lastReport = uint64(_timestamp);
+
+        return (managementFeeShares_, performanceFeeShares_);
+    }
 
     ///@dev required by the OZ UUPS module.
     function _authorizeUpgrade(address newImplementation) internal override {}
