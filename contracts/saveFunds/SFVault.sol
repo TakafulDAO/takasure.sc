@@ -10,6 +10,7 @@
 // todo: access control, maybe write this as a module with the other ones?
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {
@@ -25,13 +26,14 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     using SafeERC20 for IERC20;
 
     ISFStrategy public strategy; // current strategy handling the underlying assets
+    IAddressManager public addressManager;
 
     // 0 = no cap
     uint256 public tvlCap;
     uint256 public perUserCap;
 
     // Fees
-    address public feeRecipient; // todo: implement with address manager later, leave it like this for now for cleanliness
+    // address public feeRecipient; // todo: implement with address manager later, leave it like this for now for cleanliness
     uint16 public managementFeeBps; // annual management fee in basis points e.g., 200 = 2%
     uint16 public performanceFeeBps; // performance fee in basis points e.g., 2000 = 20% of profits
     uint16 public performanceFeeHurdleBps; // APY threshold in basis points, can be 0 for no hurdle
@@ -77,10 +79,15 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
      * @param _name The name of the vault shares token.
      * @param _symbol The symbol of the vault shares token.
      */
-    function initialize(IERC20 _underlying, string memory _name, string memory _symbol) external initializer {
+    function initialize(IAddressManager _addressManager, IERC20 _underlying, string memory _name, string memory _symbol)
+        external
+        initializer
+    {
         __UUPSUpgradeable_init();
         __ERC4626_init(_underlying);
         __ERC20_init(_name, _symbol);
+
+        addressManager = _addressManager;
 
         // fees off by default
         managementFeeBps = 0;
@@ -250,7 +257,8 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
      *      performance fees on fresh deposits.
      */
     function _chargeFees() internal returns (uint256 managementFeeShares_, uint256 performanceFeeShares_) {
-        if (feeRecipient == address(0)) {
+        address _feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        if (_feeRecipient == address(0)) {
             // Skip fees
             lastReport = uint64(block.timestamp);
             return (0, 0);
@@ -345,7 +353,8 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
             emit OnFeesTaken(performanceFeeShares_, FeeType.PERFORMANCE);
         }
 
-        _mint(feeRecipient, _feeSharesTotal);
+        // Mint shares to fee recipient
+        _mint(_feeRecipient, _feeSharesTotal);
 
         // Update state
         uint256 _newTotalShares = _totalShares + _feeSharesTotal;
