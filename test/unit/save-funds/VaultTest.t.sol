@@ -9,6 +9,8 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 
 contract VaultTest is Test {
     DeployManagers managersDeployer;
@@ -31,7 +33,41 @@ contract VaultTest is Test {
         (vault) = vaultDeployer.run(addrMgr);
     }
 
-    function testSanity() public {
-        assert(2 + 2 == 4);
+    function testSetAndGetCaps() public {
+        vault.setTvlCap(1_000_000);
+        vault.setPerUserCap(500_000);
+        assertEq(vault.tvlCap(), 1_000_000);
+        assertEq(vault.perUserCap(), 500_000);
+    }
+
+    function testMaxDepositRespectsCaps() public {
+        vault.setTvlCap(1000);
+        vault.setPerUserCap(500);
+        uint256 maxDeposit = vault.maxDeposit(address(this));
+        assertEq(maxDeposit, 500);
+    }
+
+    function testSetFeeConfigRevertsOnInvalidBps() public {
+        vm.expectRevert();
+        vault.setFeeConfig(10_001, 0, 0);
+    }
+
+    function testSetStrategyUpdates() public {
+        address newStrat = address(0x1234);
+        vault.setStrategy(ISFStrategy(newStrat));
+        assertEq(address(vault.strategy()), newStrat);
+    }
+
+    function testNonTransferableSharesReverts() public {
+        IERC20 asset = IERC20(vault.asset());
+        deal(address(asset), address(this), 1_000_000);
+        asset.approve(address(vault), 1_000_000);
+        vault.deposit(1_000_000, address(this));
+
+        uint256 bal = vault.balanceOf(address(this));
+        assertGt(bal, 0);
+
+        vm.expectRevert();
+        vault.transfer(address(0xBEEF), bal);
     }
 }
