@@ -10,12 +10,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 contract DeploySFVault is Script {
-    function run(IAddressManager addressManager)
-        external
-        returns (HelperConfig.NetworkConfig memory config, SFVault sfVault)
-    {
+    function run(IAddressManager addressManager) external returns (SFVault sfVault) {
         HelperConfig helperConfig = new HelperConfig();
-        config = helperConfig.getConfigByChainId(block.chainid);
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
 
         vm.startBroadcast(msg.sender);
 
@@ -31,7 +28,7 @@ contract DeploySFVault is Script {
 
         vm.stopBroadcast();
 
-        return (config, sfVault);
+        return (sfVault);
     }
 
     // To avoid this contract to be count in coverage
