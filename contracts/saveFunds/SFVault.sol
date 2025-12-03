@@ -33,7 +33,6 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     uint256 public perUserCap;
 
     // Fees
-    // address public feeRecipient; // todo: implement with address manager later, leave it like this for now for cleanliness
     uint16 public managementFeeBps; // annual management fee in basis points e.g., 200 = 2%
     uint16 public performanceFeeBps; // performance fee in basis points e.g., 2000 = 20% of profits
     uint16 public performanceFeeHurdleBps; // APY threshold in basis points, can be 0 for no hurdle
