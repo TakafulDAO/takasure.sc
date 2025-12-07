@@ -38,6 +38,8 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 # Simulations
 simulate-rev-share-distribution:
 	@forge script scripts/simulations/RevShareMonthSimToCsv.s.sol:RevShareMonthSimToCsv -vvv
+
+get-revshare-pioneers :; node scripts/rev-share-backfill/exportRevSharePioneers.js
 	
 # Protocol deployments
 protocol-deploy-referral:
