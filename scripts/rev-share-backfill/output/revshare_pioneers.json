@@ -1,0 +1,939 @@
+{
+  "snapshotBlock": null,
+  "totalNftsFromMap": "1777",
+  "totalPioneers": 232,
+  "globalStats": {
+    "currentSupply": "1777",
+    "totalUniquePioneers": "232"
+  },
+  "pioneers": [
+    {
+      "address": "0x00e9cb8f13d610a0e63840169adeeb636d6aa02b",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x01ef776bdb788f927980e0193df74e425f9e3038",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x03a57672fa3d25e9061042ab2250a9f29133928a",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x03dae4ac2959ff25971b48f956cea69ab0b11a1b",
+      "nftBalance": "6"
+    },
+    {
+      "address": "0x0511e7169f6f499156e5a5d677110e9a3d75c182",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x0603c1e3b50ef11e41920448e7aec1ca017f915d",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0x06d43919d190bc63e288480a925bd0ddb987598a",
+      "nftBalance": "15"
+    },
+    {
+      "address": "0x07e5795bae0b4970eb253793f5da5ff2e3906928",
+      "nftBalance": "5"
+    },
+    {
+      "address": "0x083fb239b97b84e7b02da6d49fa9f33539d77a74",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x08defcfb643d60ccf38862189bf7b0f100813997",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x09ca9da9c7b5337ea6a5fd002b4f83cdec62b063",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x0a0d89a53eb0f188b93dcc396d60f9860158ab0c",
+      "nftBalance": "21"
+    },
+    {
+      "address": "0x0a19f4dbf704ac2126c7e68485bf4f08b51709a3",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x0d3f6b35164c2a30eccfd785b6a1de41ddca8c0d",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x0f994a4e48af58ded61971db95f65b1932d0325b",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x0fbc2dba30859b7fce4dcf299cce31cbea228b68",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x105080d8583a0e7c4ae43f0ce3059459f0166ac5",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x13e7b6ab46c2a3f12b1004d30e97f3ab3eb70845",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0x14a2539e2b6d37dc463d0485edf0f2db7eba6e2c",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x1543b9f39e2be8b743854bd8ba2addfd0fa6150a",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x156f5776fc53c60cce6ef024b6cbe436e3b084e7",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x15ad8d0e31db3882de4c3cb251ccc89652916875",
+      "nftBalance": "10"
+    },
+    {
+      "address": "0x15bf2c139f3d43e49e5a35e8a6b60d7c42b127aa",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x16409e12b8fe00c1d02557791ee70f3702d6dd10",
+      "nftBalance": "15"
+    },
+    {
+      "address": "0x1654f6e147077d1d724c9caf82f44451419f3638",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0x1744a586983fac4f8edfe0bb5d17d1e7e7115169",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x1885020ab2b6f62860111f5bc2f3914c9989097d",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x1a52b48ce1fa3e6fe94b7ba07e0e03d8f83964a8",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0x1afff7f90029eed5fc6114181b59b5af6610c44a",
+      "nftBalance": "29"
+    },
+    {
+      "address": "0x1dda92dd565234569ac08a1780c4f440a72fa463",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x1e20ab208b8657d2c83820e1fbd7522a135f4fed",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x1fcd3bbb1b339299206758949f0605b832536f5a",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x2011b6cfda48896398f35ecc106681b1880dc201",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0x2260d9f2144134b1617d9d72701b06a8645512f5",
+      "nftBalance": "52"
+    },
+    {
+      "address": "0x241b8b22c8a17440fc5b6a104ba67a69c0a1692e",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0x265006a237449c62e8ea82ad3fd81b19360d32ef",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0x26ffd4745c5fec3dd027952e05360431131cdb7e",
+      "nftBalance": "5"
+    },
+    {
+      "address": "0x27e6faf256e04900033eb06b3dc585c6233b3c4f",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x2abdf940036769f12ad88a1e743feb7794f4562b",
+      "nftBalance": "11"
+    },
+    {
+      "address": "0x2d7305ada1eca11a7785380ac3d4e106068dd304",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x2de0031845e5c36a85895b94ed35bea6eb5b6810",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x2e19cd545c2c73e9166e5e51ba58679d987a3dce",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x2e68deac5ae6ed298b382a3535f955ac5591e32f",
+      "nftBalance": "41"
+    },
+    {
+      "address": "0x30a50b594f4905b8528b63bf5efe454610a599be",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0x30ad600e19a79edc3bcb311b5992e5465664b6b0",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x31178c800817b608d16c42f4cd5bd95e61d03784",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x33115ce6d2d3d4dafb6c1d06c48600d619ddbc57",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x352641b8d1e11d6d529945fa944fd8ec356bf42a",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x35dfcf1b7fa7b2e22ce45f4c564d63ad83581035",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0x38c5e8c078938284424a0faa13083f041285d551",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x3a23cafcca45e1a5cfef1fc66230d5357bd3ba31",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x3d0fc424874cdc11fd2cf4f8e3dffd3719ce42a7",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x3dcb8a1495f8dfa25f0d6ac2a257037dbedae0c3",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x41146b330109b664ad8726ad64ddd46f7fa700ca",
+      "nftBalance": "29"
+    },
+    {
+      "address": "0x41eb809069039846fe7f6d9cc32c21579ffdb2b2",
+      "nftBalance": "8"
+    },
+    {
+      "address": "0x4212c35030b12cd49cbbdf92fbd829a21eeb4f88",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x43e75d39e692b4a7aa9a9c5614fb40043dab5fde",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x43ebfa9ef68f1d6ef23d80f910c0024671717571",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0x441f9b0ca9a6afdc155a2d6291cfff9d64cd361b",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x443c4fde96054d7cc56f1c8b3419e4adb6d2ebea",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x452d1935a951ad9b2544ef50345c5bbecb4d7428",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x45a72b5ee8e6ce1605833a68d784d5f0c871866d",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0x46ecb601dbf316aef1f15d2371283912b36d888d",
+      "nftBalance": "12"
+    },
+    {
+      "address": "0x4856c45b855105d916137b2ecddf6a0b279ceb12",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0x4887bd8c05f8d609c51a3ac1b451b80ecc54df90",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x48b4df5531b49e8fe6dc1429ad008aa2707522d7",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x48bf5dd38622b1d14fe278d115621248afc9073d",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x48d10cff8f50ad83dc00f735f2e4e07d7b08e210",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x491618a08e3c44a5cec89c680535049dab3805c8",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0x49575ffbe4ca523055189daa809aea66fd804e44",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x4981bb7192fa9398233fcbdf773c0b23c7671072",
+      "nftBalance": "5"
+    },
+    {
+      "address": "0x49a0ff4ac417e86a61e267e9a4c5c9b3c977e9ba",
+      "nftBalance": "3"
+    },
+    {
+      "address": "0x4b06e67481eceff19417b03c8e44348f9ee54b98",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x4ba73e01a9a95659dbf3757c046282d29c6211fd",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x4bd9bb3915517b31f7cbb1615cf8fb8036f548ed",
+      "nftBalance": "5"
+    },
+    {
+      "address": "0x4d77d4d899b925ca776b172f9aae2b70424dc667",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x4f7f3392e079f08d7cade33b331e6bd8cabe36b4",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x4fda58798cd046071152be68ad528a65fe0df4f3",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x503ed5114a438def0a4a4a4bd26520370b06c739",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x514f341cf70e898879a2b3ad489cb82f8c8b8084",
+      "nftBalance": "3"
+    },
+    {
+      "address": "0x53119c03047cf6bb2df9a21b336bbdf27f79a41e",
+      "nftBalance": "21"
+    },
+    {
+      "address": "0x531b2d529ab679a81724e9409db453ccb7c54cb2",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x5328aa45dab0f44a566c987dd35746934283bfd8",
+      "nftBalance": "21"
+    },
+    {
+      "address": "0x53b9811aa00da55e5212598deeb9ae1d6302e243",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0x544b22e7fb00c26b0ac9967cfd39351b15f939f9",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x552c8c854341eb2f347c97c7fc8ffb603c6cc059",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x5683600012928f13ef05381621c4fcadccaf5a31",
+      "nftBalance": "11"
+    },
+    {
+      "address": "0x57d6419c78022450d7cd5ac3c8fd2ee09e0da54b",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x58aed31517d7e0397febba308c1039de82049f8f",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x599ac8aae1871d494e2688f59337b031de98eb2f",
+      "nftBalance": "3"
+    },
+    {
+      "address": "0x59b248f85fa17782ee10d8c0dca7004c69c92f32",
+      "nftBalance": "10"
+    },
+    {
+      "address": "0x59d40887a2169b641c0aa89c263906b802745fff",
+      "nftBalance": "8"
+    },
+    {
+      "address": "0x59e105d5d16d68bf283eba6e88f5484af1560f22",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0x5df67393f632af114a2628f0deca68a100a621d1",
+      "nftBalance": "21"
+    },
+    {
+      "address": "0x5e348a0be1a18cb30233cb67211109c1bb2033d0",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0x5ec1a175a8626c1da350e7f227f030bf3e1468cd",
+      "nftBalance": "8"
+    },
+    {
+      "address": "0x5fb3fb87bb8b7e82371a222e3eae4d16f138b50d",
+      "nftBalance": "3"
+    },
+    {
+      "address": "0x611f53a595c87422024119f233803367f168f4e6",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x644532d747dd229355c7cf0eaee569aef1b63846",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x64da381866c8cf572e51c1518c68e369587e0f23",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x65bb88bca208887f72da7d01471308328d94b7b0",
+      "nftBalance": "15"
+    },
+    {
+      "address": "0x6a6fa850093d0d80a67c7e2eb5f13f808c22eb57",
+      "nftBalance": "7"
+    },
+    {
+      "address": "0x6c8d73419302ec6329efb66f06c008d981719b34",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x6d7d3ecfb94d68177846fde653d06664bf5b5205",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x6e6adabc7b229fabd980bd21a9bd98bf3d771ac4",
+      "nftBalance": "21"
+    },
+    {
+      "address": "0x6fd9949f984d74d86feb361fe0436e694558b3cf",
+      "nftBalance": "17"
+    },
+    {
+      "address": "0x6fee762299a87bd21cb3db37b9c9e9c2d3595278",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x73a44a28719cc4cad003e1644f7194490937d71c",
+      "nftBalance": "5"
+    },
+    {
+      "address": "0x742e3304ca61f3045b285ad3e2b02e0722fcb897",
+      "nftBalance": "8"
+    },
+    {
+      "address": "0x749d5460776c268737130c592c800d14278cb09b",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x775a1ce6c8863ba7d9383c03d1f6e5752f3a6e6c",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x79732988545f312c35c58c141169469b72cd99fe",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x7a158a473bc59bf98a201cac4d544f5f9cd10aec",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x7b935a6dca43a34fb5fc555f566d693ece408bb7",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x7bba5654a7d53290c7ebd2fdbae20f0146e3ed94",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x7f8f5fc6ccbd0d9133018112c0d9413ca00f9286",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x7f9a34dcfa39b53d2b10246fe9db29225a7cc7d1",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x80d389902339db34cb3eeb81384d3d272f691aa4",
+      "nftBalance": "8"
+    },
+    {
+      "address": "0x82730a96098c8b615db829b37dad693fcbc1d20f",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0x831f0d03fb4a6a3c9c7d756055ca71e6e4a1c20f",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x84e7edd78b0bb65a25fbcfc95ca61a25cb34d467",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x8545fba34903ab26d89ac8c8fc7f0d70017f3788",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0x85d552d14a0d44baf0a945e26e78925bada32e00",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x87ca336ed4ff4cb4899303887492c22b5eb728fb",
+      "nftBalance": "5"
+    },
+    {
+      "address": "0x881bdf0a30eb89357fa7497a9558b0169041fe33",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x88e1d9081f4cec910e21f60b020a67774a53fd35",
+      "nftBalance": "3"
+    },
+    {
+      "address": "0x897b2a010e1490735b8a9108d9b07b2e2ba21e91",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0x8b782f492f4af4466cae1efc5f785892bdad40b8",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0x8d17bc0314305246c1edde765288fb008e1f0045",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x8d1efa1bea4344497d2b7ddb25bd67a29fc1a110",
+      "nftBalance": "5"
+    },
+    {
+      "address": "0x9028ebac3abe521a6dd24543c31e0c907c3c18f8",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x90951abbbfd88dafacebdef609dff85ef88d6689",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x90a2dbfa3a77f50a2c3818cc15e9e8f6613ffe06",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x91bd1346bee0e4c4a0635b020e0c9411d52343b2",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x9311dd24ce3e49edd7b4d0ccbd2021308f2ae7d6",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x959a59f8824107488400289adced431d2fcd3ed4",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x96d9d3bd8414a87000915b05a27ce85fc0c08a7c",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x9b34f89800da24a88dec341d4377b85fef79f6d2",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x9c6918b10f0ccbe0c40506f1b884a6ec2e6b0232",
+      "nftBalance": "50"
+    },
+    {
+      "address": "0x9da6e7d575ca01ec0fa297455b5185b0b646bc7f",
+      "nftBalance": "21"
+    },
+    {
+      "address": "0x9e3d8e34c4ce8e0a9bfab44ebb839f9373073ea9",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0x9e4afbadb62ba79c7779cb808f0332fced03e214",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0x9edd7031f8672893e3423131b0dba218e858d18a",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xa1bca557569f685ff6570d06f524296b36cffb3e",
+      "nftBalance": "12"
+    },
+    {
+      "address": "0xa1f174fabebd68f91df395d43d0b69562b07794f",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xa40d3249b03162286f0d1cb40a286d93b5dcf0e9",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xa480e8335adc53452a53a86fbbc3414e05de154e",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xa58552d80c45c5cea6dd540f9b26e73895a8f3fc",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xa601db85ed81fc4969e0f550140114b46395d7fe",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xa618b448a6ad8ded802d6b8bffe42be2a8b87e20",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xa63756f3a4dd49efd31f096b0f8b751f40d08068",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xa8f604ca4c9f61c0aa31c1daaee8d72130ef4ae7",
+      "nftBalance": "21"
+    },
+    {
+      "address": "0xaa820205df777801827a4c4693fe36b3162e6511",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xab9985cdba189d1df34b75e25804a27f7e7dd286",
+      "nftBalance": "15"
+    },
+    {
+      "address": "0xad4ba3bc20453cc151e7f1507352c088a09fd8dd",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xada9e06342c33e1d47ccdde21bd091e83c977601",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0xaef39ed5d1ed026396aefe66e2250156fa393c1e",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xb162ba84ba46ef395e51120ad0814ebb0da8cff0",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0xb1c492ad284a8688653859e5f43c1159d2802c26",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xb2088651ee6874d00ee4f07e9762eeaeaad96be6",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0xb3b8553dd4303fcec2e5891721e20924c525f3d6",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xb47211153b185a6a7ef3ca872ae0cff4d06a350b",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xb49b8516f5bc1fa5c7eba382da61f37e5fa52f91",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xb5c5512f401438c6c00066e32ad61f5bb4004a12",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xb729de06f1dc85a37ab6ba1fe75192332d807181",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0xb87db7103a313295e8df01133da125d5a2a02e5e",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0xb8c1c5e8d7a500f3aa11abc7a09dcd92480b32dd",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xb97043d3c1a6e9005a4cc75ad5fa6fe92df1f0d0",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xbbd3bb02bf1b791a371d60a194a9b5dd55e3c8ea",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xbe0b8f52df1c08b1aac97b5857560418d2c36212",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0xbe490baa539678f187d412d3c36c65b9a7158a1c",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0xbe5dba3bab4d32370a639c8c2c42c5b39d5d1c28",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xbf4040af17aaecf1b1251703df6a5c4e31264f38",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc083a93f24168392b327f7d504ae45519661fd29",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc172dd1e33b5c5fd55f7ed00fe096a968bab622a",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc1782b650ce01f721f355b31e336036db150f097",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc1b366b6fbcda89cd4eabe012119c7f03588c776",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0xc1c33204e0f446c9a52859b49dbc92e4613fbc2a",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0xc214bf9a1843b0991b3c2ab3a342554b4bbf8e6c",
+      "nftBalance": "124"
+    },
+    {
+      "address": "0xc223d351d4bf2ccaf06461d873bebcaccea09736",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc28331b186fbb7b1e31f08b124d875aa93f5f541",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc2f88a854b8b6584b15210a0edd5d55d0ed231ec",
+      "nftBalance": "82"
+    },
+    {
+      "address": "0xc341ce875a4368e7a08d3c916176809c093b934c",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0xc369949e4fec0456c1dd6f0e82f8d2589bb897cc",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc4dcd016adfc791a2a84c265492605f69ff6a17d",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0xc51d5d3c0be5978641dee77109ca33b31bf56503",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc63bd63b226a5e8195318d9fc201ca79bc7e5c76",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0xc73cd55e836268501ddb374d9b6b038bb36b7da0",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0xc84b2c77be878923c5c6e10a414e9e715d3eec99",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc8ee65a41285e6bcc40040e614f5a1c6ed7dc0ab",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc98e3ac7e3182753de93f666b86b80dcbb9b7966",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xc9993bee4f3a9fc89f4395880e7ad40a415f3e53",
+      "nftBalance": "11"
+    },
+    {
+      "address": "0xcc3af968417e17d7ba75ebf93c5f12d1da26ff59",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xcdff0778e1e491f0ff0ecfeb41a06e9dd7ffded6",
+      "nftBalance": "3"
+    },
+    {
+      "address": "0xcf7deafce795a19277a3818781054ab478b8c6bb",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xd03b616efc0a6f81ce2a7fc1c5af63057da317b5",
+      "nftBalance": "10"
+    },
+    {
+      "address": "0xd2cdf397f2ec6b8634686d23711d88c6dc360a84",
+      "nftBalance": "13"
+    },
+    {
+      "address": "0xd305f361ad9fd50ae4f033ae48f342a20f566a8b",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0xd84d1ce34236031062f6072bfecc0fb3b93ad8ba",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0xd8949a4e28d68f5cd2e24ace935f7128b0fbf0fd",
+      "nftBalance": "7"
+    },
+    {
+      "address": "0xd959bf1d916ea1a5ef4e47206fdd651d6754c9ff",
+      "nftBalance": "20"
+    },
+    {
+      "address": "0xdb655eb624e3cda167a512c6aa7c762ec2dde6bd",
+      "nftBalance": "21"
+    },
+    {
+      "address": "0xdcd6840f257fe494cc16450a92a003b67ef7ea5e",
+      "nftBalance": "11"
+    },
+    {
+      "address": "0xdd2897932c4d54df720ebbbd22364d3928aefe90",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xddd5a6a133936a51f27a74d32b8665b242439ce1",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0xde6a44dc27992d0b0ec0565548973bc4b779a007",
+      "nftBalance": "41"
+    },
+    {
+      "address": "0xde77ef5b1fddec6fc79c67f809cd3c680c1f1c7e",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xdedad029f13962b974632aa860191b450328eb6b",
+      "nftBalance": "164"
+    },
+    {
+      "address": "0xe0398bee4c586dd42359775496f98906bb848bf1",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0xe1402cc4607bbebd19eaca258dcb2b0318d826cd",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xe2dbf83c02391c9eecc93384e6428d04f2ff887e",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xe4164b3fb0079db0bd9addbc3110e6302a07ac0c",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0xe851f3907fc519f023d7b887377b64a3ca0e3f26",
+      "nftBalance": "5"
+    },
+    {
+      "address": "0xe8d5ebb23b0056b2421f013dfec2bb4a9a534220",
+      "nftBalance": "2"
+    },
+    {
+      "address": "0xe93d80ffa648720c6bf2647c76c4860786a689f0",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xeb036a5b64da9146b9d4e1be2eab692685bb7a2b",
+      "nftBalance": "11"
+    },
+    {
+      "address": "0xee18034b21109bc2e3ea75c1595e15387f90d1e7",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xeefa030a5cf1099e47616ca5fce8b83f65a84d7f",
+      "nftBalance": "7"
+    },
+    {
+      "address": "0xf2c9512c4ca751d0fca03c64b1447263ed7a45d8",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xf31839743799a97292c2c87d566fa5160dd3e0fd",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xf3b464fca8beb887b051f3bc45f4f3164ff465fc",
+      "nftBalance": "9"
+    },
+    {
+      "address": "0xf4fb7e861884c21e612efd0d6b63099955bc54df",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xf5f307af8017b1822789b7e5a8db337d8b2de061",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xf62d5c650f21099a3cbcc5902509499e2d987284",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xf68603ebeb4bd60b3e9f76dc62047d69b052a5e4",
+      "nftBalance": "5"
+    },
+    {
+      "address": "0xf73ba896b5980bbbe2cc0f43ccf2d4e8c61a28e8",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xf815c544859b1050633c399cfaa6e4bcc6a9909c",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xf8d1a15360d5d1a77e409736bd0cb9d38b23dbd0",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xfc4436cfc1c3c48450bb44e27a1e9eb06b7e3d4f",
+      "nftBalance": "1"
+    },
+    {
+      "address": "0xfc4eb7bc2a129a2cb9745b4d85c4735e28403f56",
+      "nftBalance": "4"
+    },
+    {
+      "address": "0xfd1e11ea9458bf6ac0472e4a674906cfd958952b",
+      "nftBalance": "39"
+    },
+    {
+      "address": "0xfed8deb751a1da5537b1721f9ec5944d34c2b635",
+      "nftBalance": "1"
+    }
+  ]
+}
