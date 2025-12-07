@@ -40,6 +40,10 @@ simulate-rev-share-distribution:
 	@forge script scripts/simulations/RevShareMonthSimToCsv.s.sol:RevShareMonthSimToCsv -vvv
 
 get-revshare-pioneers :; node scripts/rev-share-backfill/exportRevSharePioneers.js
+
+build-revshare-allocations:
+	@node scripts/rev-share-backfill/exportRevSharePioneers.js
+	@node scripts/rev-share-backfill/buildRevShareBackfillAllocations.js
 	
 # Protocol deployments
 protocol-deploy-referral:
