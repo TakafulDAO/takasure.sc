@@ -135,60 +135,65 @@ async function main() {
             `(~${formatRaw(takadaoBackfillRaw, TOKEN_DECIMALS)} tokens)`,
     )
 
-    // 4) Compute per-NFT amount for pioneers, distribute remainder
-    const perNft = pioneersBackfillRaw / totalNfts
-    let remainder = pioneersBackfillRaw - perNft * totalNfts
-
-    console.log(
-        `Per NFT backfill (raw): ${perNft.toString()} (~${formatRaw(
-            perNft,
-            TOKEN_DECIMALS,
-        )} tokens)`,
-    )
-    console.log(`Remainder to distribute: ${remainder.toString()} raw`)
-
+    // 4) Per-address pioneer allocations (pro-rata by NFT balance)
     const rows = [...pioneers].sort((a, b) => a.address.localeCompare(b.address))
 
     const allocations = []
+    let sumPioneersAlloc = 0n
 
-    // 5) Per-address pioneer allocations
     for (const p of rows) {
         const addr = String(p.address).toLowerCase()
         const bal = BigInt(p.nftBalance)
 
         if (bal === 0n) continue
 
-        let amount = perNft * bal
-
-        // Distribute remainder: +1 raw unit to the first `remainder` NFTs
-        if (remainder > 0n) {
-            amount += 1n
-            remainder -= 1n
-        }
+        // Base share = floor(PB * bal / totalNfts)
+        const amount = (pioneersBackfillRaw * bal) / totalNfts
 
         allocations.push({
             address: addr,
             amountRaw: amount.toString(),
         })
+
+        sumPioneersAlloc += amount
     }
 
-    // Check sum of pioneers allocations
-    let sumPioneersAlloc = 0n
+    // Rounding adjustment so sum(allocations) == pioneersBackfillRaw
+    let delta = pioneersBackfillRaw - sumPioneersAlloc
+
+    console.log(
+        `Sum of pioneers allocations BEFORE delta: ${sumPioneersAlloc.toString()} raw ` +
+            `(expected ${pioneersBackfillRaw.toString()})`,
+    )
+    console.log(`Delta to distribute (raw units): ${delta.toString()}`)
+
+    // Distribute +1 raw unit to the first `delta` addresses
+    for (let i = 0; delta > 0n && i < allocations.length; i++) {
+        const a = allocations[i]
+        const newAmount = BigInt(a.amountRaw) + 1n
+        a.amountRaw = newAmount.toString()
+        delta -= 1n
+    }
+
+    if (delta !== 0n) {
+        throw new Error(`Delta should be zero after adjustment, got: ${delta.toString()}`)
+    }
+
+    // Recompute sum to be safe
+    sumPioneersAlloc = 0n
     for (const a of allocations) {
         sumPioneersAlloc += BigInt(a.amountRaw)
     }
 
     console.log(
-        `Sum of pioneers allocations: ${sumPioneersAlloc.toString()} raw ` +
+        `Sum of pioneers allocations AFTER delta: ${sumPioneersAlloc.toString()} raw ` +
             `(expected ${pioneersBackfillRaw.toString()})`,
     )
 
     if (sumPioneersAlloc !== pioneersBackfillRaw) {
-        throw new Error("Sum of pioneers allocations does not equal pioneersBackfillRaw!")
-    }
-
-    if (remainder !== 0n) {
-        throw new Error(`Remainder should be zero after distribution, got: ${remainder.toString()}`)
+        throw new Error(
+            "Sum of pioneers allocations does not equal pioneersBackfillRaw after adjustment!",
+        )
     }
 
     // 6) Fetch REVENUE_RECEIVER from AddressManager via ethers
@@ -243,6 +248,13 @@ async function main() {
                                WRITE JSON
     //////////////////////////////////////////////////////////////*/
 
+    // informational per-NFT amount (not used for allocation math)
+    const perNftRaw = pioneersBackfillRaw / totalNfts
+    console.log(
+        `Per-NFT (informational) = ${perNftRaw.toString()} raw ` +
+            `(~${formatRaw(perNftRaw, TOKEN_DECIMALS)} tokens)`,
+    )
+
     const outputJson = {
         snapshotBlock: pioneersJson.snapshotBlock ?? null,
         tokenDecimals: TOKEN_DECIMALS,
@@ -251,7 +263,7 @@ async function main() {
         pioneersBackfillRaw: pioneersBackfillRaw.toString(),
         takadaoBackfillRaw: takadaoBackfillRaw.toString(),
         totalNfts: totalNfts.toString(),
-        perNftRaw: perNft.toString(),
+        perNftRaw: perNftRaw.toString(),
         pioneersCount: pioneers.length,
         allocations,
     }
