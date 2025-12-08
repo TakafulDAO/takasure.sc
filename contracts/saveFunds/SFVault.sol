@@ -43,7 +43,7 @@ contract SFVault is
     uint256 public perUserCap;
 
     // Fees
-    uint16 public managementFeeBps; // annual management fee in basis points e.g., 200 = 2%
+    uint16 public managementFeeBps; // management fee in basis points e.g., 200 = 2%
     uint16 public performanceFeeBps; // performance fee in basis points e.g., 2000 = 20% of profits
     uint16 public performanceFeeHurdleBps; // APY threshold in basis points, can be 0 for no hurdle
 
@@ -73,6 +73,9 @@ contract SFVault is
 
     error SFVault__NonTransferableShares();
     error SFVault__InvalidFeeBps();
+    error SFVault__ZeroAssets();
+    error SFVault__ZeroShares();
+    error SFVault__ExceedsMaxDeposit();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -148,7 +151,7 @@ contract SFVault is
 
     /**
      * @notice Set fee configuration.
-     * @param _managementFeeBps Annual management fee in basis points.
+     * @param _managementFeeBps management fee per deposit in basis points.
      * @param _performanceFeeBps Performance fee in basis points.
      * @param _performanceFeeHurdleBps Performance fee hurdle in basis points.
      * todo: access control
@@ -187,6 +190,49 @@ contract SFVault is
      */
     function takeFees() external nonReentrant returns (uint256 managementFeeShares, uint256 performanceFeeShares) {
         (managementFeeShares, performanceFeeShares) = _chargeFees();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                DEPOSITS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Deposit assets into the vault, applying a management fee on the deposit.
+     * @dev The management fee is taken in shares and sent to the fee recipient.
+     */
+    function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
+        require(assets > 0, SFVault__ZeroAssets());
+        require(assets <= maxDeposit(receiver), SFVault__ExceedsMaxDeposit());
+
+        // Compute gross shares with base ERC4626 math
+        uint256 grossShares = super.previewDeposit(assets);
+        require(grossShares != 0, SFVault__ZeroShares());
+
+        address caller = _msgSender();
+
+        // Pull assets into the vault
+        IERC20(asset()).safeTransferFrom(caller, address(this), assets);
+
+        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+
+        uint256 feeShares;
+        uint256 userShares = grossShares;
+
+        if (managementFeeBps > 0 && feeRecipient != address(0)) {
+            feeShares = (grossShares * managementFeeBps) / MAX_BPS;
+            userShares = grossShares - feeShares;
+        }
+
+        // Mint shares to user and fee recipient
+        _mint(receiver, userShares);
+        if (feeShares > 0) {
+            _mint(feeRecipient, feeShares);
+            emit OnFeesTaken(feeShares, FeeType.MANAGEMENT);
+        }
+
+        emit Deposit(caller, receiver, assets, userShares);
+
+        return userShares;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -233,6 +279,20 @@ contract SFVault is
     /// @notice Returns the total assets managed by the vault (idle + strategy).
     function totalAssets() public view override returns (uint256) {
         return idleAssets() + strategyAssets();
+    }
+
+    /**
+     * @notice Preview shares a user will receive for a given deposit amount, considering fees.
+     * @param assets The amount of underlying assets to deposit.
+     * @return The amount of shares the user would receive.
+     */
+    function previewDeposit(uint256 assets) public view override returns (uint256) {
+        uint256 grossShares = super.previewDeposit(assets);
+
+        if (managementFeeBps == 0) return grossShares;
+
+        uint256 feeShares = (grossShares * managementFeeBps) / MAX_BPS;
+        return grossShares - feeShares;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -291,7 +351,6 @@ contract SFVault is
         uint256 _totalAssets = totalAssets();
         uint256 _totalShares = totalSupply();
         uint256 _timestamp = block.timestamp;
-        uint256 _elapsed = _timestamp - uint256(lastReport);
 
         // No users/assets, skip fees
         if (_totalShares == 0 || _totalAssets == 0) {
@@ -300,82 +359,59 @@ contract SFVault is
             return (0, 0);
         }
 
-        // Management fees in assets
-        uint256 _managementFeeAssets;
-        if (managementFeeBps > 0 && _elapsed > 0) {
-            // Linear pro-rata fee based on time elapsed
-            // A * (mgmtFeeBps / 1e4) * (Δt / YEAR)
-            _managementFeeAssets = (_totalAssets * managementFeeBps * _elapsed) / (MAX_BPS * YEAR);
-        }
+        uint256 _elapsed = _timestamp - uint256(lastReport);
 
-        // Performance fees in assets, based on high-water mark
+        // Current assets per share, scaled by 1e18
         uint256 _currentAssetsPerShareWad = (_totalAssets * 1e18) / _totalShares;
 
         // Init high-water mark if it's the first time
         if (highWaterMark == 0) {
             highWaterMark = _currentAssetsPerShareWad;
+            lastReport = uint64(_timestamp);
+            return (0, 0);
         }
 
         uint256 _performanceFeeAssets;
 
+        // Only charge performance fee if above high-water mark
         if (performanceFeeBps > 0 && _currentAssetsPerShareWad > highWaterMark) {
             uint256 _gainPerShareWad = _currentAssetsPerShareWad - highWaterMark;
             // Total profit above high-water mark in assets units
-            uint256 _profitAssets = (_gainPerShareWad * _totalShares) / 1e18;
+            uint256 _grossProfitAssets = (_gainPerShareWad * _totalShares) / 1e18;
 
-            // Optional APY hurdle
-            bool _hurdle = true;
+            // APY hurdle if set
             if (performanceFeeHurdleBps > 0 && _elapsed > 0) {
-                // APY ~ (profit / (A - profit? approx A)) * (YEAR / Δt)
-                // assets per share to avoid deposit distortion:
-                // apyBps = (gain / highWaterMark) * (YEAR / Δt) in bps
-                uint256 _apyBps = (_gainPerShareWad * MAX_BPS * YEAR) / (highWaterMark * _elapsed);
+                uint256 _hurdleReturnedAssets = (_totalAssets * performanceFeeHurdleBps * _elapsed) / (MAX_BPS * YEAR);
 
-                if (_apyBps <= performanceFeeHurdleBps) {
-                    _hurdle = false;
+                if (_grossProfitAssets > _hurdleReturnedAssets) {
+                    _performanceFeeAssets = _grossProfitAssets - _hurdleReturnedAssets;
+                } else {
+                    _performanceFeeAssets = 0;
                 }
-            }
-
-            if (_hurdle) {
-                _performanceFeeAssets = (_profitAssets * performanceFeeBps) / MAX_BPS;
+            } else {
+                _performanceFeeAssets = _grossProfitAssets;
             }
         }
 
-        // Total fees in assets
-        uint256 _totalFeeAssets = _managementFeeAssets + _performanceFeeAssets;
-
-        if (_totalFeeAssets == 0) {
+        if (_performanceFeeAssets == 0) {
             // No fees to charge
             lastReport = uint64(_timestamp);
             highWaterMark = _currentAssetsPerShareWad;
             return (0, 0);
         }
 
-        // Bound to avoid division by zero
-        if (_totalFeeAssets > _totalAssets) {
-            _totalFeeAssets = _totalAssets - 1;
-        }
-
-        // Fee recipient should get shares equivalent to _totalFeeAssets
-        // X / (S + X) = F / A => X =  S * F / (A - F)
-        // where X = shares to mint, S = supply, F = _totalFeeAssets, A = assets
-        uint256 _feeSharesTotal = (_totalShares * _totalFeeAssets) / (_totalAssets - _totalFeeAssets);
+        // Convert fee assets to shares
+        uint256 _feeSharesTotal = (_performanceFeeAssets * _totalShares) / _totalAssets;
         if (_feeSharesTotal == 0) {
             lastReport = uint64(_timestamp);
             highWaterMark = _currentAssetsPerShareWad;
             return (0, 0);
         }
 
-        // Index each fee type
-        if (_managementFeeAssets > 0) {
-            managementFeeShares_ = (_feeSharesTotal * _managementFeeAssets) / _totalFeeAssets;
-            emit OnFeesTaken(managementFeeShares_, FeeType.MANAGEMENT);
-        }
+        managementFeeShares_ = 0; // per deposits
+        performanceFeeShares_ = _feeSharesTotal;
 
-        if (_performanceFeeAssets > 0) {
-            performanceFeeShares_ = _feeSharesTotal - managementFeeShares_;
-            emit OnFeesTaken(performanceFeeShares_, FeeType.PERFORMANCE);
-        }
+        emit OnFeesTaken(performanceFeeShares_, FeeType.PERFORMANCE);
 
         // Mint shares to fee recipient
         _mint(_feeRecipient, _feeSharesTotal);
@@ -387,7 +423,7 @@ contract SFVault is
         highWaterMark = _newAssetsPerShareWad;
         lastReport = uint64(_timestamp);
 
-        return (managementFeeShares_, performanceFeeShares_);
+        return (0, performanceFeeShares_);
     }
 
     ///@dev required by the OZ UUPS module.
