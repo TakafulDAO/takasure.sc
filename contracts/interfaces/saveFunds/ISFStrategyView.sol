@@ -16,9 +16,6 @@ struct StrategyConfig {
 interface ISFStrategyView {
     function getConfig() external view returns (StrategyConfig memory);
 
-    /// @notice Idle asset (USDC) held by this strategy.
-    function idleAssets() external view returns (uint256);
-
     /// @notice Value of the active position in USDC (totalAssets - idleAssets).
     function positionValue() external view returns (uint256);
 
