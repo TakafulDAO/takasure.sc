@@ -93,7 +93,8 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
         performanceFeeBps = 0;
         performanceFeeHurdleBps = 0;
 
-        // ? Ask if we want to set some caps at deployment
+        TVLCap = 20_000 * 1e6; // 20 thousand USDC
+        perUserCap = 100 * 1e6; // 100 USDC
         // ? Ask if we want to set an initial strategy at deployment
     }
 
