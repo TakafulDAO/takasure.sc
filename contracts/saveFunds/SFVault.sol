@@ -17,12 +17,22 @@ import {
     ERC4626Upgradeable,
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
 
-contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
+contract SFVault is
+    Initializable,
+    UUPSUpgradeable,
+    ReentrancyGuardTransientUpgradeable,
+    PausableUpgradeable,
+    ERC4626Upgradeable
+{
     using SafeERC20 for IERC20;
 
     ISFStrategy public strategy; // current strategy handling the underlying assets
@@ -83,6 +93,8 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
         initializer
     {
         __UUPSUpgradeable_init();
+        __ReentrancyGuardTransient_init();
+        __Pausable_init();
         __ERC4626_init(_underlying);
         __ERC20_init(_name, _symbol);
 
@@ -153,6 +165,16 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
         emit OnFeeConfigUpdated(_managementFeeBps, _performanceFeeBps, _performanceFeeHurdleBps);
     }
 
+    // todo: access control
+    function pause() external {
+        _pause();
+    }
+
+    // todo: access control
+    function unpause() external {
+        _unpause();
+    }
+
     /*//////////////////////////////////////////////////////////////
                                   FEES
     //////////////////////////////////////////////////////////////*/
@@ -163,7 +185,7 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
      * @return performanceFeeShares Shares minted as performance fee.
      * todo: access control
      */
-    function takeFees() external returns (uint256 managementFeeShares, uint256 performanceFeeShares) {
+    function takeFees() external nonReentrant returns (uint256 managementFeeShares, uint256 performanceFeeShares) {
         (managementFeeShares, performanceFeeShares) = _chargeFees();
     }
 
