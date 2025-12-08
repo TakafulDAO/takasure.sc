@@ -11,6 +11,7 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
+import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 
 contract VaultTest is Test {
     DeployManagers managersDeployer;
@@ -31,6 +32,9 @@ contract VaultTest is Test {
         modMgr = _modMgr;
 
         (vault) = vaultDeployer.run(addrMgr);
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", makeAddr("feeRecipient"), ProtocolAddressType.Admin);
     }
 
     function testSetAndGetCaps() public {
