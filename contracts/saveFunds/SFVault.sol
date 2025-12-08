@@ -29,7 +29,7 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     IAddressManager public addressManager;
 
     // 0 = no cap
-    uint256 public tvlCap;
+    uint256 public TVLCap;
     uint256 public perUserCap;
 
     // Fees
@@ -55,7 +55,7 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
-    event OnTvlCapUpdated(uint256 newCap);
+    event OnTVLCapUpdated(uint256 newCap);
     event OnPerUserCapUpdated(uint256 newCap);
     event OnStrategyUpdated(address indexed newStrategy);
     event OnFeeConfigUpdated(uint16 managementFeeBps, uint16 performanceFeeBps, uint16 performanceFeeHurdleBps);
@@ -106,9 +106,9 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
      * @param newCap The new TVL cap in underlying asset units.
      * todo: access control
      */
-    function setTvlCap(uint256 newCap) external {
-        tvlCap = newCap;
-        emit OnTvlCapUpdated(newCap);
+    function setTVLCap(uint256 newCap) external {
+        TVLCap = newCap;
+        emit OnTVLCapUpdated(newCap);
     }
 
     /**
@@ -175,13 +175,13 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
      */
     function maxDeposit(address receiver) public view override returns (uint256) {
         // If both caps are off, use default maxDeposit
-        if (tvlCap == 0 && perUserCap == 0) return super.maxDeposit(receiver);
+        if (TVLCap == 0 && perUserCap == 0) return super.maxDeposit(receiver);
 
-        uint256 tvlRemaining = _remainingTvlCapacity();
+        uint256 TVLRemaining = _remainingTVLCapacity();
         uint256 userRemaining = _remainingUserCapacity(receiver);
 
         // min betwen both remaining capacities
-        return tvlRemaining < userRemaining ? tvlRemaining : userRemaining;
+        return TVLRemaining < userRemaining ? TVLRemaining : userRemaining;
     }
 
     /**
@@ -224,8 +224,8 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
      * @notice Calculate remaining TVL capacity.
      * @return The remaining TVL capacity in underlying asset units.
      */
-    function _remainingTvlCapacity() internal view returns (uint256) {
-        uint256 cap = tvlCap;
+    function _remainingTVLCapacity() internal view returns (uint256) {
+        uint256 cap = TVLCap;
 
         if (cap == 0) return type(uint256).max;
 

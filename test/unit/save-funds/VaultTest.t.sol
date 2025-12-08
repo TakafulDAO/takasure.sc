@@ -34,14 +34,14 @@ contract VaultTest is Test {
     }
 
     function testSetAndGetCaps() public {
-        vault.setTvlCap(1_000_000);
+        vault.setTVLCap(1_000_000);
         vault.setPerUserCap(500_000);
-        assertEq(vault.tvlCap(), 1_000_000);
+        assertEq(vault.TVLCap(), 1_000_000);
         assertEq(vault.perUserCap(), 500_000);
     }
 
     function testMaxDepositRespectsCaps() public {
-        vault.setTvlCap(1000);
+        vault.setTVLCap(1000);
         vault.setPerUserCap(500);
         uint256 maxDeposit = vault.maxDeposit(address(this));
         assertEq(maxDeposit, 500);
