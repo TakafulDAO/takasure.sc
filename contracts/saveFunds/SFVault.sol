@@ -55,8 +55,8 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
-    event OnTVLCapUpdated(uint256 newCap);
-    event OnPerUserCapUpdated(uint256 newCap);
+    event OnTVLCapUpdated(uint256 oldCap, uint256 newCap);
+    event OnPerUserCapUpdated(uint256 oldCap, uint256 newCap);
     event OnStrategyUpdated(address indexed newStrategy);
     event OnFeeConfigUpdated(uint16 managementFeeBps, uint16 performanceFeeBps, uint16 performanceFeeHurdleBps);
     event OnFeesTaken(uint256 feeShares, FeeType feeType);
@@ -108,8 +108,9 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
      * todo: access control
      */
     function setTVLCap(uint256 newCap) external {
+        uint256 oldCap = TVLCap;
         TVLCap = newCap;
-        emit OnTVLCapUpdated(newCap);
+        emit OnTVLCapUpdated(oldCap, newCap);
     }
 
     /**
@@ -118,8 +119,9 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
      *  todo: access control
      */
     function setPerUserCap(uint256 newCap) external {
+        uint256 oldCap = perUserCap;
         perUserCap = newCap;
-        emit OnPerUserCapUpdated(newCap);
+        emit OnPerUserCapUpdated(oldCap, newCap);
     }
 
     /**
