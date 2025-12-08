@@ -158,7 +158,7 @@ contract SFVault is Initializable, UUPSUpgradeable, ERC4626Upgradeable {
      * @notice Charge management and performance fees, minting shares to feeRecipient.
      * @return managementFeeShares Shares minted as management fee.
      * @return performanceFeeShares Shares minted as performance fee.
-     * todo: access control if you want only keeper/backend to call this, or leave open.
+     * todo: access control
      */
     function takeFees() external returns (uint256 managementFeeShares, uint256 performanceFeeShares) {
         (managementFeeShares, performanceFeeShares) = _chargeFees();
