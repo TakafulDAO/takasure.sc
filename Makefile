@@ -49,7 +49,7 @@ build-revshare-allocations:
 build-backfill-safe-tx-and-metadata:
 	@make build-revshare-allocations
 	@node scripts/rev-share-backfill/03-buildRevShareSafeBatchJson.js
-	@node scripts/rev-share-backfill/04-buildRevShareBackfillMetadata.js
+	@node scripts/rev-share-backfill/04-buildRevShareBackfillCalldata.js
 
 # Protocol deployments
 protocol-deploy-referral:

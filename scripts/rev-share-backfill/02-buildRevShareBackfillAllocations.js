@@ -2,9 +2,7 @@ require("dotenv").config()
 const { ethers } = require("ethers")
 const fs = require("fs")
 const path = require("path")
-const addressManagerAbi = require("../../deployments/mainnet_arbitrum_one/AddressManager.json").abi
-const addressManagerAddress =
-    require("../../deployments/mainnet_arbitrum_one/AddressManager.json").address
+const addressManagerDeployment = require("../../deployments/mainnet_arbitrum_one/AddressManager.json")
 
 /*//////////////////////////////////////////////////////////////
                                  CONFIG
@@ -40,6 +38,10 @@ const PIONEERS_SHARE_BPS = 7500
 const REVENUE_RECEIVER_KEY = "REVENUE_RECEIVER"
 
 const ARBITRUM_MAINNET_RPC_URL = process.env.ARBITRUM_MAINNET_RPC_URL
+
+// AddressManager deployment (Arbitrum One)
+const ADDRESS_MANAGER_ABI = addressManagerDeployment.abi
+const ADDRESS_MANAGER_ADDRESS = addressManagerDeployment.address
 
 /*//////////////////////////////////////////////////////////////
                                 HELPERS
@@ -205,11 +207,11 @@ async function main() {
                 "Skipping Takadao allocation entry, please set them and rerun if you want it included.",
         )
     } else {
-        console.log(`Connecting to AddressManager at ${addressManagerAddress}`)
+        console.log(`Connecting to AddressManager at ${ADDRESS_MANAGER_ADDRESS}`)
         const provider = new ethers.providers.JsonRpcProvider(ARBITRUM_MAINNET_RPC_URL)
         const addressManager = new ethers.Contract(
-            addressManagerAddress,
-            addressManagerAbi,
+            ADDRESS_MANAGER_ADDRESS,
+            ADDRESS_MANAGER_ABI,
             provider,
         )
 
