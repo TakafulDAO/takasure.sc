@@ -21,7 +21,8 @@ CALLDATA_JSON="$SCRIPTS_DIR/output/calldata/revshare_backfill_calldata.json"
 : "${ARBITRUM_MAINNET_RPC_URL:?ARBITRUM_MAINNET_RPC_URL is required}"
 
 # Fork config
-FORK_BLOCK="${FORK_BLOCK:-409039704}"
+# If FORK_BLOCK is empty or unset, we fork at latest.
+FORK_BLOCK="${FORK_BLOCK:-}"
 ANVIL_PORT="${ANVIL_PORT:-8545}"
 LOCAL_RPC="http://127.0.0.1:${ANVIL_PORT}"
 CHAIN_ID="${CHAIN_ID:-42161}"
@@ -73,13 +74,22 @@ mkdir -p \
 ANVIL_PID=""
 
 if [ "$START_ANVIL" = "1" ]; then
-  echo ">>> Starting anvil fork of Arbitrum at block $FORK_BLOCK ..."
-  anvil \
-    --fork-url "$ARBITRUM_MAINNET_RPC_URL" \
-    --fork-block-number "$FORK_BLOCK" \
-    --chain-id "$CHAIN_ID" \
-    --port "$ANVIL_PORT" \
-    > "$SCRIPTS_DIR/anvil-revshare.log" 2>&1 &
+  if [ -n "$FORK_BLOCK" ]; then
+    echo ">>> Starting anvil fork of Arbitrum at block $FORK_BLOCK ..."
+    anvil \
+      --fork-url "$ARBITRUM_MAINNET_RPC_URL" \
+      --fork-block-number "$FORK_BLOCK" \
+      --chain-id "$CHAIN_ID" \
+      --port "$ANVIL_PORT" \
+      > "$SCRIPTS_DIR/anvil-revshare.log" 2>&1 &
+  else
+    echo ">>> Starting anvil fork of Arbitrum at latest block ..."
+    anvil \
+      --fork-url "$ARBITRUM_MAINNET_RPC_URL" \
+      --chain-id "$CHAIN_ID" \
+      --port "$ANVIL_PORT" \
+      > "$SCRIPTS_DIR/anvil-revshare.log" 2>&1 &
+  fi
 
   ANVIL_PID=$!
   echo "Anvil PID = $ANVIL_PID (logs: $SCRIPTS_DIR/anvil-revshare.log)"
@@ -111,63 +121,46 @@ if [ "$DEPLOY_CONTRACTS" = "1" ]; then
     exit 1
   fi
 
-  echo ">>> Deploying AddressManager & ModuleManager to fork..."
-  forge script deploy/protocol/managers/DeployManagers.s.sol:DeployManagers \
+  echo ">>> Deploying AddressManager, ModuleManager & RevShareModule to fork..."
+  forge script scripts/rev-share-backfill/Deployments.s.sol:Deployments \
     --rpc-url "$LOCAL_RPC" \
     --broadcast \
     --private-key "$DEPLOYER_KEY" \
     -vvv
 
-  MANAGERS_BROADCAST="$ROOT_DIR/broadcast/DeployManagers.s.sol/$CHAIN_ID/run-latest.json"
-  if [ ! -f "$MANAGERS_BROADCAST" ]; then
-    echo "ERROR: Managers broadcast file not found at $MANAGERS_BROADCAST" >&2
+  DEPLOY_BROADCAST="$ROOT_DIR/broadcast/Deployements.s.sol/$CHAIN_ID/run-latest.json"
+  if [ ! -f "$DEPLOY_BROADCAST" ]; then
+    echo "ERROR: Deployments broadcast file not found at $DEPLOY_BROADCAST" >&2
     exit 1
   fi
 
   ADDRESS_MANAGER_ADDRESS=$(
     jq -r '.transactions[] | select(.contractName=="AddressManager") | .contractAddress' \
-      "$MANAGERS_BROADCAST" | tail -n 1
+      "$DEPLOY_BROADCAST" | tail -n 1
   )
   MODULE_MANAGER_ADDRESS=$(
     jq -r '.transactions[] | select(.contractName=="ModuleManager") | .contractAddress' \
-      "$MANAGERS_BROADCAST" | tail -n 1
+      "$DEPLOY_BROADCAST" | tail -n 1
+  )
+  REVSHARE_MODULE_ADDRESS=$(
+    jq -r '.transactions[] | select(.contractName=="RevShareModule") | .contractAddress' \
+      "$DEPLOY_BROADCAST" | tail -n 1
   )
 
   echo ">>> AddressManager deployed at: $ADDRESS_MANAGER_ADDRESS"
   echo ">>> ModuleManager  deployed at: $MODULE_MANAGER_ADDRESS"
+  echo ">>> RevShareModule deployed at: $REVSHARE_MODULE_ADDRESS"
 
   if [ -z "$ADDRESS_MANAGER_ADDRESS" ] || [ "$ADDRESS_MANAGER_ADDRESS" = "0x0000000000000000000000000000000000000000" ]; then
     echo "ERROR: Failed to parse AddressManager address from broadcast" >&2
     exit 1
   fi
-
-  export ADDRESS_MANAGER_ADDRESS
-
-  echo ">>> Deploying RevShareModule to fork..."
-  forge script deploy/protocol/modules/DeployRevShareModule.s.sol:DeployRevShareModule \
-    --rpc-url "$LOCAL_RPC" \
-    --broadcast \
-    --private-key "$DEPLOYER_KEY" \
-    -vvv
-
-  REV_BROADCAST="$ROOT_DIR/broadcast/DeployRevShareModule.s.sol/$CHAIN_ID/run-latest.json"
-  if [ ! -f "$REV_BROADCAST" ]; then
-    echo "ERROR: RevShare broadcast file not found at $REV_BROADCAST" >&2
-    exit 1
-  fi
-
-  REVSHARE_MODULE_ADDRESS=$(
-    jq -r '.transactions[] | select(.contractName=="RevShareModule") | .contractAddress' \
-      "$REV_BROADCAST" | tail -n 1
-  )
-
-  echo ">>> RevShareModule deployed at: $REVSHARE_MODULE_ADDRESS"
-
   if [ -z "$REVSHARE_MODULE_ADDRESS" ] || [ "$REVSHARE_MODULE_ADDRESS" = "0x0000000000000000000000000000000000000000" ]; then
     echo "ERROR: Failed to parse RevShareModule address from broadcast" >&2
     exit 1
   fi
 
+  export ADDRESS_MANAGER_ADDRESS
   export REVSHARE_MODULE_ADDRESS
 else
   echo ">>> DEPLOY_CONTRACTS=0, skipping contract deployment."
