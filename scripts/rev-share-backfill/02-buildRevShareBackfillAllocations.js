@@ -49,7 +49,8 @@ const BACKFILL_END_TS = Math.floor(new Date("2025-12-01T00:00:00Z").getTime() / 
 // Name used in AddressManager for Takadao revenue receiver
 const REVENUE_RECEIVER_KEY = "REVENUE_RECEIVER"
 
-const ARBITRUM_MAINNET_RPC_URL = process.env.ARBITRUM_MAINNET_RPC_URL
+// const RPC_URL = process.env.ARBITRUM_MAINNET_RPC_URL // Arbitrum One RPC URL
+const RPC_URL = "http://127.0.0.1:8545" // Anvil RPC URL
 
 // AddressManager deployment (Arbitrum One)
 const ADDRESS_MANAGER_ABI = addressManagerDeployment.abi
@@ -283,14 +284,14 @@ async function main() {
     // 7) Fetch REVENUE_RECEIVER from AddressManager via ethers
     let revenueReceiver = null
 
-    if (!ARBITRUM_MAINNET_RPC_URL) {
+    if (!RPC_URL) {
         console.warn(
-            "Warning: ARBITRUM_MAINNET_RPC_URL not set in .env. " +
+            "Warning: RPC_URL not set in .env. " +
                 "Skipping Takadao allocation entry, please set it and rerun if you want it included.",
         )
     } else {
         console.log(`Connecting to AddressManager at ${ADDRESS_MANAGER_ADDRESS}`)
-        const provider = new ethers.providers.JsonRpcProvider(ARBITRUM_MAINNET_RPC_URL)
+        const provider = new ethers.providers.JsonRpcProvider(RPC_URL)
         const addressManager = new ethers.Contract(
             ADDRESS_MANAGER_ADDRESS,
             ADDRESS_MANAGER_ABI,
