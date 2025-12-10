@@ -74,6 +74,7 @@ contract RevShareModule is ModuleImplementation, Initializable, UUPSUpgradeable,
     error RevShareModule__ActiveStreamOngoing();
     error RevShareModule__InsufficientApprovedDeposits();
     error RevShareModule__EmergencyMode();
+    error RevShareModule__LengthMismatch();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -407,7 +408,7 @@ contract RevShareModule is ModuleImplementation, Initializable, UUPSUpgradeable,
         require(!emergencyMode, RevShareModule__EmergencyMode());
 
         uint256 len = account.length;
-        require(len == amount.length);
+        require(len == amount.length, RevShareModule__LengthMismatch());
 
         for (uint256 i = 0; i < len; i++) {
             _adminBackfillRevenue(account[i], amount[i]);
