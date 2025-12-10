@@ -5,7 +5,7 @@ require("dotenv").config()
 
 /*//////////////////////////////////////////////////////////////
                                  CONFIG
-    //////////////////////////////////////////////////////////////*/
+//////////////////////////////////////////////////////////////*/
 
 // Subgraph URL
 const SUBGRAPH_URL = process.env.SUBGRAPH_URL
@@ -32,7 +32,7 @@ const OUT_CSV = path.join(
 
 /*//////////////////////////////////////////////////////////////
                             GRAPHQL QUERIES
-    //////////////////////////////////////////////////////////////*/
+//////////////////////////////////////////////////////////////*/
 
 const QUERY = `
   query Pioneers($first: Int!, $skip: Int!, $block: Block_height) {
@@ -46,9 +46,10 @@ const QUERY = `
     }
   }
 `
+
 /*//////////////////////////////////////////////////////////////
                                 HELPERS
-    //////////////////////////////////////////////////////////////*/
+//////////////////////////////////////////////////////////////*/
 
 /**
  * Fetch one page of pioneers from the subgraph.
@@ -145,6 +146,14 @@ async function main() {
     // Sort by address for deterministic output
     rows.sort((a, b) => a.address.localeCompare(b.address))
 
+    // Assign tranches:
+    // ! For now: first half = tranche 1, second half = tranche 2
+    const total = rows.length
+    const half = Math.floor(total / 2)
+    rows.forEach((row, idx) => {
+        row.tranche = idx < half ? 1 : 2
+    })
+
     // Compute total NFTs from map and compare with global stats
     let totalNftsFromMap = 0n
     for (const row of rows) {
@@ -178,7 +187,7 @@ async function main() {
                   totalUniquePioneers: globalStats.totalUniquePioneers.toString(),
               }
             : null,
-        pioneers: rows,
+        pioneers: rows, // each row: { address, nftBalance, tranche }
     }
 
     fs.writeFileSync(OUT_JSON, JSON.stringify(jsonOutput, null, 2), {
@@ -192,9 +201,9 @@ async function main() {
     //////////////////////////////////////////////////////////////*/
 
     const csvLines = []
-    csvLines.push("address,nftBalance")
+    csvLines.push("address,nftBalance,tranche")
     for (const row of rows) {
-        csvLines.push(`${row.address},${row.nftBalance}`)
+        csvLines.push(`${row.address},${row.nftBalance},${row.tranche}`)
     }
 
     fs.writeFileSync(OUT_CSV, csvLines.join("\n"), { encoding: "utf8" })

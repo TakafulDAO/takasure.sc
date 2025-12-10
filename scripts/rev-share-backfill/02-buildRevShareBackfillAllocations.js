@@ -6,7 +6,7 @@ const addressManagerDeployment = require("../../deployments/mainnet_arbitrum_one
 
 /*//////////////////////////////////////////////////////////////
                                  CONFIG
-    //////////////////////////////////////////////////////////////*/
+//////////////////////////////////////////////////////////////*/
 
 // Input from previous script
 const PIONEERS_FILE = path.join(
@@ -28,11 +28,23 @@ const OUT_CSV = path.join(
 // USDC decimals
 const TOKEN_DECIMALS = 6
 
-// Todo: Change this to the real total retro amount you want to distribute.
-const TOTAL_BACKFILL_TOKENS = "100000" // in human units, e.g. "100000" means 100,000 usdc
+// Todo: Change this to the real amount
+const TOTAL_BACKFILL_TOKENS = "100000" // in human units, "100000" means 100,000 USDC
 
 // Pioneers' share in basis points (75% = 7500 bps)
 const PIONEERS_SHARE_BPS = 7500
+
+// Time-weighting configuration (UNIX timestamps in seconds)
+// ! For now, approximate to:
+//  - Tranche 1 joined on 2025-06-01
+//  - Tranche 2 joined on 2025-09-01
+//  - Backfill is measured up to BACKFILL_END_TS
+// You can adjust these when you confirm dates with your CTO.
+const TRANCHE_1_START_TS = Math.floor(new Date("2025-06-01T00:00:00Z").getTime() / 1000)
+const TRANCHE_2_START_TS = Math.floor(new Date("2025-09-01T00:00:00Z").getTime() / 1000)
+// Placeholder "end of backfill" timestamp
+// ! This must be the deployment date of the RevShare module contract
+const BACKFILL_END_TS = Math.floor(new Date("2025-12-01T00:00:00Z").getTime() / 1000)
 
 // Name used in AddressManager for Takadao revenue receiver
 const REVENUE_RECEIVER_KEY = "REVENUE_RECEIVER"
@@ -45,7 +57,7 @@ const ADDRESS_MANAGER_ADDRESS = addressManagerDeployment.address
 
 /*//////////////////////////////////////////////////////////////
                                 HELPERS
-    //////////////////////////////////////////////////////////////*/
+//////////////////////////////////////////////////////////////*/
 
 /**
  * Parse a human-readable amount into raw units using decimals.
@@ -84,7 +96,7 @@ function formatRaw(amountRaw, decimals) {
 }
 
 async function main() {
-    console.log("=== Build RevShare backfill allocations ===")
+    console.log("=== Build RevShare backfill allocations (time-weighted by tranche) ===")
 
     if (!fs.existsSync(PIONEERS_FILE)) {
         throw new Error(
@@ -101,13 +113,29 @@ async function main() {
 
     console.log(`Loaded ${pioneers.length} pioneers from ${PIONEERS_FILE}`)
 
-    // 1) Compute total NFTs from the pioneers file
+    // 1) Compute total NFTs from the pioneers file (current total supply at snapshot)
     let totalNfts = 0n
-    for (const p of pioneers) {
-        totalNfts += BigInt(p.nftBalance)
-    }
+    let totalNftsTranche1 = 0n
+
+    const rows = [...pioneers].map((p) => {
+        const addr = String(p.address).toLowerCase()
+        const bal = BigInt(p.nftBalance)
+        const tranche = Number(p.tranche || 0)
+
+        totalNfts += bal
+        if (tranche === 1) {
+            totalNftsTranche1 += bal
+        }
+
+        return {
+            address: addr,
+            nftBalance: bal,
+            tranche,
+        }
+    })
 
     console.log(`Total NFTs from pioneers map: ${totalNfts.toString()}`)
+    console.log(`Total NFTs in tranche 1:       ${totalNftsTranche1.toString()}`)
 
     if (pioneersJson.totalNftsFromMap) {
         const fromFile = BigInt(pioneersJson.totalNftsFromMap)
@@ -116,6 +144,10 @@ async function main() {
                 `Warning: totalNftsFromMap (${fromFile}) != recomputed totalNfts (${totalNfts})`,
             )
         }
+    }
+
+    if (totalNftsTranche1 === 0n) {
+        throw new Error("totalNftsTranche1 is zero – tranche 1 must contain some NFTs")
     }
 
     // 2) Compute TOTAL_BACKFILL in raw units
@@ -137,36 +169,86 @@ async function main() {
             `(~${formatRaw(takadaoBackfillRaw, TOKEN_DECIMALS)} tokens)`,
     )
 
-    // 4) Per-address pioneer allocations (pro-rata by NFT balance)
-    const rows = [...pioneers].sort((a, b) => a.address.localeCompare(b.address))
+    // 4) Time-weighting between two segments:
+    //    Segment 1: [TRANCHE_1_START_TS, TRANCHE_2_START_TS) — only tranche 1 participates, supply = totalNftsTranche1
+    //    Segment 2: [TRANCHE_2_START_TS, BACKFILL_END_TS]    — both tranches participate, supply = totalNfts (current total supply)
+    if (!(TRANCHE_1_START_TS < TRANCHE_2_START_TS && TRANCHE_2_START_TS < BACKFILL_END_TS)) {
+        throw new Error(
+            "Time config invalid: require TRANCHE_1_START_TS < TRANCHE_2_START_TS < BACKFILL_END_TS",
+        )
+    }
+
+    const seg1DurationSec = BigInt(TRANCHE_2_START_TS - TRANCHE_1_START_TS)
+    const seg2DurationSec = BigInt(BACKFILL_END_TS - TRANCHE_2_START_TS)
+    const totalDurationSec = seg1DurationSec + seg2DurationSec
+
+    console.log(
+        `Segment 1 duration (sec): ${seg1DurationSec.toString()} | Segment 2 duration (sec): ${seg2DurationSec.toString()}`,
+    )
+
+    const segment1Pot = (pioneersBackfillRaw * seg1DurationSec) / totalDurationSec
+    const segment2Pot = pioneersBackfillRaw - segment1Pot
+
+    console.log(
+        `Segment 1 pot (tranche 1 only): ${segment1Pot.toString()} (~${formatRaw(
+            segment1Pot,
+            TOKEN_DECIMALS,
+        )})`,
+    )
+    console.log(
+        `Segment 2 pot (both tranches):  ${segment2Pot.toString()} (~${formatRaw(
+            segment2Pot,
+            TOKEN_DECIMALS,
+        )})`,
+    )
+
+    // 5) Per-address pioneer allocations (time-weighted)
+    // For tranche 1:
+    //   - Part from segment 1: segment1Pot * bal / totalNftsTranche1
+    //   - Part from segment 2: segment2Pot * bal / totalNfts
+    // For tranche 2:
+    //   - Only segment 2:      segment2Pot * bal / totalNfts
+
+    // Sort rows by address for deterministic output
+    rows.sort((a, b) => a.address.localeCompare(b.address))
 
     const allocations = []
     let sumPioneersAlloc = 0n
 
     for (const p of rows) {
-        const addr = String(p.address).toLowerCase()
-        const bal = BigInt(p.nftBalance)
-
+        const bal = p.nftBalance
         if (bal === 0n) continue
 
-        // Base share = floor(PB * bal / totalNfts)
-        const amount = (pioneersBackfillRaw * bal) / totalNfts
+        let amt = 0n
+
+        if (p.tranche === 1) {
+            // Segment 1 share (only tranche 1, supply = totalNftsTranche1)
+            amt += (segment1Pot * bal) / totalNftsTranche1
+            // Segment 2 share (all NFTs)
+            amt += (segment2Pot * bal) / totalNfts
+        } else if (p.tranche === 2) {
+            // Only segment 2
+            amt += (segment2Pot * bal) / totalNfts
+        } else {
+            // If tranche not set, default to tranche 2 behavior (conservative)
+            amt += (segment2Pot * bal) / totalNfts
+        }
 
         allocations.push({
-            address: addr,
-            amountRaw: amount.toString(),
+            address: p.address,
+            amountRaw: amt.toString(),
         })
 
-        sumPioneersAlloc += amount
+        sumPioneersAlloc += amt
     }
-
-    // Rounding adjustment so sum(allocations) == pioneersBackfillRaw
-    let delta = pioneersBackfillRaw - sumPioneersAlloc
 
     console.log(
         `Sum of pioneers allocations BEFORE delta: ${sumPioneersAlloc.toString()} raw ` +
             `(expected ${pioneersBackfillRaw.toString()})`,
     )
+
+    // 6) Global rounding adjustment so sum(allocations) == pioneersBackfillRaw
+    let delta = pioneersBackfillRaw - sumPioneersAlloc
     console.log(`Delta to distribute (raw units): ${delta.toString()}`)
 
     // Distribute +1 raw unit to the first `delta` addresses
@@ -198,13 +280,13 @@ async function main() {
         )
     }
 
-    // 6) Fetch REVENUE_RECEIVER from AddressManager via ethers
+    // 7) Fetch REVENUE_RECEIVER from AddressManager via ethers
     let revenueReceiver = null
 
     if (!ARBITRUM_MAINNET_RPC_URL) {
         console.warn(
             "Warning: ARBITRUM_MAINNET_RPC_URL not set in .env. " +
-                "Skipping Takadao allocation entry, please set them and rerun if you want it included.",
+                "Skipping Takadao allocation entry, please set it and rerun if you want it included.",
         )
     } else {
         console.log(`Connecting to AddressManager at ${ADDRESS_MANAGER_ADDRESS}`)
@@ -228,7 +310,7 @@ async function main() {
         })
     }
 
-    // 7) Final sanity check: total allocations vs TOTAL_BACKFILL_RAW
+    // 8) Final sanity check: total allocations vs TOTAL_BACKFILL_RAW
     let sumAllAlloc = 0n
     for (const a of allocations) {
         sumAllAlloc += BigInt(a.amountRaw)
@@ -250,7 +332,7 @@ async function main() {
                                WRITE JSON
     //////////////////////////////////////////////////////////////*/
 
-    // informational per-NFT amount (not used for allocation math)
+    // informational global per-NFT amount (not used for allocation math)
     const perNftRaw = pioneersBackfillRaw / totalNfts
     console.log(
         `Per-NFT (informational) = ${perNftRaw.toString()} raw ` +
@@ -265,6 +347,10 @@ async function main() {
         pioneersBackfillRaw: pioneersBackfillRaw.toString(),
         takadaoBackfillRaw: takadaoBackfillRaw.toString(),
         totalNfts: totalNfts.toString(),
+        totalNftsTranche1: totalNftsTranche1.toString(),
+        tranche1StartTs: TRANCHE_1_START_TS,
+        tranche2StartTs: TRANCHE_2_START_TS,
+        backfillEndTs: BACKFILL_END_TS,
         perNftRaw: perNftRaw.toString(),
         pioneersCount: pioneers.length,
         allocations,
@@ -287,7 +373,7 @@ async function main() {
     fs.writeFileSync(OUT_CSV, csvLines.join("\n"), "utf8")
     console.log(`CSV written to:  ${OUT_CSV}`)
 
-    console.log("Done building backfill allocations.")
+    console.log("Done building backfill allocations (time-weighted).")
 }
 
 // Run main
