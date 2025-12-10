@@ -13,17 +13,17 @@ const addressManagerAddress =
 // Input from previous script
 const PIONEERS_FILE = path.join(
     process.cwd(),
-    "scripts/rev-share-backfill/output/revshare_pioneers.json",
+    "scripts/rev-share-backfill/output/pioneers/revshare_pioneers.json",
 )
 
 // Outputs
 const OUT_JSON = path.join(
     process.cwd(),
-    "scripts/rev-share-backfill/output/revshare_backfill_allocations.json",
+    "scripts/rev-share-backfill/output/allocations/revshare_backfill_allocations.json",
 )
 const OUT_CSV = path.join(
     process.cwd(),
-    "scripts/rev-share-backfill/output/revshare_backfill_allocations.csv",
+    "scripts/rev-share-backfill/output/allocations/revshare_backfill_allocations.csv",
 )
 
 // Backfill configuration

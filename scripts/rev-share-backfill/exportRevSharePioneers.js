@@ -23,9 +23,12 @@ const SNAPSHOT_BLOCK = undefined // e.g. 246000000n
 // Output file paths (relative to repo root)
 const OUT_JSON = path.join(
     process.cwd(),
-    "scripts/rev-share-backfill/output/revshare_pioneers.json",
+    "scripts/rev-share-backfill/output/pioneers/revshare_pioneers.json",
 )
-const OUT_CSV = path.join(process.cwd(), "scripts/rev-share-backfill/output/revshare_pioneers.csv")
+const OUT_CSV = path.join(
+    process.cwd(),
+    "scripts/rev-share-backfill/output/pioneers/revshare_pioneers.csv",
+)
 
 /*//////////////////////////////////////////////////////////////
                             GRAPHQL QUERIES

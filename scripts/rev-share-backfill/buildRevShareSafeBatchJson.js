@@ -11,13 +11,13 @@ const revShareModuleDeployment = require("../../deployments/mainnet_arbitrum_one
 // Allocations output file
 const ALLOCATIONS_FILE = path.join(
     process.cwd(),
-    "scripts/rev-share-backfill/output/revshare_backfill_allocations.json",
+    "scripts/rev-share-backfill/output/allocations/revshare_backfill_allocations.json",
 )
 
 // Output for the Safe Transaction Builder JSON
 const OUT_SAFE_JSON = path.join(
     process.cwd(),
-    "scripts/rev-share-backfill/output/revshare_backfill_safe_batch.json",
+    "scripts/rev-share-backfill/output/safe/revshare_backfill_safe_batch.json",
 )
 
 const REV_SHARE_MODULE_ADDRESS = revShareModuleDeployment.address
