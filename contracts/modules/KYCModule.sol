@@ -10,10 +10,7 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
 
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
-import {
-    UUPSUpgradeable,
-    Initializable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {
     ReentrancyGuardTransientUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
@@ -30,12 +27,7 @@ import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndSta
 
 pragma solidity 0.8.28;
 
-contract KYCModule is
-    ModuleImplementation,
-    Initializable,
-    UUPSUpgradeable,
-    ReentrancyGuardTransientUpgradeable
-{
+contract KYCModule is ModuleImplementation, Initializable, UUPSUpgradeable, ReentrancyGuardTransientUpgradeable {
     mapping(address member => bool) public isKYCed; // To check if a member is KYCed
 
     /*//////////////////////////////////////////////////////////////
@@ -73,9 +65,7 @@ contract KYCModule is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function approveKYC(
-        address memberWallet
-    ) external onlyRole(Roles.KYC_PROVIDER, address(addressManager)) {
+    function approveKYC(address memberWallet) external onlyRole(Roles.KYC_PROVIDER, address(addressManager)) {
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
@@ -85,12 +75,9 @@ contract KYCModule is
 
         require(!isKYCed[memberWallet], KYCModule__MemberAlreadyKYCed());
 
-        IProtocolStorageModule protocolStorageModule = IProtocolStorageModule(
-            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
-        );
-        AssociationMember memory newMember = protocolStorageModule.getAssociationMember(
-            memberWallet
-        );
+        IProtocolStorageModule protocolStorageModule =
+            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+        AssociationMember memory newMember = protocolStorageModule.getAssociationMember(memberWallet);
 
         // todo: uncomment when contributions are implemented from SubscriptionManagementModule PR
         // require(newMember.planId != 0 && !newMember.isRefunded, KYCModule__ContributionRequired());
@@ -109,7 +96,9 @@ contract KYCModule is
     //////////////////////////////////////////////////////////////*/
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {}
 }
