@@ -263,7 +263,7 @@ contract RevShareNFT is
         if (address(addressManager) != address(0)) {
             // We try to fetch the RevShareModule address from the AddressManager, if it fails it means
             // the revenue share module is not set up, so we return address(0)
-            try addressManager.getProtocolAddressByName("REVENUE_SHARE_MODULE") returns (
+            try addressManager.getProtocolAddressByName("MODULE__REVSHARE") returns (
                 ProtocolAddress memory protocolAddress
             ) {
                 revShareModule_ = protocolAddress.addr;

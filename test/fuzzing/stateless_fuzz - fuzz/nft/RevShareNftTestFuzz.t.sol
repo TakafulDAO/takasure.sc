@@ -12,12 +12,7 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 
 /// @dev Minimal ERC721 receiver to test safe mints to contracts.
 contract ERC721ReceiverMock is IERC721Receiver {
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes calldata
-    ) external pure returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 
@@ -30,12 +25,10 @@ contract RevShareNftFuzzTest is Test {
     address alice = makeAddr("alice");
 
     function setUp() public {
-        string
-            memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
+        string memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
         address nftImplementation = address(new RevShareNFT());
         address nftAddress = UnsafeUpgrades.deployUUPSProxy(
-            nftImplementation,
-            abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
+            nftImplementation, abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
         );
         nft = RevShareNFT(nftAddress);
     }
@@ -152,15 +145,11 @@ contract RevShareNftFuzzTest is Test {
         // inject minimal bytecode so it's a contract
         vm.etch(mockManager, hex"60006000");
 
-        bytes memory selector = abi.encodeWithSelector(
-            IAddressManager.getProtocolAddressByName.selector,
-            "REVENUE_SHARE_MODULE"
-        );
+        bytes memory selector =
+            abi.encodeWithSelector(IAddressManager.getProtocolAddressByName.selector, "MODULE__REVSHARE");
 
         ProtocolAddress memory response = ProtocolAddress({
-            name: keccak256("REVENUE_SHARE_MODULE"),
-            addr: revModule,
-            addressType: ProtocolAddressType.Protocol
+            name: keccak256("MODULE__REVSHARE"), addr: revModule, addressType: ProtocolAddressType.Protocol
         });
 
         vm.mockCall(mockManager, selector, abi.encode(response));

@@ -69,14 +69,14 @@ contract KYCModule is ModuleImplementation, Initializable, UUPSUpgradeable, Reen
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         AddressAndStates._notZeroAddress(memberWallet);
 
         require(!isKYCed[memberWallet], KYCModule__MemberAlreadyKYCed());
 
         IProtocolStorageModule protocolStorageModule =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+            IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
         AssociationMember memory newMember = protocolStorageModule.getAssociationMember(memberWallet);
 
         // todo: uncomment when contributions are implemented from SubscriptionManagementModule PR

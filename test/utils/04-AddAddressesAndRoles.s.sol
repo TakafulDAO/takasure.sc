@@ -11,11 +11,7 @@ import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 contract AddAddressesAndRoles is Script {
-    function run(
-        AddressManager addressManager,
-        HelperConfig.NetworkConfig memory config,
-        address moduleManager
-    )
+    function run(AddressManager addressManager, HelperConfig.NetworkConfig memory config, address moduleManager)
         external
         returns (
             address operator,
@@ -45,30 +41,18 @@ contract AddAddressesAndRoles is Script {
         addressManager.proposeRoleHolder(Roles.REVENUE_CLAIMER, config.takadaoOperator);
 
         addressManager.addProtocolAddress(
-            "MODULE_MANAGER",
-            address(moduleManager),
-            ProtocolAddressType.Protocol
+            "PROTOCOL__MODULE_MANAGER", address(moduleManager), ProtocolAddressType.Protocol
         );
 
         addressManager.addProtocolAddress(
-            "CONTRIBUTION_TOKEN",
-            config.contributionToken,
-            ProtocolAddressType.Protocol
+            "PROTOCOL__CONTRIBUTION_TOKEN", config.contributionToken, ProtocolAddressType.Protocol
         );
 
-        addressManager.addProtocolAddress(
-            "FEE_CLAIM_ADDRESS",
-            config.feeClaimAddress,
-            ProtocolAddressType.Admin
-        );
+        addressManager.addProtocolAddress("ADMIN__FEE_CLAIM_ADDRESS", config.feeClaimAddress, ProtocolAddressType.Admin);
 
-        addressManager.addProtocolAddress("COUPON_POOL", couponPool, ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress("PROTOCOL__COUPON_POOL", couponPool, ProtocolAddressType.Protocol);
 
-        addressManager.addProtocolAddress(
-            "REVENUE_RECEIVER",
-            revenueReceiver,
-            ProtocolAddressType.Admin
-        );
+        addressManager.addProtocolAddress("ADMIN__REVENUE_RECEIVER", revenueReceiver, ProtocolAddressType.Admin);
         vm.stopPrank();
 
         vm.startPrank(config.takadaoOperator);

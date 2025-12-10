@@ -129,12 +129,11 @@ contract SubscriptionModule is
     function paySubscription(uint256 planPrice, address parentWallet) external {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
         IProtocolStorageModule protocolStorageModule =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
-
+            IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
         bool allowUsersToPay = protocolStorageModule.getBoolValue("allowUserInitiatedCalls");
         require(allowUsersToPay, ModuleErrors.Module__NotAuthorizedCaller());
 
@@ -168,11 +167,11 @@ contract SubscriptionModule is
     ) external {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         require(
             AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager))
-                || AddressAndStates._checkName("ROUTER", address(addressManager)),
+                || AddressAndStates._checkName("PROTOCOL__ROUTER", address(addressManager)),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
@@ -199,7 +198,7 @@ contract SubscriptionModule is
     function refund(address memberWallet) external onlyRole(Roles.BACKEND_ADMIN, address(addressManager)) {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         _refund(memberWallet);
     }
@@ -218,7 +217,7 @@ contract SubscriptionModule is
     function transferSubscriptionToReserve(address memberWallet) external nonReentrant returns (uint256) {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         (, AssociationMember memory member) = _fetchMemberFromStorageModule(memberWallet);
 
@@ -238,13 +237,13 @@ contract SubscriptionModule is
         }
 
         // Reward the parents if there is any
-        IReferralRewardsModule(addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr)
+        IReferralRewardsModule(addressManager.getProtocolAddressByName("MODULE__REFERRAL_REWARDS").addr)
             .rewardParents({child: memberWallet});
 
         // TODO: Revenue module to be written
-        address revenueModuleAddress = addressManager.getProtocolAddressByName("REVENUE_MODULE").addr;
+        address revenueModuleAddress = addressManager.getProtocolAddressByName("MODULE__REVENUE").addr;
         IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
         uint256 amountToTransfer =
             member.planPrice - ((member.planPrice * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
@@ -253,7 +252,7 @@ contract SubscriptionModule is
         uint256 userDiscount = member.discount;
 
         if (userDiscount > 0) {
-            address feeClaimer = addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr;
+            address feeClaimer = addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIM_ADDRESS").addr;
             contributionToken.safeTransferFrom(feeClaimer, address(this), userDiscount);
         }
 
@@ -312,7 +311,7 @@ contract SubscriptionModule is
 
         // TODO: ReferralRewardsModule to be written
         IReferralRewardsModule referralRewardsModule =
-            IReferralRewardsModule(addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr);
+            IReferralRewardsModule(addressManager.getProtocolAddressByName("MODULE__REFERRAL_REWARDS").addr);
 
         (uint256 feeAmount, uint256 discount, uint256 toReferralReserveAmount) = referralRewardsModule.calculateReferralRewards({
             contribution: _params.planPrice,
@@ -354,7 +353,7 @@ contract SubscriptionModule is
         address _userWallet,
         address _referralRewardsModule
     ) internal {
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
         uint256 contributionAfterFee = _planPrice - _fee;
         bool transferFromMember = _couponAmount == 0 ? true : false;
@@ -366,7 +365,7 @@ contract SubscriptionModule is
             _transferFee(contributionToken, _userWallet, _fee);
         } else {
             amountToTransfer = contributionAfterFee;
-            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+            address couponPool = addressManager.getProtocolAddressByName("PROTOCOL__COUPON_POOL").addr;
             contributionToken.safeTransferFrom(couponPool, address(this), amountToTransfer);
             _transferFee(contributionToken, couponPool, _fee);
         }
@@ -379,7 +378,7 @@ contract SubscriptionModule is
 
     function _transferFee(IERC20 _contributionToken, address _fromAddress, uint256 _fee) internal {
         _contributionToken.safeTransferFrom(
-            _fromAddress, addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr, _fee
+            _fromAddress, addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIM_ADDRESS").addr, _fee
         );
     }
 
@@ -411,12 +410,12 @@ contract SubscriptionModule is
         uint256 discountAmount = _member.discount;
         uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
         // Transfer the amount to refund
         if (_member.couponAmountRedeemed > 0) {
             // We transfer the coupon amount to the coupon pool
-            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+            address couponPool = addressManager.getProtocolAddressByName("PROTOCOL__COUPON_POOL").addr;
             contributionToken.safeTransfer(couponPool, amountToRefund);
         } else {
             // We transfer the amount to the member
@@ -449,7 +448,7 @@ contract SubscriptionModule is
         returns (IProtocolStorageModule protocolStorageModule_, AssociationMember memory member_)
     {
         protocolStorageModule_ =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+            IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
 
         // Get the member from storage
         member_ = protocolStorageModule_.getAssociationMember(_userWallet);

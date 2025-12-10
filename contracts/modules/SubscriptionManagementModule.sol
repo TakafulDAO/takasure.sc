@@ -98,7 +98,7 @@ contract SubscriptionManagementModule is
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         AddressAndStates._notZeroAddress(memberWallet);
 
@@ -131,7 +131,7 @@ contract SubscriptionManagementModule is
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
         _cancelAssociationSubscription(memberWallet);
@@ -146,7 +146,7 @@ contract SubscriptionManagementModule is
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
         _cancelBenefitSubscriptions(memberWallet, benefitNames);
@@ -188,7 +188,10 @@ contract SubscriptionManagementModule is
                 _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
             } else {
                 _performTransfers(
-                    _memberWallet, addressManager.getProtocolAddressByName("COUPON_POOL").addr, toTransfer, fee
+                    _memberWallet,
+                    addressManager.getProtocolAddressByName("PROTOCOL__COUPON_POOL").addr,
+                    toTransfer,
+                    fee
                 );
             }
 
@@ -240,7 +243,7 @@ contract SubscriptionManagementModule is
                 uint256 toTransfer;
                 uint256 fee;
 
-                if (addressManager.getProtocolAddressByName("LIFE_BENEFIT_MODULE").addr == benefitsToPay[i]) {
+                if (addressManager.getProtocolAddressByName("MODULE__LIFE_BENEFIT").addr == benefitsToPay[i]) {
                     // If this is the life benefit, then the amount to pay is reduced by the association recurring payment
                     fee = ((benefitMember.contribution - associationMember.planPrice) * benefitFee) / 100;
                     toTransfer = (benefitMember.contribution - associationMember.planPrice) - fee;
@@ -254,7 +257,7 @@ contract SubscriptionManagementModule is
                 } else {
                     _performTransfers(
                         _params.memberWallet,
-                        addressManager.getProtocolAddressByName("COUPON_POOL").addr,
+                        addressManager.getProtocolAddressByName("PROTOCOL__COUPON_POOL").addr,
                         toTransfer,
                         fee
                     );
@@ -297,10 +300,10 @@ contract SubscriptionManagementModule is
      * @dev If the _from is the user wallet, then the caller must be the user wallet
      */
     function _performTransfers(address _userAddress, address _from, uint256 _contribution, uint256 _fee) internal {
-        address couponPoolAddress = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
-        address feeClaimer = addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr;
-        address reserve = addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr;
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        address couponPoolAddress = addressManager.getProtocolAddressByName("PROTOCOL__COUPON_POOL").addr;
+        address feeClaimer = addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIM_ADDRESS").addr;
+        address reserve = addressManager.getProtocolAddressByName("PROTOCOL__TAKASURE_RESERVE").addr;
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
         if (_from == couponPoolAddress) {
             // Able to be called by the backend admin (for automations)
@@ -314,7 +317,7 @@ contract SubscriptionManagementModule is
         } else {
             // The caller must be the member wallet
             IProtocolStorageModule protocolStorageModule =
-                IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+                IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
             require(
                 protocolStorageModule.getBoolValue("allowUserInitiatedCalls"),
                 ModuleErrors.Module__NotAuthorizedCaller()
@@ -495,7 +498,7 @@ contract SubscriptionManagementModule is
         returns (IProtocolStorageModule protocolStorageModule_, AssociationMember memory member_)
     {
         protocolStorageModule_ =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+            IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
 
         // Get the member from storage
         member_ = protocolStorageModule_.getAssociationMember(_userWallet);
@@ -507,7 +510,7 @@ contract SubscriptionManagementModule is
         returns (IProtocolStorageModule protocolStorageModule_, BenefitMember memory member_)
     {
         protocolStorageModule_ =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+            IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
 
         // Get the member from storage
         member_ = protocolStorageModule_.getBenefitMember(_benefit, _userWallet);
