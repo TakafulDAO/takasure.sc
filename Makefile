@@ -40,15 +40,15 @@ simulate-rev-share-distribution:
 	@forge script scripts/simulations/RevShareMonthSimToCsv.s.sol:RevShareMonthSimToCsv -vvv
 
 # Backfill Scripts
-get-revshare-pioneers :; node scripts/rev-share-backfill/exportRevSharePioneers.js
+get-revshare-pioneers :; node scripts/rev-share-backfill/01-exportRevSharePioneers.js
 
 build-revshare-allocations:
 	@make get-revshare-pioneers
-	@node scripts/rev-share-backfill/buildRevShareBackfillAllocations.js
+	@node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js
 
 build-safe-multisig-transactions :
 	@make build-revshare-allocations
-	@node scripts/rev-share-backfill/buildRevShareSafeBatchJson.js
+	@node scripts/rev-share-backfill/03-buildRevShareSafeBatchJson.js
 	
 # Protocol deployments
 protocol-deploy-referral:

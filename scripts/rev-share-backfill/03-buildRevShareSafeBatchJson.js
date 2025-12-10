@@ -47,7 +47,7 @@ async function main() {
 
     if (!fs.existsSync(ALLOCATIONS_FILE)) {
         throw new Error(
-            `Allocations file not found at ${ALLOCATIONS_FILE}. Run buildRevShareBackfillAllocations first.`,
+            `Allocations file not found at ${ALLOCATIONS_FILE}. Run 02-buildRevShareBackfillAllocations first.`,
         )
     }
 

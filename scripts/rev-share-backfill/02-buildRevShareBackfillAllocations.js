@@ -86,7 +86,7 @@ async function main() {
 
     if (!fs.existsSync(PIONEERS_FILE)) {
         throw new Error(
-            `Pioneers file not found at ${PIONEERS_FILE}. Run exportRevSharePioneers first.`,
+            `Pioneers file not found at ${PIONEERS_FILE}. Run 01-exportRevSharePioneers first.`,
         )
     }
 
