@@ -25,8 +25,11 @@ const OUT_CALLDATA_CSV = path.join(
 )
 
 // RevShareModule deployment (Arbitrum One)
-const REV_SHARE_MODULE_ADDRESS = revShareModuleDeployment.address
 const REV_SHARE_MODULE_ABI = revShareModuleDeployment.abi
+const REV_SHARE_MODULE_ADDRESS =
+    process.env.REVSHARE_MODULE_ADDRESS && process.env.REVSHARE_MODULE_ADDRESS !== "0x"
+        ? process.env.REVSHARE_MODULE_ADDRESS
+        : revShareModuleDeployment.address
 
 // Batch size for adminBackfillRevenue
 const BATCH_SIZE = parseInt(process.env.BACKFILL_BATCH_SIZE || "20", 10)

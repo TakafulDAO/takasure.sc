@@ -20,8 +20,11 @@ const OUT_SAFE_JSON = path.join(
     "scripts/rev-share-backfill/output/safe/revshare_backfill_safe_batch.json",
 )
 
-const REV_SHARE_MODULE_ADDRESS = revShareModuleDeployment.address
 const REV_SHARE_MODULE_ABI = revShareModuleDeployment.abi
+const REV_SHARE_MODULE_ADDRESS =
+    process.env.REVSHARE_MODULE_ADDRESS && process.env.REVSHARE_MODULE_ADDRESS !== "0x"
+        ? process.env.REVSHARE_MODULE_ADDRESS
+        : revShareModuleDeployment.address
 
 // Safe config
 const SAFE_ADDRESS = process.env.SAFE_ADDRESS
