@@ -97,6 +97,9 @@ contract ForkBackfill_RevShareModuleTest is StdCheats, Test {
         assertEq(pioneer_1_revenueBeforeBackfill, 0);
         assertEq(pioneer_2_revenueBeforeBackfill, 0);
 
+        vm.expectRevert();
+        revShareModule.adminBackfillRevenue(accounts, amounts);
+
         vm.prank(takadao);
         revShareModule.adminBackfillRevenue(accounts, amounts);
 
