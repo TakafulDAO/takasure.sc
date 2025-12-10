@@ -46,10 +46,11 @@ build-revshare-allocations:
 	@make get-revshare-pioneers
 	@node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js
 
-build-safe-multisig-transactions :
+build-backfill-safe-tx-and-metadata:
 	@make build-revshare-allocations
 	@node scripts/rev-share-backfill/03-buildRevShareSafeBatchJson.js
-	
+	@node scripts/rev-share-backfill/04-buildRevShareBackfillMetadata.js
+
 # Protocol deployments
 protocol-deploy-referral:
 	@forge clean
