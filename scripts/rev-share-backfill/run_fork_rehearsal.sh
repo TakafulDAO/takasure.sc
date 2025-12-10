@@ -128,7 +128,7 @@ if [ "$DEPLOY_CONTRACTS" = "1" ]; then
     --private-key "$DEPLOYER_KEY" \
     -vvv
 
-  DEPLOY_BROADCAST="$ROOT_DIR/broadcast/Deployements.s.sol/$CHAIN_ID/run-latest.json"
+  DEPLOY_BROADCAST="$ROOT_DIR/broadcast/Deployments.s.sol/$CHAIN_ID/run-latest.json"
   if [ ! -f "$DEPLOY_BROADCAST" ]; then
     echo "ERROR: Deployments broadcast file not found at $DEPLOY_BROADCAST" >&2
     exit 1
