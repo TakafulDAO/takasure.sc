@@ -6,7 +6,7 @@ import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetCo
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
-contract DeployRevShareModule is Script {
+contract DeployRevShareModule is Script, GetContractAddress {
     function run() external returns (address revShareModule) {
         address addressManagerAddress = _getContractAddress(block.chainid, "AddressManager");
 
