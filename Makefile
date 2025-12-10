@@ -72,6 +72,36 @@ protocol-prepare-upgrade-referral:
 	@forge script deploy/protocol/upgrades/02-PrepareReferralUpgrade.s.sol:PrepareReferralUpgrade $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
+# Managers deployments
+managers-deploy:
+	@forge clean
+	@forge script deploy/protocol/managers/DeployManagers.s.sol:DeployManagers $(NETWORK_ARGS)
+	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
+	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV1.sol
+
+# Managers upgrades
+managers-upgrade-address-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/UpgradeAddressManager.s.sol:UpgradeAddressManager $(NETWORK_ARGS)
+	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
+
+managers-upgrade-module-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/UpgradeModuleManager.s.sol:UpgradeModuleManager $(NETWORK_ARGS)
+	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV
+
+# Modules deployments
+modules-deploy-revshare:
+	@forge clean
+	@forge script deploy/protocol/modules/DeployRevShareModule.s.sol:DeployRevShareModule $(NETWORK_ARGS)
+	@cp contracts/modules/RevShareModule.sol contracts/version_previous_contracts/RevShareModuleV1.sol
+
+# Modules upgrades
+modules-upgrade-revshare:
+	@forge clean
+	@forge script deploy/protocol/modules/UpgradeRevShareModule.s.sol:UpgradeRevShareModule $(NETWORK_ARGS)
+	@cp contracts/modules/RevShareModule.sol contracts/version_previous_contracts/RevShareModuleV1.sol
+
 # Token deployments
 tokens-deploy-nft:
 	@forge clean
