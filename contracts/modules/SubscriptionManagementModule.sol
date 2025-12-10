@@ -243,7 +243,7 @@ contract SubscriptionManagementModule is
                 uint256 toTransfer;
                 uint256 fee;
 
-                if (addressManager.getProtocolAddressByName("MODULE__LIFE_BENEFIT").addr == benefitsToPay[i]) {
+                if (addressManager.getProtocolAddressByName("BENEFIT__LIFE").addr == benefitsToPay[i]) {
                     // If this is the life benefit, then the amount to pay is reduced by the association recurring payment
                     fee = ((benefitMember.contribution - associationMember.planPrice) * benefitFee) / 100;
                     toTransfer = (benefitMember.contribution - associationMember.planPrice) - fee;
