@@ -75,7 +75,10 @@ ANVIL_PID=""
 
 if [ "$START_ANVIL" = "1" ]; then
   if [ -n "$FORK_BLOCK" ]; then
+    echo "" # Blank line for readability
     echo ">>> Starting anvil fork of Arbitrum at block $FORK_BLOCK ..."
+    echo "" # Blank line for readability
+
     anvil \
       --fork-url "$ARBITRUM_MAINNET_RPC_URL" \
       --fork-block-number "$FORK_BLOCK" \
@@ -83,7 +86,10 @@ if [ "$START_ANVIL" = "1" ]; then
       --port "$ANVIL_PORT" \
       > "$SCRIPTS_DIR/anvil-revshare.log" 2>&1 &
   else
+    echo "" # Blank line for readability
     echo ">>> Starting anvil fork of Arbitrum at latest block ..."
+    echo "" # Blank line for readability
+
     anvil \
       --fork-url "$ARBITRUM_MAINNET_RPC_URL" \
       --chain-id "$CHAIN_ID" \
@@ -96,19 +102,31 @@ if [ "$START_ANVIL" = "1" ]; then
 
   cleanup() {
     if [ -n "$ANVIL_PID" ] && kill -0 "$ANVIL_PID" 2>/dev/null; then
+      echo "" # Blank line for readability
       echo ">>> Stopping anvil (pid $ANVIL_PID)..."
+      echo "" # Blank line for readability
+
       kill "$ANVIL_PID" 2>/dev/null || true
     fi
   }
   trap cleanup EXIT
 
+  echo "" # Blank line for readability
   echo ">>> Waiting for anvil to become ready ..."
+  echo "" # Blank line for readability
+
   until cast block-number --rpc-url "$LOCAL_RPC" >/dev/null 2>&1; do
     sleep 1
   done
+
+  echo "" # Blank line for readability
   echo ">>> Anvil fork is up at $LOCAL_RPC"
+  echo "" # Blank line for readability
+
 else
+  echo "" # Blank line for readability
   echo ">>> START_ANVIL=0, skipping anvil. Using existing node at $BACKFILL_EXECUTE_RPC (if EXECUTE_ON_RPC=1)."
+  echo "" # Blank line for readability
 fi
 
 ########################################
@@ -121,7 +139,10 @@ if [ "$DEPLOY_CONTRACTS" = "1" ]; then
     exit 1
   fi
 
+  echo "" # Blank line for readability
   echo ">>> Deploying AddressManager, ModuleManager & RevShareModule to fork..."
+  echo "" # Blank line for readability
+
   forge script scripts/rev-share-backfill/Deployments.s.sol:Deployments \
     --rpc-url "$LOCAL_RPC" \
     --broadcast \
@@ -134,22 +155,21 @@ if [ "$DEPLOY_CONTRACTS" = "1" ]; then
     exit 1
   fi
 
-  ADDRESS_MANAGER_ADDRESS=$(
-    jq -r '.transactions[] | select(.contractName=="AddressManager") | .contractAddress' \
-      "$DEPLOY_BROADCAST" | tail -n 1
-  )
-  MODULE_MANAGER_ADDRESS=$(
-    jq -r '.transactions[] | select(.contractName=="ModuleManager") | .contractAddress' \
-      "$DEPLOY_BROADCAST" | tail -n 1
-  )
-  REVSHARE_MODULE_ADDRESS=$(
-    jq -r '.transactions[] | select(.contractName=="RevShareModule") | .contractAddress' \
-      "$DEPLOY_BROADCAST" | tail -n 1
-  )
+  DEPLOY_BROADCAST="$ROOT_DIR/broadcast/Deployments.s.sol/$CHAIN_ID/run-latest.json"
+  if [ ! -f "$DEPLOY_BROADCAST" ]; then
+    echo "ERROR: Deployments broadcast file not found at $DEPLOY_BROADCAST" >&2
+    exit 1
+  fi
 
+  ADDRESS_MANAGER_ADDRESS=$(jq -r '.returns.addressManager.value' "$DEPLOY_BROADCAST")
+  MODULE_MANAGER_ADDRESS=$(jq -r '.returns.moduleManager.value' "$DEPLOY_BROADCAST")
+  REVSHARE_MODULE_ADDRESS=$(jq -r '.returns.revShareModule.value' "$DEPLOY_BROADCAST")
+
+  echo "" # Blank line for readability
   echo ">>> AddressManager deployed at: $ADDRESS_MANAGER_ADDRESS"
   echo ">>> ModuleManager  deployed at: $MODULE_MANAGER_ADDRESS"
   echo ">>> RevShareModule deployed at: $REVSHARE_MODULE_ADDRESS"
+  echo "" # Blank line for readability
 
   if [ -z "$ADDRESS_MANAGER_ADDRESS" ] || [ "$ADDRESS_MANAGER_ADDRESS" = "0x0000000000000000000000000000000000000000" ]; then
     echo "ERROR: Failed to parse AddressManager address from broadcast" >&2
@@ -163,25 +183,39 @@ if [ "$DEPLOY_CONTRACTS" = "1" ]; then
   export ADDRESS_MANAGER_ADDRESS
   export REVSHARE_MODULE_ADDRESS
 else
+  echo "" # Blank line for readability
   echo ">>> DEPLOY_CONTRACTS=0, skipping contract deployment."
+  echo "" # Blank line for readability
 fi
 
 ########################################
 #   RUN OFF-CHAIN ALLOCATION SCRIPTS
 ########################################
 
+echo "" # Blank line for readability
 echo ">>> Step 1: export pioneers from subgraph"
+echo "" # Blank line for readability
+
 node "$SCRIPT_01"
 
+echo "" # Blank line for readability
 echo ">>> Step 2: build time-weighted backfill allocations"
+echo "" # Blank line for readability
+
 # For script 02 we want to talk to the FORKED chain (AddressManager there)
 ARBITRUM_MAINNET_RPC_URL="$LOCAL_RPC" node "$SCRIPT_02"
 
+echo "" # Blank line for readability
 echo ">>> Step 3: build Safe batch JSON"
+echo "" # Blank line for readability
+
 # Requires SAFE_ADDRESS and SAFE_CHAIN_ID/BACKFILL_BATCH_SIZE in env/.env
 node "$SCRIPT_03"
 
+echo "" # Blank line for readability
 echo ">>> Step 4: build calldata batches JSON/CSV"
+echo "" # Blank line for readability
+
 node "$SCRIPT_04"
 
 if [ ! -f "$CALLDATA_JSON" ]; then
@@ -189,7 +223,10 @@ if [ ! -f "$CALLDATA_JSON" ]; then
   exit 1
 fi
 
+echo "" # Blank line for readability
 echo ">>> Off-chain pipeline completed."
+echo "" # Blank line for readability
+
 echo "    Allocations: $ALLOCATIONS_JSON"
 echo "    Calldata    : $CALLDATA_JSON"
 
@@ -203,15 +240,20 @@ if [ "$EXECUTE_ON_RPC" = "1" ]; then
     exit 1
   fi
 
+  echo "" # Blank line for readability
   echo ">>> EXECUTE_ON_RPC=1, sending batches to $BACKFILL_EXECUTE_RPC"
   echo ">>> NOTE: REVSHARE_MODULE_ADDRESS=$REVSHARE_MODULE_ADDRESS"
+  echo "" # Blank line for readability
+
   echo "          BACKFILL_OPERATOR_KEY must have OPERATOR role on that RevShareModule."
 
   TOTAL_BATCHES=$(jq '.totalBatches' "$CALLDATA_JSON")
   REVSHARE_MODULE=$(jq -r '.revShareModule' "$CALLDATA_JSON")
 
+  echo "" # Blank line for readability
   echo ">>> Total batches: $TOTAL_BATCHES"
   echo ">>> RevShareModule (from JSON): $REVSHARE_MODULE"
+  echo "" # Blank line for readability
 
   for ((i=0; i< TOTAL_BATCHES; i++)); do
     TO=$(jq -r ".batches[$i].to" "$CALLDATA_JSON")
@@ -219,7 +261,9 @@ if [ "$EXECUTE_ON_RPC" = "1" ]; then
     NUM_ADDR=$(jq -r ".batches[$i].numAddresses" "$CALLDATA_JSON")
     SUM_TOKENS=$(jq -r ".batches[$i].sumTokens" "$CALLDATA_JSON")
 
+    echo "" # Blank line for readability
     echo ">>> Sending batch $i → $TO (addresses: $NUM_ADDR, ~${SUM_TOKENS} tokens)"
+    echo "" # Blank line for readability
 
     cast send "$TO" \
       --data "$DATA" \
@@ -229,10 +273,15 @@ if [ "$EXECUTE_ON_RPC" = "1" ]; then
       -vvv
   done
 
+  echo "" # Blank line for readability
   echo ">>> All batches sent."
+  echo "" # Blank line for readability
 else
+  echo "" # Blank line for readability
   echo ">>> EXECUTE_ON_RPC=0, not sending any transactions."
+  echo "" # Blank line for readability
   echo "    You can now inspect $CALLDATA_JSON or use revshare_backfill_safe_batch.json in Safe."
 fi
 
+echo "" # Blank line for readability
 echo ">>> Done."
