@@ -49,7 +49,7 @@ const BACKFILL_END_TS = Math.floor(new Date("2025-12-01T00:00:00Z").getTime() / 
 // Name used in AddressManager for Takadao revenue receiver
 const REVENUE_RECEIVER_KEY = "REVENUE_RECEIVER"
 
-const RPC_URL = process.env.ARBITRUM_MAINNET_RPC_URL // Arbitrum One RPC URL
+const ARBITRUM_MAINNET_RPC_URL = process.env.ARBITRUM_MAINNET_RPC_URL // Arbitrum One RPC URL
 // const RPC_URL = "http://127.0.0.1:8545" // Anvil RPC URL
 
 // AddressManager deployment (Arbitrum One)
