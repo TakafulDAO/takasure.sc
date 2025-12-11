@@ -266,7 +266,7 @@ if [ "$EXECUTE_ON_RPC" = "1" ]; then
     echo "" # Blank line for readability
 
     cast send "$TO" \
-      --data "$DATA" \
+      -- --data "$DATA" \
       --rpc-url "$BACKFILL_EXECUTE_RPC" \
       --private-key "$BACKFILL_OPERATOR_KEY" \
       --legacy \
