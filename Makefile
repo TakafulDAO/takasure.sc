@@ -51,6 +51,10 @@ build-backfill-safe-tx-and-metadata:
 	@node scripts/rev-share-backfill/03-buildRevShareSafeBatchJson.js
 	@node scripts/rev-share-backfill/04-buildRevShareBackfillCalldata.js
 
+build-backfill-anvil:
+	@forge clean
+	@scripts/rev-share-backfill/run_fork_rehearsal.sh
+
 # Protocol deployments
 protocol-deploy-referral:
 	@forge clean
