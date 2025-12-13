@@ -50,6 +50,12 @@ contract SFStrategyAggregator is
     uint256 public maxTVL;
 
     /*//////////////////////////////////////////////////////////////
+                           EVENTS AND ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
+
+    /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
@@ -89,6 +95,23 @@ contract SFStrategyAggregator is
     // todo: access control
     function unpause() external {
         _unpause();
+    }
+
+    // todo: access control
+    function setMaxTVL(uint256 newMaxTVL) external override {
+        uint256 oldMaxTVL = maxTVL;
+        maxTVL = newMaxTVL;
+        emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
+    }
+
+    // todo: access control
+    function setConfig(
+        bytes calldata /*newConfig*/
+    )
+        external
+        override
+    {
+        // todo: check if needed. Decode array of strategy, weights, and active status.
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -184,9 +207,7 @@ contract SFStrategyAggregator is
 
     // todo: implement the next functions, written here for now for compilation issues as I'm inheriting ISFStrategy
     function withdraw(uint256, address, bytes calldata) external returns (uint256) {}
-    function setMaxTVL(uint256) external {}
     function setKeeper(address) external {}
-    function setConfig(bytes calldata) external {}
     function emergencyExit(address) external {}
     function deposit(uint256, bytes calldata) external returns (uint256) {}
 }
