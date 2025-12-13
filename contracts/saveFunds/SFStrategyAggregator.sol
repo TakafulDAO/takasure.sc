@@ -17,6 +17,7 @@ import {
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {StrategyConfig} from "contracts/types/TakasureTypes.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -55,6 +56,20 @@ contract SFStrategyAggregator is
 
     event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
 
+    error SFStrategyAggregator__NotAuthorizedCaller();
+
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier onlyRole(bytes32 role, address addressManagerAddress) {
+        require(
+            IAddressManager(addressManagerAddress).hasRole(role, msg.sender),
+            SFStrategyAggregator__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
     //////////////////////////////////////////////////////////////*/
@@ -87,29 +102,26 @@ contract SFStrategyAggregator is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    // todo: access control
-    function pause() external {
+    function pause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
         _pause();
     }
 
-    // todo: access control
-    function unpause() external {
+    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
         _unpause();
     }
 
-    // todo: access control
-    function setMaxTVL(uint256 newMaxTVL) external override {
+    function setMaxTVL(uint256 newMaxTVL) external override onlyRole(Roles.OPERATOR, address(addressManager)) {
         uint256 oldMaxTVL = maxTVL;
         maxTVL = newMaxTVL;
         emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
     }
 
-    // todo: access control
     function setConfig(
         bytes calldata /*newConfig*/
     )
         external
         override
+        onlyRole(Roles.OPERATOR, address(addressManager))
     {
         // todo: check if needed. Decode array of strategy, weights, and active status.
     }
@@ -202,8 +214,11 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     ///@dev required by the OZ UUPS module.
-    // todo: access control
-    function _authorizeUpgrade(address newImplementation) internal override {}
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {}
 
     // todo: implement the next functions, written here for now for compilation issues as I'm inheriting ISFStrategy
     function withdraw(uint256, address, bytes calldata) external returns (uint256) {}
