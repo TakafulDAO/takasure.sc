@@ -1,16 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-pragma solidity 0.8.28;
+import {StrategyConfig} from "contracts/types/TakasureTypes.sol";
 
-struct StrategyConfig {
-    address asset; // USDC
-    address vault;
-    address keeper;
-    address pool; // e.g. Uniswap v3/v4 pool
-    uint256 maxTVL;
-    bool paused;
-    // optional: strategy type enum, fee params, slippage limits, etc.
-}
+pragma solidity 0.8.28;
 
 // Debugging and view functions for strategies.
 interface ISFStrategyView {

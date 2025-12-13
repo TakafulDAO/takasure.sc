@@ -179,3 +179,13 @@ struct CashFlowVars {
     uint16 monthReference;
     uint8 dayReference;
 }
+
+struct StrategyConfig {
+    address asset; // USDC
+    address vault;
+    address keeper;
+    address pool; // e.g. Uniswap v3/v4 pool
+    uint256 maxTVL;
+    bool paused;
+    // optional: strategy type enum, fee params, slippage limits, etc.
+}

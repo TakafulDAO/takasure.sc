@@ -25,8 +25,7 @@ contract VaultTest is Test {
         managersDeployer = new DeployManagers();
         vaultDeployer = new DeploySFVault();
 
-        (HelperConfig.NetworkConfig memory config, AddressManager _addrMgr, ModuleManager _modMgr) =
-            managersDeployer.run();
+        (, AddressManager _addrMgr, ModuleManager _modMgr) = managersDeployer.run();
 
         addrMgr = _addrMgr;
         modMgr = _modMgr;
