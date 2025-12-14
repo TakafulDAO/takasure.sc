@@ -428,7 +428,7 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Returns the underlying asset address.
+     * @notice Returns the underlying asset address managed by the strategy.
      * @return Address of the underlying asset.
      */
     function asset() external view returns (address) {
