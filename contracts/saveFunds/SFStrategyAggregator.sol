@@ -211,24 +211,21 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
-            if (!strat.isActive) continue;
+            if (strat.isActive) {
+                uint256 toAllocate = (assets * strat.targetWeightBPS) / MAX_BPS;
 
-            uint256 toAllocate = (assets * strat.targetWeightBPS) / MAX_BPS;
+                if (toAllocate == 0) continue;
+                if (toAllocate > remaining) toAllocate = remaining;
 
-            if (toAllocate > remaining) {
-                toAllocate = remaining;
+                // Forward funds to child strategy
+                underlying.forceApprove(address(strat.strategy), toAllocate);
+                uint256 childInvested = strat.strategy.deposit(toAllocate, bytes(""));
+
+                investedAssets += childInvested;
+                remaining -= toAllocate;
+
+                if (remaining == 0) break;
             }
-
-            if (toAllocate == 0) continue;
-
-            // Forward funds to child strategy
-            underlying.forceApprove(address(strat.strategy), toAllocate);
-            uint256 childInvested = strat.strategy.deposit(toAllocate, bytes(""));
-
-            investedAssets += childInvested;
-            remaining -= toAllocate;
-
-            if (remaining == 0) break;
         }
 
         // Any leftovers stay as idle balance in the aggregator.
@@ -263,29 +260,26 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len && remaining > 0; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
-            if (!strat.isActive) continue;
+            if (strat.isActive) {
+                uint256 subStratMax = strat.strategy.maxWithdraw();
+                if (subStratMax == 0) continue;
 
-            uint256 subStratMax = strat.strategy.maxWithdraw();
+                uint256 toAsk = subStratMax > remaining ? remaining : subStratMax;
+                if (toAsk == 0) continue;
 
-            if (subStratMax == 0) continue;
+                uint256 childGot = strat.strategy.withdraw(toAsk, address(this), bytes(""));
+                if (childGot == 0) continue;
 
-            uint256 toAsk = subStratMax > remaining ? remaining : subStratMax;
+                // Immediately pass to receiver
+                underlying.safeTransfer(receiver, childGot);
+                withdrawnAssets += childGot;
 
-            if (toAsk == 0) continue;
-
-            uint256 childGot = strat.strategy.withdraw(toAsk, address(this), bytes(""));
-
-            if (childGot == 0) continue;
-
-            // Immediately pass to receiver
-            underlying.safeTransfer(receiver, childGot);
-            withdrawnAssets += childGot;
-
-            if (childGot >= remaining) {
-                remaining = 0;
-                break;
-            } else {
-                remaining -= childGot;
+                if (childGot >= remaining) {
+                    remaining = 0;
+                    break;
+                } else {
+                    remaining -= childGot;
+                }
             }
         }
 
@@ -311,13 +305,12 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
-            if (!strat.isActive) continue;
+            if (strat.isActive) {
+                uint256 subStratMax = strat.strategy.maxWithdraw();
+                if (subStratMax == 0) continue;
 
-            uint256 subStratMax = strat.strategy.maxWithdraw();
-
-            if (subStratMax == 0) continue;
-
-            strat.strategy.withdraw(subStratMax, receiver, "");
+                strat.strategy.withdraw(subStratMax, receiver, "");
+            }
         }
 
         // Transfer idle funds to receiver
@@ -338,9 +331,7 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
-            if (!strat.isActive) continue;
-
-            ISFStrategyMaintenance(address(strat.strategy)).harvest(bytes(""));
+            if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).harvest(bytes(""));
         }
     }
 
@@ -351,9 +342,7 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
-            if (!strat.isActive) continue;
-
-            ISFStrategyMaintenance(address(strat.strategy)).rebalance(data);
+            if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).rebalance(data);
         }
     }
 
@@ -373,9 +362,7 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
-            if (!strat.isActive) continue;
-
-            sum += strat.strategy.totalAssets();
+            if (strat.isActive) sum += strat.strategy.totalAssets();
         }
 
         return sum;
@@ -414,9 +401,7 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
-            if (!strat.isActive) continue;
-
-            sum += strat.strategy.totalAssets();
+            if (strat.isActive) sum += strat.strategy.totalAssets();
         }
 
         return sum;
