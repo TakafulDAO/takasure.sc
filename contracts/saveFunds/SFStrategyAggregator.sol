@@ -224,6 +224,7 @@ contract SFStrategyAggregator is
                 // Forward funds to child strategy
                 // todo: check if safeIncreaseAllowance is better. Revisit.
                 underlying.forceApprove(address(strat.strategy), toAllocate);
+                // todo: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
                 uint256 childInvested = strat.strategy.deposit(toAllocate, bytes(""));
 
                 investedAssets += childInvested;
@@ -275,6 +276,7 @@ contract SFStrategyAggregator is
                 uint256 toAsk = subStratMax > remaining ? remaining : subStratMax;
                 if (toAsk == 0) continue;
 
+                // todo: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
                 uint256 childGot = strat.strategy.withdraw(toAsk, address(this), bytes(""));
                 if (childGot == 0) continue;
 
@@ -339,6 +341,7 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
+            // todo: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
             if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).harvest(bytes(""));
         }
     }
@@ -350,6 +353,7 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
+            // todo: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
             if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).rebalance(data);
         }
     }
