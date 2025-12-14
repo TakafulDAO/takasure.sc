@@ -45,7 +45,7 @@ contract SFStrategyAggregator is
 
     SubStrategy[] private subStrategies;
 
-    address public keeper; // todoL maybe this should be a role?, at leas in address manager, adapt later
+    address public keeper; // todo maybe this should be a role?, at leas in address manager, adapt later
     address public vault;
 
     uint256 public maxTVL;
@@ -124,6 +124,33 @@ contract SFStrategyAggregator is
         onlyRole(Roles.OPERATOR, address(addressManager))
     {
         // todo: check if needed. Decode array of strategy, weights, and active status.
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               EMERGENCY
+    //////////////////////////////////////////////////////////////*/
+
+    function emergencyExit(address receiver) external override onlyRole(Roles.OPERATOR, address(addressManager)) {
+        // Pull everything from subStrategies to the receiver.
+        uint256 len = subStrategies.length;
+
+        for (uint256 i; i < len; ++i) {
+            SubStrategy memory strat = subStrategies[i];
+
+            if (!strat.isActive) continue;
+
+            uint256 subStratMax = strat.strategy.maxWithdraw();
+
+            if (subStratMax == 0) continue;
+
+            strat.strategy.withdraw(subStratMax, receiver, "");
+        }
+
+        // Transfer idle funds to receiver
+        uint256 balance = underlying.balanceOf(address(this));
+        if (balance > 0) underlying.safeTransfer(receiver, balance);
+
+        _pause();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -223,6 +250,5 @@ contract SFStrategyAggregator is
     // todo: implement the next functions, written here for now for compilation issues as I'm inheriting ISFStrategy
     function withdraw(uint256, address, bytes calldata) external returns (uint256) {}
     function setKeeper(address) external {}
-    function emergencyExit(address) external {}
     function deposit(uint256, bytes calldata) external returns (uint256) {}
 }
