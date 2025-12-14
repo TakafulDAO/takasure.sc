@@ -202,8 +202,12 @@ contract SFStrategyAggregator is
 
         uint256 len = subStrategies.length;
 
-        // No substrategies yet, return assets.
-        if (len == 0) return assets;
+        // If there is no substrategies yet, return the funds to to the vault
+        if (len == 0) {
+            // todo: maybe better to revert? revisit
+            underlying.safeTransfer(vault, assets);
+            return 0;
+        }
 
         // todo: interpret data
         uint256 remaining = assets;
@@ -218,6 +222,7 @@ contract SFStrategyAggregator is
                 if (toAllocate > remaining) toAllocate = remaining;
 
                 // Forward funds to child strategy
+                // todo: check if safeIncreaseAllowance is better. Revisit.
                 underlying.forceApprove(address(strat.strategy), toAllocate);
                 uint256 childInvested = strat.strategy.deposit(toAllocate, bytes(""));
 
@@ -228,9 +233,12 @@ contract SFStrategyAggregator is
             }
         }
 
-        // Any leftovers stay as idle balance in the aggregator.
-        // totalAssets() counts both idle + children.
-        return investedAssets + remaining;
+        // Any unnalocated tokens must not stay in the aggregator long term.
+        // Send back to the vault.
+        // todo: Check if better instead of sending to vault, route remaining to a "buffer" strategy or something like that? Revisit
+        if (remaining > 0) underlying.safeTransfer(vault, remaining);
+
+        return investedAssets;
     }
 
     function withdraw(uint256 assets, address receiver, bytes calldata data)
