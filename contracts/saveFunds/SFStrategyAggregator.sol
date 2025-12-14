@@ -172,20 +172,20 @@ contract SFStrategyAggregator is
      * @notice Adds new child strategy to the aggregator.
      * @param strategy Address of the child strategy.
      * @param targetWeightBPS Target weight in basis points (0 to 10000).
-     * @param isActive Whether the strategy is active upon addition.
      */
-    function addSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
+    function addSubStrategy(address strategy, uint16 targetWeightBPS)
         external
         notAddressZero(strategy)
         onlyRole(Roles.OPERATOR, address(addressManager))
     {
-        require(totalTargetWeightBPS + targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
         require(subStrategyIndex[strategy] == 0, SFStrategyAggregator__SubStrategyAlreadyExists());
+        require(totalTargetWeightBPS + targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
 
+        // By default every strategy is active.
         subStrategies.push(
-            SubStrategy({strategy: ISFStrategy(strategy), targetWeightBPS: targetWeightBPS, isActive: isActive})
+            SubStrategy({strategy: ISFStrategy(strategy), targetWeightBPS: targetWeightBPS, isActive: true})
         );
-        subStrategyIndex[strategy] = subStrategies.length;
+        subStrategyIndex[strategy] = subStrategies.length; // index + 1
 
         totalTargetWeightBPS += targetWeightBPS;
         asssert(totalTargetWeightBPS <= MAX_BPS);
@@ -205,16 +205,22 @@ contract SFStrategyAggregator is
         onlyRole(Roles.OPERATOR, address(addressManager))
     {
         require(subStrategyIndex[strategy] != 0, SFStrategyAggregator__SubStrategyNotFound());
-        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
 
         uint256 index = subStrategyIndex[strategy] - 1;
-
         SubStrategy storage strat = subStrategies[index];
-        uint16 oldWeight = strat.targetWeightBPS;
+
+        // Only count old one if strategy was active. Only count new one if strategy will be active
+        uint16 oldEffectiveWeight = strat.isActive ? strat.targetWeightBPS : 0;
+        uint16 newEffectiveWeight = isActive ? targetWeightBPS : 0;
+
+        // Remove old effective weight from the total
+        totalTargetWeightBPS = totalTargetWeightBPS - oldEffectiveWeight;
+        require(totalTargetWeightBPS + newEffectiveWeight <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+
         strat.targetWeightBPS = targetWeightBPS;
         strat.isActive = isActive;
 
-        totalTargetWeightBPS = totalTargetWeightBPS - oldWeight + targetWeightBPS;
+        totalTargetWeightBPS = totalTargetWeightBPS + newEffectiveWeight;
         assert(totalTargetWeightBPS <= MAX_BPS);
 
         emit OnSubStrategyUpdated(strategy, targetWeightBPS, isActive);
