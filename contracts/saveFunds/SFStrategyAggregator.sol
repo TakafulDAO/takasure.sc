@@ -50,6 +50,7 @@ contract SFStrategyAggregator is
     address public vault;
 
     uint256 public maxTVL;
+    uint16 public totalTargetWeightBps; // sum of all target weights in bps
 
     mapping(address strat => uint256) private subStrategyIndex; // strategy => index + 1
 
@@ -178,13 +179,16 @@ contract SFStrategyAggregator is
         notAddressZero(strategy)
         onlyRole(Roles.OPERATOR, address(addressManager))
     {
-        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBps());
+        require(totalTargetWeightBps + targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBps());
         require(subStrategyIndex[strategy] == 0, SFStrategyAggregator__SubStrategyAlreadyExists());
 
         subStrategies.push(
             SubStrategy({strategy: ISFStrategy(strategy), targetWeightBPS: targetWeightBPS, isActive: isActive})
         );
         subStrategyIndex[strategy] = subStrategies.length;
+
+        totalTargetWeightBps += targetWeightBPS;
+        asssert(totalTargetWeightBps <= MAX_BPS);
 
         emit OnSubStrategyAdded(strategy, targetWeightBPS, isActive);
     }
@@ -201,12 +205,17 @@ contract SFStrategyAggregator is
         onlyRole(Roles.OPERATOR, address(addressManager))
     {
         require(subStrategyIndex[strategy] != 0, SFStrategyAggregator__SubStrategyNotFound());
+        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBps());
 
         uint256 index = subStrategyIndex[strategy] - 1;
 
         SubStrategy storage strat = subStrategies[index];
+        uint16 oldWeight = strat.targetWeightBPS;
         strat.targetWeightBPS = targetWeightBPS;
         strat.isActive = isActive;
+
+        totalTargetWeightBps = totalTargetWeightBps - oldWeight + targetWeightBPS;
+        assert(totalTargetWeightBps <= MAX_BPS);
 
         emit OnSubStrategyUpdated(strategy, targetWeightBPS, isActive);
     }
