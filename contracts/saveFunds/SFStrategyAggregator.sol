@@ -73,6 +73,7 @@ contract SFStrategyAggregator is
     error SFStrategyAggregator__SubStrategyAlreadyExists();
     error SFStrategyAggregator__SubStrategyNotFound();
     error SFStrategyAggregator__NotZeroAmount();
+    error SFStrategyAggregator__NotAddressZero();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -103,6 +104,11 @@ contract SFStrategyAggregator is
         _;
     }
 
+    modifier notAddressZero(address addr) {
+        require(addr != address(0), SFStrategyAggregator__NotAddressZero());
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
     //////////////////////////////////////////////////////////////*/
@@ -115,6 +121,9 @@ contract SFStrategyAggregator is
     function initialize(IAddressManager _addressManager, IERC20 _asset, uint256 _maxTVL, address _vault)
         external
         initializer
+        notAddressZero(address(_addressManager))
+        notAddressZero(address(_asset))
+        notAddressZero(_vault)
     {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
@@ -160,6 +169,7 @@ contract SFStrategyAggregator is
 
     function addSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
         external
+        notAddressZero(strategy)
         onlyRole(Roles.OPERATOR, address(addressManager))
     {
         require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBps());
@@ -175,6 +185,7 @@ contract SFStrategyAggregator is
 
     function updateSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
         external
+        notAddressZero(strategy)
         onlyRole(Roles.OPERATOR, address(addressManager))
     {
         require(subStrategyIndex[strategy] != 0, SFStrategyAggregator__SubStrategyNotFound());
@@ -244,6 +255,7 @@ contract SFStrategyAggregator is
 
     function withdraw(uint256 assets, address receiver, bytes calldata data)
         external
+        notAddressZero(receiver)
         onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
         whenNotPaused
         returns (uint256 withdrawnAssets)
@@ -308,7 +320,11 @@ contract SFStrategyAggregator is
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
 
-    function emergencyExit(address receiver) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function emergencyExit(address receiver)
+        external
+        notAddressZero(receiver)
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {
         // Pull everything from subStrategies to the receiver.
         uint256 len = subStrategies.length;
 
