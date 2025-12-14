@@ -9,6 +9,7 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {ISFStrategyView} from "contracts/interfaces/saveFunds/ISFStrategyView.sol";
+import {ISFStrategyMaintenance} from "contracts/interfaces/saveFunds/ISFStrategyMaintenance.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -26,6 +27,7 @@ pragma solidity 0.8.28;
 contract SFStrategyAggregator is
     ISFStrategy,
     ISFStrategyView,
+    ISFStrategyMaintenance,
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable,
@@ -45,7 +47,6 @@ contract SFStrategyAggregator is
 
     SubStrategy[] private subStrategies;
 
-    address public keeper; // todo maybe this should be a role?, at leas in address manager, adapt later
     address public vault;
 
     uint256 public maxTVL;
@@ -83,6 +84,15 @@ contract SFStrategyAggregator is
         _;
     }
 
+    modifier onlyKeeperOrOperator() {
+        require(
+            IAddressManager(addressManager).hasRole(Roles.KEEPER, msg.sender)
+                || IAddressManager(addressManager).hasRole(Roles.OPERATOR, msg.sender),
+            SFStrategyAggregator__NotAuthorizedCaller()
+        );
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
     //////////////////////////////////////////////////////////////*/
@@ -92,13 +102,10 @@ contract SFStrategyAggregator is
         _disableInitializers();
     }
 
-    function initialize(
-        IAddressManager _addressManager,
-        IERC20 _asset,
-        uint256 _maxTVL,
-        address _keeper,
-        address _vault
-    ) external initializer {
+    function initialize(IAddressManager _addressManager, IERC20 _asset, uint256 _maxTVL, address _vault)
+        external
+        initializer
+    {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
         __Pausable_init();
@@ -107,7 +114,6 @@ contract SFStrategyAggregator is
 
         underlying = _asset;
         maxTVL = _maxTVL;
-        keeper = _keeper;
         vault = _vault;
     }
 
@@ -201,6 +207,36 @@ contract SFStrategyAggregator is
     }
 
     /*//////////////////////////////////////////////////////////////
+                              MAINTENANCE
+    //////////////////////////////////////////////////////////////*/
+
+    function harvest(bytes calldata data) external override onlyKeeperOrOperator {
+        // todo: include in data the children to harvest?
+        uint256 len = subStrategies.length;
+
+        for (uint256 i; i < len; ++i) {
+            SubStrategy memory strat = subStrategies[i];
+
+            if (!strat.isActive) continue;
+
+            ISFStrategyMaintenance(address(strat.strategy)).harvest(bytes(""));
+        }
+    }
+
+    function rebalance(bytes calldata data) external override onlyKeeperOrOperator {
+        // todo: finish this function
+        uint256 len = subStrategies.length;
+
+        for (uint256 i; i < len; ++i) {
+            SubStrategy memory strat = subStrategies[i];
+
+            if (!strat.isActive) continue;
+
+            ISFStrategyMaintenance(address(strat.strategy)).rebalance(data);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
 
@@ -242,7 +278,6 @@ contract SFStrategyAggregator is
         return StrategyConfig({
             asset: address(underlying),
             vault: vault,
-            keeper: keeper,
             pool: address(0), // aggregator has no single pool
             maxTVL: maxTVL,
             paused: paused()
@@ -300,6 +335,5 @@ contract SFStrategyAggregator is
 
     // todo: implement the next functions, written here for now for compilation issues as I'm inheriting ISFStrategy
     function withdraw(uint256, address, bytes calldata) external returns (uint256) {}
-    function setKeeper(address) external {}
     function deposit(uint256, bytes calldata) external returns (uint256) {}
 }

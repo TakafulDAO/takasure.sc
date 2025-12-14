@@ -183,7 +183,6 @@ struct CashFlowVars {
 struct StrategyConfig {
     address asset; // USDC
     address vault;
-    address keeper;
     address pool; // e.g. Uniswap v3/v4 pool
     uint256 maxTVL;
     bool paused;

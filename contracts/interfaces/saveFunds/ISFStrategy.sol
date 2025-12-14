@@ -43,11 +43,6 @@ interface ISFStrategy {
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Set/change keeper.
-    // todo: remember to add this access control in implementation onlyGovernance
-    // Note: Should be virtual when I write the implementation.
-    function setKeeper(address newKeeper) external;
-
     /// @notice Update per-strategy caps or risk limits.
     // todo: remember to add this access control in implementation onlyGovernance
     // Note: Should be virtual when I write the implementation.
