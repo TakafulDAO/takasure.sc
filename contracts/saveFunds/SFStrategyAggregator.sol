@@ -355,7 +355,10 @@ contract SFStrategyAggregator is
     }
 
     function totalAssets() public view returns (uint256) {
-        uint256 sum = underlying.balanceOf(address(this)); // iddle inside aggregator
+        // Aggregator should not hold idle assets at rest, all value is expected to live in sub-strategies.
+        // uint256 sum = underlying.balanceOf(address(this));
+
+        uint256 sum;
 
         uint256 len = subStrategies.length;
 
