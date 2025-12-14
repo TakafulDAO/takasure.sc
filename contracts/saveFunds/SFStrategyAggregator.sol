@@ -39,7 +39,7 @@ contract SFStrategyAggregator is
 
     struct SubStrategy {
         ISFStrategy strategy;
-        uint16 targetWeightBps; // 0 to 10000 (0% to 100%)
+        uint16 targetWeightBPS; // 0 to 10000 (0% to 100%)
         bool isActive;
     }
 
@@ -50,13 +50,26 @@ contract SFStrategyAggregator is
 
     uint256 public maxTVL;
 
+    mapping(address strat => uint256) private subStrategyIndex; // strategy => index + 1
+
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    uint16 private constant MAX_BPS = 10_000;
+
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
     event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
+    event OnSubStrategyAdded(address indexed strategy, uint16 targetWeightBps, bool isActive);
+    event OnSubStrategyUpdated(address indexed strategy, uint16 targetWeightBps, bool isActive);
 
     error SFStrategyAggregator__NotAuthorizedCaller();
+    error SFStrategyAggregator__InvalidTargetWeightBps();
+    error SFStrategyAggregator__SubStrategyAlreadyExists();
+    error SFStrategyAggregator__SubStrategyNotFound();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -124,6 +137,40 @@ contract SFStrategyAggregator is
         onlyRole(Roles.OPERATOR, address(addressManager))
     {
         // todo: check if needed. Decode array of strategy, weights, and active status.
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           SUB-STRATEGY MGMT
+    //////////////////////////////////////////////////////////////*/
+
+    function addSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
+        external
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {
+        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBps());
+        require(subStrategyIndex[strategy] == 0, SFStrategyAggregator__SubStrategyAlreadyExists());
+
+        subStrategies.push(
+            SubStrategy({strategy: ISFStrategy(strategy), targetWeightBPS: targetWeightBPS, isActive: isActive})
+        );
+        subStrategyIndex[strategy] = subStrategies.length;
+
+        emit OnSubStrategyAdded(strategy, targetWeightBPS, isActive);
+    }
+
+    function updateSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
+        external
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {
+        require(subStrategyIndex[strategy] != 0, SFStrategyAggregator__SubStrategyNotFound());
+
+        uint256 index = subStrategyIndex[strategy] - 1;
+
+        SubStrategy storage strat = subStrategies[index];
+        strat.targetWeightBPS = targetWeightBPS;
+        strat.isActive = isActive;
+
+        emit OnSubStrategyUpdated(strategy, targetWeightBPS, isActive);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -229,11 +276,15 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
             strategies[i] = address(strat.strategy);
-            weights[i] = strat.targetWeightBps;
+            weights[i] = strat.targetWeightBPS;
             actives[i] = strat.isActive;
         }
 
         return abi.encode(strategies, weights, actives);
+    }
+
+    function getSubStrategies() external view returns (SubStrategy[] memory) {
+        return subStrategies;
     }
 
     /*//////////////////////////////////////////////////////////////
