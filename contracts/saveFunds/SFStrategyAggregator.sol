@@ -129,7 +129,7 @@ contract SFStrategyAggregator is
         _unpause();
     }
 
-    function setMaxTVL(uint256 newMaxTVL) external override onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function setMaxTVL(uint256 newMaxTVL) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         uint256 oldMaxTVL = maxTVL;
         maxTVL = newMaxTVL;
         emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
@@ -139,7 +139,6 @@ contract SFStrategyAggregator is
         bytes calldata /*newConfig*/
     )
         external
-        override
         onlyRole(Roles.OPERATOR, address(addressManager))
     {
         // todo: check if needed. Decode array of strategy, weights, and active status.
@@ -183,7 +182,7 @@ contract SFStrategyAggregator is
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
 
-    function emergencyExit(address receiver) external override onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function emergencyExit(address receiver) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         // Pull everything from subStrategies to the receiver.
         uint256 len = subStrategies.length;
 
@@ -210,7 +209,7 @@ contract SFStrategyAggregator is
                               MAINTENANCE
     //////////////////////////////////////////////////////////////*/
 
-    function harvest(bytes calldata data) external override onlyKeeperOrOperator {
+    function harvest(bytes calldata data) external onlyKeeperOrOperator {
         // todo: include in data the children to harvest?
         uint256 len = subStrategies.length;
 
@@ -223,7 +222,7 @@ contract SFStrategyAggregator is
         }
     }
 
-    function rebalance(bytes calldata data) external override onlyKeeperOrOperator {
+    function rebalance(bytes calldata data) external onlyKeeperOrOperator {
         // todo: finish this function
         uint256 len = subStrategies.length;
 
@@ -244,7 +243,7 @@ contract SFStrategyAggregator is
         return address(underlying);
     }
 
-    function totalAssets() public view override returns (uint256) {
+    function totalAssets() public view returns (uint256) {
         uint256 sum = underlying.balanceOf(address(this)); // iddle inside aggregator
 
         uint256 len = subStrategies.length;
@@ -260,7 +259,7 @@ contract SFStrategyAggregator is
         return sum;
     }
 
-    function maxDeposit() external view override returns (uint256) {
+    function maxDeposit() external view returns (uint256) {
         // 0 means no cap
         if (maxTVL == 0) return type(uint256).max;
 
@@ -269,12 +268,12 @@ contract SFStrategyAggregator is
         return maxTVL - current;
     }
 
-    function maxWithdraw() external view override returns (uint256) {
+    function maxWithdraw() external view returns (uint256) {
         // todo: check
         return totalAssets();
     }
 
-    function getConfig() external view override returns (StrategyConfig memory) {
+    function getConfig() external view returns (StrategyConfig memory) {
         return StrategyConfig({
             asset: address(underlying),
             vault: vault,
@@ -284,7 +283,7 @@ contract SFStrategyAggregator is
         });
     }
 
-    function positionValue() external view override returns (uint256) {
+    function positionValue() external view returns (uint256) {
         // For aggregator, "position" = children (no idle).
         uint256 sum;
 
@@ -301,7 +300,7 @@ contract SFStrategyAggregator is
         return sum;
     }
 
-    function getPositionDetails() external view override returns (bytes memory) {
+    function getPositionDetails() external view returns (bytes memory) {
         uint256 len = subStrategies.length;
 
         address[] memory strategies = new address[](len);
