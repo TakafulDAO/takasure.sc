@@ -167,6 +167,12 @@ contract SFStrategyAggregator is
                            SUB-STRATEGY MGMT
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Adds new child strategy to the aggregator.
+     * @param strategy Address of the child strategy.
+     * @param targetWeightBPS Target weight in basis points (0 to 10000).
+     * @param isActive Whether the strategy is active upon addition.
+     */
     function addSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
         external
         notAddressZero(strategy)
@@ -183,6 +189,12 @@ contract SFStrategyAggregator is
         emit OnSubStrategyAdded(strategy, targetWeightBPS, isActive);
     }
 
+    /**
+     * @notice Updates an existing child strategy's configuration.
+     * @param strategy Address of the child strategy to update.
+     * @param targetWeightBPS New target weight in basis points (0 to 10000).
+     * @param isActive New active status of the strategy.
+     */
     function updateSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
         external
         notAddressZero(strategy)
@@ -203,6 +215,12 @@ contract SFStrategyAggregator is
                             DEPOSIT/WITHDRAW
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Deposits assets into the aggregator, which allocates them to child strategies based on target weights.
+     * @param assets Amount of underlying assets to deposit.
+     * @param data Additional data for deposit (not used in this implementation).
+     * @return investedAssets Total amount of assets successfully invested into child strategies.
+     */
     function deposit(uint256 assets, bytes calldata data)
         external
         onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
@@ -254,6 +272,13 @@ contract SFStrategyAggregator is
         return investedAssets;
     }
 
+    /**
+     * @notice Withdraws assets from the aggregator, pulling from idle funds first and then from child strategies as needed.
+     * @param assets Amount of underlying assets to withdraw.
+     * @param receiver Address to receive the withdrawn assets.
+     * @param data Additional data for withdrawal (not used in this implementation).
+     * @return withdrawnAssets Total amount of assets successfully withdrawn.
+     */
     function withdraw(uint256 assets, address receiver, bytes calldata data)
         external
         notAddressZero(receiver)
@@ -322,6 +347,10 @@ contract SFStrategyAggregator is
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Emergency exit function to withdraw all assets from child strategies and transfer to a receiver.
+     * @param receiver Address to receive all withdrawn assets.
+     */
     function emergencyExit(address receiver)
         external
         notAddressZero(receiver)
@@ -353,6 +382,10 @@ contract SFStrategyAggregator is
                               MAINTENANCE
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Harvests rewards from all active child strategies.
+     * @param data Additional data for harvesting (not used in this implementation).
+     */
     function harvest(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
         // todo: include in data the children to harvest?
         uint256 len = subStrategies.length;
@@ -365,6 +398,10 @@ contract SFStrategyAggregator is
         }
     }
 
+    /**
+     * @notice Rebalances all active child strategies.
+     * @param data Additional data for rebalancing (not used in this implementation).
+     */
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
         // todo: finish this function
         uint256 len = subStrategies.length;
@@ -381,10 +418,18 @@ contract SFStrategyAggregator is
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Returns the underlying asset address.
+     * @return Address of the underlying asset.
+     */
     function asset() external view returns (address) {
         return address(underlying);
     }
 
+    /**
+     * @notice Returns the total assets managed by the aggregator, including all active child strategies.
+     * @return Total assets under management.
+     */
     function totalAssets() public view returns (uint256) {
         // Aggregator should not hold idle assets at rest, all value is expected to live in sub-strategies.
         // uint256 sum = underlying.balanceOf(address(this));
@@ -402,6 +447,10 @@ contract SFStrategyAggregator is
         return sum;
     }
 
+    /**
+     * @notice Returns the maximum deposit amount allowed by the aggregator.
+     * @return Maximum deposit amount.
+     */
     function maxDeposit() external view returns (uint256) {
         // 0 means no cap
         if (maxTVL == 0) return type(uint256).max;
@@ -411,6 +460,10 @@ contract SFStrategyAggregator is
         return maxTVL - current;
     }
 
+    /**
+     * @notice Returns the maximum withdrawable amount from the aggregator.
+     * @return Maximum withdrawable amount.
+     */
     function maxWithdraw() external view returns (uint256) {
         // todo: check
         return totalAssets();
