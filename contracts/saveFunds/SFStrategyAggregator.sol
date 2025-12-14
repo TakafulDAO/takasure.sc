@@ -66,11 +66,13 @@ contract SFStrategyAggregator is
     event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
     event OnSubStrategyAdded(address indexed strategy, uint16 targetWeightBps, bool isActive);
     event OnSubStrategyUpdated(address indexed strategy, uint16 targetWeightBps, bool isActive);
+    event OnStrategyLossReported(uint256 prevAssets, uint256 newAssets, uint256 lossAmount);
 
     error SFStrategyAggregator__NotAuthorizedCaller();
     error SFStrategyAggregator__InvalidTargetWeightBps();
     error SFStrategyAggregator__SubStrategyAlreadyExists();
     error SFStrategyAggregator__SubStrategyNotFound();
+    error SFStrategyAggregator__NotZeroAmount();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -88,6 +90,14 @@ contract SFStrategyAggregator is
         require(
             IAddressManager(addressManager).hasRole(Roles.KEEPER, msg.sender)
                 || IAddressManager(addressManager).hasRole(Roles.OPERATOR, msg.sender),
+            SFStrategyAggregator__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyContract(string memory name, address addressManagerAddress) {
+        require(
+            IAddressManager(addressManagerAddress).hasName(name, msg.sender),
             SFStrategyAggregator__NotAuthorizedCaller()
         );
         _;
@@ -176,6 +186,118 @@ contract SFStrategyAggregator is
         strat.isActive = isActive;
 
         emit OnSubStrategyUpdated(strategy, targetWeightBPS, isActive);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            DEPOSIT/WITHDRAW
+    //////////////////////////////////////////////////////////////*/
+
+    function deposit(uint256 assets, bytes calldata data)
+        external
+        onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
+        whenNotPaused
+        returns (uint256 investedAssets)
+    {
+        require(assets > 0, SFStrategyAggregator__NotZeroAmount());
+
+        uint256 len = subStrategies.length;
+
+        // No substrategies yet, return assets.
+        if (len == 0) return assets;
+
+        // todo: interpret data
+        uint256 remaining = assets;
+
+        for (uint256 i; i < len; ++i) {
+            SubStrategy memory strat = subStrategies[i];
+
+            if (!strat.isActive) continue;
+
+            uint256 toAllocate = (assets * strat.targetWeightBPS) / MAX_BPS;
+
+            if (toAllocate > remaining) {
+                toAllocate = remaining;
+            }
+
+            if (toAllocate == 0) continue;
+
+            // Forward funds to child strategy
+            underlying.forceApprove(address(strat.strategy), toAllocate);
+            uint256 childInvested = strat.strategy.deposit(toAllocate, bytes(""));
+
+            investedAssets += childInvested;
+            remaining -= toAllocate;
+
+            if (remaining == 0) break;
+        }
+
+        // Any leftovers stay as idle balance in the aggregator.
+        // totalAssets() counts both idle + children.
+        return investedAssets + remaining;
+    }
+
+    function withdraw(uint256 assets, address receiver, bytes calldata data)
+        external
+        onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
+        whenNotPaused
+        returns (uint256 withdrawnAssets)
+    {
+        require(assets > 0, SFStrategyAggregator__NotZeroAmount());
+
+        uint256 remaining = assets;
+
+        // Use idle funds first.
+        uint256 idle = underlying.balanceOf(address(this));
+        if (idle > 0) {
+            uint256 toSend = idle > remaining ? remaining : idle;
+            underlying.safeTransfer(receiver, toSend);
+            withdrawnAssets += toSend;
+            remaining -= toSend;
+        }
+
+        if (remaining == 0) return withdrawnAssets;
+
+        // Withdraw from subStrategies.
+        uint256 len = subStrategies.length;
+
+        for (uint256 i; i < len && remaining > 0; ++i) {
+            SubStrategy memory strat = subStrategies[i];
+
+            if (!strat.isActive) continue;
+
+            uint256 subStratMax = strat.strategy.maxWithdraw();
+
+            if (subStratMax == 0) continue;
+
+            uint256 toAsk = subStratMax > remaining ? remaining : subStratMax;
+
+            if (toAsk == 0) continue;
+
+            uint256 childGot = strat.strategy.withdraw(toAsk, address(this), bytes(""));
+
+            if (childGot == 0) continue;
+
+            // Immediately pass to receiver
+            underlying.safeTransfer(receiver, childGot);
+            withdrawnAssets += childGot;
+
+            if (childGot >= remaining) {
+                remaining = 0;
+                break;
+            } else {
+                remaining -= childGot;
+            }
+        }
+
+        // If we still need more assets, it is a loss or illiquidity situation.
+        if (withdrawnAssets < assets) {
+            uint256 prevAssets = assets; // todo: maybe snapshot before withdraw? check
+            uint256 newAssets = totalAssets();
+            uint256 lossAmount = assets - withdrawnAssets;
+            emit OnStrategyLossReported(prevAssets, newAssets, lossAmount);
+        }
+
+        return withdrawnAssets;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -331,8 +453,4 @@ contract SFStrategyAggregator is
         override
         onlyRole(Roles.OPERATOR, address(addressManager))
     {}
-
-    // todo: implement the next functions, written here for now for compilation issues as I'm inheriting ISFStrategy
-    function withdraw(uint256, address, bytes calldata) external returns (uint256) {}
-    function deposit(uint256, bytes calldata) external returns (uint256) {}
 }
