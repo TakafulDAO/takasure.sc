@@ -44,12 +44,10 @@ interface ISFStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Update per-strategy caps or risk limits.
-    // todo: remember to add this access control in implementation onlyGovernance
     // Note: Should be virtual when I write the implementation.
     function setMaxTVL(uint256 newMaxTVL) external;
 
     /// @notice Update core config like pool / router / price source.
-    // todo: remember to add this access control in implementation onlyGovernance
     // Note: Should be virtual when I write the implementation.
     function setConfig(bytes calldata newConfig) external;
 }
