@@ -206,6 +206,7 @@ contract SFStrategyAggregator is
     function deposit(uint256 assets, bytes calldata data)
         external
         onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
+        nonReentrant
         whenNotPaused
         returns (uint256 investedAssets)
     {
@@ -256,8 +257,9 @@ contract SFStrategyAggregator is
     function withdraw(uint256 assets, address receiver, bytes calldata data)
         external
         notAddressZero(receiver)
-        onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
+        nonReentrant
         whenNotPaused
+        onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
         returns (uint256 withdrawnAssets)
     {
         require(assets > 0, SFStrategyAggregator__NotZeroAmount());
@@ -323,6 +325,7 @@ contract SFStrategyAggregator is
     function emergencyExit(address receiver)
         external
         notAddressZero(receiver)
+        nonReentrant
         onlyRole(Roles.OPERATOR, address(addressManager))
     {
         // Pull everything from subStrategies to the receiver.
@@ -350,7 +353,7 @@ contract SFStrategyAggregator is
                               MAINTENANCE
     //////////////////////////////////////////////////////////////*/
 
-    function harvest(bytes calldata data) external onlyKeeperOrOperator {
+    function harvest(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
         // todo: include in data the children to harvest?
         uint256 len = subStrategies.length;
 
@@ -362,7 +365,7 @@ contract SFStrategyAggregator is
         }
     }
 
-    function rebalance(bytes calldata data) external onlyKeeperOrOperator {
+    function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
         // todo: finish this function
         uint256 len = subStrategies.length;
 
