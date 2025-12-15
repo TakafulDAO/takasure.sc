@@ -200,6 +200,7 @@ contract SFVault is
      * @notice Deposit assets into the vault, applying a management fee on the deposit.
      * @dev The management fee is taken in shares and sent to the fee recipient.
      */
+    // todo: check for the caller to be a user
     function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
         require(assets > 0, SFVault__ZeroAssets());
         require(assets <= maxDeposit(receiver), SFVault__ExceedsMaxDeposit());
