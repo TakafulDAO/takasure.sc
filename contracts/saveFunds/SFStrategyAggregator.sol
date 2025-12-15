@@ -188,9 +188,9 @@ contract SFStrategyAggregator is
         subStrategyIndex[strategy] = subStrategies.length; // index + 1
 
         totalTargetWeightBPS += targetWeightBPS;
-        asssert(totalTargetWeightBPS <= MAX_BPS);
+        assert(totalTargetWeightBPS <= MAX_BPS);
 
-        emit OnSubStrategyAdded(strategy, targetWeightBPS, isActive);
+        emit OnSubStrategyAdded(strategy, targetWeightBPS, true);
     }
 
     /**
