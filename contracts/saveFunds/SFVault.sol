@@ -69,13 +69,14 @@ contract SFVault is
     event OnPerUserCapUpdated(uint256 oldCap, uint256 newCap);
     event OnStrategyUpdated(address indexed newStrategy);
     event OnFeeConfigUpdated(uint16 managementFeeBps, uint16 performanceFeeBps, uint16 performanceFeeHurdleBps);
-    event OnFeesTaken(uint256 feeShares, FeeType feeType);
+    event OnFeesTaken(uint256 feeAssets, FeeType feeType);
 
     error SFVault__NonTransferableShares();
     error SFVault__InvalidFeeBps();
     error SFVault__ZeroAssets();
     error SFVault__ZeroShares();
     error SFVault__ExceedsMaxDeposit();
+    error SFVault__InsufficientUSDCForFees();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -184,12 +185,12 @@ contract SFVault is
 
     /**
      * @notice Charge management and performance fees, minting shares to feeRecipient.
-     * @return managementFeeShares Shares minted as management fee.
-     * @return performanceFeeShares Shares minted as performance fee.
+     * @return managementFeeAssets Assets taken as management fee.
+     * @return performanceFeeAssets Assets taken as performance fee.
      * todo: access control
      */
-    function takeFees() external nonReentrant returns (uint256 managementFeeShares, uint256 performanceFeeShares) {
-        (managementFeeShares, performanceFeeShares) = _chargeFees();
+    function takeFees() external nonReentrant returns (uint256 managementFeeAssets, uint256 performanceFeeAssets) {
+        (managementFeeAssets, performanceFeeAssets) = _chargeFees();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -341,7 +342,7 @@ contract SFVault is
      *      Uses a high-water mark on assets-per-share to avoid charging
      *      performance fees on fresh deposits.
      */
-    function _chargeFees() internal returns (uint256 managementFeeShares_, uint256 performanceFeeShares_) {
+    function _chargeFees() internal returns (uint256 managementFeeAssets_, uint256 performanceFeeAssets_) {
         address _feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
         if (_feeRecipient == address(0)) {
             // Skip fees
@@ -386,8 +387,6 @@ contract SFVault is
 
                 if (_grossProfitAssets > _hurdleReturnedAssets) {
                     _performanceFeeAssets = _grossProfitAssets - _hurdleReturnedAssets;
-                } else {
-                    _performanceFeeAssets = 0;
                 }
             } else {
                 _performanceFeeAssets = _grossProfitAssets;
@@ -401,30 +400,22 @@ contract SFVault is
             return (0, 0);
         }
 
-        // Convert fee assets to shares
-        uint256 _feeSharesTotal = (_performanceFeeAssets * _totalShares) / _totalAssets;
-        if (_feeSharesTotal == 0) {
-            lastReport = uint64(_timestamp);
-            highWaterMark = _currentAssetsPerShareWad;
-            return (0, 0);
-        }
+        // Pay fees in underlying assets
+        uint256 balance = IERC20(asset()).balanceOf(address(this));
+        require(balance >= _performanceFeeAssets, SFVault__InsufficientUSDCForFees());
 
-        managementFeeShares_ = 0; // per deposits
-        performanceFeeShares_ = _feeSharesTotal;
+        IERC20(asset()).safeTransfer(_feeRecipient, _performanceFeeAssets);
+        emit OnFeesTaken(_performanceFeeAssets, FeeType.PERFORMANCE);
 
-        emit OnFeesTaken(performanceFeeShares_, FeeType.PERFORMANCE);
-
-        // Mint shares to fee recipient
-        _mint(_feeRecipient, _feeSharesTotal);
-
-        // Update state
-        uint256 _newTotalShares = _totalShares + _feeSharesTotal;
-        uint256 _newAssetsPerShareWad = (_totalAssets * 1e18) / _newTotalShares;
-
+        // Update high-water mark
+        uint256 _newAssetsPerShareWad = ((_totalAssets - _performanceFeeAssets) * 1e18) / _totalShares;
         highWaterMark = _newAssetsPerShareWad;
         lastReport = uint64(_timestamp);
 
-        return (0, performanceFeeShares_);
+        managementFeeAssets_ = 0;
+        performanceFeeAssets_ = _performanceFeeAssets;
+
+        return (managementFeeAssets_, performanceFeeAssets_);
     }
 
     ///@dev required by the OZ UUPS module.
