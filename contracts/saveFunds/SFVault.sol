@@ -85,6 +85,7 @@ contract SFVault is
     error SFVault__NonTransferableShares();
     error SFVault__InvalidFeeBps();
     error SFVault__InvalidCapBps();
+    error SFVault__InvalidToken();
     error SFVault__TokenAlreadyWhitelisted();
     error SFVault__TokenNotWhitelisted();
     error SFVault__ZeroAssets();
@@ -153,7 +154,8 @@ contract SFVault is
      * todo: access control
      */
     function whitelistToken(address token) external {
-        require(token != address(0) && !whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
+        require(token != address(0), SFVault__InvalidToken());
+        require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
 
         whitelistedTokens.add(token);
         tokenHardCapBps[token] = uint16(MAX_BPS);
@@ -168,7 +170,8 @@ contract SFVault is
      * todo: access control
      */
     function whitelistTokenWithCap(address token, uint16 hardCapBps) external {
-        require(token != address(0) && !whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
+        require(token != address(0), SFVault__InvalidToken());
+        require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
         require(hardCapBps <= MAX_BPS, SFVault__InvalidCapBps());
 
         whitelistedTokens.add(token);
