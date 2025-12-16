@@ -11,7 +11,7 @@ import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {ISFStrategyView} from "contracts/interfaces/saveFunds/ISFStrategyView.sol";
 import {ISFStrategyMaintenance} from "contracts/interfaces/saveFunds/ISFStrategyMaintenance.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {INonfungiblePositionManager} from "contracts/interfaces/saveFunds/INonfungiblePositionManager.sol";
+import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfungiblePositionManager.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
