@@ -59,6 +59,8 @@ contract SFUniswapV3Strategy is
 
     error SFUniswapV3Strategy__NotAuthorizedCaller();
     error SFUniswapV3Strategy__NotAddressZero();
+    error SFUniswapV3Strategy__NotZeroAmount();
+    error SFUniswapV3Strategy__MaxTVLReached();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -67,6 +69,13 @@ contract SFUniswapV3Strategy is
     modifier onlyRole(bytes32 role, address addressManagerAddress) {
         require(
             IAddressManager(addressManagerAddress).hasRole(role, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyContract(string memory name, address addressManagerAddress) {
+        require(
+            IAddressManager(addressManagerAddress).hasName(name, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller()
         );
         _;
     }
@@ -168,6 +177,50 @@ contract SFUniswapV3Strategy is
     }
 
     /*//////////////////////////////////////////////////////////////
+                            DEPOSIT/WITHDRAW
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Deposits assets into Uniswap V3 LP position.
+     * @dev Expects `msg.sender` (aggregator) to have approved this contract.
+     * todo: maybe use permit2
+     */
+    function deposit(uint256 assets, bytes calldata data)
+        external
+        onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
+        nonReentrant
+        whenNotPaused
+        returns (uint256 investedAssets)
+    {
+        require(assets > 0, SFUniswapV3Strategy__NotZeroAmount());
+
+        // Enforce TVL cap
+        require(maxTVL == 0 || totalAssets() + assets <= maxTVL, SFUniswapV3Strategy__MaxTVLReached());
+
+        // Pull underlying from vault/aggregator
+        underlying.safeTransferFrom(msg.sender, address(this), assets);
+
+        // todo: interpret data for slippage, ratios, amounts, etc. for now 50/50 assumption in dollars
+
+        // 1. decide how much to swap to otherToken
+        (uint256 amountUnderlyingForLP, uint256 amountOtherForLP) = _prepareAmountsForLP(assets, data);
+
+        // 2. ensure holds the right tokens balances
+        if (amountOtherForLP > 0) _swapUnderlyingToOther(amountOtherForLP, data);
+
+        // 3. provide liquidity via positionManager.mint/increaseLiquidity
+        uint256 usedUnderlying;
+        uint256 usedOther;
+
+        if (positionTokenId == 0) (usedUnderlying, usedOther) = _mintPosition(amountUnderlyingForLP, amountOtherForLP);
+        else (usedUnderlying, usedOther) = _increaseLiquidity(amountUnderlyingForLP, amountOtherForLP);
+
+        investedAssets = usedUnderlying;
+
+        // 4. what to do with remainings // todo
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               MAINTENANCE
     //////////////////////////////////////////////////////////////*/
 
@@ -254,6 +307,36 @@ contract SFUniswapV3Strategy is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function _mintPosition(uint256 amountUnderlying, uint256 amountOther)
+        internal
+        returns (uint256 usedUnderlying, uint256 usedOther)
+    {
+        // TODO: implement INonfungiblePositionManager.mint with:
+        // - token0/token1 from pool
+        // - ticks tickLower/tickUpper
+        // - recipient = vault (so NFT belongs to vault)
+    }
+
+    function _increaseLiquidity(uint256 amountUnderlying, uint256 amountOther)
+        internal
+        returns (uint256 usedUnderlying, uint256 usedOther)
+    {
+        // TODO: implement INonfungiblePositionManager.increaseLiquidity
+    }
+
+    function _prepareAmountsForLP(uint256 assets, bytes calldata data)
+        internal
+        view
+        returns (uint256 amountUnderlyingForLP, uint256 amountOtherForLP)
+    {
+        // TODO: use data for explicit ratios
+        // for now assume 50/50 allocation in USDC terms.
+    }
+
+    function _swapUnderlyingToOther(uint256 amount, bytes calldata data) internal {
+        // TODO: implement actual swap using pool/router.
+    }
+
     function _swapOtherToUnderlying(uint256 amount, bytes memory data) internal {
         // TODO: implement actual swap using pool/router.
     }
@@ -313,5 +396,4 @@ contract SFUniswapV3Strategy is
         external
         returns (uint256 withdrawnAssets)
     {}
-    function deposit(uint256 assets, bytes calldata data) external returns (uint256 investedAssets) {}
 }
