@@ -220,6 +220,47 @@ contract SFUniswapV3Strategy is
         // 4. what to do with remainings // todo
     }
 
+    /**
+     * @notice Withdraw assets from Uniswap V3 LP position.
+     * @dev Tries to realize `assets` worth of underlying, may return less in edge cases.
+     */
+    function withdraw(uint256 assets, address receiver, bytes calldata data)
+        external
+        onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
+        notAddressZero(receiver)
+        nonReentrant
+        whenNotPaused
+        returns (uint256 withdrawnAssets)
+    {
+        require(assets > 0, SFUniswapV3Strategy__NotZeroAmount());
+
+        uint256 total = totalAssets();
+        if (total == 0) return 0;
+
+        // If requested assets are more than available, withdraw all.
+        if (assets > total) assets = total;
+
+        // 1. Compute fraction of LP to remove
+        uint256 liquidityToBurn = _liquidityForValue(assets);
+
+        if (liquidityToBurn > 0 && positionTokenId != 0) _decreaseLiquidityAndCollect(liquidityToBurn, data);
+
+        // 2. Should have some underlying + otherToken
+        uint256 balUnderlying = underlying.balanceOf(address(this));
+        uint256 balOther = otherToken.balanceOf(address(this));
+
+        // 3. swap all otherToken to underlying
+        if (balOther > 0) _swapOtherToUnderlying(balOther, data);
+
+        uint256 finalUnderlying = underlying.balanceOf(address(this));
+
+        // 4. transfer underlying to receiver
+        withdrawnAssets = finalUnderlying > assets ? assets : finalUnderlying;
+        if (withdrawnAssets > 0) underlying.safeTransfer(receiver, withdrawnAssets);
+
+        // if finalUnderlying > withdrawnAssets what to do with the rest? // todo
+    }
+
     /*//////////////////////////////////////////////////////////////
                               MAINTENANCE
     //////////////////////////////////////////////////////////////*/
@@ -307,6 +348,12 @@ contract SFUniswapV3Strategy is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function _liquidityForValue(uint256 value) internal pure returns (uint256) {
+        // TODO: approximate how much liquidity corresponds to `value` USDC,
+        // e.g. proportional to totalAssets().
+        return 0;
+    }
+
     function _mintPosition(uint256 amountUnderlying, uint256 amountOther)
         internal
         returns (uint256 usedUnderlying, uint256 usedOther)
@@ -389,11 +436,5 @@ contract SFUniswapV3Strategy is
         internal
         override
         onlyRole(Roles.OPERATOR, address(addressManager))
-    {}
-
-    // todo: implement
-    function withdraw(uint256 assets, address receiver, bytes calldata data)
-        external
-        returns (uint256 withdrawnAssets)
     {}
 }
