@@ -141,14 +141,6 @@ contract SFStrategyAggregator is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function pause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
-        _pause();
-    }
-
-    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
-        _unpause();
-    }
-
     function setMaxTVL(uint256 newMaxTVL) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         uint256 oldMaxTVL = maxTVL;
         maxTVL = newMaxTVL;
@@ -361,6 +353,14 @@ contract SFStrategyAggregator is
     /*//////////////////////////////////////////////////////////////
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
+
+    function pause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
+        _unpause();
+    }
 
     /**
      * @notice Emergency exit function to withdraw all assets from child strategies and transfer to a receiver.

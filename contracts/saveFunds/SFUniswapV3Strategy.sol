@@ -23,6 +23,7 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {StrategyConfig} from "contracts/types/TakasureTypes.sol";
 import {LiquidityAmountsV3 as LiquidityAmounts} from "contracts/helpers/libraries/uniswap/LiquidityAmountsV3.sol";
 import {TickMathV3 as TickMath} from "contracts/helpers/libraries/uniswap/TickMathV3.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
 
@@ -35,6 +36,8 @@ contract SFUniswapV3Strategy is
     ReentrancyGuardTransientUpgradeable,
     PausableUpgradeable
 {
+    using SafeERC20 for IERC20;
+
     IAddressManager public addressManager;
     IUniswapV3Pool public pool;
     INonfungiblePositionManager public positionManager;
@@ -52,6 +55,8 @@ contract SFUniswapV3Strategy is
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
+
     error SFUniswapV3Strategy__NotAuthorizedCaller();
     error SFUniswapV3Strategy__NotAddressZero();
 
@@ -62,6 +67,15 @@ contract SFUniswapV3Strategy is
     modifier onlyRole(bytes32 role, address addressManagerAddress) {
         require(
             IAddressManager(addressManagerAddress).hasRole(role, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller()
+        );
+        _;
+    }
+
+    modifier onlyKeeperOrOperator() {
+        require(
+            IAddressManager(addressManager).hasRole(Roles.KEEPER, msg.sender)
+                || IAddressManager(addressManager).hasRole(Roles.OPERATOR, msg.sender),
+            SFUniswapV3Strategy__NotAuthorizedCaller()
         );
         _;
     }
@@ -106,12 +120,74 @@ contract SFUniswapV3Strategy is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
+    function setMaxTVL(uint256 newMaxTVL) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        uint256 oldMaxTVL = maxTVL;
+        maxTVL = newMaxTVL;
+        emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
+    }
+
+    function setConfig(
+        bytes calldata /*newConfig*/
+    )
+        external
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {
+        // todo: check if needed. Decode array of strategy, weights, and active status.
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               EMERGENCY
+    //////////////////////////////////////////////////////////////*/
+
     function pause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
         _pause();
     }
 
     function unpause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
         _unpause();
+    }
+
+    function emergencyExit(address receiver)
+        external
+        notAddressZero(receiver)
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {
+        // withdraw all
+        // ? maybe burn the nft? The problem is that the owner is the vault
+        if (positionTokenId != 0) _decreaseLiquidityAndCollect(type(uint128).max, bytes(""));
+
+        // swap all otherToken to underlying
+        uint256 balOther = otherToken.balanceOf(address(this));
+        if (balOther > 0) _swapOtherToUnderlying(balOther, bytes(""));
+
+        // send everything out
+        uint256 balanceUnderlying = underlying.balanceOf(address(this));
+        if (balanceUnderlying > 0) underlying.safeTransfer(receiver, balanceUnderlying);
+
+        _pause();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              MAINTENANCE
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Harvests rewards from all active child strategies.
+     * @param data Additional data for harvesting (not used in this implementation).
+     */
+    function harvest(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
+        // Collect fees only.
+        // todo: compund here? or left to rebalance? if auto compound then call _increaseLiquidity()
+        _collectFees(data);
+    }
+
+    function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
+        // Intent: adjust ticks / range / pool as per off-chain algo.
+        // Typically:
+        // 1) Decrease some or all liquidity.
+        // 2) Swap tokens into desired ratio.
+        // 3) Mint/increaseLiquidity with new tickLower/tickUpper.
+        // TODO implement
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -178,6 +254,21 @@ contract SFUniswapV3Strategy is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function _swapOtherToUnderlying(uint256 amount, bytes memory data) internal {
+        // TODO: implement actual swap using pool/router.
+    }
+
+    function _decreaseLiquidityAndCollect(uint256 liquidity, bytes memory data) internal {
+        // TODO: implement:
+        // - positionManager.decreaseLiquidity
+        // - positionManager.collect
+
+        }
+
+    function _collectFees(bytes calldata data) internal {
+        // todo: collect fees from position using positionManager.collect
+    }
+
     function _positionValue() internal view returns (uint256) {
         if (positionTokenId == 0) return 0;
 
@@ -222,10 +313,5 @@ contract SFUniswapV3Strategy is
         external
         returns (uint256 withdrawnAssets)
     {}
-    function setMaxTVL(uint256 newMaxTVL) external {}
-    function setConfig(bytes calldata newConfig) external {}
-    function emergencyExit(address receiver) external {}
     function deposit(uint256 assets, bytes calldata data) external returns (uint256 investedAssets) {}
-    function rebalance(bytes calldata data) external {}
-    function harvest(bytes calldata data) external {}
 }
