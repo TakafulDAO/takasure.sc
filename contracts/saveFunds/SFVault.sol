@@ -48,14 +48,14 @@ contract SFVault is
     /*//////////////////////////////////////////////////////////////
                         TOKEN WHITELIST + CAPS
     //////////////////////////////////////////////////////////////*/
-    mapping(address token => uint16 capBps) public tokenHardCapBps;
+    mapping(address token => uint16 capBPS) public tokenHardCapBPS;
 
     EnumerableSet.AddressSet private whitelistedTokens;
 
     // Fees
-    uint16 public managementFeeBps; // management fee in basis points e.g., 200 = 2%
-    uint16 public performanceFeeBps; // performance fee in basis points e.g., 2000 = 20% of profits
-    uint16 public performanceFeeHurdleBps; // APY threshold in basis points, can be 0 for no hurdle
+    uint16 public managementFeeBPS; // management fee in basis points e.g., 200 = 2%
+    uint16 public performanceFeeBPS; // performance fee in basis points e.g., 2000 = 20% of profits
+    uint16 public performanceFeeHurdleBPS; // APY threshold in basis points, can be 0 for no hurdle
 
     // Performance tracking
     uint64 public lastReport; // timestamp of the last strategy report
@@ -71,16 +71,16 @@ contract SFVault is
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
     event OnTVLCapUpdated(uint256 oldCap, uint256 newCap);
-    event OnTokenWhitelisted(address indexed token, uint16 hardCapBps);
+    event OnTokenWhitelisted(address indexed token, uint16 hardCapBPS);
     event OnTokenRemovedFromWhitelist(address indexed token);
-    event OnTokenHardCapUpdated(address indexed token, uint16 oldCapBps, uint16 newCapBps);
+    event OnTokenHardCapUpdated(address indexed token, uint16 oldCapBPS, uint16 newCapBPS);
     event OnStrategyUpdated(address indexed newStrategy);
-    event OnFeeConfigUpdated(uint16 managementFeeBps, uint16 performanceFeeBps, uint16 performanceFeeHurdleBps);
+    event OnFeeConfigUpdated(uint16 managementFeeBPS, uint16 performanceFeeBPS, uint16 performanceFeeHurdleBPS);
     event OnFeesTaken(uint256 feeAssets, FeeType feeType);
 
     error SFVault__NonTransferableShares();
-    error SFVault__InvalidFeeBps();
-    error SFVault__InvalidCapBps();
+    error SFVault__InvalidFeeBPS();
+    error SFVault__InvalidCapBPS();
     error SFVault__InvalidToken();
     error SFVault__TokenAlreadyWhitelisted();
     error SFVault__TokenNotWhitelisted();
@@ -116,15 +116,15 @@ contract SFVault is
         addressManager = _addressManager;
 
         // fees off by default
-        managementFeeBps = 0;
-        performanceFeeBps = 0;
-        performanceFeeHurdleBps = 0;
+        managementFeeBPS = 0;
+        performanceFeeBPS = 0;
+        performanceFeeHurdleBPS = 0;
 
         TVLCap = 20_000 * 1e6; // 20 thousand USDC
 
         // Whitelist the underlying (USDC) by default with a 100% hard cap.
         whitelistedTokens.add(address(_underlying));
-        tokenHardCapBps[address(_underlying)] = uint16(MAX_BPS);
+        tokenHardCapBPS[address(_underlying)] = uint16(MAX_BPS);
         emit OnTokenWhitelisted(address(_underlying), uint16(MAX_BPS));
         // ? Ask if we want to set an initial strategy at deployment
     }
@@ -154,7 +154,7 @@ contract SFVault is
         require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
 
         whitelistedTokens.add(token);
-        tokenHardCapBps[token] = uint16(MAX_BPS);
+        tokenHardCapBPS[token] = uint16(MAX_BPS);
 
         emit OnTokenWhitelisted(token, uint16(MAX_BPS));
     }
@@ -162,18 +162,18 @@ contract SFVault is
     /**
      * @notice Add a token to the whitelist with a custom hard cap.
      * @param token ERC20 token address.
-     * @param hardCapBps Allocation hard cap in BPS of total portfolio value.
+     * @param hardCapBPS Allocation hard cap in BPS of total portfolio value.
      * todo: access control
      */
-    function whitelistTokenWithCap(address token, uint16 hardCapBps) external {
+    function whitelistTokenWithCap(address token, uint16 hardCapBPS) external {
         require(token != address(0), SFVault__InvalidToken());
         require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
-        require(hardCapBps <= MAX_BPS, SFVault__InvalidCapBps());
+        require(hardCapBPS <= MAX_BPS, SFVault__InvalidCapBPS());
 
         whitelistedTokens.add(token);
-        tokenHardCapBps[token] = hardCapBps;
+        tokenHardCapBPS[token] = hardCapBPS;
 
-        emit OnTokenWhitelisted(token, hardCapBps);
+        emit OnTokenWhitelisted(token, hardCapBPS);
     }
 
     /**
@@ -193,13 +193,13 @@ contract SFVault is
      * @dev A hard cap of 0 is allowed.
      * todo: access control
      */
-    function setTokenHardCap(address token, uint16 newCapBps) external {
+    function setTokenHardCap(address token, uint16 newCapBPS) external {
         require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
-        require(newCapBps <= MAX_BPS, SFVault__InvalidCapBps());
+        require(newCapBPS <= MAX_BPS, SFVault__InvalidCapBPS());
 
-        uint16 old = tokenHardCapBps[token];
-        tokenHardCapBps[token] = newCapBps;
-        emit OnTokenHardCapUpdated(token, old, newCapBps);
+        uint16 old = tokenHardCapBPS[token];
+        tokenHardCapBPS[token] = newCapBPS;
+        emit OnTokenHardCapUpdated(token, old, newCapBPS);
     }
 
     /**
@@ -214,22 +214,22 @@ contract SFVault is
 
     /**
      * @notice Set fee configuration.
-     * @param _managementFeeBps management fee per deposit in basis points.
-     * @param _performanceFeeBps Performance fee in basis points.
-     * @param _performanceFeeHurdleBps Performance fee hurdle in basis points.
+     * @param _managementFeeBPS management fee per deposit in basis points.
+     * @param _performanceFeeBPS Performance fee in basis points.
+     * @param _performanceFeeHurdleBPS Performance fee hurdle in basis points.
      * todo: access control
      */
-    function setFeeConfig(uint16 _managementFeeBps, uint16 _performanceFeeBps, uint16 _performanceFeeHurdleBps)
+    function setFeeConfig(uint16 _managementFeeBPS, uint16 _performanceFeeBPS, uint16 _performanceFeeHurdleBPS)
         external
     {
-        require(_managementFeeBps < MAX_BPS, SFVault__InvalidFeeBps());
-        require(_performanceFeeBps <= MAX_BPS, SFVault__InvalidFeeBps());
-        require(_performanceFeeHurdleBps <= MAX_BPS, SFVault__InvalidFeeBps());
+        require(_managementFeeBPS < MAX_BPS, SFVault__InvalidFeeBPS());
+        require(_performanceFeeBPS <= MAX_BPS, SFVault__InvalidFeeBPS());
+        require(_performanceFeeHurdleBPS <= MAX_BPS, SFVault__InvalidFeeBPS());
 
-        managementFeeBps = _managementFeeBps;
-        performanceFeeBps = _performanceFeeBps;
-        performanceFeeHurdleBps = _performanceFeeHurdleBps;
-        emit OnFeeConfigUpdated(_managementFeeBps, _performanceFeeBps, _performanceFeeHurdleBps);
+        managementFeeBPS = _managementFeeBPS;
+        performanceFeeBPS = _performanceFeeBPS;
+        performanceFeeHurdleBPS = _performanceFeeHurdleBPS;
+        emit OnFeeConfigUpdated(_managementFeeBPS, _performanceFeeBPS, _performanceFeeHurdleBPS);
     }
 
     // todo: access control
@@ -275,8 +275,8 @@ contract SFVault is
         uint256 feeAssets;
         uint256 netAssets = assets;
 
-        if (managementFeeBps > 0 && feeRecipient != address(0)) {
-            feeAssets = (assets * managementFeeBps) / MAX_BPS;
+        if (managementFeeBPS > 0 && feeRecipient != address(0)) {
+            feeAssets = (assets * managementFeeBPS) / MAX_BPS;
             netAssets = assets - feeAssets;
         }
 
@@ -319,11 +319,11 @@ contract SFVault is
         uint256 feeAssets;
         uint256 grossAssets = netAssets;
 
-        if (managementFeeBps > 0 && feeRecipient != address(0)) {
+        if (managementFeeBPS > 0 && feeRecipient != address(0)) {
             // grossAssets = netAssets + feeAssets, where feeAssets is taken from grossAssets
-            // netAssets = grossAssets * (MAX_BPS - feeBps) / MAX_BPS
-            // => feeAssets = netAssets * feeBps / (MAX_BPS - feeBps)
-            feeAssets = Math.mulDiv(netAssets, managementFeeBps, (MAX_BPS - managementFeeBps), Math.Rounding.Ceil);
+            // netAssets = grossAssets * (MAX_BPS - feeBPS) / MAX_BPS
+            // => feeAssets = netAssets * feeBPS / (MAX_BPS - feeBPS)
+            feeAssets = Math.mulDiv(netAssets, managementFeeBPS, (MAX_BPS - managementFeeBPS), Math.Rounding.Ceil);
             grossAssets = netAssets + feeAssets;
         }
 
@@ -359,11 +359,11 @@ contract SFVault is
         // If management fee is enabled, the user transfers more than what remains in the vault
         // because a portion is paid out to the fee recipient.
         address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
-        if (managementFeeBps == 0 || feeRecipient == address(0)) return remainingNetAssets;
+        if (managementFeeBPS == 0 || feeRecipient == address(0)) return remainingNetAssets;
 
-        // grossAssets = remainingNetAssets * MAX_BPS / (MAX_BPS - feeBps)
+        // grossAssets = remainingNetAssets * MAX_BPS / (MAX_BPS - feeBPS)
         // Round down to ensure net does not exceed the cap.
-        uint256 denom = (MAX_BPS - managementFeeBps);
+        uint256 denom = (MAX_BPS - managementFeeBPS);
         return Math.mulDiv(remainingNetAssets, MAX_BPS, denom);
     }
 
@@ -402,9 +402,9 @@ contract SFVault is
         if (assets == 0) return 0;
 
         address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
-        if (managementFeeBps == 0 || feeRecipient == address(0)) return super.previewDeposit(assets);
+        if (managementFeeBPS == 0 || feeRecipient == address(0)) return super.previewDeposit(assets);
 
-        uint256 feeAssets = (assets * managementFeeBps) / MAX_BPS;
+        uint256 feeAssets = (assets * managementFeeBPS) / MAX_BPS;
         uint256 netAssets = assets - feeAssets;
         return super.previewDeposit(netAssets);
     }
@@ -418,9 +418,9 @@ contract SFVault is
         address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
         uint256 netAssets = super.previewMint(shares);
 
-        if (managementFeeBps == 0 || feeRecipient == address(0)) return netAssets;
+        if (managementFeeBPS == 0 || feeRecipient == address(0)) return netAssets;
 
-        uint256 feeAssets = Math.mulDiv(netAssets, managementFeeBps, (MAX_BPS - managementFeeBps), Math.Rounding.Ceil);
+        uint256 feeAssets = Math.mulDiv(netAssets, managementFeeBPS, (MAX_BPS - managementFeeBPS), Math.Rounding.Ceil);
         return netAssets + feeAssets;
     }
 
@@ -497,7 +497,7 @@ contract SFVault is
         }
 
         // Only charge performance fee if above high-water mark
-        if (performanceFeeBps == 0 || currentAssetsPerShareWad <= highWaterMark) {
+        if (performanceFeeBPS == 0 || currentAssetsPerShareWad <= highWaterMark) {
             lastReport = uint64(timestamp_);
             highWaterMark = currentAssetsPerShareWad;
             return (0, 0);
@@ -509,8 +509,8 @@ contract SFVault is
 
         // Apply APY hurdle if set
         uint256 feeableProfitAssets = grossProfitAssets;
-        if (performanceFeeHurdleBps > 0 && elapsed > 0) {
-            uint256 hurdleReturnedAssets = (totalAssets_ * performanceFeeHurdleBps * elapsed) / (MAX_BPS * YEAR);
+        if (performanceFeeHurdleBPS > 0 && elapsed > 0) {
+            uint256 hurdleReturnedAssets = (totalAssets_ * performanceFeeHurdleBPS * elapsed) / (MAX_BPS * YEAR);
             if (grossProfitAssets <= hurdleReturnedAssets) {
                 lastReport = uint64(timestamp_);
                 highWaterMark = currentAssetsPerShareWad;
@@ -520,7 +520,7 @@ contract SFVault is
         }
 
         // Actual fee amount in assets
-        performanceFeeAssets_ = (feeableProfitAssets * performanceFeeBps) / MAX_BPS;
+        performanceFeeAssets_ = (feeableProfitAssets * performanceFeeBPS) / MAX_BPS;
 
         if (performanceFeeAssets_ == 0) {
             lastReport = uint64(timestamp_);
