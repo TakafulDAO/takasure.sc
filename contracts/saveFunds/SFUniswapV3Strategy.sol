@@ -6,14 +6,25 @@
  * @notice Uniswap V3 strategy implementation for SaveFunds vaults.
  */
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 pragma solidity 0.8.28;
 
-contract SFUniswapV3Strategy is Initializable, UUPSUpgradeable {
+contract SFUniswapV3Strategy is
+    ISFStrategy,
+    Initializable,
+    UUPSUpgradeable,
+    ReentrancyGuardTransientUpgradeable,
+    PausableUpgradeable
+{
     IAddressManager public addressManager;
 
     /*//////////////////////////////////////////////////////////////
@@ -50,8 +61,22 @@ contract SFUniswapV3Strategy is Initializable, UUPSUpgradeable {
 
     function initialize(IAddressManager _addressManager) external initializer notAddressZero(address(_addressManager)) {
         __UUPSUpgradeable_init();
+        __ReentrancyGuardTransient_init();
+        __Pausable_init();
 
         addressManager = _addressManager;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+
+    function pause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
+        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -64,4 +89,19 @@ contract SFUniswapV3Strategy is Initializable, UUPSUpgradeable {
         override
         onlyRole(Roles.OPERATOR, address(addressManager))
     {}
+
+    // todo: implement
+    function withdraw(uint256 assets, address receiver, bytes calldata data)
+        external
+        returns (uint256 withdrawnAssets)
+    {}
+    function vault() external view returns (address) {}
+    function totalAssets() external view returns (uint256) {}
+    function setMaxTVL(uint256 newMaxTVL) external {}
+    function setConfig(bytes calldata newConfig) external {}
+    function maxWithdraw() external view returns (uint256) {}
+    function maxDeposit() external view returns (uint256) {}
+    function emergencyExit(address receiver) external {}
+    function deposit(uint256 assets, bytes calldata data) external returns (uint256 investedAssets) {}
+    function asset() external view returns (address) {}
 }
