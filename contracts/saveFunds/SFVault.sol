@@ -85,7 +85,6 @@ contract SFVault is
     error SFVault__NonTransferableShares();
     error SFVault__InvalidFeeBps();
     error SFVault__InvalidCapBps();
-    error SFVault__InvalidToken();
     error SFVault__TokenAlreadyWhitelisted();
     error SFVault__TokenNotWhitelisted();
     error SFVault__ZeroAssets();
@@ -154,7 +153,7 @@ contract SFVault is
      * todo: access control
      */
     function whitelistToken(address token) external {
-        require(token != address(0) && !whitelistedTokens.contains(token), SFVault__InvalidToken());
+        require(token != address(0) && !whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
 
         whitelistedTokens.add(token);
         tokenHardCapBps[token] = uint16(MAX_BPS);
@@ -169,7 +168,7 @@ contract SFVault is
      * todo: access control
      */
     function whitelistTokenWithCap(address token, uint16 hardCapBps) external {
-        require(token != address(0) && !whitelistedTokens.contains(token), SFVault__InvalidToken());
+        require(token != address(0) && !whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
         require(hardCapBps <= MAX_BPS, SFVault__InvalidCapBps());
 
         whitelistedTokens.add(token);
@@ -184,7 +183,7 @@ contract SFVault is
      * todo: access control
      */
     function removeTokenFromWhitelist(address token) external {
-        require(whitelistedTokens.contains(token), SFVault__InvalidToken());
+        require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
 
         whitelistedTokens.remove(token);
         emit OnTokenRemovedFromWhitelist(token);
@@ -196,7 +195,7 @@ contract SFVault is
      * todo: access control
      */
     function setTokenHardCap(address token, uint16 newCapBps) external {
-        require(whitelistedTokens.contains(token), SFVault__InvalidToken());
+        require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
         require(newCapBps <= MAX_BPS, SFVault__InvalidCapBps());
 
         uint16 old = tokenHardCapBps[token];
@@ -424,6 +423,18 @@ contract SFVault is
 
         uint256 feeAssets = Math.mulDiv(netAssets, managementFeeBps, (MAX_BPS - managementFeeBps), Math.Rounding.Ceil);
         return netAssets + feeAssets;
+    }
+
+    function isTokenWhitelisted(address token) external view returns (bool) {
+        return whitelistedTokens.contains(token);
+    }
+
+    function whitelistedTokensLength() external view returns (uint256) {
+        return whitelistedTokens.length();
+    }
+
+    function getWhitelistedTokens() external view returns (address[] memory) {
+        return whitelistedTokens.values();
     }
 
     /*//////////////////////////////////////////////////////////////
