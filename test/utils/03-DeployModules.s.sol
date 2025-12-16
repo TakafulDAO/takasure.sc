@@ -13,7 +13,7 @@ import {ProtocolStorageModule} from "contracts/modules/ProtocolStorageModule.sol
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract DeployModules is Script {
     // address lifeBenefitModuleAddress;
@@ -33,9 +33,7 @@ contract DeployModules is Script {
     address subscriptionModuleImplementation;
     address subscriptionModuleAddress;
 
-    function run(
-        AddressManager addressManager
-    )
+    function run(AddressManager addressManager)
         external
         returns (
             // BenefitModule lifeBenefitModule,
@@ -71,38 +69,26 @@ contract DeployModules is Script {
         subscriptionManagementModuleAddress = UnsafeUpgrades.deployUUPSProxy(
             subscriptionManagementModuleImplementation,
             abi.encodeCall(
-                SubscriptionManagementModule.initialize,
-                (address(addressManager), "SUBSCRIPTION_MANAGEMENT_MODULE")
+                SubscriptionManagementModule.initialize, (address(addressManager), "SUBSCRIPTION_MANAGEMENT_MODULE")
             )
         );
 
-        subscriptionManagementModule = SubscriptionManagementModule(
-            subscriptionManagementModuleAddress
-        );
+        subscriptionManagementModule = SubscriptionManagementModule(subscriptionManagementModuleAddress);
 
         addressManager.addProtocolAddress(
-            "SUBSCRIPTION_MANAGEMENT_MODULE",
-            subscriptionManagementModuleAddress,
-            ProtocolAddressType.Module
+            "SUBSCRIPTION_MANAGEMENT_MODULE", subscriptionManagementModuleAddress, ProtocolAddressType.Module
         );
 
         // Deploy ProtocolStorageModule
         protocolStorageImplementation = address(new ProtocolStorageModule());
         protocolStorageAddress = UnsafeUpgrades.deployUUPSProxy(
             protocolStorageImplementation,
-            abi.encodeCall(
-                ProtocolStorageModule.initialize,
-                (address(addressManager), "PROTOCOL_STORAGE_MODULE")
-            )
+            abi.encodeCall(ProtocolStorageModule.initialize, (address(addressManager), "PROTOCOL_STORAGE_MODULE"))
         );
 
         protocolStorageModule = ProtocolStorageModule(protocolStorageAddress);
 
-        addressManager.addProtocolAddress(
-            "PROTOCOL_STORAGE_MODULE",
-            protocolStorageAddress,
-            ProtocolAddressType.Module
-        );
+        addressManager.addProtocolAddress("PROTOCOL_STORAGE_MODULE", protocolStorageAddress, ProtocolAddressType.Module);
 
         // Deploy ReferralRewardsModule
         // referralRewardsModuleImplementation = address(new ReferralRewardsModule());
@@ -146,29 +132,18 @@ contract DeployModules is Script {
 
         revShareModule = RevShareModule(revShareModuleAddress);
 
-        addressManager.addProtocolAddress(
-            "REVSHARE_MODULE",
-            revShareModuleAddress,
-            ProtocolAddressType.Module
-        );
+        addressManager.addProtocolAddress("REVSHARE_MODULE", revShareModuleAddress, ProtocolAddressType.Module);
 
         // Deploy SubscriptionModule
         subscriptionModuleImplementation = address(new SubscriptionModule());
         subscriptionModuleAddress = UnsafeUpgrades.deployUUPSProxy(
             subscriptionModuleImplementation,
-            abi.encodeCall(
-                SubscriptionModule.initialize,
-                (address(addressManager), "SUBSCRIPTION_MODULE")
-            )
+            abi.encodeCall(SubscriptionModule.initialize, (address(addressManager), "SUBSCRIPTION_MODULE"))
         );
 
         subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
 
-        addressManager.addProtocolAddress(
-            "SUBSCRIPTION_MODULE",
-            subscriptionModuleAddress,
-            ProtocolAddressType.Module
-        );
+        addressManager.addProtocolAddress("SUBSCRIPTION_MODULE", subscriptionModuleAddress, ProtocolAddressType.Module);
 
         vm.stopBroadcast();
 

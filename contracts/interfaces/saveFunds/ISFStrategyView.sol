@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-import {StrategyConfig} from "contracts/types/TakasureTypes.sol";
+import {StrategyConfig} from "contracts/types/Strategies.sol";
 
 pragma solidity 0.8.28;
 

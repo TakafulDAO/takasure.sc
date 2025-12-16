@@ -25,6 +25,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {FeeType} from "contracts/types/Cash.sol";
 
 pragma solidity 0.8.28;
 
@@ -59,11 +60,6 @@ contract SFVault is
     // Performance tracking
     uint64 public lastReport; // timestamp of the last strategy report
     uint256 public highWaterMark; // assets per share, scaled by 1e18
-
-    enum FeeType {
-        MANAGEMENT,
-        PERFORMANCE
-    }
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS

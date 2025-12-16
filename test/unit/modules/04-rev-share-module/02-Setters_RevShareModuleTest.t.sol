@@ -14,7 +14,8 @@ import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-import {ProtocolAddressType, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
+import {ModuleState} from "contracts/types/States.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 contract Setters_RevShareModuleTest is Test {
@@ -43,20 +44,13 @@ contract Setters_RevShareModuleTest is Test {
         moduleDeployer = new DeployModules();
         addressesAndRoles = new AddAddressesAndRoles();
 
-        (
-            HelperConfig.NetworkConfig memory config,
-            AddressManager addrMgr,
-            ModuleManager modMgr
-        ) = managersDeployer.run();
+        (HelperConfig.NetworkConfig memory config, AddressManager addrMgr, ModuleManager modMgr) =
+            managersDeployer.run();
 
-        (address operatorAddr, , , , , , address revReceiver) = addressesAndRoles.run(
-            addrMgr,
-            config,
-            address(modMgr)
-        );
+        (address operatorAddr,,,,,, address revReceiver) = addressesAndRoles.run(addrMgr, config, address(modMgr));
 
         SubscriptionModule subscriptions;
-        (, , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+        (,, revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
 
         module = address(subscriptions);
 
@@ -64,12 +58,10 @@ contract Setters_RevShareModuleTest is Test {
         revenueClaimer = takadao;
 
         // Fresh RevShareNFT proxy
-        string
-            memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
+        string memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
         address nftImplementation = address(new RevShareNFT());
         address nftAddress = UnsafeUpgrades.deployUUPSProxy(
-            nftImplementation,
-            abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
+            nftImplementation, abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
         );
         nft = RevShareNFT(nftAddress);
 
@@ -79,11 +71,7 @@ contract Setters_RevShareModuleTest is Test {
         addressManager = addrMgr;
 
         vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress(
-            "REVSHARE_NFT",
-            address(nft),
-            ProtocolAddressType.Protocol
-        );
+        addressManager.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         vm.prank(nft.owner());

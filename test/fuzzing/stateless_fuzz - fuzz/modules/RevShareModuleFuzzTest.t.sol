@@ -13,7 +13,8 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
-import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ModuleState} from "contracts/types/States.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract RevShareModuleFuzzTest is Test {
     DeployManagers managersDeployer;
@@ -32,20 +33,13 @@ contract RevShareModuleFuzzTest is Test {
         moduleDeployer = new DeployModules();
         addressesAndRoles = new AddAddressesAndRoles();
 
-        (
-            HelperConfig.NetworkConfig memory config,
-            AddressManager addrMgr,
-            ModuleManager modMgr
-        ) = managersDeployer.run();
+        (HelperConfig.NetworkConfig memory config, AddressManager addrMgr, ModuleManager modMgr) =
+            managersDeployer.run();
 
-        (address operatorAddr, , , , , , ) = addressesAndRoles.run(
-            addrMgr,
-            config,
-            address(modMgr)
-        );
+        (address operatorAddr,,,,,,) = addressesAndRoles.run(addrMgr, config, address(modMgr));
 
         SubscriptionModule subscriptions;
-        (, , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+        (,, revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
 
         module = address(subscriptions);
 
@@ -115,11 +109,7 @@ contract RevShareModuleFuzzTest is Test {
 
         // Some extra to ensure different revert isn’t triggered
         uint256 extra = 100e6;
-        deal(
-            address(usdc),
-            address(revShareModule),
-            usdc.balanceOf(address(revShareModule)) + extra
-        );
+        deal(address(usdc), address(revShareModule), usdc.balanceOf(address(revShareModule)) + extra);
 
         vm.expectRevert();
         vm.prank(caller);

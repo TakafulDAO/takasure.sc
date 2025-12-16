@@ -7,32 +7,25 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract DeployReserve is Script {
-    function run(
-        HelperConfig.NetworkConfig memory config,
-        AddressManager addressManager
-    ) external returns (TakasureReserve takasureReserve) {
+    function run(HelperConfig.NetworkConfig memory config, AddressManager addressManager)
+        external
+        returns (TakasureReserve takasureReserve)
+    {
         vm.startBroadcast(msg.sender);
 
         // Deploy TakasureReserve
         address takasureReserveImplementation = address(new TakasureReserve());
         address takasureReserveAddress = UnsafeUpgrades.deployUUPSProxy(
             takasureReserveImplementation,
-            abi.encodeCall(
-                TakasureReserve.initialize,
-                (config.contributionToken, address(addressManager))
-            )
+            abi.encodeCall(TakasureReserve.initialize, (config.contributionToken, address(addressManager)))
         );
 
         takasureReserve = TakasureReserve(takasureReserveAddress);
 
-        addressManager.addProtocolAddress(
-            "TAKASURE_RESERVE",
-            takasureReserveAddress,
-            ProtocolAddressType.Protocol
-        );
+        addressManager.addProtocolAddress("TAKASURE_RESERVE", takasureReserveAddress, ProtocolAddressType.Protocol);
 
         vm.stopBroadcast();
 

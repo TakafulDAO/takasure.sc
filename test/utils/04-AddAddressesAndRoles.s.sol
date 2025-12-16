@@ -7,15 +7,11 @@ import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 contract AddAddressesAndRoles is Script {
-    function run(
-        AddressManager addressManager,
-        HelperConfig.NetworkConfig memory config,
-        address moduleManager
-    )
+    function run(AddressManager addressManager, HelperConfig.NetworkConfig memory config, address moduleManager)
         external
         returns (
             address operator,
@@ -44,31 +40,15 @@ contract AddAddressesAndRoles is Script {
         addressManager.proposeRoleHolder(Roles.BACKEND_ADMIN, couponRedeemer);
         addressManager.proposeRoleHolder(Roles.REVENUE_CLAIMER, config.takadaoOperator);
 
-        addressManager.addProtocolAddress(
-            "MODULE_MANAGER",
-            address(moduleManager),
-            ProtocolAddressType.Protocol
-        );
+        addressManager.addProtocolAddress("MODULE_MANAGER", address(moduleManager), ProtocolAddressType.Protocol);
 
-        addressManager.addProtocolAddress(
-            "CONTRIBUTION_TOKEN",
-            config.contributionToken,
-            ProtocolAddressType.Protocol
-        );
+        addressManager.addProtocolAddress("CONTRIBUTION_TOKEN", config.contributionToken, ProtocolAddressType.Protocol);
 
-        addressManager.addProtocolAddress(
-            "FEE_CLAIM_ADDRESS",
-            config.feeClaimAddress,
-            ProtocolAddressType.Admin
-        );
+        addressManager.addProtocolAddress("FEE_CLAIM_ADDRESS", config.feeClaimAddress, ProtocolAddressType.Admin);
 
         addressManager.addProtocolAddress("COUPON_POOL", couponPool, ProtocolAddressType.Protocol);
 
-        addressManager.addProtocolAddress(
-            "REVENUE_RECEIVER",
-            revenueReceiver,
-            ProtocolAddressType.Admin
-        );
+        addressManager.addProtocolAddress("REVENUE_RECEIVER", revenueReceiver, ProtocolAddressType.Admin);
         vm.stopPrank();
 
         vm.startPrank(config.takadaoOperator);

@@ -14,7 +14,7 @@ import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
     DeployManagers managersDeployer;
@@ -38,20 +38,13 @@ contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
         moduleDeployer = new DeployModules();
         addressesAndRoles = new AddAddressesAndRoles();
 
-        (
-            HelperConfig.NetworkConfig memory config,
-            AddressManager addrMgr,
-            ModuleManager modMgr
-        ) = managersDeployer.run();
+        (HelperConfig.NetworkConfig memory config, AddressManager addrMgr, ModuleManager modMgr) =
+            managersDeployer.run();
 
-        (address operatorAddr, , , , , , address revReceiver) = addressesAndRoles.run(
-            addrMgr,
-            config,
-            address(modMgr)
-        );
+        (address operatorAddr,,,,,, address revReceiver) = addressesAndRoles.run(addrMgr, config, address(modMgr));
 
         SubscriptionModule subscriptions;
-        (, , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+        (,, revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
 
         module = address(subscriptions);
 
@@ -59,12 +52,10 @@ contract NotifyClaimInteraction_RevShareModuleTest is StdCheats, Test {
         revenueClaimer = takadao;
 
         // Fresh RevShareNFT proxy
-        string
-            memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
+        string memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
         address nftImplementation = address(new RevShareNFT());
         address nftAddress = UnsafeUpgrades.deployUUPSProxy(
-            nftImplementation,
-            abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
+            nftImplementation, abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
         );
         nft = RevShareNFT(nftAddress);
 

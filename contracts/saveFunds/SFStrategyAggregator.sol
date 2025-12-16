@@ -19,7 +19,7 @@ import {
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-import {StrategyConfig} from "contracts/types/TakasureTypes.sol";
+import {StrategyConfig, SubStrategy} from "contracts/types/Strategies.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 pragma solidity 0.8.28;
@@ -38,12 +38,6 @@ contract SFStrategyAggregator is
     IAddressManager public addressManager;
 
     IERC20 private underlying;
-
-    struct SubStrategy {
-        ISFStrategy strategy;
-        uint16 targetWeightBPS; // 0 to 10000 (0% to 100%)
-        bool isActive;
-    }
 
     SubStrategy[] private subStrategies;
 

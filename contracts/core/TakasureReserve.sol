@@ -14,7 +14,11 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
-import {Reserve, BenefitMember, BenefitMemberState, CashFlowVars, ProtocolAddress} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddress} from "contracts/types/Managers.sol";
+import {Reserve} from "contracts/types/Reserve.sol";
+import {CashFlowVars} from "contracts/types/Cash.sol";
+import {BenefitMemberState} from "contracts/types/States.sol";
+import {BenefitMember} from "contracts/types/Members.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -46,10 +50,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     }
 
     modifier onlyRole(bytes32 role) {
-        require(
-            AddressAndStates._checkRole(role, address(addressManager)),
-            TakasureReserve__UnallowedAccess()
-        );
+        require(AddressAndStates._checkRole(role, address(addressManager)), TakasureReserve__UnallowedAccess());
         _;
     }
 
@@ -106,26 +107,17 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         reserve = newReserve;
     }
 
-    function setCashFlowValuesFromModule(
-        CashFlowVars memory newCashFlowVars
-    ) external whenNotPaused {
+    function setCashFlowValuesFromModule(CashFlowVars memory newCashFlowVars) external whenNotPaused {
         _onlyModule();
         cashFlowVars = newCashFlowVars;
     }
 
-    function setMonthToCashFlowValuesFromModule(
-        uint16 month,
-        uint256 monthCashFlow
-    ) external whenNotPaused {
+    function setMonthToCashFlowValuesFromModule(uint16 month, uint256 monthCashFlow) external whenNotPaused {
         _onlyModule();
         monthToCashFlow[month] = monthCashFlow;
     }
 
-    function setDayToCashFlowValuesFromModule(
-        uint16 month,
-        uint8 day,
-        uint256 dayCashFlow
-    ) external whenNotPaused {
+    function setDayToCashFlowValuesFromModule(uint16 month, uint8 day, uint256 dayCashFlow) external whenNotPaused {
         _onlyModule();
         dayToCashFlow[month][day] = dayCashFlow;
     }
@@ -143,39 +135,30 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         emit TakasureEvents.OnServiceFeeChanged(newServiceFee);
     }
 
-    function setNewFundMarketExpendsShare(
-        uint8 newFundMarketExpendsAddShare
-    ) external onlyRole(Roles.DAO_MULTISIG) {
+    function setNewFundMarketExpendsShare(uint8 newFundMarketExpendsAddShare) external onlyRole(Roles.DAO_MULTISIG) {
         require(newFundMarketExpendsAddShare <= 35, TakasureReserve__WrongValue());
 
         uint8 oldFundMarketExpendsAddShare = reserve.fundMarketExpendsAddShare;
         reserve.fundMarketExpendsAddShare = newFundMarketExpendsAddShare;
 
         emit TakasureEvents.OnNewMarketExpendsFundReserveAddShare(
-            newFundMarketExpendsAddShare,
-            oldFundMarketExpendsAddShare
+            newFundMarketExpendsAddShare, oldFundMarketExpendsAddShare
         );
     }
 
-    function setAllowCustomDuration(
-        bool _allowCustomDuration
-    ) external onlyRole(Roles.DAO_MULTISIG) {
+    function setAllowCustomDuration(bool _allowCustomDuration) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.allowCustomDuration = _allowCustomDuration;
 
         emit TakasureEvents.OnAllowCustomDuration(_allowCustomDuration);
     }
 
-    function setNewMinimumThreshold(
-        uint256 newMinimumThreshold
-    ) external onlyRole(Roles.DAO_MULTISIG) {
+    function setNewMinimumThreshold(uint256 newMinimumThreshold) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.minimumThreshold = newMinimumThreshold;
 
         emit TakasureEvents.OnNewMinimumThreshold(newMinimumThreshold);
     }
 
-    function setNewMaximumThreshold(
-        uint256 newMaximumThreshold
-    ) external onlyRole(Roles.DAO_MULTISIG) {
+    function setNewMaximumThreshold(uint256 newMaximumThreshold) external onlyRole(Roles.DAO_MULTISIG) {
         reserve.maximumThreshold = newMaximumThreshold;
 
         emit TakasureEvents.OnNewMaximumThreshold(newMaximumThreshold);
@@ -188,9 +171,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         emit TakasureEvents.OnNewRiskMultiplier(newRiskMultiplier);
     }
 
-    function setReferralDiscountState(
-        bool referralDiscountState
-    ) external onlyRole(Roles.OPERATOR) {
+    function setReferralDiscountState(bool referralDiscountState) external onlyRole(Roles.OPERATOR) {
         reserve.referralDiscount = referralDiscountState;
     }
 
@@ -204,10 +185,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         uint256 totalCreditsInReserve = reserve.totalCredits + userCreditsBalance;
         uint256 userSurplus = (totalSurplus * userCreditsBalance) / totalCreditsInReserve;
         members[newMemberValues.wallet].memberSurplus = userSurplus;
-        emit TakasureEvents.OnMemberSurplusUpdated(
-            members[newMemberValues.wallet].memberId,
-            userSurplus
-        );
+        emit TakasureEvents.OnMemberSurplusUpdated(members[newMemberValues.wallet].memberId, userSurplus);
     }
 
     function getReserveValues() external view returns (Reserve memory) {
@@ -235,24 +213,14 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         cash_ = _cashLast12Months(monthFromCall, dayFromCall);
     }
 
-    function _monthAndDayFromCall()
-        internal
-        view
-        returns (uint16 currentMonth_, uint8 currentDay_)
-    {
+    function _monthAndDayFromCall() internal view returns (uint16 currentMonth_, uint8 currentDay_) {
         uint256 currentTimestamp = block.timestamp;
         uint256 lastDayDepositTimestamp = cashFlowVars.dayDepositTimestamp;
         uint256 lastMonthDepositTimestamp = cashFlowVars.monthDepositTimestamp;
 
         // Calculate how many days and months have passed since the last deposit and the current timestamp
-        uint256 daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
-            currentTimestamp,
-            lastDayDepositTimestamp
-        );
-        uint256 monthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(
-            currentTimestamp,
-            lastMonthDepositTimestamp
-        );
+        uint256 daysPassed = ReserveMathAlgorithms._calculateDaysPassed(currentTimestamp, lastDayDepositTimestamp);
+        uint256 monthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(currentTimestamp, lastMonthDepositTimestamp);
 
         if (monthsPassed == 0) {
             // If  no months have passed, current month is the reference
@@ -268,23 +236,20 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
             // If you are in a new month, calculate the months passed
             currentMonth_ = uint16(monthsPassed) + cashFlowVars.monthReference;
             // Calculate the timestamp when this new month started
-            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp +
-                (monthsPassed * 30 days);
+            uint256 timestampThisMonthStarted = lastMonthDepositTimestamp + (monthsPassed * 30 days);
             // And calculate the days passed in this new month using the new month timestamp
-            daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
-                currentTimestamp,
-                timestampThisMonthStarted
-            );
+            daysPassed = ReserveMathAlgorithms._calculateDaysPassed(currentTimestamp, timestampThisMonthStarted);
             // The current day is the days passed in this new month
             uint8 initialDay = 1;
             currentDay_ = uint8(daysPassed) + initialDay;
         }
     }
 
-    function _cashLast12Months(
-        uint16 _currentMonth,
-        uint8 _currentDay
-    ) internal view returns (uint256 cashLast12Months_) {
+    function _cashLast12Months(uint16 _currentMonth, uint8 _currentDay)
+        internal
+        view
+        returns (uint256 cashLast12Months_)
+    {
         uint256 cash = 0;
 
         // Then make the iterations, according the month and day this function is called
@@ -330,18 +295,15 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
      * @return totalECRes_ the total earned contribution reserve. Six decimals
      * @return totalUCRes_ the total unearned contribution reserve. Six decimals
      */
-    function _totalECResAndUCResUnboundedLoop()
-        internal
-        returns (uint256 totalECRes_, uint256 totalUCRes_)
-    {
+    function _totalECResAndUCResUnboundedLoop() internal returns (uint256 totalECRes_, uint256 totalUCRes_) {
         Reserve memory currentReserve = reserve;
         // We check for every member except the recently added
         for (uint256 i = 1; i <= currentReserve.memberIdCounter - 1; ++i) {
             address memberWallet = idToMemberWallet[i];
             BenefitMember storage memberToCheck = members[memberWallet];
             if (memberToCheck.memberState == BenefitMemberState.Active) {
-                (uint256 memberEcr, uint256 memberUcr) = ReserveMathAlgorithms
-                    ._calculateEcrAndUcrByMember(memberToCheck);
+                (uint256 memberEcr, uint256 memberUcr) =
+                    ReserveMathAlgorithms._calculateEcrAndUcrByMember(memberToCheck);
 
                 totalECRes_ += memberEcr;
                 totalUCRes_ += memberUcr;
@@ -366,11 +328,8 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
         surplus_ = uint256(
             ReserveMathAlgorithms._maxInt(
                 0,
-                (int256(totalECRes) -
-                    ReserveMathAlgorithms._maxInt(
-                        0,
-                        (int256(UCRisk) - int256(totalUCRes) - int256(RPOOL))
-                    ))
+                (int256(totalECRes)
+                        - ReserveMathAlgorithms._maxInt(0, (int256(UCRisk) - int256(totalUCRes) - int256(RPOOL))))
             )
         );
 
@@ -382,22 +341,17 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     function _onlyModule() internal view {
         address moduleManager = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
 
-        require(
-            IModuleManager(moduleManager).isActiveModule(msg.sender),
-            TakasureReserve__UnallowedAccess()
-        );
+        require(IModuleManager(moduleManager).isActiveModule(msg.sender), TakasureReserve__UnallowedAccess());
     }
 
     function _onlyDaoOrTakadao() internal view {
         require(
-            addressManager.hasRole(Roles.OPERATOR, msg.sender) ||
-                addressManager.hasRole(Roles.DAO_MULTISIG, msg.sender),
+            addressManager.hasRole(Roles.OPERATOR, msg.sender)
+                || addressManager.hasRole(Roles.DAO_MULTISIG, msg.sender),
             TakasureReserve__OnlyDaoOrTakadao()
         );
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(Roles.DAO_MULTISIG) {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.DAO_MULTISIG) {}
 }

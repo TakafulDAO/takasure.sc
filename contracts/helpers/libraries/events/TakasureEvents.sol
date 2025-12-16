@@ -5,7 +5,8 @@
  * @author  Maikel Ordaz
  * @notice  This library is used to store the events of the Takasure protocol
  */
-import {RevenueType, BenefitMemberState, AssociationMemberState} from "contracts/types/TakasureTypes.sol";
+import {RevenueType} from "contracts/types/Cash.sol";
+import {BenefitMemberState, AssociationMemberState} from "contracts/types/States.sol";
 
 pragma solidity 0.8.28;
 
@@ -21,11 +22,7 @@ library TakasureEvents {
     ); // Emited when a new member is created
     event OnMemberJoined(uint256 indexed memberId, address indexed member);
     event OnMemberKycVerified(uint256 indexed memberId, address indexed member);
-    event OnRecurringAssociationPayment(
-        address member,
-        uint256 indexed memberId,
-        uint256 indexed recurringPayment
-    );
+    event OnRecurringAssociationPayment(address member, uint256 indexed memberId, uint256 indexed recurringPayment);
     event OnRecurringBenefitPayment(
         address member,
         string indexed benefitName,
@@ -44,10 +41,7 @@ library TakasureEvents {
         bool isOptimizerEnabled,
         address contributionToken
     );
-    event OnNewProFormaValues(
-        uint256 indexed proFormaFundReserve,
-        uint256 indexed proFormaClaimReserve
-    );
+    event OnNewProFormaValues(uint256 indexed proFormaFundReserve, uint256 indexed proFormaClaimReserve);
     event OnNewReserveValues(
         uint256 indexed totalContributions,
         uint256 indexed totalClaimReserve,
@@ -60,41 +54,25 @@ library TakasureEvents {
     event OnNewMinimumThreshold(uint256 indexed minimumThreshold);
     event OnNewMaximumThreshold(uint256 indexed maximumThreshold);
     event OnNewMarketExpendsFundReserveAddShare(
-        uint8 indexed newMarketExpendsFundReserveAddShare,
-        uint8 indexed oldMarketExpendsFundReserveAddShare
+        uint8 indexed newMarketExpendsFundReserveAddShare, uint8 indexed oldMarketExpendsFundReserveAddShare
     );
     event OnNewLossRatio(uint256 indexed lossRatio);
     event OnExternalRevenue(
-        uint256 indexed newRevenueAmount,
-        uint256 indexed totalRevenues,
-        RevenueType indexed revenueType
+        uint256 indexed newRevenueAmount, uint256 indexed totalRevenues, RevenueType indexed revenueType
     );
     event OnFundSurplusUpdated(uint256 indexed surplus);
     event OnMemberSurplusUpdated(uint256 indexed memberId, uint256 indexed surplus);
     event OnAllowCustomDuration(bool allowCustomDuration);
     event OnAssociationMemberCanceled(
-        uint256 indexed memberId,
-        address indexed member,
-        AssociationMemberState memberState
+        uint256 indexed memberId, address indexed member, AssociationMemberState memberState
     );
     event OnBenefitMemberCanceled(
-        uint256 indexed memberId,
-        address indexed benefit,
-        address indexed member,
-        BenefitMemberState memberState
+        uint256 indexed memberId, address indexed benefit, address indexed member, BenefitMemberState memberState
     );
-    event OnParentRewarded(
-        address indexed parent,
-        uint256 indexed layer,
-        address indexed child,
-        uint256 reward
-    );
+    event OnParentRewarded(address indexed parent, uint256 indexed layer, address indexed child, uint256 reward);
     event OnNewRiskMultiplier(uint8 riskMultiplier);
     event OnParentRewardTransferFailed(
-        address indexed parent,
-        uint256 indexed layer,
-        address indexed child,
-        uint256 reward
+        address indexed parent, uint256 indexed layer, address indexed child, uint256 reward
     );
     event OnOperatorChanged(address indexed newOperator, address indexed oldOperator);
 }

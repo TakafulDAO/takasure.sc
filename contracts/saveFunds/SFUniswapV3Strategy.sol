@@ -20,7 +20,7 @@ import {
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-import {StrategyConfig} from "contracts/types/TakasureTypes.sol";
+import {StrategyConfig} from "contracts/types/Strategies.sol";
 import {LiquidityAmountsV3 as LiquidityAmounts} from "contracts/helpers/libraries/uniswap/LiquidityAmountsV3.sol";
 import {TickMathV3 as TickMath} from "contracts/helpers/libraries/uniswap/TickMathV3.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";

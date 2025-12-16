@@ -11,7 +11,7 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
-import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract VaultTest is Test {
     DeployManagers managersDeployer;

@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {RevShareModuleMock} from "test/mocks/RevShareModuleMock.sol";
 
@@ -19,19 +19,13 @@ contract RevShareNftTest is Test {
     event OnBaseURISet(string indexed oldBaseUri, string indexed newBaseURI);
     event OnPeriodTransferLockSet(uint256 indexed newPeriod);
     event OnRevShareNFTMinted(address indexed owner, uint256 tokenId);
-    event OnBatchRevShareNFTMinted(
-        address indexed newOwner,
-        uint256 initialTokenId,
-        uint256 lastTokenId
-    );
+    event OnBatchRevShareNFTMinted(address indexed newOwner, uint256 initialTokenId, uint256 lastTokenId);
 
     function setUp() public {
-        string
-            memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
+        string memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
         address nftImplementation = address(new RevShareNFT());
         address nftAddress = UnsafeUpgrades.deployUUPSProxy(
-            nftImplementation,
-            abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
+            nftImplementation, abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
         );
         nft = RevShareNFT(nftAddress);
     }
@@ -43,10 +37,7 @@ contract RevShareNftTest is Test {
     function testNft_initialValues() public view {
         assertEq(nft.MAX_SUPPLY(), 8_820);
         assertEq(nft.totalSupply(), 0);
-        assertEq(
-            nft.baseURI(),
-            "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/"
-        );
+        assertEq(nft.baseURI(), "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -77,20 +68,13 @@ contract RevShareNftTest is Test {
 
         vm.stopPrank();
 
-        assertEq(
-            nft.tokenURI(0),
-            "https://ipfs.io/ipfs/Qmb2yMfCt7zqCP5C2aoMAeYh9qyfabSTcb7URzV85zfZME/0.json"
-        );
+        assertEq(nft.tokenURI(0), "https://ipfs.io/ipfs/Qmb2yMfCt7zqCP5C2aoMAeYh9qyfabSTcb7URzV85zfZME/0.json");
     }
 
     function testNft_tokenURIEmptyWhenBaseURINotSet() public {
         address impl = address(new RevShareNFT());
-        RevShareNFT noBaseUri = RevShareNFT(
-            UnsafeUpgrades.deployUUPSProxy(
-                impl,
-                abi.encodeCall(RevShareNFT.initialize, ("", msg.sender))
-            )
-        );
+        RevShareNFT noBaseUri =
+            RevShareNFT(UnsafeUpgrades.deployUUPSProxy(impl, abi.encodeCall(RevShareNFT.initialize, ("", msg.sender))));
 
         vm.prank(noBaseUri.owner());
         noBaseUri.mint(alice);
@@ -382,15 +366,11 @@ contract RevShareNftTest is Test {
         // inject minimal bytecode so it's a contract
         vm.etch(mockManager, hex"60006000");
 
-        bytes memory selector = abi.encodeWithSelector(
-            IAddressManager.getProtocolAddressByName.selector,
-            "REVENUE_SHARE_MODULE"
-        );
+        bytes memory selector =
+            abi.encodeWithSelector(IAddressManager.getProtocolAddressByName.selector, "REVENUE_SHARE_MODULE");
 
         ProtocolAddress memory response = ProtocolAddress({
-            name: keccak256("REVENUE_SHARE_MODULE"),
-            addr: revModule,
-            addressType: ProtocolAddressType.Protocol
+            name: keccak256("REVENUE_SHARE_MODULE"), addr: revModule, addressType: ProtocolAddressType.Protocol
         });
 
         vm.mockCall(mockManager, selector, abi.encode(response));
@@ -398,10 +378,8 @@ contract RevShareNftTest is Test {
 
     function _mockAddressManagerRevert(address mockManager) internal {
         vm.etch(mockManager, hex"60006000");
-        bytes memory selector = abi.encodeWithSelector(
-            IAddressManager.getProtocolAddressByName.selector,
-            "REVENUE_SHARE_MODULE"
-        );
+        bytes memory selector =
+            abi.encodeWithSelector(IAddressManager.getProtocolAddressByName.selector, "REVENUE_SHARE_MODULE");
         vm.mockCallRevert(mockManager, selector, "Mock failure");
     }
 
