@@ -534,7 +534,7 @@ contract SFStrategyAggregator is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    ///@dev required by the OZ UUPS module.
+    /// @dev required by the OZ UUPS module.
     function _authorizeUpgrade(address newImplementation)
         internal
         override
