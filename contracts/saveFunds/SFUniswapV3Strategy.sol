@@ -12,6 +12,7 @@ import {ISFStrategyView} from "contracts/interfaces/saveFunds/ISFStrategyView.so
 import {ISFStrategyMaintenance} from "contracts/interfaces/saveFunds/ISFStrategyMaintenance.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfungiblePositionManager.sol";
+import {IUniversalRouter} from "contracts/interfaces/helpers/IUniversalRouter.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -24,6 +25,7 @@ import {StrategyConfig} from "contracts/types/Strategies.sol";
 import {LiquidityAmountsV3 as LiquidityAmounts} from "contracts/helpers/libraries/uniswap/LiquidityAmountsV3.sol";
 import {TickMathV3 as TickMath} from "contracts/helpers/libraries/uniswap/TickMathV3.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Commands} from "contracts/helpers/libraries/uniswap/Commands.sol";
 
 pragma solidity 0.8.28;
 
@@ -41,6 +43,7 @@ contract SFUniswapV3Strategy is
     IAddressManager public addressManager;
     IUniswapV3Pool public pool;
     INonfungiblePositionManager public positionManager;
+    IUniversalRouter public universalRouter;
 
     IERC20 public underlying; // USDC
     IERC20 public otherToken; // USDT or any other token paired in the pool with USDC
@@ -113,7 +116,8 @@ contract SFUniswapV3Strategy is
         IERC20 _otherToken,
         address _pool,
         address _positionManager,
-        uint256 _maxTVL
+        uint256 _maxTVL,
+        address _router
     ) external initializer {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
@@ -126,6 +130,7 @@ contract SFUniswapV3Strategy is
         pool = IUniswapV3Pool(_pool);
         positionManager = INonfungiblePositionManager(_positionManager);
         maxTVL = _maxTVL;
+        universalRouter = IUniversalRouter(_router);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -351,18 +356,18 @@ contract SFUniswapV3Strategy is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _liquidityForValue(uint256 value) internal pure returns (uint256) {
+    function _liquidityForValue(uint256 _value) internal pure returns (uint256) {
         // TODO: approximate how much liquidity corresponds to `value` USDC,
         // e.g. proportional to totalAssets().
         return 0;
     }
 
-    function _mintPosition(uint256 amountUnderlying, uint256 amountOther)
+    function _mintPosition(uint256 _amountUnderlying, uint256 _amountOther)
         internal
         returns (uint256 usedUnderlying, uint256 usedOther)
     {
         // Nothing to do if both sides are zero
-        if (amountUnderlying == 0 && amountOther == 0) return (0, 0);
+        if (_amountUnderlying == 0 && _amountOther == 0) return (0, 0);
 
         // Read pool tokens
         (address token0, address token1) = _getPoolTokens();
@@ -377,11 +382,11 @@ contract SFUniswapV3Strategy is
 
         // Map desired amounts to correct tokens
         if (token0 == address(underlying)) {
-            params.amount0Desired = amountUnderlying;
-            params.amount1Desired = amountOther;
+            params.amount0Desired = _amountUnderlying;
+            params.amount1Desired = _amountOther;
         } else {
-            params.amount0Desired = amountOther;
-            params.amount1Desired = amountUnderlying;
+            params.amount0Desired = _amountOther;
+            params.amount1Desired = _amountUnderlying;
         }
 
         // todo: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
@@ -421,14 +426,13 @@ contract SFUniswapV3Strategy is
         }
     }
 
-    function _increaseLiquidity(uint256 amountUnderlying, uint256 amountOther)
+    function _increaseLiquidity(uint256 _amountUnderlying, uint256 _amountOther)
         internal
-        returns (uint256 usedUnderlying, uint256 usedOther)
+        returns (uint256 usedUnderlying_, uint256 usedOther_)
     {
         // If there is no existing position, nothing to do
         if (positionTokenId == 0) return (0, 0);
-        if (amountUnderlying == 0 && amountOther == 0) return (0, 0);
-
+        if (_amountUnderlying == 0 && _amountOther == 0) return (0, 0);
         // Read pool tokens
         (address token0, address token1) = _getPoolTokens();
 
@@ -437,11 +441,11 @@ contract SFUniswapV3Strategy is
 
         // Map desired amounts to correct tokens
         if (token0 == address(underlying)) {
-            params.amount0Desired = amountUnderlying;
-            params.amount1Desired = amountOther;
+            params.amount0Desired = _amountUnderlying;
+            params.amount1Desired = _amountOther;
         } else {
-            params.amount0Desired = amountOther;
-            params.amount1Desired = amountUnderlying;
+            params.amount0Desired = _amountOther;
+            params.amount1Desired = _amountUnderlying;
         }
 
         // todo: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
@@ -461,11 +465,11 @@ contract SFUniswapV3Strategy is
 
         // Map back used amounts
         if (token0 == address(underlying)) {
-            usedUnderlying = amount0;
-            usedOther = amount1;
+            usedUnderlying_ = amount0;
+            usedOther_ = amount1;
         } else {
-            usedUnderlying = amount1;
-            usedOther = amount0;
+            usedUnderlying_ = amount1;
+            usedOther_ = amount0;
         }
     }
 
@@ -480,38 +484,112 @@ contract SFUniswapV3Strategy is
         );
     }
 
-    function _prepareAmountsForLP(uint256 assets, bytes calldata data)
+    /**
+     * @notice Prepares the amounts of underlying and other token for providing liquidity.
+     * @dev By default, assumes a 50/50 allocation in USDC terms.
+     * @dev the actual swap is handled in _swapUnderlyingToOther.
+     */
+    function _prepareAmountsForLP(uint256 _assets, bytes calldata _data)
         internal
-        view
-        returns (uint256 amountUnderlyingForLP, uint256 amountOtherForLP)
+        pure
+        returns (uint256 amountUnderlyingForLP_, uint256 amountOtherForLP_)
     {
         // TODO: use data for explicit ratios
-        // for now assume 50/50 allocation in USDC terms.
+        // todo: refine a price-adjusted value
+        amountUnderlyingForLP_ = _assets / 2;
+        amountOtherForLP_ = _assets - amountUnderlyingForLP_;
     }
 
-    function _swapUnderlyingToOther(uint256 amount, bytes calldata data) internal {
-        // TODO: implement actual swap using pool/router.
+    /**
+     * @notice Swap underlying to other token. using universal router
+     * @param _amount The amount of underlying to swap.
+     * @param _data abi-encoded (bytes commands, bytes[] inputs, uint256 deadline)
+     *        that Universal Router will interpret as a v3 swap (or sequence of actions).
+     */
+    function _swapUnderlyingToOther(uint256 _amount, bytes calldata _data) internal {
+        // todo: keep revert or just return? revisit
+        require(_amount > 0, SFUniswapV3Strategy__NotZeroAmount());
+
+        // If no routing data was provided (e.g. tests / one-sided LP), skip the swap.
+        if (_data.length == 0) return;
+
+        // data is expected to be abi.encode(bytes[] inputs, uint256 deadline)
+        (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
+
+        // Build commands: one V3_SWAP_EXACT_IN command per input
+        bytes memory commands = new bytes(inputs.length);
+        for (uint256 i = 0; i < inputs.length; ++i) {
+            commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
+        }
+
+        // Approve router to pull `_amount` of underlying from this strategy
+        underlying.forceApprove(address(universalRouter), _amount);
+
+        // Execute the encoded v3 swaps (path, minOut, etc. are inside `inputs`)
+        universalRouter.execute(commands, inputs, deadline);
     }
 
-    function _swapOtherToUnderlying(uint256 amount, bytes memory data) internal {
-        // TODO: implement actual swap using pool/router.
+    function _swapOtherToUnderlying(uint256 _amount, bytes memory _data) internal {
+        // todo: keep revert or just return? revisit
+        require(_amount > 0, SFUniswapV3Strategy__NotZeroAmount());
+
+        // For flows like emergencyExit where we might not want to swap,
+        // we can pass empty data and skip the router call.
+        if (_data.length == 0) return;
+
+        // data is expected to be abi.encode(bytes[] inputs, uint256 deadline)
+        (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
+        // Build commands: again, v3 exact-in swaps; direction is encoded in the path
+        bytes memory commands = new bytes(inputs.length);
+        for (uint256 i = 0; i < inputs.length; ++i) {
+            commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
+        }
+
+        // Approve router to pull `_amount` of otherToken from this strategy
+        otherToken.forceApprove(address(universalRouter), _amount);
+
+        // Execute the encoded v3 swaps (otherToken -> underlying path lives in `inputs`)
+        universalRouter.execute(commands, inputs, deadline);
     }
 
-    function _decreaseLiquidityAndCollect(uint256 liquidity, bytes memory data) internal {
+    function _V3Swap(uint256 _amount, bytes memory _data, bool _zeroForOne) internal {
+        // todo: keep revert or just return? revisit
+        require(_amount > 0, SFUniswapV3Strategy__NotZeroAmount());
+
+        // For flows like emergencyExit where we might not want to swap,
+        // we can pass empty data and skip the router call.
+        if (_data.length == 0) return;
+
+        // data is expected to be abi.encode(bytes[] inputs, uint256 deadline)
+        (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
+        // Build commands: again, v3 exact-in swaps; direction is encoded in the path
+        bytes memory commands = new bytes(inputs.length);
+        for (uint256 i = 0; i < inputs.length; ++i) {
+            commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
+        }
+
+        // Approve router to pull `_amount` of otherToken from this strategy
+        otherToken.forceApprove(address(universalRouter), _amount);
+
+        // Execute the encoded v3 swaps (otherToken -> underlying path lives in `inputs`)
+        universalRouter.execute(commands, inputs, deadline);
+    }
+
+    function _decreaseLiquidityAndCollect(uint256 _liquidity, bytes memory _data) internal {
         // todo use data
-        if (liquidity == 0 || positionTokenId == 0) return;
+        if (_liquidity == 0 || positionTokenId == 0) return;
 
         (,,,,,,, uint128 currentLiquidity,,,,) = positionManager.positions(positionTokenId);
 
         if (currentLiquidity == 0) return;
 
         uint128 liquidityToBurn;
-        if (liquidity >= currentLiquidity) {
+        if (_liquidity >= currentLiquidity) {
             // Burn all liquidity
             liquidityToBurn = currentLiquidity;
         } else {
             // Burn partial liquidity, assumed the inputs is in raw units
-            liquidityToBurn = uint128(liquidity);
+            liquidityToBurn = uint128(_liquidity);
         }
 
         if (liquidityToBurn == 0) return;
@@ -536,7 +614,7 @@ contract SFUniswapV3Strategy is
         positionManager.collect(collectParams);
     }
 
-    function _collectFees(bytes calldata data) internal {
+    function _collectFees(bytes calldata _data) internal {
         // todo: use data
 
         if (positionTokenId == 0) return;
