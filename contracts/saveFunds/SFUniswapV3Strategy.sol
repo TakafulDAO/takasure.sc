@@ -70,6 +70,7 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__MaxTVLReached();
     error SFUniswapV3Strategy__InvalidPoolTokens();
     error SFUniswapV3Strategy__UnexpectedPositionTokenId();
+    error SFUniswapV3Strategy__InvalidRebalanceParams();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -287,12 +288,49 @@ contract SFUniswapV3Strategy is
     }
 
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
-        // Intent: adjust ticks / range / pool as per off-chain algo.
-        // Typically:
-        // 1) Decrease some or all liquidity.
-        // 2) Swap tokens into desired ratio.
-        // 3) Mint/increaseLiquidity with new tickLower/tickUpper.
-        // TODO implement
+        // `data` is expected to be: abi.encode(int24 newTickLower, int24 newTickUpper)
+        (int24 newTickLower, int24 newTickUpper) = abi.decode(data, (int24, int24));
+
+        require(newTickLower < newTickUpper, SFUniswapV3Strategy__InvalidRebalanceParams());
+
+        int24 spacing = pool.tickSpacing();
+        // Ensure the new ticks are aligned to pool.tickSpacing()
+        if (newTickLower % spacing != 0 || newTickUpper % spacing != 0) {
+            revert SFUniswapV3Strategy__InvalidRebalanceParams();
+        }
+
+        // If there is no active position yet, just update the range and exit.
+        if (positionTokenId == 0) {
+            tickLower = newTickLower;
+            tickUpper = newTickUpper;
+            return;
+        }
+
+        // 1. Read current liquidity and fully exit the existing position.
+        (,,,,,,, uint128 currentLiquidity,,,,) = positionManager.positions(positionTokenId);
+
+        // todo: `_data` is currently unused by `_decreaseLiquidityAndCollect`, so just pass an empty bytes blob.
+        if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, bytes(""));
+
+        // 2. Burn the old NFT once all liquidity has been removed.
+        (,,,,,,, uint128 remainingLiquidity,,,,) = positionManager.positions(positionTokenId);
+        if (remainingLiquidity == 0) {
+            positionManager.burn(positionTokenId);
+            positionTokenId = 0;
+        }
+
+        // 3. Update the stored tick range.
+        tickLower = newTickLower;
+        tickUpper = newTickUpper;
+
+        // 4. Mint a new position using whatever balances we now hold.
+        uint256 balUnderlying = underlying.balanceOf(address(this));
+        uint256 balOther = otherToken.balanceOf(address(this));
+
+        // We exited but have no capital to deploy – nothing else to do.
+        if (balUnderlying == 0 && balOther == 0) return;
+
+        _mintPosition(balUnderlying, balOther);
     }
 
     /*//////////////////////////////////////////////////////////////
