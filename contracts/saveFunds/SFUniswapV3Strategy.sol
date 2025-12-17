@@ -498,11 +498,42 @@ contract SFUniswapV3Strategy is
     }
 
     function _decreaseLiquidityAndCollect(uint256 liquidity, bytes memory data) internal {
-        // TODO: implement:
-        // - positionManager.decreaseLiquidity
-        // - positionManager.collect
+        if (liquidity == 0 || positionTokenId == 0) return;
 
+        (,,,,,,, uint128 currentLiquidity,,,,) = positionManager.positions(positionTokenId);
+
+        if (currentLiquidity == 0) return;
+
+        uint128 liquidityToBurn;
+        if (liquidity >= currentLiquidity) {
+            // Burn all liquidity
+            liquidityToBurn = currentLiquidity;
+        } else {
+            // Burn partial liquidity, assumed the inputs is in raw units
+            liquidityToBurn = uint128(liquidity);
         }
+
+        if (liquidityToBurn == 0) return;
+
+        INonfungiblePositionManager.DecreaseLiquidityParams memory params;
+        params.tokenId = positionTokenId;
+        params.liquidity = liquidityToBurn;
+        // todo: slippage protection?
+        params.amount0Min = 0;
+        params.amount1Min = 0;
+        params.deadline = block.timestamp;
+
+        positionManager.decreaseLiquidity(params);
+
+        // Collect all owed tokens (principal + fees)
+        INonfungiblePositionManager.CollectParams memory collectParams;
+        collectParams.tokenId = positionTokenId;
+        collectParams.recipient = address(this);
+        collectParams.amount0Max = type(uint128).max;
+        collectParams.amount1Max = type(uint128).max;
+
+        positionManager.collect(collectParams);
+    }
 
     function _collectFees(bytes calldata data) internal {
         // todo: collect fees from position using positionManager.collect
