@@ -74,11 +74,8 @@ contract SFStrategyAggregator is
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    modifier onlyRole(bytes32 role, address addressManagerAddress) {
-        require(
-            IAddressManager(addressManagerAddress).hasRole(role, msg.sender),
-            SFStrategyAggregator__NotAuthorizedCaller()
-        );
+    modifier onlyRole(bytes32 role) {
+        require(addressManager.hasRole(role, msg.sender), SFStrategyAggregator__NotAuthorizedCaller());
         _;
     }
 
@@ -91,11 +88,8 @@ contract SFStrategyAggregator is
         _;
     }
 
-    modifier onlyContract(string memory name, address addressManagerAddress) {
-        require(
-            IAddressManager(addressManagerAddress).hasName(name, msg.sender),
-            SFStrategyAggregator__NotAuthorizedCaller()
-        );
+    modifier onlyContract(string memory name) {
+        require(addressManager.hasName(name, msg.sender), SFStrategyAggregator__NotAuthorizedCaller());
         _;
     }
 
@@ -135,7 +129,7 @@ contract SFStrategyAggregator is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function setMaxTVL(uint256 newMaxTVL) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function setMaxTVL(uint256 newMaxTVL) external onlyRole(Roles.OPERATOR) {
         uint256 oldMaxTVL = maxTVL;
         maxTVL = newMaxTVL;
         emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
@@ -145,7 +139,7 @@ contract SFStrategyAggregator is
         bytes calldata /*newConfig*/
     )
         external
-        onlyRole(Roles.OPERATOR, address(addressManager))
+        onlyRole(Roles.OPERATOR)
     {
         // todo: check if needed. Decode array of strategy, weights, and active status.
     }
@@ -162,7 +156,7 @@ contract SFStrategyAggregator is
     function addSubStrategy(address strategy, uint16 targetWeightBPS)
         external
         notAddressZero(strategy)
-        onlyRole(Roles.OPERATOR, address(addressManager))
+        onlyRole(Roles.OPERATOR)
     {
         require(subStrategyIndex[strategy] == 0, SFStrategyAggregator__SubStrategyAlreadyExists());
         require(totalTargetWeightBPS + targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
@@ -188,7 +182,7 @@ contract SFStrategyAggregator is
     function updateSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
         external
         notAddressZero(strategy)
-        onlyRole(Roles.OPERATOR, address(addressManager))
+        onlyRole(Roles.OPERATOR)
     {
         require(subStrategyIndex[strategy] != 0, SFStrategyAggregator__SubStrategyNotFound());
 
@@ -224,7 +218,7 @@ contract SFStrategyAggregator is
      */
     function deposit(uint256 assets, bytes calldata data)
         external
-        onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
+        onlyContract("PROTOCOL__SF_VAULT")
         nonReentrant
         whenNotPaused
         returns (uint256 investedAssets)
@@ -285,7 +279,7 @@ contract SFStrategyAggregator is
         notAddressZero(receiver)
         nonReentrant
         whenNotPaused
-        onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
+        onlyContract("PROTOCOL__SF_VAULT")
         returns (uint256 withdrawnAssets)
     {
         require(assets > 0, SFStrategyAggregator__NotZeroAmount());
@@ -348,11 +342,11 @@ contract SFStrategyAggregator is
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
 
-    function pause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
+    function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _pause();
     }
 
-    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
+    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _unpause();
     }
 
@@ -360,12 +354,7 @@ contract SFStrategyAggregator is
      * @notice Emergency exit function to withdraw all assets from child strategies and transfer to a receiver.
      * @param receiver Address to receive all withdrawn assets.
      */
-    function emergencyExit(address receiver)
-        external
-        notAddressZero(receiver)
-        nonReentrant
-        onlyRole(Roles.OPERATOR, address(addressManager))
-    {
+    function emergencyExit(address receiver) external notAddressZero(receiver) nonReentrant onlyRole(Roles.OPERATOR) {
         // Pull everything from subStrategies to the receiver.
         uint256 len = subStrategies.length;
 
@@ -529,9 +518,5 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        override
-        onlyRole(Roles.OPERATOR, address(addressManager))
-    {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR) {}
 }

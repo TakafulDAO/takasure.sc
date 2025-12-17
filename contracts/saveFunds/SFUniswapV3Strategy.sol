@@ -76,17 +76,13 @@ contract SFUniswapV3Strategy is
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    modifier onlyRole(bytes32 role, address addressManagerAddress) {
-        require(
-            IAddressManager(addressManagerAddress).hasRole(role, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller()
-        );
+    modifier onlyRole(bytes32 role) {
+        require(addressManager.hasRole(role, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller());
         _;
     }
 
-    modifier onlyContract(string memory name, address addressManagerAddress) {
-        require(
-            IAddressManager(addressManagerAddress).hasName(name, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller()
-        );
+    modifier onlyContract(string memory name) {
+        require(addressManager.hasName(name, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller());
         _;
     }
 
@@ -141,7 +137,7 @@ contract SFUniswapV3Strategy is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function setMaxTVL(uint256 newMaxTVL) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function setMaxTVL(uint256 newMaxTVL) external onlyRole(Roles.OPERATOR) {
         uint256 oldMaxTVL = maxTVL;
         maxTVL = newMaxTVL;
         emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
@@ -151,7 +147,7 @@ contract SFUniswapV3Strategy is
         bytes calldata /*newConfig*/
     )
         external
-        onlyRole(Roles.OPERATOR, address(addressManager))
+        onlyRole(Roles.OPERATOR)
     {
         // todo: check if needed. Decode array of strategy, weights, and active status.
     }
@@ -160,19 +156,15 @@ contract SFUniswapV3Strategy is
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
 
-    function pause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
+    function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _pause();
     }
 
-    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
+    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _unpause();
     }
 
-    function emergencyExit(address receiver)
-        external
-        notAddressZero(receiver)
-        onlyRole(Roles.OPERATOR, address(addressManager))
-    {
+    function emergencyExit(address receiver) external notAddressZero(receiver) onlyRole(Roles.OPERATOR) {
         // withdraw all
         // ? maybe burn the nft? The problem is that the owner is the vault
         if (positionTokenId != 0) _decreaseLiquidityAndCollect(type(uint128).max, bytes(""));
@@ -199,7 +191,7 @@ contract SFUniswapV3Strategy is
      */
     function deposit(uint256 assets, bytes calldata data)
         external
-        onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
+        onlyContract("PROTOCOL__SF_VAULT")
         nonReentrant
         whenNotPaused
         returns (uint256 investedAssets)
@@ -238,7 +230,7 @@ contract SFUniswapV3Strategy is
      */
     function withdraw(uint256 assets, address receiver, bytes calldata data)
         external
-        onlyContract("PROTOCOL__SF_VAULT", address(addressManager))
+        onlyContract("PROTOCOL__SF_VAULT")
         notAddressZero(receiver)
         nonReentrant
         whenNotPaused
@@ -697,9 +689,5 @@ contract SFUniswapV3Strategy is
     }
 
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        override
-        onlyRole(Roles.OPERATOR, address(addressManager))
-    {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR) {}
 }

@@ -94,8 +94,8 @@ contract SFVault is
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    modifier onlyRole(bytes32 role, address addressManagerAddress) {
-        require(IAddressManager(addressManagerAddress).hasRole(role, msg.sender), SFVault__NotAuthorizedCaller());
+    modifier onlyRole(bytes32 role) {
+        require(addressManager.hasRole(role, msg.sender), SFVault__NotAuthorizedCaller());
         _;
     }
 
@@ -147,7 +147,7 @@ contract SFVault is
      * @notice Set TVL cap for the vault.
      * @param newCap The new TVL cap in underlying asset units.
      */
-    function setTVLCap(uint256 newCap) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function setTVLCap(uint256 newCap) external onlyRole(Roles.OPERATOR) {
         uint256 oldCap = TVLCap;
         TVLCap = newCap;
         emit OnTVLCapUpdated(oldCap, newCap);
@@ -157,7 +157,7 @@ contract SFVault is
      * @notice Add a token to the whitelist (default hard cap = 100%).
      * @dev Intended for governance / Algo Manager configuration.
      */
-    function whitelistToken(address token) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function whitelistToken(address token) external onlyRole(Roles.OPERATOR) {
         require(token != address(0), SFVault__InvalidToken());
         require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
 
@@ -172,10 +172,7 @@ contract SFVault is
      * @param token ERC20 token address.
      * @param hardCapBPS Allocation hard cap in BPS of total portfolio value.
      */
-    function whitelistTokenWithCap(address token, uint16 hardCapBPS)
-        external
-        onlyRole(Roles.OPERATOR, address(addressManager))
-    {
+    function whitelistTokenWithCap(address token, uint16 hardCapBPS) external onlyRole(Roles.OPERATOR) {
         require(token != address(0), SFVault__InvalidToken());
         require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
         require(hardCapBPS <= MAX_BPS, SFVault__InvalidCapBPS());
@@ -190,7 +187,7 @@ contract SFVault is
      * @notice Remove a token from the whitelist.
      * @dev Removing a token does not prevent the vault from temporarily holding it while selling/unwinding.
      */
-    function removeTokenFromWhitelist(address token) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function removeTokenFromWhitelist(address token) external onlyRole(Roles.OPERATOR) {
         require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
 
         whitelistedTokens.remove(token);
@@ -201,10 +198,7 @@ contract SFVault is
      * @notice Update a token's allocation hard cap.
      * @dev A hard cap of 0 is allowed.
      */
-    function setTokenHardCap(address token, uint16 newCapBPS)
-        external
-        onlyRole(Roles.OPERATOR, address(addressManager))
-    {
+    function setTokenHardCap(address token, uint16 newCapBPS) external onlyRole(Roles.OPERATOR) {
         require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
         require(newCapBPS <= MAX_BPS, SFVault__InvalidCapBPS());
 
@@ -217,7 +211,7 @@ contract SFVault is
      * @notice Set or change the strategy contract.
      * @param newStrategy The address of the new strategy contract.
      */
-    function setStrategy(ISFStrategy newStrategy) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function setStrategy(ISFStrategy newStrategy) external onlyRole(Roles.OPERATOR) {
         strategy = newStrategy;
         emit OnStrategyUpdated(address(newStrategy));
     }
@@ -230,7 +224,7 @@ contract SFVault is
      */
     function setFeeConfig(uint16 _managementFeeBPS, uint16 _performanceFeeBPS, uint16 _performanceFeeHurdleBPS)
         external
-        onlyRole(Roles.OPERATOR, address(addressManager))
+        onlyRole(Roles.OPERATOR)
     {
         require(_managementFeeBPS < MAX_BPS, SFVault__InvalidFeeBPS());
         require(_performanceFeeBPS <= MAX_BPS, SFVault__InvalidFeeBPS());
@@ -242,11 +236,11 @@ contract SFVault is
         emit OnFeeConfigUpdated(_managementFeeBPS, _performanceFeeBPS, _performanceFeeHurdleBPS);
     }
 
-    function pause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
+    function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _pause();
     }
 
-    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
+    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _unpause();
     }
 
@@ -263,7 +257,7 @@ contract SFVault is
     function takeFees()
         external
         nonReentrant
-        onlyRole(Roles.OPERATOR, address(addressManager))
+        onlyRole(Roles.OPERATOR)
         returns (uint256 managementFeeAssets, uint256 performanceFeeAssets)
     {
         (managementFeeAssets, performanceFeeAssets) = _chargeFees();
