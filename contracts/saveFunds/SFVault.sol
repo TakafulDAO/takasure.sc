@@ -7,7 +7,6 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 
-// todo: access control, maybe write this as a module with the other ones?
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
@@ -26,6 +25,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {FeeType} from "contracts/types/Cash.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 pragma solidity 0.8.28;
 
@@ -88,6 +88,16 @@ contract SFVault is
     error SFVault__ZeroShares();
     error SFVault__ExceedsMaxDeposit();
     error SFVault__InsufficientUSDCForFees();
+    error SFVault__NotAuthorizedCaller();
+
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier onlyRole(bytes32 role, address addressManagerAddress) {
+        require(IAddressManager(addressManagerAddress).hasRole(role, msg.sender), SFVault__NotAuthorizedCaller());
+        _;
+    }
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -136,9 +146,8 @@ contract SFVault is
     /**
      * @notice Set TVL cap for the vault.
      * @param newCap The new TVL cap in underlying asset units.
-     * todo: access control
      */
-    function setTVLCap(uint256 newCap) external {
+    function setTVLCap(uint256 newCap) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         uint256 oldCap = TVLCap;
         TVLCap = newCap;
         emit OnTVLCapUpdated(oldCap, newCap);
@@ -147,9 +156,8 @@ contract SFVault is
     /**
      * @notice Add a token to the whitelist (default hard cap = 100%).
      * @dev Intended for governance / Algo Manager configuration.
-     * todo: access control
      */
-    function whitelistToken(address token) external {
+    function whitelistToken(address token) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         require(token != address(0), SFVault__InvalidToken());
         require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
 
@@ -163,9 +171,11 @@ contract SFVault is
      * @notice Add a token to the whitelist with a custom hard cap.
      * @param token ERC20 token address.
      * @param hardCapBPS Allocation hard cap in BPS of total portfolio value.
-     * todo: access control
      */
-    function whitelistTokenWithCap(address token, uint16 hardCapBPS) external {
+    function whitelistTokenWithCap(address token, uint16 hardCapBPS)
+        external
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {
         require(token != address(0), SFVault__InvalidToken());
         require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
         require(hardCapBPS <= MAX_BPS, SFVault__InvalidCapBPS());
@@ -179,9 +189,8 @@ contract SFVault is
     /**
      * @notice Remove a token from the whitelist.
      * @dev Removing a token does not prevent the vault from temporarily holding it while selling/unwinding.
-     * todo: access control
      */
-    function removeTokenFromWhitelist(address token) external {
+    function removeTokenFromWhitelist(address token) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
 
         whitelistedTokens.remove(token);
@@ -191,9 +200,11 @@ contract SFVault is
     /**
      * @notice Update a token's allocation hard cap.
      * @dev A hard cap of 0 is allowed.
-     * todo: access control
      */
-    function setTokenHardCap(address token, uint16 newCapBPS) external {
+    function setTokenHardCap(address token, uint16 newCapBPS)
+        external
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {
         require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
         require(newCapBPS <= MAX_BPS, SFVault__InvalidCapBPS());
 
@@ -205,9 +216,8 @@ contract SFVault is
     /**
      * @notice Set or change the strategy contract.
      * @param newStrategy The address of the new strategy contract.
-     * todo: access control
      */
-    function setStrategy(ISFStrategy newStrategy) external {
+    function setStrategy(ISFStrategy newStrategy) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         strategy = newStrategy;
         emit OnStrategyUpdated(address(newStrategy));
     }
@@ -217,10 +227,10 @@ contract SFVault is
      * @param _managementFeeBPS management fee per deposit in basis points.
      * @param _performanceFeeBPS Performance fee in basis points.
      * @param _performanceFeeHurdleBPS Performance fee hurdle in basis points.
-     * todo: access control
      */
     function setFeeConfig(uint16 _managementFeeBPS, uint16 _performanceFeeBPS, uint16 _performanceFeeHurdleBPS)
         external
+        onlyRole(Roles.OPERATOR, address(addressManager))
     {
         require(_managementFeeBPS < MAX_BPS, SFVault__InvalidFeeBPS());
         require(_performanceFeeBPS <= MAX_BPS, SFVault__InvalidFeeBPS());
@@ -232,13 +242,11 @@ contract SFVault is
         emit OnFeeConfigUpdated(_managementFeeBPS, _performanceFeeBPS, _performanceFeeHurdleBPS);
     }
 
-    // todo: access control
-    function pause() external {
+    function pause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
         _pause();
     }
 
-    // todo: access control
-    function unpause() external {
+    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN, address(addressManager)) {
         _unpause();
     }
 
@@ -251,9 +259,13 @@ contract SFVault is
      * @dev Management fees are charged at deposit/mint time.
      * @return managementFeeAssets Assets taken as management fee (always 0 here).
      * @return performanceFeeAssets Assets taken as performance fee.
-     * todo: access control
      */
-    function takeFees() external nonReentrant returns (uint256 managementFeeAssets, uint256 performanceFeeAssets) {
+    function takeFees()
+        external
+        nonReentrant
+        onlyRole(Roles.OPERATOR, address(addressManager))
+        returns (uint256 managementFeeAssets, uint256 performanceFeeAssets)
+    {
         (managementFeeAssets, performanceFeeAssets) = _chargeFees();
     }
 
