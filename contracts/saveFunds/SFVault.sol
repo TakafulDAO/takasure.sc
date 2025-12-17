@@ -552,5 +552,5 @@ contract SFVault is
     }
 
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation) internal override {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR) {}
 }
