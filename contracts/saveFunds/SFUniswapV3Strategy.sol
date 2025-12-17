@@ -24,6 +24,7 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {StrategyConfig} from "contracts/types/Strategies.sol";
 import {LiquidityAmountsV3 as LiquidityAmounts} from "contracts/helpers/libraries/uniswap/LiquidityAmountsV3.sol";
 import {TickMathV3 as TickMath} from "contracts/helpers/libraries/uniswap/TickMathV3.sol";
+import {FullMathV3 as FullMath} from "contracts/helpers/libraries/uniswap/FullMathV3.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Commands} from "contracts/helpers/libraries/uniswap/Commands.sol";
 
@@ -628,9 +629,33 @@ contract SFUniswapV3Strategy is
         return _value;
     }
 
-    function _quoteOtherAsUnderlying(uint256 _amountOther) internal pure returns (uint256) {
-        // todo: compute via pool.slot0 or twap and convert amountOther -> USDC units
-        return _amountOther;
+    /// @dev Quotes `_amountOther` in units of `underlying` using the current pool spot price from `slot0`.
+    function _quoteOtherAsUnderlying(uint256 _amountOther) internal view returns (uint256) {
+        if (_amountOther == 0) return 0;
+
+        // Get the tokens in the pool
+        (address _token0, address _token1) = _getPoolTokens();
+
+        if (address(underlying) == address(otherToken)) return _amountOther;
+
+        // slot0 returns sqrtPriceX96 where price = token1 / token0 = (sqrtPriceX96^2) / 2^192
+        (uint160 _sqrtPriceX96,,,,,,) = pool.slot0();
+
+        uint256 _priceX192 = uint256(_sqrtPriceX96) * uint256(_sqrtPriceX96);
+        uint256 _q192 = 1 << 192;
+
+        if (address(otherToken) == _token0 && address(underlying) == _token1) {
+            // other = token0, underlying = token1
+            // valueInUnderlying = amountOther * price (token1 per token0)
+            return FullMath.mulDiv(_amountOther, _priceX192, _q192);
+        } else if (address(otherToken) == _token1 && address(underlying) == _token0) {
+            // other = token1, underlying = token0
+            // valueInUnderlying = amountOther / price
+            return FullMath.mulDiv(_amountOther, _q192, _priceX192);
+        } else {
+            // todo: is this reachable? revisit
+            revert SFUniswapV3Strategy__InvalidPoolTokens();
+        }
     }
 
     /// @dev required by the OZ UUPS module.
