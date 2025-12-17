@@ -365,14 +365,7 @@ contract SFUniswapV3Strategy is
         if (amountUnderlying == 0 && amountOther == 0) return (0, 0);
 
         // Read pool tokens
-        (address token0, address token1) = (pool.token0(), pool.token1());
-
-        // Sanity check: ensure pool tokens match expected underlying and otherToken
-        require(
-            (token0 == address(underlying) && token1 == address(otherToken))
-                || (token0 == address(otherToken) && token1 == address(underlying)),
-            SFUniswapV3Strategy__InvalidPoolTokens()
-        );
+        (address token0, address token1) = _getPoolTokens();
 
         // Build mint params
         INonfungiblePositionManager.MintParams memory params;
@@ -432,7 +425,59 @@ contract SFUniswapV3Strategy is
         internal
         returns (uint256 usedUnderlying, uint256 usedOther)
     {
-        // TODO: implement INonfungiblePositionManager.increaseLiquidity
+        // If there is no existing position, nothing to do
+        if (positionTokenId == 0) return (0, 0);
+        if (amountUnderlying == 0 && amountOther == 0) return (0, 0);
+
+        // Read pool tokens
+        (address token0, address token1) = _getPoolTokens();
+
+        INonfungiblePositionManager.IncreaseLiquidityParams memory params;
+        params.tokenId = positionTokenId;
+
+        // Map desired amounts to correct tokens
+        if (token0 == address(underlying)) {
+            params.amount0Desired = amountUnderlying;
+            params.amount1Desired = amountOther;
+        } else {
+            params.amount0Desired = amountOther;
+            params.amount1Desired = amountUnderlying;
+        }
+
+        // todo: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
+        params.amount0Min = 0;
+        params.amount1Min = 0;
+        params.deadline = block.timestamp;
+
+        // Approve positionManager to pull tokens
+        if (params.amount0Desired > 0) {
+            IERC20(token0).forceApprove(address(positionManager), params.amount0Desired);
+        } else {
+            IERC20(token1).forceApprove(address(positionManager), params.amount1Desired);
+        }
+
+        // Add liquidity
+        (, uint256 amount0, uint256 amount1) = positionManager.increaseLiquidity(params);
+
+        // Map back used amounts
+        if (token0 == address(underlying)) {
+            usedUnderlying = amount0;
+            usedOther = amount1;
+        } else {
+            usedUnderlying = amount1;
+            usedOther = amount0;
+        }
+    }
+
+    function _getPoolTokens() internal view returns (address token0_, address token1_) {
+        (token0_, token1_) = (pool.token0(), pool.token1());
+
+        // Sanity check: ensure pool tokens match expected underlying and otherToken
+        require(
+            (token0_ == address(underlying) && token1_ == address(otherToken))
+                || (token0_ == address(otherToken) && token1_ == address(underlying)),
+            SFUniswapV3Strategy__InvalidPoolTokens()
+        );
     }
 
     function _prepareAmountsForLP(uint256 assets, bytes calldata data)
