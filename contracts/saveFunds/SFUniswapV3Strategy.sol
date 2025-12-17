@@ -48,6 +48,7 @@ contract SFUniswapV3Strategy is
 
     uint256 public maxTVL;
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
+    // ? Where to initialize these?
     int24 public tickLower;
     int24 public tickUpper;
 
