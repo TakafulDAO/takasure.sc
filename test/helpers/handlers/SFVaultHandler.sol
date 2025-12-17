@@ -228,4 +228,7 @@ contract SFVaultHandler is Test {
             vm.clearMockedCalls();
         }
     }
+
+    // Skip this file from coverage
+    function test() public {}
 }

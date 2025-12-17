@@ -375,7 +375,7 @@ contract SFVaultTest is Test {
                            PREVIEW DEPOSIT / MINT
     //////////////////////////////////////////////////////////////*/
 
-    function testSFVault_PreviewDeposit_ZeroAssets_ReturnsZero() public {
+    function testSFVault_PreviewDeposit_ZeroAssets_ReturnsZero() public view {
         assertEq(vault.previewDeposit(0), 0);
     }
 
@@ -405,7 +405,7 @@ contract SFVaultTest is Test {
         assertEq(vault.previewDeposit(amount), vault.convertToShares(amount));
     }
 
-    function testSFVault_PreviewMint_ZeroShares_ReturnsZero() public {
+    function testSFVault_PreviewMint_ZeroShares_ReturnsZero() public view {
         assertEq(vault.previewMint(0), 0);
     }
 
