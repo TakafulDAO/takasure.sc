@@ -61,6 +61,8 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__NotAddressZero();
     error SFUniswapV3Strategy__NotZeroAmount();
     error SFUniswapV3Strategy__MaxTVLReached();
+    error SFUniswapV3Strategy__InvalidPoolTokens();
+    error SFUniswapV3Strategy__UnexpectedPositionTokenId();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -358,10 +360,71 @@ contract SFUniswapV3Strategy is
         internal
         returns (uint256 usedUnderlying, uint256 usedOther)
     {
-        // TODO: implement INonfungiblePositionManager.mint with:
-        // - token0/token1 from pool
-        // - ticks tickLower/tickUpper
-        // - recipient = vault (so NFT belongs to vault)
+        // Nothing to do if both sides are zero
+        if (amountUnderlying == 0 && amountOther == 0) return (0, 0);
+
+        // Read pool tokens
+        (address token0, address token1) = (pool.token0(), pool.token1());
+
+        // Sanity check: ensure pool tokens match expected underlying and otherToken
+        require(
+            (token0 == address(underlying) && token1 == address(otherToken))
+                || (token0 == address(otherToken) && token1 == address(underlying)),
+            SFUniswapV3Strategy__InvalidPoolTokens()
+        );
+
+        // Build mint params
+        INonfungiblePositionManager.MintParams memory params;
+        params.token0 = token0;
+        params.token1 = token1;
+        params.fee = pool.fee();
+        params.tickLower = tickLower;
+        params.tickUpper = tickUpper;
+
+        // Map desired amounts to correct tokens
+        if (token0 == address(underlying)) {
+            params.amount0Desired = amountUnderlying;
+            params.amount1Desired = amountOther;
+        } else {
+            params.amount0Desired = amountOther;
+            params.amount1Desired = amountUnderlying;
+        }
+
+        // todo: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
+        params.amount0Min = 0;
+        params.amount1Min = 0;
+
+        // The LTH of the position will be the vault
+        params.recipient = vault;
+        params.deadline = block.timestamp;
+
+        // Approve positionManager to pull tokens
+        if (params.amount0Desired > 0) {
+            IERC20(params.token0).forceApprove(address(positionManager), params.amount0Desired);
+        }
+        if (params.amount1Desired > 0) {
+            IERC20(params.token1).forceApprove(address(positionManager), params.amount1Desired);
+        }
+
+        // Mint position
+        (uint256 tokenId,, uint256 amount0, uint256 amount1) = positionManager.mint(params);
+
+        // Store the position token id on first mint
+        if (positionTokenId == 0) {
+            positionTokenId = tokenId;
+        } else {
+            // Sanity check: ensure minted tokenId matches existing positionTokenId
+            require(tokenId == positionTokenId, SFUniswapV3Strategy__UnexpectedPositionTokenId());
+        }
+
+        // Map back used amounts
+        if (token0 == address(underlying)) {
+            usedUnderlying = amount0;
+            usedOther = amount1;
+        } else {
+            usedUnderlying = amount1;
+            usedOther = amount0;
+        }
     }
 
     function _increaseLiquidity(uint256 amountUnderlying, uint256 amountOther)
