@@ -267,7 +267,7 @@ contract SFStrategyAggregator is
 
         // Any unnalocated tokens must not stay in the aggregator long term.
         // Send back to the vault.
-        // todo: Check if better instead of sending to vault, route remaining to a "buffer" strategy or something like that? Revisit
+        // todo: To discuss: Check if better instead of sending to vault, route remaining to a "buffer" strategy or something like that? Revisit
         if (remaining > 0) underlying.safeTransfer(vault, remaining);
 
         return investedAssets;
