@@ -498,6 +498,7 @@ contract SFUniswapV3Strategy is
     }
 
     function _decreaseLiquidityAndCollect(uint256 liquidity, bytes memory data) internal {
+        // todo use data
         if (liquidity == 0 || positionTokenId == 0) return;
 
         (,,,,,,, uint128 currentLiquidity,,,,) = positionManager.positions(positionTokenId);
@@ -536,7 +537,18 @@ contract SFUniswapV3Strategy is
     }
 
     function _collectFees(bytes calldata data) internal {
-        // todo: collect fees from position using positionManager.collect
+        // todo: use data
+
+        if (positionTokenId == 0) return;
+
+        INonfungiblePositionManager.CollectParams memory collectParams;
+        collectParams.tokenId = positionTokenId;
+        collectParams.recipient = address(this);
+        collectParams.amount0Max = type(uint128).max;
+        collectParams.amount1Max = type(uint128).max;
+
+        // This collects all fees and any previously decreased liquidity not yet collected.
+        positionManager.collect(collectParams);
     }
 
     function _positionValue() internal view returns (uint256) {
