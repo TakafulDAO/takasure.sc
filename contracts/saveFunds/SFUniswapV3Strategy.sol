@@ -40,6 +40,8 @@ contract SFUniswapV3Strategy is
 {
     using SafeERC20 for IERC20;
 
+    uint16 internal constant MAX_BPS = 10_000;
+
     IAddressManager public addressManager;
     IUniswapV3Pool public pool;
     INonfungiblePositionManager public positionManager;
@@ -485,19 +487,31 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @notice Prepares the amounts of underlying and other token for providing liquidity.
-     * @dev By default, assumes a 50/50 allocation in USDC terms.
-     * @dev the actual swap is handled in _swapUnderlyingToOther.
+     * @dev Splits `_assets` (denominated in underlying units) into the part we keep as underlying
+     *      and the part we intend to swap into `otherToken`.
+     *      Encoding of `_data` (when non-empty): abi.encode(bytes[] inputs, uint256 deadline, uint16 otherRatioBps)
+     *      - `inputs` / `deadline` are passed straight to the Universal Router.
+     *      - `otherRatioBps` is a strategy-specific field (0-10000) describing what fraction of
+     *        value we want to hold as `otherToken`.
+     *      If `_data.length == 0` or the BPS is invalid, we default to 50/50.
      */
     function _prepareAmountsForLP(uint256 _assets, bytes calldata _data)
         internal
         pure
         returns (uint256 amountUnderlyingForLP_, uint256 amountOtherForLP_)
     {
-        // TODO: use data for explicit ratios
         // todo: refine a price-adjusted value
-        amountUnderlyingForLP_ = _assets / 2;
-        amountOtherForLP_ = _assets - amountUnderlyingForLP_;
+        // Default to 50/50 if no data
+        uint16 _otherRatioBPS = MAX_BPS / 2;
+
+        if (_data.length > 0) {
+            (,, uint16 _explicitBPS) = abi.decode(_data, (bytes[], uint256, uint16));
+            if (_explicitBPS <= MAX_BPS) _otherRatioBPS = _explicitBPS;
+        }
+
+        // Amount of underlying to convert to otherToken
+        amountOtherForLP_ = (_assets * _otherRatioBPS) / MAX_BPS;
+        amountUnderlyingForLP_ = _assets - amountOtherForLP_;
     }
 
     /**
