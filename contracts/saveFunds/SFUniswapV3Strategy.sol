@@ -175,7 +175,7 @@ contract SFUniswapV3Strategy is
 
         // swap all otherToken to underlying
         uint256 balOther = otherToken.balanceOf(address(this));
-        if (balOther > 0) _swapOtherToUnderlying(balOther, bytes(""));
+        if (balOther > 0) _V3Swap(balOther, bytes(""), false);
 
         // send everything out
         uint256 balanceUnderlying = underlying.balanceOf(address(this));
@@ -214,7 +214,7 @@ contract SFUniswapV3Strategy is
         (uint256 amountUnderlyingForLP, uint256 amountOtherForLP) = _prepareAmountsForLP(assets, data);
 
         // 2. ensure holds the right tokens balances
-        if (amountOtherForLP > 0) _swapUnderlyingToOther(amountOtherForLP, data);
+        if (amountOtherForLP > 0) _V3Swap(amountOtherForLP, data, true);
 
         // 3. provide liquidity via positionManager.mint/increaseLiquidity
         uint256 usedUnderlying;
@@ -258,7 +258,7 @@ contract SFUniswapV3Strategy is
         uint256 balOther = otherToken.balanceOf(address(this));
 
         // 3. swap all otherToken to underlying
-        if (balOther > 0) _swapOtherToUnderlying(balOther, data);
+        if (balOther > 0) _V3Swap(balOther, data, false);
 
         uint256 finalUnderlying = underlying.balanceOf(address(this));
 
@@ -501,77 +501,35 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @notice Swap underlying to other token. using universal router
-     * @param _amount The amount of underlying to swap.
-     * @param _data abi-encoded (bytes commands, bytes[] inputs, uint256 deadline)
-     *        that Universal Router will interpret as a v3 swap (or sequence of actions).
+     * @dev Performs a Uniswap V3 exact-in swap via Universal Router.
+     * @param _amount     Amount of tokens we intend to swap.
+     * @param _data       Encoded as `abi.encode(bytes[] inputs, uint256 deadline)`.
+     *                    Each `inputs[i]` is the Universal Router input for a V3 swap.
+     * @param _zeroForOne If true: swap `underlying -> otherToken`.
+     *                    If false: swap `otherToken -> underlying`.
+     *                    Not necessarily pool.token0 -> pool.token1.
      */
-    function _swapUnderlyingToOther(uint256 _amount, bytes calldata _data) internal {
-        // todo: keep revert or just return? revisit
-        require(_amount > 0, SFUniswapV3Strategy__NotZeroAmount());
-
-        // If no routing data was provided (e.g. tests / one-sided LP), skip the swap.
-        if (_data.length == 0) return;
-
-        // data is expected to be abi.encode(bytes[] inputs, uint256 deadline)
-        (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
-
-        // Build commands: one V3_SWAP_EXACT_IN command per input
-        bytes memory commands = new bytes(inputs.length);
-        for (uint256 i = 0; i < inputs.length; ++i) {
-            commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
-        }
-
-        // Approve router to pull `_amount` of underlying from this strategy
-        underlying.forceApprove(address(universalRouter), _amount);
-
-        // Execute the encoded v3 swaps (path, minOut, etc. are inside `inputs`)
-        universalRouter.execute(commands, inputs, deadline);
-    }
-
-    function _swapOtherToUnderlying(uint256 _amount, bytes memory _data) internal {
-        // todo: keep revert or just return? revisit
-        require(_amount > 0, SFUniswapV3Strategy__NotZeroAmount());
-
-        // For flows like emergencyExit where we might not want to swap,
-        // we can pass empty data and skip the router call.
-        if (_data.length == 0) return;
-
-        // data is expected to be abi.encode(bytes[] inputs, uint256 deadline)
-        (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
-        // Build commands: again, v3 exact-in swaps; direction is encoded in the path
-        bytes memory commands = new bytes(inputs.length);
-        for (uint256 i = 0; i < inputs.length; ++i) {
-            commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
-        }
-
-        // Approve router to pull `_amount` of otherToken from this strategy
-        otherToken.forceApprove(address(universalRouter), _amount);
-
-        // Execute the encoded v3 swaps (otherToken -> underlying path lives in `inputs`)
-        universalRouter.execute(commands, inputs, deadline);
-    }
-
     function _V3Swap(uint256 _amount, bytes memory _data, bool _zeroForOne) internal {
-        // todo: keep revert or just return? revisit
-        require(_amount > 0, SFUniswapV3Strategy__NotZeroAmount());
+        // Nothing to do
+        if (_amount == 0) return;
 
-        // For flows like emergencyExit where we might not want to swap,
-        // we can pass empty data and skip the router call.
+        // Allow passing empty data to mean "no-op" (useful in tests or emergencyExit).
         if (_data.length == 0) return;
 
-        // data is expected to be abi.encode(bytes[] inputs, uint256 deadline)
+        // Expect data as `abi.encode(bytes[] inputs, uint256 deadline)`
         (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
-        // Build commands: again, v3 exact-in swaps; direction is encoded in the path
+
+        // Build commands: one V3_SWAP_EXACT_IN per input
         bytes memory commands = new bytes(inputs.length);
         for (uint256 i = 0; i < inputs.length; ++i) {
             commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
         }
 
-        // Approve router to pull `_amount` of otherToken from this strategy
-        otherToken.forceApprove(address(universalRouter), _amount);
+        // Approve the correct token depending on direction.
+        if (_zeroForOne) underlying.forceApprove(address(universalRouter), _amount);
+        else otherToken.forceApprove(address(universalRouter), _amount);
 
-        // Execute the encoded v3 swaps (otherToken -> underlying path lives in `inputs`)
+        // Execute the encoded v3 swaps. Path + minOut are inside `inputs`.
         universalRouter.execute(commands, inputs, deadline);
     }
 
