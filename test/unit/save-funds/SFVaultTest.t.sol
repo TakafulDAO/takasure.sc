@@ -48,7 +48,7 @@ contract SFVaultTest is Test {
         modMgr = _modMgr;
         takadao = operatorAddr;
 
-        (vault) = vaultDeployer.run(addrMgr);
+        vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
         feeRecipient = makeAddr("feeRecipient");
