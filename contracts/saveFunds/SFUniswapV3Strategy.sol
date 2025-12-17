@@ -27,6 +27,7 @@ import {TickMathV3 as TickMath} from "contracts/helpers/libraries/uniswap/TickMa
 import {FullMathV3 as FullMath} from "contracts/helpers/libraries/uniswap/FullMathV3.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Commands} from "contracts/helpers/libraries/uniswap/Commands.sol";
+import {PositionReader} from "contracts/helpers/libraries/uniswap/PositionReader.sol";
 
 pragma solidity 0.8.28;
 
@@ -299,13 +300,13 @@ contract SFUniswapV3Strategy is
         }
 
         // 1. Read current liquidity and fully exit the existing position.
-        (,,,,,,, uint128 currentLiquidity,,,,) = positionManager.positions(positionTokenId);
+        uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
 
         // todo: `_data` is currently unused by `_decreaseLiquidityAndCollect`, so just pass an empty bytes blob.
         if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, bytes(""));
 
         // 2. Burn the old NFT once all liquidity has been removed.
-        (,,,,,,, uint128 remainingLiquidity,,,,) = positionManager.positions(positionTokenId);
+        uint128 remainingLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
         if (remainingLiquidity == 0) {
             positionManager.burn(positionTokenId);
             positionTokenId = 0;
@@ -582,7 +583,7 @@ contract SFUniswapV3Strategy is
         // todo use data
         if (_liquidity == 0 || positionTokenId == 0) return;
 
-        (,,,,,,, uint128 currentLiquidity,,,,) = positionManager.positions(positionTokenId);
+        uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
 
         if (currentLiquidity == 0) return;
 
@@ -635,8 +636,11 @@ contract SFUniswapV3Strategy is
     function _positionValue() internal view returns (uint256) {
         if (positionTokenId == 0) return 0;
 
-        (,, address _token0, address _token1,, int24 _tickLower, int24 _tickUpper, uint128 _liquidity,,,,) =
-            positionManager.positions(positionTokenId);
+        address _token0 = PositionReader.token0(positionManager, positionTokenId);
+        address _token1 = PositionReader.token1(positionManager, positionTokenId);
+        int24 _tickLower = PositionReader.tickLower(positionManager, positionTokenId);
+        int24 _tickUpper = PositionReader.tickUpper(positionManager, positionTokenId);
+        uint128 _liquidity = PositionReader.liquidity(positionManager, positionTokenId);
 
         if (_liquidity == 0) return 0;
 
