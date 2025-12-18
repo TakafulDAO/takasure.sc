@@ -301,7 +301,6 @@ contract SFStrategyAggregator is
 
         // If there is no substrategies yet, return the funds to to the vault
         if (len == 0) {
-            // TODO: maybe better to revert? revisit
             underlying.safeTransfer(vault, assets);
             return 0;
         }
