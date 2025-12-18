@@ -55,26 +55,15 @@ contract SFUniswapV3Strategy is
 
     uint256 public maxTVL;
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
+    // TODO: Where to initialize these?
     int24 public tickLower;
     int24 public tickUpper;
-    bool public rangeInitialized;
-
-    struct DepositParams {
-        bytes[] swapToOtherInputs; // underlying -> other
-        bytes[] swapBackInputs; // other -> underlying (for leftovers)
-        uint256 swapDeadline; // router deadline (0 => block.timestamp)
-        uint16 otherRatioBps; // portion of assets swapped to other
-        uint128 minUnderlyingUsed; // mint/increase slippage mins
-        uint128 minOtherUsed;
-        uint256 lpDeadline; // mint/increase deadline (0 => block.timestamp)
-    }
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
     event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
-    event OnRangeUpdated(int24 oldLower, int24 oldUpper, int24 newLower, int24 newUpper);
 
     error SFUniswapV3Strategy__NotAuthorizedCaller();
     error SFUniswapV3Strategy__NotAddressZero();
@@ -83,13 +72,6 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__InvalidPoolTokens();
     error SFUniswapV3Strategy__UnexpectedPositionTokenId();
     error SFUniswapV3Strategy__InvalidRebalanceParams();
-    error SFUniswapV3Strategy__RangeNotInitialized();
-    error SFUniswapV3Strategy__InvalidTick();
-    error SFUniswapV3Strategy__InvalidDepositData();
-    error SFUniswapV3Strategy__InvalidOtherRatioBps();
-    error SFUniswapV3Strategy__MissingSwapBackData();
-    error SFUniswapV3Strategy__SwapBackIncomplete();
-    error SFUniswapV3Strategy__FlushIdleToVaultIncomplete();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -136,9 +118,7 @@ contract SFUniswapV3Strategy is
         address _pool,
         address _positionManager,
         uint256 _maxTVL,
-        address _router,
-        int24 _initialTickLower,
-        int24 _initialTickUpper
+        address _router
     ) external initializer {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
@@ -152,8 +132,6 @@ contract SFUniswapV3Strategy is
         positionManager = INonfungiblePositionManager(_positionManager);
         maxTVL = _maxTVL;
         universalRouter = IUniversalRouter(_router);
-
-        _setRange(_initialTickLower, _initialTickUpper);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -187,25 +165,14 @@ contract SFUniswapV3Strategy is
         _unpause();
     }
 
-    /**
-     * @notice Emergency exit function to withdraw all assets and pause the strategy
-     * @param receiver The address to receive the withdrawn underlying assets.
-     * @dev This needs the vault to approve this strategy to be able to burn.
-     */
     function emergencyExit(address receiver) external notAddressZero(receiver) onlyRole(Roles.OPERATOR) {
         // withdraw all
-        if (positionTokenId != 0) {
-            _decreaseLiquidityAndCollect(type(uint128).max, bytes(""));
-
-            uint128 remainingLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
-            if (remainingLiquidity == 0) {
-                positionManager.burn(positionTokenId);
-                positionTokenId = 0;
-            }
-        }
+        // TODO: maybe burn the nft? The problem is that the owner is the vault
+        if (positionTokenId != 0) _decreaseLiquidityAndCollect(type(uint128).max, bytes(""));
 
         // swap all otherToken to underlying
         uint256 balOther = otherToken.balanceOf(address(this));
+        if (balOther > 0) _V3Swap(balOther, bytes(""), false);
 
         // send everything out
         uint256 balanceUnderlying = underlying.balanceOf(address(this));
@@ -221,8 +188,7 @@ contract SFUniswapV3Strategy is
     /**
      * @notice Deposits assets into Uniswap V3 LP position.
      * @dev Expects `msg.sender` (aggregator) to have approved this contract.
-     * @param assets The amount of underlying assets to deposit.
-     * @param data is abi.encode deposit params
+     * TODO: maybe use permit2
      */
     function deposit(uint256 assets, bytes calldata data)
         external
@@ -232,42 +198,36 @@ contract SFUniswapV3Strategy is
         returns (uint256 investedAssets)
     {
         require(assets > 0, SFUniswapV3Strategy__NotZeroAmount());
+
+        // Enforce TVL cap
         require(maxTVL == 0 || totalAssets() + assets <= maxTVL, SFUniswapV3Strategy__MaxTVLReached());
 
+        // Pull underlying from vault/aggregator
         underlying.safeTransferFrom(msg.sender, address(this), assets);
 
-        DepositParams memory p = _decodeDepositParams(data);
+        // TODO: interpret data for slippage, ratios, amounts, etc. for now 50/50 assumption in dollars
 
-        uint256 toSwap = (assets * uint256(p.otherRatioBps)) / MAX_BPS;
-        uint256 balUnderlyingBefore = underlying.balanceOf(address(this));
-        if (toSwap > balUnderlyingBefore) toSwap = balUnderlyingBefore;
+        // 1. decide how much to swap to otherToken
+        (uint256 amountUnderlyingForLP, uint256 amountOtherForLP) = _prepareAmountsForLP(assets, data);
 
-        if (toSwap > 0 && p.swapToOtherInputs.length > 0) {
-            _V3Swap(toSwap, p.swapToOtherInputs, p.swapDeadline, true); // underlying -> other
-        }
+        // 2. ensure holds the right tokens balances
+        if (amountOtherForLP > 0) _V3Swap(amountOtherForLP, data, true);
 
-        uint256 balUnderlying = underlying.balanceOf(address(this));
-        uint256 balOther = otherToken.balanceOf(address(this));
+        // 3. provide liquidity via positionManager.mint/increaseLiquidity
+        uint256 usedUnderlying;
+        uint256 usedOther;
 
-        uint256 lpDeadline = p.lpDeadline == 0 ? block.timestamp : p.lpDeadline;
+        if (positionTokenId == 0) (usedUnderlying, usedOther) = _mintPosition(amountUnderlyingForLP, amountOtherForLP);
+        else (usedUnderlying, usedOther) = _increaseLiquidity(amountUnderlyingForLP, amountOtherForLP);
 
-        if (positionTokenId == 0) {
-            _mintPosition(balUnderlying, balOther, p.minUnderlyingUsed, p.minOtherUsed, lpDeadline);
-        } else {
-            _increaseLiquidity(balUnderlying, balOther, p.minUnderlyingUsed, p.minOtherUsed, lpDeadline);
-        }
+        investedAssets = usedUnderlying;
 
-        uint256 refunded = _flushIdleToVault(p.swapBackInputs, p.swapDeadline);
-
-        investedAssets = assets > refunded ? (assets - refunded) : 0;
+        // TODO: 4. what to do with remainings
     }
 
     /**
      * @notice Withdraw assets from Uniswap V3 LP position.
      * @dev Tries to realize `assets` worth of underlying, may return less in edge cases.
-     * @param assets The amount of underlying assets to withdraw.
-     * @param receiver The address to receive the withdrawn underlying assets.
-     * @param data is abi.encode(bytes[] inputs, uint256 deadline)
      */
     function withdraw(uint256 assets, address receiver, bytes calldata data)
         external
@@ -295,10 +255,7 @@ contract SFUniswapV3Strategy is
         uint256 balOther = otherToken.balanceOf(address(this));
 
         // 3. swap all otherToken to underlying
-        if (balOther > 0 && data.length > 0) {
-            (bytes[] memory inputs, uint256 deadline) = abi.decode(data, (bytes[], uint256));
-            _V3Swap(balOther, inputs, deadline, false);
-        }
+        if (balOther > 0) _V3Swap(balOther, data, false);
 
         uint256 finalUnderlying = underlying.balanceOf(address(this));
 
@@ -324,57 +281,49 @@ contract SFUniswapV3Strategy is
     }
 
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
-        int24 newTickLower;
-        int24 newTickUpper;
-        uint128 minUnderlyingUsed;
-        uint128 minOtherUsed;
-        uint256 lpDeadline;
-
-        if (data.length == 64) {
-            (newTickLower, newTickUpper) = abi.decode(data, (int24, int24));
-            lpDeadline = block.timestamp;
-        } else {
-            (newTickLower, newTickUpper, minUnderlyingUsed, minOtherUsed, lpDeadline) =
-                abi.decode(data, (int24, int24, uint128, uint128, uint256));
-
-            if (lpDeadline == 0) lpDeadline = block.timestamp;
-        }
+        // `data` is expected to be: abi.encode(int24 newTickLower, int24 newTickUpper)
+        (int24 newTickLower, int24 newTickUpper) = abi.decode(data, (int24, int24));
 
         require(newTickLower < newTickUpper, SFUniswapV3Strategy__InvalidRebalanceParams());
 
         int24 spacing = pool.tickSpacing();
+        // Ensure the new ticks are aligned to pool.tickSpacing()
         if (newTickLower % spacing != 0 || newTickUpper % spacing != 0) {
             revert SFUniswapV3Strategy__InvalidRebalanceParams();
         }
 
         // If there is no active position yet, just update the range and exit.
         if (positionTokenId == 0) {
-            _setRange(newTickLower, newTickUpper);
+            tickLower = newTickLower;
+            tickUpper = newTickUpper;
             return;
         }
 
-        // 1) Exit + collect (collect is important even if liquidity == 0)
+        // 1. Read current liquidity and fully exit the existing position.
         uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
 
-        _decreaseLiquidityAndCollect(currentLiquidity, bytes(""));
+        // TODO: `_data` is currently unused by `_decreaseLiquidityAndCollect`, so just pass an empty bytes blob.
+        if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, bytes(""));
 
-        // 2) Burn old NFT if empty (requires vault approval for the strategy on positionManager)
+        // 2. Burn the old NFT once all liquidity has been removed.
         uint128 remainingLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
         if (remainingLiquidity == 0) {
             positionManager.burn(positionTokenId);
             positionTokenId = 0;
         }
 
-        // 3) Update range
-        _setRange(newTickLower, newTickUpper);
+        // 3. Update the stored tick range.
+        tickLower = newTickLower;
+        tickUpper = newTickUpper;
 
-        // 4) Mint new position with whatever balances we now hold
+        // 4. Mint a new position using whatever balances we now hold.
         uint256 balUnderlying = underlying.balanceOf(address(this));
         uint256 balOther = otherToken.balanceOf(address(this));
 
+        // We exited but have no capital to deploy – nothing else to do.
         if (balUnderlying == 0 && balOther == 0) return;
 
-        _mintPosition(balUnderlying, balOther, minUnderlyingUsed, minOtherUsed, lpDeadline);
+        _mintPosition(balUnderlying, balOther);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -437,31 +386,9 @@ contract SFUniswapV3Strategy is
         return abi.encode(positionTokenId, tickLower, tickUpper);
     }
 
-    function getRange() external view returns (int24 lower, int24 upper, bool initialized) {
-        return (tickLower, tickUpper, rangeInitialized);
-    }
-
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    function _decodeDepositParams(bytes calldata data) internal pure returns (DepositParams memory p) {
-        p.otherRatioBps = uint16(MAX_BPS / 2);
-
-        if (data.length == 0) return p;
-
-        (
-            p.swapToOtherInputs,
-            p.swapBackInputs,
-            p.swapDeadline,
-            p.otherRatioBps,
-            p.minUnderlyingUsed,
-            p.minOtherUsed,
-            p.lpDeadline
-        ) = abi.decode(data, (bytes[], bytes[], uint256, uint16, uint128, uint128, uint256));
-
-        if (p.otherRatioBps > MAX_BPS) revert SFUniswapV3Strategy__InvalidOtherRatioBps();
-    }
 
     function _liquidityForValue(uint256 _value) internal pure returns (uint256) {
         // TODO: approximate how much liquidity corresponds to `value` USDC,
@@ -469,38 +396,42 @@ contract SFUniswapV3Strategy is
         return 0;
     }
 
-    function _mintPosition(
-        uint256 amountUnderlying,
-        uint256 amountOther,
-        uint128 minUnderlyingUsed,
-        uint128 minOtherUsed,
-        uint256 deadline
-    ) internal returns (uint256 usedUnderlying, uint256 usedOther) {
-        if (amountUnderlying == 0 && amountOther == 0) return (0, 0);
+    function _mintPosition(uint256 _amountUnderlying, uint256 _amountOther)
+        internal
+        returns (uint256 usedUnderlying, uint256 usedOther)
+    {
+        // Nothing to do if both sides are zero
+        if (_amountUnderlying == 0 && _amountOther == 0) return (0, 0);
 
+        // Read pool tokens
         (address token0, address token1) = _getPoolTokens();
 
+        // Build mint params
         INonfungiblePositionManager.MintParams memory params;
         params.token0 = token0;
         params.token1 = token1;
         params.fee = pool.fee();
         params.tickLower = tickLower;
         params.tickUpper = tickUpper;
-        params.recipient = vault;
-        params.deadline = deadline;
 
+        // Map desired amounts to correct tokens
         if (token0 == address(underlying)) {
-            params.amount0Desired = amountUnderlying;
-            params.amount1Desired = amountOther;
-            params.amount0Min = uint256(minUnderlyingUsed);
-            params.amount1Min = uint256(minOtherUsed);
+            params.amount0Desired = _amountUnderlying;
+            params.amount1Desired = _amountOther;
         } else {
-            params.amount0Desired = amountOther;
-            params.amount1Desired = amountUnderlying;
-            params.amount0Min = uint256(minOtherUsed);
-            params.amount1Min = uint256(minUnderlyingUsed);
+            params.amount0Desired = _amountOther;
+            params.amount1Desired = _amountUnderlying;
         }
 
+        // TODO: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
+        params.amount0Min = 0;
+        params.amount1Min = 0;
+
+        // The LTH of the position will be the vault
+        params.recipient = vault;
+        params.deadline = block.timestamp;
+
+        // Approve positionManager to pull tokens
         if (params.amount0Desired > 0) {
             IERC20(params.token0).forceApprove(address(positionManager), params.amount0Desired);
         }
@@ -508,12 +439,18 @@ contract SFUniswapV3Strategy is
             IERC20(params.token1).forceApprove(address(positionManager), params.amount1Desired);
         }
 
+        // Mint position
         (uint256 tokenId,, uint256 amount0, uint256 amount1) = positionManager.mint(params);
 
-        // First mint stores tokenId
-        if (positionTokenId == 0) positionTokenId = tokenId;
-        else require(tokenId == positionTokenId, SFUniswapV3Strategy__UnexpectedPositionTokenId());
+        // Store the position token id on first mint
+        if (positionTokenId == 0) {
+            positionTokenId = tokenId;
+        } else {
+            // Sanity check: ensure minted tokenId matches existing positionTokenId
+            require(tokenId == positionTokenId, SFUniswapV3Strategy__UnexpectedPositionTokenId());
+        }
 
+        // Map back used amounts
         if (token0 == address(underlying)) {
             usedUnderlying = amount0;
             usedOther = amount1;
@@ -523,46 +460,50 @@ contract SFUniswapV3Strategy is
         }
     }
 
-    function _increaseLiquidity(
-        uint256 amountUnderlying,
-        uint256 amountOther,
-        uint128 minUnderlyingUsed,
-        uint128 minOtherUsed,
-        uint256 deadline
-    ) internal returns (uint256 usedUnderlying, uint256 usedOther) {
+    function _increaseLiquidity(uint256 _amountUnderlying, uint256 _amountOther)
+        internal
+        returns (uint256 usedUnderlying_, uint256 usedOther_)
+    {
+        // If there is no existing position, nothing to do
         if (positionTokenId == 0) return (0, 0);
-        if (amountUnderlying == 0 && amountOther == 0) return (0, 0);
-
+        if (_amountUnderlying == 0 && _amountOther == 0) return (0, 0);
+        // Read pool tokens
         (address token0, address token1) = _getPoolTokens();
 
         INonfungiblePositionManager.IncreaseLiquidityParams memory params;
         params.tokenId = positionTokenId;
-        params.deadline = deadline;
 
+        // Map desired amounts to correct tokens
         if (token0 == address(underlying)) {
-            params.amount0Desired = amountUnderlying;
-            params.amount1Desired = amountOther;
-            params.amount0Min = uint256(minUnderlyingUsed);
-            params.amount1Min = uint256(minOtherUsed);
+            params.amount0Desired = _amountUnderlying;
+            params.amount1Desired = _amountOther;
         } else {
-            params.amount0Desired = amountOther;
-            params.amount1Desired = amountUnderlying;
-            params.amount0Min = uint256(minOtherUsed);
-            params.amount1Min = uint256(minUnderlyingUsed);
+            params.amount0Desired = _amountOther;
+            params.amount1Desired = _amountUnderlying;
         }
 
-        // approve BOTH sides if needed
-        if (params.amount0Desired > 0) IERC20(token0).forceApprove(address(positionManager), params.amount0Desired);
-        if (params.amount1Desired > 0) IERC20(token1).forceApprove(address(positionManager), params.amount1Desired);
+        // TODO: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
+        params.amount0Min = 0;
+        params.amount1Min = 0;
+        params.deadline = block.timestamp;
 
+        // Approve positionManager to pull tokens
+        if (params.amount0Desired > 0) {
+            IERC20(token0).forceApprove(address(positionManager), params.amount0Desired);
+        } else {
+            IERC20(token1).forceApprove(address(positionManager), params.amount1Desired);
+        }
+
+        // Add liquidity
         (, uint256 amount0, uint256 amount1) = positionManager.increaseLiquidity(params);
 
+        // Map back used amounts
         if (token0 == address(underlying)) {
-            usedUnderlying = amount0;
-            usedOther = amount1;
+            usedUnderlying_ = amount0;
+            usedOther_ = amount1;
         } else {
-            usedUnderlying = amount1;
-            usedOther = amount0;
+            usedUnderlying_ = amount1;
+            usedOther_ = amount0;
         }
     }
 
@@ -607,35 +548,35 @@ contract SFUniswapV3Strategy is
 
     /**
      * @dev Performs a Uniswap V3 exact-in swap via Universal Router.
+     * @param _amount     Amount of tokens we intend to swap.
+     * @param _data       Encoded as `abi.encode(bytes[] inputs, uint256 deadline)`.
+     *                    Each `inputs[i]` is the Universal Router input for a V3 swap.
      * @param _zeroForOne If true: swap `underlying -> otherToken`.
      *                    If false: swap `otherToken -> underlying`.
      *                    Not necessarily pool.token0 -> pool.token1.
      */
-    function _V3Swap(uint256 _amountIn, bytes[] memory _inputs, uint256 _deadline, bool _zeroForOne) internal {
-        if (_amountIn == 0) return;
-        if (_inputs.length == 0) return;
+    function _V3Swap(uint256 _amount, bytes memory _data, bool _zeroForOne) internal {
+        // Nothing to do
+        if (_amount == 0) return;
 
-        if (_deadline == 0) _deadline = block.timestamp;
+        // Allow passing empty data to mean "no-op" (useful in tests or emergencyExit).
+        if (_data.length == 0) return;
 
-        bytes memory commands = new bytes(_inputs.length);
-        for (uint256 i = 0; i < _inputs.length; ++i) {
+        // Expect data as `abi.encode(bytes[] inputs, uint256 deadline)`
+        (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
+
+        // Build commands: one V3_SWAP_EXACT_IN per input
+        bytes memory commands = new bytes(inputs.length);
+        for (uint256 i = 0; i < inputs.length; ++i) {
             commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
         }
 
-        if (_zeroForOne) {
-            underlying.forceApprove(address(universalRouter), _amountIn);
-        } else {
-            otherToken.forceApprove(address(universalRouter), _amountIn);
-        }
+        // Approve the correct token depending on direction.
+        if (_zeroForOne) underlying.forceApprove(address(universalRouter), _amount);
+        else otherToken.forceApprove(address(universalRouter), _amount);
 
-        universalRouter.execute(commands, _inputs, _deadline);
-
-        // Optional (safer): clear approval
-        if (_zeroForOne) {
-            underlying.forceApprove(address(universalRouter), 0);
-        } else {
-            otherToken.forceApprove(address(universalRouter), 0);
-        }
+        // Execute the encoded v3 swaps. Path + minOut are inside `inputs`.
+        universalRouter.execute(commands, inputs, deadline);
     }
 
     function _decreaseLiquidityAndCollect(uint256 _liquidity, bytes memory _data) internal {
@@ -644,26 +585,28 @@ contract SFUniswapV3Strategy is
 
         uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
 
-        if (_liquidity != 0 && currentLiquidity != 0) {
-            uint128 liquidityToBurn;
-            if (_liquidity >= currentLiquidity) {
-                // Burn all liquidity
-                liquidityToBurn = currentLiquidity;
-            } else {
-                // Burn partial liquidity, assumed the inputs is in raw units
-                liquidityToBurn = uint128(_liquidity);
-            }
+        if (currentLiquidity == 0) return;
 
-            INonfungiblePositionManager.DecreaseLiquidityParams memory params;
-            params.tokenId = positionTokenId;
-            params.liquidity = liquidityToBurn;
-            // TODO: slippage protection?
-            params.amount0Min = 0;
-            params.amount1Min = 0;
-            params.deadline = block.timestamp;
-
-            positionManager.decreaseLiquidity(params);
+        uint128 liquidityToBurn;
+        if (_liquidity >= currentLiquidity) {
+            // Burn all liquidity
+            liquidityToBurn = currentLiquidity;
+        } else {
+            // Burn partial liquidity, assumed the inputs is in raw units
+            liquidityToBurn = uint128(_liquidity);
         }
+
+        if (liquidityToBurn == 0) return;
+
+        INonfungiblePositionManager.DecreaseLiquidityParams memory params;
+        params.tokenId = positionTokenId;
+        params.liquidity = liquidityToBurn;
+        // TODO: slippage protection?
+        params.amount0Min = 0;
+        params.amount1Min = 0;
+        params.deadline = block.timestamp;
+
+        positionManager.decreaseLiquidity(params);
 
         // Collect all owed tokens (principal + fees)
         INonfungiblePositionManager.CollectParams memory collectParams;
@@ -747,46 +690,6 @@ contract SFUniswapV3Strategy is
             // TODO: is this reachable? revisit
             revert SFUniswapV3Strategy__InvalidPoolTokens();
         }
-    }
-
-    function _setRange(int24 _newLower, int24 _newUpper) internal {
-        require(_newLower < _newUpper, SFUniswapV3Strategy__InvalidRebalanceParams());
-
-        int24 spacing = pool.tickSpacing();
-        if (_newLower % spacing != 0 || _newUpper % spacing != 0) {
-            revert SFUniswapV3Strategy__InvalidRebalanceParams();
-        }
-
-        require(_newLower >= TickMath.MIN_TICK && _newUpper <= TickMath.MAX_TICK, SFUniswapV3Strategy__InvalidTick());
-
-        emit OnRangeUpdated(tickLower, tickUpper, _newLower, _newUpper);
-        tickLower = _newLower;
-        tickUpper = _newUpper;
-        rangeInitialized = true;
-    }
-
-    function _flushIdleToVault(bytes[] memory swapBackInputs, uint256 swapDeadline)
-        internal
-        returns (uint256 refundedUnderlying)
-    {
-        uint256 balOther = otherToken.balanceOf(address(this));
-
-        if (balOther > 0) {
-            if (swapBackInputs.length == 0) revert SFUniswapV3Strategy__MissingSwapBackData();
-
-            // Swap ALL leftover other -> underlying
-            _V3Swap(balOther, swapBackInputs, swapDeadline, false);
-
-            // Enforce that we didn’t leave any otherToken dust behind due to bad inputs
-            if (otherToken.balanceOf(address(this)) != 0) revert SFUniswapV3Strategy__SwapBackIncomplete();
-        }
-
-        refundedUnderlying = underlying.balanceOf(address(this));
-        if (refundedUnderlying > 0) {
-            underlying.safeTransfer(vault, refundedUnderlying);
-        }
-
-        require(underlying.balanceOf(address(this)) == 0, SFUniswapV3Strategy__FlushIdleToVaultIncomplete());
     }
 
     /// @dev required by the OZ UUPS module.
