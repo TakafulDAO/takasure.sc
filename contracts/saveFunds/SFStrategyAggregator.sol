@@ -46,6 +46,7 @@ contract SFStrategyAggregator is
     uint256 public maxTVL;
     uint16 public totalTargetWeightBPS; // sum of all target weights in BPS
 
+    // TODO: consider using EnumerableMap for easier management
     mapping(address strat => uint256) private subStrategyIndex; // strategy => index + 1
 
     /*//////////////////////////////////////////////////////////////
@@ -69,6 +70,10 @@ contract SFStrategyAggregator is
     error SFStrategyAggregator__SubStrategyNotFound();
     error SFStrategyAggregator__NotZeroAmount();
     error SFStrategyAggregator__NotAddressZero();
+    error SFStrategyAggregator__InvalidConfig();
+    error SFStrategyAggregator__DuplicateStrategy();
+    error SFStrategyAggregator__StrategyNotAContract();
+    error SFStrategyAggregator__InvalidStrategyAsset();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -135,13 +140,78 @@ contract SFStrategyAggregator is
         emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
     }
 
-    function setConfig(
-        bytes calldata /*newConfig*/
-    )
-        external
-        onlyRole(Roles.OPERATOR)
-    {
-        // TODO: check if needed. Decode array of strategy, weights, and active status.
+    /**
+     * @notice Sets the configuration of multiple sub-strategies at once.
+     * @param newConfig Encoded configuration data containing arrays of strategies, weights, and active statuses. abi.encode(addresses, weightsBps, actives)
+     */
+    function setConfig(bytes calldata newConfig) external onlyRole(Roles.OPERATOR) {
+        (address[] memory strategies, uint16[] memory weights, bool[] memory actives) =
+            abi.decode(newConfig, (address[], uint16[], bool[]));
+
+        uint256 len = strategies.length;
+        require(len != 0 && len == weights.length && len == actives.length, SFStrategyAggregator__InvalidConfig());
+
+        // Validate entries + no duplicates O(n^2) - acceptable as only will be two strategies
+        for (uint256 i; i < len; ++i) {
+            address strat = strategies[i];
+            require(strat != address(0), SFStrategyAggregator__NotAddressZero());
+            require(weights[i] <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+            _assertChildStrategyCompatible(strat);
+
+            for (uint256 j = i + 1; j < len; ++j) {
+                require(strat != strategies[j], SFStrategyAggregator__DuplicateStrategy());
+            }
+        }
+
+        // Compute the final totalTargetWeightBPS only once to avoid intermediate-sum reverts
+        int256 projectedTotal = int256(uint256(totalTargetWeightBPS));
+
+        for (uint256 i; i < len; ++i) {
+            address s = strategies[i];
+            uint16 w = weights[i];
+            bool a = actives[i];
+
+            uint256 idxPlus = subStrategyIndex[s];
+            uint256 oldEff;
+
+            if (idxPlus != 0) {
+                SubStrategy storage existing = subStrategies[idxPlus - 1];
+                oldEff = existing.isActive ? existing.targetWeightBPS : 0;
+            }
+
+            uint128 newEff = a ? w : 0;
+            projectedTotal += int256(uint256(newEff)) - int256(uint256(oldEff));
+        }
+
+        require(
+            projectedTotal >= 0 && projectedTotal <= int256(uint256(MAX_BPS)),
+            SFStrategyAggregator__InvalidTargetWeightBPS()
+        );
+
+        // Apply changes
+        for (uint256 i; i < len; ++i) {
+            address s = strategies[i];
+            uint16 w = weights[i];
+            bool a = actives[i];
+
+            uint256 idxPlus = subStrategyIndex[s];
+
+            if (idxPlus == 0) {
+                // New strategy
+                subStrategies.push(SubStrategy({strategy: ISFStrategy(s), targetWeightBPS: w, isActive: a}));
+                subStrategyIndex[s] = subStrategies.length; // index + 1
+                emit OnSubStrategyAdded(s, w, a);
+            } else {
+                // Existing strategy
+                SubStrategy storage existing = subStrategies[idxPlus - 1];
+                existing.targetWeightBPS = w;
+                existing.isActive = a;
+                emit OnSubStrategyUpdated(s, w, a);
+            }
+        }
+
+        totalTargetWeightBPS = uint16(uint256(projectedTotal));
+        assert(totalTargetWeightBPS <= MAX_BPS);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -158,6 +228,8 @@ contract SFStrategyAggregator is
         notAddressZero(strategy)
         onlyRole(Roles.OPERATOR)
     {
+        _assertChildStrategyCompatible(strategy);
+
         require(subStrategyIndex[strategy] == 0, SFStrategyAggregator__SubStrategyAlreadyExists());
         require(totalTargetWeightBPS + targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
 
@@ -492,6 +564,7 @@ contract SFStrategyAggregator is
         return sum;
     }
 
+    // TODO: maybe a new function that returns structured data instead of encoded?
     function getPositionDetails() external view returns (bytes memory) {
         uint256 len = subStrategies.length;
 
@@ -516,6 +589,16 @@ contract SFStrategyAggregator is
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _assertChildStrategyCompatible(address _strategy) internal view {
+        require(_strategy.code.length != 0, SFStrategyAggregator__StrategyNotAContract());
+
+        (bool ok, bytes memory returnData) = _strategy.staticcall(abi.encodeWithSignature("asset()"));
+        require(ok && returnData.length >= 32, SFStrategyAggregator__InvalidStrategyAsset());
+
+        address stratAsset = abi.decode(returnData, (address));
+        require(stratAsset == address(underlying), SFStrategyAggregator__InvalidStrategyAsset());
+    }
 
     /// @dev required by the OZ UUPS module.
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR) {}
