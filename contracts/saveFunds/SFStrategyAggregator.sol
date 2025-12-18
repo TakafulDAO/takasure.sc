@@ -74,6 +74,9 @@ contract SFStrategyAggregator is
     error SFStrategyAggregator__DuplicateStrategy();
     error SFStrategyAggregator__StrategyNotAContract();
     error SFStrategyAggregator__InvalidStrategyAsset();
+    error SFStrategyAggregator__InvalidPerStrategyData();
+    error SFStrategyAggregator__UnknownPerStrategyDataStrategy();
+    error SFStrategyAggregator__DuplicatePerStrategyDataStrategy();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -305,7 +308,9 @@ contract SFStrategyAggregator is
             return 0;
         }
 
-        // TODO: interpret data
+        // interpret data: abi.encode(address[] strategies, bytes[] perChildData)
+        (address[] memory dataStrategies, bytes[] memory perChildData) = _decodePerStrategyData(data);
+
         uint256 remaining = assets;
 
         for (uint256 i; i < len; ++i) {
@@ -320,8 +325,11 @@ contract SFStrategyAggregator is
                 // Forward funds to child strategy
                 // TODO: check if safeIncreaseAllowance is better. Revisit.
                 underlying.forceApprove(address(strat.strategy), toAllocate);
+
+                bytes memory childData = _payloadFor(address(strat.strategy), dataStrategies, perChildData);
+
                 // TODO: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
-                uint256 childInvested = strat.strategy.deposit(toAllocate, bytes(""));
+                uint256 childInvested = strat.strategy.deposit(toAllocate, childData);
 
                 investedAssets += childInvested;
                 remaining -= toAllocate;
@@ -597,6 +605,43 @@ contract SFStrategyAggregator is
 
         address stratAsset = abi.decode(returnData, (address));
         require(stratAsset == address(underlying), SFStrategyAggregator__InvalidStrategyAsset());
+    }
+
+    function _decodePerStrategyData(bytes calldata _data)
+        internal
+        view
+        returns (address[] memory strategies_, bytes[] memory payloads_)
+    {
+        if (_data.length == 0) {
+            strategies_ = new address[](0);
+            payloads_ = new bytes[](0);
+        }
+
+        (strategies_, payloads_) = abi.decode(_data, (address[], bytes[]));
+        require(strategies_.length == payloads_.length, SFStrategyAggregator__InvalidPerStrategyData());
+
+        // validate no duplicates + all strategies exist in current sub-strategies
+        uint256 len = strategies_.length;
+        for (uint256 i; i < len; ++i) {
+            address strat = strategies_[i];
+            require(strat != address(0), SFStrategyAggregator__NotAddressZero());
+            require(subStrategyIndex[strat] != 0, SFStrategyAggregator__UnknownPerStrategyDataStrategy());
+
+            for (uint256 j = i + 1; j < len; ++j) {
+                require(strat != strategies_[j], SFStrategyAggregator__DuplicatePerStrategyDataStrategy());
+            }
+        }
+    }
+
+    function _payloadFor(address _strategy, address[] memory _strategies, bytes[] memory _payloads)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        for (uint256 i; i < _strategies.length; ++i) {
+            if (_strategies[i] == _strategy) return _payloads[i];
+        }
+        return bytes("");
     }
 
     /// @dev required by the OZ UUPS module.
