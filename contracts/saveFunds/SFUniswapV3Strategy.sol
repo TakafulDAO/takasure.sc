@@ -74,6 +74,7 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__UnexpectedPositionTokenId();
     error SFUniswapV3Strategy__InvalidRebalanceParams();
     error SFUniswapV3Strategy__RangeNotInitialized();
+    error SFUniswapV3Strategy__InvalidTick();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
