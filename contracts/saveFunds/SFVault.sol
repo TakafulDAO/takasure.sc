@@ -8,6 +8,8 @@
  */
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
@@ -34,7 +36,8 @@ contract SFVault is
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable,
     PausableUpgradeable,
-    ERC4626Upgradeable
+    ERC4626Upgradeable,
+    IERC721Receiver
 {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -77,6 +80,9 @@ contract SFVault is
     event OnStrategyUpdated(address indexed newStrategy);
     event OnFeeConfigUpdated(uint16 managementFeeBPS, uint16 performanceFeeBPS, uint16 performanceFeeHurdleBPS);
     event OnFeesTaken(uint256 feeAssets, FeeType feeType);
+    // Own events to track easier by positions
+    event OnERC721ApprovalForAll(address indexed token, address indexed operator, bool approved);
+    event OnERC721Approved(address indexed token, address indexed operator, uint256 indexed tokenId);
 
     error SFVault__NonTransferableShares();
     error SFVault__InvalidFeeBPS();
@@ -235,6 +241,20 @@ contract SFVault is
         performanceFeeHurdleBPS = _performanceFeeHurdleBPS;
         emit OnFeeConfigUpdated(_managementFeeBPS, _performanceFeeBPS, _performanceFeeHurdleBPS);
     }
+
+    function setERC721ApprovalForAll(address token, address operator, bool approved) external onlyRole(Roles.OPERATOR) {
+        IERC721(token).setApprovalForAll(operator, approved);
+        emit OnERC721ApprovalForAll(token, operator, approved);
+    }
+
+    function approveERC721Token(address token, address operator, uint256 tokenId) external onlyRole(Roles.OPERATOR) {
+        IERC721(token).approve(operator, tokenId);
+        emit OnERC721Approved(token, operator, tokenId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               EMERGENCY
+    //////////////////////////////////////////////////////////////*/
 
     function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _pause();
@@ -440,6 +460,11 @@ contract SFVault is
 
     function getWhitelistedTokens() external view returns (address[] memory) {
         return whitelistedTokens.values();
+    }
+
+    // Allows the vault to safely receive ERC-721s (including Uniswap V3 position NFTs).
+    function onERC721Received(address, address, uint256, bytes calldata) external pure override returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     /*//////////////////////////////////////////////////////////////
