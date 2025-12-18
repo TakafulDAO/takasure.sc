@@ -323,13 +323,17 @@ contract SFStrategyAggregator is
                 if (toAllocate > remaining) toAllocate = remaining;
 
                 // Forward funds to child strategy
-                // TODO: check if safeIncreaseAllowance is better. Revisit.
                 underlying.forceApprove(address(strat.strategy), toAllocate);
 
                 bytes memory childData = _payloadFor(address(strat.strategy), dataStrategies, perChildData);
 
                 // TODO: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
                 uint256 childInvested = strat.strategy.deposit(toAllocate, childData);
+
+                // If child did not pull all funds, reset approval
+                if (underlying.allowance(address(this), address(strat.strategy)) != 0) {
+                    underlying.forceApprove(address(strat.strategy), 0);
+                }
 
                 investedAssets += childInvested;
                 remaining -= toAllocate;
