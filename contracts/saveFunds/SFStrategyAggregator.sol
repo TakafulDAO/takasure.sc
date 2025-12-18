@@ -542,8 +542,15 @@ contract SFStrategyAggregator is
      * @return Maximum withdrawable amount.
      */
     function maxWithdraw() external view returns (uint256) {
-        // TODO: check
-        return totalAssets();
+        uint256 sum = underlying.balanceOf(address(this)); // idle funds (should be ~0 normally)
+
+        uint256 len = subStrategies.length;
+        for (uint256 i; i < len; ++i) {
+            // also the inactive ones. Inactive means "no new deposits", not "funds are gone"
+            sum += subStrategies[i].strategy.maxWithdraw();
+        }
+
+        return sum;
     }
 
     function getConfig() external view returns (StrategyConfig memory) {
@@ -571,7 +578,6 @@ contract SFStrategyAggregator is
         return sum;
     }
 
-    // TODO: maybe a new function that returns structured data instead of encoded?
     function getPositionDetails() external view returns (bytes memory) {
         uint256 len = subStrategies.length;
 
