@@ -55,7 +55,6 @@ contract SFUniswapV3Strategy is
 
     uint256 public maxTVL;
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
-    // TODO: Where to initialize these?
     int24 public tickLower;
     int24 public tickUpper;
 
@@ -72,6 +71,7 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__InvalidPoolTokens();
     error SFUniswapV3Strategy__UnexpectedPositionTokenId();
     error SFUniswapV3Strategy__InvalidRebalanceParams();
+    error SFUniswapV3Strategy__InvalidTicks();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -118,7 +118,9 @@ contract SFUniswapV3Strategy is
         address _pool,
         address _positionManager,
         uint256 _maxTVL,
-        address _router
+        address _router,
+        int24 _tickLower,
+        int24 _tickUpper
     ) external initializer {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
@@ -132,6 +134,15 @@ contract SFUniswapV3Strategy is
         positionManager = INonfungiblePositionManager(_positionManager);
         maxTVL = _maxTVL;
         universalRouter = IUniversalRouter(_router);
+
+        int24 spacing = IUniswapV3Pool(pool).tickSpacing();
+
+        require(_tickLower < _tickUpper, SFUniswapV3Strategy__InvalidTicks());
+        require(_tickLower % spacing == 0, SFUniswapV3Strategy__InvalidTicks());
+        require(_tickUpper % spacing == 0, SFUniswapV3Strategy__InvalidTicks());
+
+        tickLower = _tickLower;
+        tickUpper = _tickUpper;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -216,6 +227,9 @@ contract SFUniswapV3Strategy is
         // 3. provide liquidity via positionManager.mint/increaseLiquidity
         uint256 usedUnderlying;
         uint256 usedOther;
+
+        // Sanity check ticks
+        require(tickLower < tickUpper, SFUniswapV3Strategy__InvalidTicks());
 
         if (positionTokenId == 0) (usedUnderlying, usedOther) = _mintPosition(amountUnderlyingForLP, amountOtherForLP);
         else (usedUnderlying, usedOther) = _increaseLiquidity(amountUnderlyingForLP, amountOtherForLP);
