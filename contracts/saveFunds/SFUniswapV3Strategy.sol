@@ -6,6 +6,7 @@
  * @notice Uniswap V3 strategy implementation for SaveFunds vaults.
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {ISFStrategyView} from "contracts/interfaces/saveFunds/ISFStrategyView.sol";
@@ -72,6 +73,7 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__UnexpectedPositionTokenId();
     error SFUniswapV3Strategy__InvalidRebalanceParams();
     error SFUniswapV3Strategy__InvalidTicks();
+    error SFUniswapV3Strategy__VaultNotApprovedForNFT();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -177,9 +179,15 @@ contract SFUniswapV3Strategy is
     }
 
     function emergencyExit(address receiver) external notAddressZero(receiver) onlyRole(Roles.OPERATOR) {
+        _requireVaultApprovalForNFT();
+
         // withdraw all
-        // TODO: maybe burn the nft? The problem is that the owner is the vault
         if (positionTokenId != 0) _decreaseLiquidityAndCollect(type(uint128).max, bytes(""));
+
+        if (positionTokenId != 0) {
+            positionManager.burn(positionTokenId);
+            positionTokenId = 0;
+        }
 
         // swap all otherToken to underlying
         uint256 balOther = otherToken.balanceOf(address(this));
@@ -478,6 +486,7 @@ contract SFUniswapV3Strategy is
         internal
         returns (uint256 usedUnderlying_, uint256 usedOther_)
     {
+        _requireVaultApprovalForNFT();
         // If there is no existing position, nothing to do
         if (positionTokenId == 0) return (0, 0);
         if (_amountUnderlying == 0 && _amountOther == 0) return (0, 0);
@@ -594,6 +603,7 @@ contract SFUniswapV3Strategy is
     }
 
     function _decreaseLiquidityAndCollect(uint256 _liquidity, bytes memory _data) internal {
+        _requireVaultApprovalForNFT();
         // TODO: use data
         if (_liquidity == 0 || positionTokenId == 0) return;
 
@@ -633,6 +643,7 @@ contract SFUniswapV3Strategy is
     }
 
     function _collectFees(bytes calldata _data) internal {
+        _requireVaultApprovalForNFT();
         // TODO: use data
 
         if (positionTokenId == 0) return;
@@ -704,6 +715,14 @@ contract SFUniswapV3Strategy is
             // TODO: is this reachable? revisit
             revert SFUniswapV3Strategy__InvalidPoolTokens();
         }
+    }
+
+    function _requireVaultApprovalForNFT() internal view {
+        // vault must have approved this strategy to manage the position NFT(s)
+        require(
+            IERC721(address(positionManager)).isApprovedForAll(vault, address(this)),
+            SFUniswapV3Strategy__VaultNotApprovedForNFT()
+        );
     }
 
     /// @dev required by the OZ UUPS module.

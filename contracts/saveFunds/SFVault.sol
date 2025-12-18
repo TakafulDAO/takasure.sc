@@ -242,6 +242,14 @@ contract SFVault is
         emit OnFeeConfigUpdated(_managementFeeBPS, _performanceFeeBPS, _performanceFeeHurdleBPS);
     }
 
+    /**
+     * @notice Set ERC721 approval for all.
+     * @param nft The address of the ERC721 contract.
+     * @param operator The operator address to set approval for.
+     * @param approved Whether to approve or revoke approval.
+     * @dev  For Uniswap V3 nft = address(nonfungiblePositionManager), operator = address(SFUniswapV3Strategy)
+     *       approved = true
+     */
     function setERC721ApprovalForAll(address nft, address operator, bool approved) external onlyRole(Roles.OPERATOR) {
         IERC721(nft).setApprovalForAll(operator, approved);
     }
