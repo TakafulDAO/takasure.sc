@@ -55,15 +55,16 @@ contract SFUniswapV3Strategy is
 
     uint256 public maxTVL;
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
-    // TODO: Where to initialize these?
     int24 public tickLower;
     int24 public tickUpper;
+    bool public rangeInitialized;
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
     event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
+    event OnRangeUpdated(int24 oldLower, int24 oldUpper, int24 newLower, int24 newUpper);
 
     error SFUniswapV3Strategy__NotAuthorizedCaller();
     error SFUniswapV3Strategy__NotAddressZero();
@@ -72,6 +73,7 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__InvalidPoolTokens();
     error SFUniswapV3Strategy__UnexpectedPositionTokenId();
     error SFUniswapV3Strategy__InvalidRebalanceParams();
+    error SFUniswapV3Strategy__RangeNotInitialized();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -118,7 +120,9 @@ contract SFUniswapV3Strategy is
         address _pool,
         address _positionManager,
         uint256 _maxTVL,
-        address _router
+        address _router,
+        int24 _initialTickLower,
+        int24 _initialTickUpper
     ) external initializer {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
@@ -132,6 +136,8 @@ contract SFUniswapV3Strategy is
         positionManager = INonfungiblePositionManager(_positionManager);
         maxTVL = _maxTVL;
         universalRouter = IUniversalRouter(_router);
+
+        _setRange(_initialTickLower, _initialTickUpper);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -217,8 +223,12 @@ contract SFUniswapV3Strategy is
         uint256 usedUnderlying;
         uint256 usedOther;
 
-        if (positionTokenId == 0) (usedUnderlying, usedOther) = _mintPosition(amountUnderlyingForLP, amountOtherForLP);
-        else (usedUnderlying, usedOther) = _increaseLiquidity(amountUnderlyingForLP, amountOtherForLP);
+        if (positionTokenId == 0) {
+            require(rangeInitialized, SFUniswapV3Strategy__RangeNotInitialized());
+            (usedUnderlying, usedOther) = _mintPosition(amountUnderlyingForLP, amountOtherForLP);
+        } else {
+            (usedUnderlying, usedOther) = _increaseLiquidity(amountUnderlyingForLP, amountOtherForLP);
+        }
 
         investedAssets = usedUnderlying;
 
@@ -384,6 +394,10 @@ contract SFUniswapV3Strategy is
     function getPositionDetails() external view returns (bytes memory) {
         // TODO: revisit. Implementation-specific. For now: (tokenId, tickLower, tickUpper)
         return abi.encode(positionTokenId, tickLower, tickUpper);
+    }
+
+    function getRange() external view returns (int24 lower, int24 upper, bool initialized) {
+        return (tickLower, tickUpper, rangeInitialized);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -690,6 +704,22 @@ contract SFUniswapV3Strategy is
             // TODO: is this reachable? revisit
             revert SFUniswapV3Strategy__InvalidPoolTokens();
         }
+    }
+
+    function _setRange(int24 _newLower, int24 _newUpper) internal {
+        require(_newLower < _newUpper, SFUniswapV3Strategy__InvalidRebalanceParams());
+
+        int24 spacing = pool.tickSpacing();
+        if (_newLower % spacing != 0 || _newUpper % spacing != 0) {
+            revert SFUniswapV3Strategy__InvalidRebalanceParams();
+        }
+
+        require(_newLower >= TickMath.MIN_TICK && _newUpper <= TickMath.MAX_TICK, SFUniswapV3Strategy__InvalidTick());
+
+        emit OnRangeUpdated(tickLower, tickUpper, _newLower, _newUpper);
+        tickLower = _newLower;
+        tickUpper = _newUpper;
+        rangeInitialized = true;
     }
 
     /// @dev required by the OZ UUPS module.
