@@ -364,58 +364,22 @@ contract SFStrategyAggregator is
         returns (uint256 withdrawnAssets)
     {
         require(assets > 0, SFStrategyAggregator__NotZeroAmount());
+
         (address[] memory dataStrategies, bytes[] memory perChildData) = _decodePerStrategyData(data);
 
-        uint256 remaining = assets;
+        // 1) use idle funds first
+        withdrawnAssets = _useIdleFunds(receiver, assets);
 
-        // Use idle funds first.
-        uint256 idle = underlying.balanceOf(address(this));
-        if (idle > 0) {
-            uint256 toSend = idle > remaining ? remaining : idle;
-            underlying.safeTransfer(receiver, toSend);
-            withdrawnAssets += toSend;
-            remaining -= toSend;
-        }
-
-        if (remaining == 0) return withdrawnAssets;
-
-        // Withdraw from subStrategies.
-        uint256 len = subStrategies.length;
-
-        for (uint256 i; i < len && remaining > 0; ++i) {
-            SubStrategy memory strat = subStrategies[i];
-
-            if (strat.isActive) {
-                uint256 subStratMax = strat.strategy.maxWithdraw();
-                if (subStratMax == 0) continue;
-
-                uint256 toAsk = subStratMax > remaining ? remaining : subStratMax;
-                if (toAsk == 0) continue;
-
-                bytes memory childData = _payloadFor(address(strat.strategy), dataStrategies, perChildData);
-                uint256 childGot = strat.strategy.withdraw(toAsk, address(this), childData);
-
-                if (childGot == 0) continue;
-
-                // Immediately pass to receiver
-                underlying.safeTransfer(receiver, childGot);
-                withdrawnAssets += childGot;
-
-                if (childGot >= remaining) {
-                    remaining = 0;
-                    break;
-                } else {
-                    remaining -= childGot;
-                }
-            }
-        }
-
-        // If we still need more assets, it is a loss or illiquidity situation.
+        // 2) then withdraw from children if still needed
         if (withdrawnAssets < assets) {
-            uint256 prevAssets = assets; // TODO: maybe snapshot before withdraw? check
-            uint256 newAssets = totalAssets();
-            uint256 lossAmount = assets - withdrawnAssets;
-            emit OnStrategyLossReported(prevAssets, newAssets, lossAmount);
+            withdrawnAssets += _withdrawFromSubStrategies(
+                receiver, assets - withdrawnAssets, dataStrategies, perChildData
+            );
+        }
+
+        // 3) loss/illiquidity report
+        if (withdrawnAssets < assets) {
+            _reportLoss(assets, withdrawnAssets);
         }
 
         return withdrawnAssets;
@@ -646,6 +610,46 @@ contract SFStrategyAggregator is
             if (_strategies[i] == _strategy) return _payloads[i];
         }
         return bytes("");
+    }
+
+    function _useIdleFunds(address _receiver, uint256 _remaining) internal returns (uint256 sent_) {
+        uint256 idle = underlying.balanceOf(address(this));
+        if (idle == 0) return 0;
+
+        sent_ = idle > _remaining ? _remaining : idle;
+        underlying.safeTransfer(_receiver, sent_);
+    }
+
+    function _withdrawFromSubStrategies(
+        address _receiver,
+        uint256 _remaining,
+        address[] memory _dataStrategies,
+        bytes[] memory _perChildData
+    ) internal returns (uint256 sent_) {
+        uint256 len = subStrategies.length;
+
+        for (uint256 i; i < len && sent_ < _remaining; ++i) {
+            SubStrategy storage strat = subStrategies[i];
+            if (!strat.isActive) continue;
+
+            uint256 maxW = strat.strategy.maxWithdraw();
+            if (maxW == 0) continue;
+
+            uint256 toAsk = maxW > (_remaining - sent_) ? (_remaining - sent_) : maxW;
+            if (toAsk == 0) continue;
+
+            uint256 got = strat.strategy
+                .withdraw(toAsk, address(this), _payloadFor(address(strat.strategy), _dataStrategies, _perChildData));
+            if (got == 0) continue;
+
+            underlying.safeTransfer(_receiver, got);
+            sent_ += got;
+        }
+    }
+
+    function _reportLoss(uint256 _requestedAssets, uint256 _withdrawnAssets) internal {
+        uint256 lossAmount = _requestedAssets - _withdrawnAssets;
+        emit OnStrategyLossReported(_requestedAssets, totalAssets(), lossAmount);
     }
 
     /// @dev required by the OZ UUPS module.
