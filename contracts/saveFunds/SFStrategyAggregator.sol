@@ -141,7 +141,7 @@ contract SFStrategyAggregator is
         external
         onlyRole(Roles.OPERATOR)
     {
-        // todo: check if needed. Decode array of strategy, weights, and active status.
+        // TODO: check if needed. Decode array of strategy, weights, and active status.
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -229,12 +229,12 @@ contract SFStrategyAggregator is
 
         // If there is no substrategies yet, return the funds to to the vault
         if (len == 0) {
-            // todo: maybe better to revert? revisit
+            // TODO: maybe better to revert? revisit
             underlying.safeTransfer(vault, assets);
             return 0;
         }
 
-        // todo: interpret data
+        // TODO: interpret data
         uint256 remaining = assets;
 
         for (uint256 i; i < len; ++i) {
@@ -247,9 +247,9 @@ contract SFStrategyAggregator is
                 if (toAllocate > remaining) toAllocate = remaining;
 
                 // Forward funds to child strategy
-                // todo: check if safeIncreaseAllowance is better. Revisit.
+                // TODO: check if safeIncreaseAllowance is better. Revisit.
                 underlying.forceApprove(address(strat.strategy), toAllocate);
-                // todo: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
+                // TODO: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
                 uint256 childInvested = strat.strategy.deposit(toAllocate, bytes(""));
 
                 investedAssets += childInvested;
@@ -261,7 +261,7 @@ contract SFStrategyAggregator is
 
         // Any unnalocated tokens must not stay in the aggregator long term.
         // Send back to the vault.
-        // todo: To discuss: Check if better instead of sending to vault, route remaining to a "buffer" strategy or something like that? Revisit
+        // TODO: To discuss: Check if better instead of sending to vault, route remaining to a "buffer" strategy or something like that? Revisit
         if (remaining > 0) underlying.safeTransfer(vault, remaining);
 
         return investedAssets;
@@ -310,7 +310,7 @@ contract SFStrategyAggregator is
                 uint256 toAsk = subStratMax > remaining ? remaining : subStratMax;
                 if (toAsk == 0) continue;
 
-                // todo: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
+                // TODO: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
                 uint256 childGot = strat.strategy.withdraw(toAsk, address(this), bytes(""));
                 if (childGot == 0) continue;
 
@@ -329,7 +329,7 @@ contract SFStrategyAggregator is
 
         // If we still need more assets, it is a loss or illiquidity situation.
         if (withdrawnAssets < assets) {
-            uint256 prevAssets = assets; // todo: maybe snapshot before withdraw? check
+            uint256 prevAssets = assets; // TODO: maybe snapshot before withdraw? check
             uint256 newAssets = totalAssets();
             uint256 lossAmount = assets - withdrawnAssets;
             emit OnStrategyLossReported(prevAssets, newAssets, lossAmount);
@@ -385,13 +385,13 @@ contract SFStrategyAggregator is
      * @param data Additional data for harvesting (not used in this implementation).
      */
     function harvest(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
-        // todo: include in data the children to harvest?
+        // TODO: include in data the children to harvest?
         uint256 len = subStrategies.length;
 
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
-            // todo: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
+            // TODO: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
             if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).harvest(bytes(""));
         }
     }
@@ -401,13 +401,13 @@ contract SFStrategyAggregator is
      * @param data Additional data for rebalancing (not used in this implementation).
      */
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
-        // todo: finish this function
+        // TODO: finish this function
         uint256 len = subStrategies.length;
 
         for (uint256 i; i < len; ++i) {
             SubStrategy memory strat = subStrategies[i];
 
-            // todo: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
+            // TODO: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
             if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).rebalance(data);
         }
     }
@@ -463,7 +463,7 @@ contract SFStrategyAggregator is
      * @return Maximum withdrawable amount.
      */
     function maxWithdraw() external view returns (uint256) {
-        // todo: check
+        // TODO: check
         return totalAssets();
     }
 

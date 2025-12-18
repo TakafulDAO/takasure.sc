@@ -55,7 +55,7 @@ contract SFUniswapV3Strategy is
 
     uint256 public maxTVL;
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
-    // ? Where to initialize these?
+    // TODO: Where to initialize these?
     int24 public tickLower;
     int24 public tickUpper;
 
@@ -167,7 +167,7 @@ contract SFUniswapV3Strategy is
 
     function emergencyExit(address receiver) external notAddressZero(receiver) onlyRole(Roles.OPERATOR) {
         // withdraw all
-        // ? maybe burn the nft? The problem is that the owner is the vault
+        // TODO: maybe burn the nft? The problem is that the owner is the vault
         if (positionTokenId != 0) _decreaseLiquidityAndCollect(type(uint128).max, bytes(""));
 
         // swap all otherToken to underlying
@@ -188,7 +188,7 @@ contract SFUniswapV3Strategy is
     /**
      * @notice Deposits assets into Uniswap V3 LP position.
      * @dev Expects `msg.sender` (aggregator) to have approved this contract.
-     * todo: maybe use permit2
+     * TODO: maybe use permit2
      */
     function deposit(uint256 assets, bytes calldata data)
         external
@@ -205,7 +205,7 @@ contract SFUniswapV3Strategy is
         // Pull underlying from vault/aggregator
         underlying.safeTransferFrom(msg.sender, address(this), assets);
 
-        // todo: interpret data for slippage, ratios, amounts, etc. for now 50/50 assumption in dollars
+        // TODO: interpret data for slippage, ratios, amounts, etc. for now 50/50 assumption in dollars
 
         // 1. decide how much to swap to otherToken
         (uint256 amountUnderlyingForLP, uint256 amountOtherForLP) = _prepareAmountsForLP(assets, data);
@@ -222,7 +222,7 @@ contract SFUniswapV3Strategy is
 
         investedAssets = usedUnderlying;
 
-        // 4. what to do with remainings // todo
+        // TODO: 4. what to do with remainings
     }
 
     /**
@@ -263,7 +263,7 @@ contract SFUniswapV3Strategy is
         withdrawnAssets = finalUnderlying > assets ? assets : finalUnderlying;
         if (withdrawnAssets > 0) underlying.safeTransfer(receiver, withdrawnAssets);
 
-        // if finalUnderlying > withdrawnAssets what to do with the rest? // todo
+        // TODO: if finalUnderlying > withdrawnAssets what to do with the rest?
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -276,7 +276,7 @@ contract SFUniswapV3Strategy is
      */
     function harvest(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
         // Collect fees only.
-        // todo: compund here? or left to rebalance? if auto compound then call _increaseLiquidity()
+        // TODO: compound here? or left to rebalance? if auto compound then call _increaseLiquidity()
         _collectFees(data);
     }
 
@@ -302,7 +302,7 @@ contract SFUniswapV3Strategy is
         // 1. Read current liquidity and fully exit the existing position.
         uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
 
-        // todo: `_data` is currently unused by `_decreaseLiquidityAndCollect`, so just pass an empty bytes blob.
+        // TODO: `_data` is currently unused by `_decreaseLiquidityAndCollect`, so just pass an empty bytes blob.
         if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, bytes(""));
 
         // 2. Burn the old NFT once all liquidity has been removed.
@@ -348,7 +348,7 @@ contract SFUniswapV3Strategy is
         if (idleUnderlying > 0) value += idleUnderlying;
 
         if (idleOther > 0) {
-            // todo: convert idleOther -> USDC using pool price or twap or off chain oracle
+            // TODO: convert idleOther -> USDC using pool price or twap or off chain oracle
             uint256 otherInUSDC = _quoteOtherAsUnderlying(idleOther);
             value += otherInUSDC;
         }
@@ -366,7 +366,7 @@ contract SFUniswapV3Strategy is
     }
 
     function maxWithdraw() external view returns (uint256) {
-        // todo: check
+        // TODO: check
         return totalAssets();
     }
 
@@ -382,7 +382,7 @@ contract SFUniswapV3Strategy is
     }
 
     function getPositionDetails() external view returns (bytes memory) {
-        // todo: revisit. Implementation-specific. For now: (tokenId, tickLower, tickUpper)
+        // TODO: revisit. Implementation-specific. For now: (tokenId, tickLower, tickUpper)
         return abi.encode(positionTokenId, tickLower, tickUpper);
     }
 
@@ -423,7 +423,7 @@ contract SFUniswapV3Strategy is
             params.amount1Desired = _amountUnderlying;
         }
 
-        // todo: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
+        // TODO: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
         params.amount0Min = 0;
         params.amount1Min = 0;
 
@@ -482,7 +482,7 @@ contract SFUniswapV3Strategy is
             params.amount1Desired = _amountUnderlying;
         }
 
-        // todo: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
+        // TODO: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
         params.amount0Min = 0;
         params.amount1Min = 0;
         params.deadline = block.timestamp;
@@ -532,7 +532,7 @@ contract SFUniswapV3Strategy is
         pure
         returns (uint256 amountUnderlyingForLP_, uint256 amountOtherForLP_)
     {
-        // todo: refine a price-adjusted value
+        // TODO: refine a price-adjusted value
         // Default to 50/50 if no data
         uint16 _otherRatioBPS = MAX_BPS / 2;
 
@@ -580,7 +580,7 @@ contract SFUniswapV3Strategy is
     }
 
     function _decreaseLiquidityAndCollect(uint256 _liquidity, bytes memory _data) internal {
-        // todo use data
+        // TODO: use data
         if (_liquidity == 0 || positionTokenId == 0) return;
 
         uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
@@ -601,7 +601,7 @@ contract SFUniswapV3Strategy is
         INonfungiblePositionManager.DecreaseLiquidityParams memory params;
         params.tokenId = positionTokenId;
         params.liquidity = liquidityToBurn;
-        // todo: slippage protection?
+        // TODO: slippage protection?
         params.amount0Min = 0;
         params.amount1Min = 0;
         params.deadline = block.timestamp;
@@ -619,7 +619,7 @@ contract SFUniswapV3Strategy is
     }
 
     function _collectFees(bytes calldata _data) internal {
-        // todo: use data
+        // TODO: use data
 
         if (positionTokenId == 0) return;
 
@@ -687,7 +687,7 @@ contract SFUniswapV3Strategy is
             // valueInUnderlying = amountOther / price
             return FullMath.mulDiv(_amountOther, _q192, _priceX192);
         } else {
-            // todo: is this reachable? revisit
+            // TODO: is this reachable? revisit
             revert SFUniswapV3Strategy__InvalidPoolTokens();
         }
     }
