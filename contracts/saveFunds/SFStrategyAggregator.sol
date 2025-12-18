@@ -21,6 +21,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {StrategyConfig, SubStrategy} from "contracts/types/Strategies.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 pragma solidity 0.8.28;
 
@@ -34,20 +35,25 @@ contract SFStrategyAggregator is
     PausableUpgradeable
 {
     using SafeERC20 for IERC20;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     IAddressManager public addressManager;
 
-    IERC20 private underlying;
+    EnumerableSet.AddressSet private subStrategySet;
 
-    SubStrategy[] private subStrategies;
+    struct SubStrategyMeta {
+        uint16 targetWeightBPS;
+        bool isActive;
+    }
+
+    IERC20 private underlying;
 
     address public vault;
 
     uint256 public maxTVL;
     uint16 public totalTargetWeightBPS; // sum of all target weights in BPS
 
-    // TODO: consider using EnumerableMap for easier management
-    mapping(address strat => uint256) private subStrategyIndex; // strategy => index + 1
+    mapping(address strategy => SubStrategyMeta) private subStrategyMeta;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
@@ -160,67 +166,30 @@ contract SFStrategyAggregator is
         uint256 len = strategies.length;
         require(len != 0 && len == weights.length && len == actives.length, SFStrategyAggregator__InvalidConfig());
 
-        // Validate entries + no duplicates O(n^2) - acceptable as only will be two strategies
         for (uint256 i; i < len; ++i) {
-            address strat = strategies[i];
-            require(strat != address(0), SFStrategyAggregator__NotAddressZero());
+            address s = strategies[i];
+
+            require(s != address(0), SFStrategyAggregator__NotAddressZero());
             require(weights[i] <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
-            _assertChildStrategyCompatible(strat);
+            _assertChildStrategyCompatible(s);
 
             for (uint256 j = i + 1; j < len; ++j) {
-                require(strat != strategies[j], SFStrategyAggregator__DuplicateStrategy());
-            }
-        }
-
-        // Compute the final totalTargetWeightBPS only once to avoid intermediate-sum reverts
-        int256 projectedTotal = int256(uint256(totalTargetWeightBPS));
-
-        for (uint256 i; i < len; ++i) {
-            address s = strategies[i];
-            uint16 w = weights[i];
-            bool a = actives[i];
-
-            uint256 idxPlus = subStrategyIndex[s];
-            uint256 oldEff;
-
-            if (idxPlus != 0) {
-                SubStrategy storage existing = subStrategies[idxPlus - 1];
-                oldEff = existing.isActive ? existing.targetWeightBPS : 0;
+                require(s != strategies[j], SFStrategyAggregator__DuplicateStrategy());
             }
 
-            uint128 newEff = a ? w : 0;
-            projectedTotal += int256(uint256(newEff)) - int256(uint256(oldEff));
-        }
-
-        require(
-            projectedTotal >= 0 && projectedTotal <= int256(uint256(MAX_BPS)),
-            SFStrategyAggregator__InvalidTargetWeightBPS()
-        );
-
-        // Apply changes
-        for (uint256 i; i < len; ++i) {
-            address s = strategies[i];
-            uint16 w = weights[i];
-            bool a = actives[i];
-
-            uint256 idxPlus = subStrategyIndex[s];
-
-            if (idxPlus == 0) {
-                // New strategy
-                subStrategies.push(SubStrategy({strategy: ISFStrategy(s), targetWeightBPS: w, isActive: a}));
-                subStrategyIndex[s] = subStrategies.length; // index + 1
-                emit OnSubStrategyAdded(s, w, a);
+            bool existed = subStrategySet.contains(s);
+            if (!existed) {
+                subStrategySet.add(s);
+                subStrategyMeta[s] = SubStrategyMeta({targetWeightBPS: weights[i], isActive: actives[i]});
+                emit OnSubStrategyAdded(s, weights[i], actives[i]);
             } else {
-                // Existing strategy
-                SubStrategy storage existing = subStrategies[idxPlus - 1];
-                existing.targetWeightBPS = w;
-                existing.isActive = a;
-                emit OnSubStrategyUpdated(s, w, a);
+                subStrategyMeta[s].targetWeightBPS = weights[i];
+                subStrategyMeta[s].isActive = actives[i];
+                emit OnSubStrategyUpdated(s, weights[i], actives[i]);
             }
         }
 
-        totalTargetWeightBPS = uint16(uint256(projectedTotal));
-        assert(totalTargetWeightBPS <= MAX_BPS);
+        _recomputeTotalTargetWeightBPS();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -238,19 +207,12 @@ contract SFStrategyAggregator is
         onlyRole(Roles.OPERATOR)
     {
         _assertChildStrategyCompatible(strategy);
+        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+        require(subStrategySet.add(strategy), SFStrategyAggregator__SubStrategyAlreadyExists());
 
-        require(subStrategyIndex[strategy] == 0, SFStrategyAggregator__SubStrategyAlreadyExists());
-        require(totalTargetWeightBPS + targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+        subStrategyMeta[strategy] = SubStrategyMeta({targetWeightBPS: targetWeightBPS, isActive: true});
 
-        // By default every strategy is active.
-        subStrategies.push(
-            SubStrategy({strategy: ISFStrategy(strategy), targetWeightBPS: targetWeightBPS, isActive: true})
-        );
-        subStrategyIndex[strategy] = subStrategies.length; // index + 1
-
-        totalTargetWeightBPS += targetWeightBPS;
-        assert(totalTargetWeightBPS <= MAX_BPS);
-
+        _recomputeTotalTargetWeightBPS();
         emit OnSubStrategyAdded(strategy, targetWeightBPS, true);
     }
 
@@ -265,25 +227,13 @@ contract SFStrategyAggregator is
         notAddressZero(strategy)
         onlyRole(Roles.OPERATOR)
     {
-        require(subStrategyIndex[strategy] != 0, SFStrategyAggregator__SubStrategyNotFound());
+        require(subStrategySet.contains(strategy), SFStrategyAggregator__SubStrategyNotFound());
+        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
 
-        uint256 index = subStrategyIndex[strategy] - 1;
-        SubStrategy storage strat = subStrategies[index];
+        subStrategyMeta[strategy].targetWeightBPS = targetWeightBPS;
+        subStrategyMeta[strategy].isActive = isActive;
 
-        // Only count old one if strategy was active. Only count new one if strategy will be active
-        uint16 oldEffectiveWeight = strat.isActive ? strat.targetWeightBPS : 0;
-        uint16 newEffectiveWeight = isActive ? targetWeightBPS : 0;
-
-        // Remove old effective weight from the total
-        totalTargetWeightBPS = totalTargetWeightBPS - oldEffectiveWeight;
-        require(totalTargetWeightBPS + newEffectiveWeight <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
-
-        strat.targetWeightBPS = targetWeightBPS;
-        strat.isActive = isActive;
-
-        totalTargetWeightBPS = totalTargetWeightBPS + newEffectiveWeight;
-        assert(totalTargetWeightBPS <= MAX_BPS);
-
+        _recomputeTotalTargetWeightBPS();
         emit OnSubStrategyUpdated(strategy, targetWeightBPS, isActive);
     }
 
@@ -306,61 +256,51 @@ contract SFStrategyAggregator is
     {
         require(assets > 0, SFStrategyAggregator__NotZeroAmount());
 
-        uint256 len = subStrategies.length;
+        uint256 len = subStrategySet.length();
 
-        // If there is no substrategies yet, return the funds to to the vault
+        // If there are no substrategies yet, return funds to vault
         if (len == 0) {
             underlying.safeTransfer(vault, assets);
             return 0;
         }
 
-        // interpret data: abi.encode(address[] strategies, bytes[] perChildData)
         (address[] memory dataStrategies, bytes[] memory perChildData) = _decodePerStrategyData(data);
 
         uint256 remaining = assets;
 
         for (uint256 i; i < len; ++i) {
-            SubStrategy memory strat = subStrategies[i];
+            address stratAddr = subStrategySet.at(i);
+            SubStrategyMeta memory meta = subStrategyMeta[stratAddr];
 
-            if (strat.isActive) {
-                uint256 toAllocate = (assets * strat.targetWeightBPS) / MAX_BPS;
+            if (!meta.isActive) continue;
 
-                if (toAllocate == 0) continue;
-                if (toAllocate > remaining) toAllocate = remaining;
+            uint256 toAllocate = (assets * meta.targetWeightBPS) / MAX_BPS;
+            if (toAllocate == 0) continue;
+            if (toAllocate > remaining) toAllocate = remaining;
 
-                // Forward funds to child strategy
-                underlying.forceApprove(address(strat.strategy), toAllocate);
+            underlying.forceApprove(stratAddr, toAllocate);
 
-                bytes memory childData = _payloadFor(address(strat.strategy), dataStrategies, perChildData);
+            bytes memory childData = _payloadFor(stratAddr, dataStrategies, perChildData);
 
-                uint256 childInvested = strat.strategy.deposit(toAllocate, childData);
+            uint256 childInvested = ISFStrategy(stratAddr).deposit(toAllocate, childData);
 
-                // If child did not pull all funds, reset approval
-                if (underlying.allowance(address(this), address(strat.strategy)) != 0) {
-                    underlying.forceApprove(address(strat.strategy), 0);
-                }
-
-                investedAssets += childInvested;
-                remaining -= toAllocate;
-
-                if (remaining == 0) break;
+            // If child did not pull all funds, reset approval
+            if (underlying.allowance(address(this), stratAddr) != 0) {
+                underlying.forceApprove(stratAddr, 0);
             }
+
+            investedAssets += childInvested;
+            remaining -= toAllocate;
+
+            if (remaining == 0) break;
         }
 
-        // Any unnalocated tokens must not stay in the aggregator long term.
-        // Send back to the vault.
+        // Return any remainder to vault
         if (remaining > 0) underlying.safeTransfer(vault, remaining);
 
         return investedAssets;
     }
 
-    /**
-     * @notice Withdraws assets from the aggregator, pulling from idle funds first and then from child strategies as needed.
-     * @param assets Amount of underlying assets to withdraw.
-     * @param receiver Address to receive the withdrawn assets.
-     * @param data Additional data for withdrawal (not used in this implementation).
-     * @return withdrawnAssets Total amount of assets successfully withdrawn.
-     */
     function withdraw(uint256 assets, address receiver, bytes calldata data)
         external
         notAddressZero(receiver)
@@ -370,6 +310,7 @@ contract SFStrategyAggregator is
         returns (uint256 withdrawnAssets)
     {
         require(assets > 0, SFStrategyAggregator__NotZeroAmount());
+
         // snapshot before moving anything
         uint256 prevTotalAssets = totalAssets();
 
@@ -410,23 +351,17 @@ contract SFStrategyAggregator is
      * @param receiver Address to receive all withdrawn assets.
      */
     function emergencyExit(address receiver) external notAddressZero(receiver) nonReentrant onlyRole(Roles.OPERATOR) {
-        // Pull everything from subStrategies to the receiver.
-        uint256 len = subStrategies.length;
+        uint256 len = subStrategySet.length();
 
         for (uint256 i; i < len; ++i) {
-            SubStrategy memory strat = subStrategies[i];
-
-            if (strat.isActive) {
-                uint256 subStratMax = strat.strategy.maxWithdraw();
-                if (subStratMax == 0) continue;
-
-                strat.strategy.withdraw(subStratMax, receiver, "");
-            }
+            address s = subStrategySet.at(i);
+            uint256 m = ISFStrategy(s).maxWithdraw();
+            if (m == 0) continue;
+            ISFStrategy(s).withdraw(m, receiver, bytes(""));
         }
 
-        // Transfer idle funds to receiver
-        uint256 balance = underlying.balanceOf(address(this));
-        if (balance > 0) underlying.safeTransfer(receiver, balance);
+        uint256 bal = underlying.balanceOf(address(this));
+        if (bal > 0) underlying.safeTransfer(receiver, bal);
 
         _pause();
     }
@@ -442,25 +377,20 @@ contract SFStrategyAggregator is
     function harvest(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
         // No data => harvest all active strategies with empty payload
         if (data.length == 0) {
-            uint256 len = subStrategies.length;
+            uint256 len = subStrategySet.length();
             for (uint256 i; i < len; ++i) {
-                SubStrategy storage strat = subStrategies[i];
-                if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).harvest(bytes(""));
+                address stratAddr = subStrategySet.at(i);
+                if (!subStrategyMeta[stratAddr].isActive) continue;
+                ISFStrategyMaintenance(stratAddr).harvest(bytes(""));
             }
             return;
         }
 
         // Data => allowlist + per-strategy payload
-        (address[] memory strategies, bytes[] memory payloads) = abi.decode(data, (address[], bytes[]));
-        require(strategies.length == payloads.length, SFStrategyAggregator__InvalidPerStrategyData());
+        (address[] memory strategies, bytes[] memory payloads) = _decodePerStrategyData(data);
 
         for (uint256 i; i < strategies.length; ++i) {
-            address s = strategies[i];
-            uint256 idxPlus = subStrategyIndex[s];
-            require(idxPlus != 0, SFStrategyAggregator__UnknownPerStrategyDataStrategy());
-
-            SubStrategy storage strat = subStrategies[idxPlus - 1];
-            ISFStrategyMaintenance(address(strat.strategy)).harvest(payloads[i]);
+            ISFStrategyMaintenance(strategies[i]).harvest(payloads[i]);
         }
     }
 
@@ -471,23 +401,20 @@ contract SFStrategyAggregator is
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
         // No data => rebalance all active strategies with empty payload
         if (data.length == 0) {
-            uint256 len = subStrategies.length;
+            uint256 len = subStrategySet.length();
             for (uint256 i; i < len; ++i) {
-                SubStrategy storage strat = subStrategies[i];
-                if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).rebalance(bytes(""));
+                address stratAddr = subStrategySet.at(i);
+                if (!subStrategyMeta[stratAddr].isActive) continue;
+                ISFStrategyMaintenance(stratAddr).rebalance(bytes(""));
             }
             return;
         }
 
-        // Data => allowlist + per-strategy payload
         (address[] memory strategies, bytes[] memory payloads) = _decodePerStrategyData(data);
 
         for (uint256 i; i < strategies.length; ++i) {
-            uint256 idxPlus = subStrategyIndex[strategies[i]];
-
-            SubStrategy storage strat = subStrategies[idxPlus - 1];
-
-            if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).rebalance(payloads[i]);
+            if (!subStrategyMeta[strategies[i]].isActive) continue;
+            ISFStrategyMaintenance(strategies[i]).rebalance(payloads[i]);
         }
     }
 
@@ -508,19 +435,12 @@ contract SFStrategyAggregator is
      * @return Total assets under management.
      */
     function totalAssets() public view returns (uint256) {
-        // Aggregator should not hold idle assets at rest, all value is expected to live in sub-strategies.
-        // uint256 sum = underlying.balanceOf(address(this));
-
-        uint256 sum;
-
-        uint256 len = subStrategies.length;
+        uint256 sum = underlying.balanceOf(address(this));
+        uint256 len = subStrategySet.length();
 
         for (uint256 i; i < len; ++i) {
-            SubStrategy memory strat = subStrategies[i];
-
-            if (strat.isActive) sum += strat.strategy.totalAssets();
+            sum += ISFStrategy(subStrategySet.at(i)).totalAssets();
         }
-
         return sum;
     }
 
@@ -542,12 +462,11 @@ contract SFStrategyAggregator is
      * @return Maximum withdrawable amount.
      */
     function maxWithdraw() external view returns (uint256) {
-        uint256 sum = underlying.balanceOf(address(this)); // idle funds (should be ~0 normally)
+        uint256 sum = underlying.balanceOf(address(this));
 
-        uint256 len = subStrategies.length;
+        uint256 len = subStrategySet.length();
         for (uint256 i; i < len; ++i) {
-            // also the inactive ones. Inactive means "no new deposits", not "funds are gone"
-            sum += subStrategies[i].strategy.maxWithdraw();
+            sum += ISFStrategy(subStrategySet.at(i)).maxWithdraw();
         }
 
         return sum;
@@ -564,39 +483,45 @@ contract SFStrategyAggregator is
     }
 
     function positionValue() external view returns (uint256) {
-        // For aggregator, "position" = children (no idle).
         uint256 sum;
-
-        uint256 len = subStrategies.length;
+        uint256 len = subStrategySet.length();
 
         for (uint256 i; i < len; ++i) {
-            SubStrategy memory strat = subStrategies[i];
-
-            if (strat.isActive) sum += strat.strategy.totalAssets();
+            sum += ISFStrategy(subStrategySet.at(i)).totalAssets();
         }
 
         return sum;
     }
 
     function getPositionDetails() external view returns (bytes memory) {
-        uint256 len = subStrategies.length;
+        uint256 len = subStrategySet.length();
 
         address[] memory strategies = new address[](len);
         uint16[] memory weights = new uint16[](len);
         bool[] memory actives = new bool[](len);
 
         for (uint256 i; i < len; ++i) {
-            SubStrategy memory strat = subStrategies[i];
-            strategies[i] = address(strat.strategy);
-            weights[i] = strat.targetWeightBPS;
-            actives[i] = strat.isActive;
+            address s = subStrategySet.at(i);
+            SubStrategyMeta memory m = subStrategyMeta[s];
+
+            strategies[i] = s;
+            weights[i] = m.targetWeightBPS;
+            actives[i] = m.isActive;
         }
 
         return abi.encode(strategies, weights, actives);
     }
 
-    function getSubStrategies() external view returns (SubStrategy[] memory) {
-        return subStrategies;
+    function getSubStrategies() external view returns (SubStrategy[] memory out) {
+        uint256 len = subStrategySet.length();
+        out = new SubStrategy[](len);
+
+        for (uint256 i; i < len; ++i) {
+            address s = subStrategySet.at(i);
+            SubStrategyMeta memory m = subStrategyMeta[s];
+
+            out[i] = SubStrategy({strategy: ISFStrategy(s), targetWeightBPS: m.targetWeightBPS, isActive: m.isActive});
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -631,7 +556,7 @@ contract SFStrategyAggregator is
         for (uint256 i; i < len; ++i) {
             address strat = strategies_[i];
             require(strat != address(0), SFStrategyAggregator__NotAddressZero());
-            require(subStrategyIndex[strat] != 0, SFStrategyAggregator__UnknownPerStrategyDataStrategy());
+            require(subStrategySet.contains(strat), SFStrategyAggregator__UnknownPerStrategyDataStrategy());
 
             for (uint256 j = i + 1; j < len; ++j) {
                 require(strat != strategies_[j], SFStrategyAggregator__DuplicatePerStrategyDataStrategy());
@@ -650,12 +575,12 @@ contract SFStrategyAggregator is
         return bytes("");
     }
 
-    function _useIdleFunds(address _receiver, uint256 _remaining) internal returns (uint256 sent_) {
+    function _useIdleFunds(address receiver, uint256 remaining) internal returns (uint256 sent) {
         uint256 idle = underlying.balanceOf(address(this));
         if (idle == 0) return 0;
 
-        sent_ = idle > _remaining ? _remaining : idle;
-        underlying.safeTransfer(_receiver, sent_);
+        sent = idle > remaining ? remaining : idle;
+        underlying.safeTransfer(receiver, sent);
     }
 
     function _withdrawFromSubStrategies(
@@ -664,26 +589,23 @@ contract SFStrategyAggregator is
         address[] memory _dataStrategies,
         bytes[] memory _perChildData
     ) internal returns (uint256 sent_) {
-        uint256 len = subStrategies.length;
+        uint256 len = subStrategySet.length();
 
         for (uint256 i; i < len && sent_ < _remaining; ++i) {
-            SubStrategy storage strat = subStrategies[i];
-            if (strat.isActive) {
-                uint256 maxW = strat.strategy.maxWithdraw();
-                if (maxW == 0) continue;
+            address stratAddr = subStrategySet.at(i);
 
-                uint256 toAsk = maxW > (_remaining - sent_) ? (_remaining - sent_) : maxW;
-                if (toAsk == 0) continue;
+            uint256 maxW = ISFStrategy(stratAddr).maxWithdraw();
+            if (maxW == 0) continue;
 
-                uint256 got = strat.strategy
-                    .withdraw(
-                        toAsk, address(this), _payloadFor(address(strat.strategy), _dataStrategies, _perChildData)
-                    );
-                if (got == 0) continue;
+            uint256 toAsk = maxW > (_remaining - sent_) ? (_remaining - sent_) : maxW;
+            if (toAsk == 0) continue;
 
-                underlying.safeTransfer(_receiver, got);
-                sent_ += got;
-            }
+            uint256 got = ISFStrategy(stratAddr)
+                .withdraw(toAsk, address(this), _payloadFor(stratAddr, _dataStrategies, _perChildData));
+            if (got == 0) continue;
+
+            underlying.safeTransfer(_receiver, got);
+            sent_ += got;
         }
     }
 
@@ -692,6 +614,20 @@ contract SFStrategyAggregator is
         uint256 shortfall = requestedAssets - withdrawnAssets;
 
         emit OnStrategyLossReported(requestedAssets, withdrawnAssets, prevTotalAssets, newTotalAssets, shortfall);
+    }
+
+    function _recomputeTotalTargetWeightBPS() internal {
+        uint256 len = subStrategySet.length();
+        uint256 sum;
+
+        for (uint256 i; i < len; ++i) {
+            address s = subStrategySet.at(i);
+            SubStrategyMeta memory m = subStrategyMeta[s];
+            if (m.isActive) sum += m.targetWeightBPS;
+        }
+
+        require(sum <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+        totalTargetWeightBPS = uint16(sum);
     }
 
     /// @dev required by the OZ UUPS module.
