@@ -327,7 +327,6 @@ contract SFStrategyAggregator is
 
                 bytes memory childData = _payloadFor(address(strat.strategy), dataStrategies, perChildData);
 
-                // TODO: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
                 uint256 childInvested = strat.strategy.deposit(toAllocate, childData);
 
                 // If child did not pull all funds, reset approval
@@ -344,7 +343,6 @@ contract SFStrategyAggregator is
 
         // Any unnalocated tokens must not stay in the aggregator long term.
         // Send back to the vault.
-        // TODO: To discuss: Check if better instead of sending to vault, route remaining to a "buffer" strategy or something like that? Revisit
         if (remaining > 0) underlying.safeTransfer(vault, remaining);
 
         return investedAssets;
@@ -366,6 +364,7 @@ contract SFStrategyAggregator is
         returns (uint256 withdrawnAssets)
     {
         require(assets > 0, SFStrategyAggregator__NotZeroAmount());
+        (address[] memory dataStrategies, bytes[] memory perChildData) = _decodePerStrategyData(data);
 
         uint256 remaining = assets;
 
@@ -393,8 +392,9 @@ contract SFStrategyAggregator is
                 uint256 toAsk = subStratMax > remaining ? remaining : subStratMax;
                 if (toAsk == 0) continue;
 
-                // TODO: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
-                uint256 childGot = strat.strategy.withdraw(toAsk, address(this), bytes(""));
+                bytes memory childData = _payloadFor(address(strat.strategy), dataStrategies, perChildData);
+                uint256 childGot = strat.strategy.withdraw(toAsk, address(this), childData);
+
                 if (childGot == 0) continue;
 
                 // Immediately pass to receiver
