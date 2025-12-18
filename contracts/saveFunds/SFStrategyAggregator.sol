@@ -62,7 +62,13 @@ contract SFStrategyAggregator is
     event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
     event OnSubStrategyAdded(address indexed strategy, uint16 targetWeightBPS, bool isActive);
     event OnSubStrategyUpdated(address indexed strategy, uint16 targetWeightBPS, bool isActive);
-    event OnStrategyLossReported(uint256 prevAssets, uint256 newAssets, uint256 lossAmount);
+    event OnStrategyLossReported(
+        uint256 requestedAssets,
+        uint256 withdrawnAssets,
+        uint256 prevTotalAssets,
+        uint256 newTotalAssets,
+        uint256 shortfall
+    );
 
     error SFStrategyAggregator__NotAuthorizedCaller();
     error SFStrategyAggregator__InvalidTargetWeightBPS();
@@ -364,6 +370,8 @@ contract SFStrategyAggregator is
         returns (uint256 withdrawnAssets)
     {
         require(assets > 0, SFStrategyAggregator__NotZeroAmount());
+        // snapshot before moving anything
+        uint256 prevTotalAssets = totalAssets();
 
         (address[] memory dataStrategies, bytes[] memory perChildData) = _decodePerStrategyData(data);
 
@@ -379,7 +387,7 @@ contract SFStrategyAggregator is
 
         // 3) loss/illiquidity report
         if (withdrawnAssets < assets) {
-            _reportLoss(assets, withdrawnAssets);
+            _reportLoss(assets, withdrawnAssets, prevTotalAssets);
         }
 
         return withdrawnAssets;
@@ -432,14 +440,29 @@ contract SFStrategyAggregator is
      * @param data Additional data for harvesting (not used in this implementation).
      */
     function harvest(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
-        // TODO: include in data the children to harvest?
-        uint256 len = subStrategies.length;
+        // No data => harvest all active strategies with empty payload
+        if (data.length == 0) {
+            uint256 len = subStrategies.length;
+            for (uint256 i; i < len; ++i) {
+                SubStrategy storage strat = subStrategies[i];
+                if (!strat.isActive) continue;
+                ISFStrategyMaintenance(address(strat.strategy)).harvest(bytes(""));
+            }
+            return;
+        }
 
-        for (uint256 i; i < len; ++i) {
-            SubStrategy memory strat = subStrategies[i];
+        // Data => allowlist + per-strategy payload
+        (address[] memory strategies, bytes[] memory payloads) = abi.decode(data, (address[], bytes[]));
+        require(strategies.length == payloads.length, SFStrategyAggregator__InvalidPerStrategyData());
 
-            // TODO: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
-            if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).harvest(bytes(""));
+        for (uint256 i; i < strategies.length; ++i) {
+            address s = strategies[i];
+            // must exist (keeps ops safe). If you already validate this inside _decodePerStrategyData, call that instead.
+            uint256 idxPlus = subStrategyIndex[s];
+            require(idxPlus != 0, SFStrategyAggregator__UnknownPerStrategyDataStrategy());
+
+            SubStrategy storage strat = subStrategies[idxPlus - 1];
+            ISFStrategyMaintenance(address(strat.strategy)).harvest(payloads[i]);
         }
     }
 
@@ -647,9 +670,11 @@ contract SFStrategyAggregator is
         }
     }
 
-    function _reportLoss(uint256 _requestedAssets, uint256 _withdrawnAssets) internal {
-        uint256 lossAmount = _requestedAssets - _withdrawnAssets;
-        emit OnStrategyLossReported(_requestedAssets, totalAssets(), lossAmount);
+    function _reportLoss(uint256 requestedAssets, uint256 withdrawnAssets, uint256 prevTotalAssets) internal {
+        uint256 newTotalAssets = totalAssets();
+        uint256 shortfall = requestedAssets - withdrawnAssets;
+
+        emit OnStrategyLossReported(requestedAssets, withdrawnAssets, prevTotalAssets, newTotalAssets, shortfall);
     }
 
     /// @dev required by the OZ UUPS module.
