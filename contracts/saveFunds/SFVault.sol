@@ -8,6 +8,8 @@
  */
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
@@ -139,6 +141,10 @@ contract SFVault is
         // ? Ask if we want to set an initial strategy at deployment
     }
 
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
@@ -235,6 +241,14 @@ contract SFVault is
         performanceFeeHurdleBPS = _performanceFeeHurdleBPS;
         emit OnFeeConfigUpdated(_managementFeeBPS, _performanceFeeBPS, _performanceFeeHurdleBPS);
     }
+
+    function setERC721ApprovalForAll(address nft, address operator, bool approved) external onlyRole(Roles.OPERATOR) {
+        IERC721(nft).setApprovalForAll(operator, approved);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               EMERGENCY
+    //////////////////////////////////////////////////////////////*/
 
     function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
         _pause();
