@@ -90,7 +90,6 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__MissingSwapBackData();
     error SFUniswapV3Strategy__SwapBackIncomplete();
     error SFUniswapV3Strategy__FlushIdleToVaultIncomplete();
-    error SFUniswapV3Strategy__InvalidReceiver();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -280,43 +279,34 @@ contract SFUniswapV3Strategy is
     {
         require(assets > 0, SFUniswapV3Strategy__NotZeroAmount());
 
-        // Enforce that strategy only ever sends funds back to the vault.
-        require(receiver == vault, SFUniswapV3Strategy__InvalidReceiver());
-
         uint256 total = totalAssets();
         if (total == 0) return 0;
 
+        // If requested assets are more than available, withdraw all.
         if (assets > total) assets = total;
 
-        // 1) Compute fraction of LP to remove
+        // 1. Compute fraction of LP to remove
         uint256 liquidityToBurn = _liquidityForValue(assets);
 
-        // 2) Exit liquidity + collect
-        if (positionTokenId != 0 && liquidityToBurn > 0) {
-            _decreaseLiquidityAndCollect(liquidityToBurn, bytes(""));
-        }
+        if (liquidityToBurn > 0 && positionTokenId != 0) _decreaseLiquidityAndCollect(liquidityToBurn, data);
 
-        // 3) Swap all otherToken -> underlying (must provide swapBack inputs if otherToken exists)
+        // 2. Should have some underlying + otherToken
+        uint256 balUnderlying = underlying.balanceOf(address(this));
         uint256 balOther = otherToken.balanceOf(address(this));
-        if (balOther > 0) {
-            require(data.length != 0, SFUniswapV3Strategy__MissingSwapBackData());
 
+        // 3. swap all otherToken to underlying
+        if (balOther > 0 && data.length > 0) {
             (bytes[] memory inputs, uint256 deadline) = abi.decode(data, (bytes[], uint256));
             _V3Swap(balOther, inputs, deadline, false);
-
-            // enforce "no assets held" — bad swap data must revert
-            require(otherToken.balanceOf(address(this)) == 0, SFUniswapV3Strategy__SwapBackIncomplete());
         }
 
-        // 4) Send ALL underlying back to vault so strategy ends with 0 idle balances
         uint256 finalUnderlying = underlying.balanceOf(address(this));
-        withdrawnAssets = finalUnderlying;
 
-        if (finalUnderlying > 0) {
-            underlying.safeTransfer(vault, finalUnderlying);
-        }
+        // 4. transfer underlying to receiver
+        withdrawnAssets = finalUnderlying > assets ? assets : finalUnderlying;
+        if (withdrawnAssets > 0) underlying.safeTransfer(receiver, withdrawnAssets);
 
-        require(underlying.balanceOf(address(this)) == 0, "idle underlying remains");
+        // TODO: if finalUnderlying > withdrawnAssets what to do with the rest?
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -353,9 +343,9 @@ contract SFUniswapV3Strategy is
         require(newTickLower < newTickUpper, SFUniswapV3Strategy__InvalidRebalanceParams());
 
         int24 spacing = pool.tickSpacing();
-        require(
-            newTickLower % spacing == 0 && newTickUpper % spacing == 0, SFUniswapV3Strategy__InvalidRebalanceParams()
-        );
+        if (newTickLower % spacing != 0 || newTickUpper % spacing != 0) {
+            revert SFUniswapV3Strategy__InvalidRebalanceParams();
+        }
 
         // If there is no active position yet, just update the range and exit.
         if (positionTokenId == 0) {
@@ -470,7 +460,7 @@ contract SFUniswapV3Strategy is
             p.lpDeadline
         ) = abi.decode(data, (bytes[], bytes[], uint256, uint16, uint128, uint128, uint256));
 
-        require(p.otherRatioBps <= MAX_BPS, SFUniswapV3Strategy__InvalidDepositData());
+        if (p.otherRatioBps > MAX_BPS) revert SFUniswapV3Strategy__InvalidOtherRatioBps();
     }
 
     function _liquidityForValue(uint256 _value) internal pure returns (uint256) {
@@ -763,7 +753,10 @@ contract SFUniswapV3Strategy is
         require(_newLower < _newUpper, SFUniswapV3Strategy__InvalidRebalanceParams());
 
         int24 spacing = pool.tickSpacing();
-        require(_newLower % spacing == 0 && _newUpper % spacing == 0, SFUniswapV3Strategy__InvalidRebalanceParams());
+        if (_newLower % spacing != 0 || _newUpper % spacing != 0) {
+            revert SFUniswapV3Strategy__InvalidRebalanceParams();
+        }
+
         require(_newLower >= TickMath.MIN_TICK && _newUpper <= TickMath.MAX_TICK, SFUniswapV3Strategy__InvalidTick());
 
         emit OnRangeUpdated(tickLower, tickUpper, _newLower, _newUpper);
@@ -779,13 +772,13 @@ contract SFUniswapV3Strategy is
         uint256 balOther = otherToken.balanceOf(address(this));
 
         if (balOther > 0) {
-            require(swapBackInputs.length != 0, SFUniswapV3Strategy__MissingSwapBackData());
+            if (swapBackInputs.length == 0) revert SFUniswapV3Strategy__MissingSwapBackData();
 
             // Swap ALL leftover other -> underlying
             _V3Swap(balOther, swapBackInputs, swapDeadline, false);
 
             // Enforce that we didn’t leave any otherToken dust behind due to bad inputs
-            require(otherToken.balanceOf(address(this)) == 0, SFUniswapV3Strategy__SwapBackIncomplete());
+            if (otherToken.balanceOf(address(this)) != 0) revert SFUniswapV3Strategy__SwapBackIncomplete();
         }
 
         refundedUnderlying = underlying.balanceOf(address(this));
