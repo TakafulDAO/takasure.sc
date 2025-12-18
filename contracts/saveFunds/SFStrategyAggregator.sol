@@ -445,8 +445,7 @@ contract SFStrategyAggregator is
             uint256 len = subStrategies.length;
             for (uint256 i; i < len; ++i) {
                 SubStrategy storage strat = subStrategies[i];
-                if (!strat.isActive) continue;
-                ISFStrategyMaintenance(address(strat.strategy)).harvest(bytes(""));
+                if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).harvest(bytes(""));
             }
             return;
         }
@@ -457,7 +456,6 @@ contract SFStrategyAggregator is
 
         for (uint256 i; i < strategies.length; ++i) {
             address s = strategies[i];
-            // must exist (keeps ops safe). If you already validate this inside _decodePerStrategyData, call that instead.
             uint256 idxPlus = subStrategyIndex[s];
             require(idxPlus != 0, SFStrategyAggregator__UnknownPerStrategyDataStrategy());
 
@@ -471,14 +469,25 @@ contract SFStrategyAggregator is
      * @param data Additional data for rebalancing (not used in this implementation).
      */
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
-        // TODO: finish this function
-        uint256 len = subStrategies.length;
+        // No data => rebalance all active strategies with empty payload
+        if (data.length == 0) {
+            uint256 len = subStrategies.length;
+            for (uint256 i; i < len; ++i) {
+                SubStrategy storage strat = subStrategies[i];
+                if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).rebalance(bytes(""));
+            }
+            return;
+        }
 
-        for (uint256 i; i < len; ++i) {
-            SubStrategy memory strat = subStrategies[i];
+        // Data => allowlist + per-strategy payload
+        (address[] memory strategies, bytes[] memory payloads) = _decodePerStrategyData(data);
 
-            // TODO: revisit this to check the best way to interact with both v3 and v4 strategies. This for the data param
-            if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).rebalance(data);
+        for (uint256 i; i < strategies.length; ++i) {
+            uint256 idxPlus = subStrategyIndex[strategies[i]];
+
+            SubStrategy storage strat = subStrategies[idxPlus - 1];
+
+            if (strat.isActive) ISFStrategyMaintenance(address(strat.strategy)).rebalance(payloads[i]);
         }
     }
 
@@ -653,20 +662,22 @@ contract SFStrategyAggregator is
 
         for (uint256 i; i < len && sent_ < _remaining; ++i) {
             SubStrategy storage strat = subStrategies[i];
-            if (!strat.isActive) continue;
+            if (strat.isActive) {
+                uint256 maxW = strat.strategy.maxWithdraw();
+                if (maxW == 0) continue;
 
-            uint256 maxW = strat.strategy.maxWithdraw();
-            if (maxW == 0) continue;
+                uint256 toAsk = maxW > (_remaining - sent_) ? (_remaining - sent_) : maxW;
+                if (toAsk == 0) continue;
 
-            uint256 toAsk = maxW > (_remaining - sent_) ? (_remaining - sent_) : maxW;
-            if (toAsk == 0) continue;
+                uint256 got = strat.strategy
+                    .withdraw(
+                        toAsk, address(this), _payloadFor(address(strat.strategy), _dataStrategies, _perChildData)
+                    );
+                if (got == 0) continue;
 
-            uint256 got = strat.strategy
-                .withdraw(toAsk, address(this), _payloadFor(address(strat.strategy), _dataStrategies, _perChildData));
-            if (got == 0) continue;
-
-            underlying.safeTransfer(_receiver, got);
-            sent_ += got;
+                underlying.safeTransfer(_receiver, got);
+                sent_ += got;
+            }
         }
     }
 
