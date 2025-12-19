@@ -14,6 +14,5 @@ interface ISFStrategy {
     function unpause() external;
     function emergencyExit(address receiver) external;
     function setMaxTVL(uint256 newMaxTVL) external;
-    function setConfig(bytes calldata newConfig) external;
 }
 

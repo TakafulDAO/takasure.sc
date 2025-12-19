@@ -65,7 +65,7 @@ contract MockSFStrategy is ISFStrategy {
     function setMaxTVL(uint256 newMaxTVL) external override {
         _maxTVL = newMaxTVL;
     }
-    function setConfig(bytes calldata) external override {}
+    function setConfig(bytes calldata) external {}
 
     function test() public {}
 }

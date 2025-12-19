@@ -192,15 +192,6 @@ contract SFUniswapV3Strategy is
         emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
     }
 
-    function setConfig(
-        bytes calldata /*newConfig*/
-    )
-        external
-        onlyRole(Roles.OPERATOR)
-    {
-        // todo: check if needed. Decode array of strategy, weights, and active status.
-    }
-
     function setTwapWindow(uint32 newWindow) external onlyRole(Roles.OPERATOR) {
         // allow 0 (spot), otherwise require something sane
         if (newWindow != 0 && newWindow < 60) revert SFUniswapV3Strategy__InvalidTwapWindow(); // min 1 min
@@ -683,32 +674,26 @@ contract SFUniswapV3Strategy is
         }
     }
 
-    /**
-     * @dev Splits `_assets` (denominated in underlying units) into the part we keep as underlying
-     *      and the part we intend to swap into `otherToken`.
-     *      Encoding of `_data` (when non-empty): abi.encode(bytes[] inputs, uint256 deadline, uint16 otherRatioBps)
-     *      - `inputs` / `deadline` are passed straight to the Universal Router.
-     *      - `otherRatioBps` is a strategy-specific field (0-10000) describing what fraction of
-     *        value we want to hold as `otherToken`.
-     *      If `_data.length == 0` or the BPS is invalid, we default to 50/50.
-     */
     function _prepareAmountsForLP(uint256 _assets, bytes calldata _data)
         internal
-        pure
-        returns (uint256 amountUnderlyingForLP_, uint256 amountOtherForLP_)
+        view
+        returns (uint256 amountUnderlyingForLP_, uint256 amountUnderlyingToSwap_)
     {
-        // TODO: refine a price-adjusted value
-        // Default to 50/50 if no data
-        uint16 _otherRatioBPS = MAX_BPS / 2;
+        uint16 otherRatioBPS;
 
         if (_data.length > 0) {
-            (,, uint16 _explicitBPS) = abi.decode(_data, (bytes[], uint256, uint16));
-            if (_explicitBPS <= MAX_BPS) _otherRatioBPS = _explicitBPS;
+            V3ActionData memory p = _decodeV3ActionData(_data);
+            otherRatioBPS = p.otherRatioBPS;
+        } else {
+            // Default: range-aware ratio (better than 50/50)
+            otherRatioBPS = _defaultOtherRatioBPS();
         }
 
-        // Amount of underlying to convert to otherToken
-        amountOtherForLP_ = (_assets * _otherRatioBPS) / MAX_BPS;
-        amountUnderlyingForLP_ = _assets - amountOtherForLP_;
+        require(otherRatioBPS <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
+
+        // value is denominated in underlying (USDC), so "other side value" = how much USDC we swap
+        amountUnderlyingToSwap_ = FullMath.mulDiv(_assets, otherRatioBPS, MAX_BPS);
+        amountUnderlyingForLP_ = _assets - amountUnderlyingToSwap_;
     }
 
     /**
@@ -783,20 +768,32 @@ contract SFUniswapV3Strategy is
         positionManager.collect(cparams);
     }
 
-    function _collectFees(bytes calldata _data) internal {
+    function _collectFees(bytes calldata data) internal {
         _requireVaultApprovalForNFT();
-        // TODO: use data
 
         if (positionTokenId == 0) return;
 
-        INonfungiblePositionManager.CollectParams memory collectParams;
-        collectParams.tokenId = positionTokenId;
-        collectParams.recipient = address(this);
-        collectParams.amount0Max = type(uint128).max;
-        collectParams.amount1Max = type(uint128).max;
+        // Standard decode
+        V3ActionData memory p = _decodeV3ActionData(data);
 
-        // This collects all fees and any previously decreased liquidity not yet collected.
+        INonfungiblePositionManager.CollectParams memory collectParams = INonfungiblePositionManager.CollectParams({
+            tokenId: positionTokenId,
+            recipient: address(this),
+            amount0Max: type(uint128).max,
+            amount1Max: type(uint128).max
+        });
+
+        // Collect all fees (and any owed tokens)
         positionManager.collect(collectParams);
+
+        // Optional: swap collected otherToken -> underlying if keeper supplied swap payload
+        uint256 balOther = otherToken.balanceOf(address(this));
+        if (balOther > 0 && p.swapToUnderlyingData.length > 0) {
+            _V3Swap(balOther, p.swapToUnderlyingData, false);
+        }
+
+        // Never retain assets in the strategy
+        _sweepToVault();
     }
 
     function _positionValueAtSqrtPrice(uint160 sqrtPriceX96) internal view returns (uint256) {
@@ -934,6 +931,37 @@ contract SFUniswapV3Strategy is
             (sqrtPriceX96_,,,,,,) = pool.slot0();
             return sqrtPriceX96_;
         }
+    }
+
+    function _defaultOtherRatioBPS() internal view returns (uint16) {
+        // Use the same valuation source (TWAP/spot) as totalAssets()
+        uint160 sqrtP = _valuationSqrtPriceX96();
+        uint160 sqrtA = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 sqrtB = TickMath.getSqrtRatioAtTick(tickUpper);
+
+        // Any non-zero liquidity works since ratio is scale-invariant
+        uint128 L = 1e18;
+
+        (uint256 amt0, uint256 amt1) = LiquidityAmounts.getAmountsForLiquidity(sqrtP, sqrtA, sqrtB, L);
+
+        uint256 valueUnderlying;
+        uint256 valueOther;
+
+        if (token0 == address(underlying)) {
+            valueUnderlying = amt0;
+            valueOther = _quoteOtherAsUnderlyingAtSqrtPrice(amt1, sqrtP); // token1 is otherToken
+        } else {
+            valueUnderlying = amt1;
+            valueOther = _quoteOtherAsUnderlyingAtSqrtPrice(amt0, sqrtP); // token0 is otherToken
+        }
+
+        uint256 totalValue = valueUnderlying + valueOther;
+        if (totalValue == 0) return uint16(MAX_BPS / 2);
+
+        uint256 bps = FullMath.mulDiv(valueOther, MAX_BPS, totalValue);
+        if (bps > MAX_BPS) bps = MAX_BPS;
+
+        return uint16(bps);
     }
 
     /// @dev required by the OZ UUPS module.
