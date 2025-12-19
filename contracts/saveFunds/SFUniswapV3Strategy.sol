@@ -79,8 +79,7 @@ contract SFUniswapV3Strategy is
     event TwapWindowUpdated(uint32 oldWindow, uint32 newWindow);
 
     error SFUniswapV3Strategy__NotAuthorizedCaller();
-    error SFUniswapV3Strategy__NotAddressZero();
-    error SFUniswapV3Strategy__NotZeroAmount();
+    error SFUniswapV3Strategy__NotZeroValue();
     error SFUniswapV3Strategy__MaxTVLReached();
     error SFUniswapV3Strategy__InvalidPoolTokens();
     error SFUniswapV3Strategy__UnexpectedPositionTokenId();
@@ -232,7 +231,7 @@ contract SFUniswapV3Strategy is
         returns (uint256 investedAssets)
     {
         _onlyContract("PROTOCOL__SF_VAULT");
-        require(assets > 0, SFUniswapV3Strategy__NotZeroAmount());
+        require(assets > 0, SFUniswapV3Strategy__NotZeroValue());
 
         // Enforce TVL cap
         require(maxTVL == 0 || totalAssets() + assets <= maxTVL, SFUniswapV3Strategy__MaxTVLReached());
@@ -288,7 +287,7 @@ contract SFUniswapV3Strategy is
     {
         _onlyContract("PROTOCOL__SF_VAULT");
         _notAddressZero(receiver);
-        require(assets > 0, SFUniswapV3Strategy__NotZeroAmount());
+        require(assets > 0, SFUniswapV3Strategy__NotZeroValue());
 
         uint256 total = totalAssets();
         if (total == 0) return 0;
@@ -949,7 +948,7 @@ contract SFUniswapV3Strategy is
     }
 
     function _notAddressZero(address _addr) internal pure {
-        require(_addr != address(0), SFUniswapV3Strategy__NotAddressZero());
+        require(_addr != address(0), SFUniswapV3Strategy__NotZeroValue());
     }
 
     function _onlyContract(string memory _name) internal view {
