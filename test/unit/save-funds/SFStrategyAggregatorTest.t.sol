@@ -528,7 +528,7 @@ contract SFStrategyAggregatorTest is Test {
         vm.stopPrank();
 
         vm.prank(takadao);
-        aggregator.harvest(bytes("ignored"));
+        aggregator.harvest(bytes(""));
 
         assertEq(s1.harvestCount(), 1);
         assertEq(s2.harvestCount(), 0);
