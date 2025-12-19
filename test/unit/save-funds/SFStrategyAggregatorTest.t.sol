@@ -94,14 +94,18 @@ contract SFStrategyAggregatorTest is Test {
         deal(address(asset), address(aggregator), amount);
     }
 
+    function _emptyPerStrategyData() internal pure returns (bytes memory) {
+        return abi.encode(new address[](0), new bytes[](0));
+    }
+
     function _depositAsVault(uint256 assetsToInvest) internal returns (uint256 invested) {
         vm.prank(address(vault));
-        invested = aggregator.deposit(assetsToInvest, bytes("ignored"));
+        invested = aggregator.deposit(assetsToInvest, _emptyPerStrategyData());
     }
 
     function _withdrawAsVault(uint256 assetsToWithdraw, address receiver) internal returns (uint256 withdrawn) {
         vm.prank(address(vault));
-        withdrawn = aggregator.withdraw(assetsToWithdraw, receiver, bytes("ignored"));
+        withdrawn = aggregator.withdraw(assetsToWithdraw, receiver, _emptyPerStrategyData());
     }
 
     /*//////////////////////////////////////////////////////////////
