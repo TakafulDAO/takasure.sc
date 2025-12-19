@@ -55,6 +55,10 @@ contract SFStrategyAggregatorHandler is Test {
         return strats;
     }
 
+    function _emptyPerStrategyData() internal pure returns (bytes memory) {
+        return abi.encode(new address[](0), new bytes[](0));
+    }
+
     function _actor(uint256 seed) internal view returns (address) {
         return actors[seed % N_ACTORS];
     }
@@ -145,12 +149,19 @@ contract SFStrategyAggregatorHandler is Test {
         uint256 amount = bound(assetsIn, 0, MAX_ASSETS);
         if (amount == 0) return;
 
-        // fund aggregator with exact balance (safe; no addition overflow)
-        deal(address(asset), address(aggregator), amount);
+        // fund aggregator (additive) and revert-safe: if the call fails, restore previous balance
+        uint256 beforeBal = asset.balanceOf(address(aggregator));
+        deal(address(asset), address(aggregator), beforeBal + amount);
+
+        bytes memory data = _emptyPerStrategyData();
 
         vm.prank(vault);
-        (bool ok,) = address(aggregator).call(abi.encodeWithSelector(aggregator.deposit.selector, amount, bytes("")));
-        ok; // may revert if paused; swallowed
+        (bool ok,) = address(aggregator).call(abi.encodeWithSelector(aggregator.deposit.selector, amount, data));
+
+        if (!ok) {
+            // ensure we don't leave stray idle funds if deposit reverted (paused, etc.)
+            deal(address(asset), address(aggregator), beforeBal);
+        }
     }
 
     function vaultWithdraw(uint256 assetsIn, uint256 recvSeed) external {
@@ -159,10 +170,12 @@ contract SFStrategyAggregatorHandler is Test {
 
         address receiver = _actor(recvSeed);
 
+        bytes memory data = _emptyPerStrategyData();
+
         vm.prank(vault);
         (bool ok,) =
-            address(aggregator).call(abi.encodeWithSelector(aggregator.withdraw.selector, amount, receiver, bytes("")));
-        ok;
+            address(aggregator).call(abi.encodeWithSelector(aggregator.withdraw.selector, amount, receiver, data));
+        ok; // may revert if paused/insufficient, swallowed
     }
 
     /*//////////////////////////////////////////////////////////////

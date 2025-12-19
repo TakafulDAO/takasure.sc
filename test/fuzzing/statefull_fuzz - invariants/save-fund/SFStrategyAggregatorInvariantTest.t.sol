@@ -62,6 +62,13 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
         vm.prank(addrMgr.owner());
         addrMgr.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", feeRecipient, ProtocolAddressType.Admin);
 
+        // register the vault for aggregator's onlyContract("PROTOCOL__SF_VAULT") check
+        vm.startPrank(addrMgr.owner());
+        if (!addrMgr.hasName("PROTOCOL__SF_VAULT", address(vault))) {
+            addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Admin);
+        }
+        vm.stopPrank();
+
         // pause guardian setup
         vm.startPrank(addrMgr.owner());
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
@@ -124,18 +131,18 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
     }
 
     function invariant_Aggregator_TotalAssetsEqualsSumOfActiveStrategies() public view {
+        // totalAssets() includes idle funds held by the aggregator + all child strategies (active or inactive)
         SubStrategy[] memory subs = aggregator.getSubStrategies();
 
-        uint256 sum;
+        uint256 strategiesSum;
         for (uint256 i; i < subs.length; i++) {
-            if (!subs[i].isActive) continue;
-            // use the strategy’s own accounting (matches aggregator’s likely behavior)
-            sum += ISFStrategy(address(subs[i].strategy)).totalAssets();
+            strategiesSum += ISFStrategy(address(subs[i].strategy)).totalAssets();
         }
 
-        assertEq(aggregator.totalAssets(), sum);
-        // positionValue is expected to be aligned with totalAssets in this aggregator
-        assertEq(aggregator.positionValue(), sum);
+        uint256 idle = asset.balanceOf(address(aggregator));
+
+        assertEq(aggregator.positionValue(), strategiesSum);
+        assertEq(aggregator.totalAssets(), idle + strategiesSum);
     }
 
     function invariant_Aggregator_MaxDepositConsistentWithCap() public view {
