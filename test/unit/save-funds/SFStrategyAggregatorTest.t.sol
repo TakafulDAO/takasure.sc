@@ -562,7 +562,7 @@ contract SFStrategyAggregatorTest is Test {
         vm.stopPrank();
 
         vm.prank(takadao);
-        aggregator.rebalance(bytes("hello"));
+        aggregator.rebalance(bytes(""));
 
         assertEq(s1.rebalanceCount(), 1);
         assertEq(s2.rebalanceCount(), 0);
