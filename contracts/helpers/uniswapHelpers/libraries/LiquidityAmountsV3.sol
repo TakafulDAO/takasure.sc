@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.28;
 
-import {FullMathV3 as FullMath} from "contracts/helpers/libraries/uniswap/FullMathV3.sol";
+import {FullMathV3 as FullMath} from "contracts/helpers/uniswapHelpers/libraries/FullMathV3.sol";
 import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 
 /// @title Liquidity amount functions
