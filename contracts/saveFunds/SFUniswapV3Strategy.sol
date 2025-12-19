@@ -42,22 +42,32 @@ contract SFUniswapV3Strategy is
 {
     using SafeERC20 for IERC20;
 
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
     uint16 internal constant MAX_BPS = 10_000;
 
-    IAddressManager internal addressManager;
+    /*//////////////////////////////////////////////////////////////
+                                 STATE
+    //////////////////////////////////////////////////////////////*/
+
     IUniswapV3Pool public pool;
+    IAddressManager internal addressManager;
     INonfungiblePositionManager internal positionManager;
     IUniversalRouter internal universalRouter;
     IUniswapV3MathHelper internal math;
-
     IERC20 internal underlying; // USDC
     IERC20 public otherToken; // USDT or any other token paired in the pool with USDC
+
+    // Pool/vault specific
     address public vault;
     address internal token0;
     address internal token1;
 
-    uint256 internal maxTVL;
+    // Position parameters
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
+    uint256 internal maxTVL;
     int24 internal tickLower;
     int24 internal tickUpper;
     uint32 internal twapWindow; // seconds; 0 => spot
@@ -78,18 +88,18 @@ contract SFUniswapV3Strategy is
     event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
     event TwapWindowUpdated(uint32 oldWindow, uint32 newWindow);
 
-    error SFUniswapV3Strategy__NotAuthorizedCaller();
+    error SFUniswapV3Strategy__InvalidPoolTokens();
+    error SFUniswapV3Strategy__InvalidTicks();
+    error SFUniswapV3Strategy__InvalidTwapWindow();
     error SFUniswapV3Strategy__NotZeroValue();
     error SFUniswapV3Strategy__MaxTVLReached();
-    error SFUniswapV3Strategy__InvalidPoolTokens();
-    error SFUniswapV3Strategy__UnexpectedPositionTokenId();
-    error SFUniswapV3Strategy__InvalidRebalanceParams();
-    error SFUniswapV3Strategy__InvalidTicks();
-    error SFUniswapV3Strategy__VaultNotApprovedForNFT();
     error SFUniswapV3Strategy__InvalidStrategyData();
+    error SFUniswapV3Strategy__InvalidRebalanceParams();
+    error SFUniswapV3Strategy__VaultNotApprovedForNFT();
     error SFUniswapV3Strategy__NoPosition();
-    error SFUniswapV3Strategy__InvalidTwapWindow();
     error SFUniswapV3Strategy__InvalidDeadline();
+    error SFUniswapV3Strategy__UnexpectedPositionTokenId();
+    error SFUniswapV3Strategy__NotAuthorizedCaller();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -135,9 +145,10 @@ contract SFUniswapV3Strategy is
 
         int24 spacing = IUniswapV3Pool(pool).tickSpacing();
 
-        require(_tickLower < _tickUpper, SFUniswapV3Strategy__InvalidTicks());
-        require(_tickLower % spacing == 0, SFUniswapV3Strategy__InvalidTicks());
-        require(_tickUpper % spacing == 0, SFUniswapV3Strategy__InvalidTicks());
+        require(
+            _tickLower < _tickUpper && _tickLower % spacing == 0 && _tickUpper % spacing == 0,
+            SFUniswapV3Strategy__InvalidTicks()
+        );
 
         tickLower = _tickLower;
         tickUpper = _tickUpper;
@@ -416,20 +427,6 @@ contract SFUniswapV3Strategy is
         return address(underlying);
     }
 
-    function totalAssets() public view returns (uint256) {
-        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
-
-        uint256 value = _positionValueAtSqrtPrice(sqrtPriceX96);
-
-        uint256 idleU = underlying.balanceOf(address(this));
-        if (idleU > 0) value += idleU;
-
-        uint256 idleO = otherToken.balanceOf(address(this));
-        if (idleO > 0) value += _quoteOtherAsUnderlyingAtSqrtPrice(idleO, sqrtPriceX96);
-
-        return value;
-    }
-
     function maxDeposit() external view returns (uint256) {
         if (maxTVL == 0) return type(uint256).max;
 
@@ -510,31 +507,117 @@ contract SFUniswapV3Strategy is
         return abi.encode(uint8(1), positionTokenId, address(pool), tickLower, tickUpper);
     }
 
+    function totalAssets() public view returns (uint256) {
+        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
+
+        uint256 value = _positionValueAtSqrtPrice(sqrtPriceX96);
+
+        uint256 idleU = underlying.balanceOf(address(this));
+        if (idleU > 0) value += idleU;
+
+        uint256 idleO = otherToken.balanceOf(address(this));
+        if (idleO > 0) value += _quoteOtherAsUnderlyingAtSqrtPrice(idleO, sqrtPriceX96);
+
+        return value;
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _liquidityForValue(uint256 _value) internal view returns (uint128) {
-        if (_value == 0) return 0;
-        if (positionTokenId == 0) return 0;
+    function _requireVaultApprovalForNFT() internal view {
+        // vault must have approved this strategy to manage the position NFT(s)
+        require(
+            IERC721(address(positionManager)).isApprovedForAll(vault, address(this)),
+            SFUniswapV3Strategy__VaultNotApprovedForNFT()
+        );
+    }
 
-        uint128 currentLiquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
-        if (currentLiquidity == 0) return 0;
+    function _decreaseLiquidityAndCollect(uint128 _liquidity, bytes memory _data) internal {
+        require(positionTokenId != 0, SFUniswapV3Strategy__NoPosition());
 
-        // USDC value of the LP position (liquidity-only valuation)
-        uint256 posValue = _positionValueAtSqrtPrice(_valuationSqrtPriceX96());
-        if (posValue == 0) return 0;
+        (uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) = _decodePMParams(_data);
 
-        // If asking for >= position value, burn all liquidity
-        if (_value >= posValue) return currentLiquidity;
+        // Map mins according to token0/token1 ordering
+        uint256 amount0Min;
+        uint256 amount1Min;
 
-        // Pro-rata burn: ceil(currentLiquidity * _value / posValue)
-        uint256 liq256 = math.mulDivRoundingUp(uint256(currentLiquidity), _value, posValue);
+        if (token0 == address(underlying)) {
+            amount0Min = minUnderlying;
+            amount1Min = minOther;
+        } else {
+            amount0Min = minOther;
+            amount1Min = minUnderlying;
+        }
 
-        // Safety cap (should already hold true)
-        if (liq256 > uint256(currentLiquidity)) liq256 = uint256(currentLiquidity);
+        INonfungiblePositionManager.DecreaseLiquidityParams memory params =
+            INonfungiblePositionManager.DecreaseLiquidityParams({
+                tokenId: positionTokenId,
+                liquidity: _liquidity,
+                amount0Min: amount0Min,
+                amount1Min: amount1Min,
+                deadline: pmDeadline
+            });
 
-        return uint128(liq256);
+        positionManager.decreaseLiquidity(params);
+
+        // Collect everything owed to this strategy so we can swap/sweep
+        INonfungiblePositionManager.CollectParams memory cparams = INonfungiblePositionManager.CollectParams({
+            tokenId: positionTokenId,
+            recipient: address(this),
+            amount0Max: type(uint128).max,
+            amount1Max: type(uint128).max
+        });
+
+        positionManager.collect(cparams);
+    }
+
+    function _decodeV3ActionData(bytes memory _data) internal view returns (V3ActionData memory p_) {
+        // Defaults: 50/50, no swaps, and immediate position management deadline
+        if (_data.length == 0) {
+            p_.otherRatioBPS = uint16(MAX_BPS / 2);
+            p_.pmDeadline = block.timestamp;
+            return p_;
+        }
+
+        (p_.otherRatioBPS, p_.swapToOtherData, p_.swapToUnderlyingData, p_.pmDeadline, p_.minUnderlying, p_.minOther) =
+            abi.decode(_data, (uint16, bytes, bytes, uint256, uint256, uint256));
+
+        require(p_.otherRatioBPS <= MAX_BPS, SFUniswapV3Strategy__InvalidRebalanceParams());
+        require(p_.pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidStrategyData());
+    }
+
+    /**
+     * @dev Performs a Uniswap V3 exact-in swap via Universal Router.
+     * @param _amount     Amount of tokens we intend to swap.
+     * @param _data       Encoded as `abi.encode(bytes[] inputs, uint256 deadline)`.
+     *                    Each `inputs[i]` is the Universal Router input for a V3 swap.
+     * @param _zeroForOne If true: swap `underlying -> otherToken`.
+     *                    If false: swap `otherToken -> underlying`.
+     *                    Not necessarily pool.token0 -> pool.token1.
+     */
+    function _V3Swap(uint256 _amount, bytes memory _data, bool _zeroForOne) internal {
+        // Nothing to do
+        if (_amount == 0) return;
+
+        // Allow passing empty data to mean "no-op" (useful in tests or emergencyExit).
+        if (_data.length == 0) return;
+
+        // Expect data as `abi.encode(bytes[] inputs, uint256 deadline)`
+        (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
+
+        // Build commands: one V3_SWAP_EXACT_IN per input
+        bytes memory commands = new bytes(inputs.length);
+        for (uint256 i = 0; i < inputs.length; ++i) {
+            commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
+        }
+
+        // Approve the correct token depending on direction.
+        if (_zeroForOne) underlying.forceApprove(address(universalRouter), _amount);
+        else otherToken.forceApprove(address(universalRouter), _amount);
+
+        // Execute the encoded v3 swaps. Path + minOut are inside `inputs`.
+        universalRouter.execute(commands, inputs, deadline);
     }
 
     function _mintPosition(
@@ -653,98 +736,35 @@ contract SFUniswapV3Strategy is
         }
     }
 
-    function _prepareAmountsForLP(uint256 _assets, bytes calldata _data)
-        internal
-        view
-        returns (uint256 amountUnderlyingForLP_, uint256 amountUnderlyingToSwap_)
-    {
-        uint16 otherRatioBPS;
+    function _sweepToVault() internal {
+        uint256 underlyingBalance = underlying.balanceOf(address(this));
+        if (underlyingBalance > 0) underlying.safeTransfer(vault, underlyingBalance);
 
-        if (_data.length > 0) {
-            V3ActionData memory p = _decodeV3ActionData(_data);
-            otherRatioBPS = p.otherRatioBPS;
-        } else {
-            // Default: range-aware ratio (better than 50/50)
-            otherRatioBPS = _defaultOtherRatioBPS();
-        }
-
-        require(otherRatioBPS <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
-
-        // value is denominated in underlying (USDC), so "other side value" = how much USDC we swap
-        amountUnderlyingToSwap_ = math.mulDiv(_assets, otherRatioBPS, MAX_BPS);
-        amountUnderlyingForLP_ = _assets - amountUnderlyingToSwap_;
+        uint256 otherBalance = otherToken.balanceOf(address(this));
+        if (otherBalance > 0) otherToken.safeTransfer(vault, otherBalance);
     }
 
-    /**
-     * @dev Performs a Uniswap V3 exact-in swap via Universal Router.
-     * @param _amount     Amount of tokens we intend to swap.
-     * @param _data       Encoded as `abi.encode(bytes[] inputs, uint256 deadline)`.
-     *                    Each `inputs[i]` is the Universal Router input for a V3 swap.
-     * @param _zeroForOne If true: swap `underlying -> otherToken`.
-     *                    If false: swap `otherToken -> underlying`.
-     *                    Not necessarily pool.token0 -> pool.token1.
-     */
-    function _V3Swap(uint256 _amount, bytes memory _data, bool _zeroForOne) internal {
-        // Nothing to do
-        if (_amount == 0) return;
+    function _liquidityForValue(uint256 _value) internal view returns (uint128) {
+        if (_value == 0) return 0;
+        if (positionTokenId == 0) return 0;
 
-        // Allow passing empty data to mean "no-op" (useful in tests or emergencyExit).
-        if (_data.length == 0) return;
+        uint128 currentLiquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
+        if (currentLiquidity == 0) return 0;
 
-        // Expect data as `abi.encode(bytes[] inputs, uint256 deadline)`
-        (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
+        // USDC value of the LP position (liquidity-only valuation)
+        uint256 posValue = _positionValueAtSqrtPrice(_valuationSqrtPriceX96());
+        if (posValue == 0) return 0;
 
-        // Build commands: one V3_SWAP_EXACT_IN per input
-        bytes memory commands = new bytes(inputs.length);
-        for (uint256 i = 0; i < inputs.length; ++i) {
-            commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
-        }
+        // If asking for >= position value, burn all liquidity
+        if (_value >= posValue) return currentLiquidity;
 
-        // Approve the correct token depending on direction.
-        if (_zeroForOne) underlying.forceApprove(address(universalRouter), _amount);
-        else otherToken.forceApprove(address(universalRouter), _amount);
+        // Pro-rata burn: ceil(currentLiquidity * _value / posValue)
+        uint256 liq256 = math.mulDivRoundingUp(uint256(currentLiquidity), _value, posValue);
 
-        // Execute the encoded v3 swaps. Path + minOut are inside `inputs`.
-        universalRouter.execute(commands, inputs, deadline);
-    }
+        // Safety cap (should already hold true)
+        if (liq256 > uint256(currentLiquidity)) liq256 = uint256(currentLiquidity);
 
-    function _decreaseLiquidityAndCollect(uint128 _liquidity, bytes memory _data) internal {
-        require(positionTokenId != 0, SFUniswapV3Strategy__NoPosition());
-
-        (uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) = _decodePMParams(_data);
-
-        // Map mins according to token0/token1 ordering
-        uint256 amount0Min;
-        uint256 amount1Min;
-
-        if (token0 == address(underlying)) {
-            amount0Min = minUnderlying;
-            amount1Min = minOther;
-        } else {
-            amount0Min = minOther;
-            amount1Min = minUnderlying;
-        }
-
-        INonfungiblePositionManager.DecreaseLiquidityParams memory params =
-            INonfungiblePositionManager.DecreaseLiquidityParams({
-                tokenId: positionTokenId,
-                liquidity: _liquidity,
-                amount0Min: amount0Min,
-                amount1Min: amount1Min,
-                deadline: pmDeadline
-            });
-
-        positionManager.decreaseLiquidity(params);
-
-        // Collect everything owed to this strategy so we can swap/sweep
-        INonfungiblePositionManager.CollectParams memory cparams = INonfungiblePositionManager.CollectParams({
-            tokenId: positionTokenId,
-            recipient: address(this),
-            amount0Max: type(uint128).max,
-            amount1Max: type(uint128).max
-        });
-
-        positionManager.collect(cparams);
+        return uint128(liq256);
     }
 
     function _collectFees(bytes calldata data) internal {
@@ -773,6 +793,36 @@ contract SFUniswapV3Strategy is
 
         // Never retain assets in the strategy
         _sweepToVault();
+    }
+
+    function _valuationSqrtPriceX96() internal view returns (uint160 sqrtPriceX96_) {
+        uint32 window = twapWindow;
+
+        // Spot mode
+        if (window == 0) {
+            (sqrtPriceX96_,,,,,,) = pool.slot0();
+            return sqrtPriceX96_;
+        }
+
+        uint32[] memory secondsAgos = new uint32[](2);
+        secondsAgos[0] = window;
+        secondsAgos[1] = 0;
+
+        // TWAP mode, but never revert totalAssets() if observe fails
+        try pool.observe(secondsAgos) returns (int56[] memory tickCumulatives, uint160[] memory) {
+            int56 delta = tickCumulatives[1] - tickCumulatives[0];
+            int56 secs = int56(uint56(window));
+
+            int24 avgTick = int24(delta / secs);
+            // round toward -infinity (Uniswap convention)
+            if (delta < 0 && (delta % secs != 0)) avgTick--;
+
+            sqrtPriceX96_ = math.getSqrtRatioAtTick(avgTick);
+            return sqrtPriceX96_;
+        } catch {
+            (sqrtPriceX96_,,,,,,) = pool.slot0();
+            return sqrtPriceX96_;
+        }
     }
 
     function _positionValueAtSqrtPrice(uint160 sqrtPriceX96) internal view returns (uint256) {
@@ -822,37 +872,6 @@ contract SFUniswapV3Strategy is
         }
     }
 
-    function _requireVaultApprovalForNFT() internal view {
-        // vault must have approved this strategy to manage the position NFT(s)
-        require(
-            IERC721(address(positionManager)).isApprovedForAll(vault, address(this)),
-            SFUniswapV3Strategy__VaultNotApprovedForNFT()
-        );
-    }
-
-    function _decodeV3ActionData(bytes memory _data) internal view returns (V3ActionData memory p_) {
-        // Defaults: 50/50, no swaps, and immediate position management deadline
-        if (_data.length == 0) {
-            p_.otherRatioBPS = uint16(MAX_BPS / 2);
-            p_.pmDeadline = block.timestamp;
-            return p_;
-        }
-
-        (p_.otherRatioBPS, p_.swapToOtherData, p_.swapToUnderlyingData, p_.pmDeadline, p_.minUnderlying, p_.minOther) =
-            abi.decode(_data, (uint16, bytes, bytes, uint256, uint256, uint256));
-
-        require(p_.otherRatioBPS <= MAX_BPS, SFUniswapV3Strategy__InvalidRebalanceParams());
-        require(p_.pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidStrategyData());
-    }
-
-    function _sweepToVault() internal {
-        uint256 underlyingBalance = underlying.balanceOf(address(this));
-        if (underlyingBalance > 0) underlying.safeTransfer(vault, underlyingBalance);
-
-        uint256 otherBalance = otherToken.balanceOf(address(this));
-        if (otherBalance > 0) otherToken.safeTransfer(vault, otherBalance);
-    }
-
     function _decodePMParams(bytes memory _data)
         internal
         view
@@ -874,67 +893,6 @@ contract SFUniswapV3Strategy is
         // Otherwise treat as V3ActionData (deposit/withdraw data schema)
         V3ActionData memory p = _decodeV3ActionData(_data);
         return (p.pmDeadline, p.minUnderlying, p.minOther);
-    }
-
-    function _valuationSqrtPriceX96() internal view returns (uint160 sqrtPriceX96_) {
-        uint32 window = twapWindow;
-
-        // Spot mode
-        if (window == 0) {
-            (sqrtPriceX96_,,,,,,) = pool.slot0();
-            return sqrtPriceX96_;
-        }
-
-        uint32[] memory secondsAgos = new uint32[](2);
-        secondsAgos[0] = window;
-        secondsAgos[1] = 0;
-
-        // TWAP mode, but never revert totalAssets() if observe fails
-        try pool.observe(secondsAgos) returns (int56[] memory tickCumulatives, uint160[] memory) {
-            int56 delta = tickCumulatives[1] - tickCumulatives[0];
-            int56 secs = int56(uint56(window));
-
-            int24 avgTick = int24(delta / secs);
-            // round toward -infinity (Uniswap convention)
-            if (delta < 0 && (delta % secs != 0)) avgTick--;
-
-            sqrtPriceX96_ = math.getSqrtRatioAtTick(avgTick);
-            return sqrtPriceX96_;
-        } catch {
-            (sqrtPriceX96_,,,,,,) = pool.slot0();
-            return sqrtPriceX96_;
-        }
-    }
-
-    function _defaultOtherRatioBPS() internal view returns (uint16) {
-        // Use the same valuation source (TWAP/spot) as totalAssets()
-        uint160 sqrtP = _valuationSqrtPriceX96();
-        uint160 sqrtA = math.getSqrtRatioAtTick(tickLower);
-        uint160 sqrtB = math.getSqrtRatioAtTick(tickUpper);
-
-        // Any non-zero liquidity works since ratio is scale-invariant
-        uint128 L = 1e18;
-
-        (uint256 amt0, uint256 amt1) = math.getAmountsForLiquidity(sqrtP, sqrtA, sqrtB, L);
-
-        uint256 valueUnderlying;
-        uint256 valueOther;
-
-        if (token0 == address(underlying)) {
-            valueUnderlying = amt0;
-            valueOther = _quoteOtherAsUnderlyingAtSqrtPrice(amt1, sqrtP); // token1 is otherToken
-        } else {
-            valueUnderlying = amt1;
-            valueOther = _quoteOtherAsUnderlyingAtSqrtPrice(amt0, sqrtP); // token0 is otherToken
-        }
-
-        uint256 totalValue = valueUnderlying + valueOther;
-        if (totalValue == 0) return uint16(MAX_BPS / 2);
-
-        uint256 bps = math.mulDiv(valueOther, MAX_BPS, totalValue);
-        if (bps > MAX_BPS) bps = MAX_BPS;
-
-        return uint16(bps);
     }
 
     function _onlyKeeperOrOperator() internal view {

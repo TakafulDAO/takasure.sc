@@ -41,18 +41,24 @@ contract SFVault is
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    uint256 private constant MAX_BPS = 10_000; // 100% in basis points
+    uint256 private constant YEAR = 365 days;
+
+    /*//////////////////////////////////////////////////////////////
+                                 STATE
+    //////////////////////////////////////////////////////////////*/
+
     ISFStrategy public strategy; // current strategy handling the underlying assets
     IAddressManager public addressManager;
 
-    // 0 = no cap
-    uint256 public TVLCap;
-
-    /*//////////////////////////////////////////////////////////////
-                        TOKEN WHITELIST + CAPS
-    //////////////////////////////////////////////////////////////*/
-    mapping(address token => uint16 capBPS) public tokenHardCapBPS;
-
     EnumerableSet.AddressSet private whitelistedTokens;
+
+    // Caps 0 = no cap
+    uint256 public TVLCap;
 
     // Fees
     uint16 public managementFeeBPS; // management fee in basis points e.g., 200 = 2%
@@ -63,34 +69,30 @@ contract SFVault is
     uint64 public lastReport; // timestamp of the last strategy report
     uint256 public highWaterMark; // assets per share, scaled by 1e18
 
-    /*//////////////////////////////////////////////////////////////
-                               CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-    uint256 private constant MAX_BPS = 10_000; // 100% in basis points
-    uint256 private constant YEAR = 365 days;
+    mapping(address token => uint16 capBPS) public tokenHardCapBPS;
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
-    event OnTVLCapUpdated(uint256 oldCap, uint256 newCap);
     event OnTokenWhitelisted(address indexed token, uint16 hardCapBPS);
+    event OnTVLCapUpdated(uint256 oldCap, uint256 newCap);
     event OnTokenRemovedFromWhitelist(address indexed token);
     event OnTokenHardCapUpdated(address indexed token, uint16 oldCapBPS, uint16 newCapBPS);
     event OnStrategyUpdated(address indexed newStrategy);
     event OnFeeConfigUpdated(uint16 managementFeeBPS, uint16 performanceFeeBPS, uint16 performanceFeeHurdleBPS);
     event OnFeesTaken(uint256 feeAssets, FeeType feeType);
 
-    error SFVault__NonTransferableShares();
-    error SFVault__InvalidFeeBPS();
-    error SFVault__InvalidCapBPS();
+    error SFVault__NotAuthorizedCaller();
     error SFVault__InvalidToken();
     error SFVault__TokenAlreadyWhitelisted();
+    error SFVault__InvalidCapBPS();
     error SFVault__TokenNotWhitelisted();
+    error SFVault__InvalidFeeBPS();
     error SFVault__ZeroAssets();
-    error SFVault__ZeroShares();
     error SFVault__ExceedsMaxDeposit();
+    error SFVault__ZeroShares();
     error SFVault__InsufficientUSDCForFees();
-    error SFVault__NotAuthorizedCaller();
+    error SFVault__NonTransferableShares();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -232,9 +234,10 @@ contract SFVault is
         external
         onlyRole(Roles.OPERATOR)
     {
-        require(_managementFeeBPS < MAX_BPS, SFVault__InvalidFeeBPS());
-        require(_performanceFeeBPS <= MAX_BPS, SFVault__InvalidFeeBPS());
-        require(_performanceFeeHurdleBPS <= MAX_BPS, SFVault__InvalidFeeBPS());
+        require(
+            _managementFeeBPS < MAX_BPS && _performanceFeeBPS <= MAX_BPS && _performanceFeeHurdleBPS <= MAX_BPS,
+            SFVault__InvalidFeeBPS()
+        );
 
         managementFeeBPS = _managementFeeBPS;
         performanceFeeBPS = _performanceFeeBPS;
@@ -374,6 +377,18 @@ contract SFVault is
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
 
+    function isTokenWhitelisted(address token) external view returns (bool) {
+        return whitelistedTokens.contains(token);
+    }
+
+    function whitelistedTokensLength() external view returns (uint256) {
+        return whitelistedTokens.length();
+    }
+
+    function getWhitelistedTokens() external view returns (address[] memory) {
+        return whitelistedTokens.values();
+    }
+
     /**
      * @notice maxDeposit override to enforce a global TVL cap.
      * @param receiver The address of the user depositing assets.
@@ -452,41 +467,9 @@ contract SFVault is
         return netAssets + feeAssets;
     }
 
-    function isTokenWhitelisted(address token) external view returns (bool) {
-        return whitelistedTokens.contains(token);
-    }
-
-    function whitelistedTokensLength() external view returns (uint256) {
-        return whitelistedTokens.length();
-    }
-
-    function getWhitelistedTokens() external view returns (address[] memory) {
-        return whitelistedTokens.values();
-    }
-
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Shares are not transferrable.
-    function _update(address from, address to, uint256 value) internal override {
-        require(from == address(0) || to == address(0), SFVault__NonTransferableShares());
-        super._update(from, to, value);
-    }
-
-    /**
-     * @notice Calculate remaining TVL capacity.
-     * @return The remaining TVL capacity in underlying asset units.
-     */
-    function _remainingTVLCapacity() internal view returns (uint256) {
-        uint256 cap = TVLCap;
-
-        if (cap == 0) return type(uint256).max;
-
-        uint256 assets = totalAssets();
-        if (assets >= cap) return 0;
-        return cap - assets;
-    }
 
     /**
      * @notice Internal function to charge performance fees.
@@ -571,6 +554,26 @@ contract SFVault is
 
         managementFeeAssets_ = 0;
         return (0, performanceFeeAssets_);
+    }
+
+    /**
+     * @notice Calculate remaining TVL capacity.
+     * @return The remaining TVL capacity in underlying asset units.
+     */
+    function _remainingTVLCapacity() internal view returns (uint256) {
+        uint256 cap = TVLCap;
+
+        if (cap == 0) return type(uint256).max;
+
+        uint256 assets = totalAssets();
+        if (assets >= cap) return 0;
+        return cap - assets;
+    }
+
+    /// @notice Shares are not transferrable.
+    function _update(address from, address to, uint256 value) internal override {
+        require(from == address(0) || to == address(0), SFVault__NonTransferableShares());
+        super._update(from, to, value);
     }
 
     /// @dev required by the OZ UUPS module.

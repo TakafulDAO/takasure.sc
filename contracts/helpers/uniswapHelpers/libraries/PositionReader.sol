@@ -10,11 +10,17 @@ pragma solidity 0.8.28;
 import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfungiblePositionManager.sol";
 
 library PositionReader {
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+    uint256 internal constant WORDS = 12;
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
     error PositionReader__StaticcallFailed();
     error PositionReader__UnexpectedReturnLength();
     error PositionReader__IdxOutOfBounds();
-
-    uint256 internal constant WORDS = 12;
 
     function _rawWord(INonfungiblePositionManager _pm, uint256 _tokenId, uint256 _idx)
         internal

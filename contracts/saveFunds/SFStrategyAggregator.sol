@@ -37,7 +37,18 @@ contract SFStrategyAggregator is
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    uint16 private constant MAX_BPS = 10_000;
+
+    /*//////////////////////////////////////////////////////////////
+                                 STATE
+    //////////////////////////////////////////////////////////////*/
+
     IAddressManager public addressManager;
+    IERC20 private underlying;
 
     EnumerableSet.AddressSet private subStrategySet;
 
@@ -46,20 +57,12 @@ contract SFStrategyAggregator is
         bool isActive;
     }
 
-    IERC20 private underlying;
-
     address public vault;
 
     uint256 public maxTVL;
     uint16 public totalTargetWeightBPS; // sum of all target weights in BPS
 
     mapping(address strategy => SubStrategyMeta) private subStrategyMeta;
-
-    /*//////////////////////////////////////////////////////////////
-                               CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    uint16 private constant MAX_BPS = 10_000;
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -77,13 +80,13 @@ contract SFStrategyAggregator is
     );
 
     error SFStrategyAggregator__NotAuthorizedCaller();
-    error SFStrategyAggregator__InvalidTargetWeightBPS();
-    error SFStrategyAggregator__SubStrategyAlreadyExists();
-    error SFStrategyAggregator__SubStrategyNotFound();
-    error SFStrategyAggregator__NotZeroAmount();
     error SFStrategyAggregator__NotAddressZero();
     error SFStrategyAggregator__InvalidConfig();
+    error SFStrategyAggregator__InvalidTargetWeightBPS();
     error SFStrategyAggregator__DuplicateStrategy();
+    error SFStrategyAggregator__NotZeroAmount();
+    error SFStrategyAggregator__SubStrategyAlreadyExists();
+    error SFStrategyAggregator__SubStrategyNotFound();
     error SFStrategyAggregator__StrategyNotAContract();
     error SFStrategyAggregator__InvalidStrategyAsset();
     error SFStrategyAggregator__InvalidPerStrategyData();
@@ -193,48 +196,35 @@ contract SFStrategyAggregator is
     }
 
     /*//////////////////////////////////////////////////////////////
-                           SUB-STRATEGY MGMT
+                               EMERGENCY
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @notice Adds new child strategy to the aggregator.
-     * @param strategy Address of the child strategy.
-     * @param targetWeightBPS Target weight in basis points (0 to 10000).
-     */
-    function addSubStrategy(address strategy, uint16 targetWeightBPS)
-        external
-        notAddressZero(strategy)
-        onlyRole(Roles.OPERATOR)
-    {
-        _assertChildStrategyCompatible(strategy);
-        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
-        require(subStrategySet.add(strategy), SFStrategyAggregator__SubStrategyAlreadyExists());
+    function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
+        _pause();
+    }
 
-        subStrategyMeta[strategy] = SubStrategyMeta({targetWeightBPS: targetWeightBPS, isActive: true});
-
-        _recomputeTotalTargetWeightBPS();
-        emit OnSubStrategyAdded(strategy, targetWeightBPS, true);
+    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN) {
+        _unpause();
     }
 
     /**
-     * @notice Updates an existing child strategy's configuration.
-     * @param strategy Address of the child strategy to update.
-     * @param targetWeightBPS New target weight in basis points (0 to 10000).
-     * @param isActive New active status of the strategy.
+     * @notice Emergency exit function to withdraw all assets from child strategies and transfer to a receiver.
+     * @param receiver Address to receive all withdrawn assets.
      */
-    function updateSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
-        external
-        notAddressZero(strategy)
-        onlyRole(Roles.OPERATOR)
-    {
-        require(subStrategySet.contains(strategy), SFStrategyAggregator__SubStrategyNotFound());
-        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+    function emergencyExit(address receiver) external notAddressZero(receiver) nonReentrant onlyRole(Roles.OPERATOR) {
+        uint256 len = subStrategySet.length();
 
-        subStrategyMeta[strategy].targetWeightBPS = targetWeightBPS;
-        subStrategyMeta[strategy].isActive = isActive;
+        for (uint256 i; i < len; ++i) {
+            address s = subStrategySet.at(i);
+            uint256 m = ISFStrategy(s).maxWithdraw();
+            if (m == 0) continue;
+            ISFStrategy(s).withdraw(m, receiver, bytes(""));
+        }
 
-        _recomputeTotalTargetWeightBPS();
-        emit OnSubStrategyUpdated(strategy, targetWeightBPS, isActive);
+        uint256 bal = underlying.balanceOf(address(this));
+        if (bal > 0) underlying.safeTransfer(receiver, bal);
+
+        _pause();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -335,38 +325,6 @@ contract SFStrategyAggregator is
     }
 
     /*//////////////////////////////////////////////////////////////
-                               EMERGENCY
-    //////////////////////////////////////////////////////////////*/
-
-    function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
-        _pause();
-    }
-
-    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN) {
-        _unpause();
-    }
-
-    /**
-     * @notice Emergency exit function to withdraw all assets from child strategies and transfer to a receiver.
-     * @param receiver Address to receive all withdrawn assets.
-     */
-    function emergencyExit(address receiver) external notAddressZero(receiver) nonReentrant onlyRole(Roles.OPERATOR) {
-        uint256 len = subStrategySet.length();
-
-        for (uint256 i; i < len; ++i) {
-            address s = subStrategySet.at(i);
-            uint256 m = ISFStrategy(s).maxWithdraw();
-            if (m == 0) continue;
-            ISFStrategy(s).withdraw(m, receiver, bytes(""));
-        }
-
-        uint256 bal = underlying.balanceOf(address(this));
-        if (bal > 0) underlying.safeTransfer(receiver, bal);
-
-        _pause();
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               MAINTENANCE
     //////////////////////////////////////////////////////////////*/
 
@@ -419,6 +377,51 @@ contract SFStrategyAggregator is
     }
 
     /*//////////////////////////////////////////////////////////////
+                           SUB-STRATEGY MGMT
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Adds new child strategy to the aggregator.
+     * @param strategy Address of the child strategy.
+     * @param targetWeightBPS Target weight in basis points (0 to 10000).
+     */
+    function addSubStrategy(address strategy, uint16 targetWeightBPS)
+        external
+        notAddressZero(strategy)
+        onlyRole(Roles.OPERATOR)
+    {
+        _assertChildStrategyCompatible(strategy);
+        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+        require(subStrategySet.add(strategy), SFStrategyAggregator__SubStrategyAlreadyExists());
+
+        subStrategyMeta[strategy] = SubStrategyMeta({targetWeightBPS: targetWeightBPS, isActive: true});
+
+        _recomputeTotalTargetWeightBPS();
+        emit OnSubStrategyAdded(strategy, targetWeightBPS, true);
+    }
+
+    /**
+     * @notice Updates an existing child strategy's configuration.
+     * @param strategy Address of the child strategy to update.
+     * @param targetWeightBPS New target weight in basis points (0 to 10000).
+     * @param isActive New active status of the strategy.
+     */
+    function updateSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
+        external
+        notAddressZero(strategy)
+        onlyRole(Roles.OPERATOR)
+    {
+        require(subStrategySet.contains(strategy), SFStrategyAggregator__SubStrategyNotFound());
+        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+
+        subStrategyMeta[strategy].targetWeightBPS = targetWeightBPS;
+        subStrategyMeta[strategy].isActive = isActive;
+
+        _recomputeTotalTargetWeightBPS();
+        emit OnSubStrategyUpdated(strategy, targetWeightBPS, isActive);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
 
@@ -428,20 +431,6 @@ contract SFStrategyAggregator is
      */
     function asset() external view returns (address) {
         return address(underlying);
-    }
-
-    /**
-     * @notice Returns the total assets managed by the aggregator, including all active child strategies.
-     * @return Total assets under management.
-     */
-    function totalAssets() public view returns (uint256) {
-        uint256 sum = underlying.balanceOf(address(this));
-        uint256 len = subStrategySet.length();
-
-        for (uint256 i; i < len; ++i) {
-            sum += ISFStrategy(subStrategySet.at(i)).totalAssets();
-        }
-        return sum;
     }
 
     /**
@@ -524,6 +513,20 @@ contract SFStrategyAggregator is
         }
     }
 
+    /**
+     * @notice Returns the total assets managed by the aggregator, including all active child strategies.
+     * @return Total assets under management.
+     */
+    function totalAssets() public view returns (uint256) {
+        uint256 sum = underlying.balanceOf(address(this));
+        uint256 len = subStrategySet.length();
+
+        for (uint256 i; i < len; ++i) {
+            sum += ISFStrategy(subStrategySet.at(i)).totalAssets();
+        }
+        return sum;
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -536,6 +539,20 @@ contract SFStrategyAggregator is
 
         address stratAsset = abi.decode(returnData, (address));
         require(stratAsset == address(underlying), SFStrategyAggregator__InvalidStrategyAsset());
+    }
+
+    function _recomputeTotalTargetWeightBPS() internal {
+        uint256 len = subStrategySet.length();
+        uint256 sum;
+
+        for (uint256 i; i < len; ++i) {
+            address s = subStrategySet.at(i);
+            SubStrategyMeta memory m = subStrategyMeta[s];
+            if (m.isActive) sum += m.targetWeightBPS;
+        }
+
+        require(sum <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+        totalTargetWeightBPS = uint16(sum);
     }
 
     function _decodePerStrategyData(bytes calldata _data)
@@ -614,20 +631,6 @@ contract SFStrategyAggregator is
         uint256 shortfall = requestedAssets - withdrawnAssets;
 
         emit OnStrategyLossReported(requestedAssets, withdrawnAssets, prevTotalAssets, newTotalAssets, shortfall);
-    }
-
-    function _recomputeTotalTargetWeightBPS() internal {
-        uint256 len = subStrategySet.length();
-        uint256 sum;
-
-        for (uint256 i; i < len; ++i) {
-            address s = subStrategySet.at(i);
-            SubStrategyMeta memory m = subStrategyMeta[s];
-            if (m.isActive) sum += m.targetWeightBPS;
-        }
-
-        require(sum <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
-        totalTargetWeightBPS = uint16(sum);
     }
 
     /// @dev required by the OZ UUPS module.
