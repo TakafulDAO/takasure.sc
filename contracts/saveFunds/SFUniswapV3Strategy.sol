@@ -45,23 +45,23 @@ contract SFUniswapV3Strategy is
 
     uint16 internal constant MAX_BPS = 10_000;
 
-    IAddressManager public addressManager;
+    IAddressManager internal addressManager;
     IUniswapV3Pool public pool;
-    INonfungiblePositionManager public positionManager;
-    IUniversalRouter public universalRouter;
+    INonfungiblePositionManager internal positionManager;
+    IUniversalRouter internal universalRouter;
     IUniswapV3MathHelper internal math;
 
     IERC20 public underlying; // USDC
     IERC20 public otherToken; // USDT or any other token paired in the pool with USDC
     address public vault;
-    address public token0;
-    address public token1;
+    address internal token0;
+    address internal token1;
 
-    uint256 public maxTVL;
+    uint256 internal maxTVL;
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
     int24 public tickLower;
     int24 public tickUpper;
-    uint32 public twapWindow; // seconds; 0 => spot
+    uint32 internal twapWindow; // seconds; 0 => spot
 
     struct V3ActionData {
         uint16 otherRatioBPS; // 0..10000 (default 5000)
@@ -844,11 +844,6 @@ contract SFUniswapV3Strategy is
             revert SFUniswapV3Strategy__InvalidPoolTokens();
         }
     }
-
-    // // Keep the old name for callers; now it uses TWAP/spot depending on twapWindow
-    // function _quoteOtherAsUnderlying(uint256 amountOther) internal view returns (uint256) {
-    //     return _quoteOtherAsUnderlyingAtSqrtPrice(amountOther, _valuationSqrtPriceX96());
-    // }
 
     function _requireVaultApprovalForNFT() internal view {
         // vault must have approved this strategy to manage the position NFT(s)
