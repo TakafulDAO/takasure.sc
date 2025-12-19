@@ -14,18 +14,4 @@ interface IUniswapV3MathHelper {
     ) external pure returns (uint256 amount0, uint256 amount1);
     function mulDiv(uint256 a, uint256 b, uint256 denominator) external pure returns (uint256 result);
     function mulDivRoundingUp(uint256 a, uint256 b, uint256 denominator) external pure returns (uint256 result);
-    function positionLiquidity(INonfungiblePositionManager pm, uint256 tokenId) external view returns (uint128 liq);
-    function positionInfo(INonfungiblePositionManager pm, uint256 tokenId)
-        external
-        view
-        returns (
-            address token0,
-            address token1,
-            uint24 fee,
-            int24 tickLower,
-            int24 tickUpper,
-            uint128 liquidity,
-            uint128 tokensOwed0,
-            uint128 tokensOwed1
-        );
 }

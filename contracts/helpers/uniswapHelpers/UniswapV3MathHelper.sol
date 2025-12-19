@@ -11,12 +11,13 @@
 pragma solidity 0.8.28;
 
 import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfungiblePositionManager.sol";
+import {IUniswapV3MathHelper} from "contracts/interfaces/saveFunds/IUniswapV3MathHelper.sol";
 
 import {TickMathV3} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
 import {LiquidityAmountsV3} from "contracts/helpers/uniswapHelpers/libraries/LiquidityAmountsV3.sol";
 import {FullMathV3} from "contracts/helpers/uniswapHelpers/libraries/FullMathV3.sol";
 
-contract UniswapV3MathHelper {
+contract UniswapV3MathHelper is IUniswapV3MathHelper {
     /*//////////////////////////////////////////////////////////////
                              MATH WRAPPERS
     //////////////////////////////////////////////////////////////*/
@@ -40,30 +41,5 @@ contract UniswapV3MathHelper {
 
     function mulDivRoundingUp(uint256 a, uint256 b, uint256 denominator) external pure returns (uint256 result) {
         return FullMathV3.mulDivRoundingUp(a, b, denominator);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                POSITION
-    //////////////////////////////////////////////////////////////*/
-
-    function positionLiquidity(INonfungiblePositionManager pm, uint256 tokenId) external view returns (uint128 liq) {
-        (,,,,,,, liq,,,,) = pm.positions(tokenId);
-    }
-
-    function positionInfo(INonfungiblePositionManager pm, uint256 tokenId)
-        external
-        view
-        returns (
-            address token0,
-            address token1,
-            uint24 fee,
-            int24 tickLower,
-            int24 tickUpper,
-            uint128 liquidity,
-            uint128 tokensOwed0,
-            uint128 tokensOwed1
-        )
-    {
-        (,, token0, token1, fee, tickLower, tickUpper, liquidity,,, tokensOwed0, tokensOwed1) = pm.positions(tokenId);
     }
 }

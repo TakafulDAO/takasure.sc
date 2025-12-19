@@ -447,7 +447,6 @@ contract SFUniswapV3Strategy is
         uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
 
         // Pull liquidity + ticks + fees owed from the position
-        positionManager.positions(positionTokenId);
         address t0 = PositionReader._getAddress(positionManager, positionTokenId, 2);
         address t1 = PositionReader._getAddress(positionManager, positionTokenId, 3);
         int24 tl = PositionReader._getInt24(positionManager, positionTokenId, 5);
