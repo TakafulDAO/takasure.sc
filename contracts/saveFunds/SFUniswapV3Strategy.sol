@@ -54,6 +54,8 @@ contract SFUniswapV3Strategy is
     IERC20 public underlying; // USDC
     IERC20 public otherToken; // USDT or any other token paired in the pool with USDC
     address public vault;
+    address public token0;
+    address public token1;
 
     uint256 public maxTVL;
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
@@ -85,6 +87,7 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__InvalidTicks();
     error SFUniswapV3Strategy__VaultNotApprovedForNFT();
     error SFUniswapV3Strategy__InvalidStrategyData();
+    error SFUniswapV3Strategy__NoPosition();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -162,6 +165,15 @@ contract SFUniswapV3Strategy is
 
         tickLower = _tickLower;
         tickUpper = _tickUpper;
+
+        token0 = pool.token0();
+        token1 = pool.token1();
+
+        require(
+            (token0 == address(underlying) && token1 == address(_otherToken))
+                || (token0 == address(_otherToken) && token1 == address(underlying)),
+            SFUniswapV3Strategy__InvalidPoolTokens()
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -302,7 +314,7 @@ contract SFUniswapV3Strategy is
         V3ActionData memory p = _decodeV3ActionData(data);
 
         // 1. Compute fraction of LP to remove
-        uint256 liquidityToBurn = _liquidityForValue(assets);
+        uint128 liquidityToBurn = _liquidityForValue(assets);
 
         if (liquidityToBurn > 0 && positionTokenId != 0) {
             _decreaseLiquidityAndCollect(liquidityToBurn, data);
@@ -352,32 +364,13 @@ contract SFUniswapV3Strategy is
     /**
      * @notice Rebalances the strategy by adjusting the tick range of the active position.
      * @param data Additional data for rebalancing (not used in this implementation).
-     * @dev Supports both:
-     *  - abi.encode(int24,int24)
-     *  - abi.encode(int24,int24,uint256,uint256,uint256)
+     *        abi.encode(int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)
      */
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
-        // Support both:
-        //  - abi.encode(int24,int24)
-        //  - abi.encode(int24,int24,uint256,uint256,uint256)
-        int24 newTickLower;
-        int24 newTickUpper;
-        uint256 pmDeadline;
-        uint256 minUnderlying;
-        uint256 minOther;
+        (int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) =
+            abi.decode(data, (int24, int24, uint256, uint256, uint256));
 
-        if (data.length == 64) {
-            (newTickLower, newTickUpper) = abi.decode(data, (int24, int24));
-            pmDeadline = block.timestamp;
-            minUnderlying = 0;
-            minOther = 0;
-        } else {
-            (newTickLower, newTickUpper, pmDeadline, minUnderlying, minOther) =
-                abi.decode(data, (int24, int24, uint256, uint256, uint256));
-            // basic sanity
-            require(pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidRebalanceParams());
-        }
-
+        require(pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidRebalanceParams());
         require(newTickLower < newTickUpper, SFUniswapV3Strategy__InvalidRebalanceParams());
 
         int24 spacing = pool.tickSpacing();
@@ -397,6 +390,8 @@ contract SFUniswapV3Strategy is
 
         // 1) Read current liquidity and fully exit the existing position.
         uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
+
+        // IMPORTANT: pass `data` so mins+deadline are applied on exit too
         if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, data);
 
         // 2) Burn the old NFT once all liquidity has been removed.
@@ -414,9 +409,13 @@ contract SFUniswapV3Strategy is
         uint256 balUnderlying = underlying.balanceOf(address(this));
         uint256 balOther = otherToken.balanceOf(address(this));
 
+        // Nothing to deploy
         if (balUnderlying == 0 && balOther == 0) return;
 
         _mintPosition(balUnderlying, balOther, pmDeadline, minUnderlying, minOther);
+
+        // Ensure strategy doesn't retain assets
+        _sweepToVault();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -483,7 +482,7 @@ contract SFUniswapV3Strategy is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _liquidityForValue(uint256 _value) internal pure returns (uint256) {
+    function _liquidityForValue(uint256 _value) internal pure returns (uint128) {
         // TODO: approximate how much liquidity corresponds to `value` USDC,
         // e.g. proportional to totalAssets().
         return 0;
@@ -498,9 +497,6 @@ contract SFUniswapV3Strategy is
     ) internal returns (uint256 usedUnderlying, uint256 usedOther) {
         // Nothing to do if both sides are zero
         if (_amountUnderlying == 0 && _amountOther == 0) return (0, 0);
-
-        // Read pool tokens
-        (address token0, address token1) = _getPoolTokens();
 
         // Build mint params
         INonfungiblePositionManager.MintParams memory params;
@@ -567,8 +563,6 @@ contract SFUniswapV3Strategy is
         // If there is no existing position, nothing to do
         if (positionTokenId == 0) return (0, 0);
         if (_amountUnderlying == 0 && _amountOther == 0) return (0, 0);
-        // Read pool tokens
-        (address token0, address token1) = _getPoolTokens();
 
         INonfungiblePositionManager.IncreaseLiquidityParams memory params;
         params.tokenId = positionTokenId;
@@ -607,17 +601,6 @@ contract SFUniswapV3Strategy is
             usedUnderlying_ = amount1;
             usedOther_ = amount0;
         }
-    }
-
-    function _getPoolTokens() internal view returns (address token0_, address token1_) {
-        (token0_, token1_) = (pool.token0(), pool.token1());
-
-        // Sanity check: ensure pool tokens match expected underlying and otherToken
-        require(
-            (token0_ == address(underlying) && token1_ == address(otherToken))
-                || (token0_ == address(otherToken) && token1_ == address(underlying)),
-            SFUniswapV3Strategy__InvalidPoolTokens()
-        );
     }
 
     /**
@@ -681,12 +664,12 @@ contract SFUniswapV3Strategy is
         universalRouter.execute(commands, inputs, deadline);
     }
 
-    function _decreaseLiquidityAndCollect(uint128 liquidity, bytes calldata data) internal {
+    function _decreaseLiquidityAndCollect(uint128 _liquidity, bytes memory _data) internal {
         require(positionTokenId != 0, SFUniswapV3Strategy__NoPosition());
 
-        (uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) = _decodePMParams(data);
+        (uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) = _decodePMParams(_data);
 
-        // Map mins depending on token0/token1 ordering
+        // Map mins according to token0/token1 ordering
         uint256 amount0Min;
         uint256 amount1Min;
 
@@ -701,7 +684,7 @@ contract SFUniswapV3Strategy is
         INonfungiblePositionManager.DecreaseLiquidityParams memory params =
             INonfungiblePositionManager.DecreaseLiquidityParams({
                 tokenId: positionTokenId,
-                liquidity: liquidity,
+                liquidity: _liquidity,
                 amount0Min: amount0Min,
                 amount1Min: amount1Min,
                 deadline: pmDeadline
@@ -709,7 +692,7 @@ contract SFUniswapV3Strategy is
 
         positionManager.decreaseLiquidity(params);
 
-        // Collect everything owed to this strategy (caller) so we can swap/send/sweep.
+        // Collect everything owed to this strategy so we can swap/sweep
         INonfungiblePositionManager.CollectParams memory cparams = INonfungiblePositionManager.CollectParams({
             tokenId: positionTokenId,
             recipient: address(this),
@@ -770,9 +753,6 @@ contract SFUniswapV3Strategy is
     function _quoteOtherAsUnderlying(uint256 _amountOther) internal view returns (uint256) {
         if (_amountOther == 0) return 0;
 
-        // Get the tokens in the pool
-        (address _token0, address _token1) = _getPoolTokens();
-
         if (address(underlying) == address(otherToken)) return _amountOther;
 
         // slot0 returns sqrtPriceX96 where price = token1 / token0 = (sqrtPriceX96^2) / 2^192
@@ -781,11 +761,11 @@ contract SFUniswapV3Strategy is
         uint256 _priceX192 = uint256(_sqrtPriceX96) * uint256(_sqrtPriceX96);
         uint256 _q192 = 1 << 192;
 
-        if (address(otherToken) == _token0 && address(underlying) == _token1) {
+        if (address(otherToken) == token0 && address(underlying) == token1) {
             // other = token0, underlying = token1
             // valueInUnderlying = amountOther * price (token1 per token0)
             return FullMath.mulDiv(_amountOther, _priceX192, _q192);
-        } else if (address(otherToken) == _token1 && address(underlying) == _token0) {
+        } else if (address(otherToken) == token1 && address(underlying) == token0) {
             // other = token1, underlying = token0
             // valueInUnderlying = amountOther / price
             return FullMath.mulDiv(_amountOther, _q192, _priceX192);
@@ -803,7 +783,7 @@ contract SFUniswapV3Strategy is
         );
     }
 
-    function _decodeV3ActionData(bytes calldata _data) internal view returns (V3ActionData memory p_) {
+    function _decodeV3ActionData(bytes memory _data) internal view returns (V3ActionData memory p_) {
         // Defaults: 50/50, no swaps, and immediate position management deadline
         if (_data.length == 0) {
             p_.otherRatioBPS = uint16(MAX_BPS / 2);
@@ -826,34 +806,27 @@ contract SFUniswapV3Strategy is
         if (otherBalance > 0) otherToken.safeTransfer(vault, otherBalance);
     }
 
-    function _decodePMParams(bytes calldata _data)
+    function _decodePMParams(bytes memory _data)
         internal
         view
         returns (uint256 pmDeadline_, uint256 minUnderlying_, uint256 minOther_)
     {
-        // Defaults: no slippage floors + now deadline (same-block)
+        // defaults
         pmDeadline_ = block.timestamp;
         minUnderlying_ = 0;
         minOther_ = 0;
 
         if (_data.length == 0) return (pmDeadline_, minUnderlying_, minOther_);
 
-        if (_data.length == 64) return (pmDeadline_, minUnderlying_, minOther_);
-
+        // Format: (int24,int24,uint256,uint256,uint256) => 5 * 32 = 160 bytes
         if (_data.length == 160) {
             (,, pmDeadline_, minUnderlying_, minOther_) = abi.decode(_data, (int24, int24, uint256, uint256, uint256));
             return (pmDeadline_, minUnderlying_, minOther_);
         }
 
-        // Otherwise: treat as V3ActionData:
-        // abi.encode(uint16 otherRatioBPS, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)
-        // Note: even with empty bytes fields, this encoding is >= 256 bytes.
-        {
-            V3ActionData memory p = _decodeV3ActionData(data);
-            pmDeadline = p.pmDeadline;
-            minUnderlying = p.minUnderlying;
-            minOther = p.minOther;
-        }
+        // Otherwise treat as V3ActionData (deposit/withdraw data schema)
+        V3ActionData memory p = _decodeV3ActionData(_data);
+        return (p.pmDeadline, p.minUnderlying, p.minOther);
     }
 
     /// @dev required by the OZ UUPS module.
