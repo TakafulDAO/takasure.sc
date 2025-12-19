@@ -19,4 +19,7 @@ interface ISFVault {
     function rebalance(address fromStrategy, address toStrategy, uint256 assets) external;
     function harvest(address strategy) external;
     function getLastReport() external view returns (uint256 lastReportTimestamp, uint256 lastReportAssets);
+    function isTokenWhitelisted(address token) external view returns (bool);
+    function whitelistedTokensLength() external view returns (uint256);
+    function getWhitelistedTokens() external view returns (address[] memory);
 }
