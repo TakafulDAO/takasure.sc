@@ -61,6 +61,7 @@ contract SFUniswapV3Strategy is
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
     int24 public tickLower;
     int24 public tickUpper;
+    uint32 public twapWindow; // seconds; 0 => spot
 
     struct V3ActionData {
         uint16 otherRatioBPS; // 0..10000 (default 5000)
@@ -76,6 +77,7 @@ contract SFUniswapV3Strategy is
     //////////////////////////////////////////////////////////////*/
 
     event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
+    event TwapWindowUpdated(uint32 oldWindow, uint32 newWindow);
 
     error SFUniswapV3Strategy__NotAuthorizedCaller();
     error SFUniswapV3Strategy__NotAddressZero();
@@ -88,6 +90,7 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__VaultNotApprovedForNFT();
     error SFUniswapV3Strategy__InvalidStrategyData();
     error SFUniswapV3Strategy__NoPosition();
+    error SFUniswapV3Strategy__InvalidTwapWindow();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -174,6 +177,8 @@ contract SFUniswapV3Strategy is
                 || (token0 == address(_otherToken) && token1 == address(underlying)),
             SFUniswapV3Strategy__InvalidPoolTokens()
         );
+
+        twapWindow = 1800; // 30 minutes
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -193,6 +198,14 @@ contract SFUniswapV3Strategy is
         onlyRole(Roles.OPERATOR)
     {
         // todo: check if needed. Decode array of strategy, weights, and active status.
+    }
+
+    function setTwapWindow(uint32 newWindow) external onlyRole(Roles.OPERATOR) {
+        // allow 0 (spot), otherwise require something sane
+        if (newWindow != 0 && newWindow < 60) revert SFUniswapV3Strategy__InvalidTwapWindow(); // min 1 min
+        uint32 old = twapWindow;
+        twapWindow = newWindow;
+        emit TwapWindowUpdated(old, newWindow);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -431,19 +444,15 @@ contract SFUniswapV3Strategy is
     }
 
     function totalAssets() public view returns (uint256) {
-        // Value of LP position + idle balances in USDC terms
-        uint256 value = _positionValue();
+        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
 
-        uint256 idleUnderlying = underlying.balanceOf(address(this));
-        uint256 idleOther = otherToken.balanceOf(address(this));
+        uint256 value = _positionValueAtSqrtPrice(sqrtPriceX96);
 
-        if (idleUnderlying > 0) value += idleUnderlying;
+        uint256 idleU = underlying.balanceOf(address(this));
+        if (idleU > 0) value += idleU;
 
-        if (idleOther > 0) {
-            // TODO: convert idleOther -> USDC using pool price or twap or off chain oracle
-            uint256 otherInUSDC = _quoteOtherAsUnderlying(idleOther);
-            value += otherInUSDC;
-        }
+        uint256 idleO = otherToken.balanceOf(address(this));
+        if (idleO > 0) value += _quoteOtherAsUnderlyingAtSqrtPrice(idleO, sqrtPriceX96);
 
         return value;
     }
@@ -470,7 +479,7 @@ contract SFUniswapV3Strategy is
 
     function positionValue() external view returns (uint256) {
         // Only the LP; excludes idle balances.
-        return _positionValue();
+        return _positionValueAtSqrtPrice(_valuationSqrtPriceX96());
     }
 
     function getPositionDetails() external view returns (bytes memory) {
@@ -719,61 +728,58 @@ contract SFUniswapV3Strategy is
         positionManager.collect(collectParams);
     }
 
-    function _positionValue() internal view returns (uint256) {
+    function _positionValueAtSqrtPrice(uint160 sqrtPriceX96) internal view returns (uint256) {
         if (positionTokenId == 0) return 0;
 
-        address _token0 = PositionReader.token0(positionManager, positionTokenId);
-        address _token1 = PositionReader.token1(positionManager, positionTokenId);
-        int24 _tickLower = PositionReader.tickLower(positionManager, positionTokenId);
-        int24 _tickUpper = PositionReader.tickUpper(positionManager, positionTokenId);
-        uint128 _liquidity = PositionReader.liquidity(positionManager, positionTokenId);
+        address t0 = PositionReader.token0(positionManager, positionTokenId);
+        address t1 = PositionReader.token1(positionManager, positionTokenId);
+        int24 tl = PositionReader.tickLower(positionManager, positionTokenId);
+        int24 tu = PositionReader.tickUpper(positionManager, positionTokenId);
+        uint128 liq = PositionReader.liquidity(positionManager, positionTokenId);
+        if (liq == 0) return 0;
 
-        if (_liquidity == 0) return 0;
-
-        (uint160 _sqrtPriceX96,,,,,,) = pool.slot0();
-
-        // Compute amounts of token0 and token1 for given liquidity and ticks
-        (uint256 _amount0, uint256 _amount1) = LiquidityAmounts.getAmountsForLiquidity(
-            _sqrtPriceX96, TickMath.getSqrtRatioAtTick(_tickLower), TickMath.getSqrtRatioAtTick(_tickUpper), _liquidity
+        (uint256 a0, uint256 a1) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtPriceX96, TickMath.getSqrtRatioAtTick(tl), TickMath.getSqrtRatioAtTick(tu), liq
         );
 
-        uint256 _value;
+        uint256 v;
 
-        // Map amounts to USDC
-        if (_token0 == address(underlying)) _value += _amount0;
-        else if (_token0 == address(otherToken)) _value += _quoteOtherAsUnderlying(_amount0);
+        if (t0 == address(underlying)) v += a0;
+        else if (t0 == address(otherToken)) v += _quoteOtherAsUnderlyingAtSqrtPrice(a0, sqrtPriceX96);
 
-        if (_token1 == address(underlying)) _value += _amount1;
-        else if (_token1 == address(otherToken)) _value += _quoteOtherAsUnderlying(_amount1);
+        if (t1 == address(underlying)) v += a1;
+        else if (t1 == address(otherToken)) v += _quoteOtherAsUnderlyingAtSqrtPrice(a1, sqrtPriceX96);
 
-        return _value;
+        return v;
     }
 
-    /// @dev Quotes `_amountOther` in units of `underlying` using the current pool spot price from `slot0`.
-    function _quoteOtherAsUnderlying(uint256 _amountOther) internal view returns (uint256) {
-        if (_amountOther == 0) return 0;
+    function _quoteOtherAsUnderlyingAtSqrtPrice(uint256 amountOther, uint160 sqrtPriceX96)
+        internal
+        view
+        returns (uint256)
+    {
+        if (amountOther == 0) return 0;
+        if (address(underlying) == address(otherToken)) return amountOther;
 
-        if (address(underlying) == address(otherToken)) return _amountOther;
-
-        // slot0 returns sqrtPriceX96 where price = token1 / token0 = (sqrtPriceX96^2) / 2^192
-        (uint160 _sqrtPriceX96,,,,,,) = pool.slot0();
-
-        uint256 _priceX192 = uint256(_sqrtPriceX96) * uint256(_sqrtPriceX96);
-        uint256 _q192 = 1 << 192;
+        // price = token1/token0 = (sqrtPriceX96^2) / 2^192
+        uint256 priceX192 = uint256(sqrtPriceX96) * uint256(sqrtPriceX96);
+        uint256 q192 = 1 << 192;
 
         if (address(otherToken) == token0 && address(underlying) == token1) {
-            // other = token0, underlying = token1
-            // valueInUnderlying = amountOther * price (token1 per token0)
-            return FullMath.mulDiv(_amountOther, _priceX192, _q192);
+            // other = token0, underlying = token1 -> amountOther * price
+            return FullMath.mulDiv(amountOther, priceX192, q192);
         } else if (address(otherToken) == token1 && address(underlying) == token0) {
-            // other = token1, underlying = token0
-            // valueInUnderlying = amountOther / price
-            return FullMath.mulDiv(_amountOther, _q192, _priceX192);
+            // other = token1, underlying = token0 -> amountOther / price
+            return FullMath.mulDiv(amountOther, q192, priceX192);
         } else {
-            // TODO: is this reachable? revisit
             revert SFUniswapV3Strategy__InvalidPoolTokens();
         }
     }
+
+    // // Keep the old name for callers; now it uses TWAP/spot depending on twapWindow
+    // function _quoteOtherAsUnderlying(uint256 amountOther) internal view returns (uint256) {
+    //     return _quoteOtherAsUnderlyingAtSqrtPrice(amountOther, _valuationSqrtPriceX96());
+    // }
 
     function _requireVaultApprovalForNFT() internal view {
         // vault must have approved this strategy to manage the position NFT(s)
@@ -827,6 +833,36 @@ contract SFUniswapV3Strategy is
         // Otherwise treat as V3ActionData (deposit/withdraw data schema)
         V3ActionData memory p = _decodeV3ActionData(_data);
         return (p.pmDeadline, p.minUnderlying, p.minOther);
+    }
+
+    function _valuationSqrtPriceX96() internal view returns (uint160 sqrtPriceX96_) {
+        uint32 window = twapWindow;
+
+        // Spot mode
+        if (window == 0) {
+            (sqrtPriceX96_,,,,,,) = pool.slot0();
+            return sqrtPriceX96_;
+        }
+
+        uint32[] memory secondsAgos = new uint32[](2);
+        secondsAgos[0] = window;
+        secondsAgos[1] = 0;
+
+        // TWAP mode, but never revert totalAssets() if observe fails
+        try pool.observe(secondsAgos) returns (int56[] memory tickCumulatives, uint160[] memory) {
+            int56 delta = tickCumulatives[1] - tickCumulatives[0];
+            int56 secs = int56(uint56(window));
+
+            int24 avgTick = int24(delta / secs);
+            // round toward -infinity (Uniswap convention)
+            if (delta < 0 && (delta % secs != 0)) avgTick--;
+
+            sqrtPriceX96_ = TickMath.getSqrtRatioAtTick(avgTick);
+            return sqrtPriceX96_;
+        } catch {
+            (sqrtPriceX96_,,,,,,) = pool.slot0();
+            return sqrtPriceX96_;
+        }
     }
 
     /// @dev required by the OZ UUPS module.
