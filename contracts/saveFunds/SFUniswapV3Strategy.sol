@@ -25,7 +25,6 @@ import {
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {StrategyConfig} from "contracts/types/Strategies.sol";
-import {FullMathV3 as FullMath} from "contracts/helpers/uniswapHelpers/libraries/FullMathV3.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol";
 import {PositionReader} from "contracts/helpers/uniswapHelpers/libraries/PositionReader.sol";
@@ -51,7 +50,7 @@ contract SFUniswapV3Strategy is
     IUniversalRouter internal universalRouter;
     IUniswapV3MathHelper internal math;
 
-    IERC20 public underlying; // USDC
+    IERC20 internal underlying; // USDC
     IERC20 public otherToken; // USDT or any other token paired in the pool with USDC
     address public vault;
     address internal token0;
@@ -59,8 +58,8 @@ contract SFUniswapV3Strategy is
 
     uint256 internal maxTVL;
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
-    int24 public tickLower;
-    int24 public tickUpper;
+    int24 internal tickLower;
+    int24 internal tickUpper;
     uint32 internal twapWindow; // seconds; 0 => spot
 
     struct V3ActionData {
@@ -92,34 +91,6 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__NoPosition();
     error SFUniswapV3Strategy__InvalidTwapWindow();
     error SFUniswapV3Strategy__InvalidDeadline();
-
-    /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    modifier onlyRole(bytes32 role) {
-        require(addressManager.hasRole(role, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller());
-        _;
-    }
-
-    modifier onlyContract(string memory name) {
-        require(addressManager.hasName(name, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller());
-        _;
-    }
-
-    modifier onlyKeeperOrOperator() {
-        require(
-            IAddressManager(addressManager).hasRole(Roles.KEEPER, msg.sender)
-                || IAddressManager(addressManager).hasRole(Roles.OPERATOR, msg.sender),
-            SFUniswapV3Strategy__NotAuthorizedCaller()
-        );
-        _;
-    }
-
-    modifier notAddressZero(address addr) {
-        require(addr != address(0), SFUniswapV3Strategy__NotAddressZero());
-        _;
-    }
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -188,13 +159,16 @@ contract SFUniswapV3Strategy is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function setMaxTVL(uint256 newMaxTVL) external onlyRole(Roles.OPERATOR) {
+    function setMaxTVL(uint256 newMaxTVL) external {
+        _onlyRole(Roles.OPERATOR);
         uint256 oldMaxTVL = maxTVL;
         maxTVL = newMaxTVL;
         emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
     }
 
-    function setTwapWindow(uint32 newWindow) external onlyRole(Roles.OPERATOR) {
+    function setTwapWindow(uint32 newWindow) external {
+        _onlyRole(Roles.OPERATOR);
+
         // allow 0 (spot), otherwise require something sane
         if (newWindow != 0 && newWindow < 60) revert SFUniswapV3Strategy__InvalidTwapWindow(); // min 1 min
         uint32 old = twapWindow;
@@ -206,15 +180,19 @@ contract SFUniswapV3Strategy is
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
 
-    function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
+    function pause() external {
+        _onlyRole(Roles.PAUSE_GUARDIAN);
         _pause();
     }
 
-    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN) {
+    function unpause() external {
+        _onlyRole(Roles.PAUSE_GUARDIAN);
         _unpause();
     }
 
-    function emergencyExit(address receiver) external notAddressZero(receiver) onlyRole(Roles.OPERATOR) {
+    function emergencyExit(address receiver) external {
+        _onlyRole(Roles.OPERATOR);
+        _notAddressZero(receiver);
         _requireVaultApprovalForNFT();
 
         uint256 tokenId_ = positionTokenId;
@@ -249,11 +227,11 @@ contract SFUniswapV3Strategy is
      */
     function deposit(uint256 assets, bytes calldata data)
         external
-        onlyContract("PROTOCOL__SF_VAULT")
         nonReentrant
         whenNotPaused
         returns (uint256 investedAssets)
     {
+        _onlyContract("PROTOCOL__SF_VAULT");
         require(assets > 0, SFUniswapV3Strategy__NotZeroAmount());
 
         // Enforce TVL cap
@@ -304,12 +282,12 @@ contract SFUniswapV3Strategy is
      */
     function withdraw(uint256 assets, address receiver, bytes calldata data)
         external
-        onlyContract("PROTOCOL__SF_VAULT")
-        notAddressZero(receiver)
         nonReentrant
         whenNotPaused
         returns (uint256 withdrawnAssets)
     {
+        _onlyContract("PROTOCOL__SF_VAULT");
+        _notAddressZero(receiver);
         require(assets > 0, SFUniswapV3Strategy__NotZeroAmount());
 
         uint256 total = totalAssets();
@@ -353,7 +331,8 @@ contract SFUniswapV3Strategy is
      * @notice Harvests rewards from all active child strategies.
      * @param data Additional data for harvesting (not used in this implementation).
      */
-    function harvest(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
+    function harvest(bytes calldata data) external nonReentrant whenNotPaused {
+        _onlyKeeperOrOperator();
         // Collect fees only.
         _collectFees(data);
         // Strategy must not hold assets
@@ -373,7 +352,8 @@ contract SFUniswapV3Strategy is
      * @param data Additional data for rebalancing (not used in this implementation).
      *        abi.encode(int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)
      */
-    function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
+    function rebalance(bytes calldata data) external nonReentrant whenNotPaused {
+        _onlyKeeperOrOperator();
         (int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) =
             abi.decode(data, (int24, int24, uint256, uint256, uint256));
 
@@ -960,6 +940,28 @@ contract SFUniswapV3Strategy is
         return uint16(bps);
     }
 
+    function _onlyKeeperOrOperator() internal view {
+        require(
+            IAddressManager(addressManager).hasRole(Roles.KEEPER, msg.sender)
+                || IAddressManager(addressManager).hasRole(Roles.OPERATOR, msg.sender),
+            SFUniswapV3Strategy__NotAuthorizedCaller()
+        );
+    }
+
+    function _notAddressZero(address _addr) internal pure {
+        require(_addr != address(0), SFUniswapV3Strategy__NotAddressZero());
+    }
+
+    function _onlyContract(string memory _name) internal view {
+        require(addressManager.hasName(_name, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller());
+    }
+
+    function _onlyRole(bytes32 _role) internal view {
+        require(addressManager.hasRole(_role, msg.sender), SFUniswapV3Strategy__NotAuthorizedCaller());
+    }
+
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR) {}
+    function _authorizeUpgrade(address newImplementation) internal override {
+        _onlyRole(Roles.OPERATOR);
+    }
 }
