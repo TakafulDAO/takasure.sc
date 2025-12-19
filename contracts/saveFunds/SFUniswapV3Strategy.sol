@@ -198,7 +198,7 @@ contract SFUniswapV3Strategy is
 
         // unwind + burn NFT if exists
         if (tokenId_ != 0) {
-            uint128 liquidity = PositionReader.liquidity(positionManager, tokenId_);
+            uint128 liquidity = PositionReader._getUint128(positionManager, tokenId_, 7);
 
             if (liquidity > 0) _decreaseLiquidityAndCollect(liquidity, bytes(""));
 
@@ -375,13 +375,13 @@ contract SFUniswapV3Strategy is
         }
 
         // 1) Read current liquidity and fully exit the existing position.
-        uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
+        uint128 currentLiquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
 
         // IMPORTANT: pass `data` so mins+deadline are applied on exit too
         if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, data);
 
         // 2) Burn the old NFT once all liquidity has been removed.
-        uint128 remainingLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
+        uint128 remainingLiquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
         if (remainingLiquidity == 0) {
             positionManager.burn(positionTokenId);
             positionTokenId = 0;
@@ -448,14 +448,13 @@ contract SFUniswapV3Strategy is
 
         // Pull liquidity + ticks + fees owed from the position
         positionManager.positions(positionTokenId);
-        address t0 = PositionReader.token0(positionManager, positionTokenId);
-        address t1 = PositionReader.token1(positionManager, positionTokenId);
-        uint24 fee = PositionReader.fee(positionManager, positionTokenId);
-        int24 tl = PositionReader.tickLower(positionManager, positionTokenId);
-        int24 tu = PositionReader.tickUpper(positionManager, positionTokenId);
-        uint128 liquidity = PositionReader.liquidity(positionManager, positionTokenId);
-        uint128 owed0 = PositionReader.tokensOwed0(positionManager, positionTokenId);
-        uint128 owed1 = PositionReader.tokensOwed1(positionManager, positionTokenId);
+        address t0 = PositionReader._getAddress(positionManager, positionTokenId, 2);
+        address t1 = PositionReader._getAddress(positionManager, positionTokenId, 3);
+        int24 tl = PositionReader._getInt24(positionManager, positionTokenId, 5);
+        int24 tu = PositionReader._getInt24(positionManager, positionTokenId, 6);
+        uint128 liquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
+        uint128 owed0 = PositionReader._getUint128(positionManager, positionTokenId, 10);
+        uint128 owed1 = PositionReader._getUint128(positionManager, positionTokenId, 11);
 
         // Basic sanity: this strategy should only manage pools with (underlying, otherToken)
         if (!((t0 == address(underlying) && t1 == address(otherToken))
@@ -520,7 +519,7 @@ contract SFUniswapV3Strategy is
         if (_value == 0) return 0;
         if (positionTokenId == 0) return 0;
 
-        uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
+        uint128 currentLiquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
         if (currentLiquidity == 0) return 0;
 
         // USDC value of the LP position (liquidity-only valuation)
@@ -780,11 +779,11 @@ contract SFUniswapV3Strategy is
     function _positionValueAtSqrtPrice(uint160 sqrtPriceX96) internal view returns (uint256) {
         if (positionTokenId == 0) return 0;
 
-        address t0 = PositionReader.token0(positionManager, positionTokenId);
-        address t1 = PositionReader.token1(positionManager, positionTokenId);
-        int24 tl = PositionReader.tickLower(positionManager, positionTokenId);
-        int24 tu = PositionReader.tickUpper(positionManager, positionTokenId);
-        uint128 liq = PositionReader.liquidity(positionManager, positionTokenId);
+        address t0 = PositionReader._getAddress(positionManager, positionTokenId, 2);
+        address t1 = PositionReader._getAddress(positionManager, positionTokenId, 3);
+        int24 tl = PositionReader._getInt24(positionManager, positionTokenId, 5);
+        int24 tu = PositionReader._getInt24(positionManager, positionTokenId, 6);
+        uint128 liq = PositionReader._getUint128(positionManager, positionTokenId, 7);
         if (liq == 0) return 0;
 
         (uint256 a0, uint256 a1) =

@@ -35,62 +35,6 @@ library PositionReader {
         }
     }
 
-    function nonce(INonfungiblePositionManager _pm, uint256 _tokenId) internal view returns (uint96) {
-        return _getUint96(_pm, _tokenId, 0);
-    }
-
-    function operator(INonfungiblePositionManager _pm, uint256 _tokenId) internal view returns (address) {
-        return _getAddress(_pm, _tokenId, 1);
-    }
-
-    function token0(INonfungiblePositionManager _pm, uint256 _tokenId) internal view returns (address) {
-        return _getAddress(_pm, _tokenId, 2);
-    }
-
-    function token1(INonfungiblePositionManager _pm, uint256 _tokenId) internal view returns (address) {
-        return _getAddress(_pm, _tokenId, 3);
-    }
-
-    function fee(INonfungiblePositionManager _pm, uint256 _tokenId) internal view returns (uint24) {
-        return _getUint24(_pm, _tokenId, 4);
-    }
-
-    function tickLower(INonfungiblePositionManager _pm, uint256 _tokenId) internal view returns (int24) {
-        return _getInt24(_pm, _tokenId, 5);
-    }
-
-    function tickUpper(INonfungiblePositionManager _pm, uint256 _tokenId) internal view returns (int24) {
-        return _getInt24(_pm, _tokenId, 6);
-    }
-
-    function liquidity(INonfungiblePositionManager _pm, uint256 _tokenId) internal view returns (uint128) {
-        return _getUint128(_pm, _tokenId, 7);
-    }
-
-    function feeGrowthInside0LastX128(INonfungiblePositionManager _pm, uint256 _tokenId)
-        internal
-        view
-        returns (uint256)
-    {
-        return _getUint256(_pm, _tokenId, 8);
-    }
-
-    function feeGrowthInside1LastX128(INonfungiblePositionManager _pm, uint256 _tokenId)
-        internal
-        view
-        returns (uint256)
-    {
-        return _getUint256(_pm, _tokenId, 9);
-    }
-
-    function tokensOwed0(INonfungiblePositionManager _pm, uint256 _tokenId) internal view returns (uint128) {
-        return _getUint128(_pm, _tokenId, 10);
-    }
-
-    function tokensOwed1(INonfungiblePositionManager _pm, uint256 _tokenId) internal view returns (uint128) {
-        return _getUint128(_pm, _tokenId, 11);
-    }
-
     function _getUint24(INonfungiblePositionManager _pm, uint256 _tokenId, uint256 _idx)
         internal
         view
