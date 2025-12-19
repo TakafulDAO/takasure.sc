@@ -52,6 +52,10 @@ contract TestSubStrategy {
         return underlying.balanceOf(address(this));
     }
 
+    function asset() external view returns (address) {
+        return address(underlying);
+    }
+
     function maxWithdraw() external view returns (uint256) {
         if (forceMaxWithdraw) return forcedMaxWithdraw;
         return underlying.balanceOf(address(this));

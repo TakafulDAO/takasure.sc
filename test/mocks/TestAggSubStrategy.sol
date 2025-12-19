@@ -35,6 +35,10 @@ contract TestAggSubStrategy {
         return assets;
     }
 
+    function asset() external view returns (address) {
+        return address(underlying);
+    }
+
     function withdraw(uint256 assets, address receiver, bytes calldata) external returns (uint256 withdrawn) {
         if (assets == 0 || receiver == address(0) || returnZeroOnWithdraw) return 0;
 
