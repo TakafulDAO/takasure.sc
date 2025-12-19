@@ -91,6 +91,7 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__InvalidStrategyData();
     error SFUniswapV3Strategy__NoPosition();
     error SFUniswapV3Strategy__InvalidTwapWindow();
+    error SFUniswapV3Strategy__InvalidDeadline();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -467,8 +468,49 @@ contract SFUniswapV3Strategy is
     }
 
     function maxWithdraw() external view returns (uint256) {
-        // TODO: check
-        return totalAssets();
+        uint256 maxUnderlying = underlying.balanceOf(address(this));
+
+        if (positionTokenId == 0) return maxUnderlying;
+
+        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
+
+        // Pull liquidity + ticks + fees owed from the position
+        positionManager.positions(positionTokenId);
+        address t0 = PositionReader.token0(positionManager, positionTokenId);
+        address t1 = PositionReader.token1(positionManager, positionTokenId);
+        uint24 fee = PositionReader.fee(positionManager, positionTokenId);
+        int24 tl = PositionReader.tickLower(positionManager, positionTokenId);
+        int24 tu = PositionReader.tickUpper(positionManager, positionTokenId);
+        uint128 liquidity = PositionReader.liquidity(positionManager, positionTokenId);
+        uint128 owed0 = PositionReader.tokensOwed0(positionManager, positionTokenId);
+        uint128 owed1 = PositionReader.tokensOwed1(positionManager, positionTokenId);
+
+        // Basic sanity: this strategy should only manage pools with (underlying, otherToken)
+        if (!((t0 == address(underlying) && t1 == address(otherToken))
+                    || (t0 == address(otherToken) && t1 == address(underlying)))) {
+            return maxUnderlying;
+        }
+
+        if (liquidity == 0) {
+            // Only fees are withdrawable
+            if (t0 == address(underlying)) maxUnderlying += uint256(owed0);
+            else maxUnderlying += uint256(owed1);
+            return maxUnderlying;
+        }
+
+        // Compute current amounts in the position (NO fees included)
+        (uint256 amt0, uint256 amt1) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtPriceX96, TickMath.getSqrtRatioAtTick(tl), TickMath.getSqrtRatioAtTick(tu), liquidity
+        );
+
+        // Only count the underlying side (other side would require swap data)
+        if (t0 == address(underlying)) {
+            maxUnderlying += amt0 + uint256(owed0);
+        } else {
+            maxUnderlying += amt1 + uint256(owed1);
+        }
+
+        return maxUnderlying;
     }
 
     function getConfig() external view returns (StrategyConfig memory) {
@@ -482,19 +524,47 @@ contract SFUniswapV3Strategy is
         return _positionValueAtSqrtPrice(_valuationSqrtPriceX96());
     }
 
+    /**
+     * @notice Returns the current value of the strategy's position in underlying units.
+     * @return The value of the position in underlying units.
+     * @dev The return bytes is encoded as
+     *      abi.encode(
+     *                 uint8 version => strategyType/version: 1 = UniswapV3, 2 = UniswapV4
+     *                 uint256 tokenId
+     *                 address pool
+     *                 int24 tickLower
+     *                 int24 tickUpper)
+     */
     function getPositionDetails() external view returns (bytes memory) {
-        // TODO: revisit. Implementation-specific. For now: (tokenId, tickLower, tickUpper)
-        return abi.encode(positionTokenId, tickLower, tickUpper);
+        // Versioned layout for cross-strategy decoding (v3=1, v4=2, ...)
+        return abi.encode(uint8(1), positionTokenId, address(pool), tickLower, tickUpper);
     }
 
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _liquidityForValue(uint256 _value) internal pure returns (uint128) {
-        // TODO: approximate how much liquidity corresponds to `value` USDC,
-        // e.g. proportional to totalAssets().
-        return 0;
+    function _liquidityForValue(uint256 _value) internal view returns (uint128) {
+        if (_value == 0) return 0;
+        if (positionTokenId == 0) return 0;
+
+        uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
+        if (currentLiquidity == 0) return 0;
+
+        // USDC value of the LP position (liquidity-only valuation)
+        uint256 posValue = _positionValueAtSqrtPrice(_valuationSqrtPriceX96());
+        if (posValue == 0) return 0;
+
+        // If asking for >= position value, burn all liquidity
+        if (_value >= posValue) return currentLiquidity;
+
+        // Pro-rata burn: ceil(currentLiquidity * _value / posValue)
+        uint256 liq256 = FullMath.mulDivRoundingUp(uint256(currentLiquidity), _value, posValue);
+
+        // Safety cap (should already hold true)
+        if (liq256 > uint256(currentLiquidity)) liq256 = uint256(currentLiquidity);
+
+        return uint128(liq256);
     }
 
     function _mintPosition(
@@ -505,6 +575,7 @@ contract SFUniswapV3Strategy is
         uint256 _minOther
     ) internal returns (uint256 usedUnderlying, uint256 usedOther) {
         // Nothing to do if both sides are zero
+        require(_deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
         if (_amountUnderlying == 0 && _amountOther == 0) return (0, 0);
 
         // Build mint params
@@ -519,18 +590,18 @@ contract SFUniswapV3Strategy is
         if (token0 == address(underlying)) {
             params.amount0Desired = _amountUnderlying;
             params.amount1Desired = _amountOther;
+            params.amount0Min = _minUnderlying;
+            params.amount1Min = _minOther;
         } else {
             params.amount0Desired = _amountOther;
             params.amount1Desired = _amountUnderlying;
+            params.amount0Min = _minOther;
+            params.amount1Min = _minUnderlying;
         }
-
-        // TODO: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
-        params.amount0Min = 0;
-        params.amount1Min = 0;
 
         // The LTH of the position will be the vault
         params.recipient = vault;
-        params.deadline = block.timestamp;
+        params.deadline = _deadline;
 
         // Approve positionManager to pull tokens
         if (params.amount0Desired > 0) {
@@ -568,6 +639,7 @@ contract SFUniswapV3Strategy is
         uint256 _minUnderlying,
         uint256 _minOther
     ) internal returns (uint256 usedUnderlying_, uint256 usedOther_) {
+        require(_deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
         _requireVaultApprovalForNFT();
         // If there is no existing position, nothing to do
         if (positionTokenId == 0) return (0, 0);
@@ -589,7 +661,6 @@ contract SFUniswapV3Strategy is
             params.amount1Min = _minUnderlying;
         }
 
-        // TODO: do we want slippage protection for the mvp? for now handle by caller. Revisit later.
         params.deadline = _deadline;
 
         // Approve positionManager to pull tokens
