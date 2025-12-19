@@ -169,7 +169,7 @@ contract SFUniswapV3Strategy is
         _onlyRole(Roles.OPERATOR);
 
         // allow 0 (spot), otherwise require something sane
-        if (newWindow != 0 && newWindow < 60) revert SFUniswapV3Strategy__InvalidTwapWindow(); // min 1 min
+        require(newWindow == 0 || newWindow >= 60, SFUniswapV3Strategy__InvalidTwapWindow()); // min 1 min
         uint32 old = twapWindow;
         twapWindow = newWindow;
         emit TwapWindowUpdated(old, newWindow);
@@ -360,9 +360,9 @@ contract SFUniswapV3Strategy is
         require(newTickLower < newTickUpper, SFUniswapV3Strategy__InvalidRebalanceParams());
 
         int24 spacing = pool.tickSpacing();
-        if (newTickLower % spacing != 0 || newTickUpper % spacing != 0) {
-            revert SFUniswapV3Strategy__InvalidRebalanceParams();
-        }
+        require(
+            newTickLower % spacing == 0 && newTickUpper % spacing == 0, SFUniswapV3Strategy__InvalidRebalanceParams()
+        );
 
         // Any NFT ops require vault approval
         _requireVaultApprovalForNFT();
@@ -959,7 +959,7 @@ contract SFUniswapV3Strategy is
     }
 
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation) internal override {
+    function _authorizeUpgrade(address newImplementation) internal view override {
         _onlyRole(Roles.OPERATOR);
     }
 }
