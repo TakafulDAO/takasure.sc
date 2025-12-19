@@ -8,7 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
-import {TestAggSubStrategy} from "test/mocks/TestAggSubStrategy.sol";
+import {TestAggSubStrategy} from "test/mocks/MockSFStrategy.sol";
 
 contract SFStrategyAggregatorHandler is Test {
     using SafeERC20 for IERC20;

@@ -13,7 +13,14 @@ import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-import {TestSubStrategy} from "test/mocks/TestSubStrategy.sol";
+import {
+    TestSubStrategy,
+    RecorderSubStrategy,
+    NoAssetStrategy,
+    ShortReturnAssetStrategy,
+    WrongAssetStrategy,
+    PartialPullSubStrategy
+} from "test/mocks/MockSFStrategy.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -138,6 +145,127 @@ contract SFStrategyAggregatorTest is Test {
         aggregator.setConfig(bytes("x"));
     }
 
+    function testAggregator_setConfig_AddsNewStrategies_ThenUpdatesExisting() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        RecorderSubStrategy s2 = new RecorderSubStrategy(asset);
+
+        {
+            address[] memory strategies = new address[](2);
+            uint16[] memory weights = new uint16[](2);
+            bool[] memory actives = new bool[](2);
+
+            strategies[0] = address(s1);
+            strategies[1] = address(s2);
+            weights[0] = 6000;
+            weights[1] = 3000;
+            actives[0] = true;
+            actives[1] = true;
+
+            vm.prank(takadao);
+            aggregator.setConfig(abi.encode(strategies, weights, actives));
+
+            assertEq(aggregator.totalTargetWeightBPS(), 9000);
+        }
+
+        // Call setConfig again to take the "existed == true" update branch
+        {
+            address[] memory strategies2 = new address[](2);
+            uint16[] memory weights2 = new uint16[](2);
+            bool[] memory actives2 = new bool[](2);
+
+            strategies2[0] = address(s1);
+            strategies2[1] = address(s2);
+            weights2[0] = 8000;
+            weights2[1] = 2000;
+            actives2[0] = true;
+            actives2[1] = false; // inactive => recompute sum-only-active branch
+
+            vm.prank(takadao);
+            aggregator.setConfig(abi.encode(strategies2, weights2, actives2));
+
+            // only active weights count
+            assertEq(aggregator.totalTargetWeightBPS(), 8000);
+        }
+    }
+
+    function testAggregator_setConfig_RevertsOnEmptyConfig() public {
+        address[] memory strategies = new address[](0);
+        uint16[] memory weights = new uint16[](0);
+        bool[] memory actives = new bool[](0);
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__InvalidConfig.selector);
+        aggregator.setConfig(abi.encode(strategies, weights, actives));
+    }
+
+    function testAggregator_setConfig_RevertsOnLengthMismatch() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+
+        address[] memory strategies = new address[](2);
+        uint16[] memory weights = new uint16[](2);
+        bool[] memory actives = new bool[](1);
+
+        strategies[0] = address(s1);
+        weights[0] = 1;
+        weights[1] = 2;
+        actives[0] = true;
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__InvalidConfig.selector);
+        aggregator.setConfig(abi.encode(strategies, weights, actives));
+    }
+
+    function testAggregator_setConfig_RevertsOnDuplicateStrategy() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+
+        address[] memory strategies = new address[](2);
+        uint16[] memory weights = new uint16[](2);
+        bool[] memory actives = new bool[](2);
+
+        strategies[0] = address(s1);
+        strategies[1] = address(s1); // duplicate
+        weights[0] = 1;
+        weights[1] = 2;
+        actives[0] = true;
+        actives[1] = true;
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__DuplicateStrategy.selector);
+        aggregator.setConfig(abi.encode(strategies, weights, actives));
+    }
+
+    function testAggregator_setConfig_RevertsOnWeightTooHigh() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+
+        address[] memory strategies = new address[](1);
+        uint16[] memory weights = new uint16[](1);
+        bool[] memory actives = new bool[](1);
+
+        strategies[0] = address(s1);
+        weights[0] = uint16(MAX_BPS + 1);
+        actives[0] = true;
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__InvalidTargetWeightBPS.selector);
+        aggregator.setConfig(abi.encode(strategies, weights, actives));
+    }
+
+    function testAggregator_setConfig_RevertsWhenStrategyNotAContract() public {
+        address eoa = makeAddr("eoa");
+
+        address[] memory strategies = new address[](1);
+        uint16[] memory weights = new uint16[](1);
+        bool[] memory actives = new bool[](1);
+
+        strategies[0] = eoa;
+        weights[0] = 1;
+        actives[0] = true;
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__StrategyNotAContract.selector);
+        aggregator.setConfig(abi.encode(strategies, weights, actives));
+    }
+
     /*//////////////////////////////////////////////////////////////
                              SUB-STRATEGY MGMT
     //////////////////////////////////////////////////////////////*/
@@ -240,8 +368,32 @@ contract SFStrategyAggregatorTest is Test {
         aggregator.updateSubStrategy(address(0), 1, true);
     }
 
+    function testAggregator_addSubStrategy_RevertsWhenNoAssetFunction() public {
+        NoAssetStrategy s = new NoAssetStrategy();
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__InvalidStrategyAsset.selector);
+        aggregator.addSubStrategy(address(s), 1000);
+    }
+
+    function testAggregator_addSubStrategy_RevertsWhenAssetReturnTooShort() public {
+        ShortReturnAssetStrategy s = new ShortReturnAssetStrategy();
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__InvalidStrategyAsset.selector);
+        aggregator.addSubStrategy(address(s), 1000);
+    }
+
+    function testAggregator_addSubStrategy_RevertsWhenAssetMismatch() public {
+        WrongAssetStrategy s = new WrongAssetStrategy(makeAddr("not-underlying"));
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__InvalidStrategyAsset.selector);
+        aggregator.addSubStrategy(address(s), 1000);
+    }
+
     /*//////////////////////////////////////////////////////////////
-                             DEPOSIT BRANCHES
+                             DEPOSIT
     //////////////////////////////////////////////////////////////*/
 
     function testAggregator_deposit_RevertsIfCallerNotVault(address caller) public {
@@ -331,8 +483,58 @@ contract SFStrategyAggregatorTest is Test {
         assertEq(asset.balanceOf(address(aggregator)), 0);
     }
 
+    function testAggregator_deposit_RevertsWhenPerStrategyDataIsEmptyBytes() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        _fundAggregator(100);
+
+        vm.prank(address(vault));
+        vm.expectRevert(); // abi.decode on empty bytes
+        aggregator.deposit(100, bytes(""));
+    }
+
+    function testAggregator_deposit_ResetsApprovalWhenChildDoesNotPullAllFunds() public {
+        PartialPullSubStrategy s1 = new PartialPullSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        _fundAggregator(1000);
+
+        vm.prank(address(vault));
+        uint256 invested = aggregator.deposit(1000, _emptyPerStrategyData());
+
+        // child only pulls half
+        assertEq(invested, 500);
+
+        // leftover allowance branch => should be reset to 0
+        assertEq(asset.allowance(address(aggregator), address(s1)), 0);
+
+        // accounting: half in child, half idle in aggregator
+        assertEq(asset.balanceOf(address(s1)), 500);
+        assertEq(asset.balanceOf(address(aggregator)), 500);
+        assertEq(aggregator.totalAssets(), 1000);
+    }
+
+    function testAggregator_deposit_UsesPerStrategyPayload_WhenProvided() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        _fundAggregator(123);
+
+        address[] memory strategies = new address[](1);
+        bytes[] memory payloads = new bytes[](1);
+
+        strategies[0] = address(s1);
+        payloads[0] = hex"deadbeef";
+
+        vm.prank(address(vault));
+        aggregator.deposit(123, _encodePerStrategyData(strategies, payloads));
+
+        assertEq(s1.lastDepositDataHash(), keccak256(payloads[0]));
+    }
+
     /*//////////////////////////////////////////////////////////////
-                             WITHDRAW BRANCHES
+                             WITHDRAW
     //////////////////////////////////////////////////////////////*/
 
     function testAggregator_withdraw_RevertsIfCallerNotVault(address caller) public {
@@ -446,6 +648,34 @@ contract SFStrategyAggregatorTest is Test {
         // loss branch executed (we don’t assert event data here; state + return prove the path)
     }
 
+    function testAggregator_withdraw_RevertsWhenPerStrategyDataIsEmptyBytes() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        // put assets in strategy so maxWithdraw > 0
+        _fundStrategy(address(s1), 100);
+
+        vm.prank(address(vault));
+        vm.expectRevert(); // abi.decode on empty bytes
+        aggregator.withdraw(10, makeAddr("recv"), bytes(""));
+    }
+
+    function testAggregator_withdraw_WhenIdleIsZero_PullsFromChildAndTransfersReceiver() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        // ensure aggregator idle == 0; fund strategy directly
+        _fundStrategy(address(s1), 500);
+
+        address receiver = makeAddr("receiver");
+
+        vm.prank(address(vault));
+        uint256 got = aggregator.withdraw(200, receiver, _emptyPerStrategyData());
+
+        assertEq(got, 200);
+        assertEq(asset.balanceOf(receiver), 200);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                PAUSE / EMERGENCY
     //////////////////////////////////////////////////////////////*/
@@ -511,6 +741,23 @@ contract SFStrategyAggregatorTest is Test {
         vm.prank(caller);
         vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__NotAuthorizedCaller.selector);
         aggregator.emergencyExit(makeAddr("r"));
+    }
+
+    function testAggregator_emergencyExit_WhenNoIdleBalance_DoesNotTransferIdle() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        // no idle on aggregator; only funds in child
+        _fundStrategy(address(s1), 777);
+
+        address receiver = makeAddr("receiver");
+
+        vm.prank(takadao);
+        aggregator.emergencyExit(receiver);
+
+        assertEq(asset.balanceOf(receiver), 777);
+        assertEq(asset.balanceOf(address(aggregator)), 0);
+        assertTrue(aggregator.paused());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -583,6 +830,139 @@ contract SFStrategyAggregatorTest is Test {
         vm.prank(takadao);
         vm.expectRevert(); // OZ Pausable error
         aggregator.rebalance(bytes(""));
+    }
+
+    function testAggregator_harvest_RevertsOnPerStrategyLengthMismatch() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        address[] memory strategies = new address[](1);
+        bytes[] memory payloads = new bytes[](0); // mismatch
+
+        strategies[0] = address(s1);
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__InvalidPerStrategyData.selector);
+        aggregator.harvest(_encodePerStrategyData(strategies, payloads));
+    }
+
+    function testAggregator_harvest_RevertsOnUnknownPerStrategyDataStrategy() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        address unknown = makeAddr("unknown");
+
+        address[] memory strategies = new address[](1);
+        bytes[] memory payloads = new bytes[](1);
+
+        strategies[0] = unknown; // not in set
+        payloads[0] = hex"01";
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__UnknownPerStrategyDataStrategy.selector);
+        aggregator.harvest(_encodePerStrategyData(strategies, payloads));
+    }
+
+    function testAggregator_harvest_RevertsOnDuplicatePerStrategyDataStrategy() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        address[] memory strategies = new address[](2);
+        bytes[] memory payloads = new bytes[](2);
+
+        strategies[0] = address(s1);
+        strategies[1] = address(s1); // duplicate
+        payloads[0] = hex"01";
+        payloads[1] = hex"02";
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__DuplicatePerStrategyDataStrategy.selector);
+        aggregator.harvest(_encodePerStrategyData(strategies, payloads));
+    }
+
+    function testAggregator_harvest_RevertsOnZeroAddressInPerStrategyData() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        address[] memory strategies = new address[](1);
+        bytes[] memory payloads = new bytes[](1);
+
+        strategies[0] = address(0);
+        payloads[0] = hex"01";
+
+        vm.prank(takadao);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__NotAddressZero.selector);
+        aggregator.harvest(_encodePerStrategyData(strategies, payloads));
+    }
+
+    function testAggregator_harvest_WithAllowlist_CallsInactiveToo_AndPayloadMatches() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        RecorderSubStrategy s2 = new RecorderSubStrategy(asset);
+
+        _addStrategy(address(s1), 6000, true);
+        _addStrategy(address(s2), 3000, false); // inactive
+
+        address[] memory strategies = new address[](2);
+        bytes[] memory payloads = new bytes[](2);
+
+        strategies[0] = address(s1);
+        strategies[1] = address(s2);
+        payloads[0] = hex"aa55";
+        payloads[1] = hex"bb66";
+
+        vm.prank(takadao);
+        aggregator.harvest(_encodePerStrategyData(strategies, payloads));
+
+        assertEq(s1.harvestCount(), 1);
+        assertEq(s2.harvestCount(), 1); // IMPORTANT: harvest allowlist path does NOT check active
+
+        assertEq(s1.lastHarvestDataHash(), keccak256(payloads[0]));
+        assertEq(s2.lastHarvestDataHash(), keccak256(payloads[1]));
+    }
+
+    function testAggregator_rebalance_WithAllowlist_SkipsInactive() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        RecorderSubStrategy s2 = new RecorderSubStrategy(asset);
+
+        _addStrategy(address(s1), 6000, true);
+        _addStrategy(address(s2), 3000, false); // inactive
+
+        address[] memory strategies = new address[](2);
+        bytes[] memory payloads = new bytes[](2);
+
+        strategies[0] = address(s1);
+        strategies[1] = address(s2);
+        payloads[0] = hex"11";
+        payloads[1] = hex"22";
+
+        vm.prank(takadao);
+        aggregator.rebalance(_encodePerStrategyData(strategies, payloads));
+
+        assertEq(s1.rebalanceCount(), 1);
+        assertEq(s2.rebalanceCount(), 0); // rebalance allowlist path DOES check active
+        assertEq(s1.lastRebalanceDataHash(), keccak256(payloads[0]));
+    }
+
+    function testAggregator_harvest_AllowsKeeperRole() public {
+        // create & grant keeper
+        address keeper = makeAddr("keeper");
+
+        vm.startPrank(addrMgr.owner());
+        addrMgr.createNewRole(Roles.KEEPER);
+        addrMgr.proposeRoleHolder(Roles.KEEPER, keeper);
+        vm.stopPrank();
+
+        vm.prank(keeper);
+        addrMgr.acceptProposedRole(Roles.KEEPER);
+
+        // add one strategy so the "data.length == 0" path iterates + active check is evaluated
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        vm.prank(keeper);
+        aggregator.harvest(bytes(""));
+
+        assertEq(s1.harvestCount(), 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -682,4 +1062,31 @@ contract SFStrategyAggregatorTest is Test {
         assertEq(weights[1], 3000);
         assertFalse(actives[1]);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                             Helpers
+    //////////////////////////////////////////////////////////////*/
+
+    function _encodePerStrategyData(address[] memory strategies, bytes[] memory payloads)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encode(strategies, payloads);
+    }
+
+    function _addStrategy(address s, uint16 w, bool active) internal {
+        vm.prank(takadao);
+        aggregator.addSubStrategy(s, w);
+
+        if (!active) {
+            vm.prank(takadao);
+            aggregator.updateSubStrategy(s, w, false);
+        }
+    }
+
+    function _fundStrategy(address strat, uint256 amount) internal {
+        deal(address(asset), strat, amount);
+    }
 }
+
