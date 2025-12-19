@@ -15,6 +15,7 @@ import {ISFStrategyMaintenance} from "contracts/interfaces/saveFunds/ISFStrategy
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfungiblePositionManager.sol";
 import {IUniversalRouter} from "contracts/interfaces/helpers/IUniversalRouter.sol";
+import {IUniswapV3MathHelper} from "contracts/interfaces/saveFunds/IUniswapV3MathHelper.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -24,10 +25,6 @@ import {
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {StrategyConfig} from "contracts/types/Strategies.sol";
-import {
-    LiquidityAmountsV3 as LiquidityAmounts
-} from "contracts/helpers/uniswapHelpers/libraries/LiquidityAmountsV3.sol";
-import {TickMathV3 as TickMath} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
 import {FullMathV3 as FullMath} from "contracts/helpers/uniswapHelpers/libraries/FullMathV3.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol";
@@ -52,6 +49,7 @@ contract SFUniswapV3Strategy is
     IUniswapV3Pool public pool;
     INonfungiblePositionManager public positionManager;
     IUniversalRouter public universalRouter;
+    IUniswapV3MathHelper internal math;
 
     IERC20 public underlying; // USDC
     IERC20 public otherToken; // USDT or any other token paired in the pool with USDC
@@ -139,6 +137,7 @@ contract SFUniswapV3Strategy is
         IERC20 _otherToken,
         address _pool,
         address _positionManager,
+        address _math,
         uint256 _maxTVL,
         address _router,
         int24 _tickLower,
@@ -160,6 +159,7 @@ contract SFUniswapV3Strategy is
         otherToken = _otherToken;
         pool = IUniswapV3Pool(_pool);
         positionManager = INonfungiblePositionManager(_positionManager);
+        math = IUniswapV3MathHelper(_math);
         maxTVL = _maxTVL;
         universalRouter = IUniversalRouter(_router);
 
@@ -492,8 +492,8 @@ contract SFUniswapV3Strategy is
         }
 
         // Compute current amounts in the position (NO fees included)
-        (uint256 amt0, uint256 amt1) = LiquidityAmounts.getAmountsForLiquidity(
-            sqrtPriceX96, TickMath.getSqrtRatioAtTick(tl), TickMath.getSqrtRatioAtTick(tu), liquidity
+        (uint256 amt0, uint256 amt1) = math.getAmountsForLiquidity(
+            sqrtPriceX96, math.getSqrtRatioAtTick(tl), math.getSqrtRatioAtTick(tu), liquidity
         );
 
         // Only count the underlying side (other side would require swap data)
@@ -552,7 +552,7 @@ contract SFUniswapV3Strategy is
         if (_value >= posValue) return currentLiquidity;
 
         // Pro-rata burn: ceil(currentLiquidity * _value / posValue)
-        uint256 liq256 = FullMath.mulDivRoundingUp(uint256(currentLiquidity), _value, posValue);
+        uint256 liq256 = math.mulDivRoundingUp(uint256(currentLiquidity), _value, posValue);
 
         // Safety cap (should already hold true)
         if (liq256 > uint256(currentLiquidity)) liq256 = uint256(currentLiquidity);
@@ -694,7 +694,7 @@ contract SFUniswapV3Strategy is
         require(otherRatioBPS <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
 
         // value is denominated in underlying (USDC), so "other side value" = how much USDC we swap
-        amountUnderlyingToSwap_ = FullMath.mulDiv(_assets, otherRatioBPS, MAX_BPS);
+        amountUnderlyingToSwap_ = math.mulDiv(_assets, otherRatioBPS, MAX_BPS);
         amountUnderlyingForLP_ = _assets - amountUnderlyingToSwap_;
     }
 
@@ -808,9 +808,8 @@ contract SFUniswapV3Strategy is
         uint128 liq = PositionReader.liquidity(positionManager, positionTokenId);
         if (liq == 0) return 0;
 
-        (uint256 a0, uint256 a1) = LiquidityAmounts.getAmountsForLiquidity(
-            sqrtPriceX96, TickMath.getSqrtRatioAtTick(tl), TickMath.getSqrtRatioAtTick(tu), liq
-        );
+        (uint256 a0, uint256 a1) =
+            math.getAmountsForLiquidity(sqrtPriceX96, math.getSqrtRatioAtTick(tl), math.getSqrtRatioAtTick(tu), liq);
 
         uint256 v;
 
@@ -837,10 +836,10 @@ contract SFUniswapV3Strategy is
 
         if (address(otherToken) == token0 && address(underlying) == token1) {
             // other = token0, underlying = token1 -> amountOther * price
-            return FullMath.mulDiv(amountOther, priceX192, q192);
+            return math.mulDiv(amountOther, priceX192, q192);
         } else if (address(otherToken) == token1 && address(underlying) == token0) {
             // other = token1, underlying = token0 -> amountOther / price
-            return FullMath.mulDiv(amountOther, q192, priceX192);
+            return math.mulDiv(amountOther, q192, priceX192);
         } else {
             revert SFUniswapV3Strategy__InvalidPoolTokens();
         }
@@ -927,7 +926,7 @@ contract SFUniswapV3Strategy is
             // round toward -infinity (Uniswap convention)
             if (delta < 0 && (delta % secs != 0)) avgTick--;
 
-            sqrtPriceX96_ = TickMath.getSqrtRatioAtTick(avgTick);
+            sqrtPriceX96_ = math.getSqrtRatioAtTick(avgTick);
             return sqrtPriceX96_;
         } catch {
             (sqrtPriceX96_,,,,,,) = pool.slot0();
@@ -938,13 +937,13 @@ contract SFUniswapV3Strategy is
     function _defaultOtherRatioBPS() internal view returns (uint16) {
         // Use the same valuation source (TWAP/spot) as totalAssets()
         uint160 sqrtP = _valuationSqrtPriceX96();
-        uint160 sqrtA = TickMath.getSqrtRatioAtTick(tickLower);
-        uint160 sqrtB = TickMath.getSqrtRatioAtTick(tickUpper);
+        uint160 sqrtA = math.getSqrtRatioAtTick(tickLower);
+        uint160 sqrtB = math.getSqrtRatioAtTick(tickUpper);
 
         // Any non-zero liquidity works since ratio is scale-invariant
         uint128 L = 1e18;
 
-        (uint256 amt0, uint256 amt1) = LiquidityAmounts.getAmountsForLiquidity(sqrtP, sqrtA, sqrtB, L);
+        (uint256 amt0, uint256 amt1) = math.getAmountsForLiquidity(sqrtP, sqrtA, sqrtB, L);
 
         uint256 valueUnderlying;
         uint256 valueOther;
@@ -960,7 +959,7 @@ contract SFUniswapV3Strategy is
         uint256 totalValue = valueUnderlying + valueOther;
         if (totalValue == 0) return uint16(MAX_BPS / 2);
 
-        uint256 bps = FullMath.mulDiv(valueOther, MAX_BPS, totalValue);
+        uint256 bps = math.mulDiv(valueOther, MAX_BPS, totalValue);
         if (bps > MAX_BPS) bps = MAX_BPS;
 
         return uint16(bps);
