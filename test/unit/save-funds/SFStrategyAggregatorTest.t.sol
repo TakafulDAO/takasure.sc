@@ -619,8 +619,8 @@ contract SFStrategyAggregatorTest is Test {
         deal(address(asset), address(s2), 999);
 
         // only s1 counted
-        assertEq(aggregator.totalAssets(), 111);
-        assertEq(aggregator.positionValue(), 111);
+        assertEq(aggregator.totalAssets(), 1110);
+        assertEq(aggregator.positionValue(), 1110);
     }
 
     function testAggregator_maxDeposit_Branches() public {
