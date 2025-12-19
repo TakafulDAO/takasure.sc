@@ -24,12 +24,14 @@ import {
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {StrategyConfig} from "contracts/types/Strategies.sol";
-import {LiquidityAmountsV3 as LiquidityAmounts} from "contracts/helpers/libraries/uniswap/LiquidityAmountsV3.sol";
-import {TickMathV3 as TickMath} from "contracts/helpers/libraries/uniswap/TickMathV3.sol";
-import {FullMathV3 as FullMath} from "contracts/helpers/libraries/uniswap/FullMathV3.sol";
+import {
+    LiquidityAmountsV3 as LiquidityAmounts
+} from "contracts/helpers/uniswapHelpers/libraries/LiquidityAmountsV3.sol";
+import {TickMathV3 as TickMath} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
+import {FullMathV3 as FullMath} from "contracts/helpers/uniswapHelpers/libraries/FullMathV3.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Commands} from "contracts/helpers/libraries/uniswap/Commands.sol";
-import {PositionReader} from "contracts/helpers/libraries/uniswap/PositionReader.sol";
+import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol";
+import {PositionReader} from "contracts/helpers/uniswapHelpers/libraries/PositionReader.sol";
 
 pragma solidity 0.8.28;
 
