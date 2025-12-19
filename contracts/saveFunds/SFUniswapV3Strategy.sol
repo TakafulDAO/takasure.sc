@@ -336,8 +336,17 @@ contract SFUniswapV3Strategy is
      */
     function harvest(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
         // Collect fees only.
-        // TODO: compound here? or left to rebalance? if auto compound then call _increaseLiquidity()
         _collectFees(data);
+        // Strategy must not hold assets
+        _sweepToVault();
+
+        // ? Business decision: Auto compound? This would be:
+        // 1. check if strategy is approved by vault
+        // 2. collect fees
+        // 3. Normalize tokens to the desired ratio (50/50 by default)
+        // 4. increase liquidity in the existing position.
+        // 5. sweep leftovers to the vault (strategy must not hold assets)
+        // 6. emit event
     }
 
     /**
@@ -388,7 +397,7 @@ contract SFUniswapV3Strategy is
 
         // 1) Read current liquidity and fully exit the existing position.
         uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
-        if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, bytes(""));
+        if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, data);
 
         // 2) Burn the old NFT once all liquidity has been removed.
         uint128 remainingLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
@@ -672,44 +681,43 @@ contract SFUniswapV3Strategy is
         universalRouter.execute(commands, inputs, deadline);
     }
 
-    function _decreaseLiquidityAndCollect(uint256 _liquidity, bytes memory _data) internal {
-        _requireVaultApprovalForNFT();
-        // TODO: use data
-        if (_liquidity == 0 || positionTokenId == 0) return;
+    function _decreaseLiquidityAndCollect(uint128 liquidity, bytes calldata data) internal {
+        require(positionTokenId != 0, SFUniswapV3Strategy__NoPosition());
 
-        uint128 currentLiquidity = PositionReader.liquidity(positionManager, positionTokenId);
+        (uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) = _decodePMParams(data);
 
-        if (currentLiquidity == 0) return;
+        // Map mins depending on token0/token1 ordering
+        uint256 amount0Min;
+        uint256 amount1Min;
 
-        uint128 liquidityToBurn;
-        if (_liquidity >= currentLiquidity) {
-            // Burn all liquidity
-            liquidityToBurn = currentLiquidity;
+        if (token0 == address(underlying)) {
+            amount0Min = minUnderlying;
+            amount1Min = minOther;
         } else {
-            // Burn partial liquidity, assumed the inputs is in raw units
-            liquidityToBurn = uint128(_liquidity);
+            amount0Min = minOther;
+            amount1Min = minUnderlying;
         }
 
-        if (liquidityToBurn == 0) return;
-
-        INonfungiblePositionManager.DecreaseLiquidityParams memory params;
-        params.tokenId = positionTokenId;
-        params.liquidity = liquidityToBurn;
-        // TODO: slippage protection?
-        params.amount0Min = 0;
-        params.amount1Min = 0;
-        params.deadline = block.timestamp;
+        INonfungiblePositionManager.DecreaseLiquidityParams memory params =
+            INonfungiblePositionManager.DecreaseLiquidityParams({
+                tokenId: positionTokenId,
+                liquidity: liquidity,
+                amount0Min: amount0Min,
+                amount1Min: amount1Min,
+                deadline: pmDeadline
+            });
 
         positionManager.decreaseLiquidity(params);
 
-        // Collect all owed tokens (principal + fees)
-        INonfungiblePositionManager.CollectParams memory collectParams;
-        collectParams.tokenId = positionTokenId;
-        collectParams.recipient = address(this);
-        collectParams.amount0Max = type(uint128).max;
-        collectParams.amount1Max = type(uint128).max;
+        // Collect everything owed to this strategy (caller) so we can swap/send/sweep.
+        INonfungiblePositionManager.CollectParams memory cparams = INonfungiblePositionManager.CollectParams({
+            tokenId: positionTokenId,
+            recipient: address(this),
+            amount0Max: type(uint128).max,
+            amount1Max: type(uint128).max
+        });
 
-        positionManager.collect(collectParams);
+        positionManager.collect(cparams);
     }
 
     function _collectFees(bytes calldata _data) internal {
@@ -816,6 +824,36 @@ contract SFUniswapV3Strategy is
 
         uint256 otherBalance = otherToken.balanceOf(address(this));
         if (otherBalance > 0) otherToken.safeTransfer(vault, otherBalance);
+    }
+
+    function _decodePMParams(bytes calldata _data)
+        internal
+        view
+        returns (uint256 pmDeadline_, uint256 minUnderlying_, uint256 minOther_)
+    {
+        // Defaults: no slippage floors + now deadline (same-block)
+        pmDeadline_ = block.timestamp;
+        minUnderlying_ = 0;
+        minOther_ = 0;
+
+        if (_data.length == 0) return (pmDeadline_, minUnderlying_, minOther_);
+
+        if (_data.length == 64) return (pmDeadline_, minUnderlying_, minOther_);
+
+        if (_data.length == 160) {
+            (,, pmDeadline_, minUnderlying_, minOther_) = abi.decode(_data, (int24, int24, uint256, uint256, uint256));
+            return (pmDeadline_, minUnderlying_, minOther_);
+        }
+
+        // Otherwise: treat as V3ActionData:
+        // abi.encode(uint16 otherRatioBPS, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)
+        // Note: even with empty bytes fields, this encoding is >= 256 bytes.
+        {
+            V3ActionData memory p = _decodeV3ActionData(data);
+            pmDeadline = p.pmDeadline;
+            minUnderlying = p.minUnderlying;
+            minOther = p.minOther;
+        }
     }
 
     /// @dev required by the OZ UUPS module.
