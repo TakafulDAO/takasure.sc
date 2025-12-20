@@ -285,6 +285,7 @@ contract MockSFStrategy is ISFStrategy {
             rebalanceCount++;
             lastRebalanceDataHash = keccak256(data);
         }
+        function test() public {}
     }
 
     contract PartialPullSubStrategy {
@@ -330,10 +331,13 @@ contract MockSFStrategy is ISFStrategy {
 
         function harvest(bytes calldata) external {}
         function rebalance(bytes calldata) external {}
+        function test() public {}
     }
 
     // Intentionally no asset() function so the staticcall in _assertChildStrategyCompatible fails.
-    contract NoAssetStrategy {}
+    contract NoAssetStrategy {
+        function test() public {}
+    }
 
     contract WrongAssetStrategy {
         address internal immutable wrong;
@@ -345,6 +349,8 @@ contract MockSFStrategy is ISFStrategy {
         function asset() external view returns (address) {
             return wrong;
         }
+
+        function test() public {}
     }
 
     contract ShortReturnAssetStrategy {
@@ -355,4 +361,6 @@ contract MockSFStrategy is ISFStrategy {
                 return(0x00, 0x01)
             }
         }
+
+        function test() public {}
     }
