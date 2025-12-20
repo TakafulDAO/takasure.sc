@@ -50,7 +50,7 @@ contract AddAddressesAndRoles is Script {
 
         addressManager.addProtocolAddress("ADMIN__FEE_CLAIM_ADDRESS", config.feeClaimAddress, ProtocolAddressType.Admin);
 
-        addressManager.addProtocolAddress("PROTOCOL__COUPON_POOL", couponPool, ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress("ADMIN__COUPON_POOL", couponPool, ProtocolAddressType.Protocol);
 
         addressManager.addProtocolAddress("ADMIN__REVENUE_RECEIVER", revenueReceiver, ProtocolAddressType.Admin);
         vm.stopPrank();

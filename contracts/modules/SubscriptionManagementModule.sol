@@ -188,10 +188,7 @@ contract SubscriptionManagementModule is
                 _performTransfers(_memberWallet, _memberWallet, toTransfer, fee);
             } else {
                 _performTransfers(
-                    _memberWallet,
-                    addressManager.getProtocolAddressByName("PROTOCOL__COUPON_POOL").addr,
-                    toTransfer,
-                    fee
+                    _memberWallet, addressManager.getProtocolAddressByName("ADMIN__COUPON_POOL").addr, toTransfer, fee
                 );
             }
 
@@ -257,7 +254,7 @@ contract SubscriptionManagementModule is
                 } else {
                     _performTransfers(
                         _params.memberWallet,
-                        addressManager.getProtocolAddressByName("PROTOCOL__COUPON_POOL").addr,
+                        addressManager.getProtocolAddressByName("ADMIN__COUPON_POOL").addr,
                         toTransfer,
                         fee
                     );
@@ -300,7 +297,7 @@ contract SubscriptionManagementModule is
      * @dev If the _from is the user wallet, then the caller must be the user wallet
      */
     function _performTransfers(address _userAddress, address _from, uint256 _contribution, uint256 _fee) internal {
-        address couponPoolAddress = addressManager.getProtocolAddressByName("PROTOCOL__COUPON_POOL").addr;
+        address couponPoolAddress = addressManager.getProtocolAddressByName("ADMIN__COUPON_POOL").addr;
         address feeClaimer = addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIM_ADDRESS").addr;
         address reserve = addressManager.getProtocolAddressByName("PROTOCOL__TAKASURE_RESERVE").addr;
         IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);

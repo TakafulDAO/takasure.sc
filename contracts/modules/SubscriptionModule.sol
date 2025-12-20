@@ -365,7 +365,7 @@ contract SubscriptionModule is
             _transferFee(contributionToken, _userWallet, _fee);
         } else {
             amountToTransfer = contributionAfterFee;
-            address couponPool = addressManager.getProtocolAddressByName("PROTOCOL__COUPON_POOL").addr;
+            address couponPool = addressManager.getProtocolAddressByName("ADMIN__COUPON_POOL").addr;
             contributionToken.safeTransferFrom(couponPool, address(this), amountToTransfer);
             _transferFee(contributionToken, couponPool, _fee);
         }
@@ -415,7 +415,7 @@ contract SubscriptionModule is
         // Transfer the amount to refund
         if (_member.couponAmountRedeemed > 0) {
             // We transfer the coupon amount to the coupon pool
-            address couponPool = addressManager.getProtocolAddressByName("PROTOCOL__COUPON_POOL").addr;
+            address couponPool = addressManager.getProtocolAddressByName("ADMIN__COUPON_POOL").addr;
             contributionToken.safeTransfer(couponPool, amountToRefund);
         } else {
             // We transfer the amount to the member
