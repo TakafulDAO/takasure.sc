@@ -20,7 +20,7 @@ fs_permissions = [
 # Compiler settings
 auto_detect_solc = true
 optimizer = true
-optimizer_runs = 30000
+optimizer_runs = 20000
 evm_version = 'cancun'
 
 [lint]
