@@ -152,6 +152,12 @@ contract SFStrategyAggregator is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Updates the aggregator TVL cap.
+     * @dev Only callable by an OPERATOR. A value of 0 means “no cap”.
+     * @param newMaxTVL New maximum TVL for the aggregator.
+     * @custom:invariant maxTVL is updated atomically and does not change the underlying asset or strategy set.
+     */
     function setMaxTVL(uint256 newMaxTVL) external onlyRole(Roles.OPERATOR) {
         uint256 oldMaxTVL = maxTVL;
         maxTVL = newMaxTVL;
@@ -159,8 +165,10 @@ contract SFStrategyAggregator is
     }
 
     /**
-     * @notice Sets the configuration of multiple sub-strategies at once.
-     * @param newConfig Encoded configuration data containing arrays of strategies, weights, and active statuses. abi.encode(addresses, weightsBps, actives)
+     * @notice Sets multiple sub-strategy configurations in a single call.
+     * @dev Only callable by an OPERATOR. This call may add new strategies and/or update existing ones, then recomputes the active weight sum.
+     * @param newConfig ABI-encoded config: abi.encode(address[] strategies, uint16[] weightsBps, bool[] actives).
+     * @custom:invariant totalTargetWeightBPS == sum(targetWeightBPS of active strategies) and totalTargetWeightBPS <= 10_000.
      */
     function setConfig(bytes calldata newConfig) external onlyRole(Roles.OPERATOR) {
         (address[] memory strategies, uint16[] memory weights, bool[] memory actives) =
@@ -208,8 +216,10 @@ contract SFStrategyAggregator is
     }
 
     /**
-     * @notice Emergency exit function to withdraw all assets from child strategies and transfer to a receiver.
-     * @param receiver Address to receive all withdrawn assets.
+     * @notice Attempts to withdraw all available funds from all child strategies and transfers them to `receiver`, then pauses the contract.
+     * @dev Only callable by an OPERATOR. Uses each strategy’s `maxWithdraw()` to determine the maximum withdrawable amount.
+     * @param receiver Address that will receive withdrawn assets and any idle balance held by the aggregator.
+     * @custom:invariant paused() == true after the call completes.
      */
     function emergencyExit(address receiver) external notAddressZero(receiver) nonReentrant onlyRole(Roles.OPERATOR) {
         uint256 len = subStrategySet.length();
@@ -232,10 +242,12 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Deposits assets into the aggregator, which allocates them to child strategies based on target weights.
-     * @param assets Amount of underlying assets to deposit.
-     * @param data Additional data for deposit (not used in this implementation).
-     * @return investedAssets Total amount of assets successfully invested into child strategies.
+     * @notice Allocates `assets` across active child strategies based on their target weights.
+     * @dev Callable only by the allowlisted SaveFunds vault (`PROTOCOL__SF_VAULT`). Approves each strategy for its allocation and resets approvals to zero after each call.
+     * @param assets Amount of underlying assets to allocate.
+     * @param data ABI-encoded per-strategy payloads: abi.encode(address[] strategies, bytes[] payloads). Each payload is forwarded to the matching child strategy’s `deposit` call.
+     * @return investedAssets Total amount actually invested by the child strategies (may be less than `assets`).
+     * @custom:invariant investedAssets <= assets and any uninvested remainder is returned to `vault`.
      */
     function deposit(uint256 assets, bytes calldata data)
         external
@@ -291,6 +303,15 @@ contract SFStrategyAggregator is
         return investedAssets;
     }
 
+    /**
+     * @notice Withdraws up to `assets` of underlying to `receiver`, using idle funds first and then pulling from child strategies.
+     * @dev Callable only by the allowlisted SaveFunds vault (`PROTOCOL__SF_VAULT`). If full withdrawal is not possible, emits a loss/illiquidity report.
+     * @param assets Amount of underlying requested to withdraw.
+     * @param receiver Address that will receive withdrawn underlying.
+     * @param data ABI-encoded per-strategy payloads: abi.encode(address[] strategies, bytes[] payloads). Each payload is forwarded to the matching child strategy’s `withdraw` call.
+     * @return withdrawnAssets Amount of underlying actually withdrawn and transferred to `receiver` (may be less than `assets`).
+     * @custom:invariant withdrawnAssets <= assets and transfers to `receiver` equal withdrawnAssets.
+     */
     function withdraw(uint256 assets, address receiver, bytes calldata data)
         external
         notAddressZero(receiver)
@@ -329,8 +350,10 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Harvests rewards from all active child strategies.
-     * @param data Additional data for harvesting (not used in this implementation).
+     * @notice Calls `harvest` on child strategies.
+     * @dev Callable only by a KEEPER or OPERATOR. If `data` is empty, harvests all active strategies with an empty payload; otherwise, harvests the specified strategies with provided payloads.
+     * @param data If non-empty, ABI-encoded per-strategy payloads: abi.encode(address[] strategies, bytes[] payloads).
+     * @custom:invariant Does not modify strategy configuration (set membership or target weights).
      */
     function harvest(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
         // No data => harvest all active strategies with empty payload
@@ -353,8 +376,10 @@ contract SFStrategyAggregator is
     }
 
     /**
-     * @notice Rebalances all active child strategies.
-     * @param data Additional data for rebalancing (not used in this implementation).
+     * @notice Calls `rebalance` on child strategies.
+     * @dev Callable only by a KEEPER or OPERATOR. If `data` is empty, rebalances all active strategies with an empty payload; otherwise, rebalances the specified strategies with provided payloads.
+     * @param data If non-empty, ABI-encoded per-strategy payloads: abi.encode(address[] strategies, bytes[] payloads).
+     * @custom:invariant Does not modify strategy configuration (set membership or target weights).
      */
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused onlyKeeperOrOperator {
         // No data => rebalance all active strategies with empty payload
@@ -381,9 +406,11 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Adds new child strategy to the aggregator.
-     * @param strategy Address of the child strategy.
-     * @param targetWeightBPS Target weight in basis points (0 to 10000).
+     * @notice Adds a new child strategy and activates it.
+     * @dev Only callable by an OPERATOR. The child strategy must be a contract and must manage the same `asset()` as the aggregator.
+     * @param strategy Address of the child strategy to add.
+     * @param targetWeightBPS Target allocation weight in basis points (0..10_000).
+     * @custom:invariant strategy is included in the set exactly once and totalTargetWeightBPS <= 10_000 after recomputation.
      */
     function addSubStrategy(address strategy, uint16 targetWeightBPS)
         external
@@ -401,10 +428,12 @@ contract SFStrategyAggregator is
     }
 
     /**
-     * @notice Updates an existing child strategy's configuration.
+     * @notice Updates an existing child strategy’s weight and active status.
+     * @dev Only callable by an OPERATOR. Recomputes active weight sum after updating.
      * @param strategy Address of the child strategy to update.
-     * @param targetWeightBPS New target weight in basis points (0 to 10000).
-     * @param isActive New active status of the strategy.
+     * @param targetWeightBPS New target allocation weight in basis points (0..10_000).
+     * @param isActive Whether the strategy should be considered active for allocations.
+     * @custom:invariant totalTargetWeightBPS == sum(targetWeightBPS of active strategies) and totalTargetWeightBPS <= 10_000.
      */
     function updateSubStrategy(address strategy, uint16 targetWeightBPS, bool isActive)
         external
@@ -426,16 +455,20 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Returns the underlying asset address managed by the strategy.
-     * @return Address of the underlying asset.
+     * @notice Returns the underlying asset managed by this aggregator and all child strategies.
+     * @dev Child strategies are required to return this same asset from their `asset()` function.
+     * @return asset_ Address of the underlying ERC20 asset.
+     * @custom:invariant Returned asset_ equals the `underlying` stored in this contract.
      */
     function asset() external view returns (address) {
         return address(underlying);
     }
 
     /**
-     * @notice Returns the maximum deposit amount allowed by the aggregator.
-     * @return Maximum deposit amount.
+     * @notice Returns the maximum amount of underlying that may be deposited, based on the TVL cap.
+     * @dev If maxTVL is 0, this returns the maximum uint256 (no cap). Otherwise it returns max(0, maxTVL - totalAssets()).
+     * @return maxAssets Maximum deposit amount in underlying units.
+     * @custom:invariant If maxTVL != 0 then totalAssets() + maxAssets <= maxTVL.
      */
     function maxDeposit() external view returns (uint256) {
         // 0 means no cap
@@ -447,8 +480,10 @@ contract SFStrategyAggregator is
     }
 
     /**
-     * @notice Returns the maximum withdrawable amount from the aggregator.
-     * @return Maximum withdrawable amount.
+     * @notice Returns the maximum amount of underlying that could be withdrawn right now.
+     * @dev Computed as idle balance plus the sum of each child strategy’s `maxWithdraw()`.
+     * @return maxAssets Maximum withdrawable amount in underlying units.
+     * @custom:invariant maxAssets equals underlying.balanceOf(this) + Σ strategy.maxWithdraw().
      */
     function maxWithdraw() external view returns (uint256) {
         uint256 sum = underlying.balanceOf(address(this));
@@ -461,6 +496,11 @@ contract SFStrategyAggregator is
         return sum;
     }
 
+    /**
+     * @notice Returns high-level configuration metadata for this aggregator.
+     * @dev The returned config is intended for off-chain introspection (frontends, monitoring, etc.).
+     * @return config StrategyConfig with fields: asset, vault, pool (0 for aggregator), maxTVL, paused.
+     */
     function getConfig() external view returns (StrategyConfig memory) {
         return StrategyConfig({
             asset: address(underlying),
@@ -471,6 +511,12 @@ contract SFStrategyAggregator is
         });
     }
 
+    /**
+     * @notice Returns the total value held in child strategies (excluding idle funds held by the aggregator).
+     * @dev Sums `totalAssets()` from all registered child strategies, regardless of active status.
+     * @return value Total underlying value held inside child strategies.
+     * @custom:invariant value <= totalAssets().
+     */
     function positionValue() external view returns (uint256) {
         uint256 sum;
         uint256 len = subStrategySet.length();
@@ -482,6 +528,12 @@ contract SFStrategyAggregator is
         return sum;
     }
 
+    /**
+     * @notice Returns an encoded snapshot of the sub-strategy configuration.
+     * @dev Intended for off-chain consumers. The encoding mirrors the `setConfig` input arrays.
+     * @return details ABI-encoded value: abi.encode(address[] strategies, uint16[] weightsBps, bool[] actives).
+     * @custom:invariant Decoded arrays have equal length and correspond to the current subStrategySet iteration order.
+     */
     function getPositionDetails() external view returns (bytes memory) {
         uint256 len = subStrategySet.length();
 
@@ -501,6 +553,12 @@ contract SFStrategyAggregator is
         return abi.encode(strategies, weights, actives);
     }
 
+    /**
+     * @notice Returns the list of sub-strategies with their weights and active flags.
+     * @dev Convenience view that expands the internal set into an array of `SubStrategy`.
+     * @return out Array of SubStrategy { strategy, targetWeightBPS, isActive }.
+     * @custom:invariant out.length == subStrategySet.length().
+     */
     function getSubStrategies() external view returns (SubStrategy[] memory out) {
         uint256 len = subStrategySet.length();
         out = new SubStrategy[](len);
@@ -514,8 +572,10 @@ contract SFStrategyAggregator is
     }
 
     /**
-     * @notice Returns the total assets managed by the aggregator, including all active child strategies.
-     * @return Total assets under management.
+     * @notice Returns the total underlying managed by the aggregator, including idle funds and all child strategies.
+     * @dev Sums this contract’s underlying balance plus each child strategy’s `totalAssets()`.
+     * @return total Total underlying assets under management.
+     * @custom:invariant total == underlying.balanceOf(this) + Σ strategy.totalAssets().
      */
     function totalAssets() public view returns (uint256) {
         uint256 sum = underlying.balanceOf(address(this));
@@ -531,6 +591,11 @@ contract SFStrategyAggregator is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev Validates that `_strategy` is a contract and that its `asset()` matches this aggregator’s underlying.
+     * @param _strategy Child strategy address to validate.
+     * @custom:invariant If this function does not revert, then ISFStrategyView(_strategy).asset() == asset().
+     */
     function _assertChildStrategyCompatible(address _strategy) internal view {
         require(_strategy.code.length != 0, SFStrategyAggregator__StrategyNotAContract());
 
@@ -541,6 +606,10 @@ contract SFStrategyAggregator is
         require(stratAsset == address(underlying), SFStrategyAggregator__InvalidStrategyAsset());
     }
 
+    /**
+     * @dev Recomputes `totalTargetWeightBPS` as the sum of active sub-strategy target weights.
+     * @custom:invariant totalTargetWeightBPS <= 10_000.
+     */
     function _recomputeTotalTargetWeightBPS() internal {
         uint256 len = subStrategySet.length();
         uint256 sum;
@@ -555,6 +624,13 @@ contract SFStrategyAggregator is
         totalTargetWeightBPS = uint16(sum);
     }
 
+    /**
+     * @dev Decodes and validates the per-strategy payload bundle.
+     * @param _data ABI-encoded value: abi.encode(address[] strategies, bytes[] payloads).
+     * @return strategies_ List of strategy addresses referenced by the payload bundle.
+     * @return payloads_ Per-strategy payloads aligned by index with `strategies_`.
+     * @custom:invariant strategies_.length == payloads_.length and strategies_ has no duplicates and every strategy is registered.
+     */
     function _decodePerStrategyData(bytes calldata _data)
         internal
         view
@@ -581,6 +657,14 @@ contract SFStrategyAggregator is
         }
     }
 
+    /**
+     * @dev Returns the payload for `_strategy` from the provided arrays (or empty bytes if not present).
+     * @param _strategy Strategy to look up.
+     * @param _strategies Strategy addresses in the payload bundle.
+     * @param _payloads Payloads aligned to `_strategies` by index.
+     * @return payload Payload for `_strategy` (or bytes("")).
+     * @custom:invariant If `_strategy` is present in `_strategies`, the returned payload equals the corresponding entry in `_payloads`.
+     */
     function _payloadFor(address _strategy, address[] memory _strategies, bytes[] memory _payloads)
         internal
         pure
@@ -592,6 +676,13 @@ contract SFStrategyAggregator is
         return bytes("");
     }
 
+    /**
+     * @dev Transfers up to `remaining` of idle underlying held by the aggregator to `receiver`.
+     * @param receiver Address receiving idle funds.
+     * @param remaining Maximum amount to send.
+     * @return sent Amount actually transferred from idle balance.
+     * @custom:invariant sent <= remaining.
+     */
     function _useIdleFunds(address receiver, uint256 remaining) internal returns (uint256 sent) {
         uint256 idle = underlying.balanceOf(address(this));
         if (idle == 0) return 0;
@@ -600,6 +691,15 @@ contract SFStrategyAggregator is
         underlying.safeTransfer(receiver, sent);
     }
 
+    /**
+     * @dev Attempts to pull underlying from child strategies until `_remaining` is satisfied or liquidity is exhausted.
+     * @param _receiver Address receiving the withdrawn underlying.
+     * @param _remaining Amount still needed to satisfy the overall withdrawal request.
+     * @param _dataStrategies Strategy addresses referenced by the payload bundle.
+     * @param _perChildData Payloads aligned to `_dataStrategies` by index.
+     * @return sent_ Total amount transferred to `_receiver` during this call.
+     * @custom:invariant sent_ <= _remaining.
+     */
     function _withdrawFromSubStrategies(
         address _receiver,
         uint256 _remaining,
@@ -626,6 +726,13 @@ contract SFStrategyAggregator is
         }
     }
 
+    /**
+     * @dev Emits a loss/illiquidity report event when the requested withdrawal could not be fully satisfied.
+     * @param requestedAssets Amount of underlying originally requested.
+     * @param withdrawnAssets Amount of underlying actually withdrawn.
+     * @param prevTotalAssets Snapshot of `totalAssets()` taken before attempting the withdrawal.
+     * @custom:invariant withdrawnAssets <= requestedAssets.
+     */
     function _reportLoss(uint256 requestedAssets, uint256 withdrawnAssets, uint256 prevTotalAssets) internal {
         uint256 newTotalAssets = totalAssets();
         uint256 shortfall = requestedAssets - withdrawnAssets;
