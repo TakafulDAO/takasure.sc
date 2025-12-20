@@ -24,6 +24,7 @@ contract DeploySFUniV3Strategy is Script, DeployConstants {
          * This is a 0.01% fee tier pool on arbitrum with a tick spacing of 1
          * any tick will work -500 to 500 good for testing, never out of range
          * -200 to 200 also good will be the more realistic range
+         * As the price is P=1.0001**tick, then this is prices from 0.980 to 1.020
          */
         address sfUniV3StrategyAddress = UnsafeUpgrades.deployUUPSProxy(
             sfUniV3StrategyImplementation,
