@@ -298,7 +298,7 @@ contract SubscriptionManagementModule is
      */
     function _performTransfers(address _userAddress, address _from, uint256 _contribution, uint256 _fee) internal {
         address couponPoolAddress = addressManager.getProtocolAddressByName("ADMIN__COUPON_POOL").addr;
-        address feeClaimer = addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIM_ADDRESS").addr;
+        address feeClaimer = addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIMER ").addr;
         address reserve = addressManager.getProtocolAddressByName("PROTOCOL__TAKASURE_RESERVE").addr;
         IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
