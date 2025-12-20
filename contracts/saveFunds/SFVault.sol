@@ -55,7 +55,7 @@ contract SFVault is
     //////////////////////////////////////////////////////////////*/
 
     ISFStrategy public strategy; // current strategy handling the underlying assets
-    IAddressManager public addressManager;
+    IAddressManager private addressManager;
 
     EnumerableSet.AddressSet private whitelistedTokens;
 
@@ -95,6 +95,9 @@ contract SFVault is
     error SFVault__ZeroAssets();
     error SFVault__ExceedsMaxDeposit();
     error SFVault__ZeroShares();
+    error SFVault__InvalidStrategy();
+    error SFVault__StrategyNotSet();
+    error SFVault__InsufficientIdleAssets();
     error SFVault__InsufficientUSDCForFees();
     error SFVault__NonTransferableShares();
 
@@ -379,6 +382,43 @@ contract SFVault is
         userTotalDeposited[receiver] += grossAssets;
 
         return grossAssets;
+    }
+
+    /// @notice Moves idle USDC into the configured strategy (Aggregator) using the algo-provided payload.
+    function investIntoStrategy(uint256 assets, bytes calldata data)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 investedAssets)
+    {
+        _onlyKeeperOrOperator();
+        ISFStrategy strat = strategy;
+        require(address(strat) != address(0), SFVault__StrategyNotSet());
+        require(assets > 0, SFVault__ZeroAssets());
+
+        uint256 idle = idleAssets();
+        require(assets <= idle, SFVault__InsufficientIdleAssets());
+
+        // Strategy/Aggregator expects to already have the funds
+        IERC20(asset()).safeTransfer(address(strat), assets);
+
+        investedAssets = strat.deposit(assets, data);
+    }
+
+    /// @notice Pulls USDC back from the configured strategy (Aggregator) into the vault using the algo-provided payload.
+    function withdrawFromStrategy(uint256 assets, bytes calldata data)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 withdrawnAssets)
+    {
+        _onlyKeeperOrOperator();
+        ISFStrategy strat = strategy;
+        require(address(strat) != address(0), SFVault__StrategyNotSet());
+        require(assets > 0, SFVault__ZeroAssets());
+
+        // Aggregator will transfer USDC to this vault (receiver = address(this))
+        withdrawnAssets = strat.withdraw(assets, address(this), data);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -710,6 +750,13 @@ contract SFVault is
 
         // Attribute withdrawals to the share owner (the account whose shares were burned)
         userTotalWithdrawn[owner] += assets;
+    }
+
+    function _onlyKeeperOrOperator() internal view {
+        require(
+            addressManager.hasRole(Roles.KEEPER, msg.sender) || addressManager.hasRole(Roles.OPERATOR, msg.sender),
+            SFVault__NotAuthorizedCaller()
+        );
     }
 
     /// @dev required by the OZ UUPS module.
