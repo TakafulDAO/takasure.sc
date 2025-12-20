@@ -262,7 +262,7 @@ contract GettersVaultTest is Test {
                         STRATEGY ALLOCATION GETTER
     //////////////////////////////////////////////////////////////*/
 
-    function testSFVault_GetStrategyAllocation_ZeroWhenNoTVL() public {
+    function testSFVault_GetStrategyAllocation_ZeroWhenNoTVL() public view {
         assertEq(vault.getStrategyAllocation(), 0);
     }
 
@@ -306,7 +306,7 @@ contract GettersVaultTest is Test {
                         VAULT PERFORMANCE GETTER
     //////////////////////////////////////////////////////////////*/
 
-    function testSFVault_GetVaultPerformanceSince_ReturnsZeroWhenNoShares() public {
+    function testSFVault_GetVaultPerformanceSince_ReturnsZeroWhenNoShares() public view {
         assertEq(vault.getVaultPerformanceSince(0), 0);
         assertEq(vault.getVaultPerformanceSince(1), 0);
     }
@@ -356,7 +356,7 @@ contract GettersVaultTest is Test {
                             ERC721
     //////////////////////////////////////////////////////////////*/
 
-    function testSFVault_onERC721Received_ReturnsSelector() public {
+    function testSFVault_onERC721Received_ReturnsSelector() public view {
         bytes4 sel = vault.onERC721Received(address(1), address(2), 123, "0x");
         assertEq(sel, IERC721Receiver.onERC721Received.selector);
     }
