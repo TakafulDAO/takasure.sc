@@ -18,6 +18,10 @@ interface ISFVault {
     function isTokenWhitelisted(address token) external view returns (bool);
     function whitelistedTokensLength() external view returns (uint256);
     function getWhitelistedTokens() external view returns (address[] memory);
-    function investIntoStrategy(uint256 assets, bytes calldata data) external returns (uint256 investedAssets);
-    function withdrawFromStrategy(uint256 assets, bytes calldata data) external returns (uint256 withdrawnAssets);
+    function investIntoStrategy(uint256 assets, address[] calldata strategies, bytes[] calldata payloads)
+        external
+        returns (uint256 investedAssets);
+    function withdrawFromStrategy(uint256 assets, address[] calldata strategies, bytes[] calldata payloads)
+        external
+        returns (uint256 withdrawnAssets);
 }

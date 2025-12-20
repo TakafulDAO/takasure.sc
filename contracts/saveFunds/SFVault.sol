@@ -384,8 +384,7 @@ contract SFVault is
         return grossAssets;
     }
 
-    /// @notice Moves idle USDC into the configured strategy (Aggregator) using the algo-provided payload.
-    function investIntoStrategy(uint256 assets, bytes calldata data)
+    function investIntoStrategy(uint256 assets, address[] calldata strategies, bytes[] calldata payloads)
         external
         nonReentrant
         whenNotPaused
@@ -393,20 +392,22 @@ contract SFVault is
     {
         _onlyKeeperOrOperator();
         ISFStrategy strat = strategy;
-        require(address(strat) != address(0), SFVault__StrategyNotSet());
-        require(assets > 0, SFVault__ZeroAssets());
+        if (address(strat) == address(0)) revert SFVault__StrategyNotSet();
+        if (assets == 0) revert SFVault__ZeroAssets();
 
         uint256 idle = idleAssets();
-        require(assets <= idle, SFVault__InsufficientIdleAssets());
+        if (assets > idle) revert SFVault__InsufficientIdleAssets();
 
-        // Strategy/Aggregator expects to already have the funds
+        // Send funds first (aggregator expects to already hold underlying)
         IERC20(asset()).safeTransfer(address(strat), assets);
+
+        // Vault builds the aggregator bundle
+        bytes memory data = abi.encode(strategies, payloads);
 
         investedAssets = strat.deposit(assets, data);
     }
 
-    /// @notice Pulls USDC back from the configured strategy (Aggregator) into the vault using the algo-provided payload.
-    function withdrawFromStrategy(uint256 assets, bytes calldata data)
+    function withdrawFromStrategy(uint256 assets, address[] calldata strategies, bytes[] calldata payloads)
         external
         nonReentrant
         whenNotPaused
@@ -414,10 +415,11 @@ contract SFVault is
     {
         _onlyKeeperOrOperator();
         ISFStrategy strat = strategy;
-        require(address(strat) != address(0), SFVault__StrategyNotSet());
-        require(assets > 0, SFVault__ZeroAssets());
+        if (address(strat) == address(0)) revert SFVault__StrategyNotSet();
+        if (assets == 0) revert SFVault__ZeroAssets();
 
-        // Aggregator will transfer USDC to this vault (receiver = address(this))
+        bytes memory data = abi.encode(strategies, payloads);
+
         withdrawnAssets = strat.withdraw(assets, address(this), data);
     }
 
