@@ -110,6 +110,23 @@ contract SFUniswapV3Strategy is
         _disableInitializers();
     }
 
+    /**
+     * @notice Initializes the strategy and wires up external dependencies.
+     * @dev Intended to be called exactly once via proxy initialization.
+     *      Validates that `_vault` whitelists `_underlying` and `_otherToken`, validates pool token ordering,
+     *      and validates tick range is aligned to pool tick spacing.
+     * @param _addressManager AddressManager used for role checks and named-contract authorization.
+     * @param _vault Save Funds vault that owns this strategy and receives swept residual balances.
+     * @param _underlying Underlying ERC20 asset accounted in the vault (e.g., USDC).
+     * @param _otherToken The paired ERC20 token used for Uniswap V3 liquidity.
+     * @param _pool Uniswap V3 pool for the (underlying, otherToken) pair.
+     * @param _positionManager Uniswap V3 NonfungiblePositionManager used to mint/burn/manage the position NFT.
+     * @param _math Math helper used for tick/price/liquidity conversions and safe mulDiv operations.
+     * @param _maxTVL Maximum strategy TVL in underlying units; set to 0 for no cap.
+     * @param _router Universal Router used to execute V3 swaps during deposits/withdrawals/fee collection.
+     * @param _tickLower Initial lower tick for the position (must be < _tickUpper and multiple of tickSpacing).
+     * @param _tickUpper Initial upper tick for the position (must be > _tickLower and multiple of tickSpacing).
+     */
     function initialize(
         IAddressManager _addressManager,
         address _vault,
@@ -169,6 +186,12 @@ contract SFUniswapV3Strategy is
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Updates the maximum allowed TVL for this strategy (in underlying units).
+     * @dev Only callable by `Roles.OPERATOR`. A value of 0 disables the cap (unlimited).
+     * @param newMaxTVL New maximum TVL in underlying units (0 = unlimited).
+     * @custom:invariant Deposits must revert when `maxTVL != 0` and `totalAssets() + assets > maxTVL`.
+     */
     function setMaxTVL(uint256 newMaxTVL) external {
         _onlyRole(Roles.OPERATOR);
         uint256 oldMaxTVL = maxTVL;
@@ -176,6 +199,13 @@ contract SFUniswapV3Strategy is
         emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
     }
 
+    /**
+     * @notice Updates the TWAP window used for valuation and conversions.
+     * @dev Only callable by `Roles.OPERATOR`.
+     *      `newWindow == 0` enables spot pricing; otherwise requires a minimum window (sanity bound).
+     * @param newWindow TWAP window in seconds (0 = spot).
+     * @custom:invariant Valuation functions must use `twapWindow` as configured (spot or TWAP) without mutating state.
+     */
     function setTwapWindow(uint32 newWindow) external {
         _onlyRole(Roles.OPERATOR);
 
@@ -200,7 +230,15 @@ contract SFUniswapV3Strategy is
         _unpause();
     }
 
-    function emergencyExit(address receiver) external {
+    /**
+     * @notice Unwinds the active Uniswap V3 position (if any), transfers all assets out, and pauses the strategy.
+     * @dev Only callable by `Roles.OPERATOR`.
+     *      Requires the vault to have approved this strategy for PositionManager NFTs via `setApprovalForAll`.
+     *      If a position exists, removes all liquidity, collects owed tokens, burns the NFT, then transfers both tokens.
+     * @param receiver Address to receive any remaining `underlying` and `otherToken` balances after unwind.
+     * @custom:invariant After completion, `positionTokenId == 0` and the strategy should not custody ERC20 balances.
+     */
+    function emergencyExit(address receiver) external nonReentrant {
         _onlyRole(Roles.OPERATOR);
         _notAddressZero(receiver);
         _requireVaultApprovalForNFT();
@@ -232,8 +270,21 @@ contract SFUniswapV3Strategy is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Deposits assets into Uniswap V3 LP position.
-     * @dev Expects `msg.sender` (aggregator) to have approved this contract.
+     * @notice Pulls `assets` (underlying) from the vault and deploys it into a Uniswap V3 LP position.
+     * @dev Only callable by the named vault contract ("PROTOCOL__SF_VAULT").
+     *      Enforces `maxTVL` (unless 0). Optionally swaps a portion of underlying into `otherToken` via Universal Router,
+     *      then mints a new position or increases liquidity on the existing one. Residual balances are swept to the vault.
+     *
+     *      `data` is interpreted as V3 action data and MUST be encoded as:
+     *      `abi.encode(uint16 otherRatioBPS, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`
+     *      where `swapToOtherData` / `swapToUnderlyingData` are each encoded as:
+     *      `abi.encode(bytes[] inputs, uint256 deadline)` (passed to Universal Router `execute`).
+     *
+     *      If `data.length == 0`, defaults are used: 50/50 ratio, no swaps, `pmDeadline = block.timestamp`, mins = 0.
+     * @param assets Amount of `underlying` to deposit.
+     * @param data ABI-encoded V3 action data (see @dev for exact encoding).
+     * @return investedAssets Amount of `underlying` effectively deployed into LP (usedUnderlying side).
+     * @custom:invariant External entrypoints must not retain `underlying`/`otherToken` balances; leftovers are swept to `vault`.
      */
     function deposit(uint256 assets, bytes calldata data)
         external
@@ -287,8 +338,20 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @notice Withdraw assets from Uniswap V3 LP position.
-     * @dev Tries to realize `assets` worth of underlying, may return less in edge cases.
+     * @notice Withdraws up to `assets` (in underlying units) by removing liquidity and returning underlying to `receiver`.
+     * @dev Only callable by the named vault contract ("PROTOCOL__SF_VAULT").
+     *      Computes the pro-rata liquidity to burn for the requested value, decreases liquidity, collects owed tokens,
+     *      optionally swaps any collected/idle `otherToken` into `underlying` (if swap payload provided), then transfers
+     *      up to `assets` underlying to `receiver` and sweeps leftovers back to the vault.
+     *
+     *      `data` uses the same V3 action encoding as `deposit`:
+     *      `abi.encode(uint16 otherRatioBPS, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`
+     *      where `swapToUnderlyingData` is used to swap `otherToken -> underlying` via Universal Router.
+     * @param assets Requested amount of `underlying` to withdraw (will be capped to `totalAssets()`).
+     * @param receiver Address receiving the withdrawn underlying.
+     * @param data ABI-encoded V3 action data (see @dev for exact encoding).
+     * @return withdrawnAssets Actual underlying transferred to `receiver` (capped to requested `assets`).
+     * @custom:invariant External entrypoints must not retain `underlying`/`otherToken` balances; leftovers are swept to `vault`.
      */
     function withdraw(uint256 assets, address receiver, bytes calldata data)
         external
@@ -338,8 +401,16 @@ contract SFUniswapV3Strategy is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Harvests rewards from all active child strategies.
-     * @param data Additional data for harvesting (not used in this implementation).
+     * @notice Collects accrued Uniswap V3 fees and sweeps proceeds to the vault.
+     * @dev Only callable by an address with `Roles.KEEPER` or `Roles.OPERATOR`.
+     *      Collects all fees owed to the position, optionally swaps `otherToken -> underlying` if swap payload provided,
+     *      then sweeps any residual balances to the vault.
+     *
+     *      `data` uses the same V3 action encoding as `deposit`/`withdraw`:
+     *      `abi.encode(uint16 otherRatioBPS, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`
+     *      where `swapToUnderlyingData` is used for the optional swap before sweeping.
+     * @param data ABI-encoded V3 action data (see @dev for exact encoding).
+     * @custom:invariant After completion, the strategy should not custody ERC20 balances; any proceeds are swept to `vault`.
      */
     function harvest(bytes calldata data) external nonReentrant whenNotPaused {
         _onlyKeeperOrOperator();
@@ -358,9 +429,17 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @notice Rebalances the strategy by adjusting the tick range of the active position.
-     * @param data Additional data for rebalancing (not used in this implementation).
-     *        abi.encode(int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)
+     * @notice Rebalances the strategy by changing the tick range and redeploying liquidity into a new position.
+     * @dev Only callable by an address with `Roles.KEEPER` or `Roles.OPERATOR`.
+     *      Requires the vault to have approved this strategy for PositionManager NFTs via `setApprovalForAll`.
+     *      If a position exists, fully exits and burns the old NFT, updates ticks, and mints a new position with current balances.
+     *      Any residual balances are swept to the vault.
+     *
+     *      `data` MUST be encoded as:
+     *      `abi.encode(int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`
+     *      where mins + deadline apply to both the exit (decrease) and the new mint.
+     * @param data ABI-encoded rebalance params (see @dev for exact encoding).
+     * @custom:invariant `tickLower` and `tickUpper` must remain aligned to pool tickSpacing; ERC20 leftovers are swept to `vault`.
      */
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused {
         _onlyKeeperOrOperator();
@@ -420,13 +499,21 @@ contract SFUniswapV3Strategy is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Returns the underlying asset address managed by the strategy.
-     * @return Address of the underlying asset.
+     * @notice Returns the underlying ERC20 asset address accounted by the vault for this strategy.
+     * @dev Pure view helper used by the aggregator/vault integration.
+     * @return asset_ Address of the underlying ERC20 token.
+     * @custom:invariant View function must not mutate state.
      */
     function asset() external view returns (address) {
         return address(underlying);
     }
 
+    /**
+     * @notice Returns the maximum additional `underlying` amount this strategy can accept right now.
+     * @dev If `maxTVL == 0`, returns `type(uint256).max`. Otherwise returns remaining capacity until hitting `maxTVL`.
+     * @return maxAssets Maximum depositable underlying amount at current state.
+     * @custom:invariant View function must not mutate state.
+     */
     function maxDeposit() external view returns (uint256) {
         if (maxTVL == 0) return type(uint256).max;
 
@@ -436,6 +523,13 @@ contract SFUniswapV3Strategy is
         return maxTVL - current;
     }
 
+    /**
+     * @notice Returns the maximum withdrawable amount in underlying units at current state and price.
+     * @dev Includes idle underlying held by the strategy plus the underlying-equivalent value of the LP position and owed fees.
+     *      Does not attempt to value any idle `otherToken` balance (which should normally be swept to the vault).
+     * @return maxAssets Maximum withdrawable underlying amount.
+     * @custom:invariant View function must not mutate state.
+     */
     function maxWithdraw() external view returns (uint256) {
         uint256 maxUnderlying = underlying.balanceOf(address(this));
 
@@ -480,33 +574,50 @@ contract SFUniswapV3Strategy is
         return maxUnderlying;
     }
 
+    /**
+     * @notice Returns the current strategy configuration for offchain/indexer usage.
+     * @dev Packs core fields into a `StrategyConfig` struct.
+     * @return config Strategy configuration snapshot.
+     * @custom:invariant View function must not mutate state.
+     */
     function getConfig() external view returns (StrategyConfig memory) {
         return StrategyConfig({
             asset: address(underlying), vault: vault, pool: address(pool), maxTVL: maxTVL, paused: paused()
         });
     }
 
+    /**
+     * @notice Returns the value of the active LP position in underlying units, excluding idle balances.
+     * @dev Uses spot/TWAP pricing depending on `twapWindow` and values liquidity only (fees excluded).
+     * @return valueUnderlying Value of the LP position denominated in underlying units.
+     * @custom:invariant View function must not mutate state.
+     */
     function positionValue() external view returns (uint256) {
         // Only the LP; excludes idle balances.
         return _positionValueAtSqrtPrice(_valuationSqrtPriceX96());
     }
 
     /**
-     * @notice Returns the current value of the strategy's position in underlying units.
-     * @return The value of the position in underlying units.
-     * @dev The return bytes is encoded as
-     *      abi.encode(
-     *                 uint8 version => strategyType/version: 1 = UniswapV3, 2 = UniswapV4
-     *                 uint256 tokenId
-     *                 address pool
-     *                 int24 tickLower
-     *                 int24 tickUpper)
+     * @notice Returns a compact, versioned encoding of the current Uniswap V3 position metadata.
+     * @dev Encoded as: `abi.encode(uint8 version, uint256 tokenId, address pool, int24 tickLower, int24 tickUpper)`.
+     *      `version` is intended for cross-strategy decoding (e.g., 1 = Uniswap V3).
+     * @return positionDetails ABI-encoded position metadata blob.
+     * @custom:invariant View function must not mutate state.
      */
     function getPositionDetails() external view returns (bytes memory) {
         // Versioned layout for cross-strategy decoding (v3=1, v4=2, ...)
         return abi.encode(uint8(1), positionTokenId, address(pool), tickLower, tickUpper);
     }
 
+    /**
+     * @notice Returns the total strategy value in underlying units (LP position + idle balances).
+     * @dev Uses spot/TWAP pricing depending on `twapWindow`. Includes:
+     *      (1) liquidity-only valuation of the LP position,
+     *      (2) idle underlying balance, and
+     *      (3) idle otherToken converted into underlying at the same price.
+     * @return total Value in underlying units.
+     * @custom:invariant View function must not mutate state.
+     */
     function totalAssets() public view returns (uint256) {
         uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
 
@@ -525,7 +636,12 @@ contract SFUniswapV3Strategy is
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev Ensures the vault has approved this strategy to manage PositionManager NFTs via `setApprovalForAll`.
+     * @custom:invariant Any function that mints/burns/decreases/increases the position must require this approval.
+     */
     function _requireVaultApprovalForNFT() internal view {
+        // ? Business decision: would be easier if the strategy owned the NFT directly, instead of the vault. Although this approach is nicer to migrate positions between strategies.
         // vault must have approved this strategy to manage the position NFT(s)
         require(
             IERC721(address(positionManager)).isApprovedForAll(vault, address(this)),
@@ -533,6 +649,16 @@ contract SFUniswapV3Strategy is
         );
     }
 
+    /**
+     * @dev Decreases liquidity for the active position and collects all owed tokens to this strategy.
+     *      Slippage mins + deadline are decoded via `_decodePMParams(_data)`.
+     * @param _liquidity Amount of liquidity to remove.
+     * @param _data ABI-encoded params. Accepted encodings:
+     *      - empty bytes: defaults (`deadline=block.timestamp`, mins = 0),
+     *      - rebalance params: `abi.encode(int24,int24,uint256 pmDeadline,uint256 minUnderlying,uint256 minOther)` (160 bytes),
+     *      - V3 action data: `abi.encode(uint16,bytes,bytes,uint256 pmDeadline,uint256 minUnderlying,uint256 minOther)`.
+     * @custom:invariant Must only operate when `positionTokenId != 0` and must not change `positionTokenId`.
+     */
     function _decreaseLiquidityAndCollect(uint128 _liquidity, bytes memory _data) internal {
         require(positionTokenId != 0, SFUniswapV3Strategy__NoPosition());
 
@@ -572,6 +698,15 @@ contract SFUniswapV3Strategy is
         positionManager.collect(cparams);
     }
 
+    /**
+     * @dev Decodes the strategy action bundle used for deposit/withdraw/harvest/fee collection.
+     *      Expected encoding:
+     *      `abi.encode(uint16 otherRatioBPS, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`.
+     *      If `_data.length == 0`, defaults are used (50/50 ratio, no swaps, `pmDeadline = block.timestamp`, mins = 0).
+     * @param _data ABI-encoded action data.
+     * @return p_ Decoded `V3ActionData` struct.
+     * @custom:invariant `otherRatioBPS` must be `<= MAX_BPS` and `pmDeadline >= block.timestamp` when provided.
+     */
     function _decodeV3ActionData(bytes memory _data) internal view returns (V3ActionData memory p_) {
         // Defaults: 50/50, no swaps, and immediate position management deadline
         if (_data.length == 0) {
@@ -588,13 +723,14 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @dev Performs a Uniswap V3 exact-in swap via Universal Router.
-     * @param _amount     Amount of tokens we intend to swap.
-     * @param _data       Encoded as `abi.encode(bytes[] inputs, uint256 deadline)`.
-     *                    Each `inputs[i]` is the Universal Router input for a V3 swap.
-     * @param _zeroForOne If true: swap `underlying -> otherToken`.
-     *                    If false: swap `otherToken -> underlying`.
-     *                    Not necessarily pool.token0 -> pool.token1.
+     * @dev Performs a Uniswap V3 exact-in swap through Universal Router.
+     *      `_data` MUST be encoded as `abi.encode(bytes[] inputs, uint256 deadline)` where each `inputs[i]` is the
+     *      Universal Router input for a `Commands.V3_SWAP_EXACT_IN` action. Commands are constructed internally.
+     *      Passing empty `_data` is treated as a no-op (useful for tests/emergency paths).
+     * @param _amount Amount of tokens intended to be swapped.
+     * @param _data ABI-encoded Universal Router inputs + deadline: `abi.encode(bytes[] inputs, uint256 deadline)`.
+     * @param _zeroForOne If true, swaps `underlying -> otherToken`; otherwise swaps `otherToken -> underlying`.
+     * @custom:invariant Swap execution must not leave residual allowances or balances unaccounted; leftovers are swept by callers.
      */
     function _V3Swap(uint256 _amount, bytes memory _data, bool _zeroForOne) internal {
         // Nothing to do
@@ -620,6 +756,18 @@ contract SFUniswapV3Strategy is
         universalRouter.execute(commands, inputs, deadline);
     }
 
+    /**
+     * @dev Mints (or re-mints) the Uniswap V3 position using the provided token amounts and slippage bounds.
+     *      Stores the minted `tokenId` into `positionTokenId` on first mint; otherwise requires it to match.
+     * @param _amountUnderlying Desired underlying amount to supply.
+     * @param _amountOther Desired otherToken amount to supply.
+     * @param _deadline PositionManager deadline (must be >= block.timestamp).
+     * @param _minUnderlying Minimum underlying amount to add (slippage floor).
+     * @param _minOther Minimum otherToken amount to add (slippage floor).
+     * @return usedUnderlying Actual underlying amount consumed by the mint.
+     * @return usedOther Actual otherToken amount consumed by the mint.
+     * @custom:invariant If `positionTokenId != 0`, mint must not create a new unrelated tokenId.
+     */
     function _mintPosition(
         uint256 _amountUnderlying,
         uint256 _amountOther,
@@ -685,6 +833,18 @@ contract SFUniswapV3Strategy is
         }
     }
 
+    /**
+     * @dev Increases liquidity on the existing position using the provided token amounts and slippage bounds.
+     *      Requires vault approval for NFT management and an existing `positionTokenId`.
+     * @param _amountUnderlying Desired underlying amount to supply.
+     * @param _amountOther Desired otherToken amount to supply.
+     * @param _deadline PositionManager deadline (must be >= block.timestamp).
+     * @param _minUnderlying Minimum underlying amount to add (slippage floor).
+     * @param _minOther Minimum otherToken amount to add (slippage floor).
+     * @return usedUnderlying_ Actual underlying amount consumed.
+     * @return usedOther_ Actual otherToken amount consumed.
+     * @custom:invariant Must not modify `positionTokenId` and must only act when `positionTokenId != 0`.
+     */
     function _increaseLiquidity(
         uint256 _amountUnderlying,
         uint256 _amountOther,
@@ -736,6 +896,10 @@ contract SFUniswapV3Strategy is
         }
     }
 
+    /**
+     * @dev Transfers any residual `underlying` and `otherToken` balances to the vault.
+     * @custom:invariant After state-changing external entrypoints, this sweep should leave ERC20 balances at zero (best-effort).
+     */
     function _sweepToVault() internal {
         uint256 underlyingBalance = underlying.balanceOf(address(this));
         if (underlyingBalance > 0) underlying.safeTransfer(vault, underlyingBalance);
@@ -744,6 +908,12 @@ contract SFUniswapV3Strategy is
         if (otherBalance > 0) otherToken.safeTransfer(vault, otherBalance);
     }
 
+    /**
+     * @dev Computes the amount of liquidity to remove (rounded up) to target `_value` underlying units from the LP position.
+     * @param _value Desired value in underlying units.
+     * @return liquidityToBurn Amount of liquidity to burn (0 if no position/value).
+     * @custom:invariant Returned liquidity must be `<= currentLiquidity` and is `currentLiquidity` when `_value >= position value`.
+     */
     function _liquidityForValue(uint256 _value) internal view returns (uint128) {
         if (_value == 0) return 0;
         if (positionTokenId == 0) return 0;
@@ -767,6 +937,16 @@ contract SFUniswapV3Strategy is
         return uint128(liq256);
     }
 
+    /**
+     * @dev Collects all accrued fees from the active position and optionally swaps `otherToken -> underlying` before sweeping.
+     *      Requires vault approval for NFT management.
+     *
+     *      `data` uses the same V3 action encoding as `deposit`/`withdraw`:
+     *      `abi.encode(uint16, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`
+     *      where only `swapToUnderlyingData` is relevant here for the optional swap.
+     * @param data ABI-encoded V3 action data (see @dev for exact encoding).
+     * @custom:invariant Must not retain ERC20 balances; any proceeds are swept to `vault`.
+     */
     function _collectFees(bytes calldata data) internal {
         _requireVaultApprovalForNFT();
 
@@ -795,6 +975,12 @@ contract SFUniswapV3Strategy is
         _sweepToVault();
     }
 
+    /**
+     * @dev Returns the sqrt price used for valuation (spot or TWAP depending on `twapWindow`).
+     *      In TWAP mode, attempts `pool.observe` and falls back to spot price if observe fails.
+     * @return sqrtPriceX96_ Sqrt price Q64.96 used for valuation.
+     * @custom:invariant View helper must not mutate state and must return a price consistent with `twapWindow` mode.
+     */
     function _valuationSqrtPriceX96() internal view returns (uint160 sqrtPriceX96_) {
         uint32 window = twapWindow;
 
@@ -825,6 +1011,13 @@ contract SFUniswapV3Strategy is
         }
     }
 
+    /**
+     * @dev Values only the LP position (liquidity) at a given sqrt price, denominated in underlying units.
+     *      Fees are not included in this valuation.
+     * @param sqrtPriceX96 Sqrt price Q64.96 to use for conversion.
+     * @return valueUnderlying Liquidity-only value in underlying units.
+     * @custom:invariant Returns 0 when `positionTokenId == 0` or liquidity is 0; view helper must not mutate state.
+     */
     function _positionValueAtSqrtPrice(uint160 sqrtPriceX96) internal view returns (uint256) {
         if (positionTokenId == 0) return 0;
 
@@ -849,6 +1042,14 @@ contract SFUniswapV3Strategy is
         return v;
     }
 
+    /**
+     * @dev Converts an `otherToken` amount into underlying units using the given sqrt price.
+     *      Assumes the pool tokens are exactly (underlying, otherToken) in either ordering.
+     * @param amountOther Amount of `otherToken` to convert.
+     * @param sqrtPriceX96 Sqrt price Q64.96 used for conversion.
+     * @return amountUnderlying Underlying-equivalent amount at the given price.
+     * @custom:invariant Must revert if pool tokens are inconsistent with configured `underlying`/`otherToken`.
+     */
     function _quoteOtherAsUnderlyingAtSqrtPrice(uint256 amountOther, uint160 sqrtPriceX96)
         internal
         view
@@ -872,6 +1073,18 @@ contract SFUniswapV3Strategy is
         }
     }
 
+    /**
+     * @dev Extracts PositionManager min amounts and deadline from flexible input encodings.
+     *      Accepted formats:
+     *      - empty bytes: defaults (`deadline=block.timestamp`, mins = 0),
+     *      - rebalance params: `abi.encode(int24,int24,uint256 pmDeadline,uint256 minUnderlying,uint256 minOther)` (160 bytes),
+     *      - V3 action data: `abi.encode(uint16,bytes,bytes,uint256 pmDeadline,uint256 minUnderlying,uint256 minOther)`.
+     * @param _data ABI-encoded parameter blob.
+     * @return pmDeadline_ Deadline for PositionManager operations.
+     * @return minUnderlying_ Slippage floor for the underlying side.
+     * @return minOther_ Slippage floor for the otherToken side.
+     * @custom:invariant Returns sane defaults when `_data` is empty and must not mutate state.
+     */
     function _decodePMParams(bytes memory _data)
         internal
         view
