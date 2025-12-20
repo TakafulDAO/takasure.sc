@@ -21,22 +21,20 @@ abstract contract DeployConstants {
         address arbSepoliaUSDC;
     }
 
-    USDCAddress public usdcAddress =
-        USDCAddress({
-            arbMainnetUSDC: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831,
-            arbSepoliaUSDC: 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d
-        });
+    USDCAddress public usdcAddress = USDCAddress({
+        arbMainnetUSDC: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831,
+        arbSepoliaUSDC: 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d
+    });
 
     struct CouponProvider {
         address arbMainnetCouponProvider;
         address arbSepoliaCouponProvider;
     }
 
-    CouponProvider public couponProvider =
-        CouponProvider({
-            arbMainnetCouponProvider: 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe,
-            arbSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3
-        });
+    CouponProvider public couponProvider = CouponProvider({
+        arbMainnetCouponProvider: 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe,
+        arbSepoliaCouponProvider: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3
+    });
 
     /*//////////////////////////////////////////////////////////////
                                ACCOUNTS
@@ -51,13 +49,12 @@ abstract contract DeployConstants {
         address eth_sepolia;
     }
 
-    FeeClaimAddress public feeClaimAddress =
-        FeeClaimAddress({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Avil's account 0
-            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
-            arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
-        });
+    FeeClaimAddress public feeClaimAddress = FeeClaimAddress({
+        local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Avil's account 0
+        mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
+        arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+        eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+    });
 
     // DAO Multisig wallet. It has some special permissions in the protocol
     struct DaoMultisig {
@@ -67,13 +64,12 @@ abstract contract DeployConstants {
         address eth_sepolia;
     }
 
-    DaoMultisig public daoMultisig =
-        DaoMultisig({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
-            arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
-        });
+    DaoMultisig public daoMultisig = DaoMultisig({
+        local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
+        mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
+        arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+        eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+    });
 
     // Address with some special permissions in the protocol
     // Used only in deployment, can be change after deployment for a multisig
@@ -84,13 +80,12 @@ abstract contract DeployConstants {
         address eth_sepolia;
     }
 
-    TakadaoOperator public takadaoOperator =
-        TakadaoOperator({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
-            arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
-        });
+    TakadaoOperator public takadaoOperator = TakadaoOperator({
+        local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
+        mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
+        arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+        eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+    });
 
     // Address with privilege to manage the KYC for each user
     struct KycProvider {
@@ -100,13 +95,12 @@ abstract contract DeployConstants {
         address eth_sepolia;
     }
 
-    KycProvider public kycProvider =
-        KycProvider({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0x2b212e37A5619191694Ad0E99fD6F76e45fdb2Ba,
-            arb_sepolia: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
-            eth_sepolia: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3
-        });
+    KycProvider public kycProvider = KycProvider({
+        local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
+        mainnet: 0x2b212e37A5619191694Ad0E99fD6F76e45fdb2Ba,
+        arb_sepolia: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3,
+        eth_sepolia: 0x55296ae1c0114A4C20E333571b1DbD40939C80A3
+    });
 
     // Address with privilege to pause the protocol
     struct PauseGuardian {
@@ -116,11 +110,17 @@ abstract contract DeployConstants {
         address eth_sepolia;
     }
 
-    PauseGuardian public pauseGuardian =
-        PauseGuardian({
-            local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-            mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
-            arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
-            eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
-        });
+    PauseGuardian public pauseGuardian = PauseGuardian({
+        local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
+        mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
+        arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
+        eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
+    });
+
+    /*//////////////////////////////////////////////////////////////
+                               UNISWAP V3
+    //////////////////////////////////////////////////////////////*/
+
+    address public constant UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+    address public constant UNIVERSAL_ROUTER = 0xA51afAFe0263b40EdaEf0Df8781eA9aa03E381a3;
 }

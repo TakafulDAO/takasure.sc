@@ -12,6 +12,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {ISFVault} from "contracts/interfaces/saveFunds/ISFVault.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {
@@ -32,6 +33,7 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 pragma solidity 0.8.28;
 
 contract SFVault is
+    ISFVault,
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable,
@@ -70,6 +72,8 @@ contract SFVault is
     uint256 public highWaterMark; // assets per share, scaled by 1e18
 
     mapping(address token => uint16 capBPS) public tokenHardCapBPS;
+    mapping(address user => uint256 totalDeposited) private userTotalDeposited;
+    mapping(address user => uint256 totalWithdrawn) private userTotalWithdrawn;
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -327,6 +331,8 @@ contract SFVault is
         // Mint shares to receiver
         _mint(receiver, userShares);
 
+        userTotalDeposited[receiver] += assets;
+
         emit Deposit(caller, receiver, assets, userShares);
 
         return userShares;
@@ -369,6 +375,8 @@ contract SFVault is
 
         _mint(receiver, shares);
         emit Deposit(caller, receiver, grossAssets, shares);
+
+        userTotalDeposited[receiver] += grossAssets;
 
         return grossAssets;
     }
@@ -423,6 +431,123 @@ contract SFVault is
     /// @notice Returns the amount of idle assets (underlying tokens not invested in the strategy) in the vault.
     function idleAssets() public view returns (uint256) {
         return IERC20(asset()).balanceOf(address(this));
+    }
+
+    function getIdleAssets() external view override returns (uint256) {
+        return idleAssets();
+    }
+
+    function getLastReport() external view override returns (uint256 lastReportTimestamp, uint256 lastReportAssets) {
+        return (uint256(lastReport), totalAssets());
+    }
+
+    /// @dev Returned value is in BPS (10_000 = 100%).
+    function getStrategyAllocation() external view override returns (uint256) {
+        uint256 strat = strategyAssets(); // single external call into strategy (if set)
+        uint256 tvl = idleAssets() + strat;
+
+        if (tvl == 0) return 0;
+
+        return Math.mulDiv(strat, MAX_BPS, tvl);
+    }
+
+    function getStrategyAssets() external view override returns (uint256) {
+        return strategyAssets();
+    }
+
+    function getUserAssets(address user) external view override returns (uint256) {
+        uint256 shares = balanceOf(user);
+        if (shares == 0) return 0;
+
+        // ERC4626-consistent “position value” in underlying units.
+        return convertToAssets(shares);
+    }
+
+    function getUserNetDeposited(address user) external view override returns (uint256) {
+        uint256 deposited = getUserTotalDeposited(user);
+        uint256 withdrawn = getUserTotalWithdrawn(user);
+
+        // Net deposits can't be negative with uint256; clamp at 0.
+        return deposited > withdrawn ? deposited - withdrawn : 0;
+    }
+
+    function getUserTotalDeposited(address user) public view override returns (uint256) {
+        return userTotalDeposited[user];
+    }
+
+    function getUserTotalWithdrawn(address user) public view override returns (uint256) {
+        return userTotalWithdrawn[user];
+    }
+
+    /// @dev PnL is (current position value + totalWithdrawn - totalDeposited).
+    function getUserPnL(address user) external view override returns (int256) {
+        uint256 shares = balanceOf(user);
+
+        uint256 currentAssets = shares == 0 ? 0 : convertToAssets(shares);
+        uint256 deposited = userTotalDeposited[user];
+        uint256 withdrawn = userTotalWithdrawn[user];
+
+        // totalValue = currentAssets + withdrawn (unchecked + saturation to avoid revert on overflow)
+        uint256 totalValue;
+        unchecked {
+            totalValue = currentAssets + withdrawn;
+            if (totalValue < currentAssets) totalValue = type(uint256).max; // overflow -> saturate
+        }
+
+        // pnl = totalValue - deposited (as signed), with saturation to int256 bounds
+        if (totalValue >= deposited) {
+            uint256 diff = totalValue - deposited;
+            if (diff > uint256(type(int256).max)) return type(int256).max;
+            return int256(diff);
+        } else {
+            uint256 diff = deposited - totalValue;
+            if (diff > uint256(type(int256).max)) return type(int256).min;
+            return -int256(diff);
+        }
+    }
+
+    function getUserShares(address user) external view override returns (uint256) {
+        return balanceOf(user);
+    }
+
+    /// @dev Returns signed performance in BPS (10_000 = +100%) based on assets/share.
+    function getVaultPerformanceSince(uint256 timestamp) external view override returns (int256) {
+        uint256 totalShares = totalSupply();
+        if (totalShares == 0) return 0;
+
+        // Current assets/share in WAD
+        uint256 currentAssetsPerShareWad = Math.mulDiv(totalAssets(), 1e18, totalShares);
+
+        uint256 baseAssetsPerShareWad;
+        if (timestamp == 0) {
+            // inception baseline: 1.0 asset/share in WAD
+            baseAssetsPerShareWad = 1e18;
+        } else if (timestamp <= uint256(lastReport)) {
+            // `highWaterMark` is used as the last report baseline in this vault’s fee logic
+            baseAssetsPerShareWad = highWaterMark;
+        } else {
+            // no on-chain historical checkpoint for future timestamps
+            return 0;
+        }
+
+        if (baseAssetsPerShareWad == 0) return 0;
+
+        // ratio in BPS = current/base * 10_000
+        uint256 ratioBps = Math.mulDiv(currentAssetsPerShareWad, MAX_BPS, baseAssetsPerShareWad);
+
+        if (ratioBps >= MAX_BPS) {
+            uint256 diff = ratioBps - MAX_BPS;
+            if (diff > uint256(type(int256).max)) return type(int256).max;
+            return int256(diff);
+        } else {
+            uint256 diff = MAX_BPS - ratioBps;
+            if (diff > uint256(type(int256).max)) return type(int256).min;
+            return -int256(diff);
+        }
+    }
+
+    function getVaultTVL() external view override returns (uint256) {
+        return totalAssets();
     }
 
     /// @notice Returns the total assets invested in the strategy.
@@ -576,6 +701,22 @@ contract SFVault is
         super._update(from, to, value);
     }
 
+    /// @dev Track user withdrawals across BOTH withdraw() and redeem()
+    function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
+        internal
+        override
+    {
+        super._withdraw(caller, receiver, owner, assets, shares);
+
+        // Attribute withdrawals to the share owner (the account whose shares were burned)
+        userTotalWithdrawn[owner] += assets;
+    }
+
     /// @dev required by the OZ UUPS module.
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR) {}
+
+    function harvest(address strategy) external {}
+    function withdrawFromStrategy(address strategy, uint256 assets) external {}
+    function rebalance(address fromStrategy, address toStrategy, uint256 assets) external {}
+    function investIntoStrategy(address strategy, uint256 assets) external {}
 }
