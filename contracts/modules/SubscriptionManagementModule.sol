@@ -11,7 +11,7 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
+import {IMainStorageModule} from "contracts/interfaces/modules/IMainStorageModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {
@@ -160,7 +160,7 @@ contract SubscriptionManagementModule is
      * @notice Internal function to pay for the recurring association subscription
      */
     function _payRecurringAssociationSubscription(address _memberWallet, uint256 _associationCouponAmount) internal {
-        (IProtocolStorageModule protocolStorageModule, AssociationMember memory associationMember) =
+        (IMainStorageModule mainStorageModule, AssociationMember memory associationMember) =
             _fetchAssociationMemberFromStorageModule(_memberWallet);
 
         require(
@@ -195,7 +195,7 @@ contract SubscriptionManagementModule is
                 );
             }
 
-            protocolStorageModule.updateAssociationMember(associationMember);
+            mainStorageModule.updateAssociationMember(associationMember);
 
             emit TakasureEvents.OnRecurringAssociationPayment(
                 _memberWallet, associationMember.memberId, associationMember.planPrice
@@ -232,14 +232,14 @@ contract SubscriptionManagementModule is
                 );
             }
 
-            (IProtocolStorageModule protocolStorageModule, BenefitMember memory benefitMember) =
+            (IMainStorageModule mainStorageModule, BenefitMember memory benefitMember) =
                 _fetchBenefitMemberFromStorageModule(benefitsToPay[i], _params.memberWallet);
 
             (, AssociationMember memory associationMember) =
                 _fetchAssociationMemberFromStorageModule(_params.memberWallet);
 
             if (_validateDateAndState(benefitMember)) {
-                uint256 benefitFee = protocolStorageModule.getUintValue("benefitFee");
+                uint256 benefitFee = mainStorageModule.getUintValue("benefitFee");
                 uint256 toTransfer;
                 uint256 fee;
 
@@ -268,7 +268,7 @@ contract SubscriptionManagementModule is
                 benefitMember.totalContributions += benefitMember.contribution;
                 benefitMember.totalServiceFee += (benefitMember.contribution * benefitFee) / 100;
 
-                protocolStorageModule.updateBenefitMember(benefitsToPay[i], benefitMember);
+                mainStorageModule.updateBenefitMember(benefitsToPay[i], benefitMember);
                 emit TakasureEvents.OnRecurringBenefitPayment(
                     _params.memberWallet,
                     _params.benefitNames[i],
@@ -280,7 +280,7 @@ contract SubscriptionManagementModule is
             } else {
                 // If the member is late paying more than the grace period, we set the member to Defaulted
                 benefitMember.memberState = BenefitMemberState.Canceled;
-                protocolStorageModule.updateBenefitMember(benefitsToPay[i], benefitMember);
+                mainStorageModule.updateBenefitMember(benefitsToPay[i], benefitMember);
                 emit TakasureEvents.OnBenefitMemberCanceled(
                     benefitMember.memberId, benefitsToPay[i], _params.memberWallet, benefitMember.memberState
                 );
@@ -316,11 +316,10 @@ contract SubscriptionManagementModule is
             contributionToken.safeTransferFrom(couponPoolAddress, feeClaimer, _fee);
         } else {
             // The caller must be the member wallet
-            IProtocolStorageModule protocolStorageModule =
-                IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
+            IMainStorageModule mainStorageModule =
+                IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
             require(
-                protocolStorageModule.getBoolValue("allowUserInitiatedCalls"),
-                ModuleErrors.Module__NotAuthorizedCaller()
+                mainStorageModule.getBoolValue("allowUserInitiatedCalls"), ModuleErrors.Module__NotAuthorizedCaller()
             );
             require(msg.sender == _userAddress, ModuleErrors.Module__NotAuthorizedCaller());
 
@@ -420,7 +419,7 @@ contract SubscriptionManagementModule is
     }
 
     function _cancelAssociationSubscription(address _memberWallet) internal {
-        (IProtocolStorageModule protocolStorageModule, AssociationMember memory associationMember) =
+        (IMainStorageModule mainStorageModule, AssociationMember memory associationMember) =
             _fetchAssociationMemberFromStorageModule(_memberWallet);
 
         require(associationMember.memberState == AssociationMemberState.Active, ModuleErrors.Module__WrongMemberState());
@@ -447,7 +446,7 @@ contract SubscriptionManagementModule is
         // Cancel all the benefit subscriptions
         _cancelBenefitSubscriptionsByAddress(_memberWallet, associationMember.benefits);
 
-        protocolStorageModule.updateAssociationMember(associationMember);
+        mainStorageModule.updateAssociationMember(associationMember);
 
         emit TakasureEvents.OnAssociationMemberCanceled(
             associationMember.memberId, _memberWallet, associationMember.memberState
@@ -463,7 +462,7 @@ contract SubscriptionManagementModule is
     }
 
     function _cancelBenefitSubscriptionsByAddress(address _memberWallet, address[] memory _benefitAddresses) internal {
-        (IProtocolStorageModule protocolStorageModule,) = _fetchAssociationMemberFromStorageModule(_memberWallet);
+        (IMainStorageModule mainStorageModule,) = _fetchAssociationMemberFromStorageModule(_memberWallet);
 
         // Track the benefits that actually become CANCELED (only these are removed)
         address[] memory canceled = new address[](_benefitAddresses.length);
@@ -485,7 +484,7 @@ contract SubscriptionManagementModule is
                 ++canceledCount;
             }
 
-            protocolStorageModule.updateBenefitMember(_benefitAddresses[i], benefitMember);
+            mainStorageModule.updateBenefitMember(_benefitAddresses[i], benefitMember);
             emit TakasureEvents.OnBenefitMemberCanceled(
                 benefitMember.memberId, _benefitAddresses[i], _memberWallet, benefitMember.memberState
             );
@@ -495,25 +494,23 @@ contract SubscriptionManagementModule is
     function _fetchAssociationMemberFromStorageModule(address _userWallet)
         internal
         view
-        returns (IProtocolStorageModule protocolStorageModule_, AssociationMember memory member_)
+        returns (IMainStorageModule mainStorageModule_, AssociationMember memory member_)
     {
-        protocolStorageModule_ =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
+        mainStorageModule_ = IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
 
         // Get the member from storage
-        member_ = protocolStorageModule_.getAssociationMember(_userWallet);
+        member_ = mainStorageModule_.getAssociationMember(_userWallet);
     }
 
     function _fetchBenefitMemberFromStorageModule(address _benefit, address _userWallet)
         internal
         view
-        returns (IProtocolStorageModule protocolStorageModule_, BenefitMember memory member_)
+        returns (IMainStorageModule mainStorageModule_, BenefitMember memory member_)
     {
-        protocolStorageModule_ =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
+        mainStorageModule_ = IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
 
         // Get the member from storage
-        member_ = protocolStorageModule_.getBenefitMember(_benefit, _userWallet);
+        member_ = mainStorageModule_.getBenefitMember(_benefit, _userWallet);
     }
 
     ///@dev required by the OZ UUPS module

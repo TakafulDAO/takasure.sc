@@ -18,7 +18,7 @@ import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol"
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
-contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgradeable {
+contract MainStorageModule is ModuleImplementation, Initializable, UUPSUpgradeable {
     // Association members related
     mapping(address member => AssociationMember) private members;
     // Benefit members related
@@ -71,7 +71,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     event OnBytesValueSet(bytes32 indexed key, bytes value);
     event OnBytes32Value2DSet(bytes32 indexed key1, bytes32 indexed key2, bytes32 value);
 
-    error ProtocolStorageModule__FeeExceedsMaximum(bytes32 keyHash, uint256 attemptedFee, uint256 maxFee);
+    error MainStorageModule__FeeExceedsMaximum(bytes32 keyHash, uint256 attemptedFee, uint256 maxFee);
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -186,7 +186,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
 
         // If the key is a fee, ensure it does not exceed the maximum allowed
         if (_hasFeeSuffix(key)) {
-            require(value <= MAX_FEE, ProtocolStorageModule__FeeExceedsMaximum(hashedKey, value, MAX_FEE));
+            require(value <= MAX_FEE, MainStorageModule__FeeExceedsMaximum(hashedKey, value, MAX_FEE));
         }
 
         uintStorage[hashedKey] = value;

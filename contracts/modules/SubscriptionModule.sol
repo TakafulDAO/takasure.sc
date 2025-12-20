@@ -8,7 +8,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
+import {IMainStorageModule} from "contracts/interfaces/modules/IMainStorageModule.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IRevenueModule} from "contracts/interfaces/modules/IRevenueModule.sol";
@@ -132,9 +132,9 @@ contract SubscriptionModule is
             ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
-        IProtocolStorageModule protocolStorageModule =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
-        bool allowUsersToPay = protocolStorageModule.getBoolValue("allowUserInitiatedCalls");
+        IMainStorageModule mainStorageModule =
+            IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
+        bool allowUsersToPay = mainStorageModule.getBoolValue("allowUserInitiatedCalls");
         require(allowUsersToPay, ModuleErrors.Module__NotAuthorizedCaller());
 
         _paySubscription(
@@ -287,7 +287,7 @@ contract SubscriptionModule is
             _params.couponAmount >= 0 && _params.couponAmount <= _params.planPrice, ModuleErrors.Module__InvalidCoupon()
         );
 
-        (IProtocolStorageModule protocolStorageModule, AssociationMember memory member) =
+        (IMainStorageModule mainStorageModule, AssociationMember memory member) =
             _fetchMemberFromStorageModule(_params.userWallet);
 
         // To know if we are creating a new member or updating an existing one we need to check the wallet and refund state
@@ -337,8 +337,8 @@ contract SubscriptionModule is
 
         // Update the member mapping
 
-        if (isRejoin) protocolStorageModule.updateAssociationMember(member);
-        else protocolStorageModule.createAssociationMember(member);
+        if (isRejoin) mainStorageModule.updateAssociationMember(member);
+        else mainStorageModule.createAssociationMember(member);
     }
 
     /**
@@ -388,7 +388,7 @@ contract SubscriptionModule is
      */
     function _refund(address _memberWallet) internal {
         AddressAndStates._notZeroAddress(_memberWallet);
-        (IProtocolStorageModule _protocolStorageModule, AssociationMember memory _member) =
+        (IMainStorageModule mainStorageModule, AssociationMember memory _member) =
             _fetchMemberFromStorageModule(_memberWallet);
 
         // The member should exist and not be refunded
@@ -438,20 +438,19 @@ contract SubscriptionModule is
         });
 
         // Update the user as refunded
-        _protocolStorageModule.updateAssociationMember(_member);
+        mainStorageModule.updateAssociationMember(_member);
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
     }
 
     function _fetchMemberFromStorageModule(address _userWallet)
         internal
         view
-        returns (IProtocolStorageModule protocolStorageModule_, AssociationMember memory member_)
+        returns (IMainStorageModule mainStorageModule_, AssociationMember memory member_)
     {
-        protocolStorageModule_ =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("MODULE__PROTOCOL_STORAGE").addr);
+        mainStorageModule_ = IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
 
         // Get the member from storage
-        member_ = protocolStorageModule_.getAssociationMember(_userWallet);
+        member_ = mainStorageModule_.getAssociationMember(_userWallet);
     }
 
     ///@dev required by the OZ UUPS module
