@@ -714,9 +714,4 @@ contract SFVault is
 
     /// @dev required by the OZ UUPS module.
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR) {}
-
-    function harvest(address strategy) external {}
-    function withdrawFromStrategy(address strategy, uint256 assets) external {}
-    function rebalance(address fromStrategy, address toStrategy, uint256 assets) external {}
-    function investIntoStrategy(address strategy, uint256 assets) external {}
 }
