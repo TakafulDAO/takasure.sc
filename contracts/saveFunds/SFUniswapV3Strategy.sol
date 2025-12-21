@@ -271,7 +271,7 @@ contract SFUniswapV3Strategy is
 
     /**
      * @notice Pulls `assets` (underlying) from the vault and deploys it into a Uniswap V3 LP position.
-     * @dev Only callable by the named vault contract ("PROTOCOL__SF_VAULT").
+     * @dev Only callable by the named vault contract ("PROTOCOL__SF_AGGREGATOR").
      *      Enforces `maxTVL` (unless 0). Optionally swaps a portion of underlying into `otherToken` via Universal Router,
      *      then mints a new position or increases liquidity on the existing one. Residual balances are swept to the vault.
      *
@@ -292,7 +292,7 @@ contract SFUniswapV3Strategy is
         whenNotPaused
         returns (uint256 investedAssets)
     {
-        _onlyContract("PROTOCOL__SF_VAULT");
+        _onlyContract("PROTOCOL__SF_AGGREGATOR");
         require(assets > 0, SFUniswapV3Strategy__NotZeroValue());
 
         // Enforce TVL cap
@@ -339,7 +339,7 @@ contract SFUniswapV3Strategy is
 
     /**
      * @notice Withdraws up to `assets` (in underlying units) by removing liquidity and returning underlying to `receiver`.
-     * @dev Only callable by the named vault contract ("PROTOCOL__SF_VAULT").
+     * @dev Only callable by the named vault contract ("PROTOCOL__SF_AGGREGATOR").
      *      Computes the pro-rata liquidity to burn for the requested value, decreases liquidity, collects owed tokens,
      *      optionally swaps any collected/idle `otherToken` into `underlying` (if swap payload provided), then transfers
      *      up to `assets` underlying to `receiver` and sweeps leftovers back to the vault.
@@ -359,7 +359,7 @@ contract SFUniswapV3Strategy is
         whenNotPaused
         returns (uint256 withdrawnAssets)
     {
-        _onlyContract("PROTOCOL__SF_VAULT");
+        _onlyContract("PROTOCOL__SF_AGGREGATOR");
         _notAddressZero(receiver);
         require(assets > 0, SFUniswapV3Strategy__NotZeroValue());
 
