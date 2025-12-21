@@ -338,6 +338,7 @@ contract SFVault is
      * @param receiver Address that will receive the newly minted shares and be credited for deposit accounting.
      * @return shares Amount of shares minted to `receiver`.
      * @custom:invariant Shares are non-transferable: only mint/burn is permitted by {_update}.
+     * @custom:invariant Only members can be `receiver`
      */
     function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
         require(validMembers.contains(receiver), SFVault__NotAMember());
@@ -385,6 +386,7 @@ contract SFVault is
      * @param receiver Address that will receive the newly minted shares and be credited for deposit accounting.
      * @return assets Gross amount of underlying transferred from the caller (includes any management fee portion).
      * @custom:invariant If a fee recipient is configured, minted shares correspond to `super.previewMint(shares)` net assets remaining in the vault after fee transfer (subject to rounding).
+     * @custom:invariant Only members can be `receiver`
      */
     function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256 assets) {
         require(validMembers.contains(receiver), SFVault__NotAMember());
