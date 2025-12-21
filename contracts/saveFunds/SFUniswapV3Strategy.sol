@@ -741,37 +741,41 @@ contract SFUniswapV3Strategy is
         if (_amount == 0) return;
         if (_data.length == 0) return;
 
-        // Expect data as `abi.encode(bytes[] inputs, uint256 deadline)`
+        //  Expect data as `abi.encode(bytes[] inputs, uint256 deadline)`
         (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
-        require(deadline >= block.timestamp, SFUniswapV3Strategy__InvalidStrategyData());
+        require(inputs.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
+        require(deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
 
         bytes memory commands = new bytes(inputs.length);
-
-        // Determine tokenIn and compute total amountIn from router inputs
         IERC20 tokenIn = _zeroForOne ? underlying : otherToken;
+        address expectedIn = address(tokenIn);
+        address expectedOut = _zeroForOne ? address(otherToken) : address(underlying);
+
         uint256 totalIn;
 
         for (uint256 i; i < inputs.length; ++i) {
             commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
 
-            // V3_SWAP_EXACT_IN input layout:
-            // abi.encode(address recipient, uint256 amountIn, uint256 amountOutMin, bytes path, bool payerIsUser)
-            (, uint256 amountIn,,, bool payerIsUser) = abi.decode(inputs[i], (address, uint256, uint256, bytes, bool));
+            // (recipient, amountIn, amountOutMin, path, payerIsUser)
+            (address recipient, uint256 amountIn,, bytes memory path, bool payerIsUser) =
+                abi.decode(inputs[i], (address, uint256, uint256, bytes, bool));
 
-            // This strategy assumes the payer is THIS contract (so router pulls via Permit2)
+            // Safety checks
+            require(recipient == address(this), SFUniswapV3Strategy__InvalidStrategyData());
             require(payerIsUser, SFUniswapV3Strategy__InvalidStrategyData());
+
+            _validateSingleHopPath(path, expectedIn, expectedOut);
 
             totalIn += amountIn;
         }
 
-        // Sanity: internal callers pass _amount; ensure it matches what will be spent
-        require(totalIn == _amount, SFUniswapV3Strategy__InvalidStrategyData());
+        if (totalIn != _amount) revert SFUniswapV3Strategy__InvalidStrategyData();
 
-        // Ensure Permit2 is configured so UniversalRouter can pull tokenIn from this strategy
-        _ensurePermit2Allowance(tokenIn, totalIn, deadline);
+        // Make UniversalRouter swaps work, as it pays via Permit2
+        _ensurePermit2Max(tokenIn);
 
-        // Optional: keep router approval too (doesn't hurt, and supports other router flows)
-        tokenIn.forceApprove(address(universalRouter), totalIn);
+        // ? Not sure if keep thisline, it doesn't satisfy Permit2 but also doesn't hurt
+        tokenIn.forceApprove(address(universalRouter), _amount);
 
         universalRouter.execute(commands, inputs, deadline);
     }
@@ -1128,25 +1132,54 @@ contract SFUniswapV3Strategy is
         return (p.pmDeadline, p.minUnderlying, p.minOther);
     }
 
-    function _ensurePermit2Allowance(IERC20 _tokenIn, uint256 _amountIn, uint256 _deadline) internal {
-        require(_amountIn <= type(uint160).max, SFUniswapV3Strategy__Permit2AmountTooLarge());
+    function _ensurePermit2Max(IERC20 _tokenIn) internal {
+        // ERC20 allowance -> Permit2
+        uint256 a = _tokenIn.allowance(address(this), address(permit2));
+        if (a != type(uint256).max) _tokenIn.forceApprove(address(permit2), type(uint256).max);
 
-        // Permit2 needs ERC20 allowance from this strategy
-        uint256 erc20Allowance = _tokenIn.allowance(address(this), address(permit2));
-        if (erc20Allowance < _amountIn) _tokenIn.forceApprove(address(permit2), type(uint256).max);
-
-        // Permit2 needs an internal allowance to allow UniversalRouter as spender
+        // Permit2 allowance -> UniversalRouter
         (uint160 allowed, uint48 expiration,) =
             permit2.allowance(address(this), address(_tokenIn), address(universalRouter));
 
-        uint48 nowTs = uint48(block.timestamp);
-        uint48 expWanted = _deadline > type(uint48).max ? type(uint48).max : uint48(_deadline);
-
-        // If allowance is insufficient or expired, refresh it.
-        if (allowed < uint160(_amountIn) || expiration < nowTs) {
-            // Least privilege: approve exactly what we need, until deadline
-            permit2.approve(address(_tokenIn), address(universalRouter), uint160(_amountIn), expWanted);
+        if (allowed != type(uint160).max || expiration != type(uint48).max) {
+            permit2.approve(address(_tokenIn), address(universalRouter), type(uint160).max, type(uint48).max);
         }
+    }
+
+    function _firstToken(bytes memory _path) internal pure returns (address token_) {
+        require(_path.length >= 20, SFUniswapV3Strategy__InvalidStrategyData());
+        assembly {
+            token_ := shr(96, mload(add(_path, 32)))
+        }
+    }
+
+    function _firstFee(bytes memory _path) internal pure returns (uint24 fee_) {
+        require(_path.length >= 23, SFUniswapV3Strategy__InvalidStrategyData());
+        assembly {
+            fee_ := shr(232, mload(add(_path, 52))) // 32 + 20 = 52
+        }
+    }
+
+    function _lastToken(bytes memory _path) internal pure returns (address token_) {
+        require(_path.length >= 20, SFUniswapV3Strategy__InvalidStrategyData());
+        if (_path.length < 20) revert SFUniswapV3Strategy__InvalidStrategyData();
+        uint256 start = 32 + _path.length - 20;
+        assembly {
+            token_ := shr(96, mload(add(_path, start)))
+        }
+    }
+
+    function _validateSingleHopPath(bytes memory _path, address _expectedIn, address _expectedOut) internal view {
+        // Uniswap V3 single-hop path: tokenIn(20) + fee(3) + tokenOut(20) = 43 bytes
+        require(_path.length == 43, SFUniswapV3Strategy__InvalidStrategyData());
+
+        require(
+            _firstToken(_path) == _expectedIn && _lastToken(_path) == _expectedOut,
+            SFUniswapV3Strategy__InvalidStrategyData()
+        );
+
+        uint24 fee = _firstFee(_path);
+        require(fee == pool.fee(), SFUniswapV3Strategy__InvalidStrategyData());
     }
 
     function _onlyKeeperOrOperator() internal view {
