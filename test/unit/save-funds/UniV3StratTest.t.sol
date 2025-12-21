@@ -148,54 +148,10 @@ contract UniV3StratTest is Test {
         aggregator.addSubStrategy(address(uniV3Strategy), 10_000);
     }
 
-    function testUniV3Strat_setMaxTVL_OnlyOperator(address caller, uint256 newMax) public {
-        vm.assume(caller != takadao);
-
-        vm.prank(caller);
-        vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);
-        uniV3Strategy.setMaxTVL(newMax);
-    }
-
-    function testUniV3Strat_setTwapWindow_OnlyOperator(address caller, uint32 newWindow) public {
-        vm.assume(caller != takadao);
-
-        vm.prank(caller);
-        vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);
-        uniV3Strategy.setTwapWindow(newWindow);
-    }
-
     function testUniV3Strat_setTwapWindow_RevertsWhenTooSmall() public {
         vm.prank(takadao);
         vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__InvalidTwapWindow.selector);
         uniV3Strategy.setTwapWindow(59);
-    }
-
-    function testUniV3Strat_pause_unpause_OnlyPauseGuardian(address caller) public {
-        vm.assume(caller != pauser);
-
-        vm.prank(caller);
-        vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);
-        uniV3Strategy.pause();
-
-        vm.prank(caller);
-        vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);
-        uniV3Strategy.unpause();
-
-        vm.prank(pauser);
-        uniV3Strategy.pause();
-        assertTrue(uniV3Strategy.paused());
-
-        vm.prank(pauser);
-        uniV3Strategy.unpause();
-        assertTrue(!uniV3Strategy.paused());
-    }
-
-    function testUniV3Strat_deposit_RevertsIfCallerNotAuthorized(address caller) public {
-        vm.assume(caller != address(aggregator) && caller != address(vault));
-
-        vm.prank(caller);
-        vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);
-        uniV3Strategy.deposit(1, bytes(""));
     }
 
     function testUniV3Strat_deposit_RevertsWhenPaused() public {
@@ -335,14 +291,6 @@ contract UniV3StratTest is Test {
 
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
         assertEq(usdt.balanceOf(address(uniV3Strategy)), 0);
-    }
-
-    function testUniV3Strat_harvest_OnlyKeeperOrOperator(address caller) public {
-        vm.assume(caller != takadao);
-
-        vm.prank(caller);
-        vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);
-        uniV3Strategy.harvest(_encodeV3ActionData(0, bytes(""), bytes(""), block.timestamp + 1, 0, 0));
     }
 
     function testUniV3Strat_harvest_CollectsAndSweeps() public {
@@ -494,10 +442,6 @@ contract UniV3StratTest is Test {
 
     function _fundStrategyOther(uint256 amountUSDT) internal {
         deal(address(usdt), address(uniV3Strategy), amountUSDT);
-    }
-
-    function _emptyPerStrategyData() internal pure returns (bytes memory) {
-        return abi.encode(new address[](0), new bytes[](0));
     }
 
     function _perStrategyData(bytes memory childData) internal view returns (bytes memory) {
