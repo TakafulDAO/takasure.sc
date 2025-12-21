@@ -32,6 +32,7 @@ contract AccountingVaultTest is Test {
     IERC20 internal asset;
     address internal takadao; // operator
     address internal feeRecipient;
+    address internal backend;
     address internal pauser = makeAddr("pauser");
 
     uint256 internal constant MAX_BPS = 10_000;
@@ -44,12 +45,12 @@ contract AccountingVaultTest is Test {
 
         (HelperConfig.NetworkConfig memory config, AddressManager _addrMgr, ModuleManager _modMgr) =
             managersDeployer.run();
-        (address operatorAddr,,,,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
+        (address operatorAddr,,, address backendAddr,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
 
         addrMgr = _addrMgr;
         modMgr = _modMgr;
         takadao = operatorAddr;
-
+        backend = backendAddr;
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
@@ -67,8 +68,14 @@ contract AccountingVaultTest is Test {
 
     function testSFVault_IdleAssets_StrategyAssets_TotalAssets_Accounting() public {
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
-        vault.deposit(amount, address(this));
+        address user = makeAddr("user");
+
+        vm.prank(backend);
+        vault.registerMember(user);
+
+        _prepareUser(user, amount);
+        vm.prank(user);
+        vault.deposit(amount, user);
 
         assertEq(vault.strategyAssets(), 0);
         assertEq(vault.idleAssets(), asset.balanceOf(address(vault)));
@@ -81,7 +88,8 @@ contract AccountingVaultTest is Test {
 
         // put assets into strategy (independent of vault; totalAssets() sums both)
         uint256 stratAssets = 500_000;
-        deal(address(asset), address(this), stratAssets);
+        deal(address(asset), user, stratAssets);
+        vm.prank(user);
         asset.approve(address(mock), stratAssets);
         mock.setMaxTVL(type(uint256).max);
         mock.deposit(stratAssets, "");

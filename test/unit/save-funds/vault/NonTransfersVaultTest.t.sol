@@ -32,7 +32,9 @@ contract NonTransfersVaultTest is Test {
     IERC20 internal asset;
     address internal takadao; // operator
     address internal feeRecipient;
+    address internal backend;
     address internal pauser = makeAddr("pauser");
+    address internal user = makeAddr("user");
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant ONE_USDC = 1e6;
@@ -44,12 +46,12 @@ contract NonTransfersVaultTest is Test {
 
         (HelperConfig.NetworkConfig memory config, AddressManager _addrMgr, ModuleManager _modMgr) =
             managersDeployer.run();
-        (address operatorAddr,,,,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
+        (address operatorAddr,,, address backendAddr,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
 
         addrMgr = _addrMgr;
         modMgr = _modMgr;
         takadao = operatorAddr;
-
+        backend = backendAddr;
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
@@ -63,6 +65,9 @@ contract NonTransfersVaultTest is Test {
 
         vm.prank(pauser);
         addrMgr.acceptProposedRole(Roles.PAUSE_GUARDIAN);
+
+        vm.prank(backend);
+        vault.registerMember(user);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -71,10 +76,11 @@ contract NonTransfersVaultTest is Test {
 
     function testSFVault_SharesAreNonTransferable_TransferReverts() public {
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
-        vault.deposit(amount, address(this));
+        _prepareUser(user, amount);
+        vm.prank(user);
+        vault.deposit(amount, user);
 
-        uint256 bal = vault.balanceOf(address(this));
+        uint256 bal = vault.balanceOf(user);
         assertGt(bal, 0);
 
         vm.expectRevert(SFVault.SFVault__NonTransferableShares.selector);
@@ -83,15 +89,17 @@ contract NonTransfersVaultTest is Test {
 
     function testSFVault_SharesAreNonTransferable_RedeemBurnAllowed() public {
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
-        vault.deposit(amount, address(this));
+        _prepareUser(user, amount);
+        vm.prank(user);
+        vault.deposit(amount, user);
 
-        uint256 shares = vault.balanceOf(address(this));
+        uint256 shares = vault.balanceOf(user);
         assertGt(shares, 0);
 
-        uint256 assetsOut = vault.redeem(shares, address(this), address(this));
+        vm.prank(user);
+        uint256 assetsOut = vault.redeem(shares, user, user);
         assertEq(assetsOut, amount); // mgmt fee default 0 in this test
-        assertEq(vault.balanceOf(address(this)), 0);
+        assertEq(vault.balanceOf(user), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

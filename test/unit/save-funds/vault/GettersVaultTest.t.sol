@@ -32,7 +32,9 @@ contract GettersVaultTest is Test {
     IERC20 internal asset;
     address internal takadao; // operator
     address internal feeRecipient;
+    address internal backend;
     address internal pauser = makeAddr("pauser");
+    address internal user = makeAddr("user");
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant ONE_USDC = 1e6;
@@ -44,12 +46,12 @@ contract GettersVaultTest is Test {
 
         (HelperConfig.NetworkConfig memory config, AddressManager _addrMgr, ModuleManager _modMgr) =
             managersDeployer.run();
-        (address operatorAddr,,,,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
+        (address operatorAddr,,, address backendAddr,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
 
         addrMgr = _addrMgr;
         modMgr = _modMgr;
         takadao = operatorAddr;
-
+        backend = backendAddr;
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
@@ -63,34 +65,9 @@ contract GettersVaultTest is Test {
 
         vm.prank(pauser);
         addrMgr.acceptProposedRole(Roles.PAUSE_GUARDIAN);
-    }
 
-    /*//////////////////////////////////////////////////////////////
-                                HELPERS
-    //////////////////////////////////////////////////////////////*/
-
-    function _prepareUser(address user, uint256 amount) internal {
-        deal(address(asset), user, amount);
-        vm.prank(user);
-        asset.approve(address(vault), type(uint256).max);
-    }
-
-    function _mockFeeRecipient(address recipient) internal {
-        // Return extra static fields to be compatible if ProtocolAddress has >2 fields
-        vm.mockCall(
-            address(addrMgr),
-            abi.encodeWithSignature("getProtocolAddressByName(string)", "SF_VAULT_FEE_RECIPIENT"),
-            abi.encode(recipient, uint8(0), false)
-        );
-    }
-
-    function _donateToVault(uint256 amount) internal {
-        uint256 cur = asset.balanceOf(address(vault));
-        deal(address(asset), address(vault), cur + amount);
-    }
-
-    function _assetsPerShareWad(uint256 totalAssets_, uint256 totalShares_) internal pure returns (uint256) {
-        return (totalAssets_ * 1e18) / totalShares_;
+        vm.prank(backend);
+        vault.registerMember(user);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -144,7 +121,6 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserTotalDeposited_TracksDepositAndMint() public {
-        address user = makeAddr("user");
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 a1 = 1_000 * ONE_USDC;
@@ -164,7 +140,6 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserTotalWithdrawn_TracksWithdrawAndRedeem() public {
-        address user = makeAddr("user");
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 depositAmt = 1_000 * ONE_USDC;
@@ -188,7 +163,6 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserNetDeposited_ReturnsDepositedMinusWithdrawn_WhenLossOrNoProfit() public {
-        address user = makeAddr("user");
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 depositAmt = 1_000 * ONE_USDC;
@@ -203,7 +177,6 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserNetDeposited_ClampsToZero_WhenWithdrawnExceedsDepositedOnProfit() public {
-        address user = makeAddr("user");
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 depositAmt = 1_000 * ONE_USDC;
@@ -223,7 +196,6 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserPnL_PositiveAfterProfit() public {
-        address user = makeAddr("user");
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 depositAmt = 1_000 * ONE_USDC;
@@ -241,7 +213,6 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserPnL_NegativeAfterLoss() public {
-        address user = makeAddr("user");
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 depositAmt = 1_000 * ONE_USDC;
@@ -312,7 +283,6 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetVaultPerformanceSince_TimestampGreaterThanLastReportReturnsZero() public {
-        address user = makeAddr("user");
         _prepareUser(user, 10_000 * ONE_USDC);
         vm.prank(user);
         vault.deposit(1_000 * ONE_USDC, user);
@@ -330,7 +300,6 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetVaultPerformanceSince_PositiveAndNegativeRelativeToBaseline() public {
-        address user = makeAddr("user");
         _prepareUser(user, 10_000 * ONE_USDC);
 
         vm.prank(user);
@@ -359,5 +328,33 @@ contract GettersVaultTest is Test {
     function testSFVault_onERC721Received_ReturnsSelector() public view {
         bytes4 sel = vault.onERC721Received(address(1), address(2), 123, "0x");
         assertEq(sel, IERC721Receiver.onERC721Received.selector);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function _prepareUser(address user, uint256 amount) internal {
+        deal(address(asset), user, amount);
+        vm.prank(user);
+        asset.approve(address(vault), type(uint256).max);
+    }
+
+    function _mockFeeRecipient(address recipient) internal {
+        // Return extra static fields to be compatible if ProtocolAddress has >2 fields
+        vm.mockCall(
+            address(addrMgr),
+            abi.encodeWithSignature("getProtocolAddressByName(string)", "SF_VAULT_FEE_RECIPIENT"),
+            abi.encode(recipient, uint8(0), false)
+        );
+    }
+
+    function _donateToVault(uint256 amount) internal {
+        uint256 cur = asset.balanceOf(address(vault));
+        deal(address(asset), address(vault), cur + amount);
+    }
+
+    function _assetsPerShareWad(uint256 totalAssets_, uint256 totalShares_) internal pure returns (uint256) {
+        return (totalAssets_ * 1e18) / totalShares_;
     }
 }

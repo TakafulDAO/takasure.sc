@@ -32,7 +32,9 @@ contract TakeFeesVaultTest is Test {
     IERC20 internal asset;
     address internal takadao; // operator
     address internal feeRecipient;
+    address internal backend;
     address internal pauser = makeAddr("pauser");
+    address internal user = makeAddr("user");
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant ONE_USDC = 1e6;
@@ -44,12 +46,12 @@ contract TakeFeesVaultTest is Test {
 
         (HelperConfig.NetworkConfig memory config, AddressManager _addrMgr, ModuleManager _modMgr) =
             managersDeployer.run();
-        (address operatorAddr,,,,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
+        (address operatorAddr,,, address backendAddr,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
 
         addrMgr = _addrMgr;
         modMgr = _modMgr;
         takadao = operatorAddr;
-
+        backend = backendAddr;
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
@@ -63,6 +65,9 @@ contract TakeFeesVaultTest is Test {
 
         vm.prank(pauser);
         addrMgr.acceptProposedRole(Roles.PAUSE_GUARDIAN);
+
+        vm.prank(backend);
+        vault.registerMember(user);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -102,8 +107,7 @@ contract TakeFeesVaultTest is Test {
         vault.setFeeConfig(0, 0, 0);
 
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
-        vault.deposit(amount, address(this));
+        _prepareUser(user, amount);
 
         // profit via donation
         _donateToVault(100_000);
@@ -128,8 +132,7 @@ contract TakeFeesVaultTest is Test {
         vault.setFeeConfig(0, 2000, 0);
 
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
-        vault.deposit(amount, address(this));
+        _prepareUser(user, amount);
 
         // First call should establish/update HWM without charging (no gain)
         uint256 feeBalBefore = asset.balanceOf(feeRecipient);
@@ -154,8 +157,7 @@ contract TakeFeesVaultTest is Test {
         vault.setFeeConfig(0, perfBPS, 0);
 
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
-        vault.deposit(amount, address(this));
+        _prepareUser(user, amount);
 
         // Establish HWM
         vm.warp(block.timestamp + 1);
@@ -201,8 +203,7 @@ contract TakeFeesVaultTest is Test {
         vault.setFeeConfig(0, perfBPS, hurdleBPS);
 
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
-        vault.deposit(amount, address(this));
+        _prepareUser(user, amount);
 
         // Establish HWM
         vm.warp(block.timestamp + 1);
@@ -235,8 +236,7 @@ contract TakeFeesVaultTest is Test {
         vault.setFeeConfig(0, perfBPS, hurdleBPS);
 
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
-        vault.deposit(amount, address(this));
+        _prepareUser(user, amount);
 
         // Establish HWM
         vm.warp(block.timestamp + 1);
@@ -279,8 +279,7 @@ contract TakeFeesVaultTest is Test {
         vault.setFeeConfig(0, perfBPS, 0);
 
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
-        vault.deposit(amount, address(this));
+        _prepareUser(user, amount);
 
         // Establish HWM at current APS
         vm.warp(block.timestamp + 1);
@@ -310,8 +309,10 @@ contract TakeFeesVaultTest is Test {
 
     function _prepareUser(address user, uint256 amount) internal {
         deal(address(asset), user, amount);
-        vm.prank(user);
+        vm.startPrank(user);
         asset.approve(address(vault), type(uint256).max);
+        vault.deposit(amount, user);
+        vm.stopPrank();
     }
 
     function _mockFeeRecipient(address recipient) internal {

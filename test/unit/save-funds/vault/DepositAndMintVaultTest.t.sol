@@ -32,7 +32,9 @@ contract DepositAndMintVaultTest is Test {
     IERC20 internal asset;
     address internal takadao; // operator
     address internal feeRecipient;
+    address internal backend;
     address internal pauser = makeAddr("pauser");
+    address internal user = makeAddr("user");
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant ONE_USDC = 1e6;
@@ -44,12 +46,12 @@ contract DepositAndMintVaultTest is Test {
 
         (HelperConfig.NetworkConfig memory config, AddressManager _addrMgr, ModuleManager _modMgr) =
             managersDeployer.run();
-        (address operatorAddr,,,,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
+        (address operatorAddr,,, address backendAddr,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
 
         addrMgr = _addrMgr;
         modMgr = _modMgr;
         takadao = operatorAddr;
-
+        backend = backendAddr;
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
@@ -63,6 +65,9 @@ contract DepositAndMintVaultTest is Test {
 
         vm.prank(pauser);
         addrMgr.acceptProposedRole(Roles.PAUSE_GUARDIAN);
+
+        vm.prank(backend);
+        vault.registerMember(user);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -73,7 +78,7 @@ contract DepositAndMintVaultTest is Test {
         vm.prank(takadao);
         vault.setTVLCap(0);
 
-        uint256 max0 = vault.maxDeposit(address(this));
+        uint256 max0 = vault.maxDeposit(user);
         assertGt(max0, 1e30); // should be effectively uncapped
     }
 
@@ -83,10 +88,11 @@ contract DepositAndMintVaultTest is Test {
         vm.prank(takadao);
         vault.setTVLCap(cap);
 
-        _prepareUser(address(this), cap);
-        vault.deposit(cap, address(this));
+        _prepareUser(user, cap);
+        vm.prank(user);
+        vault.deposit(cap, user);
 
-        assertEq(vault.maxDeposit(address(this)), 0);
+        assertEq(vault.maxDeposit(user), 0);
     }
 
     function testSFVault_MaxDeposit_RespectsTVLCap_NoFee() public {
@@ -95,13 +101,18 @@ contract DepositAndMintVaultTest is Test {
         vm.prank(takadao);
         vault.setTVLCap(cap);
 
-        assertEq(vault.maxDeposit(address(this)), cap);
+        assertEq(vault.maxDeposit(user), cap);
 
         uint256 depositAmount = cap / 2;
-        _prepareUser(address(this), depositAmount);
-        vault.deposit(depositAmount, address(this));
+        _prepareUser(user, depositAmount);
+        vm.prank(user);
+        vault.deposit(depositAmount, user);
 
-        assertEq(vault.maxDeposit(address(this)), cap - depositAmount);
+        assertEq(vault.maxDeposit(user), cap - depositAmount);
+    }
+
+    function testSFVault_MaxDeposit_ReturnsZeroForNonMembers() public {
+        assertEq(vault.maxDeposit(address(this)), 0);
     }
 
     function testSFVault_MaxDeposit_AdjustsForManagementFee_WhenCapped() public {
@@ -116,14 +127,15 @@ contract DepositAndMintVaultTest is Test {
 
         // With fee, maxDeposit should return the gross amount user can send s.t. net fits in cap
         uint256 expectedGross = Math.mulDiv(cap, MAX_BPS, (MAX_BPS - mgmtBPS));
-        assertEq(vault.maxDeposit(address(this)), expectedGross);
+        assertEq(vault.maxDeposit(user), expectedGross);
 
         // deposit at maxDeposit should pass
-        _prepareUser(address(this), expectedGross);
-        vault.deposit(expectedGross, address(this));
+        _prepareUser(user, expectedGross);
+        vm.prank(user);
+        vault.deposit(expectedGross, user);
 
         assertEq(vault.totalAssets(), cap); // net in vault should hit cap
-        assertEq(vault.maxDeposit(address(this)), 0);
+        assertEq(vault.maxDeposit(user), 0);
     }
 
     function testSFVault_MaxMint_UsesMaxDepositAndPreviewDeposit() public {
@@ -140,6 +152,10 @@ contract DepositAndMintVaultTest is Test {
         uint256 expectedMaxMint = vault.previewDeposit(maxAssets);
 
         assertEq(vault.maxMint(address(this)), expectedMaxMint);
+    }
+
+    function testSFVault_MaxMint_ReturnsZeroForNonMembersUsesMaxDepositAndPreviewDeposit() public {
+        assertEq(vault.maxMint(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -205,9 +221,15 @@ contract DepositAndMintVaultTest is Test {
                                 DEPOSIT
     //////////////////////////////////////////////////////////////*/
 
+    function testSFVault_Deposit_RevertsIfNonMember() public {
+        vm.expectRevert(SFVault.SFVault__NotAMember.selector);
+        vault.deposit(0, address(this));
+    }
+
     function testSFVault_Deposit_RevertsOnZeroAssets() public {
         vm.expectRevert(SFVault.SFVault__ZeroAssets.selector);
-        vault.deposit(0, address(this));
+        vm.prank(user);
+        vault.deposit(0, user);
     }
 
     function testSFVault_Deposit_RevertsWhenExceedsCap() public {
@@ -216,10 +238,11 @@ contract DepositAndMintVaultTest is Test {
         vm.prank(takadao);
         vault.setTVLCap(cap);
 
-        _prepareUser(address(this), cap + 1);
+        _prepareUser(user, cap + 1);
 
+        vm.prank(user);
         vm.expectRevert(SFVault.SFVault__ExceedsMaxDeposit.selector);
-        vault.deposit(cap + 1, address(this));
+        vault.deposit(cap + 1, user);
     }
 
     function testSFVault_Deposit_TakesManagementFeeAndMintsNetShares() public {
@@ -228,18 +251,19 @@ contract DepositAndMintVaultTest is Test {
         vault.setFeeConfig(mgmtBPS, 0, 0);
 
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
+        _prepareUser(user, amount);
 
         uint256 feeAssets = (amount * mgmtBPS) / MAX_BPS;
         uint256 netAssets = amount - feeAssets;
 
-        uint256 sharesOut = vault.deposit(amount, address(this));
+        vm.prank(user);
+        uint256 sharesOut = vault.deposit(amount, user);
 
         assertEq(sharesOut, vault.convertToShares(netAssets));
         assertEq(asset.balanceOf(address(vault)), netAssets);
         assertEq(asset.balanceOf(feeRecipient), feeAssets);
         assertEq(vault.totalAssets(), netAssets);
-        assertEq(vault.balanceOf(address(this)), sharesOut);
+        assertEq(vault.balanceOf(user), sharesOut);
     }
 
     function testSFVault_Deposit_SkipsFeeIfRecipientZero() public {
@@ -250,9 +274,10 @@ contract DepositAndMintVaultTest is Test {
         _mockFeeRecipient(address(0));
 
         uint256 amount = 1_000_000;
-        _prepareUser(address(this), amount);
+        _prepareUser(user, amount);
 
-        uint256 sharesOut = vault.deposit(amount, address(this));
+        vm.prank(user);
+        uint256 sharesOut = vault.deposit(amount, user);
 
         assertEq(asset.balanceOf(address(vault)), amount);
         assertEq(vault.totalAssets(), amount);
@@ -264,8 +289,9 @@ contract DepositAndMintVaultTest is Test {
         vault.setFeeConfig(0, 0, 0);
 
         uint256 seed = 1_000_000;
-        _prepareUser(address(this), seed);
-        vault.deposit(seed, address(this));
+        _prepareUser(user, seed);
+        vm.prank(user);
+        vault.deposit(seed, user);
 
         // Ensure cap won't block the deposit.
         // We want: totalAssets after donation == seed + 1, and still allow depositing 1.
@@ -275,18 +301,25 @@ contract DepositAndMintVaultTest is Test {
         // Small donation is enough to make convertToShares(1) round down to 0
         _donateToVault(1);
 
-        _prepareUser(address(this), 1);
+        _prepareUser(user, 1);
+        vm.prank(user);
         vm.expectRevert(SFVault.SFVault__ZeroShares.selector);
-        vault.deposit(1, address(this));
+        vault.deposit(1, user);
     }
 
     /*//////////////////////////////////////////////////////////////
                                   MINT
     //////////////////////////////////////////////////////////////*/
 
+    function testSFVault_Mint_RevertsIfNonMember() public {
+        vm.expectRevert(SFVault.SFVault__NotAMember.selector);
+        vault.mint(0, address(this));
+    }
+
     function testSFVault_Mint_RevertsOnZeroShares() public {
         vm.expectRevert(SFVault.SFVault__ZeroShares.selector);
-        vault.mint(0, address(this));
+        vm.prank(user);
+        vault.mint(0, user);
     }
 
     function testSFVault_Mint_TakesManagementFeeAndReturnsGrossAssets() public {
@@ -297,16 +330,16 @@ contract DepositAndMintVaultTest is Test {
         uint256 shares = 1_000_000;
 
         uint256 grossAssets = vault.previewMint(shares);
-        _prepareUser(address(this), grossAssets);
-
-        uint256 spent = vault.mint(shares, address(this));
+        _prepareUser(user, grossAssets);
+        vm.prank(user);
+        uint256 spent = vault.mint(shares, user);
         assertEq(spent, grossAssets);
 
         // vault keeps netAssets == convertToAssets(shares) when supply was 0 (1:1)
         uint256 netAssets = vault.convertToAssets(shares);
 
         assertEq(asset.balanceOf(address(vault)), netAssets);
-        assertEq(vault.balanceOf(address(this)), shares);
+        assertEq(vault.balanceOf(user), shares);
         assertEq(vault.totalAssets(), netAssets);
         assertEq(asset.balanceOf(feeRecipient), grossAssets - netAssets);
     }
@@ -324,10 +357,10 @@ contract DepositAndMintVaultTest is Test {
         // Mint shares requiring > cap net will revert due to grossAssets > maxDeposit
         uint256 shares = cap + 1;
         uint256 grossAssets = vault.previewMint(shares);
-        _prepareUser(address(this), grossAssets);
-
+        _prepareUser(user, grossAssets);
+        vm.prank(user);
         vm.expectRevert(SFVault.SFVault__ExceedsMaxDeposit.selector);
-        vault.mint(shares, address(this));
+        vault.mint(shares, user);
     }
 
     /*//////////////////////////////////////////////////////////////
