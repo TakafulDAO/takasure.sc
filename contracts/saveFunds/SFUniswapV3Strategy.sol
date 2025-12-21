@@ -900,10 +900,11 @@ contract SFUniswapV3Strategy is
 
         params.deadline = _deadline;
 
-        // Approve positionManager to pull tokens
+        // Approve positionManager to pull both tokens.
         if (params.amount0Desired > 0) {
             IERC20(token0).forceApprove(address(positionManager), params.amount0Desired);
-        } else {
+        }
+        if (params.amount1Desired > 0) {
             IERC20(token1).forceApprove(address(positionManager), params.amount1Desired);
         }
 
