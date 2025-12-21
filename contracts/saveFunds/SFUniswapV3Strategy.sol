@@ -16,6 +16,7 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfungiblePositionManager.sol";
 import {IUniversalRouter} from "contracts/interfaces/helpers/IUniversalRouter.sol";
 import {IUniswapV3MathHelper} from "contracts/interfaces/saveFunds/IUniswapV3MathHelper.sol";
+import {IPermit2AllowanceTransfer} from "contracts/interfaces/helpers/IPermit2AllowanceTransfer.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -57,6 +58,7 @@ contract SFUniswapV3Strategy is
     INonfungiblePositionManager internal positionManager;
     IUniversalRouter internal universalRouter;
     IUniswapV3MathHelper internal math;
+    IPermit2AllowanceTransfer internal permit2;
     IERC20 internal underlying; // USDC
     IERC20 public otherToken; // USDT or any other token paired in the pool with USDC
 
@@ -100,6 +102,7 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__InvalidDeadline();
     error SFUniswapV3Strategy__UnexpectedPositionTokenId();
     error SFUniswapV3Strategy__NotAuthorizedCaller();
+    error SFUniswapV3Strategy__Permit2AmountTooLarge();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -159,6 +162,7 @@ contract SFUniswapV3Strategy is
         math = IUniswapV3MathHelper(_math);
         maxTVL = _maxTVL;
         universalRouter = IUniversalRouter(_router);
+        permit2 = IPermit2AllowanceTransfer(0x000000000022D473030F116dDEE9F6B43aC78BA3); // Accross all chains
 
         int24 spacing = IUniswapV3Pool(pool).tickSpacing();
 
@@ -735,24 +739,40 @@ contract SFUniswapV3Strategy is
     function _V3Swap(uint256 _amount, bytes memory _data, bool _zeroForOne) internal {
         // Nothing to do
         if (_amount == 0) return;
-
-        // Allow passing empty data to mean "no-op" (useful in tests or emergencyExit).
         if (_data.length == 0) return;
 
         // Expect data as `abi.encode(bytes[] inputs, uint256 deadline)`
         (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
+        require(deadline >= block.timestamp, SFUniswapV3Strategy__InvalidStrategyData());
 
-        // Build commands: one V3_SWAP_EXACT_IN per input
         bytes memory commands = new bytes(inputs.length);
-        for (uint256 i = 0; i < inputs.length; ++i) {
+
+        // Determine tokenIn and compute total amountIn from router inputs
+        IERC20 tokenIn = _zeroForOne ? underlying : otherToken;
+        uint256 totalIn;
+
+        for (uint256 i; i < inputs.length; ++i) {
             commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
+
+            // V3_SWAP_EXACT_IN input layout:
+            // abi.encode(address recipient, uint256 amountIn, uint256 amountOutMin, bytes path, bool payerIsUser)
+            (, uint256 amountIn,,, bool payerIsUser) = abi.decode(inputs[i], (address, uint256, uint256, bytes, bool));
+
+            // This strategy assumes the payer is THIS contract (so router pulls via Permit2)
+            require(payerIsUser, SFUniswapV3Strategy__InvalidStrategyData());
+
+            totalIn += amountIn;
         }
 
-        // Approve the correct token depending on direction.
-        if (_zeroForOne) underlying.forceApprove(address(universalRouter), _amount);
-        else otherToken.forceApprove(address(universalRouter), _amount);
+        // Sanity: internal callers pass _amount; ensure it matches what will be spent
+        require(totalIn == _amount, SFUniswapV3Strategy__InvalidStrategyData());
 
-        // Execute the encoded v3 swaps. Path + minOut are inside `inputs`.
+        // Ensure Permit2 is configured so UniversalRouter can pull tokenIn from this strategy
+        _ensurePermit2Allowance(tokenIn, totalIn, deadline);
+
+        // Optional: keep router approval too (doesn't hurt, and supports other router flows)
+        tokenIn.forceApprove(address(universalRouter), totalIn);
+
         universalRouter.execute(commands, inputs, deadline);
     }
 
@@ -1106,6 +1126,27 @@ contract SFUniswapV3Strategy is
         // Otherwise treat as V3ActionData (deposit/withdraw data schema)
         V3ActionData memory p = _decodeV3ActionData(_data);
         return (p.pmDeadline, p.minUnderlying, p.minOther);
+    }
+
+    function _ensurePermit2Allowance(IERC20 _tokenIn, uint256 _amountIn, uint256 _deadline) internal {
+        require(_amountIn <= type(uint160).max, SFUniswapV3Strategy__Permit2AmountTooLarge());
+
+        // Permit2 needs ERC20 allowance from this strategy
+        uint256 erc20Allowance = _tokenIn.allowance(address(this), address(permit2));
+        if (erc20Allowance < _amountIn) _tokenIn.forceApprove(address(permit2), type(uint256).max);
+
+        // Permit2 needs an internal allowance to allow UniversalRouter as spender
+        (uint160 allowed, uint48 expiration,) =
+            permit2.allowance(address(this), address(_tokenIn), address(universalRouter));
+
+        uint48 nowTs = uint48(block.timestamp);
+        uint48 expWanted = _deadline > type(uint48).max ? type(uint48).max : uint48(_deadline);
+
+        // If allowance is insufficient or expired, refresh it.
+        if (allowed < uint160(_amountIn) || expiration < nowTs) {
+            // Least privilege: approve exactly what we need, until deadline
+            permit2.approve(address(_tokenIn), address(universalRouter), uint160(_amountIn), expWanted);
+        }
     }
 
     function _onlyKeeperOrOperator() internal view {
