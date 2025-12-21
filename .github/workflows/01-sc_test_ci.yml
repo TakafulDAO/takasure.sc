@@ -31,5 +31,7 @@ jobs:
         id: forge-build  
 
       - name: Forge Test
+        env:
+          ARBITRUM_MAINNET_RPC_URL: ${{ secrets.ARBITRUM_MAINNET_RPC_URL}}
         run: |
           forge test --skip TakasurePoolInvariantTest.t.sol ReferralGatewayInvariantTest.t.sol
