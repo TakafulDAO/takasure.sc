@@ -58,6 +58,7 @@ contract SFVault is
     IAddressManager private addressManager;
 
     EnumerableSet.AddressSet private whitelistedTokens;
+    EnumerableSet.AddressSet private validMembers;
 
     // Caps 0 = no cap
     uint256 public TVLCap;
@@ -92,6 +93,7 @@ contract SFVault is
     error SFVault__InvalidCapBPS();
     error SFVault__TokenNotWhitelisted();
     error SFVault__InvalidFeeBPS();
+    error SFVault__NotAMember();
     error SFVault__ZeroAssets();
     error SFVault__ExceedsMaxDeposit();
     error SFVault__ZeroShares();
@@ -284,6 +286,15 @@ contract SFVault is
         IERC721(nft).setApprovalForAll(operator, approved);
     }
 
+    /**
+     * @notice Register a protocol member.
+     * @param newMember Member to register.
+     * @custom:invariant After the call, `validMembers.contains(newMember)` equals `true`.
+     */
+    function registerMember(address newMember) external onlyRole(Roles.BACKEND_ADMIN) {
+        validMembers.add(newMember);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
@@ -329,6 +340,7 @@ contract SFVault is
      * @custom:invariant Shares are non-transferable: only mint/burn is permitted by {_update}.
      */
     function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
+        require(validMembers.contains(receiver), SFVault__NotAMember());
         require(assets > 0, SFVault__ZeroAssets());
         require(assets <= maxDeposit(receiver), SFVault__ExceedsMaxDeposit());
 
@@ -375,6 +387,7 @@ contract SFVault is
      * @custom:invariant If a fee recipient is configured, minted shares correspond to `super.previewMint(shares)` net assets remaining in the vault after fee transfer (subject to rounding).
      */
     function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256 assets) {
+        require(validMembers.contains(receiver), SFVault__NotAMember());
         require(shares > 0, SFVault__ZeroShares());
 
         address caller = _msgSender();
@@ -493,6 +506,7 @@ contract SFVault is
      * @custom:invariant If TVLCap != 0, depositing more than this value should not be possible via {deposit}/{mint} (subject to rounding).
      */
     function maxDeposit(address receiver) public view override returns (uint256) {
+        if (!validMembers.contains(receiver)) return 0;
         if (TVLCap == 0) return super.maxDeposit(receiver);
 
         uint256 remainingNetAssets = _remainingTVLCapacity();
@@ -516,6 +530,7 @@ contract SFVault is
      * @custom:invariant previewMint(maxShares) is intended to be <= maxDeposit(receiver) (subject to rounding).
      */
     function maxMint(address receiver) public view override returns (uint256) {
+        if (!validMembers.contains(receiver)) return 0;
         uint256 maxAssets = maxDeposit(receiver);
         return previewDeposit(maxAssets);
     }
