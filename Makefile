@@ -54,7 +54,6 @@ protocol-deploy-sf-vault:
 	@forge clean
 	@forge script deploy/saveFunds/DeploySFVault.s.sol:DeploySFVault $(NETWORK_ARGS)
 	@cp contracts/saveFunds/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
-
 	
 protocol-deploy-sf-strat-aggregator:
 	@forge clean
@@ -64,6 +63,11 @@ protocol-deploy-sf-strat-aggregator:
 protocol-deploy-uni-v3-math:
 	@forge clean
 	@forge script deploy/saveFunds/DeployUniV3MathHelper.s.sol:DeployUniV3MathHelper $(NETWORK_ARGS)
+
+protocol-deploy-sf-uni-v3-strat:
+	@forge clean
+	@forge script deploy/saveFunds/DeploySFUniV3Strat.s.sol:DeploySFUniV3Strat $(NETWORK_ARGS)
+	@cp contracts/saveFunds/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
 
 # Protocol upgrades
 protocol-upgrade-referral:
