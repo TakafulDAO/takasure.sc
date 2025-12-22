@@ -140,6 +140,9 @@ addr-mgr-add-addresses:
 config-strat:
 	@forge script scripts/contract-interactions/ConfigStrat.s.sol:ConfigStrat $(NETWORK_ARGS)
 
+invest-into-strat:
+	@forge script scripts/contract-interactions/saveFunds/InvestIntoStrategy.s.sol:InvestIntoStrategy $(NETWORK_ARGS)
+
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)
