@@ -55,6 +55,11 @@ protocol-deploy-sf-vault:
 	@forge script deploy/saveFunds/DeploySFVault.s.sol:DeploySFVault $(NETWORK_ARGS)
 	@cp contracts/saveFunds/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
 
+
+protocol-deploy-uni-v3-math:
+	@forge clean
+	@forge script deploy/saveFunds/DeployUniV3MathHelper.s.sol:DeployUniV3MathHelper $(NETWORK_ARGS)
+
 # Protocol upgrades
 protocol-upgrade-referral:
 	@forge clean
