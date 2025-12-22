@@ -45,6 +45,11 @@ protocol-deploy-referral:
 	@forge script deploy/protocol/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
+protocol-deploy-address-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/DeployAddressManager.s.sol:DeployAddressManager $(NETWORK_ARGS)
+	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
+
 # Protocol upgrades
 protocol-upgrade-referral:
 	@forge clean
