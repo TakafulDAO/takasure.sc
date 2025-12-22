@@ -55,6 +55,11 @@ protocol-deploy-sf-vault:
 	@forge script deploy/saveFunds/DeploySFVault.s.sol:DeploySFVault $(NETWORK_ARGS)
 	@cp contracts/saveFunds/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
 
+	
+protocol-deploy-sf-strat-aggregator:
+	@forge clean
+	@forge script deploy/saveFunds/DeploySFStrategyAggregator.s.sol:DeploySFStrategyAggregator $(NETWORK_ARGS)
+	@cp contracts/saveFunds/SFStrategyAggregator.sol contracts/version_previous_contracts/SFStrategyAggregatorV1.sol
 
 protocol-deploy-uni-v3-math:
 	@forge clean
