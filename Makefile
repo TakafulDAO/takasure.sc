@@ -50,6 +50,11 @@ protocol-deploy-address-manager:
 	@forge script deploy/protocol/managers/DeployAddressManager.s.sol:DeployAddressManager $(NETWORK_ARGS)
 	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
 
+protocol-deploy-sf-vault:
+	@forge clean
+	@forge script deploy/saveFunds/DeploySFVault.s.sol:DeploySFVault $(NETWORK_ARGS)
+	@cp contracts/saveFunds/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
+
 # Protocol upgrades
 protocol-upgrade-referral:
 	@forge clean
@@ -109,6 +114,10 @@ referral-renounce-admin:
 # Interactions with USDC
 mock-approve-spender:
 	@forge script scripts/contract-interactions/usdc/ApproveSpender.s.sol:ApproveSpender $(NETWORK_ARGS)
+
+# Prepare roles in sepolia
+addr-mgr-prepare-roles:
+	@forge script scripts/contract-interactions/managers/CreateAndAcceptRoles.s.sol:CreateAndAcceptRoles $(NETWORK_ARGS)
 
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
