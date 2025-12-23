@@ -55,7 +55,7 @@ contract SFStrategyAggregatorFuzzTest is Test {
         feeRecipient = makeAddr("feeRecipient");
 
         vm.startPrank(addrMgr.owner());
-        addrMgr.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
 
         // Ensure PAUSE_GUARDIAN exists and is held by `pauser`
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);

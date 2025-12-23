@@ -221,7 +221,7 @@ contract SFVaultHandler is Test {
         if (enable) {
             vm.mockCall(
                 address(addrMgr),
-                abi.encodeWithSignature("getProtocolAddressByName(string)", "SF_VAULT_FEE_RECIPIENT"),
+                abi.encodeWithSignature("getProtocolAddressByName(string)", "ADMIN__SF_FEE_RECEIVER"),
                 abi.encode(address(0), uint8(0), false)
             );
         } else {

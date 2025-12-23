@@ -48,7 +48,7 @@ contract AddAddressesAndRoles is Script {
             "PROTOCOL__CONTRIBUTION_TOKEN", config.contributionToken, ProtocolAddressType.Protocol
         );
 
-        addressManager.addProtocolAddress("ADMIN__FEE_CLAIMER ", config.feeClaimAddress, ProtocolAddressType.Admin);
+        addressManager.addProtocolAddress("ADMIN__FEE_CLAIMER", config.feeClaimAddress, ProtocolAddressType.Admin);
 
         addressManager.addProtocolAddress("ADMIN__COUPON_POOL", couponPool, ProtocolAddressType.Protocol);
 

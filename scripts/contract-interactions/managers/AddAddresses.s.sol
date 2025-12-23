@@ -20,7 +20,7 @@ contract AddAddresses is Script, GetContractAddress {
 
         addressManager.addProtocolAddress("PROTOCOL__SF_VAULT", vault, ProtocolAddressType.Protocol);
         addressManager.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", aggregator, ProtocolAddressType.Protocol);
-        addressManager.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", RECIPIENT, ProtocolAddressType.Admin);
+        addressManager.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", RECIPIENT, ProtocolAddressType.Admin);
 
         vm.stopBroadcast();
     }

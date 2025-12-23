@@ -58,7 +58,7 @@ contract DepositAndMintVaultTest is Test {
         feeRecipient = makeAddr("feeRecipient");
 
         vm.startPrank(addrMgr.owner());
-        addrMgr.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
@@ -377,7 +377,7 @@ contract DepositAndMintVaultTest is Test {
         // Return extra static fields to be compatible if ProtocolAddress has >2 fields
         vm.mockCall(
             address(addrMgr),
-            abi.encodeWithSignature("getProtocolAddressByName(string)", "SF_VAULT_FEE_RECIPIENT"),
+            abi.encodeWithSignature("getProtocolAddressByName(string)", "ADMIN__SF_FEE_RECEIVER"),
             abi.encode(recipient, uint8(0), false)
         );
     }

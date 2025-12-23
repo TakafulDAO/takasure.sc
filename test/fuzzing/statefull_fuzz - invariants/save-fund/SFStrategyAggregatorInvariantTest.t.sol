@@ -60,7 +60,7 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
         // fee recipient often required elsewhere; keep consistent
         address feeRecipient = makeAddr("feeRecipient");
         vm.prank(addrMgr.owner());
-        addrMgr.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
 
         // register the vault for aggregator's onlyContract("PROTOCOL__SF_VAULT") check
         vm.startPrank(addrMgr.owner());

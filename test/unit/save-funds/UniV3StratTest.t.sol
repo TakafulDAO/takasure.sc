@@ -98,7 +98,7 @@ contract UniV3StratTest is Test {
         // Fee recipient required by SFVault
         feeRecipient = makeAddr("feeRecipient");
         vm.prank(addrMgr.owner());
-        addrMgr.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
 
         // Ensure vault + aggregator are recognized as "PROTOCOL__SF_VAULT" for onlyContract checks.
         vm.startPrank(addrMgr.owner());

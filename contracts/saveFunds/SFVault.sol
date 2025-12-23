@@ -346,7 +346,7 @@ contract SFVault is
         require(assets <= maxDeposit(receiver), SFVault__ExceedsMaxDeposit());
 
         address caller = _msgSender();
-        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        address feeRecipient = addressManager.getProtocolAddressByName("ADMIN__SF_FEE_RECEIVER").addr;
 
         uint256 feeAssets;
         uint256 netAssets = assets;
@@ -393,7 +393,7 @@ contract SFVault is
         require(shares > 0, SFVault__ZeroShares());
 
         address caller = _msgSender();
-        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        address feeRecipient = addressManager.getProtocolAddressByName("ADMIN__SF_FEE_RECEIVER").addr;
 
         // Net assets required to mint the requested shares (the amount that must stay in the vault)
         uint256 netAssets = super.previewMint(shares);
@@ -515,7 +515,7 @@ contract SFVault is
 
         // If management fee is enabled, the user transfers more than what remains in the vault
         // because a portion is paid out to the fee recipient.
-        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        address feeRecipient = addressManager.getProtocolAddressByName("ADMIN__SF_FEE_RECEIVER").addr;
         if (managementFeeBPS == 0 || feeRecipient == address(0)) return remainingNetAssets;
 
         // grossAssets = remainingNetAssets * MAX_BPS / (MAX_BPS - feeBPS)
@@ -773,7 +773,7 @@ contract SFVault is
     function previewDeposit(uint256 assets) public view override returns (uint256) {
         if (assets == 0) return 0;
 
-        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        address feeRecipient = addressManager.getProtocolAddressByName("ADMIN__SF_FEE_RECEIVER").addr;
         if (managementFeeBPS == 0 || feeRecipient == address(0)) return super.previewDeposit(assets);
 
         uint256 feeAssets = (assets * managementFeeBPS) / MAX_BPS;
@@ -791,7 +791,7 @@ contract SFVault is
     function previewMint(uint256 shares) public view override returns (uint256) {
         if (shares == 0) return 0;
 
-        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        address feeRecipient = addressManager.getProtocolAddressByName("ADMIN__SF_FEE_RECEIVER").addr;
         uint256 netAssets = super.previewMint(shares);
 
         if (managementFeeBPS == 0 || feeRecipient == address(0)) return netAssets;
@@ -813,7 +813,7 @@ contract SFVault is
      * @custom:invariant After execution, `lastReport` is updated to the current timestamp on all code paths.
      */
     function _chargeFees() internal returns (uint256 managementFeeAssets_, uint256 performanceFeeAssets_) {
-        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        address feeRecipient = addressManager.getProtocolAddressByName("ADMIN__SF_FEE_RECEIVER").addr;
         if (feeRecipient == address(0)) {
             // Skip fees
             lastReport = uint64(block.timestamp);

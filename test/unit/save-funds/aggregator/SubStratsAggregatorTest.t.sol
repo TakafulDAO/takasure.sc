@@ -25,7 +25,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-import { SubStrategy} from "contracts/types/Strategies.sol";
+import {SubStrategy} from "contracts/types/Strategies.sol";
 
 contract SubStratsAggregatorTest is Test {
     using SafeERC20 for IERC20;
@@ -74,7 +74,7 @@ contract SubStratsAggregatorTest is Test {
         // Fee recipient required by SFVault; not strictly needed for aggregator itself but kept consistent with other setup.
         feeRecipient = makeAddr("feeRecipient");
         vm.prank(addrMgr.owner());
-        addrMgr.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
 
         // Ensure the vault is recognized as "PROTOCOL__SF_VAULT" for onlyContract checks.
         vm.startPrank(addrMgr.owner());
