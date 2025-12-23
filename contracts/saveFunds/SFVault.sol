@@ -54,7 +54,7 @@ contract SFVault is
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    ISFStrategy public strategy; // current strategy handling the underlying assets
+    ISFStrategy public aggregator; // the vault uses as strategy an aggregator to manage different sub-strategies for the underlying assets
     IAddressManager private addressManager;
 
     EnumerableSet.AddressSet private whitelistedTokens;
@@ -83,7 +83,7 @@ contract SFVault is
     event OnTVLCapUpdated(uint256 oldCap, uint256 newCap);
     event OnTokenRemovedFromWhitelist(address indexed token);
     event OnTokenHardCapUpdated(address indexed token, uint16 oldCapBPS, uint16 newCapBPS);
-    event OnStrategyUpdated(address indexed newStrategy);
+    event OnAggregatorUpdated(address indexed newAggregator);
     event OnFeeConfigUpdated(uint16 managementFeeBPS, uint16 performanceFeeBPS, uint16 performanceFeeHurdleBPS);
     event OnFeesTaken(uint256 feeAssets, FeeType feeType);
 
@@ -242,14 +242,14 @@ contract SFVault is
     }
 
     /**
-     * @notice Set or change the active strategy contract used by the vault.
-     * @dev Setting the strategy to address(0) disables strategy invest/withdraw operations.
-     * @param newStrategy New strategy contract implementing {ISFStrategy}.
-     * @custom:invariant After the call, `strategy` equals `newStrategy`.
+     * @notice Set or change the active aggregator contract used by the vault.
+     * @dev Setting the aggregator to address(0) disables aggregator invest/withdraw operations.
+     * @param newAggregator New aggregator contract implementing {ISFStrategy}.
+     * @custom:invariant After the call, `aggregator` equals `newAggregator`.
      */
-    function setStrategy(ISFStrategy newStrategy) external onlyRole(Roles.OPERATOR) {
-        strategy = newStrategy;
-        emit OnStrategyUpdated(address(newStrategy));
+    function setAggregator(ISFStrategy newAggregator) external onlyRole(Roles.OPERATOR) {
+        aggregator = newAggregator;
+        emit OnAggregatorUpdated(address(newAggregator));
     }
 
     /**
@@ -445,7 +445,7 @@ contract SFVault is
         returns (uint256 investedAssets)
     {
         _onlyKeeperOrOperator();
-        ISFStrategy strat = strategy;
+        ISFStrategy strat = aggregator;
         if (address(strat) == address(0)) revert SFVault__StrategyNotSet();
         if (assets == 0) revert SFVault__ZeroAssets();
 
@@ -477,7 +477,7 @@ contract SFVault is
         returns (uint256 withdrawnAssets)
     {
         _onlyKeeperOrOperator();
-        ISFStrategy strat = strategy;
+        ISFStrategy strat = aggregator;
         if (address(strat) == address(0)) revert SFVault__StrategyNotSet();
         if (assets == 0) revert SFVault__ZeroAssets();
 
@@ -571,13 +571,13 @@ contract SFVault is
     }
 
     /**
-     * @notice Return the fraction of the vault's TVL invested in the strategy, in basis points.
-     * @dev Computed as strategyAssets / (idleAssets + strategyAssets) scaled by MAX_BPS. Returns 0 if TVL is 0.
-     * @return allocationBps Strategy allocation in basis points (MAX_BPS = 100%).
+     * @notice Return the fraction of the vault's TVL invested in the aggregator, in basis points.
+     * @dev Computed as aggregatorAssets / (idleAssets + aggregatorAssets) scaled by MAX_BPS. Returns 0 if TVL is 0.
+     * @return allocationBps Aggregator allocation in basis points (MAX_BPS = 100%).
      * @custom:invariant The return value is always in the range [0, MAX_BPS].
      */
-    function getStrategyAllocation() external view override returns (uint256) {
-        uint256 strat = strategyAssets(); // single external call into strategy (if set)
+    function getAggregatorAllocation() external view override returns (uint256) {
+        uint256 strat = aggregatorAssets(); // single external call into aggregator (if set)
         uint256 tvl = idleAssets() + strat;
 
         if (tvl == 0) return 0;
@@ -586,13 +586,13 @@ contract SFVault is
     }
 
     /**
-     * @notice Return total assets reported by the configured strategy.
-     * @dev Convenience wrapper for {strategyAssets} to satisfy the {ISFVault} interface.
-     * @return Assets reported by the strategy (0 if no strategy is set).
-     * @custom:invariant If `strategy` is the zero address, this MUST return 0.
+     * @notice Return total assets reported by the configured aggregator.
+     * @dev Convenience wrapper for {aggregatorAssets} to satisfy the {ISFVault} interface.
+     * @return Assets reported by the aggregator (0 if no aggregator is set).
+     * @custom:invariant If `aggregator` is the zero address, this MUST return 0.
      */
-    function getStrategyAssets() external view override returns (uint256) {
-        return strategyAssets();
+    function getAggregatorAssets() external view override returns (uint256) {
+        return aggregatorAssets();
     }
 
     /**
@@ -745,24 +745,24 @@ contract SFVault is
     }
 
     /**
-     * @notice Return the total assets invested in the configured strategy.
-     * @dev Returns 0 if no strategy is set; otherwise delegates to `strategy.totalAssets()` (external call).
-     * @return Assets reported by the strategy.
-     * @custom:invariant If `strategy` is the zero address, this MUST return 0.
+     * @notice Return the total assets invested in the configured aggregator.
+     * @dev Returns 0 if no aggregator is set; otherwise delegates to `aggregator.totalAssets()` (external call).
+     * @return Assets reported by the aggregator.
+     * @custom:invariant If `aggregator` is the zero address, this MUST return 0.
      */
-    function strategyAssets() public view returns (uint256) {
-        if (address(strategy) == address(0)) return 0;
-        return strategy.totalAssets();
+    function aggregatorAssets() public view returns (uint256) {
+        if (address(aggregator) == address(0)) return 0;
+        return aggregator.totalAssets();
     }
 
     /**
      * @notice Return the total assets managed by the vault (idle + strategy).
-     * @dev Computed as `idleAssets() + strategyAssets()`. May revert if the strategy's `totalAssets()` call reverts.
+     * @dev Computed as `idleAssets() + aggregatorAssets()`. May revert if the aggregator's `totalAssets()` call reverts.
      * @return Total managed assets in underlying units.
-     * @custom:invariant totalAssets() == idleAssets() + strategyAssets() (assuming the strategy reports accurately).
+     * @custom:invariant totalAssets() == idleAssets() + aggregatorAssets() (assuming the aggregator reports accurately).
      */
     function totalAssets() public view override returns (uint256) {
-        return idleAssets() + strategyAssets();
+        return idleAssets() + aggregatorAssets();
     }
 
     /**

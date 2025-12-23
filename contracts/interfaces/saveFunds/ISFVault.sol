@@ -11,8 +11,8 @@ interface ISFVault {
     function getUserPnL(address user) external view returns (int256);
     function getVaultTVL() external view returns (uint256);
     function getIdleAssets() external view returns (uint256);
-    function getStrategyAssets() external view returns (uint256);
-    function getStrategyAllocation() external view returns (uint256);
+    function getAggregatorAssets() external view returns (uint256);
+    function getAggregatorAllocation() external view returns (uint256);
     function getVaultPerformanceSince(uint256 timestamp) external view returns (int256);
     function getLastReport() external view returns (uint256 lastReportTimestamp, uint256 lastReportAssets);
     function isTokenWhitelisted(address token) external view returns (bool);
