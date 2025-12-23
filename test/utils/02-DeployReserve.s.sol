@@ -25,7 +25,9 @@ contract DeployReserve is Script {
 
         takasureReserve = TakasureReserve(takasureReserveAddress);
 
-        addressManager.addProtocolAddress("TAKASURE_RESERVE", takasureReserveAddress, ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress(
+            "PROTOCOL__TAKASURE_RESERVE", takasureReserveAddress, ProtocolAddressType.Protocol
+        );
 
         vm.stopBroadcast();
 

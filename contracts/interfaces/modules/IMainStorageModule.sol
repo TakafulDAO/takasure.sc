@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import {AssociationMember, BenefitMember} from "contracts/types/Members.sol";
 
-interface IProtocolStorageModule {
+interface IMainStorageModule {
     /*
     List of keys used in the protocol storage:
     - memberIdCounter (uint256): Counter to assign new member IDs

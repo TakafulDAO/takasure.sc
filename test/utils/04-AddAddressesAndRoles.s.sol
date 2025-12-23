@@ -40,15 +40,19 @@ contract AddAddressesAndRoles is Script {
         addressManager.proposeRoleHolder(Roles.BACKEND_ADMIN, couponRedeemer);
         addressManager.proposeRoleHolder(Roles.REVENUE_CLAIMER, config.takadaoOperator);
 
-        addressManager.addProtocolAddress("MODULE_MANAGER", address(moduleManager), ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress(
+            "PROTOCOL__MODULE_MANAGER", address(moduleManager), ProtocolAddressType.Protocol
+        );
 
-        addressManager.addProtocolAddress("CONTRIBUTION_TOKEN", config.contributionToken, ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress(
+            "PROTOCOL__CONTRIBUTION_TOKEN", config.contributionToken, ProtocolAddressType.Protocol
+        );
 
-        addressManager.addProtocolAddress("FEE_CLAIM_ADDRESS", config.feeClaimAddress, ProtocolAddressType.Admin);
+        addressManager.addProtocolAddress("ADMIN__FEE_CLAIMER ", config.feeClaimAddress, ProtocolAddressType.Admin);
 
-        addressManager.addProtocolAddress("COUPON_POOL", couponPool, ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress("ADMIN__COUPON_POOL", couponPool, ProtocolAddressType.Protocol);
 
-        addressManager.addProtocolAddress("REVENUE_RECEIVER", revenueReceiver, ProtocolAddressType.Admin);
+        addressManager.addProtocolAddress("ADMIN__REVENUE_RECEIVER", revenueReceiver, ProtocolAddressType.Admin);
         vm.stopPrank();
 
         vm.startPrank(config.takadaoOperator);

@@ -45,7 +45,7 @@ contract RevShareModuleFuzzTest is Test {
 
         takadao = operatorAddr;
 
-        moduleManagerAddress = addrMgr.getProtocolAddressByName("MODULE_MANAGER").addr;
+        moduleManagerAddress = addrMgr.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr;
         usdc = IUSDC(config.contributionToken);
     }
 

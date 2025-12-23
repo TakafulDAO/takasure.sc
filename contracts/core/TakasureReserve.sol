@@ -339,7 +339,7 @@ contract TakasureReserve is Initializable, UUPSUpgradeable, PausableUpgradeable 
     }
 
     function _onlyModule() internal view {
-        address moduleManager = addressManager.getProtocolAddressByName("MODULE_MANAGER").addr;
+        address moduleManager = addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr;
 
         require(IModuleManager(moduleManager).isActiveModule(msg.sender), TakasureReserve__UnallowedAccess());
     }

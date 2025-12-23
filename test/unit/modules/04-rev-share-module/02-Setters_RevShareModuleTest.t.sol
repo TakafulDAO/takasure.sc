@@ -71,7 +71,7 @@ contract Setters_RevShareModuleTest is Test {
         addressManager = addrMgr;
 
         vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress("PROTOCOL__REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         vm.prank(nft.owner());

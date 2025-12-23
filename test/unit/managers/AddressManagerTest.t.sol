@@ -38,7 +38,9 @@ contract AddressManagerTest is Test {
         isNotModule = new IsNotModule();
 
         vm.prank(addressManager.owner());
-        addressManager.addProtocolAddress("MODULE_MANAGER", address(moduleManager), ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress(
+            "PROTOCOL__MODULE_MANAGER", address(moduleManager), ProtocolAddressType.Protocol
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

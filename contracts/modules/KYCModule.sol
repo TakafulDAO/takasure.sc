@@ -7,7 +7,7 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
+import {IMainStorageModule} from "contracts/interfaces/modules/IMainStorageModule.sol";
 
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -66,15 +66,15 @@ contract KYCModule is ModuleImplementation, Initializable, UUPSUpgradeable, Reen
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         AddressAndStates._notZeroAddress(memberWallet);
 
         require(!isKYCed[memberWallet], KYCModule__MemberAlreadyKYCed());
 
-        IProtocolStorageModule protocolStorageModule =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
-        AssociationMember memory newMember = protocolStorageModule.getAssociationMember(memberWallet);
+        IMainStorageModule mainStorageModule =
+            IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
+        AssociationMember memory newMember = mainStorageModule.getAssociationMember(memberWallet);
 
         // todo: uncomment when contributions are implemented from SubscriptionManagementModule PR
         // require(newMember.planId != 0 && !newMember.isRefunded, KYCModule__ContributionRequired());
@@ -83,7 +83,7 @@ contract KYCModule is ModuleImplementation, Initializable, UUPSUpgradeable, Reen
         newMember.memberState = AssociationMemberState.Active; // Active state as the user is already paid the contribution and KYCed
         isKYCed[memberWallet] = true;
 
-        protocolStorageModule.updateAssociationMember(newMember);
+        mainStorageModule.updateAssociationMember(newMember);
 
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
     }

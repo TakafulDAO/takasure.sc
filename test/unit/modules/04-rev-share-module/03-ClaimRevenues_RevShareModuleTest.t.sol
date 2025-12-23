@@ -65,7 +65,7 @@ contract ClaimRevenues_RevShareModuleTest is StdCheats, Test {
 
         // Register NFT + an authorized Module caller for notifyNewRevenue
         vm.startPrank(addrMgr.owner());
-        addrMgr.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
+        addrMgr.addProtocolAddress("PROTOCOL__REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         // Staggered mints to create non-uniform join times

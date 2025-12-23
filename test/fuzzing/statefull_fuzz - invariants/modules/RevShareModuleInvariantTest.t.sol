@@ -70,7 +70,7 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
 
         // Register NFT and a module caller
         vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress("PROTOCOL__REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
 
         vm.stopPrank();
 

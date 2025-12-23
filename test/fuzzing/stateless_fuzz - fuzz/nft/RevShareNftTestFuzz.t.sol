@@ -146,10 +146,10 @@ contract RevShareNftFuzzTest is Test {
         vm.etch(mockManager, hex"60006000");
 
         bytes memory selector =
-            abi.encodeWithSelector(IAddressManager.getProtocolAddressByName.selector, "REVENUE_SHARE_MODULE");
+            abi.encodeWithSelector(IAddressManager.getProtocolAddressByName.selector, "MODULE__REVSHARE");
 
         ProtocolAddress memory response = ProtocolAddress({
-            name: keccak256("REVENUE_SHARE_MODULE"), addr: revModule, addressType: ProtocolAddressType.Protocol
+            name: keccak256("MODULE__REVSHARE"), addr: revModule, addressType: ProtocolAddressType.Protocol
         });
 
         vm.mockCall(mockManager, selector, abi.encode(response));

@@ -65,7 +65,7 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         usdc = IUSDC(config.contributionToken);
 
         vm.startPrank(addrMgr.owner());
-        addrMgr.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
+        addrMgr.addProtocolAddress("PROTOCOL__REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         // fund + notify (first stream; uses default rewardsDuration)
