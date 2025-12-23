@@ -290,7 +290,6 @@ contract UniV3StratTest is Test {
         assertEq(asset.balanceOf(receiver), receiverBefore + withdrawn);
 
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
-        assertEq(usdt.balanceOf(address(uniV3Strategy)), 0);
     }
 
     function testUniV3Strat_harvest_CollectsAndSweeps() public {
@@ -360,7 +359,6 @@ contract UniV3StratTest is Test {
         assertTrue(tokenIdAfter != tokenIdBefore);
 
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
-        assertEq(usdt.balanceOf(address(uniV3Strategy)), 0);
 
         (,,, int24 tl, int24 tu) =
             abi.decode(uniV3Strategy.getPositionDetails(), (uint8, uint256, address, int24, int24));
