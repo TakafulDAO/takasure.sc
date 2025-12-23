@@ -93,6 +93,7 @@ contract SFVault is
     error SFVault__InvalidCapBPS();
     error SFVault__TokenNotWhitelisted();
     error SFVault__InvalidFeeBPS();
+    error SFVault__NotAddressZero();
     error SFVault__NotAMember();
     error SFVault__ZeroAssets();
     error SFVault__ExceedsMaxDeposit();
@@ -292,6 +293,7 @@ contract SFVault is
      * @custom:invariant After the call, `validMembers.contains(newMember)` equals `true`.
      */
     function registerMember(address newMember) external onlyRole(Roles.BACKEND_ADMIN) {
+        require(newMember != address(0), SFVault__NotAddressZero());
         validMembers.add(newMember);
     }
 
