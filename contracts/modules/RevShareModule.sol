@@ -11,7 +11,9 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 import {IRevShareNFT} from "contracts/interfaces/IRevShareNFT.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 
 import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
@@ -23,12 +25,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
-contract RevShareModule is
-    ModuleImplementation,
-    Initializable,
-    UUPSUpgradeable,
-    ReentrancyGuardTransientUpgradeable
-{
+contract RevShareModule is ModuleImplementation, Initializable, UUPSUpgradeable, ReentrancyGuardTransientUpgradeable {
     using SafeERC20 for IERC20;
 
     bool public emergencyMode;
@@ -68,6 +65,7 @@ contract RevShareModule is
     event OnEmergencyWithdraw(uint256 amount);
     event OnEmergencyModeSet(bool enabled);
     event OnNoStreamDeposit(uint256 amount);
+    event OnBackfill(address indexed account, uint256 amount);
 
     error RevShareModule__RevenuesNotAvailableYet();
     error RevShareModule__NotZeroValue();
@@ -76,6 +74,7 @@ contract RevShareModule is
     error RevShareModule__ActiveStreamOngoing();
     error RevShareModule__InsufficientApprovedDeposits();
     error RevShareModule__EmergencyMode();
+    error RevShareModule__LengthMismatch();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -86,10 +85,7 @@ contract RevShareModule is
         _disableInitializers();
     }
 
-    function initialize(
-        address _addressManagerAddress,
-        string calldata _moduleName
-    ) external initializer {
+    function initialize(address _addressManagerAddress, string calldata _moduleName) external initializer {
         AddressAndStates._notZeroAddress(_addressManagerAddress);
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
@@ -110,9 +106,7 @@ contract RevShareModule is
      * @notice Set the date when revenues will be available to claim
      * @param timestamp The timestamp when revenues will be available to claim
      */
-    function setAvailableDate(
-        uint256 timestamp
-    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function setAvailableDate(uint256 timestamp) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
@@ -124,9 +118,7 @@ contract RevShareModule is
         emit OnAvailableDateSet(timestamp);
     }
 
-    function setRewardsDuration(
-        uint256 duration
-    ) external onlyRole(Roles.OPERATOR, address(addressManager)) {
+    function setRewardsDuration(uint256 duration) external onlyRole(Roles.OPERATOR, address(addressManager)) {
         require(!emergencyMode, RevShareModule__EmergencyMode());
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
@@ -171,8 +163,8 @@ contract RevShareModule is
     function notifyNewRevenue(uint256 amount) external nonReentrant {
         require(!emergencyMode, RevShareModule__EmergencyMode());
         require(
-            AddressAndStates._checkType(ProtocolAddressType.Module, address(addressManager)) ||
-                AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager)),
+            AddressAndStates._checkType(ProtocolAddressType.Module, address(addressManager))
+                || AddressAndStates._checkRole(Roles.OPERATOR, address(addressManager)),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         require(amount > 0, RevShareModule__NotZeroValue());
@@ -197,21 +189,15 @@ contract RevShareModule is
             uint256 leftoverPioneersScaled = remaining * rewardRatePioneersScaled;
             uint256 leftoverTakadaoScaled = remaining * rewardRateTakadaoScaled;
 
-            rewardRatePioneersScaled =
-                (pioneersShare * WAD + leftoverPioneersScaled) /
-                rewardsDuration;
-            rewardRateTakadaoScaled =
-                (takadaoShare * WAD + leftoverTakadaoScaled) /
-                rewardsDuration;
+            rewardRatePioneersScaled = (pioneersShare * WAD + leftoverPioneersScaled) / rewardsDuration;
+            rewardRateTakadaoScaled = (takadaoShare * WAD + leftoverTakadaoScaled) / rewardsDuration;
         }
 
         lastUpdateTime = currentTime;
         periodFinish = currentTime + rewardsDuration;
 
         // Pull the tokens from the sender
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
         contributionToken.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -229,9 +215,7 @@ contract RevShareModule is
             IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
         uint256 bal = contributionToken.balanceOf(address(this));
         if (bal <= approvedDeposits) revert RevShareModule__NothingToSweep();
 
@@ -255,9 +239,7 @@ contract RevShareModule is
         // Settle all streams up to now so nothing is lost
         _updateGlobal();
 
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
         uint256 balance = contributionToken.balanceOf(address(this));
 
         // Halt streams
@@ -282,9 +264,7 @@ contract RevShareModule is
      * @dev The contract must have enough allowance to transfer the tokens
      * @dev The idea is to keep pull over push and to have an easier to track event log
      */
-    function depositNoStream(
-        uint256 amount
-    ) external onlyRole(Roles.OPERATOR, address(addressManager)) nonReentrant {
+    function depositNoStream(uint256 amount) external onlyRole(Roles.OPERATOR, address(addressManager)) nonReentrant {
         if (amount == 0) revert RevShareModule__NotZeroValue();
         IERC20 ct = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
         ct.safeTransferFrom(msg.sender, address(this), amount);
@@ -298,9 +278,7 @@ contract RevShareModule is
      * @dev Requires the contract to have enough balance to cover approved deposits
      */
     function resumeAfterEmergency() external onlyRole(Roles.OPERATOR, address(addressManager)) {
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
         uint256 balance = contributionToken.balanceOf(address(this));
         if (balance < approvedDeposits) revert RevShareModule__InsufficientApprovedDeposits();
 
@@ -324,14 +302,9 @@ contract RevShareModule is
             address(this),
             IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
         );
-        require(
-            block.timestamp >= revenuesAvailableDate,
-            RevShareModule__RevenuesNotAvailableYet()
-        );
+        require(block.timestamp >= revenuesAvailableDate, RevShareModule__RevenuesNotAvailableYet());
 
-        IRevShareNFT revShareNFT = IRevShareNFT(
-            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
-        );
+        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("REVSHARE_NFT").addr);
 
         address revenueReceiver = _getRevenueReceiver();
 
@@ -339,16 +312,17 @@ contract RevShareModule is
         _updateRevenue(msg.sender);
 
         // Currently a pioneer or former pioneer with unpaid revenue
-        bool pioneerEligible = (revShareNFT.balanceOf(msg.sender) > 0) ||
-            (revenuePerAccount[msg.sender] > 0);
+        bool pioneerEligible = (revShareNFT.balanceOf(msg.sender) > 0) || (revenuePerAccount[msg.sender] > 0);
 
         address beneficiary;
 
-        if (pioneerEligible)
+        if (pioneerEligible) {
             beneficiary = msg.sender; // earns from pioneers stream
-        else if (_callerIsClaimer())
+        } else if (_callerIsClaimer()) {
             beneficiary = revenueReceiver; // earns from Takadao stream
-        else revert ModuleErrors.Module__NotAuthorizedCaller(); // Only pioneers or the revenue claimer can call
+        } else {
+            revert ModuleErrors.Module__NotAuthorizedCaller(); // Only pioneers or the revenue claimer can call
+        }
 
         // If beneficiary is different from caller, settle its account now
         if (beneficiary != msg.sender) _updateRevenue(beneficiary);
@@ -359,9 +333,7 @@ contract RevShareModule is
 
         revenuePerAccount[beneficiary] = 0;
 
-        IERC20 contributionToken = IERC20(
-            addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr
-        );
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
         contributionToken.safeTransfer(beneficiary, revenue);
 
         // Sync approved deposits
@@ -393,10 +365,7 @@ contract RevShareModule is
      * @return The amount of revenue to be distributed
      */
     function getRevenueForDuration(uint256 duration) external view returns (uint256, uint256) {
-        return (
-            (duration * rewardRatePioneersScaled) / WAD,
-            (duration * rewardRateTakadaoScaled) / WAD
-        );
+        return ((duration * rewardRatePioneersScaled) / WAD, (duration * rewardRateTakadaoScaled) / WAD);
     }
 
     /// @notice View the revenue earned by a pioneer
@@ -422,6 +391,44 @@ contract RevShareModule is
     }
 
     /*//////////////////////////////////////////////////////////////
+                           BACKFILL MIGRATION
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Admin backfill of accrued revenue for a specific account.
+     * @dev Used for one-off migration of historical revenue.
+     * @dev Increases both revenuePerAccount and approvedDeposits by `amount`.
+     * @dev Requires the contract to be out of emergency mode.
+     */
+    function adminBackfillRevenue(address[] calldata account, uint256[] calldata amount)
+        external
+        onlyRole(Roles.OPERATOR, address(addressManager))
+        nonReentrant
+    {
+        require(!emergencyMode, RevShareModule__EmergencyMode());
+
+        uint256 len = account.length;
+        require(len == amount.length, RevShareModule__LengthMismatch());
+
+        for (uint256 i = 0; i < len; i++) {
+            _adminBackfillRevenue(account[i], amount[i]);
+        }
+    }
+
+    function _adminBackfillRevenue(address _account, uint256 _amount) internal {
+        AddressAndStates._notZeroAddress(_account);
+        if (_amount == 0) revert RevShareModule__NotZeroValue();
+
+        // Bring streaming accruals up to date for the account so we add on top.
+        _updateRevenue(_account);
+        // Backfill and sync approved deposits
+        revenuePerAccount[_account] += _amount;
+        approvedDeposits += _amount;
+
+        emit OnBackfill(_account, _amount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -442,9 +449,7 @@ contract RevShareModule is
 
     /// @dev Updates the global revenue for both pools
     function _updateGlobal() internal {
-        IRevShareNFT revShareNFT = IRevShareNFT(
-            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
-        );
+        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("REVSHARE_NFT").addr);
 
         uint256 applicableTime = _lastTimeApplicable();
         uint256 elapsed = applicableTime - lastUpdateTime;
@@ -459,8 +464,7 @@ contract RevShareModule is
 
         if (currentSupply > 0) {
             revenuePerNftOwnedByPioneers =
-                revenuePerNftOwnedByPioneers +
-                ((elapsed * rewardRatePioneersScaled) / currentSupply);
+                revenuePerNftOwnedByPioneers + ((elapsed * rewardRatePioneersScaled) / currentSupply);
         }
 
         lastUpdateTime = applicableTime;
@@ -494,9 +498,7 @@ contract RevShareModule is
     }
 
     function _revenuePerNftOwnedByPioneers() internal view returns (uint256) {
-        IRevShareNFT revShareNFT = IRevShareNFT(
-            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
-        );
+        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("REVSHARE_NFT").addr);
 
         uint256 currentSupply = revShareNFT.totalSupply();
 
@@ -505,8 +507,7 @@ contract RevShareModule is
         uint256 elapsed = _lastTimeApplicable() - lastUpdateTime;
 
         // Returns scaled accumulator
-        return
-            revenuePerNftOwnedByPioneers + ((elapsed * rewardRatePioneersScaled) / currentSupply);
+        return revenuePerNftOwnedByPioneers + ((elapsed * rewardRatePioneersScaled) / currentSupply);
     }
 
     function _takadaoRevenueScaled() internal view returns (uint256) {
@@ -528,9 +529,7 @@ contract RevShareModule is
     }
 
     function _earnedByPioneers(address account) internal view returns (uint256) {
-        IRevShareNFT revShareNFT = IRevShareNFT(
-            addressManager.getProtocolAddressByName("REVSHARE_NFT").addr
-        );
+        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("REVSHARE_NFT").addr);
         address revenueReceiver = _getRevenueReceiver();
 
         if (account == revenueReceiver) {
@@ -546,7 +545,9 @@ contract RevShareModule is
     }
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {}
 }

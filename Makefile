@@ -38,7 +38,23 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 # Simulations
 simulate-rev-share-distribution:
 	@forge script scripts/simulations/RevShareMonthSimToCsv.s.sol:RevShareMonthSimToCsv -vvv
-	
+
+# Backfill Scripts
+get-revshare-pioneers :; node scripts/rev-share-backfill/01-exportRevSharePioneers.js
+
+build-revshare-allocations:
+	@make get-revshare-pioneers
+	@node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js
+
+build-backfill-safe-tx-and-metadata:
+	@make build-revshare-allocations
+	@node scripts/rev-share-backfill/03-buildRevShareSafeBatchJson.js
+	@node scripts/rev-share-backfill/04-buildRevShareBackfillCalldata.js
+
+build-backfill-anvil:
+	@forge clean
+	@scripts/rev-share-backfill/run_fork_rehearsal.sh
+
 # Protocol deployments
 protocol-deploy-referral:
 	@forge clean
@@ -59,6 +75,36 @@ protocol-prepare-upgrade-referral:
 	@forge clean
 	@forge script deploy/protocol/upgrades/02-PrepareReferralUpgrade.s.sol:PrepareReferralUpgrade $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
+
+# Managers deployments
+managers-deploy:
+	@forge clean
+	@forge script deploy/protocol/managers/DeployManagers.s.sol:DeployManagers $(NETWORK_ARGS)
+	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
+	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV1.sol
+
+# Managers upgrades
+managers-upgrade-address-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/UpgradeAddressManager.s.sol:UpgradeAddressManager $(NETWORK_ARGS)
+	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
+
+managers-upgrade-module-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/UpgradeModuleManager.s.sol:UpgradeModuleManager $(NETWORK_ARGS)
+	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV
+
+# Modules deployments
+modules-deploy-revshare:
+	@forge clean
+	@forge script deploy/protocol/modules/DeployRevShareModule.s.sol:DeployRevShareModule $(NETWORK_ARGS)
+	@cp contracts/modules/RevShareModule.sol contracts/version_previous_contracts/RevShareModuleV1.sol
+
+# Modules upgrades
+modules-upgrade-revshare:
+	@forge clean
+	@forge script deploy/protocol/modules/UpgradeRevShareModule.s.sol:UpgradeRevShareModule $(NETWORK_ARGS)
+	@cp contracts/modules/RevShareModule.sol contracts/version_previous_contracts/RevShareModuleV1.sol
 
 # Token deployments
 tokens-deploy-nft:
