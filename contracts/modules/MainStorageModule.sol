@@ -18,7 +18,7 @@ import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol"
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
-contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgradeable {
+contract MainStorageModule is ModuleImplementation, Initializable, UUPSUpgradeable {
     // Association members related
     mapping(address member => AssociationMember) private members;
     // Benefit members related
@@ -71,7 +71,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     event OnBytesValueSet(bytes32 indexed key, bytes value);
     event OnBytes32Value2DSet(bytes32 indexed key1, bytes32 indexed key2, bytes32 value);
 
-    error ProtocolStorageModule__FeeExceedsMaximum(bytes32 keyHash, uint256 attemptedFee, uint256 maxFee);
+    error MainStorageModule__FeeExceedsMaximum(bytes32 keyHash, uint256 attemptedFee, uint256 maxFee);
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -107,11 +107,11 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
 
     function createAssociationMember(AssociationMember memory member)
         external
-        onlyContract("SUBSCRIPTION_MODULE", address(addressManager))
+        onlyContract("MODULE__SUBSCRIPTION", address(addressManager))
     {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
         _associationMemberProfileChecks(member, false);
@@ -134,11 +134,11 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     function updateAssociationMember(AssociationMember memory member) external {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         require(
-            addressManager.hasName("SUBSCRIPTION_MODULE", msg.sender)
-                || addressManager.hasName("MANAGE_SUBSCRIPTION_MODULE", msg.sender),
+            addressManager.hasName("MODULE__SUBSCRIPTION", msg.sender)
+                || addressManager.hasName("MODULE__MANAGE_SUBSCRIPTION", msg.sender),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _associationMemberProfileChecks(member, true);
@@ -154,7 +154,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     function createBenefitMember() external view {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
     }
 
@@ -162,11 +162,11 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     function updateBenefitMember(address benefit, BenefitMember memory member) external {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         require(
             addressManager.hasType(ProtocolAddressType.Benefit, msg.sender)
-                || addressManager.hasName("MANAGE_SUBSCRIPTION_MODULE", msg.sender),
+                || addressManager.hasName("MODULE__MANAGE_SUBSCRIPTION", msg.sender),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
@@ -180,13 +180,13 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     function setUintValue(string calldata key, uint256 value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         bytes32 hashedKey = _hashKey(key);
 
         // If the key is a fee, ensure it does not exceed the maximum allowed
         if (_hasFeeSuffix(key)) {
-            require(value <= MAX_FEE, ProtocolStorageModule__FeeExceedsMaximum(hashedKey, value, MAX_FEE));
+            require(value <= MAX_FEE, MainStorageModule__FeeExceedsMaximum(hashedKey, value, MAX_FEE));
         }
 
         uintStorage[hashedKey] = value;
@@ -196,7 +196,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     function setIntValue(string calldata key, int256 value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         bytes32 hashedKey = _hashKey(key);
         intStorage[hashedKey] = value;
@@ -206,7 +206,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     function setAddressValue(string calldata key, address value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         bytes32 hashedKey = _hashKey(key);
         addressStorage[hashedKey] = value;
@@ -216,7 +216,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     function setBoolValue(string calldata key, bool value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         bytes32 hashedKey = _hashKey(key);
         boolStorage[hashedKey] = value;
@@ -226,7 +226,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     function setBytes32Value(string calldata key, bytes32 value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         bytes32 hashedKey = _hashKey(key);
         bytes32Storage[hashedKey] = value;
@@ -236,7 +236,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     function setBytesValue(string calldata key, bytes calldata value) external onlyProtocolsAddresses {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         bytes32 hashedKey = _hashKey(key);
         bytesStorage[hashedKey] = value;
@@ -249,7 +249,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
     {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         bytes32 hashedKey1 = _hashKey(key1);
         bytes32 hashedKey2 = _hashKey(key2);
@@ -319,7 +319,7 @@ contract ProtocolStorageModule is ModuleImplementation, Initializable, UUPSUpgra
 
         // If a parent wallet is provided, it must be KYCed
         if (_member.parent != address(0)) {
-            address kycModule = addressManager.getProtocolAddressByName("KYC_MODULE").addr;
+            address kycModule = addressManager.getProtocolAddressByName("MODULE__KYC").addr;
             // Check if the parent is KYCed
             require(IKYCModule(kycModule).isKYCed(_member.parent), ModuleErrors.Module__AddressNotKYCed());
         }

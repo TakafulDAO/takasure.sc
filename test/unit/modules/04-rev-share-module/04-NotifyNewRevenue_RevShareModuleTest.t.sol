@@ -41,32 +41,23 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         moduleDeployer = new DeployModules();
         addressesAndRoles = new AddAddressesAndRoles();
 
-        (
-            HelperConfig.NetworkConfig memory config,
-            AddressManager addrMgr,
-            ModuleManager modMgr
-        ) = managersDeployer.run();
+        (HelperConfig.NetworkConfig memory config, AddressManager addrMgr, ModuleManager modMgr) =
+            managersDeployer.run();
 
-        (address operatorAddr, , , , , , address revReceiver) = addressesAndRoles.run(
-            addrMgr,
-            config,
-            address(modMgr)
-        );
+        (address operatorAddr,,,,,, address revReceiver) = addressesAndRoles.run(addrMgr, config, address(modMgr));
 
         SubscriptionModule subscriptions;
-        (, , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+        (,, revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
 
         module = address(subscriptions);
 
         takadao = operatorAddr;
         revenueClaimer = takadao;
 
-        string
-            memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
+        string memory baseURI = "https://ipfs.io/ipfs/QmQUeGU84fQFknCwATGrexVV39jeVsayGJsuFvqctuav6p/";
         address nftImplementation = address(new RevShareNFT());
         address nftAddress = UnsafeUpgrades.deployUUPSProxy(
-            nftImplementation,
-            abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
+            nftImplementation, abi.encodeCall(RevShareNFT.initialize, (baseURI, msg.sender))
         );
         nft = RevShareNFT(nftAddress);
 
@@ -74,7 +65,7 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         usdc = IUSDC(config.contributionToken);
 
         vm.startPrank(addrMgr.owner());
-        addrMgr.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
+        addrMgr.addProtocolAddress("PROTOCOL__REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         // fund + notify (first stream; uses default rewardsDuration)
@@ -121,26 +112,14 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
         _fundAndNotify(module, amount);
 
         // Rates updated with carry-over
-        assertEq(
-            revShareModule.rewardRatePioneersScaled(),
-            expectedP,
-            "pioneers rate carryover mismatch"
-        );
-        assertEq(
-            revShareModule.rewardRateTakadaoScaled(),
-            expectedT,
-            "takadao rate carryover mismatch"
-        );
+        assertEq(revShareModule.rewardRatePioneersScaled(), expectedP, "pioneers rate carryover mismatch");
+        assertEq(revShareModule.rewardRateTakadaoScaled(), expectedT, "takadao rate carryover mismatch");
 
         // periodFinish reset to now + dur
         assertEq(revShareModule.periodFinish(), block.timestamp + dur, "period finish not reset");
 
         // lastUpdateTime bumped (sanity)
-        assertEq(
-            revShareModule.lastTimeApplicable(),
-            revShareModule.lastTimeApplicable(),
-            "sanity"
-        );
+        assertEq(revShareModule.lastTimeApplicable(), revShareModule.lastTimeApplicable(), "sanity");
         assertEq(revShareModule.lastTimeApplicable(), block.timestamp, "lta should be now/capped");
 
         // Global accumulators settled before rate change (monotonic)
@@ -182,16 +161,8 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
 
         _fundAndNotify(module, amount);
 
-        assertEq(
-            revShareModule.approvedDeposits(),
-            prevApproved + amount,
-            "approvedDeposits not incremented"
-        );
-        assertEq(
-            usdc.balanceOf(address(revShareModule)),
-            prevBal + amount,
-            "module token balance not incremented"
-        );
+        assertEq(revShareModule.approvedDeposits(), prevApproved + amount, "approvedDeposits not incremented");
+        assertEq(usdc.balanceOf(address(revShareModule)), prevBal + amount, "module token balance not incremented");
     }
 
     /// _updateGlobal with totalSupply == 0:
@@ -247,11 +218,7 @@ contract NotifyNewRevenue_RevShareModuleTest is Test {
     function testRevShareModule_sweepWithExtraSendsToOperatorAndEmits() public {
         // Add 1,234 USDC directly to the module without touching approvedDeposits
         uint256 extra = 1_234e6;
-        deal(
-            address(usdc),
-            address(revShareModule),
-            usdc.balanceOf(address(revShareModule)) + extra
-        );
+        deal(address(usdc), address(revShareModule), usdc.balanceOf(address(revShareModule)) + extra);
 
         uint256 beforeOpBal = usdc.balanceOf(takadao);
         uint256 beforeModBal = usdc.balanceOf(address(revShareModule));

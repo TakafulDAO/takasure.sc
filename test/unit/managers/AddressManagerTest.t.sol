@@ -21,16 +21,8 @@ contract AddressManagerTest is Test {
     address adminAddress = makeAddr("adminAddress");
 
     event OnNewRoleAcceptanceDelay(uint256 newDelay);
-    event OnNewProtocolAddress(
-        string indexed name,
-        address indexed addr,
-        ProtocolAddressType addressType
-    );
-    event OnProtocolAddressDeleted(
-        bytes32 indexed nameHash,
-        address indexed addr,
-        ProtocolAddressType addressType
-    );
+    event OnNewProtocolAddress(string indexed name, address indexed addr, ProtocolAddressType addressType);
+    event OnProtocolAddressDeleted(bytes32 indexed nameHash, address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
@@ -47,9 +39,7 @@ contract AddressManagerTest is Test {
 
         vm.prank(addressManager.owner());
         addressManager.addProtocolAddress(
-            "MODULE_MANAGER",
-            address(moduleManager),
-            ProtocolAddressType.Protocol
+            "PROTOCOL__MODULE_MANAGER", address(moduleManager), ProtocolAddressType.Protocol
         );
     }
 
@@ -73,9 +63,7 @@ contract AddressManagerTest is Test {
         vm.prank(addressManagerOwner);
         vm.expectRevert(AddressManager.AddressManager__InvalidNameLength.selector);
         addressManager.addProtocolAddress(
-            "ThisNameIsWayTooLongAndDefinitelyMoreThanThirtyTwoBytes",
-            adminAddress,
-            ProtocolAddressType.Admin
+            "ThisNameIsWayTooLongAndDefinitelyMoreThanThirtyTwoBytes", adminAddress, ProtocolAddressType.Admin
         );
     }
 
@@ -259,9 +247,7 @@ contract AddressManagerTest is Test {
 
         bytes32 addressName = addressManager.protocolAddressesNames(adminAddress);
 
-        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName(
-            "Admin"
-        );
+        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName("Admin");
 
         assert(addressName == keccak256(abi.encode("Admin")));
         assert(protocolAddressToCheck.name == keccak256(abi.encode("Admin")));
@@ -273,17 +259,11 @@ contract AddressManagerTest is Test {
         vm.prank(addressManagerOwner);
         vm.expectEmit(true, true, false, false, address(addressManager));
         emit OnNewProtocolAddress("Protocol", protocolAddress, ProtocolAddressType.Protocol);
-        addressManager.addProtocolAddress(
-            "Protocol",
-            protocolAddress,
-            ProtocolAddressType.Protocol
-        );
+        addressManager.addProtocolAddress("Protocol", protocolAddress, ProtocolAddressType.Protocol);
 
         bytes32 addressName = addressManager.protocolAddressesNames(protocolAddress);
 
-        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName(
-            "Protocol"
-        );
+        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName("Protocol");
 
         assert(addressName == keccak256(abi.encode("Protocol")));
         assert(protocolAddressToCheck.name == keccak256(abi.encode("Protocol")));
@@ -335,9 +315,7 @@ contract AddressManagerTest is Test {
         // Check that the address is added correctly
         bytes32 addressName = addressManager.protocolAddressesNames(adminAddress);
 
-        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName(
-            "Admin"
-        );
+        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName("Admin");
 
         assert(addressName == keccak256(abi.encode("Admin")));
         assert(protocolAddressToCheck.name == keccak256(abi.encode("Admin")));
@@ -373,9 +351,7 @@ contract AddressManagerTest is Test {
         // Check that the address is added correctly to the AddressManager
         bytes32 addressName = addressManager.protocolAddressesNames(address(isModule));
 
-        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName(
-            "Module"
-        );
+        ProtocolAddress memory protocolAddressToCheck = addressManager.getProtocolAddressByName("Module");
 
         assert(addressName == keccak256(abi.encode("Module")));
         assert(protocolAddressToCheck.name == keccak256(abi.encode("Module")));
@@ -475,9 +451,7 @@ contract AddressManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testProposeRoleHolder() public addRole {
-        ProposedRoleHolder memory proposedHolderData = addressManager.getProposedRoleHolder(
-            keccak256("TestRole")
-        );
+        ProposedRoleHolder memory proposedHolderData = addressManager.getProposedRoleHolder(keccak256("TestRole"));
 
         assert(proposedHolderData.proposedHolder == address(0));
         assert(proposedHolderData.proposalTime == 0);
@@ -507,9 +481,7 @@ contract AddressManagerTest is Test {
     }
 
     function testCanChangeProposedRoleHolder() public newRoleAndProposedRoleHolder {
-        ProposedRoleHolder memory proposedHolderData = addressManager.getProposedRoleHolder(
-            keccak256("TestRole")
-        );
+        ProposedRoleHolder memory proposedHolderData = addressManager.getProposedRoleHolder(keccak256("TestRole"));
 
         assert(proposedHolderData.proposedHolder != address(0));
         assert(proposedHolderData.proposalTime > 0);
@@ -526,9 +498,7 @@ contract AddressManagerTest is Test {
     }
 
     function testCanChangeProposedRoleHolderToZero() public newRoleAndProposedRoleHolder {
-        ProposedRoleHolder memory proposedHolderData = addressManager.getProposedRoleHolder(
-            keccak256("TestRole")
-        );
+        ProposedRoleHolder memory proposedHolderData = addressManager.getProposedRoleHolder(keccak256("TestRole"));
 
         assert(proposedHolderData.proposedHolder != address(0));
         assert(proposedHolderData.proposalTime > 0);
@@ -547,9 +517,7 @@ contract AddressManagerTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testAcceptProposedRoleHolder() public newRoleAndProposedRoleHolder {
-        ProposedRoleHolder memory proposedHolderData = addressManager.getProposedRoleHolder(
-            keccak256("TestRole")
-        );
+        ProposedRoleHolder memory proposedHolderData = addressManager.getProposedRoleHolder(keccak256("TestRole"));
 
         assert(proposedHolderData.proposedHolder != address(0));
         assert(proposedHolderData.proposalTime > 0);
