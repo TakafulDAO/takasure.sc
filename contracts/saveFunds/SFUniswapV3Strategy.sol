@@ -288,7 +288,8 @@ contract SFUniswapV3Strategy is
      * @param assets Amount of `underlying` to deposit.
      * @param data ABI-encoded V3 action data (see @dev for exact encoding).
      * @return investedAssets Amount of `underlying` effectively deployed into LP (usedUnderlying side).
-     * @custom:invariant External entrypoints must not retain `underlying`/`otherToken` balances; leftovers are swept to `vault`.
+     * @custom:invariant External entrypoints must not retain idle `underlying` balances; leftovers are swept to `vault`.
+     *                  `otherToken` may remain in the strategy and is accounted for in `totalAssets()`.
      */
     function deposit(uint256 assets, bytes calldata data)
         external
@@ -414,7 +415,8 @@ contract SFUniswapV3Strategy is
      *      `abi.encode(uint16 otherRatioBPS, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`
      *      where `swapToUnderlyingData` is used for the optional swap before sweeping.
      * @param data ABI-encoded V3 action data (see @dev for exact encoding).
-     * @custom:invariant After completion, the strategy should not custody ERC20 balances; any proceeds are swept to `vault`.
+     * @custom:invariant After completion, the strategy should not custody idle `underlying`; any `underlying` proceeds are swept to `vault`.
+     *                  `otherToken` may remain in the strategy and is accounted for in `totalAssets()`.
      */
     function harvest(bytes calldata data) external nonReentrant whenNotPaused {
         _onlyKeeperOrOperator();
@@ -922,15 +924,14 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @dev Transfers any residual `underlying` and `otherToken` balances to the vault.
-     * @custom:invariant After state-changing external entrypoints, this sweep should leave ERC20 balances at zero (best-effort).
+     * @dev Transfers any residual `underlying` balance to the vault.
+     *      IMPORTANT: `otherToken` is intentionally retained in the strategy (it is valued inside `totalAssets()`),
+     *      and should be swapped to `underlying` when needed (e.g. on withdraw/harvest when swap payload is provided).
+     * @custom:invariant After state-changing external entrypoints, this sweep should leave `underlying` balance at zero (best-effort).
      */
     function _sweepToVault() internal {
         uint256 underlyingBalance = underlying.balanceOf(address(this));
         if (underlyingBalance > 0) underlying.safeTransfer(vault, underlyingBalance);
-
-        uint256 otherBalance = otherToken.balanceOf(address(this));
-        if (otherBalance > 0) otherToken.safeTransfer(vault, otherBalance);
     }
 
     /**
