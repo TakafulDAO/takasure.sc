@@ -92,7 +92,7 @@ contract UniV3StratTest is Test {
 
         vm.startPrank(takadao);
         vault.whitelistToken(ARB_USDT);
-        vault.setStrategy(ISFStrategy(address(aggregator)));
+        vault.setAggregator(ISFStrategy(address(aggregator)));
         vm.stopPrank();
 
         // Fee recipient required by SFVault

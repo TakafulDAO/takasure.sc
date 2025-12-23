@@ -112,12 +112,12 @@ contract SFVaultFuzzTest is Test {
         vault.setTokenHardCap(token, newCapBPS);
     }
 
-    function testFuzzSFVault_SetStrategy_RevertsIfCallerNotOperator(address caller, address newStrategy) public {
+    function testFuzzSFVault_SetAggregator_RevertsIfCallerNotOperator(address caller, address newAggregator) public {
         vm.assume(!addrMgr.hasRole(Roles.OPERATOR, caller));
 
         vm.prank(caller);
         vm.expectRevert(SFVault.SFVault__NotAuthorizedCaller.selector);
-        vault.setStrategy(ISFStrategy(newStrategy));
+        vault.setAggregator(ISFStrategy(newAggregator));
     }
 
     function testFuzzSFVault_SetFeeConfig_RevertsIfCallerNotOperator(

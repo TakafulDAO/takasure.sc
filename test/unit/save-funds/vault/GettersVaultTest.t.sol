@@ -86,7 +86,7 @@ contract GettersVaultTest is Test {
         MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
 
         vm.prank(takadao);
-        vault.setStrategy(ISFStrategy(address(mock)));
+        vault.setAggregator(ISFStrategy(address(mock)));
 
         uint256 amt = 777 * ONE_USDC;
 
@@ -97,9 +97,9 @@ contract GettersVaultTest is Test {
         mock.setMaxTVL(type(uint256).max);
         mock.deposit(amt, "");
 
-        assertEq(vault.getStrategyAssets(), vault.strategyAssets());
-        assertEq(vault.getStrategyAssets(), mock.totalAssets());
-        assertEq(vault.getStrategyAssets(), amt);
+        assertEq(vault.getAggregatorAssets(), vault.aggregatorAssets());
+        assertEq(vault.getAggregatorAssets(), mock.totalAssets());
+        assertEq(vault.getAggregatorAssets(), amt);
     }
 
     function testSFVault_GetVaultTVL_WrapperMatchesTotalAssets() public {
@@ -115,9 +115,9 @@ contract GettersVaultTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testSFVault_GetUserAssets_ZeroSharesReturnsZero() public {
-        address user = makeAddr("user");
-        assertEq(vault.getUserShares(user), 0);
-        assertEq(vault.getUserAssets(user), 0);
+        address _user = makeAddr("_user");
+        assertEq(vault.getUserShares(_user), 0);
+        assertEq(vault.getUserAssets(_user), 0);
     }
 
     function testSFVault_GetUserTotalDeposited_TracksDepositAndMint() public {
@@ -233,14 +233,14 @@ contract GettersVaultTest is Test {
                         STRATEGY ALLOCATION GETTER
     //////////////////////////////////////////////////////////////*/
 
-    function testSFVault_GetStrategyAllocation_ZeroWhenNoTVL() public view {
-        assertEq(vault.getStrategyAllocation(), 0);
+    function testSFVault_GetAggregatorAllocation_ZeroWhenNoTVL() public view {
+        assertEq(vault.getAggregatorAllocation(), 0);
     }
 
-    function testSFVault_GetStrategyAllocation_ComputesBps() public {
+    function testSFVault_GetAggregatorAllocation_ComputesBps() public {
         MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
         vm.prank(takadao);
-        vault.setStrategy(ISFStrategy(address(mock)));
+        vault.setAggregator(ISFStrategy(address(mock)));
 
         // tvl = 1_000, strategy = 800, idle = 200 => 8000 bps
         deal(address(asset), address(vault), 200 * ONE_USDC);
@@ -252,7 +252,7 @@ contract GettersVaultTest is Test {
         mock.deposit(stratAssets, "");
 
         assertEq(mock.totalAssets(), stratAssets);
-        assertEq(vault.getStrategyAllocation(), 8_000);
+        assertEq(vault.getAggregatorAllocation(), 8_000);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -334,9 +334,9 @@ contract GettersVaultTest is Test {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _prepareUser(address user, uint256 amount) internal {
-        deal(address(asset), user, amount);
-        vm.prank(user);
+    function _prepareUser(address _user, uint256 amount) internal {
+        deal(address(asset), _user, amount);
+        vm.prank(_user);
         asset.approve(address(vault), type(uint256).max);
     }
 

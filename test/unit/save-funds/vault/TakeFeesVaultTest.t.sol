@@ -289,7 +289,7 @@ contract TakeFeesVaultTest is Test {
         // Set strategy and put huge assets into it, so totalAssets spikes but idle remains ~amount
         MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
         vm.prank(takadao);
-        vault.setStrategy(ISFStrategy(address(mock)));
+        vault.setAggregator(ISFStrategy(address(mock)));
 
         uint256 stratProfit = 10_000_000; // makes perf fee > idle
         deal(address(asset), address(this), stratProfit);
@@ -307,11 +307,11 @@ contract TakeFeesVaultTest is Test {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _prepareUser(address user, uint256 amount) internal {
-        deal(address(asset), user, amount);
-        vm.startPrank(user);
+    function _prepareUser(address _user, uint256 amount) internal {
+        deal(address(asset), _user, amount);
+        vm.startPrank(_user);
         asset.approve(address(vault), type(uint256).max);
-        vault.deposit(amount, user);
+        vault.deposit(amount, _user);
         vm.stopPrank();
     }
 

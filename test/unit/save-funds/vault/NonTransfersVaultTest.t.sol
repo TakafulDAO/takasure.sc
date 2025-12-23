@@ -106,9 +106,9 @@ contract NonTransfersVaultTest is Test {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _prepareUser(address user, uint256 amount) internal {
-        deal(address(asset), user, amount);
-        vm.prank(user);
+    function _prepareUser(address _user, uint256 amount) internal {
+        deal(address(asset), _user, amount);
+        vm.prank(_user);
         asset.approve(address(vault), type(uint256).max);
     }
 }

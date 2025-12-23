@@ -77,14 +77,14 @@ contract AccountingVaultTest is Test {
         vm.prank(user);
         vault.deposit(amount, user);
 
-        assertEq(vault.strategyAssets(), 0);
+        assertEq(vault.aggregatorAssets(), 0);
         assertEq(vault.idleAssets(), asset.balanceOf(address(vault)));
         assertEq(vault.totalAssets(), vault.idleAssets());
 
         // attach mock strategy
         MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
         vm.prank(takadao);
-        vault.setStrategy(ISFStrategy(address(mock)));
+        vault.setAggregator(ISFStrategy(address(mock)));
 
         // put assets into strategy (independent of vault; totalAssets() sums both)
         uint256 stratAssets = 500_000;
@@ -94,8 +94,8 @@ contract AccountingVaultTest is Test {
         mock.setMaxTVL(type(uint256).max);
         mock.deposit(stratAssets, "");
 
-        assertEq(vault.strategyAssets(), mock.totalAssets());
-        assertEq(vault.totalAssets(), vault.idleAssets() + vault.strategyAssets());
+        assertEq(vault.aggregatorAssets(), mock.totalAssets());
+        assertEq(vault.totalAssets(), vault.idleAssets() + vault.aggregatorAssets());
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -79,8 +79,8 @@ contract SFVaultInvariantTest is StdInvariant, Test {
                                 INVARIANTS
     //////////////////////////////////////////////////////////////*/
 
-    function invariant_SFVault_totalAssetsEqualsIdlePlusStrategy() public view {
-        assertEq(vault.totalAssets(), vault.idleAssets() + vault.strategyAssets());
+    function invariant_SFVault_totalAssetsEqualsIdlePlusAggregator() public view {
+        assertEq(vault.totalAssets(), vault.idleAssets() + vault.aggregatorAssets());
     }
 
     function invariant_SFVault_totalSupplyEqualsSumOfActorBalances() public view {

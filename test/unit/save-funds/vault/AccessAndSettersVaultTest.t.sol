@@ -88,13 +88,13 @@ contract AccessAndSettersVaultTest is Test {
         assertEq(vault.TVLCap(), newCap);
     }
 
-    function testSFVault_SetStrategy_UpdatesValue() public {
+    function testSFVault_SetAggregator_UpdatesValue() public {
         MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
 
         vm.prank(takadao);
-        vault.setStrategy(ISFStrategy(address(mock)));
+        vault.setAggregator(ISFStrategy(address(mock)));
 
-        assertEq(address(vault.strategy()), address(mock));
+        assertEq(address(vault.aggregator()), address(mock));
     }
 
     function testSFVault_SetFeeConfig_UpdatesValues() public {

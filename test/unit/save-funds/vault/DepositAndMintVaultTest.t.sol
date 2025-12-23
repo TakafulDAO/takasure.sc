@@ -111,7 +111,7 @@ contract DepositAndMintVaultTest is Test {
         assertEq(vault.maxDeposit(user), cap - depositAmount);
     }
 
-    function testSFVault_MaxDeposit_ReturnsZeroForNonMembers() public {
+    function testSFVault_MaxDeposit_ReturnsZeroForNonMembers() public view {
         assertEq(vault.maxDeposit(address(this)), 0);
     }
 
@@ -154,7 +154,7 @@ contract DepositAndMintVaultTest is Test {
         assertEq(vault.maxMint(address(this)), expectedMaxMint);
     }
 
-    function testSFVault_MaxMint_ReturnsZeroForNonMembersUsesMaxDepositAndPreviewDeposit() public {
+    function testSFVault_MaxMint_ReturnsZeroForNonMembersUsesMaxDepositAndPreviewDeposit() public view {
         assertEq(vault.maxMint(address(this)), 0);
     }
 
@@ -367,9 +367,9 @@ contract DepositAndMintVaultTest is Test {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _prepareUser(address user, uint256 amount) internal {
-        deal(address(asset), user, amount);
-        vm.prank(user);
+    function _prepareUser(address _user, uint256 amount) internal {
+        deal(address(asset), _user, amount);
+        vm.prank(_user);
         asset.approve(address(vault), type(uint256).max);
     }
 
