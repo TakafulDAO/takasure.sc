@@ -1,0 +1,554 @@
+// SPDX-License-Identifier: GPL-3.0-only
+
+/**
+ * @title SFVault
+ * @author Maikel Ordaz
+ * @notice ERC4626 vault implementation for TLD Save Funds
+ * @dev Upgradeable contract with UUPS pattern
+ */
+
+// todo: access control, maybe write this as a module with the other ones?
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
+import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    ERC4626Upgradeable,
+    ERC20Upgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
+pragma solidity 0.8.28;
+
+contract SFVault is
+    Initializable,
+    UUPSUpgradeable,
+    ReentrancyGuardTransientUpgradeable,
+    PausableUpgradeable,
+    ERC4626Upgradeable
+{
+    using SafeERC20 for IERC20;
+    using EnumerableSet for EnumerableSet.AddressSet;
+
+    ISFStrategy public strategy; // current strategy handling the underlying assets
+    IAddressManager public addressManager;
+
+    // 0 = no cap
+    uint256 public TVLCap;
+
+    /*//////////////////////////////////////////////////////////////
+                        TOKEN WHITELIST + CAPS
+    //////////////////////////////////////////////////////////////*/
+    mapping(address token => uint16 capBps) public tokenHardCapBps;
+
+    EnumerableSet.AddressSet private whitelistedTokens;
+
+    // Fees
+    uint16 public managementFeeBps; // management fee in basis points e.g., 200 = 2%
+    uint16 public performanceFeeBps; // performance fee in basis points e.g., 2000 = 20% of profits
+    uint16 public performanceFeeHurdleBps; // APY threshold in basis points, can be 0 for no hurdle
+
+    // Performance tracking
+    uint64 public lastReport; // timestamp of the last strategy report
+    uint256 public highWaterMark; // assets per share, scaled by 1e18
+
+    enum FeeType {
+        MANAGEMENT,
+        PERFORMANCE
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+    uint256 private constant MAX_BPS = 10_000; // 100% in basis points
+    uint256 private constant YEAR = 365 days;
+
+    /*//////////////////////////////////////////////////////////////
+                           EVENTS AND ERRORS
+    //////////////////////////////////////////////////////////////*/
+    event OnTVLCapUpdated(uint256 oldCap, uint256 newCap);
+    event OnTokenWhitelisted(address indexed token, uint16 hardCapBps);
+    event OnTokenRemovedFromWhitelist(address indexed token);
+    event OnTokenHardCapUpdated(address indexed token, uint16 oldCapBps, uint16 newCapBps);
+    event OnStrategyUpdated(address indexed newStrategy);
+    event OnFeeConfigUpdated(uint16 managementFeeBps, uint16 performanceFeeBps, uint16 performanceFeeHurdleBps);
+    event OnFeesTaken(uint256 feeAssets, FeeType feeType);
+
+    error SFVault__NonTransferableShares();
+    error SFVault__InvalidFeeBps();
+    error SFVault__InvalidCapBps();
+    error SFVault__InvalidToken();
+    error SFVault__TokenAlreadyWhitelisted();
+    error SFVault__TokenNotWhitelisted();
+    error SFVault__ZeroAssets();
+    error SFVault__ZeroShares();
+    error SFVault__ExceedsMaxDeposit();
+    error SFVault__InsufficientUSDCForFees();
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @param _underlying The underlying asset for the vault. (USDC)
+     * @param _name The name of the vault shares token.
+     * @param _symbol The symbol of the vault shares token.
+     */
+    function initialize(IAddressManager _addressManager, IERC20 _underlying, string memory _name, string memory _symbol)
+        external
+        initializer
+    {
+        __UUPSUpgradeable_init();
+        __ReentrancyGuardTransient_init();
+        __Pausable_init();
+        __ERC4626_init(_underlying);
+        __ERC20_init(_name, _symbol);
+
+        addressManager = _addressManager;
+
+        // fees off by default
+        managementFeeBps = 0;
+        performanceFeeBps = 0;
+        performanceFeeHurdleBps = 0;
+
+        TVLCap = 20_000 * 1e6; // 20 thousand USDC
+
+        // Whitelist the underlying (USDC) by default with a 100% hard cap.
+        whitelistedTokens.add(address(_underlying));
+        tokenHardCapBps[address(_underlying)] = uint16(MAX_BPS);
+        emit OnTokenWhitelisted(address(_underlying), uint16(MAX_BPS));
+        // ? Ask if we want to set an initial strategy at deployment
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                SETTERS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Set TVL cap for the vault.
+     * @param newCap The new TVL cap in underlying asset units.
+     * todo: access control
+     */
+    function setTVLCap(uint256 newCap) external {
+        uint256 oldCap = TVLCap;
+        TVLCap = newCap;
+        emit OnTVLCapUpdated(oldCap, newCap);
+    }
+
+    /**
+     * @notice Add a token to the whitelist (default hard cap = 100%).
+     * @dev Intended for governance / Algo Manager configuration.
+     * todo: access control
+     */
+    function whitelistToken(address token) external {
+        require(token != address(0), SFVault__InvalidToken());
+        require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
+
+        whitelistedTokens.add(token);
+        tokenHardCapBps[token] = uint16(MAX_BPS);
+
+        emit OnTokenWhitelisted(token, uint16(MAX_BPS));
+    }
+
+    /**
+     * @notice Add a token to the whitelist with a custom hard cap.
+     * @param token ERC20 token address.
+     * @param hardCapBps Allocation hard cap in BPS of total portfolio value.
+     * todo: access control
+     */
+    function whitelistTokenWithCap(address token, uint16 hardCapBps) external {
+        require(token != address(0), SFVault__InvalidToken());
+        require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
+        require(hardCapBps <= MAX_BPS, SFVault__InvalidCapBps());
+
+        whitelistedTokens.add(token);
+        tokenHardCapBps[token] = hardCapBps;
+
+        emit OnTokenWhitelisted(token, hardCapBps);
+    }
+
+    /**
+     * @notice Remove a token from the whitelist.
+     * @dev Removing a token does not prevent the vault from temporarily holding it while selling/unwinding.
+     * todo: access control
+     */
+    function removeTokenFromWhitelist(address token) external {
+        require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
+
+        whitelistedTokens.remove(token);
+        emit OnTokenRemovedFromWhitelist(token);
+    }
+
+    /**
+     * @notice Update a token's allocation hard cap.
+     * @dev A hard cap of 0 is allowed.
+     * todo: access control
+     */
+    function setTokenHardCap(address token, uint16 newCapBps) external {
+        require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
+        require(newCapBps <= MAX_BPS, SFVault__InvalidCapBps());
+
+        uint16 old = tokenHardCapBps[token];
+        tokenHardCapBps[token] = newCapBps;
+        emit OnTokenHardCapUpdated(token, old, newCapBps);
+    }
+
+    /**
+     * @notice Set or change the strategy contract.
+     * @param newStrategy The address of the new strategy contract.
+     * todo: access control
+     */
+    function setStrategy(ISFStrategy newStrategy) external {
+        strategy = newStrategy;
+        emit OnStrategyUpdated(address(newStrategy));
+    }
+
+    /**
+     * @notice Set fee configuration.
+     * @param _managementFeeBps management fee per deposit in basis points.
+     * @param _performanceFeeBps Performance fee in basis points.
+     * @param _performanceFeeHurdleBps Performance fee hurdle in basis points.
+     * todo: access control
+     */
+    function setFeeConfig(uint16 _managementFeeBps, uint16 _performanceFeeBps, uint16 _performanceFeeHurdleBps)
+        external
+    {
+        require(_managementFeeBps < MAX_BPS, SFVault__InvalidFeeBps());
+        require(_performanceFeeBps <= MAX_BPS, SFVault__InvalidFeeBps());
+        require(_performanceFeeHurdleBps <= MAX_BPS, SFVault__InvalidFeeBps());
+
+        managementFeeBps = _managementFeeBps;
+        performanceFeeBps = _performanceFeeBps;
+        performanceFeeHurdleBps = _performanceFeeHurdleBps;
+        emit OnFeeConfigUpdated(_managementFeeBps, _performanceFeeBps, _performanceFeeHurdleBps);
+    }
+
+    // todo: access control
+    function pause() external {
+        _pause();
+    }
+
+    // todo: access control
+    function unpause() external {
+        _unpause();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                  FEES
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Charge performance fees and transfer them in underlying (USDC) to the fee recipient.
+     * @dev Management fees are charged at deposit/mint time.
+     * @return managementFeeAssets Assets taken as management fee (always 0 here).
+     * @return performanceFeeAssets Assets taken as performance fee.
+     * todo: access control
+     */
+    function takeFees() external nonReentrant returns (uint256 managementFeeAssets, uint256 performanceFeeAssets) {
+        (managementFeeAssets, performanceFeeAssets) = _chargeFees();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                DEPOSITS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Deposit assets into the vault, applying a management fee on the deposit.
+     * @dev The management fee is paid in underlying (USDC) to the fee recipient.
+     */
+    function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
+        require(assets > 0, SFVault__ZeroAssets());
+        require(assets <= maxDeposit(receiver), SFVault__ExceedsMaxDeposit());
+
+        address caller = _msgSender();
+        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+
+        uint256 feeAssets;
+        uint256 netAssets = assets;
+
+        if (managementFeeBps > 0 && feeRecipient != address(0)) {
+            feeAssets = (assets * managementFeeBps) / MAX_BPS;
+            netAssets = assets - feeAssets;
+        }
+
+        // Compute shares based on the amount that actually stays in the vault
+        uint256 userShares = super.previewDeposit(netAssets);
+        require(userShares > 0, SFVault__ZeroShares());
+
+        // Pull full amount from user
+        IERC20(asset()).safeTransferFrom(caller, address(this), assets);
+
+        // Pay fee in underlying
+        if (feeAssets > 0) {
+            IERC20(asset()).safeTransfer(feeRecipient, feeAssets);
+            emit OnFeesTaken(feeAssets, FeeType.MANAGEMENT);
+        }
+
+        // Mint shares to receiver
+        _mint(receiver, userShares);
+
+        emit Deposit(caller, receiver, assets, userShares);
+
+        return userShares;
+    }
+
+    /**
+     * @notice Mint shares into the vault, applying a management fee on the deposit.
+     * @dev Overrides ERC4626 mint to avoid bypassing the management fee.
+     *      The management fee is paid in underlying (USDC) to the fee recipient.
+     */
+    function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256 assets) {
+        require(shares > 0, SFVault__ZeroShares());
+
+        address caller = _msgSender();
+        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+
+        // Net assets required to mint the requested shares (the amount that must stay in the vault)
+        uint256 netAssets = super.previewMint(shares);
+        require(netAssets > 0, SFVault__ZeroAssets());
+
+        uint256 feeAssets;
+        uint256 grossAssets = netAssets;
+
+        if (managementFeeBps > 0 && feeRecipient != address(0)) {
+            // grossAssets = netAssets + feeAssets, where feeAssets is taken from grossAssets
+            // netAssets = grossAssets * (MAX_BPS - feeBps) / MAX_BPS
+            // => feeAssets = netAssets * feeBps / (MAX_BPS - feeBps)
+            feeAssets = Math.mulDiv(netAssets, managementFeeBps, (MAX_BPS - managementFeeBps), Math.Rounding.Ceil);
+            grossAssets = netAssets + feeAssets;
+        }
+
+        require(grossAssets <= maxDeposit(receiver), SFVault__ExceedsMaxDeposit());
+
+        IERC20(asset()).safeTransferFrom(caller, address(this), grossAssets);
+
+        if (feeAssets > 0) {
+            IERC20(asset()).safeTransfer(feeRecipient, feeAssets);
+            emit OnFeesTaken(feeAssets, FeeType.MANAGEMENT);
+        }
+
+        _mint(receiver, shares);
+        emit Deposit(caller, receiver, grossAssets, shares);
+
+        return grossAssets;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                GETTERS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice maxDeposit override to enforce a global TVL cap.
+     * @param receiver The address of the user depositing assets.
+     * @return The maximum amount of assets that can be deposited by the receiver.
+     */
+    function maxDeposit(address receiver) public view override returns (uint256) {
+        if (TVLCap == 0) return super.maxDeposit(receiver);
+
+        uint256 remainingNetAssets = _remainingTVLCapacity();
+
+        // If management fee is enabled, the user transfers more than what remains in the vault
+        // because a portion is paid out to the fee recipient.
+        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        if (managementFeeBps == 0 || feeRecipient == address(0)) return remainingNetAssets;
+
+        // grossAssets = remainingNetAssets * MAX_BPS / (MAX_BPS - feeBps)
+        // Round down to ensure net does not exceed the cap.
+        uint256 denom = (MAX_BPS - managementFeeBps);
+        return Math.mulDiv(remainingNetAssets, MAX_BPS, denom);
+    }
+
+    /**
+     * @notice maxMint override to enforce a global TVL cap.
+     * @param receiver The address of the user minting shares.
+     * @return The maximum amount of shares that can be minted by the receiver.
+     */
+    function maxMint(address receiver) public view override returns (uint256) {
+        uint256 maxAssets = maxDeposit(receiver);
+        return previewDeposit(maxAssets);
+    }
+
+    /// @notice Returns the amount of idle assets (underlying tokens not invested in the strategy) in the vault.
+    function idleAssets() public view returns (uint256) {
+        return IERC20(asset()).balanceOf(address(this));
+    }
+
+    /// @notice Returns the total assets invested in the strategy.
+    function strategyAssets() public view returns (uint256) {
+        if (address(strategy) == address(0)) return 0;
+        return strategy.totalAssets();
+    }
+
+    /// @notice Returns the total assets managed by the vault (idle + strategy).
+    function totalAssets() public view override returns (uint256) {
+        return idleAssets() + strategyAssets();
+    }
+
+    /**
+     * @notice Preview shares a user will receive for a given deposit amount, considering fees.
+     * @param assets The amount of underlying assets to deposit.
+     * @return The amount of shares the user would receive.
+     */
+    function previewDeposit(uint256 assets) public view override returns (uint256) {
+        if (assets == 0) return 0;
+
+        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        if (managementFeeBps == 0 || feeRecipient == address(0)) return super.previewDeposit(assets);
+
+        uint256 feeAssets = (assets * managementFeeBps) / MAX_BPS;
+        uint256 netAssets = assets - feeAssets;
+        return super.previewDeposit(netAssets);
+    }
+
+    /**
+     * @notice Preview the amount of assets required to mint `shares`, considering the management fee.
+     */
+    function previewMint(uint256 shares) public view override returns (uint256) {
+        if (shares == 0) return 0;
+
+        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        uint256 netAssets = super.previewMint(shares);
+
+        if (managementFeeBps == 0 || feeRecipient == address(0)) return netAssets;
+
+        uint256 feeAssets = Math.mulDiv(netAssets, managementFeeBps, (MAX_BPS - managementFeeBps), Math.Rounding.Ceil);
+        return netAssets + feeAssets;
+    }
+
+    function isTokenWhitelisted(address token) external view returns (bool) {
+        return whitelistedTokens.contains(token);
+    }
+
+    function whitelistedTokensLength() external view returns (uint256) {
+        return whitelistedTokens.length();
+    }
+
+    function getWhitelistedTokens() external view returns (address[] memory) {
+        return whitelistedTokens.values();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Shares are not transferrable.
+    function _update(address from, address to, uint256 value) internal override {
+        require(from == address(0) || to == address(0), SFVault__NonTransferableShares());
+        super._update(from, to, value);
+    }
+
+    /**
+     * @notice Calculate remaining TVL capacity.
+     * @return The remaining TVL capacity in underlying asset units.
+     */
+    function _remainingTVLCapacity() internal view returns (uint256) {
+        uint256 cap = TVLCap;
+
+        if (cap == 0) return type(uint256).max;
+
+        uint256 assets = totalAssets();
+        if (assets >= cap) return 0;
+        return cap - assets;
+    }
+
+    /**
+     * @notice Internal function to charge performance fees.
+     * @dev Transfers performance fees in underlying (USDC) from idle liquidity to the fee recipient.
+     *      Uses a high-water mark on assets-per-share to avoid charging performance fees on fresh deposits.
+     */
+    function _chargeFees() internal returns (uint256 managementFeeAssets_, uint256 performanceFeeAssets_) {
+        address feeRecipient = addressManager.getProtocolAddressByName("SF_VAULT_FEE_RECIPIENT").addr;
+        if (feeRecipient == address(0)) {
+            // Skip fees
+            lastReport = uint64(block.timestamp);
+            return (0, 0);
+        }
+
+        uint256 totalAssets_ = totalAssets();
+        uint256 totalShares_ = totalSupply();
+        uint256 timestamp_ = block.timestamp;
+
+        // No users/assets, skip fees
+        if (totalShares_ == 0 || totalAssets_ == 0) {
+            lastReport = uint64(timestamp_);
+            highWaterMark = 0;
+            return (0, 0);
+        }
+
+        uint256 elapsed = timestamp_ - uint256(lastReport);
+
+        // Current assets per share, scaled by 1e18
+        uint256 currentAssetsPerShareWad = (totalAssets_ * 1e18) / totalShares_;
+
+        // Init high-water mark if it's the first time
+        if (highWaterMark == 0) {
+            highWaterMark = currentAssetsPerShareWad;
+            lastReport = uint64(timestamp_);
+            return (0, 0);
+        }
+
+        // Only charge performance fee if above high-water mark
+        if (performanceFeeBps == 0 || currentAssetsPerShareWad <= highWaterMark) {
+            lastReport = uint64(timestamp_);
+            highWaterMark = currentAssetsPerShareWad;
+            return (0, 0);
+        }
+
+        uint256 gainPerShareWad = currentAssetsPerShareWad - highWaterMark;
+        // Total profit above high-water mark in assets units
+        uint256 grossProfitAssets = (gainPerShareWad * totalShares_) / 1e18;
+
+        // Apply APY hurdle if set
+        uint256 feeableProfitAssets = grossProfitAssets;
+        if (performanceFeeHurdleBps > 0 && elapsed > 0) {
+            uint256 hurdleReturnedAssets = (totalAssets_ * performanceFeeHurdleBps * elapsed) / (MAX_BPS * YEAR);
+            if (grossProfitAssets <= hurdleReturnedAssets) {
+                lastReport = uint64(timestamp_);
+                highWaterMark = currentAssetsPerShareWad;
+                return (0, 0);
+            }
+            feeableProfitAssets = grossProfitAssets - hurdleReturnedAssets;
+        }
+
+        // Actual fee amount in assets
+        performanceFeeAssets_ = (feeableProfitAssets * performanceFeeBps) / MAX_BPS;
+
+        if (performanceFeeAssets_ == 0) {
+            lastReport = uint64(timestamp_);
+            highWaterMark = currentAssetsPerShareWad;
+            return (0, 0);
+        }
+
+        // Fees are paid in underlying; require enough idle liquidity.
+        require(idleAssets() >= performanceFeeAssets_, SFVault__InsufficientUSDCForFees());
+
+        IERC20(asset()).safeTransfer(feeRecipient, performanceFeeAssets_);
+        emit OnFeesTaken(performanceFeeAssets_, FeeType.PERFORMANCE);
+
+        // Update state to post-fee assets/share
+        uint256 newTotalAssets = totalAssets_ - performanceFeeAssets_;
+        uint256 newAssetsPerShareWad = (newTotalAssets * 1e18) / totalShares_;
+
+        highWaterMark = newAssetsPerShareWad;
+        lastReport = uint64(timestamp_);
+
+        managementFeeAssets_ = 0;
+        return (0, performanceFeeAssets_);
+    }
+
+    /// @dev required by the OZ UUPS module.
+    function _authorizeUpgrade(address newImplementation) internal override {}
+}
