@@ -254,8 +254,8 @@ contract SFStrategyAggregator is
         onlyContract("PROTOCOL__SF_VAULT")
         nonReentrant
         whenNotPaused
-        
-
+        returns (uint256 investedAssets)
+    {
         uint256 len = subStrategySet.length();
 
         // If there are no substrategies yet, return funds to vault
