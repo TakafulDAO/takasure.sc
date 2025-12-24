@@ -659,6 +659,7 @@ contract SFStrategyAggregator is
         if (_data.length == 0) {
             strategies_ = new address[](0);
             payloads_ = new bytes[](0);
+            return (strategies_, payloads_);
         }
 
         (strategies_, payloads_) = abi.decode(_data, (address[], bytes[]));
