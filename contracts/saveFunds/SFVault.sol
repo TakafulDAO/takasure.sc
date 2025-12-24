@@ -342,7 +342,13 @@ contract SFVault is
      * @custom:invariant Shares are non-transferable: only mint/burn is permitted by {_update}.
      * @custom:invariant Only members can be `receiver`
      */
-    function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver)
+        public
+        override
+        whenNotPaused
+        nonReentrant
+        returns (uint256 shares)
+    {
         require(validMembers.contains(receiver), SFVault__NotAMember());
         require(assets > 0, SFVault__ZeroAssets());
         require(assets <= maxDeposit(receiver), SFVault__ExceedsMaxDeposit());
@@ -390,7 +396,13 @@ contract SFVault is
      * @custom:invariant If a fee recipient is configured, minted shares correspond to `super.previewMint(shares)` net assets remaining in the vault after fee transfer (subject to rounding).
      * @custom:invariant Only members can be `receiver`
      */
-    function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256 assets) {
+    function mint(uint256 shares, address receiver)
+        public
+        override
+        whenNotPaused
+        nonReentrant
+        returns (uint256 assets)
+    {
         require(validMembers.contains(receiver), SFVault__NotAMember());
         require(shares > 0, SFVault__ZeroShares());
 
