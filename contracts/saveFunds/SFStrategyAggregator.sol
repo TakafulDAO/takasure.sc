@@ -626,6 +626,7 @@ contract SFStrategyAggregator is
         }
 
         (b_.strategies, b_.payloads) = abi.decode(_data, (address[], bytes[]));
+        require(b_.strategies.length == b_.payloads.length, SFStrategyAggregator__InvalidPerStrategyData());
     }
 
     function _depositIntoChild(address _child, uint256 _toAllocate, Bundle memory _b)
