@@ -256,10 +256,11 @@ contract SFStrategyAggregator is
         whenNotPaused
         returns (uint256 investedAssets)
     {
-        uint256 len = subStrategySet.length();
+        // Filter strategies that ara actually allocatable
+        address[] memory allocatableStrats = _allocatableSubStrategies();
 
-        // If there are no substrategies yet, return funds to vault
-        if (len == 0) {
+        // If no active strategies, return all to vault
+        if (allocatableStrats.length == 0) {
             underlying.safeTransfer(vault, assets);
             return 0;
         }
@@ -267,36 +268,42 @@ contract SFStrategyAggregator is
         (address[] memory dataStrategies, bytes[] memory perChildData) = _decodePerStrategyData(data);
 
         uint256 remaining = assets;
+        uint256 len = allocatableStrats.length;
 
         for (uint256 i; i < len; ++i) {
-            address stratAddr = subStrategySet.at(i);
+            address stratAddr = allocatableStrats[i];
             SubStrategyMeta memory meta = subStrategyMeta[stratAddr];
-
-            if (!meta.isActive) continue;
 
             uint256 toAllocate = (assets * meta.targetWeightBPS) / MAX_BPS;
             if (toAllocate == 0) continue;
             if (toAllocate > remaining) toAllocate = remaining;
 
+            uint256 balanceBefore = underlying.balanceOf(address(this));
             underlying.forceApprove(stratAddr, toAllocate);
 
             bytes memory childData = _payloadFor(stratAddr, dataStrategies, perChildData);
-
             uint256 childInvested = ISFStrategy(stratAddr).deposit(toAllocate, childData);
 
-            // If child did not pull all funds, reset approval
-            if (underlying.allowance(address(this), stratAddr) != 0) {
-                underlying.forceApprove(stratAddr, 0);
-            }
+            // Always reset approval to zero after deposit
+            underlying.forceApprove(stratAddr, 0);
 
             investedAssets += childInvested;
-            remaining -= toAllocate;
+
+            uint256 balanceAfter = underlying.balanceOf(address(this));
+            uint256 actualSpent = balanceAfter < balanceBefore ? (balanceBefore - balanceAfter) : 0;
+
+            if (actualSpent >= remaining) {
+                remaining = 0;
+                break;
+            }
+            remaining -= actualSpent;
 
             if (remaining == 0) break;
         }
 
         // Return any remainder to vault
-        if (remaining > 0) underlying.safeTransfer(vault, remaining);
+        uint256 leftover = underlying.balanceOf(address(this));
+        if (leftover > 0) underlying.safeTransfer(vault, leftover);
 
         return investedAssets;
     }
@@ -416,7 +423,7 @@ contract SFStrategyAggregator is
         onlyRole(Roles.OPERATOR)
     {
         _assertChildStrategyCompatible(strategy);
-        require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+        require(targetWeightBPS > 0 && targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
         require(subStrategySet.add(strategy), SFStrategyAggregator__SubStrategyAlreadyExists());
 
         subStrategyMeta[strategy] = SubStrategyMeta({targetWeightBPS: targetWeightBPS, isActive: true});
@@ -440,6 +447,9 @@ contract SFStrategyAggregator is
     {
         require(subStrategySet.contains(strategy), SFStrategyAggregator__SubStrategyNotFound());
         require(targetWeightBPS <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+
+        if (isActive) require(targetWeightBPS > 0, SFStrategyAggregator__InvalidTargetWeightBPS());
+        else require(targetWeightBPS == 0, SFStrategyAggregator__InvalidTargetWeightBPS());
 
         subStrategyMeta[strategy].targetWeightBPS = targetWeightBPS;
         subStrategyMeta[strategy].isActive = isActive;
@@ -620,6 +630,29 @@ contract SFStrategyAggregator is
 
         require(sum <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
         totalTargetWeightBPS = uint16(sum);
+    }
+
+    /**
+     * @dev Returns the list of strategies that are actually eligible to receive allocations: active + targetWeightBPS > 0.
+     */
+    function _allocatableSubStrategies() internal view returns (address[] memory strategies_) {
+        uint256 len = subStrategySet.length();
+
+        uint256 count;
+        for (uint256 i; i < len; ++i) {
+            address strat = subStrategySet.at(i);
+            SubStrategyMeta memory m = subStrategyMeta[strat];
+            if (m.isActive && m.targetWeightBPS != 0) ++count;
+        }
+
+        strategies_ = new address[](count);
+        uint256 index;
+
+        for (uint256 i; i < len; ++i) {
+            address strat = subStrategySet.at(i);
+            SubStrategyMeta memory m = subStrategyMeta[strat];
+            if (m.isActive && m.targetWeightBPS != 0) strategies_[index++] = strat;
+        }
     }
 
     /**
