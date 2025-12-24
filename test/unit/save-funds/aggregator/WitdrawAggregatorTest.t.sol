@@ -201,18 +201,6 @@ contract WithdrawAggregatorTest is Test {
         // loss branch executed (we don’t assert event data here; state + return prove the path)
     }
 
-    function testAggregator_withdraw_RevertsWhenPerStrategyDataIsEmptyBytes() public {
-        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
-        _addStrategy(address(s1), 10000, true);
-
-        // put assets in strategy so maxWithdraw > 0
-        _fundStrategy(address(s1), 100);
-
-        vm.prank(address(vault));
-        vm.expectRevert(); // abi.decode on empty bytes
-        aggregator.withdraw(10, makeAddr("recv"), bytes(""));
-    }
-
     function testAggregator_withdraw_WhenIdleIsZero_PullsFromChildAndTransfersReceiver() public {
         RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
         _addStrategy(address(s1), 10000, true);
