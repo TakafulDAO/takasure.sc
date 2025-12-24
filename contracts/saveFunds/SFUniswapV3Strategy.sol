@@ -1164,7 +1164,6 @@ contract SFUniswapV3Strategy is
 
     function _lastToken(bytes memory _path) internal pure returns (address token_) {
         require(_path.length >= 20, SFUniswapV3Strategy__InvalidStrategyData());
-        if (_path.length < 20) revert SFUniswapV3Strategy__InvalidStrategyData();
         uint256 start = 32 + _path.length - 20;
         assembly {
             token_ := shr(96, mload(add(_path, start)))

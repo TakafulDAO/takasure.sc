@@ -446,11 +446,11 @@ contract SFVault is
     {
         _onlyKeeperOrOperator();
         ISFStrategy strat = aggregator;
-        if (address(strat) == address(0)) revert SFVault__StrategyNotSet();
-        if (assets == 0) revert SFVault__ZeroAssets();
+        require(address(strat) != address(0), SFVault__StrategyNotSet());
+        require(assets > 0, SFVault__ZeroAssets());
 
         uint256 idle = idleAssets();
-        if (assets > idle) revert SFVault__InsufficientIdleAssets();
+        require(assets <= idle, SFVault__InsufficientIdleAssets());
 
         // Send funds first (aggregator expects to already hold underlying)
         IERC20(asset()).safeTransfer(address(strat), assets);
@@ -478,8 +478,8 @@ contract SFVault is
     {
         _onlyKeeperOrOperator();
         ISFStrategy strat = aggregator;
-        if (address(strat) == address(0)) revert SFVault__StrategyNotSet();
-        if (assets == 0) revert SFVault__ZeroAssets();
+        require(address(strat) != address(0), SFVault__StrategyNotSet());
+        require(assets > 0, SFVault__ZeroAssets());
 
         bytes memory data = abi.encode(strategies, payloads);
 
