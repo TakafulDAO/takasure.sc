@@ -57,6 +57,11 @@ contract SFStrategyAggregator is
         bool isActive;
     }
 
+    struct Bundle {
+        address[] strategies;
+        bytes[] payloads;
+    }
+
     address public vault;
 
     uint16 public totalTargetWeightBPS; // sum of all target weights in BPS
@@ -241,52 +246,41 @@ contract SFStrategyAggregator is
         whenNotPaused
         returns (uint256 investedAssets)
     {
-        // Filter strategies that ara actually allocatable
         address[] memory allocatableStrats = _allocatableSubStrategies();
 
-        // If no active strategies, return all to vault
         if (allocatableStrats.length == 0) {
             underlying.safeTransfer(vault, assets);
             return 0;
         }
 
-        (address[] memory dataStrategies, bytes[] memory perChildData) = _decodePerStrategyData(data);
+        Bundle memory b = _decodeBundle(data);
 
-        uint256 remaining = assets;
-        uint256 len = allocatableStrats.length;
+        uint256 remainingAssets = assets;
+        uint256 processedWeight;
 
-        for (uint256 i; i < len; ++i) {
-            address stratAddr = allocatableStrats[i];
-            SubStrategyMeta memory meta = subStrategyMeta[stratAddr];
+        for (uint256 i; i < allocatableStrats.length && remainingAssets > 0; ++i) {
+            address child = allocatableStrats[i];
+            uint256 weight = uint256(subStrategyMeta[child].targetWeightBPS);
 
-            uint256 toAllocate = (assets * meta.targetWeightBPS) / MAX_BPS;
+            uint256 remainingWeight = uint256(totalTargetWeightBPS) - processedWeight;
+
+            // Last strategy gets all remaining assets (prevents dust / rounding leftovers)
+            uint256 toAllocate =
+                (i + 1 == allocatableStrats.length) ? remainingAssets : (remainingAssets * weight) / remainingWeight;
+
+            processedWeight += weight;
+
             if (toAllocate == 0) continue;
-            if (toAllocate > remaining) toAllocate = remaining;
+            if (toAllocate > remainingAssets) toAllocate = remainingAssets;
 
-            uint256 balanceBefore = underlying.balanceOf(address(this));
-            underlying.forceApprove(stratAddr, toAllocate);
-
-            bytes memory childData = _payloadFor(stratAddr, dataStrategies, perChildData);
-            uint256 childInvested = ISFStrategy(stratAddr).deposit(toAllocate, childData);
-
-            // Always reset approval to zero after deposit
-            underlying.forceApprove(stratAddr, 0);
+            (uint256 childInvested, uint256 spent) = _depositIntoChild(child, toAllocate, b);
 
             investedAssets += childInvested;
 
-            uint256 balanceAfter = underlying.balanceOf(address(this));
-            uint256 actualSpent = balanceAfter < balanceBefore ? (balanceBefore - balanceAfter) : 0;
-
-            if (actualSpent >= remaining) {
-                remaining = 0;
-                break;
-            }
-            remaining -= actualSpent;
-
-            if (remaining == 0) break;
+            if (spent >= remainingAssets) break;
+            remainingAssets -= spent;
         }
 
-        // Return any remainder to vault
         uint256 leftover = underlying.balanceOf(address(this));
         if (leftover > 0) underlying.safeTransfer(vault, leftover);
 
@@ -622,6 +616,32 @@ contract SFStrategyAggregator is
             SubStrategyMeta memory m = subStrategyMeta[strat];
             if (m.isActive && m.targetWeightBPS != 0) strategies_[index++] = strat;
         }
+    }
+
+    function _decodeBundle(bytes calldata _data) internal pure returns (Bundle memory b_) {
+        if (_data.length == 0) {
+            b_.strategies = new address[](0);
+            b_.payloads = new bytes[](0);
+            return b_;
+        }
+
+        (b_.strategies, b_.payloads) = abi.decode(_data, (address[], bytes[]));
+    }
+
+    function _depositIntoChild(address _child, uint256 _toAllocate, Bundle memory _b)
+        internal
+        returns (uint256 childInvested_, uint256 actualSpent_)
+    {
+        uint256 balanceBefore = underlying.balanceOf(address(this));
+
+        underlying.forceApprove(_child, _toAllocate);
+        bytes memory childData = _payloadFor(_child, _b.strategies, _b.payloads);
+        childInvested_ = ISFStrategy(_child).deposit(_toAllocate, childData);
+
+        underlying.forceApprove(_child, 0);
+
+        uint256 balanceAfter = underlying.balanceOf(address(this));
+        actualSpent_ = balanceAfter < balanceBefore ? (balanceBefore - balanceAfter) : 0;
     }
 
     /**
