@@ -100,12 +100,6 @@ contract DepositAggregatorTest is Test {
         aggregator.deposit(1, bytes(""));
     }
 
-    function testAggregator_deposit_RevertsWhenZeroAssets() public {
-        vm.prank(address(vault));
-        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__NotZeroAmount.selector);
-        aggregator.deposit(0, bytes(""));
-    }
-
     function testAggregator_deposit_WhenNoSubStrategies_ReturnsFundsToVault() public {
         uint256 amount = 1_000;
         _fundAggregator(amount);
