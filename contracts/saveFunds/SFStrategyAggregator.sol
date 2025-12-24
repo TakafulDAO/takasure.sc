@@ -59,7 +59,6 @@ contract SFStrategyAggregator is
 
     address public vault;
 
-    uint256 public maxTVL;
     uint16 public totalTargetWeightBPS; // sum of all target weights in BPS
 
     mapping(address strategy => SubStrategyMeta) private subStrategyMeta;
@@ -68,7 +67,6 @@ contract SFStrategyAggregator is
                            EVENTS AND ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
     event OnSubStrategyAdded(address indexed strategy, uint16 targetWeightBPS, bool isActive);
     event OnSubStrategyUpdated(address indexed strategy, uint16 targetWeightBPS, bool isActive);
     event OnStrategyLossReported(
@@ -130,7 +128,7 @@ contract SFStrategyAggregator is
         _disableInitializers();
     }
 
-    function initialize(IAddressManager _addressManager, IERC20 _asset, uint256 _maxTVL, address _vault)
+    function initialize(IAddressManager _addressManager, IERC20 _asset, address _vault)
         external
         initializer
         notAddressZero(address(_addressManager))
@@ -144,25 +142,12 @@ contract SFStrategyAggregator is
         addressManager = _addressManager;
 
         underlying = _asset;
-        maxTVL = _maxTVL;
         vault = _vault;
     }
 
     /*//////////////////////////////////////////////////////////////
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Updates the aggregator TVL cap.
-     * @dev Only callable by an OPERATOR. A value of 0 means “no cap”.
-     * @param newMaxTVL New maximum TVL for the aggregator.
-     * @custom:invariant maxTVL is updated atomically and does not change the underlying asset or strategy set.
-     */
-    function setMaxTVL(uint256 newMaxTVL) external onlyRole(Roles.OPERATOR) {
-        uint256 oldMaxTVL = maxTVL;
-        maxTVL = newMaxTVL;
-        emit OnMaxTVLUpdated(oldMaxTVL, newMaxTVL);
-    }
 
     /**
      * @notice Sets multiple sub-strategy configurations in a single call.
@@ -473,21 +458,6 @@ contract SFStrategyAggregator is
     }
 
     /**
-     * @notice Returns the maximum amount of underlying that may be deposited, based on the TVL cap.
-     * @dev If maxTVL is 0, this returns the maximum uint256 (no cap). Otherwise it returns max(0, maxTVL - totalAssets()).
-     * @return maxAssets Maximum deposit amount in underlying units.
-     * @custom:invariant If maxTVL != 0 then totalAssets() + maxAssets <= maxTVL.
-     */
-    function maxDeposit() external view returns (uint256) {
-        // 0 means no cap
-        if (maxTVL == 0) return type(uint256).max;
-
-        uint256 current = totalAssets();
-        if (current >= maxTVL) return 0;
-        return maxTVL - current;
-    }
-
-    /**
      * @notice Returns the maximum amount of underlying that could be withdrawn right now.
      * @dev Computed as idle balance plus the sum of each child strategy’s `maxWithdraw()`.
      * @return maxAssets Maximum withdrawable amount in underlying units.
@@ -507,14 +477,13 @@ contract SFStrategyAggregator is
     /**
      * @notice Returns high-level configuration metadata for this aggregator.
      * @dev The returned config is intended for off-chain introspection (frontends, monitoring, etc.).
-     * @return config StrategyConfig with fields: asset, vault, pool (0 for aggregator), maxTVL, paused.
+     * @return config StrategyConfig with fields: asset, vault, pool (0 for aggregator),  paused.
      */
     function getConfig() external view returns (StrategyConfig memory) {
         return StrategyConfig({
             asset: address(underlying),
             vault: vault,
             pool: address(0), // aggregator has no single pool
-            maxTVL: maxTVL,
             paused: paused()
         });
     }

@@ -587,9 +587,7 @@ contract SFUniswapV3Strategy is
      * @custom:invariant View function must not mutate state.
      */
     function getConfig() external view returns (StrategyConfig memory) {
-        return StrategyConfig({
-            asset: address(underlying), vault: vault, pool: address(pool), maxTVL: maxTVL, paused: paused()
-        });
+        return StrategyConfig({asset: address(underlying), vault: vault, pool: address(pool), paused: paused()});
     }
 
     /**

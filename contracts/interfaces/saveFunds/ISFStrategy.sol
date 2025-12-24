@@ -6,13 +6,11 @@ interface ISFStrategy {
     function asset() external view returns (address);
     function vault() external view returns (address);
     function totalAssets() external view returns (uint256);
-    function maxDeposit() external view returns (uint256);
     function maxWithdraw() external view returns (uint256);
     function deposit(uint256 assets, bytes calldata data) external returns (uint256 investedAssets);
     function withdraw(uint256 assets, address receiver, bytes calldata data) external returns (uint256 withdrawnAssets);
     function pause() external;
     function unpause() external;
     function emergencyExit(address receiver) external;
-    function setMaxTVL(uint256 newMaxTVL) external;
 }
 
