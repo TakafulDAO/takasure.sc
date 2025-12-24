@@ -313,10 +313,7 @@ contract SFUniswapV3Strategy is
         uint256 amountUnderlyingForLP = assets - amountToSwap;
 
         // 2. swap with the correct payload (underlying -> otherToken)
-        if (amountToSwap > 0) {
-            require(p.swapToOtherData.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
-            _V3Swap(amountToSwap, p.swapToOtherData, true);
-        }
+        if (amountToSwap > 0) _V3Swap(amountToSwap, p.swapToOtherData, true);
 
         // 3) use actual balances to prevent swap fees makes mint revert
         uint256 desiredUnderlying = amountUnderlyingForLP;
@@ -712,9 +709,10 @@ contract SFUniswapV3Strategy is
      * @custom:invariant `otherRatioBPS` must be `<= MAX_BPS` and `pmDeadline >= block.timestamp` when provided.
      */
     function _decodeV3ActionData(bytes memory _data) internal view returns (V3ActionData memory p_) {
-        // Defaults: 50/50, no swaps, and immediate position management deadline
+        // Defaults: no swap (0% to otherToken), and immediate position management deadline.
+        // Payloads in `data` MUST be provided to swap.
         if (_data.length == 0) {
-            p_.otherRatioBPS = uint16(MAX_BPS / 2);
+            p_.otherRatioBPS = 0;
             p_.pmDeadline = block.timestamp;
             return p_;
         }
@@ -724,6 +722,9 @@ contract SFUniswapV3Strategy is
 
         require(p_.otherRatioBPS <= MAX_BPS, SFUniswapV3Strategy__InvalidRebalanceParams());
         require(p_.pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidStrategyData());
+
+        // If caller requests swapping some of the deposit into otherToken, they must provide swap calldata.
+        if (p_.otherRatioBPS > 0) require(p_.swapToOtherData.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
     }
 
     /**
