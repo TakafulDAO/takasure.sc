@@ -154,7 +154,7 @@ contract SubStratsAggregatorTest is Test {
 
         // deactivate s1 -> total should drop to 5000
         vm.prank(takadao);
-        aggregator.updateSubStrategy(address(s1), 5000, false);
+        aggregator.updateSubStrategy(address(s1), 0, false);
         assertEq(aggregator.totalTargetWeightBPS(), 5000);
 
         // update s2 weight upward while active -> total becomes 8000

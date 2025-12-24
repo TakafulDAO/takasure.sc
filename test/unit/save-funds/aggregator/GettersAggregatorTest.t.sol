@@ -111,7 +111,7 @@ contract GettersAggregatorTest is Test {
         vm.startPrank(takadao);
         aggregator.addSubStrategy(address(s1), 5000);
         aggregator.addSubStrategy(address(s2), 5000);
-        aggregator.updateSubStrategy(address(s2), 5000, false); // inactive
+        aggregator.updateSubStrategy(address(s2), 0, false); // inactive
         vm.stopPrank();
 
         deal(address(asset), address(s1), 111);
@@ -162,7 +162,7 @@ contract GettersAggregatorTest is Test {
         vm.startPrank(takadao);
         aggregator.addSubStrategy(address(s1), 6000);
         aggregator.addSubStrategy(address(s2), 3000);
-        aggregator.updateSubStrategy(address(s2), 3000, false);
+        aggregator.updateSubStrategy(address(s2), 0, false);
         vm.stopPrank();
 
         bytes memory details = aggregator.getPositionDetails();
@@ -178,7 +178,7 @@ contract GettersAggregatorTest is Test {
         assertTrue(actives[0]);
 
         assertEq(strategies[1], address(s2));
-        assertEq(weights[1], 3000);
+        assertEq(weights[1], 0);
         assertFalse(actives[1]);
     }
 }

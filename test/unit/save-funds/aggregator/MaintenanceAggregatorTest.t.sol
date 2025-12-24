@@ -97,7 +97,7 @@ contract MaintenanceAggregatorTest is Test {
         vm.startPrank(takadao);
         aggregator.addSubStrategy(address(s1), 5000);
         aggregator.addSubStrategy(address(s2), 5000);
-        aggregator.updateSubStrategy(address(s2), 5000, false); // inactive
+        aggregator.updateSubStrategy(address(s2), 0, false); // inactive
         vm.stopPrank();
 
         vm.prank(takadao);
@@ -131,7 +131,7 @@ contract MaintenanceAggregatorTest is Test {
         vm.startPrank(takadao);
         aggregator.addSubStrategy(address(s1), 5000);
         aggregator.addSubStrategy(address(s2), 5000);
-        aggregator.updateSubStrategy(address(s2), 5000, false); // inactive
+        aggregator.updateSubStrategy(address(s2), 0, false); // inactive
         vm.stopPrank();
 
         vm.prank(takadao);
@@ -226,7 +226,10 @@ contract MaintenanceAggregatorTest is Test {
         RecorderSubStrategy s2 = new RecorderSubStrategy(asset);
 
         _addStrategy(address(s1), 6000, true);
-        _addStrategy(address(s2), 3000, false); // inactive
+        vm.startPrank(takadao);
+        aggregator.addSubStrategy(address(s2), 4000);
+        aggregator.updateSubStrategy(address(s2), 0, false);
+        vm.stopPrank();
 
         address[] memory strategies = new address[](2);
         bytes[] memory payloads = new bytes[](2);
@@ -251,7 +254,10 @@ contract MaintenanceAggregatorTest is Test {
         RecorderSubStrategy s2 = new RecorderSubStrategy(asset);
 
         _addStrategy(address(s1), 6000, true);
-        _addStrategy(address(s2), 3000, false); // inactive
+        vm.startPrank(takadao);
+        aggregator.addSubStrategy(address(s2), 4000);
+        aggregator.updateSubStrategy(address(s2), 0, false);
+        vm.stopPrank();
 
         address[] memory strategies = new address[](2);
         bytes[] memory payloads = new bytes[](2);

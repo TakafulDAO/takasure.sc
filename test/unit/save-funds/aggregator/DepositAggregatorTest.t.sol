@@ -139,7 +139,9 @@ contract DepositAggregatorTest is Test {
         vm.startPrank(takadao);
         aggregator.addSubStrategy(address(s1), 6000);
         aggregator.addSubStrategy(address(s2), 4000);
+        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__InvalidTargetWeightBPS.selector);
         aggregator.updateSubStrategy(address(s2), 4000, false);
+        aggregator.updateSubStrategy(address(s2), 0, false);
         vm.stopPrank();
 
         uint256 amount = 1_000;
@@ -191,7 +193,6 @@ contract DepositAggregatorTest is Test {
         vm.prank(address(vault));
         uint256 invested = aggregator.deposit(1000, _emptyPerStrategyData());
 
-        // child only pulls half
         assertEq(invested, 500);
 
         // leftover allowance branch => should be reset to 0
@@ -199,8 +200,8 @@ contract DepositAggregatorTest is Test {
 
         // accounting: half in child, half idle in aggregator
         assertEq(asset.balanceOf(address(s1)), 500);
-        assertEq(asset.balanceOf(address(aggregator)), 500);
-        assertEq(aggregator.totalAssets(), 1000);
+        assertEq(asset.balanceOf(address(aggregator)), 0);
+        assertEq(aggregator.totalAssets(), 500);
     }
 
     function testAggregator_deposit_UsesPerStrategyPayload_WhenProvided() public {
