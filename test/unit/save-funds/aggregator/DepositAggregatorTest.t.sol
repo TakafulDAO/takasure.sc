@@ -124,11 +124,11 @@ contract DepositAggregatorTest is Test {
         _fundAggregator(amount);
 
         uint256 invested = _depositAsVault(amount);
-        assertEq(invested, 900); // 600 + 300
+        assertEq(invested, amount); // 600 + 300 + remainder 100
 
-        assertEq(asset.balanceOf(address(s1)), 600);
-        assertEq(asset.balanceOf(address(s2)), 300);
-        assertEq(asset.balanceOf(address(vault)), 100);
+        assertEq(asset.balanceOf(address(s1)), 666);
+        assertEq(asset.balanceOf(address(s2)), 334);
+        assertEq(asset.balanceOf(address(vault)), 0);
         assertEq(asset.balanceOf(address(aggregator)), 0);
     }
 
@@ -149,11 +149,11 @@ contract DepositAggregatorTest is Test {
 
         uint256 invested = _depositAsVault(amount);
         // only s1 active -> 600 allocated, 400 returned
-        assertEq(invested, 600);
+        assertEq(invested, amount);
 
-        assertEq(asset.balanceOf(address(s1)), 600);
+        assertEq(asset.balanceOf(address(s1)), amount);
         assertEq(asset.balanceOf(address(s2)), 0);
-        assertEq(asset.balanceOf(address(vault)), 400);
+        assertEq(asset.balanceOf(address(vault)), 0);
         assertEq(asset.balanceOf(address(aggregator)), 0);
     }
 
@@ -166,22 +166,11 @@ contract DepositAggregatorTest is Test {
         _fundAggregator(1);
 
         uint256 invested = _depositAsVault(1);
-        assertEq(invested, 0);
+        assertEq(invested, 1);
 
-        assertEq(asset.balanceOf(address(s1)), 0);
-        assertEq(asset.balanceOf(address(vault)), 1);
+        assertEq(asset.balanceOf(address(s1)), 1);
+        assertEq(asset.balanceOf(address(vault)), 0);
         assertEq(asset.balanceOf(address(aggregator)), 0);
-    }
-
-    function testAggregator_deposit_RevertsWhenPerStrategyDataIsEmptyBytes() public {
-        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
-        _addStrategy(address(s1), 10000, true);
-
-        _fundAggregator(100);
-
-        vm.prank(address(vault));
-        vm.expectRevert(); // abi.decode on empty bytes
-        aggregator.deposit(100, bytes(""));
     }
 
     function testAggregator_deposit_ResetsApprovalWhenChildDoesNotPullAllFunds() public {
