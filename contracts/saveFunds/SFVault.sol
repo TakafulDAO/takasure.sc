@@ -828,11 +828,6 @@ contract SFVault is
      */
     function _chargeFees() internal returns (uint256 managementFeeAssets_, uint256 performanceFeeAssets_) {
         address feeRecipient = addressManager.getProtocolAddressByName("ADMIN__SF_FEE_RECEIVER").addr;
-        if (feeRecipient == address(0)) {
-            // Skip fees
-            lastReport = uint64(block.timestamp);
-            return (0, 0);
-        }
 
         uint256 totalAssets_ = totalAssets();
         uint256 totalShares_ = totalSupply();
@@ -857,10 +852,24 @@ contract SFVault is
             return (0, 0);
         }
 
-        // Only charge performance fee if above high-water mark
-        if (performanceFeeBPS == 0 || currentAssetsPerShareWad <= highWaterMark) {
+        // If no fee recipient is set, treat as "fees disabled": sync baseline to current
+        if (feeRecipient == address(0)) {
             lastReport = uint64(timestamp_);
             highWaterMark = currentAssetsPerShareWad;
+            return (0, 0);
+        }
+
+        // Only charge performance fee if above high-water mark
+        if (performanceFeeBPS == 0) {
+            // Performance fee disabled: sync baseline to current
+            lastReport = uint64(timestamp_);
+            highWaterMark = currentAssetsPerShareWad;
+            return (0, 0);
+        }
+
+        if (currentAssetsPerShareWad <= highWaterMark) {
+            // Do not reset downward
+            lastReport = uint64(timestamp_);
             return (0, 0);
         }
 
