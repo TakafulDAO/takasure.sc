@@ -779,6 +779,9 @@ contract SFUniswapV3Strategy is
         tokenIn.forceApprove(address(universalRouter), _amount);
 
         universalRouter.execute(commands, inputs, deadline);
+
+        // Clear allowance
+        tokenIn.forceApprove(address(universalRouter), 0);
     }
 
     /**
