@@ -94,7 +94,6 @@ contract GettersVaultTest is Test {
         // Use its deposit path to update internal accounting.
         deal(address(asset), address(this), amt);
         asset.approve(address(mock), amt);
-        mock.setMaxTVL(type(uint256).max);
         mock.deposit(amt, "");
 
         assertEq(vault.getAggregatorAssets(), vault.aggregatorAssets());
@@ -248,7 +247,6 @@ contract GettersVaultTest is Test {
         uint256 stratAssets = 800 * ONE_USDC;
         deal(address(asset), address(this), stratAssets);
         asset.approve(address(mock), stratAssets);
-        mock.setMaxTVL(type(uint256).max);
         mock.deposit(stratAssets, "");
 
         assertEq(mock.totalAssets(), stratAssets);

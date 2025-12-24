@@ -71,15 +71,6 @@ contract SFStrategyAggregatorHandler is Test {
                             OPERATOR ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function opSetMaxTVL(uint256 capIn) external {
-        // Allow 0 branch; keep sane otherwise.
-        uint256 cap = bound(capIn, 0, MAX_ASSETS);
-
-        vm.prank(operator);
-        (bool ok,) = address(aggregator).call(abi.encodeWithSelector(aggregator.setMaxTVL.selector, cap));
-        ok;
-    }
-
     function opSetConfig(bytes calldata cfg) external {
         vm.prank(operator);
         (bool ok,) = address(aggregator).call(abi.encodeWithSelector(aggregator.setConfig.selector, cfg));

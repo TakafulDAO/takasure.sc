@@ -88,7 +88,7 @@ contract UniV3StratTest is Test {
         usdt = IERC20(ARB_USDT);
 
         // Deploy aggregator and set as vault strategy
-        aggregator = aggregatorDeployer.run(addrMgr, asset, 100_000, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
 
         vm.startPrank(takadao);
         vault.whitelistToken(ARB_USDT);

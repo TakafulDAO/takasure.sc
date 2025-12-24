@@ -294,7 +294,6 @@ contract TakeFeesVaultTest is Test {
         uint256 stratProfit = 10_000_000; // makes perf fee > idle
         deal(address(asset), address(this), stratProfit);
         asset.approve(address(mock), stratProfit);
-        mock.setMaxTVL(type(uint256).max);
         mock.deposit(stratProfit, "");
 
         vm.warp(block.timestamp + 2);

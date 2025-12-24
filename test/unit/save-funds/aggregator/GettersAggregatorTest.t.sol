@@ -62,7 +62,7 @@ contract GettersAggregatorTest is Test {
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
-        aggregator = aggregatorDeployer.run(addrMgr, asset, 100_000, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
 
         // Fee recipient required by SFVault; not strictly needed for aggregator itself but kept consistent with other setup.
         feeRecipient = makeAddr("feeRecipient");
@@ -94,7 +94,6 @@ contract GettersAggregatorTest is Test {
         assertEq(cfg.asset, address(asset));
         assertEq(cfg.vault, address(vault));
         assertEq(cfg.pool, address(0));
-        assertEq(cfg.maxTVL, aggregator.maxTVL());
         assertEq(cfg.paused, aggregator.paused());
 
         vm.prank(pauser);
@@ -120,29 +119,6 @@ contract GettersAggregatorTest is Test {
         // only s1 counted
         assertEq(aggregator.totalAssets(), 1110);
         assertEq(aggregator.positionValue(), 1110);
-    }
-
-    function testAggregator_maxDeposit_Branches() public {
-        // maxTVL == 0 => no cap
-        vm.prank(takadao);
-        aggregator.setMaxTVL(0);
-        assertEq(aggregator.maxDeposit(), type(uint256).max);
-
-        // set cap and verify remaining room
-        TestSubStrategy s1 = new TestSubStrategy(asset);
-        vm.prank(takadao);
-        aggregator.addSubStrategy(address(s1), 10_000);
-
-        deal(address(asset), address(s1), 600);
-
-        vm.prank(takadao);
-        aggregator.setMaxTVL(1_000);
-
-        assertEq(aggregator.maxDeposit(), 400);
-
-        // at/over cap => 0
-        deal(address(asset), address(s1), 1_000); // now totalAssets >= 1_000
-        assertEq(aggregator.maxDeposit(), 0);
     }
 
     function testAggregator_maxWithdraw_EqualsTotalAssets() public {

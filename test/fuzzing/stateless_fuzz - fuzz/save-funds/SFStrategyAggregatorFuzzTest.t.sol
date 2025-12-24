@@ -50,7 +50,7 @@ contract SFStrategyAggregatorFuzzTest is Test {
 
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
-        aggregator = aggregatorDeployer.run(addrMgr, asset, 100_000, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
 
         feeRecipient = makeAddr("feeRecipient");
 
@@ -69,14 +69,6 @@ contract SFStrategyAggregatorFuzzTest is Test {
     /*//////////////////////////////////////////////////////////////
                           FUZZ: OPERATOR ONLY
     //////////////////////////////////////////////////////////////*/
-
-    function testFuzzAggregator_SetMaxTVL_RevertsIfCallerNotOperator(address caller, uint256 newMaxTVL) public {
-        vm.assume(!addrMgr.hasRole(Roles.OPERATOR, caller));
-
-        vm.prank(caller);
-        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__NotAuthorizedCaller.selector);
-        aggregator.setMaxTVL(newMaxTVL);
-    }
 
     function testFuzzAggregator_SetConfig_RevertsIfCallerNotOperator(address caller, bytes calldata cfg) public {
         vm.assume(!addrMgr.hasRole(Roles.OPERATOR, caller));

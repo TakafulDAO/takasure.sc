@@ -91,7 +91,6 @@ contract AccountingVaultTest is Test {
         deal(address(asset), user, stratAssets);
         vm.prank(user);
         asset.approve(address(mock), stratAssets);
-        mock.setMaxTVL(type(uint256).max);
         mock.deposit(stratAssets, "");
 
         assertEq(vault.aggregatorAssets(), mock.totalAssets());

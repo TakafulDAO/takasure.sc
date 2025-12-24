@@ -55,7 +55,7 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
-        aggregator = aggregatorDeployer.run(addrMgr, asset, 100_000, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
 
         // fee recipient often required elsewhere; keep consistent
         address feeRecipient = makeAddr("feeRecipient");
@@ -79,19 +79,18 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
 
         handler = new SFStrategyAggregatorHandler(aggregator, asset, address(vault), takadao, pauser);
 
-        bytes4[] memory selectors = new bytes4[](12);
-        selectors[0] = handler.opSetMaxTVL.selector;
-        selectors[1] = handler.opSetConfig.selector;
-        selectors[2] = handler.opAddSubStrategy.selector;
-        selectors[3] = handler.opUpdateSubStrategy.selector;
-        selectors[4] = handler.opEmergencyExit.selector;
-        selectors[5] = handler.opHarvest.selector;
-        selectors[6] = handler.opRebalance.selector;
-        selectors[7] = handler.opPause.selector;
-        selectors[8] = handler.opUnpause.selector;
-        selectors[9] = handler.vaultDeposit.selector;
-        selectors[10] = handler.vaultWithdraw.selector;
-        selectors[11] = handler.seedStrategyBalance.selector;
+        bytes4[] memory selectors = new bytes4[](11);
+        selectors[0] = handler.opSetConfig.selector;
+        selectors[1] = handler.opAddSubStrategy.selector;
+        selectors[2] = handler.opUpdateSubStrategy.selector;
+        selectors[3] = handler.opEmergencyExit.selector;
+        selectors[4] = handler.opHarvest.selector;
+        selectors[5] = handler.opRebalance.selector;
+        selectors[6] = handler.opPause.selector;
+        selectors[7] = handler.opUnpause.selector;
+        selectors[8] = handler.vaultDeposit.selector;
+        selectors[9] = handler.vaultWithdraw.selector;
+        selectors[10] = handler.seedStrategyBalance.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
@@ -145,18 +144,6 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
         assertEq(aggregator.totalAssets(), idle + strategiesSum);
     }
 
-    function invariant_Aggregator_MaxDepositConsistentWithCap() public view {
-        uint256 cap = aggregator.maxTVL();
-        uint256 ta = aggregator.totalAssets();
-
-        if (cap == 0) {
-            assertEq(aggregator.maxDeposit(), type(uint256).max);
-        } else {
-            uint256 expected = cap > ta ? (cap - ta) : 0;
-            assertEq(aggregator.maxDeposit(), expected);
-        }
-    }
-
     function invariant_Aggregator_MaxWithdrawEqualsTotalAssets() public view {
         assertEq(aggregator.maxWithdraw(), aggregator.totalAssets());
     }
@@ -166,7 +153,6 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
 
         assertEq(cfg.asset, address(asset));
         assertEq(cfg.vault, address(vault));
-        assertEq(cfg.maxTVL, aggregator.maxTVL());
         assertEq(cfg.paused, aggregator.paused());
     }
 }

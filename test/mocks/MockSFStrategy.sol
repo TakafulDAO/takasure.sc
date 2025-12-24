@@ -24,12 +24,6 @@ contract MockSFStrategy is ISFStrategy {
         return _totalAssets;
     }
 
-    function maxDeposit() external view override returns (uint256) {
-        // for tests: unlimited unless maxTVL set
-        if (_maxTVL == 0) return type(uint256).max;
-        return _maxTVL - _totalAssets;
-    }
-
     function maxWithdraw() external view override returns (uint256) {
         return _totalAssets;
     }
@@ -64,9 +58,6 @@ contract MockSFStrategy is ISFStrategy {
     function unpause() external override {}
     function emergencyExit(address) external override {}
 
-    function setMaxTVL(uint256 newMaxTVL) external override {
-        _maxTVL = newMaxTVL;
-    }
     function setConfig(bytes calldata) external {}
 
     function test() public {}

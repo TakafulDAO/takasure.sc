@@ -64,7 +64,7 @@ contract AccessAndSettersAggregatorTest is Test {
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
-        aggregator = aggregatorDeployer.run(addrMgr, asset, 100_000, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
 
         // Fee recipient required by SFVault; not strictly needed for aggregator itself but kept consistent with other setup.
         feeRecipient = makeAddr("feeRecipient");
@@ -88,24 +88,6 @@ contract AccessAndSettersAggregatorTest is Test {
 
         vm.prank(pauser);
         addrMgr.acceptProposedRole(Roles.PAUSE_GUARDIAN);
-    }
-
-    function testAggregator_setMaxTVL_UpdatesState() public {
-        uint256 oldMax = aggregator.maxTVL();
-        uint256 newMax = oldMax + 123;
-
-        vm.prank(takadao);
-        aggregator.setMaxTVL(newMax);
-
-        assertEq(aggregator.maxTVL(), newMax);
-    }
-
-    function testAggregator_setMaxTVL_RevertsForNonOperator(address caller) public {
-        vm.assume(caller != takadao);
-
-        vm.prank(caller);
-        vm.expectRevert(SFStrategyAggregator.SFStrategyAggregator__NotAuthorizedCaller.selector);
-        aggregator.setMaxTVL(1);
     }
 
     function testAggregator_setConfig_RevertsForNonOperator(address caller) public {
