@@ -912,6 +912,10 @@ contract SFUniswapV3Strategy is
         // Add liquidity
         (, uint256 amount0, uint256 amount1) = positionManager.increaseLiquidity(params);
 
+        //  Clear approvals after use
+        if (params.amount0Desired > 0) IERC20(token0).forceApprove(address(positionManager), 0);
+        if (params.amount1Desired > 0) IERC20(token1).forceApprove(address(positionManager), 0);
+
         // Map back used amounts
         if (token0 == address(underlying)) {
             usedUnderlying_ = amount0;
