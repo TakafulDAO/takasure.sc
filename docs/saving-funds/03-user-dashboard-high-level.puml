@@ -1,0 +1,18 @@
+@startuml
+title Save Fund (SF) – High-Level Sequence
+
+actor User
+participant "Frontend\n(SF UI)" as FE
+participant "SF Vault\n(Smart Contract)" as Vault
+database Subgraph as SG
+
+== User refreshes SF Dashboard ==
+
+User -> FE: Open / refresh SF Dashboard
+FE -> SG: Query TVL, APY, history
+SG --> FE: Updated TVL, APY, history
+FE -> Vault: Read user balance / vault TVL
+Vault --> FE: Latest balances
+FE -> User: Updated SF view (balance, PnL, APY, history)
+
+@enduml
