@@ -14,13 +14,11 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
-import {
-    Reserve,
-    BenefitMember,
-    BenefitMemberState,
-    CashFlowVars,
-    ProtocolAddress
-} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddress} from "contracts/types/Managers.sol";
+import {Reserve} from "contracts/types/Reserve.sol";
+import {CashFlowVars} from "contracts/types/Cash.sol";
+import {BenefitMemberState} from "contracts/types/States.sol";
+import {BenefitMember} from "contracts/types/Members.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";

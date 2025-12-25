@@ -15,12 +15,9 @@ import {
     ReentrancyGuardTransientUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {
-    AssociationMember,
-    AssociationMemberState,
-    ModuleState,
-    ProtocolAddress
-} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddress} from "contracts/types/Managers.sol";
+import {AssociationMemberState, ModuleState} from "contracts/types/States.sol";
+import {AssociationMember} from "contracts/types/Members.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";

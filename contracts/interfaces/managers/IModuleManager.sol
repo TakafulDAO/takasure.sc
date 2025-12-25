@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState} from "contracts/types/States.sol";
 
 pragma solidity 0.8.28;
 

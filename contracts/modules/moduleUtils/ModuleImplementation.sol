@@ -8,7 +8,8 @@
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IModuleManager} from "contracts/interfaces/managers/IModuleManager.sol";
 
-import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
+import {ModuleState} from "contracts/types/States.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 
 pragma solidity 0.8.28;
@@ -20,16 +21,14 @@ abstract contract ModuleImplementation {
 
     modifier onlyContract(string memory name, address addressManagerAddress) {
         require(
-            IAddressManager(addressManagerAddress).hasName(name, msg.sender),
-            ModuleErrors.Module__NotAuthorizedCaller()
+            IAddressManager(addressManagerAddress).hasName(name, msg.sender), ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
     }
 
     modifier onlyRole(bytes32 role, address addressManagerAddress) {
         require(
-            IAddressManager(addressManagerAddress).hasRole(role, msg.sender),
-            ModuleErrors.Module__NotAuthorizedCaller()
+            IAddressManager(addressManagerAddress).hasRole(role, msg.sender), ModuleErrors.Module__NotAuthorizedCaller()
         );
         _;
     }

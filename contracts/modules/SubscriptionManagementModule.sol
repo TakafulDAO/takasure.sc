@@ -20,14 +20,9 @@ import {
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {MemberPaymentFlow} from "contracts/helpers/payments/MemberPaymentFlow.sol";
 
-import {
-    Reserve,
-    BenefitMember,
-    BenefitMemberState,
-    ModuleState,
-    AssociationMember,
-    AssociationMemberState
-} from "contracts/types/TakasureTypes.sol";
+import {Reserve} from "contracts/types/Reserve.sol";
+import {BenefitMemberState, ModuleState, AssociationMemberState} from "contracts/types/States.sol";
+import {BenefitMember, AssociationMember} from "contracts/types/Members.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";

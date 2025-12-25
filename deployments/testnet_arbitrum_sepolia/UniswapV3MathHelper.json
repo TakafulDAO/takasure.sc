@@ -1,0 +1,49 @@
+{
+    "address": "0x7178164e984352c279B31EAe83a4a13578F83AcA",
+    "abi": [
+        {
+            "type": "function",
+            "name": "getAmountsForLiquidity",
+            "inputs": [
+                { "name": "sqrtRatioX96", "type": "uint160", "internalType": "uint160" },
+                { "name": "sqrtRatioAX96", "type": "uint160", "internalType": "uint160" },
+                { "name": "sqrtRatioBX96", "type": "uint160", "internalType": "uint160" },
+                { "name": "liquidity", "type": "uint128", "internalType": "uint128" }
+            ],
+            "outputs": [
+                { "name": "amount0", "type": "uint256", "internalType": "uint256" },
+                { "name": "amount1", "type": "uint256", "internalType": "uint256" }
+            ],
+            "stateMutability": "pure"
+        },
+        {
+            "type": "function",
+            "name": "getSqrtRatioAtTick",
+            "inputs": [{ "name": "tick", "type": "int24", "internalType": "int24" }],
+            "outputs": [{ "name": "", "type": "uint160", "internalType": "uint160" }],
+            "stateMutability": "pure"
+        },
+        {
+            "type": "function",
+            "name": "mulDiv",
+            "inputs": [
+                { "name": "a", "type": "uint256", "internalType": "uint256" },
+                { "name": "b", "type": "uint256", "internalType": "uint256" },
+                { "name": "denominator", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [{ "name": "result", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "pure"
+        },
+        {
+            "type": "function",
+            "name": "mulDivRoundingUp",
+            "inputs": [
+                { "name": "a", "type": "uint256", "internalType": "uint256" },
+                { "name": "b", "type": "uint256", "internalType": "uint256" },
+                { "name": "denominator", "type": "uint256", "internalType": "uint256" }
+            ],
+            "outputs": [{ "name": "result", "type": "uint256", "internalType": "uint256" }],
+            "stateMutability": "pure"
+        }
+    ]
+}

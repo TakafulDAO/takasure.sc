@@ -11,21 +11,21 @@
  * @dev The state in this contract will be mainly the modules addresses and their status and any other auxiliary data
  */
 
-import {IModuleImplementation} from "contracts/interfaces/IModuleImplementation.sol";
+import {IModuleImplementation} from "contracts/interfaces/modules/IModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Ownable2StepUpgradeable, OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable,
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {
+    ReentrancyGuardTransientUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState} from "contracts/types/States.sol";
 
 pragma solidity 0.8.28;
 
-contract ModuleManager is
-    Initializable,
-    UUPSUpgradeable,
-    Ownable2StepUpgradeable,
-    ReentrancyGuardTransientUpgradeable
-{
+contract ModuleManager is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable, ReentrancyGuardTransientUpgradeable {
     address private addressManager;
 
     mapping(address moduleAddr => ModuleState) private addressToModuleState;
@@ -35,11 +35,7 @@ contract ModuleManager is
     //////////////////////////////////////////////////////////////*/
 
     event OnNewModule(address newModuleAddr);
-    event OnModuleStateChanged(
-        address indexed moduleAddress,
-        ModuleState oldState,
-        ModuleState newState
-    );
+    event OnModuleStateChanged(address indexed moduleAddress, ModuleState oldState, ModuleState newState);
 
     error ModuleManager__InvalidCaller();
     error ModuleManager__AddressZeroNotAllowed();
@@ -76,10 +72,7 @@ contract ModuleManager is
         require(msg.sender == addressManager, ModuleManager__InvalidCaller());
         // New module can not be address 0, can not be already a module, and the status will be enabled
         require(newModule != address(0), ModuleManager__AddressZeroNotAllowed());
-        require(
-            addressToModuleState[newModule] == ModuleState.Unset,
-            ModuleManager__AlreadyModule()
-        );
+        require(addressToModuleState[newModule] == ModuleState.Unset, ModuleManager__AlreadyModule());
 
         addressToModuleState[newModule] = ModuleState.Enabled;
 
@@ -96,13 +89,9 @@ contract ModuleManager is
      * @dev Only the owner or the AddressManager can call this function
      */
     function changeModuleState(address module, ModuleState newState) external {
+        require(msg.sender == owner() || msg.sender == addressManager, ModuleManager__InvalidCaller());
         require(
-            msg.sender == owner() || msg.sender == addressManager,
-            ModuleManager__InvalidCaller()
-        );
-        require(
-            addressToModuleState[module] != ModuleState.Unset &&
-                addressToModuleState[module] != ModuleState.Deprecated,
+            addressToModuleState[module] != ModuleState.Unset && addressToModuleState[module] != ModuleState.Deprecated,
             ModuleManager__WrongState()
         );
 
@@ -144,8 +133,9 @@ contract ModuleManager is
      */
     function _checkIsModule(address _newModule) internal {
         try IModuleImplementation(_newModule).isValidModule() returns (bytes4 funcSelector) {
-            if (funcSelector != IModuleImplementation.isValidModule.selector)
+            if (funcSelector != IModuleImplementation.isValidModule.selector) {
                 revert ModuleManager__NotModule();
+            }
         } catch (bytes memory) {
             revert ModuleManager__NotModule();
         }

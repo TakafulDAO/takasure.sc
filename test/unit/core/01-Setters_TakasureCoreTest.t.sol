@@ -12,7 +12,9 @@ import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
-import {BenefitMember, Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve} from "contracts/types/Reserve.sol";
+import {CashFlowVars} from "contracts/types/Cash.sol";
+import {BenefitMember} from "contracts/types/Members.sol";
 
 contract Setters_TakasureCoreTest is StdCheats, Test {
     DeployManagers managersDeployer;
@@ -26,16 +28,9 @@ contract Setters_TakasureCoreTest is StdCheats, Test {
         managersDeployer = new DeployManagers();
         addressesAndRoles = new AddAddressesAndRoles();
         deployer = new DeployReserve();
-        (
-            HelperConfig.NetworkConfig memory config,
-            AddressManager addressManager,
-            ModuleManager moduleManager
-        ) = managersDeployer.run();
-        (address operator, , , , , , ) = addressesAndRoles.run(
-            addressManager,
-            config,
-            address(moduleManager)
-        );
+        (HelperConfig.NetworkConfig memory config, AddressManager addressManager, ModuleManager moduleManager) =
+            managersDeployer.run();
+        (address operator,,,,,,) = addressesAndRoles.run(addressManager, config, address(moduleManager));
         takasureReserve = deployer.run(config, addressManager);
         takadao = operator;
     }

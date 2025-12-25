@@ -7,7 +7,7 @@ import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IsModule, IsNotModule} from "test/mocks/ModuleMocks.sol";
-import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/Managers.sol";
 
 contract AddressManagerTest is Test {
     DeployManagers managerDeployer;

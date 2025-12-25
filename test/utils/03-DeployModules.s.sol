@@ -13,7 +13,7 @@ import {MainStorageModule} from "contracts/modules/MainStorageModule.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract DeployModules is Script {
     // address lifeBenefitModuleAddress;

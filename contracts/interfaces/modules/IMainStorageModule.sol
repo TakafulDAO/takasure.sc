@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import {AssociationMember, BenefitMember} from "contracts/types/TakasureTypes.sol";
+import {AssociationMember, BenefitMember} from "contracts/types/Members.sol";
 
 interface IMainStorageModule {
     /*

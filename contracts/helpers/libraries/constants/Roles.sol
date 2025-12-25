@@ -10,4 +10,5 @@ library Roles {
     bytes32 internal constant PAUSE_GUARDIAN = keccak256("PAUSE_GUARDIAN");
     bytes32 internal constant REVENUE_CLAIMER = keccak256("REVENUE_CLAIMER");
     bytes32 internal constant BACKEND_ADMIN = keccak256("BACKEND_ADMIN");
+    bytes32 internal constant KEEPER = keccak256("KEEPER");
 }

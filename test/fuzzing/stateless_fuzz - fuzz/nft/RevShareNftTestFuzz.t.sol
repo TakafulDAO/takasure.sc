@@ -6,7 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {RevShareModuleMock} from "test/mocks/RevShareModuleMock.sol";
-import {ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 

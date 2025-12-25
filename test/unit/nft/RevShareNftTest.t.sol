@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Test, console2} from "forge-std/Test.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 contract RevShareNftTest is Test {

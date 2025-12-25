@@ -19,7 +19,8 @@ import {
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/Managers.sol";
+import {ModuleState} from "contracts/types/States.sol";
 
 pragma solidity 0.8.28;
 

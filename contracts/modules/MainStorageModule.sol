@@ -7,13 +7,9 @@ import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 
-import {
-    ProtocolAddressType,
-    AssociationMember,
-    ModuleState,
-    AssociationMemberState,
-    BenefitMember
-} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
+import {ModuleState, AssociationMemberState} from "contracts/types/States.sol";
+import {AssociationMember, BenefitMember} from "contracts/types/Members.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
