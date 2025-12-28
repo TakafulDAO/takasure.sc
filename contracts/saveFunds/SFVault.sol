@@ -85,7 +85,23 @@ contract SFVault is
     event OnTokenHardCapUpdated(address indexed token, uint16 oldCapBPS, uint16 newCapBPS);
     event OnAggregatorUpdated(address indexed newAggregator);
     event OnFeeConfigUpdated(uint16 managementFeeBPS, uint16 performanceFeeBPS, uint16 performanceFeeHurdleBPS);
+    event OnMemberRegistered(address indexed newMember);
     event OnFeesTaken(uint256 feeAssets, FeeType feeType);
+    event OnManagementFeeCharged(
+        address indexed payer, address indexed recipient, uint256 grossAssets, uint256 feeAssets, uint256 sharesMinted
+    );
+
+    event OnInvestIntoStrategy(uint256 requestedAssets, uint256 investedAssets, bytes32 bundleHash);
+    event OnWithdrawFromStrategy(uint256 requestedAssets, uint256 withdrawnAssets, bytes32 bundleHash);
+    event OnPerformanceFeeCharged(
+        address indexed caller,
+        address indexed recipient,
+        uint256 feeAssets,
+        uint256 totalAssetsBefore,
+        uint256 totalAssetsAfter,
+        uint256 highWaterMarkBefore,
+        uint256 highWaterMarkAfter
+    );
 
     error SFVault__NotAuthorizedCaller();
     error SFVault__InvalidToken();
@@ -295,6 +311,8 @@ contract SFVault is
     function registerMember(address newMember) external onlyRole(Roles.BACKEND_ADMIN) {
         require(newMember != address(0), SFVault__NotAddressZero());
         validMembers.add(newMember);
+
+        emit OnMemberRegistered(newMember);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -375,6 +393,7 @@ contract SFVault is
         if (feeAssets > 0) {
             IERC20(asset()).safeTransfer(feeRecipient, feeAssets);
             emit OnFeesTaken(feeAssets, FeeType.MANAGEMENT);
+            emit OnManagementFeeCharged(caller, feeRecipient, assets, feeAssets, userShares);
         }
 
         // Mint shares to receiver
@@ -431,6 +450,7 @@ contract SFVault is
         if (feeAssets > 0) {
             IERC20(asset()).safeTransfer(feeRecipient, feeAssets);
             emit OnFeesTaken(feeAssets, FeeType.MANAGEMENT);
+            emit OnManagementFeeCharged(caller, feeRecipient, grossAssets, feeAssets, shares);
         }
 
         _mint(receiver, shares);
@@ -471,6 +491,8 @@ contract SFVault is
         bytes memory data = abi.encode(strategies, payloads);
 
         investedAssets = strat.deposit(assets, data);
+
+        emit OnInvestIntoStrategy(assets, investedAssets, keccak256(data));
     }
 
     /**
@@ -496,6 +518,8 @@ contract SFVault is
         bytes memory data = abi.encode(strategies, payloads);
 
         withdrawnAssets = strat.withdraw(assets, address(this), data);
+
+        emit OnWithdrawFromStrategy(assets, withdrawnAssets, keccak256(data));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -912,6 +936,16 @@ contract SFVault is
         lastReport = uint64(timestamp_);
 
         managementFeeAssets_ = 0;
+
+        emit OnPerformanceFeeCharged(
+            msg.sender,
+            feeRecipient,
+            performanceFeeAssets_,
+            totalAssets_,
+            newTotalAssets,
+            currentAssetsPerShareWad,
+            newAssetsPerShareWad
+        );
         return (0, performanceFeeAssets_);
     }
 

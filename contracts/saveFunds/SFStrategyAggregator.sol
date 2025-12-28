@@ -74,6 +74,37 @@ contract SFStrategyAggregator is
 
     event OnSubStrategyAdded(address indexed strategy, uint16 targetWeightBPS, bool isActive);
     event OnSubStrategyUpdated(address indexed strategy, uint16 targetWeightBPS, bool isActive);
+    event OnAggregatorEmergencyExit(address indexed receiver, uint256 idleSent);
+    event OnAggregatorDeposit(
+        address indexed vault,
+        uint256 requestedAssets,
+        uint256 investedAssets,
+        uint256 leftoverReturned,
+        bytes32 indexed bundleHash
+    );
+    event OnAggregatorWithdraw(
+        address indexed vault,
+        address indexed receiver,
+        uint256 requestedAssets,
+        uint256 withdrawnAssets,
+        bytes32 indexed bundleHash
+    );
+    event OnChildHarvest(address indexed childStrategy, address indexed caller);
+    event OnChildRebalance(address indexed childStrategy, address indexed caller);
+    event OnChildDeposit(
+        address indexed childStrategy,
+        uint256 allocatedAssets,
+        uint256 childInvested,
+        uint256 actualSpent,
+        bytes32 indexed bundleHash
+    );
+    event OnChildWithdraw(
+        address indexed childStrategy,
+        address indexed receiver,
+        uint256 requestedAssets,
+        uint256 withdrawnAssets,
+        bytes32 indexed bundleHash
+    );
     event OnStrategyLossReported(
         uint256 requestedAssets,
         uint256 withdrawnAssets,
@@ -224,6 +255,8 @@ contract SFStrategyAggregator is
         uint256 bal = underlying.balanceOf(address(this));
         if (bal > 0) underlying.safeTransfer(receiver, bal);
 
+        emit OnAggregatorEmergencyExit(receiver, bal);
+
         _pause();
     }
 
@@ -284,6 +317,8 @@ contract SFStrategyAggregator is
         uint256 leftover = underlying.balanceOf(address(this));
         if (leftover > 0) underlying.safeTransfer(vault, leftover);
 
+        emit OnAggregatorDeposit(vault, assets, investedAssets, leftover, keccak256(data));
+
         return investedAssets;
     }
 
@@ -326,6 +361,8 @@ contract SFStrategyAggregator is
             _reportLoss(assets, withdrawnAssets, prevTotalAssets);
         }
 
+        emit OnAggregatorWithdraw(vault, receiver, assets, withdrawnAssets, keccak256(data));
+
         return withdrawnAssets;
     }
 
@@ -347,6 +384,8 @@ contract SFStrategyAggregator is
                 address stratAddr = subStrategySet.at(i);
                 if (!subStrategyMeta[stratAddr].isActive) continue;
                 ISFStrategyMaintenance(stratAddr).harvest(bytes(""));
+
+                emit OnChildHarvest(stratAddr, msg.sender);
             }
             return;
         }
@@ -356,6 +395,7 @@ contract SFStrategyAggregator is
 
         for (uint256 i; i < strategies.length; ++i) {
             ISFStrategyMaintenance(strategies[i]).harvest(payloads[i]);
+            emit OnChildHarvest(strategies[i], msg.sender);
         }
     }
 
@@ -373,6 +413,7 @@ contract SFStrategyAggregator is
                 address stratAddr = subStrategySet.at(i);
                 if (!subStrategyMeta[stratAddr].isActive) continue;
                 ISFStrategyMaintenance(stratAddr).rebalance(bytes(""));
+                emit OnChildRebalance(stratAddr, msg.sender);
             }
             return;
         }
@@ -382,6 +423,7 @@ contract SFStrategyAggregator is
         for (uint256 i; i < strategies.length; ++i) {
             if (!subStrategyMeta[strategies[i]].isActive) continue;
             ISFStrategyMaintenance(strategies[i]).rebalance(payloads[i]);
+            emit OnChildRebalance(strategies[i], msg.sender);
         }
     }
 
@@ -643,6 +685,8 @@ contract SFStrategyAggregator is
 
         uint256 balanceAfter = underlying.balanceOf(address(this));
         actualSpent_ = balanceAfter < balanceBefore ? (balanceBefore - balanceAfter) : 0;
+
+        emit OnChildDeposit(_child, _toAllocate, childInvested_, actualSpent_, keccak256(childData));
     }
 
     /**
@@ -741,6 +785,11 @@ contract SFStrategyAggregator is
 
             uint256 got = ISFStrategy(stratAddr)
                 .withdraw(toAsk, address(this), _payloadFor(stratAddr, _dataStrategies, _perChildData));
+
+            emit OnChildWithdraw(
+                stratAddr, _receiver, toAsk, got, keccak256(_payloadFor(stratAddr, _dataStrategies, _perChildData))
+            );
+
             if (got == 0) continue;
 
             underlying.safeTransfer(_receiver, got);
