@@ -89,6 +89,25 @@ contract SFUniswapV3Strategy is
 
     event OnMaxTVLUpdated(uint256 oldMaxTVL, uint256 newMaxTVL);
     event TwapWindowUpdated(uint32 oldWindow, uint32 newWindow);
+    event OnEmergencyExit(
+        address indexed receiver, uint256 indexed oldTokenId, uint256 underlyingSent, uint256 otherSent
+    );
+    event OnTickRangeUpdated(int24 oldTickLower, int24 oldTickUpper, int24 newTickLower, int24 newTickUpper);
+    event OnPositionRebalanced(
+        uint256 indexed oldTokenId,
+        uint256 indexed newTokenId,
+        int24 oldTickLower,
+        int24 oldTickUpper,
+        int24 newTickLower,
+        int24 newTickUpper
+    );
+    event OnLiquidityDecreased(uint256 indexed tokenId, uint128 liquidityRemoved, uint256 amount0, uint256 amount1);
+    event OnSwapExecuted(address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut);
+    event OnPositionMinted(
+        uint256 indexed tokenId, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 amount0, uint256 amount1
+    );
+    event OnLiquidityIncreased(uint256 indexed tokenId, uint128 liquidityAdded, uint256 amount0, uint256 amount1);
+    event OnPositionCollected(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
 
     error SFUniswapV3Strategy__InvalidPoolTokens();
     error SFUniswapV3Strategy__InvalidTicks();
@@ -265,6 +284,8 @@ contract SFUniswapV3Strategy is
 
         uint256 balUnderlying = underlying.balanceOf(address(this));
         if (balUnderlying > 0) underlying.safeTransfer(receiver, balUnderlying);
+
+        emit OnEmergencyExit(receiver, tokenId_, balUnderlying, balOther);
 
         _pause();
     }
@@ -446,6 +467,10 @@ contract SFUniswapV3Strategy is
      */
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused {
         _onlyKeeperOrOperator();
+        uint256 oldTokenId = positionTokenId;
+        int24 oldTickLower = tickLower;
+        int24 oldTickUpper = tickUpper;
+
         (int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) =
             abi.decode(data, (int24, int24, uint256, uint256, uint256));
 
@@ -484,6 +509,8 @@ contract SFUniswapV3Strategy is
         tickLower = newTickLower;
         tickUpper = newTickUpper;
 
+        emit OnTickRangeUpdated(oldTickLower, oldTickUpper, newTickLower, newTickUpper);
+
         // 4) Mint a new position using whatever balances we now hold.
         uint256 balUnderlying = underlying.balanceOf(address(this));
         uint256 balOther = otherToken.balanceOf(address(this));
@@ -492,6 +519,8 @@ contract SFUniswapV3Strategy is
         if (balUnderlying == 0 && balOther == 0) return;
 
         _mintPosition(balUnderlying, balOther, pmDeadline, minUnderlying, minOther);
+
+        emit OnPositionRebalanced(oldTokenId, positionTokenId, oldTickLower, oldTickUpper, newTickLower, newTickUpper);
 
         // Ensure strategy doesn't retain assets
         _sweepToVault();
@@ -686,7 +715,8 @@ contract SFUniswapV3Strategy is
                 deadline: pmDeadline
             });
 
-        positionManager.decreaseLiquidity(params);
+        (uint256 amount0, uint256 amount1) = positionManager.decreaseLiquidity(params);
+        emit OnLiquidityDecreased(positionTokenId, _liquidity, amount0, amount1);
 
         // Collect everything owed to this strategy so we can swap/sweep
         INonfungiblePositionManager.CollectParams memory cparams = INonfungiblePositionManager.CollectParams({
@@ -696,7 +726,8 @@ contract SFUniswapV3Strategy is
             amount1Max: type(uint128).max
         });
 
-        positionManager.collect(cparams);
+        (uint256 c0, uint256 c1) = positionManager.collect(cparams);
+        emit OnPositionCollected(positionTokenId, c0, c1);
     }
 
     /**
@@ -778,7 +809,13 @@ contract SFUniswapV3Strategy is
         // ? Not sure if keep thisline, it doesn't satisfy Permit2 but also doesn't hurt
         tokenIn.forceApprove(address(universalRouter), _amount);
 
+        uint256 outBefore = IERC20(expectedOut).balanceOf(address(this));
+
         universalRouter.execute(commands, inputs, deadline);
+
+        uint256 outAfter = IERC20(expectedOut).balanceOf(address(this));
+
+        emit OnSwapExecuted(address(tokenIn), expectedOut, _amount, outAfter - outBefore);
 
         // Clear allowance
         tokenIn.forceApprove(address(universalRouter), 0);
@@ -841,7 +878,8 @@ contract SFUniswapV3Strategy is
         }
 
         // Mint position
-        (uint256 tokenId,, uint256 amount0, uint256 amount1) = positionManager.mint(params);
+        (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) = positionManager.mint(params);
+        emit OnPositionMinted(tokenId, tickLower, tickUpper, liquidity, amount0, amount1);
 
         // Store the position token id on first mint
         if (positionTokenId == 0) {
@@ -913,7 +951,8 @@ contract SFUniswapV3Strategy is
         }
 
         // Add liquidity
-        (, uint256 amount0, uint256 amount1) = positionManager.increaseLiquidity(params);
+        (uint128 liq, uint256 amount0, uint256 amount1) = positionManager.increaseLiquidity(params);
+        emit OnLiquidityIncreased(positionTokenId, liq, amount0, amount1);
 
         //  Clear approvals after use
         if (params.amount0Desired > 0) IERC20(token0).forceApprove(address(positionManager), 0);
@@ -995,7 +1034,8 @@ contract SFUniswapV3Strategy is
         });
 
         // Collect all fees (and any owed tokens)
-        positionManager.collect(collectParams);
+        (uint256 a0, uint256 a1) = positionManager.collect(collectParams);
+        emit OnPositionCollected(positionTokenId, a0, a1);
 
         // Optional: swap collected otherToken -> underlying if keeper supplied swap payload
         uint256 balOther = otherToken.balanceOf(address(this));
