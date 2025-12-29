@@ -1,0 +1,192 @@
+@startuml Save Fund (SF) – Harvest (Detailed)
+title Save Fund (SF) – Harvest (Detailed)
+
+autonumber
+
+participant "Backend Bot\n(Keeper/Operator)" as Bot
+participant "AddressManager" as AM
+participant "SFStrategyAggregator" as Agg
+participant "Sub-Strategy\n(Uniswap V3)" as V3
+participant "Uniswap V3\nPositionManager (NFT)" as PM
+participant "Universal Router\n(optional swap)" as UR
+participant "USDC\n(Underlying ERC20)" as USDC
+participant "SFVault" as Vault
+database "Subgraph" as SG
+
+== Preconditions ==
+
+ref over Bot, Agg
+Strategies are configured in the Aggregator.
+(Some capital may already be deployed.)
+end ref
+
+ref over Vault, V3
+For UniswapV3Strategy maintenance calls:
+Vault must have approved the strategy to manage the position NFT
+(vault -> positionManager: setApprovalForAll(strategy, true))
+end ref
+
+== Keeper decides harvest scope ==
+
+Bot -> SG: (optional) Query recent performance/events\n(to decide which strategies to harvest)
+SG --> Bot: Indexed events + snapshots
+
+alt Harvest ALL active strategies (data is empty)
+  Bot -> Agg: harvest(bytes(""))
+  activate Agg
+
+  Agg -> AM: hasRole(KEEPER|OPERATOR, msg.sender)
+  AM --> Agg: true/false
+
+  alt caller not Keeper/Operator
+    Agg --> Bot: REVERT SFStrategyAggregator__NotAuthorizedCaller
+    deactivate Agg
+  else success
+    loop For each subStrategy in set
+      alt strategy is inactive
+        Agg -> Agg: skip
+      else strategy is active
+        Agg -> V3: harvest(bytes(""))
+        activate V3
+
+        V3 -> AM: hasRole(KEEPER|OPERATOR, msg.sender)\n(_onlyKeeperOrOperator)
+        AM --> V3: true/false
+
+        alt caller not Keeper/Operator
+          V3 --> Agg: REVERT (strategy auth)
+          deactivate V3
+          Agg --> Bot: Tx revert bubbles up
+          deactivate Agg
+        else vault NOT approved for NFT
+          V3 -> PM: isApprovedForAll(vault, V3)
+          PM --> V3: false
+          V3 --> Agg: REVERT SFUniswapV3Strategy__VaultNotApprovedForNFT
+          deactivate V3
+          Agg --> Bot: Tx revert bubbles up
+          deactivate Agg
+        else success (collect fees + sweep)
+          V3 -> PM: collect(tokenId, recipient=V3,\namount0Max=max, amount1Max=max)
+          PM --> V3: (amount0, amount1)
+          V3 -> SG: Emit OnPositionCollected(tokenId, amount0, amount1)
+
+          opt Other token collected and swap payload exists
+            V3 -> UR: execute swap\n(otherToken -> USDC)
+            UR --> V3: swap result
+            V3 -> SG: Emit OnSwapExecuted(...)
+          end
+
+          V3 -> USDC: transfer(Vault, usdcBalance)\n(_sweepToVault)
+          USDC --> V3: Transfer OK
+
+          V3 --> Agg: return
+          deactivate V3
+
+          Agg -> SG: Emit OnChildHarvest(V3, msg.sender)
+        end
+      end
+    end
+
+    Agg --> Bot: success receipt
+    deactivate Agg
+  end
+
+else Harvest selected strategies (data contains allowlist + payloads)
+  Bot -> Agg: harvest(abi.encode(strategies[], payloads[]))
+  activate Agg
+
+  Agg -> AM: hasRole(KEEPER|OPERATOR, msg.sender)
+  AM --> Agg: true/false
+
+  alt caller not Keeper/Operator
+    Agg --> Bot: REVERT SFStrategyAggregator__NotAuthorizedCaller
+    deactivate Agg
+  else invalid per-strategy data
+    Agg -> Agg: _decodePerStrategyData(data)
+    note right of Agg
+    Validation:
+    - strategies.length == payloads.length
+    - each strategy != 0
+    - strategy exists in subStrategySet
+    - no duplicates
+    end note
+    Agg --> Bot: REVERT SFStrategyAggregator__InvalidPerStrategyData\n(or Unknown/Duplicate)
+    deactivate Agg
+  else success
+    loop i in strategies[]
+      Agg -> V3: harvest(payloads[i])
+      activate V3
+
+      V3 -> PM: isApprovedForAll(vault, V3)
+      PM --> V3: true/false
+
+      alt vault NOT approved for NFT
+        V3 --> Agg: REVERT SFUniswapV3Strategy__VaultNotApprovedForNFT
+        deactivate V3
+        Agg --> Bot: Tx revert bubbles up
+        deactivate Agg
+      else success
+        V3 -> PM: collect(...)
+        PM --> V3: (amount0, amount1)
+        V3 -> SG: Emit OnPositionCollected(...)
+
+        opt swap payload provided
+          V3 -> UR: execute swap
+          UR --> V3: swap result
+          V3 -> SG: Emit OnSwapExecuted(...)
+        end
+
+        V3 -> USDC: transfer(Vault, usdcBalance)
+        USDC --> V3: Transfer OK
+
+        V3 --> Agg: return
+        deactivate V3
+
+        Agg -> SG: Emit OnChildHarvest(V3, msg.sender)
+      end
+    end
+
+    Agg --> Bot: success receipt
+    deactivate Agg
+  end
+end
+
+== Optional: charge performance fees after harvest ==
+
+opt Bot also has OPERATOR role and wants to realize performance fees now
+  Bot -> Vault: takeFees()
+  activate Vault
+
+  note right of Vault
+  takeFees() -> _chargeFees():
+  - computes current assets/share (WAD)
+  - compares vs highWaterMark (no downward reset)
+  - applies optional APY hurdle (elapsed since lastReport)
+  - performanceFeeAssets = feeableProfit * performanceFeeBPS / MAX_BPS
+  - requires idleAssets() >= performanceFeeAssets
+  - transfers USDC to ADMIN__SF_FEE_RECEIVER
+  - updates lastReport + highWaterMark (post-fee)
+  end note
+
+  alt no shares or no assets
+    Vault -> Vault: lastReport = now; highWaterMark = 0
+    Vault --> Bot: (0, 0)
+    deactivate Vault
+  else highWaterMark == 0 (first report)
+    Vault -> Vault: set highWaterMark = current; lastReport = now
+    Vault --> Bot: (0, 0)
+    deactivate Vault
+  else no fee due (<= HWM or hurdle not met or fee rounds to 0)
+    Vault -> Vault: lastReport updated\n(HWM updated only on certain branches)
+    Vault --> Bot: (0, 0)
+    deactivate Vault
+  else fee due
+    Vault -> Vault: require idleAssets >= performanceFeeAssets
+    Vault -> USDC: transfer(feeRecipient, performanceFeeAssets)
+    USDC --> Vault: Transfer OK
+    Vault -> SG: Emit OnFeesTaken(PERFORMANCE)\nEmit OnPerformanceFeeCharged(...)
+    Vault --> Bot: (0, performanceFeeAssets)
+    deactivate Vault
+  end
+end
+
+@enduml
