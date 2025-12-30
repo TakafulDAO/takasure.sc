@@ -1,0 +1,182 @@
+{
+    "meta": {
+        "name": "sf-arbitrumfork-montecarlo",
+        "version": "1.0.0",
+        "created": "2025-12-30T20:55:37Z",
+        "notes": [
+            "Designed for ethers.js runner against a stateful Arbitrum One fork on Tenderly Virtual TestNet recommended.",
+            "Contract addresses and role accounts are placeholders and must be filled with deployment-specific values."
+        ]
+    },
+    "network": {
+        "fork": "arbitrum-one",
+        "chainId": 42161,
+        "rpc": {
+            "public": "<TENDERLY_PUBLIC_RPC_URL>",
+            "admin": "<TENDERLY_ADMIN_RPC_URL>"
+        }
+    },
+    "contracts": {
+        "addressManager": "<DEPLOYED_ADDRESS_MANAGER>",
+        "vault": "<DEPLOYED_SFVAULT>",
+        "aggregator": "<DEPLOYED_SFSTRATEGY_AGGREGATOR>",
+        "strategies": {
+            "uniswapV3": "<DEPLOYED_SFUNISWAPV3STRATEGY>"
+        }
+    },
+    "roles": {
+        "owner": "<EOA_OWNER>",
+        "operator": "<EOA_OPERATOR>",
+        "keeper": "<EOA_KEEPER>",
+        "backendAdmin": "<EOA_BACKEND_ADMIN>"
+    },
+    "uniswap": {
+        "pool": "0xC6962004f452bE9203591991D15f6b388e09E8D0",
+        "fee": 500,
+        "tokens": {
+            "underlying": {
+                "symbol": "USDC",
+                "address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+                "decimals": 6
+            },
+            "other": {
+                "symbol": "WETH",
+                "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                "decimals": 18
+            }
+        },
+        "factoryV3": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "positionManager": "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
+        "universalRouter": "0xa51afafe0263b40edaef0df8781ea9aa03e381a3",
+        "quoterV2": "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+    },
+    "actors": {
+        "protocolUsers": 100,
+        "marketSwappers": 150
+    },
+    "funding": {
+        "member": {
+            "eth": 5,
+            "usdc": 50000
+        },
+        "swapper": {
+            "eth": 5,
+            "usdc": 200000,
+            "weth": 100
+        }
+    },
+    "time": {
+        "ticks": 168,
+        "secondsPerTick": 3600,
+        "advanceTime": {
+            "method": "evm_increaseTime+evm_mine"
+        }
+    },
+    "rng": {
+        "seed": 123456789
+    },
+    "protocolActivity": {
+        "userActionsPerTick": {
+            "distribution": "poisson",
+            "lambda": 3
+        },
+        "actionProbabilities": {
+            "deposit": 0.45,
+            "withdraw": 0.45,
+            "noop": 0.1
+        },
+        "deposit": {
+            "minUSDC": 100,
+            "maxUSDC": 10000
+        },
+        "withdraw": {
+            "minPct": 0.05,
+            "maxPct": 0.6
+        }
+    },
+    "marketActivity": {
+        "baseSwapsPerTick": 20,
+        "swapsPerProtocolTx": 10,
+        "directionProbabilities": {
+            "usdcToWeth": 0.5,
+            "wethToUsdc": 0.5
+        },
+        "amountIn": {
+            "usdcToWeth": {
+                "distribution": "loguniform",
+                "min": 500,
+                "max": 200000
+            },
+            "wethToUsdc": {
+                "distribution": "loguniform",
+                "min": 0.2,
+                "max": 80
+            }
+        }
+    },
+    "keeperPolicy": {
+        "idleBufferTargetBps": 1500,
+        "idleBufferFloorUSDC": 50000,
+        "investIfIdleAboveTargetPlusBps": 500,
+        "investPctOfIdle": 0.7,
+        "evaluateEveryTick": true,
+        "harvestEveryTicks": 6,
+        "rebalanceEveryTicks": 24,
+        "takeFeesAtEndOfDay": true
+    },
+    "strategyPolicy": {
+        "twapWindowSeconds": 1800,
+        "initialRange": {
+            "halfRangeTicks": 1200
+        },
+        "rebalance": {
+            "pmDeadlineSeconds": 900,
+            "minUnderlying": 0,
+            "minOther": 0
+        }
+    },
+    "payload": {
+        "universalRouterV3ExactIn": {
+            "containerEncoding": "abi.encode(bytes[] inputs,uint256 deadline)",
+            "inputEncoding": "abi.encode(address recipient,uint256 amountIn,uint256 amountOutMin,bytes path,bool payerIsUser)",
+            "recipient": "strategy",
+            "payerIsUser": true,
+            "pathEncoding": "abi.encodePacked(tokenIn,uint24 fee,tokenOut)",
+            "deadlineSeconds": 900
+        },
+        "slippage": {
+            "mode": "quoter-v2",
+            "slippageBps": 100,
+            "fallbackAmountOutMin": 0
+        }
+    },
+    "assertions": {
+        "checkEveryTx": true,
+        "shareTransfersRevert": true,
+        "strategyDustAlert": {
+            "token": "WETH",
+            "maxDust": 0.01
+        },
+        "routerAllowanceMustClear": true
+    },
+    "metrics": {
+        "perTick": [
+            "timestamp",
+            "tickIndex",
+            "protocolTxCount",
+            "marketSwapCount",
+            "vault_totalAssets",
+            "vault_totalSupply",
+            "vault_sharePrice",
+            "vault_idleAssets",
+            "aggregator_assets",
+            "strategy_totalAssets",
+            "position_tickLower",
+            "position_tickUpper",
+            "position_tokensOwed0",
+            "position_tokensOwed1",
+            "fees_taken"
+        ]
+    }
+}
