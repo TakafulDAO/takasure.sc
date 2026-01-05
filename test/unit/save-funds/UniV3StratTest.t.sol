@@ -304,7 +304,7 @@ contract UniV3StratTest is Test {
         _approveNFTForStrategy();
 
         vm.prank(takadao);
-        uniV3Strategy.harvest(bytes(""));
+        aggregator.harvest(bytes(""));
 
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
         assertEq(usdt.balanceOf(address(uniV3Strategy)), 0);
@@ -315,7 +315,7 @@ contract UniV3StratTest is Test {
 
         vm.prank(takadao);
         vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__VaultNotApprovedForNFT.selector);
-        uniV3Strategy.rebalance(data);
+        aggregator.rebalance(_perStrategyData(data));
     }
 
     function testUniV3Strat_rebalance_WhenNoPosition_UpdatesTicks() public {
@@ -324,7 +324,7 @@ contract UniV3StratTest is Test {
         bytes memory data = abi.encode(int24(-400), int24(400), block.timestamp + 1, uint256(0), uint256(0));
 
         vm.prank(takadao);
-        uniV3Strategy.rebalance(data);
+        aggregator.rebalance(_perStrategyData(data));
 
         (uint8 version,, address poolAddr, int24 tl, int24 tu) =
             abi.decode(uniV3Strategy.getPositionDetails(), (uint8, uint256, address, int24, int24));
@@ -352,7 +352,7 @@ contract UniV3StratTest is Test {
         bytes memory data = abi.encode(int24(-600), int24(600), block.timestamp + 1, uint256(0), uint256(0));
 
         vm.prank(takadao);
-        uniV3Strategy.rebalance(data);
+        aggregator.rebalance(_perStrategyData(data));
 
         uint256 tokenIdAfter = uniV3Strategy.positionTokenId();
         assertGt(tokenIdAfter, 0);
