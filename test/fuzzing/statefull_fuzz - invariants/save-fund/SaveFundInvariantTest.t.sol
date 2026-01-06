@@ -24,6 +24,9 @@ import {SaveFundHandler} from "test/helpers/handlers/SaveFundHandler.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 contract SaveFundInvariantTest is StdInvariant, Test {
+    // Foundry RPC_URL
+    string internal constant ANVIL_RPC_URL = "http://127.0.0.1:8545";
+
     // ===== Arbitrum One / Scenario constants =====
     address internal constant ARB_USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
     address internal constant ARB_WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
@@ -70,7 +73,7 @@ contract SaveFundInvariantTest is StdInvariant, Test {
 
     function setUp() public {
         // ===== fork =====
-        uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"), vm.envUint("ARBITRUM_FORK_BLOCK"));
+        uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"));
         vm.selectFork(forkId);
 
         // ===== deploy managers + base roles/addresses =====
