@@ -1,0 +1,61 @@
+@startuml Subscription_with_benefits_no_prorate
+title Subscription with benefits — no prorate
+autonumber
+
+!include subscription-common.puml
+
+actor Backend
+actor Parent
+actor Member
+participant SubscriptionModule
+participant MembersData
+participant CouponPool
+participant RewardsModule
+participant KYCModule
+participant LifeBenefitModule
+participant Reserve
+
+ref over Backend, SubscriptionModule [[subscription-without-benefit.puml]] : Base subscription (prechecks, register & confirm)
+
+CouponPool -> SubscriptionModule: transfer minimum contribution
+
+Backend -> LifeBenefitModule: joinBenefit(memberWallet)
+LifeBenefitModule -> KYCModule: KYC_MANDATORY()
+alt [NOT KYCed]
+  LifeBenefitModule -x Backend: REVERT(NotKYCed())
+else
+  LifeBenefitModule -> MembersData: updateMember(memberWallet)
+
+  alt [minimum transfer succeeds]
+    SubscriptionModule -> Reserve: transfer minimum contribution to Reserve
+
+    opt [there-was-a-parent]
+      SubscriptionModule -> RewardsModule: rewardParent
+      RewardsModule -> RewardsModule: Emits event
+      RewardsModule --> Parent: transfer parent reward
+    end
+  else [minimum transfer fails]
+    SubscriptionModule -> Reserve: transfer minimum contribution to Reserve
+    Reserve -x LifeBenefitModule: REVERT(TransferToReserveFailed())
+    LifeBenefitModule -x Backend: REVERT(JoinBenefit_ReserveTransferFailed())
+  end
+
+  alt [remaining transfer succeeds]
+    CouponPool -> Reserve: transfer remaining contribution to Reserve
+
+    opt [there-was-a-parent]
+      LifeBenefitModule -> RewardsModule: assignParentReward(for the remaining contribution)
+      LifeBenefitModule -> RewardsModule: rewardParent
+      RewardsModule -> RewardsModule: Emits event
+      RewardsModule --> Parent: transfer parent reward
+    end
+
+    Reserve -> Reserve: Run algorithms (include member)
+  else [remaining transfer fails]
+    CouponPool -> Reserve: transfer remaining contribution to Reserve
+    Reserve -x LifeBenefitModule: REVERT(TransferRemainingToReserveFailed())
+    LifeBenefitModule -x Backend: REVERT(JoinBenefit_ReserveTransferFailed())
+  end
+end
+
+@enduml
