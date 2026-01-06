@@ -29,6 +29,10 @@ build-certora:; forge build --contracts ./certora/
 
 test :; forge test 
 
+sim-test:
+	@forge clean
+	@forge test --mc SaveFundInvariantTest -vvv --jobs 1
+
 coverage-report :; forge coverage --ir-minimum --report debug > coverage-report.txt
 
 snapshot :; forge snapshot
