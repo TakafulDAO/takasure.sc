@@ -84,7 +84,7 @@ contract SaveFundInvariantTest is StdInvariant, Test {
         addrMgr = _addrMgr;
         modMgr = _modMgr;
 
-        (operator,,,, backendAdmin,,) = addressesAndRoles.run(addrMgr, config, address(modMgr));
+        (operator,,, backendAdmin,,,) = addressesAndRoles.run(addrMgr, config, address(modMgr));
 
         keeper = makeAddr("keeper");
         pauseGuardian = makeAddr("pauseGuardian");
