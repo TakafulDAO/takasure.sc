@@ -70,7 +70,7 @@ contract SaveFundInvariantTest is StdInvariant, Test {
 
     function setUp() public {
         // ===== fork =====
-        uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"));
+        uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"), vm.envUint("ARBITRUM_FORK_BLOCK"));
         vm.selectFork(forkId);
 
         // ===== deploy managers + base roles/addresses =====
