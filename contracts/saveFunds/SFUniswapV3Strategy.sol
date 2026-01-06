@@ -416,7 +416,7 @@ contract SFUniswapV3Strategy is
      *                  `otherToken` may remain in the strategy and is accounted for in `totalAssets()`.
      */
     function harvest(bytes calldata data) external nonReentrant whenNotPaused {
-        _onlyKeeperOrOperator();
+        _onlyContract("PROTOCOL__SF_AGGREGATOR");
         // Collect fees only.
         _collectFees(data);
         // Strategy must not hold assets
@@ -445,7 +445,7 @@ contract SFUniswapV3Strategy is
      * @custom:invariant `tickLower` and `tickUpper` must remain aligned to pool tickSpacing; ERC20 leftovers are swept to `vault`.
      */
     function rebalance(bytes calldata data) external nonReentrant whenNotPaused {
-        _onlyKeeperOrOperator();
+        _onlyContract("PROTOCOL__SF_AGGREGATOR");
         (int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) =
             abi.decode(data, (int24, int24, uint256, uint256, uint256));
 
@@ -1187,14 +1187,6 @@ contract SFUniswapV3Strategy is
 
         uint24 fee = _firstFee(_path);
         require(fee == pool.fee(), SFUniswapV3Strategy__InvalidStrategyData());
-    }
-
-    function _onlyKeeperOrOperator() internal view {
-        require(
-            IAddressManager(addressManager).hasRole(Roles.KEEPER, msg.sender)
-                || IAddressManager(addressManager).hasRole(Roles.OPERATOR, msg.sender),
-            SFUniswapV3Strategy__NotAuthorizedCaller()
-        );
     }
 
     function _notAddressZero(address _addr) internal pure {
