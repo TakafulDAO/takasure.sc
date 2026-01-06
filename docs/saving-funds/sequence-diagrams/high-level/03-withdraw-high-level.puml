@@ -1,0 +1,49 @@
+@startuml Save Fund (SF) – Withdraws (High-Level)
+title Save Fund (SF) – Withdraws (High-Level)
+
+actor User
+participant "Frontend\n(SF UI)" as FE
+participant "In-App Wallet\n(or EOA)" as Wallet
+participant "Backend\n(Keepers/Bots)" as BE
+participant "SF Vault\n(Smart Contract)" as Vault
+participant "Strategy Aggregator\n(Smart Contract)" as Agg
+participant "Sub-Strategies\n(e.g., Uniswap V3)" as Child
+database "Subgraph" as SG
+
+== User withdraws ==
+
+ref over User, Vault
+User must already hold shares
+(see: Deposits diagram)
+end ref
+
+User -> FE: Enter amount\nClick "Withdraw"
+FE -> Vault: Check idle liquidity / preview withdraw
+Vault --> FE: Liquidity + preview info
+
+alt Idle liquidity is sufficient
+  FE -> Wallet: Build tx: Vault.withdraw/redeem(...)
+  Wallet -> Vault: withdraw/redeem(...)
+  Vault --> Wallet: Tx receipt
+  Vault -> SG: Emit Withdraw event\n(indexed by Subgraph)
+else Idle liquidity is insufficient
+  FE -> BE: Request liquidity\n(off-chain trigger)
+  BE -> Vault: withdrawFromStrategy(assetsNeeded, bundle)
+  Vault -> Agg: withdraw(bundle) to Vault
+  Agg -> Child: withdraw(per-strategy payload)\n(as needed)
+  Child --> Agg: Withdrawn underlying
+  Agg --> Vault: Transfer underlying back
+
+  BE <-- Vault: Tx receipt (liquidity freed)
+
+  FE -> Wallet: Build tx: Vault.withdraw/redeem(...)
+  Wallet -> Vault: withdraw/redeem(...)
+  Vault --> Wallet: Tx receipt
+  Vault -> SG: Emit withdraw + strategy events\n(indexed by Subgraph)
+end
+
+FE -> SG: Refresh user history / balances
+SG --> FE: Updated data
+FE -> User: Updated SF dashboard
+
+@enduml
