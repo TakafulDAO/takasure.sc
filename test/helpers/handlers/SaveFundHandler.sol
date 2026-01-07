@@ -319,7 +319,17 @@ contract SaveFundHandler is Test {
         uint256 ratioBps = uint256(bound(ratioSeed, 0, 10_000));
         uint256 deadline = block.timestamp + bound(deadlineSeed, 1, 1 days);
 
-        bytes memory swapToUnderlying = _encodeUniV3ExactInSwap(address(other), address(underlying), POOL_FEE, 1e6);
+        uint256 otherBal = other.balanceOf(address(uniV3));
+        if (otherBal == 0) {
+            _afterProtocolOp(ratioSeed);
+            return;
+        }
+
+        uint256 amountIn = otherBal > 1e6 ? 1e6 : otherBal;
+
+        bytes memory swapToUnderlying =
+            _encodeUniV3ExactInSwap(address(other), address(underlying), uint24(100), amountIn);
+
         bytes memory data = abi.encode(ratioBps, swapToUnderlying, bytes(""), deadline, uint256(0), uint256(0));
 
         bytes memory encoded = _encodeSingleStrategyPayload(data);
