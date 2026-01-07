@@ -7,33 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
 import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
-
-interface IUniV3Pool {
-    function token0() external view returns (address);
-    function token1() external view returns (address);
-    function tickSpacing() external view returns (int24);
-
-    function slot0()
-        external
-        view
-        returns (
-            uint160 sqrtPriceX96,
-            int24 tick,
-            uint16 observationIndex,
-            uint16 observationCardinality,
-            uint16 observationCardinalityNext,
-            uint8 feeProtocol,
-            bool unlocked
-        );
-
-    function swap(
-        address recipient,
-        bool zeroForOne,
-        int256 amountSpecified,
-        uint160 sqrtPriceLimitX96,
-        bytes calldata data
-    ) external returns (int256 amount0, int256 amount1);
-}
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 library TransferHelper {
     function safeTransferFrom(address token, address from, address to, uint256 value) internal {
@@ -48,10 +22,10 @@ contract MarketSwapCaller {
     uint160 internal constant MIN_SQRT_RATIO_PLUS_ONE = 4295128739 + 1;
     uint160 internal constant MAX_SQRT_RATIO_MINUS_ONE = 1461446703485210103287273052203988822378723970342 - 1;
 
-    IUniV3Pool public pool;
+    IUniswapV3Pool public pool;
 
     constructor(address _pool) {
-        pool = IUniV3Pool(_pool);
+        pool = IUniswapV3Pool(_pool);
     }
 
     function marketSwapExactIn(address payer, bool zeroForOne, uint256 amountIn) external {
@@ -96,7 +70,7 @@ contract SaveFundHandler is Test {
     address public pauseGuardian;
 
     // ========= market refs =========
-    IUniV3Pool public pool;
+    IUniswapV3Pool public pool;
     MarketSwapCaller public market;
 
     // cache pool tokens to avoid repeated external calls
@@ -131,7 +105,7 @@ contract SaveFundHandler is Test {
     // ------------------------------------------------------------
 
     constructor() {
-        pool = IUniV3Pool(POOL_WETH_USDC_500);
+        pool = IUniswapV3Pool(POOL_WETH_USDC_500);
         market = new MarketSwapCaller(POOL_WETH_USDC_500);
 
         poolToken0 = pool.token0();
