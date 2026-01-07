@@ -198,23 +198,40 @@ contract SaveFundInvariantTest is StdInvariant, Test {
         targetContract(address(handler));
     }
 
-    function invariant_totalSupplyEqualsSumUserBalances() public view {
+    function invariant_all() public view {
+        // invariant_totalSupplyEqualsSumUserBalances
         uint256 sum;
         for (uint256 i = 0; i < users.length; i++) {
             sum += vault.balanceOf(users[i]);
         }
         assertEq(vault.totalSupply(), sum, "share supply mismatch");
-    }
 
-    function invariant_strategyHoldsNoTokens() public view {
+        // invariant_strategyHoldsNoTokens
         assertLe(usdc.balanceOf(address(uniV3)), 100, "uniV3 holds too much USDC");
         assertLe(weth.balanceOf(address(uniV3)), 1, "uniV3 holds too much WETH");
-    }
 
-    function invariant_noStaleRouterApprovals() public view {
+        // invariant_noStaleRouterApprovals
         assertEq(usdc.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "USDC router allowance not cleared");
         assertEq(weth.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "WETH router allowance not cleared");
     }
+
+    // function invariant_totalSupplyEqualsSumUserBalances() public view {
+    //     uint256 sum;
+    //     for (uint256 i = 0; i < users.length; i++) {
+    //         sum += vault.balanceOf(users[i]);
+    //     }
+    //     assertEq(vault.totalSupply(), sum, "share supply mismatch");
+    // }
+
+    // function invariant_strategyHoldsNoTokens() public view {
+    //     assertLe(usdc.balanceOf(address(uniV3)), 100, "uniV3 holds too much USDC");
+    //     assertLe(weth.balanceOf(address(uniV3)), 1, "uniV3 holds too much WETH");
+    // }
+
+    // function invariant_noStaleRouterApprovals() public view {
+    //     assertEq(usdc.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "USDC router allowance not cleared");
+    //     assertEq(weth.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "WETH router allowance not cleared");
+    // }
 
     // ========= helpers =========
 
