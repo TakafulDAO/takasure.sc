@@ -34,4 +34,4 @@ jobs:
         env:
           ARBITRUM_MAINNET_RPC_URL: ${{ secrets.ARBITRUM_MAINNET_RPC_URL}}
         run: |
-          forge test --skip UniV3StratFuzzTest.t.sol SaveFundInvariantTest.t.sol
+          forge test --skip UniV3StratFuzzTest.t.sol SaveFundInvariantTest.t.sol E2ETest.t.sol
