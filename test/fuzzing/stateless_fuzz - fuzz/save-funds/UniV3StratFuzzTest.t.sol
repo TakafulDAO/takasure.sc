@@ -59,11 +59,12 @@ contract UniV3StratFuzzTest is Test {
 
     int24 internal constant TICK_LOWER = -200;
     int24 internal constant TICK_UPPER = 200;
+    uint256 internal constant FORK_BLOCK = 418613000;
 
     function setUp() public {
         // Fork Arbitrum mainnet
         string memory rpcUrl = vm.envString("ARBITRUM_MAINNET_RPC_URL");
-        uint256 forkId = vm.createFork(rpcUrl);
+        uint256 forkId = vm.createFork(rpcUrl, FORK_BLOCK);
         vm.selectFork(forkId);
 
         managersDeployer = new DeployManagers();
