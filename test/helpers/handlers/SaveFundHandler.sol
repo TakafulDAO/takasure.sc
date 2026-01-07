@@ -8,21 +8,18 @@ import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
 import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-
-library TransferHelper {
-    function safeTransferFrom(address token, address from, address to, uint256 value) internal {
-        (bool ok, bytes memory data) =
-            token.call(abi.encodeWithSignature("transferFrom(address,address,uint256)", from, to, value));
-        require(ok && (data.length == 0 || abi.decode(data, (bool))), "TRANSFER_FROM_FAILED");
-    }
-}
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @dev Small helper that can call pool.swap and pays the pool in the callback using transferFrom(payer).
 contract MarketSwapCaller {
+    using SafeERC20 for IERC20;
+
     uint160 internal constant MIN_SQRT_RATIO_PLUS_ONE = 4295128739 + 1;
     uint160 internal constant MAX_SQRT_RATIO_MINUS_ONE = 1461446703485210103287273052203988822378723970342 - 1;
 
     IUniswapV3Pool public pool;
+
+    error MarketSwapCaller__NotPool();
 
     constructor(address _pool) {
         pool = IUniswapV3Pool(_pool);
@@ -34,15 +31,11 @@ contract MarketSwapCaller {
     }
 
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
-        require(msg.sender == address(pool), "NOT_POOL");
+        require(msg.sender == address(pool), MarketSwapCaller__NotPool());
         address payer = abi.decode(data, (address));
 
-        if (amount0Delta > 0) {
-            TransferHelper.safeTransferFrom(pool.token0(), payer, msg.sender, uint256(amount0Delta));
-        }
-        if (amount1Delta > 0) {
-            TransferHelper.safeTransferFrom(pool.token1(), payer, msg.sender, uint256(amount1Delta));
-        }
+        if (amount0Delta > 0) IERC20(pool.token0()).safeTransferFrom(payer, msg.sender, uint256(amount0Delta));
+        if (amount1Delta > 0) IERC20(pool.token1()).safeTransferFrom(payer, msg.sender, uint256(amount1Delta));
     }
 }
 
