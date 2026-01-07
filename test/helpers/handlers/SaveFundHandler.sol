@@ -17,8 +17,9 @@ contract MarketSwapCaller {
     uint160 internal constant MIN_SQRT_RATIO_PLUS_ONE = 4295128739 + 1;
     uint160 internal constant MAX_SQRT_RATIO_MINUS_ONE = 1461446703485210103287273052203988822378723970342 - 1;
 
-    IUniswapV3Pool public pool;
+    IUniswapV3Pool public immutable pool;
 
+    error MarketSwapCaller__AmountInZero();
     error MarketSwapCaller__NotPool();
 
     constructor(address _pool) {
@@ -26,6 +27,7 @@ contract MarketSwapCaller {
     }
 
     function marketSwapExactIn(address payer, bool zeroForOne, uint256 amountIn) external {
+        require(amountIn > 0, MarketSwapCaller__AmountInZero());
         uint160 limit = zeroForOne ? MIN_SQRT_RATIO_PLUS_ONE : MAX_SQRT_RATIO_MINUS_ONE;
         pool.swap(address(this), zeroForOne, int256(amountIn), limit, abi.encode(payer));
     }
