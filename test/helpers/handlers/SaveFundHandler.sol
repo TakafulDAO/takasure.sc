@@ -262,7 +262,7 @@ contract SaveFundHandler is Test {
         if (!_isConfigured()) return;
 
         uint256 idle = underlying.balanceOf(address(vault));
-        if (idle == 0) {
+        if (idle < 1e6) {
             _afterProtocolOp(amtSeed);
             return;
         }
@@ -290,7 +290,7 @@ contract SaveFundHandler is Test {
         if (!_isConfigured()) return;
 
         uint256 stratAssets = uniV3.totalAssets();
-        if (stratAssets == 0) {
+        if (stratAssets < 1e6) {
             _afterProtocolOp(amtSeed);
             return;
         }
