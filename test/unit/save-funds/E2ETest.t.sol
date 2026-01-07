@@ -22,6 +22,8 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 
 contract E2ETest is Test {
+    uint256 internal constant FORK_BLOCK = 418613000;
+
     // ===== Arbitrum One / Scenario constants =====
     address internal constant ARB_USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
     address internal constant ARB_WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
@@ -103,7 +105,7 @@ contract E2ETest is Test {
 
     function setUp() public {
         // ===== fork =====
-        uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"), vm.envUint("ARBITRUM_FORK_BLOCK"));
+        uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"), FORK_BLOCK);
         vm.selectFork(forkId);
 
         // ===== deploy managers + base roles/addresses =====
