@@ -14,7 +14,7 @@ import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 import {RevShareModuleHandler} from "test/helpers/handlers/RevShareModuleHandler.sol";
 
@@ -45,20 +45,14 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
         moduleDeployer = new DeployModules();
         addressesAndRoles = new AddAddressesAndRoles();
 
-        (
-            HelperConfig.NetworkConfig memory config,
-            AddressManager addrMgr,
-            ModuleManager modMgr
-        ) = managersDeployer.run();
+        (HelperConfig.NetworkConfig memory config, AddressManager addrMgr, ModuleManager modMgr) =
+            managersDeployer.run();
 
-        (address operatorAddr, , , , , , address revenueReceiverAddr) = addressesAndRoles.run(
-            addrMgr,
-            config,
-            address(modMgr)
-        );
+        (address operatorAddr,,,,,, address revenueReceiverAddr) =
+            addressesAndRoles.run(addrMgr, config, address(modMgr));
 
         SubscriptionModule subscriptions;
-        (, , revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
+        (,, revShareModule, subscriptions) = moduleDeployer.run(addrMgr);
 
         randomModule = address(subscriptions);
 
@@ -70,19 +64,13 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
         // Fresh RevShareNFT, then register it
         string memory baseURI = "ipfs://revshare/";
         address nftImpl = address(new RevShareNFT());
-        address nftProxy = UnsafeUpgrades.deployUUPSProxy(
-            nftImpl,
-            abi.encodeCall(RevShareNFT.initialize, (baseURI, address(this)))
-        );
+        address nftProxy =
+            UnsafeUpgrades.deployUUPSProxy(nftImpl, abi.encodeCall(RevShareNFT.initialize, (baseURI, address(this))));
         nft = RevShareNFT(nftProxy);
 
         // Register NFT and a module caller
         vm.startPrank(addressManager.owner());
-        addressManager.addProtocolAddress(
-            "REVSHARE_NFT",
-            address(nft),
-            ProtocolAddressType.Protocol
-        );
+        addressManager.addProtocolAddress("PROTOCOL__REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
 
         vm.stopPrank();
 
@@ -116,14 +104,7 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
 
         // Build handler
         handler = new RevShareModuleHandler(
-            revShareModule,
-            nft,
-            usdc,
-            addressManager,
-            operator,
-            revenueReceiver,
-            randomModule,
-            pioneerSet
+            revShareModule, nft, usdc, addressManager, operator, revenueReceiver, randomModule, pioneerSet
         );
 
         // Register handler actions to fuzz
@@ -187,21 +168,13 @@ contract RevShareModule_Invariants is StdCheats, StdInvariant, Test {
     /// @notice Getter gating is always enforced.
     function invariant_GetterGating() public view {
         // revenueReceiver must not earn from the pioneers (75%) view
-        assertEq(
-            revShareModule.earnedByPioneers(revenueReceiver),
-            0,
-            "RR must not earn from pioneers"
-        );
+        assertEq(revShareModule.earnedByPioneers(revenueReceiver), 0, "RR must not earn from pioneers");
 
         // A few pioneers must not earn from the takadao (25%) view
         for (uint256 i; i < pioneerSet.length && i < 3; i++) {
             address a = pioneerSet[i];
             if (a == revenueReceiver) continue;
-            assertEq(
-                revShareModule.earnedByTakadao(a),
-                0,
-                "pioneer must not earn from takadao view"
-            );
+            assertEq(revShareModule.earnedByTakadao(a), 0, "pioneer must not earn from takadao view");
         }
     }
 

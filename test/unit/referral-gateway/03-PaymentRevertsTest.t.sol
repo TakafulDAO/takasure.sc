@@ -74,30 +74,12 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         // 24.99 USDC
         vm.startPrank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
-        referralGateway.payContributionOnBehalfOf(
-            24_999_999,
-            nonKycParent,
-            child,
-            24_999_999,
-            false
-        );
+        referralGateway.payContributionOnBehalfOf(24_999_999, nonKycParent, child, 24_999_999, false);
 
         // 250.01 USDC
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
-        referralGateway.payContributionOnBehalfOf(
-            250_010_000,
-            nonKycParent,
-            child,
-            250_010_000,
-            false
-        );
+        referralGateway.payContributionOnBehalfOf(250_010_000, nonKycParent, child, 250_010_000, false);
         vm.stopPrank();
-    }
-
-    function testMustRevertIfDonatedIsTrueAndContributionIsGreaterThan25() public {
-        vm.prank(couponRedeemer);
-        vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
-        referralGateway.payContributionOnBehalfOf(USDC_INITIAL_AMOUNT, address(0), child, 0, true);
     }
 
     function testMustRevertIfMemberIsZeroAddress() public {
@@ -108,10 +90,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
 
     //======== preJoinEnabled = true, referralDiscount = true, invalid referral ========//
     function testPaymentRevertsIfParentIsInvalidCase1() public {
-        uint256 alreadyCollectedFees = DaoDataReader.getUint(
-            IReferralGateway(address(referralGateway)),
-            8
-        );
+        uint256 alreadyCollectedFees = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 8);
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -119,18 +98,9 @@ contract ReferralGatewayPaymentRevertsTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__ParentMustKYCFirst.selector);
-        referralGateway.payContributionOnBehalfOf(
-            CONTRIBUTION_AMOUNT,
-            nonKYCParent,
-            child,
-            0,
-            false
-        );
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, nonKYCParent, child, 0, false);
 
-        uint256 totalCollectedFees = DaoDataReader.getUint(
-            IReferralGateway(address(referralGateway)),
-            8
-        );
+        uint256 totalCollectedFees = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 8);
 
         assertEq(totalCollectedFees, 0);
     }
@@ -139,10 +109,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
     function testPaymentRevertsIfParentIsInvalidCase2() public {
         vm.prank(takadao);
         referralGateway.switchReferralDiscount();
-        uint256 alreadyCollectedFees = DaoDataReader.getUint(
-            IReferralGateway(address(referralGateway)),
-            8
-        );
+        uint256 alreadyCollectedFees = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 8);
 
         assertEq(alreadyCollectedFees, 0);
 
@@ -150,17 +117,8 @@ contract ReferralGatewayPaymentRevertsTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__ParentMustKYCFirst.selector);
-        referralGateway.payContributionOnBehalfOf(
-            CONTRIBUTION_AMOUNT,
-            nonKYCParent,
-            child,
-            0,
-            false
-        );
-        uint256 totalCollectedFees = DaoDataReader.getUint(
-            IReferralGateway(address(referralGateway)),
-            8
-        );
+        referralGateway.payContributionOnBehalfOf(CONTRIBUTION_AMOUNT, nonKYCParent, child, 0, false);
+        uint256 totalCollectedFees = DaoDataReader.getUint(IReferralGateway(address(referralGateway)), 8);
 
         assertEq(totalCollectedFees, 0);
     }
@@ -236,11 +194,7 @@ contract ReferralGatewayPaymentRevertsTest is Test {
         vm.prank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__InvalidContribution.selector);
         referralGateway.payContributionOnBehalfOf(
-            USDC_INITIAL_AMOUNT,
-            address(0),
-            child,
-            USDC_INITIAL_AMOUNT * 2,
-            false
+            USDC_INITIAL_AMOUNT, address(0), child, USDC_INITIAL_AMOUNT * 2, false
         );
     }
 

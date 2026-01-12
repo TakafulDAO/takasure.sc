@@ -19,3 +19,9 @@
 [submodule "lib/chainlink-local"]
 	path = lib/chainlink-local
 	url = https://github.com/smartcontractkit/chainlink-local
+[submodule "lib/v3-core"]
+	path = lib/v3-core
+	url = https://github.com/Uniswap/v3-core
+[submodule "lib/v3-periphery"]
+	path = lib/v3-periphery
+	url = https://github.com/Uniswap/v3-periphery

@@ -17,7 +17,8 @@ import {
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 
-import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
+import {ModuleState} from "contracts/types/States.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
@@ -115,7 +116,7 @@ contract RevShareModule is
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         require(timestamp > block.timestamp, RevShareModule__InvalidDate());
         revenuesAvailableDate = timestamp;
@@ -128,7 +129,7 @@ contract RevShareModule is
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         require(duration > 0, RevShareModule__NotZeroValue());
         require(block.timestamp >= periodFinish, RevShareModule__ActiveStreamOngoing()); // Avoid mid-stream changes
@@ -145,7 +146,7 @@ contract RevShareModule is
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         require(block.timestamp < revenuesAvailableDate, RevShareModule__InvalidDate());
         revenuesAvailableDate = block.timestamp;
@@ -202,7 +203,7 @@ contract RevShareModule is
         periodFinish = currentTime + rewardsDuration;
 
         // Pull the tokens from the sender
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
         contributionToken.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -217,10 +218,10 @@ contract RevShareModule is
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
         uint256 bal = contributionToken.balanceOf(address(this));
         if (bal <= approvedDeposits) revert RevShareModule__NothingToSweep();
 
@@ -244,7 +245,7 @@ contract RevShareModule is
         // Settle all streams up to now so nothing is lost
         _updateGlobal();
 
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
         uint256 balance = contributionToken.balanceOf(address(this));
 
         // Halt streams
@@ -271,7 +272,7 @@ contract RevShareModule is
      */
     function depositNoStream(uint256 amount) external onlyRole(Roles.OPERATOR, address(addressManager)) nonReentrant {
         if (amount == 0) revert RevShareModule__NotZeroValue();
-        IERC20 ct = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 ct = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
         ct.safeTransferFrom(msg.sender, address(this), amount);
         // No changes to rates, lastUpdateTime, or approvedDeposits.
         emit OnNoStreamDeposit(amount);
@@ -283,7 +284,7 @@ contract RevShareModule is
      * @dev Requires the contract to have enough balance to cover approved deposits
      */
     function resumeAfterEmergency() external onlyRole(Roles.OPERATOR, address(addressManager)) {
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
         uint256 balance = contributionToken.balanceOf(address(this));
         if (balance < approvedDeposits) revert RevShareModule__InsufficientApprovedDeposits();
 
@@ -305,12 +306,11 @@ contract RevShareModule is
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         require(block.timestamp >= revenuesAvailableDate, RevShareModule__RevenuesNotAvailableYet());
 
-        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("REVSHARE_NFT").addr);
-
+        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("PROTOCOL__REVSHARE_NFT").addr);
         address revenueReceiver = _getRevenueReceiver();
 
         // Settle caller so revenuePerAccount is up to date for elegibility check
@@ -338,7 +338,7 @@ contract RevShareModule is
 
         revenuePerAccount[beneficiary] = 0;
 
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
         contributionToken.safeTransfer(beneficiary, revenue);
 
         // Sync approved deposits
@@ -407,7 +407,7 @@ contract RevShareModule is
     }
 
     function _getRevenueReceiver() internal view returns (address) {
-        return addressManager.getProtocolAddressByName("REVENUE_RECEIVER").addr;
+        return addressManager.getProtocolAddressByName("ADMIN__REVENUE_RECEIVER").addr;
     }
 
     function _callerIsClaimer() internal view returns (bool) {
@@ -416,7 +416,7 @@ contract RevShareModule is
 
     /// @dev Updates the global revenue for both pools
     function _updateGlobal() internal {
-        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("REVSHARE_NFT").addr);
+        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("PROTOCOL__REVSHARE_NFT").addr);
 
         uint256 applicableTime = _lastTimeApplicable();
         uint256 elapsed = applicableTime - lastUpdateTime;
@@ -465,7 +465,7 @@ contract RevShareModule is
     }
 
     function _revenuePerNftOwnedByPioneers() internal view returns (uint256) {
-        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("REVSHARE_NFT").addr);
+        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("PROTOCOL__REVSHARE_NFT").addr);
 
         uint256 currentSupply = revShareNFT.totalSupply();
 
@@ -496,7 +496,7 @@ contract RevShareModule is
     }
 
     function _earnedByPioneers(address account) internal view returns (uint256) {
-        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("REVSHARE_NFT").addr);
+        IRevShareNFT revShareNFT = IRevShareNFT(addressManager.getProtocolAddressByName("PROTOCOL__REVSHARE_NFT").addr);
         address revenueReceiver = _getRevenueReceiver();
 
         if (account == revenueReceiver) {

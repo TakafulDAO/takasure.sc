@@ -9,7 +9,7 @@ import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {IsModule, IsNotModule} from "test/mocks/ModuleMocks.sol";
 
-import {ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ModuleState} from "contracts/types/States.sol";
 
 contract ModuleManagerTest is Test {
     DeployManagers managerDeployer;
@@ -29,11 +29,7 @@ contract ModuleManagerTest is Test {
     }
 
     event OnNewModule(address newModuleAddr);
-    event OnModuleStateChanged(
-        address indexed moduleAddress,
-        ModuleState oldState,
-        ModuleState newState
-    );
+    event OnModuleStateChanged(address indexed moduleAddress, ModuleState oldState, ModuleState newState);
 
     function setUp() public {
         managerDeployer = new DeployManagers();

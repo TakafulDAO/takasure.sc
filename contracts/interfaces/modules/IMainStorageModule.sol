@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import {AssociationMember, BenefitMember} from "contracts/types/TakasureTypes.sol";
+import {AssociationMember, BenefitMember} from "contracts/types/Members.sol";
 
-interface IProtocolStorageModule {
-    function MAX_FEE() external pure returns (uint256);
-    function initialize(address _addressManagerAddress, string calldata _moduleName) external;
+interface IMainStorageModule {
+    /*
+    List of keys used in the protocol storage:
+    - memberIdCounter (uint256): Counter to assign new member IDs
+    */
+
     function createAssociationMember(AssociationMember memory member) external;
     function updateAssociationMember(AssociationMember memory member) external;
     function createBenefitMember(address benefit, BenefitMember memory member) external;

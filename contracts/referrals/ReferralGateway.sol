@@ -141,7 +141,6 @@ contract ReferralGateway is
     );
     event OnMemberKYCVerified(address indexed member);
     event OnRefund(address indexed member, uint256 indexed amount);
-    event OnUsdcAddressChanged(address indexed oldUsdc, address indexed newUsdc);
     event OnNewOperator(address indexed oldOperator, address indexed newOperator);
     event OnNewCouponPoolAddress(address indexed oldCouponPool, address indexed newCouponPool);
     event OnPrejoinDiscountSwitched(bool indexed preJoinDiscountEnabled);
@@ -606,7 +605,6 @@ contract ReferralGateway is
             _inputs.couponAmount,
             _inputs.parent,
             _inputs.member,
-            _inputs.isDonated,
             _inputs.isModifying,
             _inputs.associationTimestamp
         );
@@ -743,23 +741,19 @@ contract ReferralGateway is
         uint256 _couponAmount,
         address _parent,
         address _newMember,
-        bool _isDonated,
         bool _isModifying,
         uint256 _associationTimestamp
     ) internal view {
-        _commonChecks(_newMember, _planToApply, _couponAmount, _parent, _isDonated);
+        _commonChecks(_newMember, _planToApply, _couponAmount, _parent);
 
         if (_isModifying) _checksIfModifying(_newMember, _associationTimestamp);
         else _checksIfNotModifying(_newMember);
     }
 
-    function _commonChecks(
-        address _member,
-        uint256 _planToApply,
-        uint256 _couponAmount,
-        address _parent,
-        bool _isDonated
-    ) internal view {
+    function _commonChecks(address _member, uint256 _planToApply, uint256 _couponAmount, address _parent)
+        internal
+        view
+    {
         // The new member must be different than the zero address
         require(_member != address(0), ReferralGateway__ZeroAddress());
 
@@ -768,11 +762,6 @@ contract ReferralGateway is
             _planToApply >= MINIMUM_CONTRIBUTION && _planToApply <= MAXIMUM_CONTRIBUTION,
             ReferralGateway__InvalidContribution()
         );
-
-        // If the contribution is a donation, it must be exactly the minimum contribution
-        if (_isDonated) {
-            require(_planToApply == MINIMUM_CONTRIBUTION, ReferralGateway__InvalidContribution());
-        }
 
         // If the referral discount is enabled, the rewards must also be enabled
         if (nameToDAOData[daoName].referralDiscountEnabled) {

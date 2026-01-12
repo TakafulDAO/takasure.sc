@@ -8,7 +8,7 @@
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
+import {IMainStorageModule} from "contracts/interfaces/modules/IMainStorageModule.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IRevenueModule} from "contracts/interfaces/modules/IRevenueModule.sol";
@@ -20,14 +20,10 @@ import {
     ReentrancyGuardTransientUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {
-    AssociationMember,
-    AssociationMemberState,
-    ModuleState,
-    ProtocolAddress,
-    ProtocolAddressType,
-    RevenueType
-} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
+import {RevenueType} from "contracts/types/Cash.sol";
+import {AssociationMemberState, ModuleState} from "contracts/types/States.sol";
+import {AssociationMember} from "contracts/types/Members.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
@@ -140,13 +136,12 @@ contract SubscriptionModule is
     function paySubscription(uint256 planPrice, address parentWallet) external {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
-        IProtocolStorageModule protocolStorageModule =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
-
-        bool allowUsersToPay = protocolStorageModule.getBoolValue("allowUserInitiatedCalls");
+        IMainStorageModule mainStorageModule =
+            IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
+        bool allowUsersToPay = mainStorageModule.getBoolValue("allowUserInitiatedCalls");
         require(allowUsersToPay, ModuleErrors.Module__NotAuthorizedCaller());
 
         _paySubscription(
@@ -179,11 +174,11 @@ contract SubscriptionModule is
     ) external {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         require(
             AddressAndStates._checkRole(Roles.BACKEND_ADMIN, address(addressManager))
-                || AddressAndStates._checkName("ROUTER", address(addressManager)),
+                || AddressAndStates._checkName("PROTOCOL__ROUTER", address(addressManager)),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
@@ -210,7 +205,7 @@ contract SubscriptionModule is
     function refund(address memberWallet) external onlyRole(Roles.BACKEND_ADMIN, address(addressManager)) {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         _refund(memberWallet);
     }
@@ -229,7 +224,7 @@ contract SubscriptionModule is
     function transferSubscriptionToReserve(address memberWallet) external nonReentrant returns (uint256) {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         (, AssociationMember memory member) = _fetchMemberFromStorageModule(memberWallet);
 
@@ -249,13 +244,13 @@ contract SubscriptionModule is
         }
 
         // Reward the parents if there is any
-        IReferralRewardsModule(addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr)
+        IReferralRewardsModule(addressManager.getProtocolAddressByName("MODULE__REFERRAL_REWARDS").addr)
             .rewardParents({child: memberWallet});
 
         // TODO: Revenue module to be written
-        address revenueModuleAddress = addressManager.getProtocolAddressByName("REVENUE_MODULE").addr;
+        address revenueModuleAddress = addressManager.getProtocolAddressByName("MODULE__REVENUE").addr;
         IRevenueModule revenueModule = IRevenueModule(revenueModuleAddress);
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
         uint256 amountToTransfer =
             member.planPrice - ((member.planPrice * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);
@@ -264,7 +259,7 @@ contract SubscriptionModule is
         uint256 userDiscount = member.discount;
 
         if (userDiscount > 0) {
-            address feeClaimer = addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr;
+            address feeClaimer = addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIMER ").addr;
             contributionToken.safeTransferFrom(feeClaimer, address(this), userDiscount);
         }
 
@@ -299,7 +294,7 @@ contract SubscriptionModule is
             _params.couponAmount >= 0 && _params.couponAmount <= _params.planPrice, ModuleErrors.Module__InvalidCoupon()
         );
 
-        (IProtocolStorageModule protocolStorageModule, AssociationMember memory member) =
+        (IMainStorageModule mainStorageModule, AssociationMember memory member) =
             _fetchMemberFromStorageModule(_params.userWallet);
 
         // To know if we are creating a new member or updating an existing one we need to check the wallet and refund state
@@ -322,7 +317,7 @@ contract SubscriptionModule is
         });
 
         IReferralRewardsModule referralRewardsModule =
-            IReferralRewardsModule(addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr);
+            IReferralRewardsModule(addressManager.getProtocolAddressByName("MODULE__REFERRAL_REWARDS").addr);
 
         (uint256 feeAmount, uint256 discount, uint256 toReferralReserveAmount) = referralRewardsModule.calculateReferralRewards({
             contribution: _params.planPrice,
@@ -347,15 +342,15 @@ contract SubscriptionModule is
         });
 
         // Update the member mapping
-        if (isRejoin) protocolStorageModule.updateAssociationMember(member);
-        else protocolStorageModule.createAssociationMember(member);
+        if (isRejoin) mainStorageModule.updateAssociationMember(member);
+        else mainStorageModule.createAssociationMember(member);
 
         if (_params.parentWallet != address(0)) _addChildToParent(_params.userWallet, _params.parentWallet);
     }
 
     function _addChildToParent(address _childAddress, address _parentAddress) internal {
         // Add the member as a child to the parent
-        (IProtocolStorageModule protocolStorageModule, AssociationMember memory parent) =
+        (IMainStorageModule mainStorageModule, AssociationMember memory parent) =
             _fetchMemberFromStorageModule(_parentAddress);
 
         // Take current childs and create a new array with one more slot
@@ -371,7 +366,7 @@ contract SubscriptionModule is
         // Add the new child at the end and update the parent's childs array
         newChilds[childsLength] = _childAddress;
         parent.childs = newChilds;
-        protocolStorageModule.updateAssociationMember(parent);
+        mainStorageModule.updateAssociationMember(parent);
     }
 
     /**
@@ -386,7 +381,7 @@ contract SubscriptionModule is
         address _userWallet,
         address _referralRewardsModule
     ) internal {
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
         uint256 contributionAfterFee = _planPrice - _fee;
         bool transferFromMember = _couponAmount == 0 ? true : false;
@@ -398,7 +393,7 @@ contract SubscriptionModule is
             _transferFee(contributionToken, _userWallet, _fee);
         } else {
             amountToTransfer = contributionAfterFee;
-            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+            address couponPool = addressManager.getProtocolAddressByName("ADMIN__COUPON_POOL").addr;
             contributionToken.safeTransferFrom(couponPool, address(this), amountToTransfer);
             _transferFee(contributionToken, couponPool, _fee);
         }
@@ -411,7 +406,7 @@ contract SubscriptionModule is
 
     function _transferFee(IERC20 _contributionToken, address _fromAddress, uint256 _fee) internal {
         _contributionToken.safeTransferFrom(
-            _fromAddress, addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr, _fee
+            _fromAddress, addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIMER ").addr, _fee
         );
     }
 
@@ -421,7 +416,7 @@ contract SubscriptionModule is
      */
     function _refund(address _memberWallet) internal {
         AddressAndStates._notZeroAddress(_memberWallet);
-        (IProtocolStorageModule _protocolStorageModule, AssociationMember memory _member) =
+        (IMainStorageModule mainStorageModule, AssociationMember memory _member) =
             _fetchMemberFromStorageModule(_memberWallet);
 
         // The member should exist and not be refunded
@@ -443,12 +438,12 @@ contract SubscriptionModule is
         uint256 discountAmount = _member.discount;
         uint256 amountToRefund = contributionAmountAfterFee - discountAmount;
 
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
         // Transfer the amount to refund
         if (_member.couponAmountRedeemed > 0) {
             // We transfer the coupon amount to the coupon pool
-            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+            address couponPool = addressManager.getProtocolAddressByName("ADMIN__COUPON_POOL").addr;
             contributionToken.safeTransfer(couponPool, amountToRefund);
         } else {
             // We transfer the amount to the member
@@ -471,20 +466,19 @@ contract SubscriptionModule is
         });
 
         // Update the user as refunded
-        _protocolStorageModule.updateAssociationMember(_member);
+        mainStorageModule.updateAssociationMember(_member);
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
     }
 
     function _fetchMemberFromStorageModule(address _userWallet)
         internal
         view
-        returns (IProtocolStorageModule protocolStorageModule_, AssociationMember memory member_)
+        returns (IMainStorageModule mainStorageModule_, AssociationMember memory member_)
     {
-        protocolStorageModule_ =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+        mainStorageModule_ = IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
 
         // Get the member from storage
-        member_ = protocolStorageModule_.getAssociationMember(_userWallet);
+        member_ = mainStorageModule_.getAssociationMember(_userWallet);
     }
 
     ///@dev required by the OZ UUPS module

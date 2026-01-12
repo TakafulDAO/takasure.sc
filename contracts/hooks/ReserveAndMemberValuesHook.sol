@@ -10,44 +10,39 @@
  *      2. Set new values for the reserve and/or a given member in the Core contracts
  */
 
-import {Reserve, BenefitMember} from "contracts/types/TakasureTypes.sol";
+import {Reserve} from "contracts/types/Reserve.sol";
+import {BenefitMember} from "contracts/types/Members.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 
 pragma solidity 0.8.28;
 
 abstract contract ReserveAndMemberValuesHook {
-    function _getReservesValuesHook(
-        ITakasureReserve _takasureReserve
-    ) internal view returns (Reserve memory reserve_) {
+    function _getReservesValuesHook(ITakasureReserve _takasureReserve) internal view returns (Reserve memory reserve_) {
         reserve_ = _takasureReserve.getReserveValues();
     }
 
-    function _getMembersValuesHook(
-        ITakasureReserve _takasureReserve,
-        address _memberWallet
-    ) internal view returns (BenefitMember memory member_) {
+    function _getMembersValuesHook(ITakasureReserve _takasureReserve, address _memberWallet)
+        internal
+        view
+        returns (BenefitMember memory member_)
+    {
         member_ = _takasureReserve.getMemberFromAddress(_memberWallet);
     }
 
-    function _getReserveAndMemberValuesHook(
-        ITakasureReserve _takasureReserve,
-        address _memberWallet
-    ) internal view returns (Reserve memory reserve_, BenefitMember memory member_) {
+    function _getReserveAndMemberValuesHook(ITakasureReserve _takasureReserve, address _memberWallet)
+        internal
+        view
+        returns (Reserve memory reserve_, BenefitMember memory member_)
+    {
         reserve_ = _takasureReserve.getReserveValues();
         member_ = _takasureReserve.getMemberFromAddress(_memberWallet);
     }
 
-    function _setReservesValuesHook(
-        ITakasureReserve _takasureReserve,
-        Reserve memory _reserve
-    ) internal {
+    function _setReservesValuesHook(ITakasureReserve _takasureReserve, Reserve memory _reserve) internal {
         _takasureReserve.setReserveValuesFromModule(_reserve);
     }
 
-    function _setMembersValuesHook(
-        ITakasureReserve _takasureReserve,
-        BenefitMember memory _newMember
-    ) internal {
+    function _setMembersValuesHook(ITakasureReserve _takasureReserve, BenefitMember memory _newMember) internal {
         _takasureReserve.setMemberValuesFromModule(_newMember);
     }
 
