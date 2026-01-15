@@ -121,7 +121,6 @@ contract ReferralRewardsModule is
         if (referralRewardsEnabled) {
             toReferralReserveAmount_ = (contribution * ModuleConstants.REFERRAL_RESERVE) / 100;
 
-            // TODO: KYCModule implementation on other PR
             IKYCModule kycModule = IKYCModule(addressManager.getProtocolAddressByName("KYC_MODULE").addr);
 
             if (parent != address(0) && kycModule.isKYCed(parent)) {
