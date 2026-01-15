@@ -113,10 +113,9 @@ contract ReferralRewardsModule is
                 discount_ = ((contribution - couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
                 childToParent[child] = parent;
 
-                uint256 fee =
-                    _parentRewards({_initialChildToCheck: child, _contribution: contribution, _currentFee: feeAmount});
+                _parentRewards({_initialChildToCheck: child, _contribution: contribution});
 
-                newFeeAmount_ = fee;
+                newFeeAmount_ = feeAmount;
             } else {
                 newFeeAmount_ = feeAmount - toReferralReserveAmount_;
             }
@@ -157,10 +156,7 @@ contract ReferralRewardsModule is
         }
     }
 
-    function _parentRewards(address _initialChildToCheck, uint256 _contribution, uint256 _currentFee)
-        internal
-        returns (uint256)
-    {
+    function _parentRewards(address _initialChildToCheck, uint256 _contribution) internal {
         address currentChildToCheck = _initialChildToCheck;
         uint256 parentRewardsAccumulated;
 
@@ -184,8 +180,6 @@ contract ReferralRewardsModule is
             // Update the current child to check, for the next iteration
             currentChildToCheck = childToParent[currentChildToCheck];
         }
-
-        return _currentFee;
     }
 
     /**
