@@ -7,7 +7,8 @@ interface IReferralRewardsModule {
     function childToParent(address child) external view returns (address);
     function historicParentRewardsByChild(address parent, address child) external view returns (uint256);
     function initialize(address _addressManager, string calldata _moduleName) external;
-    function setReferralDiscountState(bool referralDiscountState) external;
+    function switchReferralRewards() external;
+    function switchReferralDiscount() external;
     function calculateReferralRewards(
         uint256 contribution,
         uint256 couponAmount,

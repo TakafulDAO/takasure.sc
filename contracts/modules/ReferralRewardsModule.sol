@@ -27,6 +27,7 @@ contract ReferralRewardsModule is
     ReentrancyGuardTransientUpgradeable
 {
     bool public referralDiscountEnabled;
+    bool public referralRewardsEnabled;
 
     mapping(address child => address parent) public childToParent;
     // used to pay rewards to parents, it will be cleared when the parent is rewarded
@@ -46,9 +47,12 @@ contract ReferralRewardsModule is
     //////////////////////////////////////////////////////////////*/
 
     event OnReferralDiscountSwitched(bool enabled);
+    event OnReferralRewardsSwitched(bool enabled);
     event OnParentRewardedStatus(
         address indexed parent, uint256 indexed layer, address indexed child, uint256 reward, bool success
     );
+
+    error ReferralRewardsModule__ReferralRewardsDisabled();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -66,23 +70,34 @@ contract ReferralRewardsModule is
         moduleName = _moduleName;
 
         referralDiscountEnabled = true; // Enable referral discount by default
+        referralRewardsEnabled = true; // Enable referral rewards by default
     }
 
     /*//////////////////////////////////////////////////////////////
                                 SETTERS
     //////////////////////////////////////////////////////////////*/
 
-    function setReferralDiscountState(bool referralDiscountState)
-        external
-        onlyRole(Roles.OPERATOR, address(addressManager))
-    {
+    function switchReferralRewards() external onlyRole(Roles.OPERATOR, address(addressManager)) {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
-        referralDiscountEnabled = referralDiscountState;
+        referralRewardsEnabled = !referralRewardsEnabled;
+        emit OnReferralRewardsSwitched(referralRewardsEnabled);
+    }
 
+    function switchReferralDiscount() external onlyRole(Roles.OPERATOR, address(addressManager)) {
+        // Module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+        );
+
+        if (!referralDiscountEnabled) {
+            require(referralRewardsEnabled, ReferralRewardsModule__ReferralRewardsDisabled());
+        }
+
+        referralDiscountEnabled = !referralDiscountEnabled;
         emit OnReferralDiscountSwitched(referralDiscountEnabled);
     }
 
@@ -103,14 +118,16 @@ contract ReferralRewardsModule is
             ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
         );
 
-        if (referralDiscountEnabled) {
+        if (referralRewardsEnabled) {
             toReferralReserveAmount_ = (contribution * ModuleConstants.REFERRAL_RESERVE) / 100;
 
             // TODO: KYCModule implementation on other PR
             IKYCModule kycModule = IKYCModule(addressManager.getProtocolAddressByName("KYC_MODULE").addr);
 
             if (parent != address(0) && kycModule.isKYCed(parent)) {
-                discount_ = ((contribution - couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
+                if (referralDiscountEnabled) {
+                    discount_ = ((contribution - couponAmount) * ModuleConstants.REFERRAL_DISCOUNT_RATIO) / 100;
+                }
                 childToParent[child] = parent;
 
                 _parentRewards({_initialChildToCheck: child, _contribution: contribution});
