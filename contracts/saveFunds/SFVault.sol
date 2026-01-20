@@ -86,11 +86,11 @@ contract SFVault is
     event OnAggregatorUpdated(address indexed newAggregator);
     event OnFeeConfigUpdated(uint16 managementFeeBPS, uint16 performanceFeeBPS, uint16 performanceFeeHurdleBPS);
     event OnMemberRegistered(address indexed newMember);
+    event OnMemberUnregistered(address indexed member, address indexed caller);
     event OnFeesTaken(uint256 feeAssets, FeeType feeType);
     event OnManagementFeeCharged(
         address indexed payer, address indexed recipient, uint256 grossAssets, uint256 feeAssets, uint256 sharesMinted
     );
-
     event OnInvestIntoStrategy(uint256 requestedAssets, uint256 investedAssets, bytes32 bundleHash);
     event OnWithdrawFromStrategy(uint256 requestedAssets, uint256 withdrawnAssets, bytes32 bundleHash);
     event OnPerformanceFeeCharged(
@@ -313,6 +313,11 @@ contract SFVault is
         validMembers.add(newMember);
 
         emit OnMemberRegistered(newMember);
+    }
+
+    function unregisterMember(address member) external onlyRole(Roles.BACKEND_ADMIN) {
+        require(validMembers.remove(member), SFVault__NotAMember());
+        emit OnMemberUnregistered(member, msg.sender);
     }
 
     /*//////////////////////////////////////////////////////////////
