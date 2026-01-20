@@ -499,11 +499,8 @@ contract SFUniswapV3Strategy is
         if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, data);
 
         // 2) Burn the old NFT once all liquidity has been removed.
-        uint128 remainingLiquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
-        if (remainingLiquidity == 0) {
-            positionManager.burn(positionTokenId);
-            positionTokenId = 0;
-        }
+        positionManager.burn(positionTokenId);
+        positionTokenId = 0;
 
         // 3) Update the stored tick range.
         tickLower = newTickLower;
