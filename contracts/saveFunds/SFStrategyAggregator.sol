@@ -73,6 +73,7 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     event OnSubStrategyAdded(address indexed strategy, uint16 targetWeightBPS, bool isActive);
+    event OnSubStrategyRemoved(address indexed strategy, address indexed caller);
     event OnSubStrategyUpdated(address indexed strategy, uint16 targetWeightBPS, bool isActive);
     event OnAggregatorEmergencyExit(address indexed receiver, uint256 idleSent);
     event OnAggregatorDeposit(
@@ -451,6 +452,32 @@ contract SFStrategyAggregator is
 
         _recomputeTotalTargetWeightBPS();
         emit OnSubStrategyAdded(strategy, targetWeightBPS, true);
+    }
+
+    /**
+     * @notice Removes an existing child strategy from the aggregator.
+     * @dev Only callable by a BACKEND_ADMIN. The strategy must be decommissioned (isActive == false), have zero target weight, and hold no assets.
+     * @param strategy Address of the child strategy to remove.
+     * @custom:invariant strategy is no longer included in the set after the call completes.
+     */
+    function removeSubStrategy(address strategy)
+        external
+        nonReentrant
+        notAddressZero(strategy)
+        onlyRole(Roles.OPERATOR)
+    {
+        require(subStrategySet.contains(strategy), SFStrategyAggregator__SubStrategyNotFound());
+        SubStrategyMeta memory m = subStrategyMeta[strategy];
+
+        // Child strategy must be inactive, have zero target weight, and hold no assets
+        require(!m.isActive, SFStrategyAggregator__InvalidConfig());
+        require(m.targetWeightBPS == 0, SFStrategyAggregator__InvalidTargetWeightBPS());
+        require(ISFStrategy(strategy).totalAssets() == 0, SFStrategyAggregator__NotZeroAmount());
+
+        subStrategySet.remove(strategy);
+        delete subStrategyMeta[strategy];
+
+        emit OnSubStrategyRemoved(strategy, msg.sender);
     }
 
     /**
