@@ -1,0 +1,62 @@
+@startuml Save Funds – System Context (UI + Keepers + Subgraph + On-chain)
+title Save Funds – System Context (UI + Keepers + Subgraph + On-chain)
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+actor "User" as User
+component "Frontend (SF UI)" as FE
+component "Wallet\n(EOA / In-app)" as Wallet
+component "Keeper Bot\n(Off-chain)" as Bot
+
+database "Subgraph\n(Goldsky / Hosted)" as SG
+cloud "RPC Provider\n(Arbitrum, etc.)" as RPC
+
+package "On-chain (Save Funds)" as CHAIN {
+  component "SFVault" as Vault
+  component "SFStrategyAggregator" as Agg
+  component "SFUniswapV3Strategy" as V3
+  component "AddressManager" as AM
+}
+
+package "External On-chain" as EXT {
+  component "USDC" as USDC
+  component "Uniswap V3\nPositionManager" as NPM
+  component "Uniswap Universal Router" as UR
+  component "Uniswap V3 Pool" as Pool
+}
+
+' UX reads
+User --> FE
+FE --> SG : queries (TVL, APY, positions, history)
+SG --> FE
+
+' User writes (public)
+FE --> Wallet : build tx
+Wallet --> RPC
+RPC --> Vault : deposit/withdraw/redeem
+
+' Keeper writes (privileged)
+Bot --> RPC
+RPC --> Vault : investIntoStrategy / withdrawFromStrategy / takeFees
+RPC --> Agg   : harvest / rebalance (depending on design)
+
+' On-chain wiring
+Vault --> AM
+Agg --> AM
+V3 --> AM
+
+Vault --> USDC
+Vault --> Agg
+Agg --> V3
+V3 --> NPM
+V3 --> UR
+NPM --> Pool
+
+' Indexing
+Vault --> SG : emits events
+Agg --> SG   : emits events
+V3 --> SG    : emits events
+RPC --> SG   : subgraph reads logs via RPC
+
+@enduml
