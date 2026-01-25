@@ -1,0 +1,210 @@
+@startuml Save Fund (SF) – Rebalance (Detailed)
+title Save Fund (SF) – Rebalance (Detailed)
+
+autonumber
+
+participant "Backend Bot\n(Keeper/Operator)" as Bot
+participant "AddressManager" as AM
+participant "SFStrategyAggregator" as Agg
+participant "SFUniswapV3Strategy\n(child strategy)" as V3
+participant "Uniswap V3\nPositionManager (ERC721)" as PM
+participant "USDC\n(Underlying ERC20)" as USDC
+participant "OtherToken\n(ERC20)" as OT
+participant "SFVault" as Vault
+database "Subgraph" as SG
+
+== Preconditions ==
+
+ref over Bot, Agg
+Vault may have already invested into the Aggregator.
+(see: Invest Into Strategy (Detailed) diagram)
+end ref
+
+ref over Vault, V3
+Vault must have approved the strategy for PositionManager NFTs:
+Vault.setERC721ApprovalForAll(PM, V3, true)
+end ref
+
+== Bot triggers rebalance on Aggregator ==
+
+Bot -> Agg: rebalance(data)
+activate Agg
+
+Agg -> AM: hasRole(KEEPER|OPERATOR, Bot)
+AM --> Agg: true/false
+
+alt Bot is NOT Keeper/Operator
+  Agg --> Bot: REVERT SFStrategyAggregator__NotAuthorizedCaller
+  deactivate Agg
+
+else data.length == 0
+  note right of Agg
+"Rebalance all active strategies with empty payload".
+⚠️ Some strategies (e.g., SFUniswapV3Strategy) REQUIRE a non-empty payload
+and will revert on abi.decode(empty).
+end note
+
+  loop for each strategy in subStrategySet
+    alt strategy inactive
+      Agg -> Agg: skip
+    else strategy active
+      Agg -> V3: rebalance(bytes(""))
+      activate V3
+      V3 --> Agg: REVERT (abi.decode empty payload fails)
+      deactivate V3
+      Agg --> Bot: Tx revert bubbles up
+      deactivate Agg
+    end
+  end
+
+else data.length > 0
+  == Decode per-strategy payloads (strict validation) ==
+  Agg -> Agg: (strategies[], payloads[]) = _decodePerStrategyData(data)
+  note right of Agg
+Validation:
+- strategies.length == payloads.length
+- strategy != 0
+- strategy must exist in subStrategySet
+- no duplicates
+end note
+
+  alt invalid per-strategy data
+    Agg --> Bot: REVERT SFStrategyAggregator__InvalidPerStrategyData\n/ UnknownPerStrategyDataStrategy\n/ DuplicatePerStrategyDataStrategy
+    deactivate Agg
+
+  else valid
+    loop for each (strategy[i], payload[i])
+      alt strategy inactive
+        Agg -> Agg: skip (inactive)
+      else strategy active
+        Agg -> V3: rebalance(payload[i])
+        activate V3
+
+        == Child strategy authorization ==
+        V3 -> AM: hasRole(KEEPER|OPERATOR, Bot)
+        AM --> V3: true/false
+
+        alt Bot is NOT Keeper/Operator
+          V3 --> Agg: REVERT (strategy auth)
+          deactivate V3
+          Agg --> Bot: Tx revert bubbles up
+          deactivate Agg
+
+        else decode & validate rebalance params
+          note right of V3
+payload MUST be:
+abi.encode(
+  int24 newTickLower,
+  int24 newTickUpper,
+  uint256 pmDeadline,
+  uint256 minUnderlying,
+  uint256 minOther
+)
+Checks:
+- pmDeadline >= now
+- newTickLower < newTickUpper
+- ticks aligned to pool.tickSpacing()
+end note
+
+          alt invalid params / deadline / tick spacing
+            V3 --> Agg: REVERT SFUniswapV3Strategy__InvalidRebalanceParams\n/ InvalidDeadline
+            deactivate V3
+            Agg --> Bot: Tx revert bubbles up
+            deactivate Agg
+
+          else require Vault NFT approval
+            V3 -> PM: isApprovedForAll(vault=Vault, operator=V3)
+            PM --> V3: true/false
+
+            alt NOT approved
+              V3 --> Agg: REVERT SFUniswapV3Strategy__VaultNotApprovedForNFT
+              deactivate V3
+              Agg --> Bot: Tx revert bubbles up
+              deactivate Agg
+
+            else approved
+              alt positionTokenId == 0 (no active position)
+                V3 -> V3: tickLower=tNewLow\n tickUpper=tNewUp
+                note right of V3
+No position yet:
+- only updates stored tick range
+- returns (no NFT ops)
+end note
+                V3 --> Agg: return
+                deactivate V3
+
+              else position exists
+                == Exit old position ==
+                V3 -> PM: positions(positionTokenId)\n(read liquidity)
+                PM --> V3: currentLiquidity
+
+                opt currentLiquidity > 0
+                  V3 -> PM: decreaseLiquidity(tokenId, liquidity,\namount0Min/amount1Min, deadline)
+                  PM --> V3: (amount0, amount1)
+                  V3 -> SG: Emit OnLiquidityDecreased(...)
+
+                  V3 -> PM: collect(tokenId, recipient=V3,\namount0Max=max, amount1Max=max)
+                  PM --> V3: (c0, c1)
+                  V3 -> SG: Emit OnPositionCollected(...)
+                end
+
+                V3 -> PM: positions(positionTokenId)\n(check remaining liquidity)
+                PM --> V3: remainingLiquidity
+
+                opt remainingLiquidity == 0
+                  V3 -> PM: burn(positionTokenId)
+                  PM --> V3: ok
+                  V3 -> V3: positionTokenId = 0
+                end
+
+                == Update tick range ==
+                V3 -> V3: tickLower=tNewLow\n tickUpper=tNewUp
+                V3 -> SG: Emit OnTickRangeUpdated(oldLow, oldUp, newLow, newUp)
+
+                == Mint new position with current balances ==
+                V3 -> USDC: balanceOf(V3)
+                USDC --> V3: balUnderlying
+                V3 -> OT: balanceOf(V3)
+                OT --> V3: balOther
+
+                alt balUnderlying == 0 AND balOther == 0
+                  V3 --> Agg: return (nothing to deploy)
+                  deactivate V3
+                else mint
+                  note right of V3
+Mint params map to token0/token1 internally.
+Recipient of the NFT is the Vault.
+end note
+
+                  V3 -> USDC: approve(PM, amount)\n(if underlying is token0/1)
+                  V3 -> OT: approve(PM, amount)\n(if other is token0/1)
+
+                  V3 -> PM: mint(recipient=Vault,\n tickLower/tickUpper,\n amountDesired, mins, deadline)
+                  PM --> V3: (newTokenId, liquidity, amount0, amount1)
+                  V3 -> SG: Emit OnPositionMinted(newTokenId,...)
+
+                  V3 -> V3: positionTokenId = newTokenId
+                  V3 -> SG: Emit OnPositionRebalanced(oldTokenId, newTokenId, ...)
+
+                  == Sweep residual underlying back to Vault ==
+                  V3 -> USDC: transfer(Vault, USDC.balanceOf(V3))
+                  USDC --> V3: Transfer OK
+                end
+
+                V3 --> Agg: return
+                deactivate V3
+              end
+
+              Agg -> SG: Emit OnChildRebalance(V3, Bot)
+            end
+          end
+        end
+      end
+    end
+
+    Agg --> Bot: Tx receipt (rebalance complete)
+    deactivate Agg
+  end
+end
+
+@enduml
