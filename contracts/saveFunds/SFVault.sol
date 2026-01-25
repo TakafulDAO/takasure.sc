@@ -990,6 +990,7 @@ contract SFVault is
     function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
         internal
         override
+        whenNotPaused
     {
         super._withdraw(caller, receiver, owner, assets, shares);
 
