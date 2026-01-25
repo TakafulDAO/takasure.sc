@@ -395,10 +395,10 @@ contract SFStrategyAggregator is
 
         for (uint256 i; i < strategies.length; ++i) {
             // Skip inactive strategies
-            if (subStrategyMeta[strategies[i]].isActive) {
-                ISFStrategyMaintenance(strategies[i]).harvest(payloads[i]);
-                emit OnChildHarvest(strategies[i], msg.sender);
-            }
+            if (!subStrategyMeta[strategies[i]].isActive) continue;
+
+            ISFStrategyMaintenance(strategies[i]).harvest(payloads[i]);
+            emit OnChildHarvest(strategies[i], msg.sender);
         }
     }
 
