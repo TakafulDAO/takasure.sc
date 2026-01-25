@@ -394,6 +394,9 @@ contract SFStrategyAggregator is
         (address[] memory strategies, bytes[] memory payloads) = _decodePerStrategyData(data);
 
         for (uint256 i; i < strategies.length; ++i) {
+            // Skip inactive strategies
+            if (!subStrategyMeta[strategies[i]].isActive) continue;
+
             ISFStrategyMaintenance(strategies[i]).harvest(payloads[i]);
             emit OnChildHarvest(strategies[i], msg.sender);
         }
