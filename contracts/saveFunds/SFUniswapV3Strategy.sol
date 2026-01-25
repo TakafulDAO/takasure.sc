@@ -872,6 +872,11 @@ contract SFUniswapV3Strategy is
 
         // Mint position
         (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) = positionManager.mint(params);
+
+        // reset approvals
+        if (params.amount0Desired > 0) IERC20(params.token0).forceApprove(address(positionManager), 0);
+        if (params.amount1Desired > 0) IERC20(params.token1).forceApprove(address(positionManager), 0);
+
         emit OnPositionMinted(tokenId, tickLower, tickUpper, liquidity, amount0, amount1);
 
         // Store the position token id on first mint
