@@ -85,7 +85,7 @@ contract SFVault is
     event OnTokenHardCapUpdated(address indexed token, uint16 oldCapBPS, uint16 newCapBPS);
     event OnAggregatorUpdated(address indexed newAggregator);
     event OnFeeConfigUpdated(uint16 managementFeeBPS, uint16 performanceFeeBPS, uint16 performanceFeeHurdleBPS);
-    event OnMemberRegistered(address indexed newMember);
+    event OnMemberRegistered(address indexed newMember, address indexed caller);
     event OnMemberUnregistered(address indexed member, address indexed caller);
     event OnFeesTaken(uint256 feeAssets, FeeType feeType);
     event OnManagementFeeCharged(
@@ -312,7 +312,7 @@ contract SFVault is
         require(newMember != address(0), SFVault__NotAddressZero());
         validMembers.add(newMember);
 
-        emit OnMemberRegistered(newMember);
+        emit OnMemberRegistered(newMember, msg.sender);
     }
 
     function unregisterMember(address member) external onlyRole(Roles.BACKEND_ADMIN) {
