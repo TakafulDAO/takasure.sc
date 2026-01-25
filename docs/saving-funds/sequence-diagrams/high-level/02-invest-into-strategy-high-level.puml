@@ -1,0 +1,37 @@
+@startuml Save Fund (SF) – Invest Into Strategy (High-Level)
+title Save Fund (SF) – Invest Into Strategy (High-Level)
+
+participant "Backend\n(Keepers/Bots)" as BE
+participant "SF Vault\n(Smart Contract)" as Vault
+participant "Strategy Aggregator\n(Smart Contract)" as Agg
+participant "Sub-Strategies\n(e.g., Uniswap V3)" as Child
+database "Subgraph" as SG
+
+== Keeper invests idle funds ==
+
+ref over Vault, SG
+Deposit flow must have happened first
+(see: Deposits diagram)
+end ref
+
+BE -> Vault: Read idle assets / vault state
+BE -> Agg: (optional) Read strategy config\n(weights, active set)
+BE -> SG: (optional) Read history for signals
+BE -> BE: Compute allocation + per-strategy payloads
+
+BE -> Vault: investIntoStrategy(assets, bundle)
+note right of Vault
+Only KEEPER / OPERATOR
+- transfers underlying to Aggregator
+- forwards bundle (strategies + payloads)
+end note
+
+Vault -> Agg: transfer underlying + call deposit(bundle)
+Agg -> Child: deposit(per-strategy payload)\n(repeated per active strategy)
+Child --> Agg: Invest result
+Agg --> Vault: Return leftover (if any)
+
+Vault -> SG: Emit invest events\n(indexed by Subgraph)
+BE <-- Vault: Tx receipt / invested summary
+
+@enduml

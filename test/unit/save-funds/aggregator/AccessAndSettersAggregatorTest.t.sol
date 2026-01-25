@@ -129,7 +129,7 @@ contract AccessAndSettersAggregatorTest is Test {
             strategies2[0] = address(s1);
             strategies2[1] = address(s2);
             weights2[0] = 8000;
-            weights2[1] = 2000;
+            weights2[1] = 0;
             actives2[0] = true;
             actives2[1] = false; // inactive => recompute sum-only-active branch
 
