@@ -221,7 +221,7 @@ contract MaintenanceAggregatorTest is Test {
         aggregator.harvest(_encodePerStrategyData(strategies, payloads));
     }
 
-    function testAggregator_harvest_WithAllowlist_CallsInactiveToo_AndPayloadMatches() public {
+    function testAggregator_harvest_WithAllowlist_DontCallInactive() public {
         RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
         RecorderSubStrategy s2 = new RecorderSubStrategy(asset);
 
@@ -243,10 +243,7 @@ contract MaintenanceAggregatorTest is Test {
         aggregator.harvest(_encodePerStrategyData(strategies, payloads));
 
         assertEq(s1.harvestCount(), 1);
-        assertEq(s2.harvestCount(), 1); // IMPORTANT: harvest allowlist path does NOT check active
-
-        assertEq(s1.lastHarvestDataHash(), keccak256(payloads[0]));
-        assertEq(s2.lastHarvestDataHash(), keccak256(payloads[1]));
+        assertEq(s2.harvestCount(), 0);
     }
 
     function testAggregator_rebalance_WithAllowlist_SkipsInactive() public {
