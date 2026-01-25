@@ -6,6 +6,7 @@
  * @notice Uniswap V3 strategy implementation for SaveFunds vaults.
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISFVault} from "contracts/interfaces/saveFunds/ISFVault.sol";
@@ -174,6 +175,11 @@ contract SFUniswapV3Strategy is
 
         addressManager = _addressManager;
         vault = _vault;
+
+        require(
+            IERC20Metadata(address(_underlying)).decimals() == IERC20Metadata(address(_otherToken)).decimals(),
+            SFUniswapV3Strategy__InvalidPoolTokens()
+        );
         underlying = _underlying;
         otherToken = _otherToken;
         pool = IUniswapV3Pool(_pool);
