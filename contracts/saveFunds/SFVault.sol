@@ -685,35 +685,20 @@ contract SFVault is
 
     /**
      * @notice Return the profit/loss for `user` as a signed value in underlying units.
-     * @dev PnL = currentPositionValue + totalWithdrawn - totalDeposited. The result is saturated to int256 bounds to avoid overflow reverts.
+     * @dev PnL = currentPositionValue + totalWithdrawn - totalDeposited.
      * @param user Account to query.
      * @return pnl Signed profit/loss in underlying units.
-     * @custom:invariant The returned value is always within int256 bounds due to explicit saturation logic.
      */
     function getUserPnL(address user) external view override returns (int256) {
         uint256 shares = balanceOf(user);
 
         uint256 currentAssets = shares == 0 ? 0 : convertToAssets(shares);
+        uint256 totalValue = currentAssets + userTotalWithdrawn[user];
         uint256 deposited = userTotalDeposited[user];
-        uint256 withdrawn = userTotalWithdrawn[user];
 
-        // totalValue = currentAssets + withdrawn (unchecked + saturation to avoid revert on overflow)
-        uint256 totalValue;
-        unchecked {
-            totalValue = currentAssets + withdrawn;
-            if (totalValue < currentAssets) totalValue = type(uint256).max; // overflow -> saturate
-        }
+        if (totalValue >= deposited) return int256(totalValue - deposited);
 
-        // pnl = totalValue - deposited (as signed), with saturation to int256 bounds
-        if (totalValue >= deposited) {
-            uint256 diff = totalValue - deposited;
-            if (diff > uint256(type(int256).max)) return type(int256).max;
-            return int256(diff);
-        } else {
-            uint256 diff = deposited - totalValue;
-            if (diff > uint256(type(int256).max)) return type(int256).min;
-            return -int256(diff);
-        }
+        return -int256(deposited - totalValue);
     }
 
     /**
@@ -985,6 +970,7 @@ contract SFVault is
     function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
         internal
         override
+        whenNotPaused
     {
         super._withdraw(caller, receiver, owner, assets, shares);
 

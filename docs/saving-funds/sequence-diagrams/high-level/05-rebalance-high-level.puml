@@ -1,0 +1,35 @@
+@startuml Save Fund (SF) – Rebalance (High-Level)
+title Save Fund (SF) – Rebalance (High-Level)
+
+participant "Backend\n(Keepers/Bots)" as BE
+participant "Strategy Aggregator\n(Smart Contract)" as Agg
+participant "Sub-Strategies\n(e.g., Uniswap V3)" as Child
+database "Subgraph" as SG
+
+== Keeper rebalances positions ==
+
+BE -> Agg: Read current strategy state\n(optional)
+BE -> SG: (optional) Read historical/price signals
+BE -> BE: Compute rebalance actions\n(per-strategy payloads)
+
+BE -> Agg: rebalance(bundle or empty)
+note right of Agg
+Only KEEPER / OPERATOR
+- If empty: rebalance all active strategies
+- Else: rebalance selected strategies + payloads
+end note
+
+Agg -> Child: rebalance(payload)\n(repeated per selected strategy)
+Child --> Agg: Rebalance result
+Agg -> SG: Emit rebalance-related events\n(indexed by Subgraph)
+
+opt Rebalance requires moving capital in/out
+  ref over BE, Agg
+Use Invest Into Strategy / Withdraw From Strategy
+(see: Invest diagram, Withdraws diagram)
+  end ref
+end
+
+BE <-- Agg: Tx receipt / summary
+
+@enduml
