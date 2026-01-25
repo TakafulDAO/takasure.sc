@@ -440,8 +440,6 @@ contract SFUniswapV3Strategy is
         _onlyContract("PROTOCOL__SF_AGGREGATOR");
         // Collect fees only.
         _collectFees(data);
-        // Strategy must not hold assets
-        _sweepToVault();
 
         // ? Business decision: Auto compound? This would be:
         // 1. check if strategy is approved by vault
