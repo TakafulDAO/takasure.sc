@@ -440,8 +440,6 @@ contract SFUniswapV3Strategy is
         _onlyContract("PROTOCOL__SF_AGGREGATOR");
         // Collect fees only.
         _collectFees(data);
-        // Strategy must not hold assets
-        _sweepToVault();
 
         // ? Business decision: Auto compound? This would be:
         // 1. check if strategy is approved by vault
@@ -819,8 +817,7 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @dev Mints (or re-mints) the Uniswap V3 position using the provided token amounts and slippage bounds.
-     *      Stores the minted `tokenId` into `positionTokenId` on first mint; otherwise requires it to match.
+     * @dev Mints the Uniswap V3 position using the provided token amounts and slippage bounds.
      * @param _amountUnderlying Desired underlying amount to supply.
      * @param _amountOther Desired otherToken amount to supply.
      * @param _deadline PositionManager deadline (must be >= block.timestamp).
@@ -828,7 +825,6 @@ contract SFUniswapV3Strategy is
      * @param _minOther Minimum otherToken amount to add (slippage floor).
      * @return usedUnderlying Actual underlying amount consumed by the mint.
      * @return usedOther Actual otherToken amount consumed by the mint.
-     * @custom:invariant If `positionTokenId != 0`, mint must not create a new unrelated tokenId.
      */
     function _mintPosition(
         uint256 _amountUnderlying,
@@ -879,12 +875,8 @@ contract SFUniswapV3Strategy is
         emit OnPositionMinted(tokenId, tickLower, tickUpper, liquidity, amount0, amount1);
 
         // Store the position token id on first mint
-        if (positionTokenId == 0) {
-            positionTokenId = tokenId;
-        } else {
-            // Sanity check: ensure minted tokenId matches existing positionTokenId
-            require(tokenId == positionTokenId, SFUniswapV3Strategy__UnexpectedPositionTokenId());
-        }
+        require(positionTokenId == 0, SFUniswapV3Strategy__UnexpectedPositionTokenId());
+        positionTokenId = tokenId;
 
         // Map back used amounts
         if (token0 == address(underlying)) {

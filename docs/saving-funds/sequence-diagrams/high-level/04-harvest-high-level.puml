@@ -1,0 +1,38 @@
+@startuml Save Fund (SF) – Harvest (High-Level)
+title Save Fund (SF) – Harvest (High-Level)
+
+participant "Backend\n(Keepers/Bots)" as BE
+participant "Strategy Aggregator\n(Smart Contract)" as Agg
+participant "Sub-Strategies\n(e.g., Uniswap V3)" as Child
+participant "SF Vault\n(Smart Contract)" as Vault
+database "Subgraph" as SG
+
+== Keeper harvests strategy yield ==
+
+BE -> SG: (optional) Read recent performance/events
+BE -> BE: Decide harvest scope\n(all strategies or selected)
+
+BE -> Agg: harvest(bundle or empty)
+note right of Agg
+Only KEEPER / OPERATOR
+- If empty: harvest all active strategies
+- Else: harvest specified strategies + payloads
+end note
+
+Agg -> Child: harvest(payload)\n(repeated per selected strategy)
+Child --> Agg: Harvest result
+Agg -> SG: Emit harvest-related events\n(indexed by Subgraph)
+
+opt Charge performance fees after harvest
+  BE -> Vault: takeFees()
+  note right of Vault
+Only OPERATOR
+- Applies performance fee via high-water mark
+- Updates lastReport + highWaterMark
+end note
+  Vault -> SG: Emit fee events\n(indexed by Subgraph)
+end
+
+BE <-- Agg: Tx receipt / summary
+
+@enduml
