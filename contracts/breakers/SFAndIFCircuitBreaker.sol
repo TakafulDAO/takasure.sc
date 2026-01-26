@@ -231,7 +231,7 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
      * @dev Expected caller: the vault itself. Reverts on violations (prevents outflow).
      */
     function beforeWithdraw(address owner, uint256 assets) external nonReentrant onlyProtectedCaller {
-        _enforceOrQueue(msg.sender, owner, assets);
+        _enforceOrQueue(msg.sender, assets);
         _consumeRateLimit(msg.sender, owner, assets);
     }
 
@@ -246,7 +246,7 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
         returns (uint256 assetsEst)
     {
         assetsEst = IERC4626(msg.sender).previewRedeem(shares);
-        _enforceOrQueue(msg.sender, owner, assetsEst);
+        _enforceOrQueue(msg.sender, assetsEst);
         _consumeRateLimit(msg.sender, owner, assetsEst);
     }
 
@@ -452,21 +452,42 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
                            INTERNAL LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function _enforceOrQueue(address vault, address owner, uint256 assets) internal view {
+    /**
+     * @dev Enforces whether a withdrawal can proceed instantly or must be queued.
+     * @dev This function is intended to be called from instant execution paths (e.g., ERC4626 `withdraw`
+     * and `redeem`), where there is no opportunity to perform multi-step flows like timelocks or
+     * manual approvals.
+     * @dev Queueing is required when:
+     *  - Global withdrawal timelock mode is enabled (all withdrawals must be queued), OR
+     *  - `assets >= timelockThresholdAssets` (threshold timelock), OR
+     *  - `assets >= approvalThresholdAssets` (withdrawal requires an explicit approval step).
+     * @param vault The protected vault address (also the ERC4626 share token).
+     * @param assets The withdrawal amount expressed in underlying asset units.
+     */
+    function _enforceOrQueue(
+        address vault,
+        /*address owner, The owner of the shares being withdrawn/redeemed (reserved for future per-owner policies)*/
+        uint256 assets
+    )
+        internal
+        view
+    {
         GuardConfig memory cfg = config[vault];
 
-        // If global timelock is enabled => must queue.
-        if (cfg.globalWithdrawTimelockEnabled) {
-            owner;
-            assets;
-            revert SFAndIFCircuitBreaker__WithdrawalRequiresQueue();
-        }
+        // Global timelock mode: force ALL withdrawals into the queue flow.
+        require(!cfg.globalWithdrawTimelockEnabled, SFAndIFCircuitBreaker__WithdrawalRequiresQueue());
 
-        // If threshold timelock applies => must queue.
-        if (cfg.timelockThresholdAssets > 0 && assets >= cfg.timelockThresholdAssets) {
-            owner;
-            revert SFAndIFCircuitBreaker__WithdrawalRequiresQueue();
-        }
+        // Threshold timelock: force withdrawals >= threshold into the queue flow.
+        require(
+            cfg.timelockThresholdAssets <= 0 && assets < cfg.timelockThresholdAssets,
+            SFAndIFCircuitBreaker__WithdrawalRequiresQueue()
+        );
+
+        // Approval threshold: if an approval is required, the instant path cannot satisfy it.
+        require(
+            cfg.approvalThresholdAssets <= 0 && assets < cfg.approvalThresholdAssets,
+            SFAndIFCircuitBreaker__WithdrawalRequiresQueue()
+        );
     }
 
     function _consumeRateLimit(address vault, address owner, uint256 assets) internal {
