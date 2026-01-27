@@ -17,6 +17,7 @@ import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC72
 import {ProtocolAddress} from "contracts/types/Managers.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 pragma solidity 0.8.28;
 
