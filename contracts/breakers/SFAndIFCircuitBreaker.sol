@@ -25,7 +25,7 @@ import {
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-import {SFPauseflags} from "contracts/helpers/libraries/flags/SFPauseflags.sol";
+import {SFPauseFlags} from "contracts/helpers/libraries/flags/SFPauseFlags.sol";
 
 contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuardTransientUpgradeable {
     IAddressManager private addressManager;
