@@ -235,7 +235,7 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
 
             _triggerAndPause(
                 msg.sender,
-                SFPauseflags.LARGE_WITHDRAW_QUEUED_FLAG,
+                SFPauseFlags.LARGE_WITHDRAW_QUEUED_FLAG,
                 abi.encode(owner, receiver, assets, sharesEst, requestId)
             );
             return (false, requestId);
@@ -243,7 +243,7 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
 
         // Rate limit exceeded => pause + halt.
         if (_wouldExceedRateLimit(msg.sender, owner, assets)) {
-            _triggerAndPause(msg.sender, SFPauseflags.RATE_LIMIT_EXCEEDED_FLAG, abi.encode(owner, assets));
+            _triggerAndPause(msg.sender, SFPauseFlags.RATE_LIMIT_EXCEEDED_FLAG, abi.encode(owner, assets));
             return (false, 0);
         }
 
@@ -277,7 +277,7 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
 
             _triggerAndPause(
                 msg.sender,
-                SFPauseflags.LARGE_WITHDRAW_QUEUED_FLAG,
+                SFPauseFlags.LARGE_WITHDRAW_QUEUED_FLAG,
                 abi.encode(owner, receiver, assetsEst, shares, requestId)
             );
             return (false, requestId);
@@ -285,7 +285,7 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
 
         // Rate limit exceeded => pause + halt.
         if (_wouldExceedRateLimit(msg.sender, owner, assetsEst)) {
-            _triggerAndPause(msg.sender, SFPauseflags.RATE_LIMIT_EXCEEDED_FLAG, abi.encode(owner, assetsEst));
+            _triggerAndPause(msg.sender, SFPauseFlags.RATE_LIMIT_EXCEEDED_FLAG, abi.encode(owner, assetsEst));
             return (false, 0);
         }
 
@@ -310,13 +310,13 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
 
         require(r.vault == msg.sender, SFAndIFCircuitBreaker__InvalidRequest());
         if (r.cancelled || r.executed || !r.approved) {
-            _triggerAndPause(msg.sender, SFPauseflags.EXECUTE_INVALID_STATE, abi.encode(requestId));
+            _triggerAndPause(msg.sender, SFPauseFlags.EXECUTE_INVALID_STATE, abi.encode(requestId));
             return false;
         }
 
         if (_wouldExceedRateLimit(msg.sender, r.owner, assetsOut)) {
             _triggerAndPause(
-                msg.sender, SFPauseflags.RATE_LIMIT_EXCEEDED_FLAG, abi.encode(r.owner, assetsOut, requestId)
+                msg.sender, SFPauseFlags.RATE_LIMIT_EXCEEDED_FLAG, abi.encode(r.owner, assetsOut, requestId)
             );
             return false;
         }
@@ -508,7 +508,7 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
 
             if (_gw.withdrawn + _assets > _cfg.globalWithdrawCap24hAssets) {
                 // Do not revert. Trigger + pause and let vault stop.
-                _triggerAndPause(_vault, SFPauseflags.RATE_LIMIT_EXCEEDED_FLAG, abi.encode(_owner, _assets));
+                _triggerAndPause(_vault, SFPauseFlags.RATE_LIMIT_EXCEEDED_FLAG, abi.encode(_owner, _assets));
                 return;
             }
             _gw.withdrawn += _assets;
@@ -518,7 +518,7 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
             Window storage _uw = userWindow[_vault][_owner];
             _syncWindow(_uw);
             if (_uw.withdrawn + _assets > _cfg.userWithdrawCap24hAssets) {
-                _triggerAndPause(_vault, SFPauseflags.RATE_LIMIT_EXCEEDED_FLAG, abi.encode(_owner, _assets));
+                _triggerAndPause(_vault, SFPauseFlags.RATE_LIMIT_EXCEEDED_FLAG, abi.encode(_owner, _assets));
                 return;
             }
             _uw.withdrawn += _assets;
