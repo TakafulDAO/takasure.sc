@@ -195,6 +195,14 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
         emit OnWindowsReset(vault, user);
     }
 
+    function clearPauseFlags(address vault, uint256 flagsToClear) external onlyRole(Roles.OPERATOR) {
+        pauseFlags[vault] &= ~flagsToClear;
+    }
+
+    function resetPauseFlags(address vault) external onlyRole(Roles.OPERATOR) {
+        pauseFlags[vault] = 0;
+    }
+
     /*//////////////////////////////////////////////////////////////
                            HOOKS (VAULT CALLS)
     //////////////////////////////////////////////////////////////*/
