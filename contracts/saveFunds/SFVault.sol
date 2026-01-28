@@ -1051,7 +1051,7 @@ contract SFVault is
     }
 
     function _circuitBreaker() internal view returns (ISFAndIFCircuitBreaker cb_) {
-        ISFAndIFCircuitBreaker(addressManager.getProtocolAddressByName("PROTOCOL__SF_CIRCUIT_BREAKER").addr);
+        ISFAndIFCircuitBreaker(addressManager.getProtocolAddressByName("PROTOCOL__CIRCUIT_BREAKER").addr);
     }
 
     function _onlyKeeperOrOperator() internal view {

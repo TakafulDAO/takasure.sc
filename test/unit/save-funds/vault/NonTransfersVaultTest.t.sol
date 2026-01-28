@@ -5,11 +5,13 @@ import {Test} from "forge-std/Test.sol";
 
 import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {DeploySFVault} from "test/utils/05-DeploySFVault.s.sol";
+import {DeploySFAndIFCircuitBreaker} from "test/utils/08-DeployCircuitBreaker.s.sol";
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {MockSFStrategy} from "test/mocks/MockSFStrategy.sol";
 import {MockERC721ApprovalForAll} from "test/mocks/MockERC721ApprovalForAll.sol";
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
+import {SFAndIFCircuitBreaker} from "contracts/breakers/SFAndIFCircuitBreaker.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -23,6 +25,7 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 contract NonTransfersVaultTest is Test {
     DeployManagers internal managersDeployer;
     DeploySFVault internal vaultDeployer;
+    DeploySFAndIFCircuitBreaker internal circuitBreakerDeployer;
     AddAddressesAndRoles internal addressesAndRoles;
 
     SFVault internal vault;
@@ -42,11 +45,13 @@ contract NonTransfersVaultTest is Test {
     function setUp() public {
         managersDeployer = new DeployManagers();
         vaultDeployer = new DeploySFVault();
+        circuitBreakerDeployer = new DeploySFAndIFCircuitBreaker();
         addressesAndRoles = new AddAddressesAndRoles();
 
         (HelperConfig.NetworkConfig memory config, AddressManager _addrMgr, ModuleManager _modMgr) =
             managersDeployer.run();
         (address operatorAddr,,, address backendAddr,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
+        SFAndIFCircuitBreaker circuitBreaker = circuitBreakerDeployer.run(_addrMgr);
 
         addrMgr = _addrMgr;
         modMgr = _modMgr;
@@ -59,6 +64,7 @@ contract NonTransfersVaultTest is Test {
 
         vm.startPrank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("PROTOCOL__CIRCUIT_BREAKER", address(circuitBreaker), ProtocolAddressType.Admin);
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
