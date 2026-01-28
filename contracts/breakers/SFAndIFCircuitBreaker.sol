@@ -15,6 +15,7 @@ pragma solidity 0.8.28;
  * - OPERATOR approves queued withdrawals. Execution is performed by the vault (hooked later).
  */
 
+import {ISFAndIFCircuitBreaker} from "contracts/interfaces/ISFAndIFCircuitBreaker.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
@@ -28,7 +29,12 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {GuardConfig, Window, RequestKind, WithdrawalRequest} from "contracts/types/CircuitBreakerTypes.sol";
 import {VaultsPauseFlags} from "contracts/helpers/libraries/flags/VaultsPauseFlags.sol";
 
-contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuardTransientUpgradeable {
+contract SFAndIFCircuitBreaker is
+    ISFAndIFCircuitBreaker,
+    Initializable,
+    UUPSUpgradeable,
+    ReentrancyGuardTransientUpgradeable
+{
     IAddressManager private addressManager;
 
     uint256 public nextRequestId;

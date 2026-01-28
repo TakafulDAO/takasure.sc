@@ -6,13 +6,6 @@ pragma solidity 0.8.28;
 
 interface ISFAndIFCircuitBreaker {
     function initialize(IAddressManager _addressManager) external;
-    function nextRequestId() external view returns (uint256);
-    function config(address vault) external view returns (GuardConfig memory);
-    function globalWindow(address vault) external view returns (Window memory);
-    function userWindow(address vault, address user) external view returns (Window memory);
-    function withdrawalRequests(uint256 requestId) external view returns (WithdrawalRequest memory);
-    function tripped(address vault) external view returns (bool);
-    function pauseFlags(address vault) external view returns (uint256);
     function setGuards(
         address vault,
         uint256 globalWithdrawCap24hAssets,
