@@ -529,7 +529,7 @@ contract SFVault is
         emit OnWithdrawFromStrategy(assets, withdrawnAssets, keccak256(data));
     }
 
-    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+    function withdraw(uint256 assets, address receiver, address owner) public override whenNotPaused returns (uint256) {
         ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
         if (address(circuitBreaker) != address(0)) {
             (bool proceed,) = circuitBreaker.hookWithdraw(owner, receiver, assets);
@@ -539,7 +539,12 @@ contract SFVault is
         return super.withdraw(assets, receiver, owner);
     }
 
-    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
+    function redeem(uint256 shares, address receiver, address owner)
+        public
+        override
+        whenNotPaused
+        returns (uint256 assets)
+    {
         ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
         if (address(circuitBreaker) != address(0)) {
             (bool proceed,) = circuitBreaker.hookRedeem(owner, receiver, shares);
@@ -552,6 +557,7 @@ contract SFVault is
     function executeApprovedCircuitBreakersWithdrawals(uint256 requestId)
         external
         nonReentrant
+        whenNotPaused
         onlyRole(Roles.OPERATOR)
         returns (uint256 assetsOut)
     {
