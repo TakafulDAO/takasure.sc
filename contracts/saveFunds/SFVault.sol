@@ -13,6 +13,7 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISFVault} from "contracts/interfaces/saveFunds/ISFVault.sol";
+import {ISFAndIFCircuitBreaker} from "contracts/interfaces/ISFAndIFCircuitBreaker.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {
@@ -29,6 +30,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {FeeType} from "contracts/types/Cash.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {WithdrawalRequest, RequestKind} from "contracts/types/CircuitBreakerTypes.sol";
 
 pragma solidity 0.8.28;
 
@@ -527,6 +529,64 @@ contract SFVault is
         emit OnWithdrawFromStrategy(assets, withdrawnAssets, keccak256(data));
     }
 
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        if (address(circuitBreaker) != address(0)) {
+            (bool proceed,) = circuitBreaker.hookWithdraw(owner, receiver, assets);
+            if (!proceed) return 0;
+        }
+
+        return super.withdraw(assets, receiver, owner);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        if (address(circuitBreaker) != address(0)) {
+            (bool proceed,) = circuitBreaker.hookRedeem(owner, receiver, shares);
+            if (!proceed) return 0;
+        }
+
+        return super.redeem(shares, receiver, owner);
+    }
+
+    function executeApprovedCircuitBreakersWithdrawals(uint256 requestId)
+        external
+        nonReentrant
+        onlyRole(Roles.OPERATOR)
+        returns (uint256 assetsOut)
+    {
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        require(address(circuitBreaker) != address(0), SFVault__NotAddressZero());
+
+        WithdrawalRequest memory request = circuitBreaker.getWithdrawalRequest(requestId);
+
+        // Must belong to this vault
+        require(request.vault == address(this), SFVault__NotAuthorizedCaller());
+
+        // Must be executable
+        require(circuitBreaker.isRequestExecutable(requestId), SFVault__NotAuthorizedCaller());
+
+        uint256 sharesToBurn;
+
+        if (request.kind == RequestKind.Withdraw) {
+            assetsOut = request.assetsRequested;
+            sharesToBurn = previewWithdraw(assetsOut);
+        } else {
+            sharesToBurn = request.sharesRequested;
+            assetsOut = previewRedeem(sharesToBurn);
+        }
+
+        bool proceed = circuitBreaker.hookExecuteApproved(requestId, assetsOut);
+        if (!proceed) return 0;
+
+        _burn(request.owner, sharesToBurn);
+        IERC20(asset()).safeTransfer(request.receiver, assetsOut);
+
+        emit Withdraw(_msgSender(), request.receiver, request.owner, assetsOut, sharesToBurn);
+
+        return assetsOut;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
@@ -981,6 +1041,10 @@ contract SFVault is
 
         // Attribute withdrawals to the share owner (the account whose shares were burned)
         userTotalWithdrawn[owner] += assets;
+    }
+
+    function _circuitBreaker() internal view returns (ISFAndIFCircuitBreaker cb_) {
+        ISFAndIFCircuitBreaker(addressManager.getProtocolAddressByName("PROTOCOL__SF_CIRCUIT_BREAKER").addr);
     }
 
     function _onlyKeeperOrOperator() internal view {
