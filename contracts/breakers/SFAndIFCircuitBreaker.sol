@@ -37,6 +37,7 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
     mapping(address vault => mapping(address user => Window)) public userWindow; // vault => user => rolling window
     mapping(uint256 => WithdrawalRequest) public withdrawalRequests;
     mapping(address vault => bool) public tripped; // Whether a vault has been triggered/tripped at least once (informational).
+    mapping(address vault => uint256) public pauseFlags; // Flags per vault
 
     /*//////////////////////////////////////////////////////////////
                                 TYPES
@@ -111,7 +112,7 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
     event OnWithdrawalApproved(uint256 indexed requestId, address indexed vault, address indexed operator);
     event OnWithdrawalCancelled(uint256 indexed requestId, address indexed vault, address indexed operator);
     event OnWithdrawalExecuted(uint256 indexed requestId, address indexed vault, uint256 assetsOut);
-    event OnCircuitBreakerTriggered(address indexed vault, bytes32 indexed reason, bytes data);
+    event OnCircuitBreakerTriggered(address indexed vault, uint256 indexed flagsAdded, uint256 newFlags, bytes data);
     event OnPauseAttempt(address indexed vault, bool success, bytes returndata);
 
     /*//////////////////////////////////////////////////////////////
@@ -523,14 +524,16 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
         return _w;
     }
 
-    function _triggerAndPause(address _vault, bytes32 _reason, bytes memory _data) internal {
-        tripped[_vault] = true;
-        emit OnCircuitBreakerTriggered(_vault, _reason, _data);
+    function _triggerAndPause(address vault, uint256 flagsAdded, bytes memory data) internal {
+        tripped[vault] = true;
 
-        // Attempt to pause the vault. Never revert from here.
-        // TODO: Or do I revert better to avoid the vault continuing? But wont be seeing the event then.
-        (bool _success, bytes memory _returndata) = _vault.call(abi.encodeWithSignature("pause()"));
-        emit OnPauseAttempt(_vault, _success, _returndata);
+        uint256 updated = pauseFlags[vault] | flagsAdded;
+        pauseFlags[vault] = updated;
+
+        emit OnCircuitBreakerTriggered(vault, flagsAdded, updated, data);
+
+        (bool success, bytes memory returndata) = vault.call(abi.encodeWithSignature("pause()"));
+        emit OnPauseAttempt(vault, success, returndata);
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR) {}
