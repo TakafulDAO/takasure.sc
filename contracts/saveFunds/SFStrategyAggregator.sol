@@ -73,6 +73,7 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     event OnSubStrategyAdded(address indexed strategy, uint16 targetWeightBPS, bool isActive);
+    event OnSubStrategyRemoved(address indexed strategy, address indexed caller);
     event OnSubStrategyUpdated(address indexed strategy, uint16 targetWeightBPS, bool isActive);
     event OnAggregatorEmergencyExit(address indexed receiver, uint256 idleSent);
     event OnAggregatorDeposit(
@@ -200,9 +201,14 @@ contract SFStrategyAggregator is
 
         for (uint256 i; i < len; ++i) {
             address s = strategies[i];
+            uint16 w = weights[i];
+            bool a = actives[i];
 
             require(s != address(0), SFStrategyAggregator__NotAddressZero());
-            require(weights[i] <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+            require(w <= MAX_BPS, SFStrategyAggregator__InvalidTargetWeightBPS());
+            if (a) require(w > 0, SFStrategyAggregator__InvalidTargetWeightBPS());
+            else require(w == 0, SFStrategyAggregator__InvalidTargetWeightBPS());
+
             _assertChildStrategyCompatible(s);
 
             for (uint256 j = i + 1; j < len; ++j) {
@@ -212,12 +218,12 @@ contract SFStrategyAggregator is
             bool existed = subStrategySet.contains(s);
             if (!existed) {
                 subStrategySet.add(s);
-                subStrategyMeta[s] = SubStrategyMeta({targetWeightBPS: weights[i], isActive: actives[i]});
-                emit OnSubStrategyAdded(s, weights[i], actives[i]);
+                subStrategyMeta[s] = SubStrategyMeta({targetWeightBPS: w, isActive: a});
+                emit OnSubStrategyAdded(s, w, a);
             } else {
-                subStrategyMeta[s].targetWeightBPS = weights[i];
-                subStrategyMeta[s].isActive = actives[i];
-                emit OnSubStrategyUpdated(s, weights[i], actives[i]);
+                subStrategyMeta[s].targetWeightBPS = w;
+                subStrategyMeta[s].isActive = a;
+                emit OnSubStrategyUpdated(s, w, a);
             }
         }
 
@@ -394,6 +400,9 @@ contract SFStrategyAggregator is
         (address[] memory strategies, bytes[] memory payloads) = _decodePerStrategyData(data);
 
         for (uint256 i; i < strategies.length; ++i) {
+            // Skip inactive strategies
+            if (!subStrategyMeta[strategies[i]].isActive) continue;
+
             ISFStrategyMaintenance(strategies[i]).harvest(payloads[i]);
             emit OnChildHarvest(strategies[i], msg.sender);
         }
@@ -451,6 +460,32 @@ contract SFStrategyAggregator is
 
         _recomputeTotalTargetWeightBPS();
         emit OnSubStrategyAdded(strategy, targetWeightBPS, true);
+    }
+
+    /**
+     * @notice Removes an existing child strategy from the aggregator.
+     * @dev Only callable by a BACKEND_ADMIN. The strategy must be decommissioned (isActive == false), have zero target weight, and hold no assets.
+     * @param strategy Address of the child strategy to remove.
+     * @custom:invariant strategy is no longer included in the set after the call completes.
+     */
+    function removeSubStrategy(address strategy)
+        external
+        nonReentrant
+        notAddressZero(strategy)
+        onlyRole(Roles.OPERATOR)
+    {
+        require(subStrategySet.contains(strategy), SFStrategyAggregator__SubStrategyNotFound());
+        SubStrategyMeta memory m = subStrategyMeta[strategy];
+
+        // Child strategy must be inactive, have zero target weight, and hold no assets
+        require(!m.isActive, SFStrategyAggregator__InvalidConfig());
+        require(m.targetWeightBPS == 0, SFStrategyAggregator__InvalidTargetWeightBPS());
+        require(ISFStrategy(strategy).totalAssets() == 0, SFStrategyAggregator__NotZeroAmount());
+
+        subStrategySet.remove(strategy);
+        delete subStrategyMeta[strategy];
+
+        emit OnSubStrategyRemoved(strategy, msg.sender);
     }
 
     /**
