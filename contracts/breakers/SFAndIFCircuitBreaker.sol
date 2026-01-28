@@ -436,6 +436,14 @@ contract SFAndIFCircuitBreaker is Initializable, UUPSUpgradeable, ReentrancyGuar
         return (r.vault != address(0) && r.approved && !r.executed && !r.cancelled);
     }
 
+    function hasPauseFlag(address vault, uint256 flag) external view returns (bool) {
+        return (pauseFlags[vault] & flag) != 0;
+    }
+
+    function getPauseFlags(address vault) external view returns (uint256) {
+        return pauseFlags[vault];
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
