@@ -24,7 +24,7 @@ contract AddressManagerTest is Test {
     event OnNewProtocolAddress(string indexed name, address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressDeleted(bytes32 indexed nameHash, address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
-    event OnRoleCreated(bytes32 indexed role);
+    event OnRoleCreated(bytes32 indexed role, bool multiHolder);
     event OnRoleRemoved(bytes32 indexed role);
     event OnProposedRoleHolder(bytes32 indexed role, address indexed proposedHolder);
     event OnNewRoleHolder(bytes32 indexed role, address indexed newHolder);
@@ -114,9 +114,9 @@ contract AddressManagerTest is Test {
 
     function testCreateNewRoleRevertsIfRoleAlreadyExists() public {
         vm.startPrank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         vm.expectRevert(AddressManager.AddressManager__RoleAlreadyExists.selector);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         vm.stopPrank();
     }
 
@@ -143,7 +143,7 @@ contract AddressManagerTest is Test {
 
     function testAcceptRoleRevertsIfNoneProposedHolder() public {
         vm.prank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
 
         address proposedHolder = makeAddr("proposedHolder");
 
@@ -156,7 +156,7 @@ contract AddressManagerTest is Test {
         address proposedHolder = makeAddr("proposedHolder");
 
         vm.startPrank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         addressManager.proposeRoleHolder(keccak256("TestRole"), proposedHolder);
         vm.stopPrank();
 
@@ -171,7 +171,7 @@ contract AddressManagerTest is Test {
         address proposedHolder = makeAddr("proposedHolder");
 
         vm.startPrank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         addressManager.proposeRoleHolder(keccak256("TestRole"), proposedHolder);
         vm.stopPrank();
 
@@ -196,7 +196,7 @@ contract AddressManagerTest is Test {
         address roleHolder = makeAddr("roleHolder");
 
         vm.startPrank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         addressManager.proposeRoleHolder(keccak256("TestRole"), roleHolder);
         vm.stopPrank();
 
@@ -405,8 +405,8 @@ contract AddressManagerTest is Test {
 
         vm.prank(addressManagerOwner);
         vm.expectEmit(true, false, false, true, address(addressManager));
-        emit OnRoleCreated(keccak256("TestRole"));
-        bool roleCreated = addressManager.createNewRole(keccak256("TestRole"));
+        emit OnRoleCreated(keccak256("TestRole"), false);
+        bool roleCreated = addressManager.createNewRole(keccak256("TestRole"), false);
 
         bool isValidRole = addressManager.isValidRole(keccak256("TestRole"));
 
@@ -419,7 +419,7 @@ contract AddressManagerTest is Test {
 
     modifier addRole() {
         vm.prank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         _;
     }
 
@@ -472,7 +472,7 @@ contract AddressManagerTest is Test {
 
     modifier newRoleAndProposedRoleHolder() {
         vm.prank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
 
         address proposedHolder = makeAddr("proposedHolder");
         vm.prank(addressManagerOwner);
@@ -543,7 +543,7 @@ contract AddressManagerTest is Test {
 
     modifier acceptRole() {
         vm.prank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
 
         address proposedHolder = makeAddr("proposedHolder");
         vm.prank(addressManagerOwner);

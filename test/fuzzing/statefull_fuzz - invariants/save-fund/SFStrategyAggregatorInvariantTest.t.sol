@@ -71,7 +71,7 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
 
         // pause guardian setup
         vm.startPrank(addrMgr.owner());
-        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
+        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN, true);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
         vm.prank(pauser);

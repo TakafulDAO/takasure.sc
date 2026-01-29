@@ -97,22 +97,15 @@ contract UniV3StratTest is Test {
 
         // Fee recipient required by SFVault
         feeRecipient = makeAddr("feeRecipient");
-        vm.prank(addrMgr.owner());
-        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
-
-        // Ensure vault + aggregator are recognized as "PROTOCOL__SF_VAULT" for onlyContract checks.
         vm.startPrank(addrMgr.owner());
-        if (!addrMgr.hasName("PROTOCOL__SF_VAULT", address(vault))) {
-            addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
-        }
-        if (!addrMgr.hasName("PROTOCOL__SF_AGGREGATOR", address(aggregator))) {
-            addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
-        }
+        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         // Pause guardian role for pause/unpause coverage
         vm.startPrank(addrMgr.owner());
-        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
+        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN, true);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
 
