@@ -11,9 +11,6 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 
 contract DeploySFAndIFCircuitBreaker is Script {
     function run(IAddressManager addressManager) external returns (SFAndIFCircuitBreaker circuitBreaker) {
-        HelperConfig helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(block.chainid);
-
         vm.startBroadcast(msg.sender);
 
         // Deploy SFVault
