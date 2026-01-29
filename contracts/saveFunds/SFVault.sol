@@ -1050,8 +1050,8 @@ contract SFVault is
         userTotalWithdrawn[owner] += assets;
     }
 
-    function _circuitBreaker() internal view returns (ISFAndIFCircuitBreaker cb_) {
-        ISFAndIFCircuitBreaker(addressManager.getProtocolAddressByName("PROTOCOL__CIRCUIT_BREAKER").addr);
+    function _circuitBreaker() internal view returns (ISFAndIFCircuitBreaker) {
+        return ISFAndIFCircuitBreaker(addressManager.getProtocolAddressByName("PROTOCOL__CIRCUIT_BREAKER").addr);
     }
 
     function _onlyKeeperOrOperator() internal view {
@@ -1066,7 +1066,13 @@ contract SFVault is
     }
 
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation) internal override {
+    function _authorizeUpgrade(
+        address /*newImplementation*/
+    )
+        internal
+        view
+        override
+    {
         _onlyRole(Roles.OPERATOR);
     }
 }
