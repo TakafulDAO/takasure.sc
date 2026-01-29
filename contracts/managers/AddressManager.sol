@@ -45,6 +45,8 @@ contract AddressManager is
     mapping(address roleHolder => bytes32[] role) private rolesByAddress;
     mapping(bytes32 role => address roleHolder) public currentRoleHolders;
     mapping(bytes32 role => ProposedRoleHolder proposedRoleHolder) private proposedRoleHolders;
+    mapping(bytes32 role => bool isMultiHolder) public isMultiHolderRole;
+    mapping(bytes32 role => EnumerableSet.AddressSet holders) private _roleHolders;
 
     EnumerableSet.Bytes32Set private _protocolRoles;
 
@@ -56,7 +58,7 @@ contract AddressManager is
     event OnNewProtocolAddress(string indexed name, address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressDeleted(address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
-    event OnRoleCreated(bytes32 indexed role);
+    event OnRoleCreated(bytes32 indexed role, bool multiHolder);
     event OnRoleRemoved(bytes32 indexed role);
     event OnProposedRoleHolder(bytes32 indexed role, address indexed proposedHolder);
     event OnNewRoleHolder(bytes32 indexed role, address indexed newHolder);
@@ -197,14 +199,17 @@ contract AddressManager is
     /**
      * @notice Creates a new role in the AddressManager
      * @param newRole The new role to be created
+     * @param multiHolder A boolean indicating whether the role can have multiple holders (not used currently)
      * @dev This function can only be called by the owner of the contract.
      * @return success A boolean indicating whether the role was successfully created
      */
-    function createNewRole(bytes32 newRole) external onlyOwner returns (bool success) {
+    function createNewRole(bytes32 newRole, bool multiHolder) external onlyOwner returns (bool success) {
         require(!_protocolRoles.contains(newRole), AddressManager__RoleAlreadyExists());
         success = _protocolRoles.add(newRole);
 
-        emit OnRoleCreated(newRole);
+        isMultiHolderRole[newRole] = multiHolder;
+
+        emit OnRoleCreated(newRole, multiHolder);
     }
 
     /**
@@ -215,6 +220,21 @@ contract AddressManager is
      */
     function removeRole(bytes32 roleToRemove) external onlyOwner returns (bool success) {
         require(_protocolRoles.contains(roleToRemove), AddressManager__RoleDoesNotExist());
+
+        // Revoke from holders
+        if (isMultiHolderRole[roleToRemove]) {
+            while (_roleHolders[roleToRemove].length() > 0) {
+                address holder = _roleHolders[roleToRemove].at(_roleHolders[roleToRemove].length() - 1);
+                _revokeRoleHolder(roleToRemove, holder);
+            }
+        } else {
+            address holder = currentRoleHolders[roleToRemove];
+            if (holder != address(0)) _revokeRoleHolder(roleToRemove, holder);
+        }
+
+        delete proposedRoleHolders[roleToRemove];
+        delete isMultiHolderRole[roleToRemove];
+
         success = _protocolRoles.remove(roleToRemove);
 
         emit OnRoleRemoved(roleToRemove);
@@ -269,15 +289,21 @@ contract AddressManager is
         require(block.timestamp <= proposedHolder.proposalTime + roleAcceptanceDelay, AddressManager__TooLateToAccept());
 
         // Revoke the role for the current holder if it exists
-        address currentHolder = currentRoleHolders[role];
+        if (isMultiHolderRole[role]) {
+            currentRoleHolders[role] = address(0);
+        } else {
+            address currentHolder = currentRoleHolders[role];
 
-        if (currentHolder != address(0)) _revokeRoleHolder(role, currentHolder);
+            if (currentHolder != address(0)) _revokeRoleHolder(role, currentHolder);
+            currentRoleHolders[role] = msg.sender;
+        }
 
         // Assign the role to the proposed holder
         success = _grantRole(role, msg.sender);
 
+        if (!_roleHolders[role].contains(msg.sender)) _roleHolders[role].add(msg.sender);
+
         // Update the current role holder mapping
-        currentRoleHolders[role] = msg.sender;
         rolesByAddress[msg.sender].push(role);
 
         // Clear the proposed holder
@@ -385,6 +411,28 @@ contract AddressManager is
         }
     }
 
+    function getRoleHolders(bytes32 role) external view returns (address[] memory holders) {
+        require(_protocolRoles.contains(role), AddressManager__RoleDoesNotExist());
+
+        if (!isMultiHolderRole[role]) {
+            holders = new address[](currentRoleHolders[role] == address(0) ? 0 : 1);
+            if (holders.length == 1) holders[0] = currentRoleHolders[role];
+            return holders;
+        }
+
+        uint256 len = _roleHolders[role].length();
+        holders = new address[](len);
+        for (uint256 i; i < len; ++i) {
+            holders[i] = _roleHolders[role].at(i);
+        }
+    }
+
+    function getRoleHoldersCount(bytes32 role) external view returns (uint256) {
+        require(_protocolRoles.contains(role), AddressManager__RoleDoesNotExist());
+        if (!isMultiHolderRole[role]) return currentRoleHolders[role] == address(0) ? 0 : 1;
+        return _roleHolders[role].length();
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -426,7 +474,16 @@ contract AddressManager is
 
     function _revokeRoleHolder(bytes32 _role, address _account) internal {
         require(_protocolRoles.contains(_role), AddressManager__RoleDoesNotExist());
-        require(currentRoleHolders[_role] == _account, AddressManager__NotRoleHolder());
+
+        if (isMultiHolderRole[_role]) {
+            require(_roleHolders[_role].contains(_account), AddressManager__NotRoleHolder());
+            _roleHolders[_role].remove(_account);
+        } else {
+            require(currentRoleHolders[_role] == _account, AddressManager__NotRoleHolder());
+            delete currentRoleHolders[_role];
+
+            if (_roleHolders[_role].contains(_account)) _roleHolders[_role].remove(_account);
+        }
 
         _revokeRole(_role, _account);
 
@@ -439,9 +496,6 @@ contract AddressManager is
                 break;
             }
         }
-
-        // Clear the current role holder mapping
-        delete currentRoleHolders[_role];
     }
 
     function _getProtocolAddressByName(string memory _name) internal view returns (ProtocolAddress memory) {
