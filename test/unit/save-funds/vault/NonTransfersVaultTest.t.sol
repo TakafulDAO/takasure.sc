@@ -8,18 +8,12 @@ import {DeploySFVault} from "test/utils/05-DeploySFVault.s.sol";
 import {DeploySFAndIFCircuitBreaker} from "test/utils/08-DeployCircuitBreaker.s.sol";
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {MockSFStrategy} from "test/mocks/MockSFStrategy.sol";
-import {MockERC721ApprovalForAll} from "test/mocks/MockERC721ApprovalForAll.sol";
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {SFAndIFCircuitBreaker} from "contracts/breakers/SFAndIFCircuitBreaker.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 contract NonTransfersVaultTest is Test {
@@ -29,6 +23,7 @@ contract NonTransfersVaultTest is Test {
     AddAddressesAndRoles internal addressesAndRoles;
 
     SFVault internal vault;
+    SFAndIFCircuitBreaker internal circuitBreaker;
     AddressManager internal addrMgr;
     ModuleManager internal modMgr;
 
@@ -39,8 +34,11 @@ contract NonTransfersVaultTest is Test {
     address internal pauser = makeAddr("pauser");
     address internal user = makeAddr("user");
 
-    uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant ONE_USDC = 1e6;
+
+    // We avoid depending on the CB contract ABI here; just mock selectors if needed.
+    bytes4 internal constant HOOK_WITHDRAW_SEL = bytes4(keccak256("hookWithdraw(address,address,uint256)"));
+    bytes4 internal constant HOOK_REDEEM_SEL = bytes4(keccak256("hookRedeem(address,address,uint256)"));
 
     function setUp() public {
         managersDeployer = new DeployManagers();
@@ -51,12 +49,16 @@ contract NonTransfersVaultTest is Test {
         (HelperConfig.NetworkConfig memory config, AddressManager _addrMgr, ModuleManager _modMgr) =
             managersDeployer.run();
         (address operatorAddr,,, address backendAddr,,,) = addressesAndRoles.run(_addrMgr, config, address(_modMgr));
-        SFAndIFCircuitBreaker circuitBreaker = circuitBreakerDeployer.run(_addrMgr);
 
         addrMgr = _addrMgr;
         modMgr = _modMgr;
         takadao = operatorAddr;
         backend = backendAddr;
+
+        // Deploy vault first or second doesn't matter IF you protect it afterwards.
+        // Keeping your order, but we will protect after both exist.
+        circuitBreaker = circuitBreakerDeployer.run(_addrMgr);
+
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
@@ -72,6 +74,9 @@ contract NonTransfersVaultTest is Test {
         vm.prank(pauser);
         addrMgr.acceptProposedRole(Roles.PAUSE_GUARDIAN);
 
+        vm.prank(takadao);
+        circuitBreaker.setGuards(address(vault), 0, 0, 0, true);
+
         vm.prank(backend);
         vault.registerMember(user);
     }
@@ -83,6 +88,7 @@ contract NonTransfersVaultTest is Test {
     function testSFVault_SharesAreNonTransferable_TransferReverts() public {
         uint256 amount = 1_000_000;
         _prepareUser(user, amount);
+
         vm.prank(user);
         vault.deposit(amount, user);
 
@@ -96,6 +102,7 @@ contract NonTransfersVaultTest is Test {
     function testSFVault_SharesAreNonTransferable_RedeemBurnAllowed() public {
         uint256 amount = 1_000_000;
         _prepareUser(user, amount);
+
         vm.prank(user);
         vault.deposit(amount, user);
 
@@ -104,6 +111,7 @@ contract NonTransfersVaultTest is Test {
 
         vm.prank(user);
         uint256 assetsOut = vault.redeem(shares, user, user);
+
         assertEq(assetsOut, amount); // mgmt fee default 0 in this test
         assertEq(vault.balanceOf(user), 0);
     }

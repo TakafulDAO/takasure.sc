@@ -72,6 +72,9 @@ contract GettersVaultTest is Test {
         vm.prank(pauser);
         addrMgr.acceptProposedRole(Roles.PAUSE_GUARDIAN);
 
+        vm.prank(takadao);
+        circuitBreaker.setGuards(address(vault), 0, 0, 0, true);
+
         vm.prank(backend);
         vault.registerMember(user);
     }
