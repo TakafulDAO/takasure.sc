@@ -13,6 +13,7 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISFVault} from "contracts/interfaces/saveFunds/ISFVault.sol";
+import {ISFAndIFCircuitBreaker} from "contracts/interfaces/ISFAndIFCircuitBreaker.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {
@@ -29,6 +30,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {FeeType} from "contracts/types/Cash.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {WithdrawalRequest, RequestKind} from "contracts/types/CircuitBreakerTypes.sol";
 
 pragma solidity 0.8.28;
 
@@ -121,15 +123,6 @@ contract SFVault is
     error SFVault__NonTransferableShares();
 
     /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    modifier onlyRole(bytes32 role) {
-        require(addressManager.hasRole(role, msg.sender), SFVault__NotAuthorizedCaller());
-        _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
@@ -188,7 +181,9 @@ contract SFVault is
      * @param newCap New cap for total managed assets (idle + strategy).
      * @custom:invariant If TVLCap != 0, then totalAssets() is intended to remain <= TVLCap after user deposits (subject to rounding and external strategy behavior).
      */
-    function setTVLCap(uint256 newCap) external onlyRole(Roles.OPERATOR) {
+    function setTVLCap(uint256 newCap) external {
+        _onlyRole(Roles.OPERATOR);
+
         uint256 oldCap = TVLCap;
         TVLCap = newCap;
         emit OnTVLCapUpdated(oldCap, newCap);
@@ -200,7 +195,9 @@ contract SFVault is
      * @param token ERC20 token address to whitelist.
      * @custom:invariant If the call succeeds, whitelistedTokens.contains(token) is true and tokenHardCapBPS[token] <= MAX_BPS.
      */
-    function whitelistToken(address token) external onlyRole(Roles.OPERATOR) {
+    function whitelistToken(address token) external {
+        _onlyRole(Roles.OPERATOR);
+
         require(token != address(0), SFVault__InvalidToken());
         require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
 
@@ -217,7 +214,9 @@ contract SFVault is
      * @param hardCapBPS Maximum allocation for `token` in basis points of total portfolio value.
      * @custom:invariant If the call succeeds, tokenHardCapBPS[token] == hardCapBPS and whitelistedTokens.contains(token) is true.
      */
-    function whitelistTokenWithCap(address token, uint16 hardCapBPS) external onlyRole(Roles.OPERATOR) {
+    function whitelistTokenWithCap(address token, uint16 hardCapBPS) external {
+        _onlyRole(Roles.OPERATOR);
+
         require(token != address(0), SFVault__InvalidToken());
         require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
         require(hardCapBPS <= MAX_BPS, SFVault__InvalidCapBPS());
@@ -234,7 +233,8 @@ contract SFVault is
      * @param token ERC20 token address to remove.
      * @custom:invariant If the call succeeds, whitelistedTokens.contains(token) is false.
      */
-    function removeTokenFromWhitelist(address token) external onlyRole(Roles.OPERATOR) {
+    function removeTokenFromWhitelist(address token) external {
+        _onlyRole(Roles.OPERATOR);
         require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
 
         whitelistedTokens.remove(token);
@@ -248,7 +248,8 @@ contract SFVault is
      * @param newCapBPS New hard cap in basis points of total portfolio value.
      * @custom:invariant tokenHardCapBPS[token] is always intended to be <= MAX_BPS for whitelisted tokens.
      */
-    function setTokenHardCap(address token, uint16 newCapBPS) external onlyRole(Roles.OPERATOR) {
+    function setTokenHardCap(address token, uint16 newCapBPS) external {
+        _onlyRole(Roles.OPERATOR);
         require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
         require(newCapBPS <= MAX_BPS, SFVault__InvalidCapBPS());
 
@@ -263,7 +264,8 @@ contract SFVault is
      * @param newAggregator New aggregator contract implementing {ISFStrategy}.
      * @custom:invariant After the call, `aggregator` equals `newAggregator`.
      */
-    function setAggregator(ISFStrategy newAggregator) external onlyRole(Roles.OPERATOR) {
+    function setAggregator(ISFStrategy newAggregator) external {
+        _onlyRole(Roles.OPERATOR);
         aggregator = newAggregator;
         emit OnAggregatorUpdated(address(newAggregator));
     }
@@ -278,8 +280,8 @@ contract SFVault is
      */
     function setFeeConfig(uint16 _managementFeeBPS, uint16 _performanceFeeBPS, uint16 _performanceFeeHurdleBPS)
         external
-        onlyRole(Roles.OPERATOR)
     {
+        _onlyRole(Roles.OPERATOR);
         require(
             _managementFeeBPS < MAX_BPS && _performanceFeeBPS <= MAX_BPS && _performanceFeeHurdleBPS <= MAX_BPS,
             SFVault__InvalidFeeBPS()
@@ -299,7 +301,8 @@ contract SFVault is
      * @param approved True to approve, false to revoke.
      * @custom:invariant This function does not change vault accounting; it only updates ERC721 approvals.
      */
-    function setERC721ApprovalForAll(address nft, address operator, bool approved) external onlyRole(Roles.OPERATOR) {
+    function setERC721ApprovalForAll(address nft, address operator, bool approved) external {
+        _onlyRole(Roles.OPERATOR);
         IERC721(nft).setApprovalForAll(operator, approved);
     }
 
@@ -308,14 +311,16 @@ contract SFVault is
      * @param newMember Member to register.
      * @custom:invariant After the call, `validMembers.contains(newMember)` equals `true`.
      */
-    function registerMember(address newMember) external onlyRole(Roles.BACKEND_ADMIN) {
+    function registerMember(address newMember) external {
+        _onlyRole(Roles.BACKEND_ADMIN);
         require(newMember != address(0), SFVault__NotAddressZero());
         validMembers.add(newMember);
 
         emit OnMemberRegistered(newMember, msg.sender);
     }
 
-    function unregisterMember(address member) external onlyRole(Roles.BACKEND_ADMIN) {
+    function unregisterMember(address member) external {
+        _onlyRole(Roles.BACKEND_ADMIN);
         require(validMembers.remove(member), SFVault__NotAMember());
         emit OnMemberUnregistered(member, msg.sender);
     }
@@ -324,11 +329,13 @@ contract SFVault is
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
 
-    function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
+    function pause() external {
+        _onlyRole(Roles.PAUSE_GUARDIAN);
         _pause();
     }
 
-    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN) {
+    function unpause() external {
+        _onlyRole(Roles.PAUSE_GUARDIAN);
         _unpause();
     }
 
@@ -343,12 +350,8 @@ contract SFVault is
      * @return performanceFeeAssets Assets taken as performance fee and transferred to the fee recipient.
      * @custom:invariant After a successful non-zero fee charge, `lastReport` is updated to block.timestamp and `highWaterMark` is updated to post-fee assets/share.
      */
-    function takeFees()
-        external
-        nonReentrant
-        onlyRole(Roles.OPERATOR)
-        returns (uint256 managementFeeAssets, uint256 performanceFeeAssets)
-    {
+    function takeFees() external nonReentrant returns (uint256 managementFeeAssets, uint256 performanceFeeAssets) {
+        _onlyRole(Roles.OPERATOR);
         (managementFeeAssets, performanceFeeAssets) = _chargeFees();
     }
 
@@ -525,6 +528,70 @@ contract SFVault is
         withdrawnAssets = strat.withdraw(assets, address(this), data);
 
         emit OnWithdrawFromStrategy(assets, withdrawnAssets, keccak256(data));
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner) public override whenNotPaused returns (uint256) {
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        if (address(circuitBreaker) != address(0)) {
+            (bool proceed,) = circuitBreaker.hookWithdraw(owner, receiver, assets);
+            if (!proceed) return 0;
+        }
+
+        return super.withdraw(assets, receiver, owner);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner)
+        public
+        override
+        whenNotPaused
+        returns (uint256 assets)
+    {
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        if (address(circuitBreaker) != address(0)) {
+            (bool proceed,) = circuitBreaker.hookRedeem(owner, receiver, shares);
+            if (!proceed) return 0;
+        }
+
+        return super.redeem(shares, receiver, owner);
+    }
+
+    function executeApprovedCircuitBreakersWithdrawals(uint256 requestId)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 assetsOut)
+    {
+        _onlyRole(Roles.OPERATOR);
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        require(address(circuitBreaker) != address(0), SFVault__NotAddressZero());
+
+        WithdrawalRequest memory request = circuitBreaker.getWithdrawalRequest(requestId);
+
+        // Must belong to this vault
+        require(request.vault == address(this), SFVault__NotAuthorizedCaller());
+
+        // Must be executable
+        require(circuitBreaker.isRequestExecutable(requestId), SFVault__NotAuthorizedCaller());
+
+        uint256 sharesToBurn;
+
+        if (request.kind == RequestKind.Withdraw) {
+            assetsOut = request.assetsRequested;
+            sharesToBurn = previewWithdraw(assetsOut);
+        } else {
+            sharesToBurn = request.sharesRequested;
+            assetsOut = previewRedeem(sharesToBurn);
+        }
+
+        bool proceed = circuitBreaker.hookExecuteApproved(requestId, assetsOut);
+        if (!proceed) return 0;
+
+        _burn(request.owner, sharesToBurn);
+        IERC20(asset()).safeTransfer(request.receiver, assetsOut);
+
+        emit Withdraw(_msgSender(), request.receiver, request.owner, assetsOut, sharesToBurn);
+
+        return assetsOut;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -983,6 +1050,10 @@ contract SFVault is
         userTotalWithdrawn[owner] += assets;
     }
 
+    function _circuitBreaker() internal view returns (ISFAndIFCircuitBreaker) {
+        return ISFAndIFCircuitBreaker(addressManager.getProtocolAddressByName("PROTOCOL__CIRCUIT_BREAKER").addr);
+    }
+
     function _onlyKeeperOrOperator() internal view {
         require(
             addressManager.hasRole(Roles.KEEPER, msg.sender) || addressManager.hasRole(Roles.OPERATOR, msg.sender),
@@ -990,6 +1061,18 @@ contract SFVault is
         );
     }
 
+    function _onlyRole(bytes32 _role) internal view {
+        require(addressManager.hasRole(_role, msg.sender), SFVault__NotAuthorizedCaller());
+    }
+
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR) {}
+    function _authorizeUpgrade(
+        address /*newImplementation*/
+    )
+        internal
+        view
+        override
+    {
+        _onlyRole(Roles.OPERATOR);
+    }
 }

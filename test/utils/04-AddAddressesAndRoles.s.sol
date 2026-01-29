@@ -28,11 +28,11 @@ contract AddAddressesAndRoles is Script {
         revenueReceiver = makeAddr("revenueReceiver");
 
         vm.startPrank(addressManager.owner());
-        addressManager.createNewRole(Roles.OPERATOR);
-        addressManager.createNewRole(Roles.DAO_MULTISIG);
-        addressManager.createNewRole(Roles.KYC_PROVIDER);
-        addressManager.createNewRole(Roles.BACKEND_ADMIN);
-        addressManager.createNewRole(Roles.REVENUE_CLAIMER);
+        addressManager.createNewRole(Roles.OPERATOR, false);
+        addressManager.createNewRole(Roles.DAO_MULTISIG, false);
+        addressManager.createNewRole(Roles.KYC_PROVIDER, false);
+        addressManager.createNewRole(Roles.BACKEND_ADMIN, false);
+        addressManager.createNewRole(Roles.REVENUE_CLAIMER, false);
 
         addressManager.proposeRoleHolder(Roles.OPERATOR, config.takadaoOperator);
         addressManager.proposeRoleHolder(Roles.DAO_MULTISIG, config.daoMultisig);

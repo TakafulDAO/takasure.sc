@@ -80,7 +80,7 @@ contract GettersAggregatorTest is Test {
 
         // Pause guardian role for pause/unpause coverage
         vm.startPrank(addrMgr.owner());
-        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
+        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN, true);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
 

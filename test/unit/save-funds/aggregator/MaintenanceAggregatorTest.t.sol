@@ -82,7 +82,7 @@ contract MaintenanceAggregatorTest is Test {
 
         // Pause guardian role for pause/unpause coverage
         vm.startPrank(addrMgr.owner());
-        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
+        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN, true);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
 
@@ -277,7 +277,7 @@ contract MaintenanceAggregatorTest is Test {
         address keeper = makeAddr("keeper");
 
         vm.startPrank(addrMgr.owner());
-        addrMgr.createNewRole(Roles.KEEPER);
+        addrMgr.createNewRole(Roles.KEEPER, false);
         addrMgr.proposeRoleHolder(Roles.KEEPER, keeper);
         vm.stopPrank();
 

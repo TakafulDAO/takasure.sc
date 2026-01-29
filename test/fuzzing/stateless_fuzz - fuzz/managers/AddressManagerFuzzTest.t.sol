@@ -64,12 +64,12 @@ contract AddressManagerFuzzTest is Test {
 
         vm.prank(caller);
         vm.expectRevert();
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
     }
 
     modifier addRole() {
         vm.prank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         _;
     }
 
@@ -91,7 +91,7 @@ contract AddressManagerFuzzTest is Test {
 
     modifier acceptRole() {
         vm.prank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
 
         address proposedHolder = makeAddr("proposedHolder");
         vm.prank(addressManagerOwner);
