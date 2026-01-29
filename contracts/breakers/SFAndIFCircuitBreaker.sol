@@ -109,6 +109,13 @@ contract SFAndIFCircuitBreaker is
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Accept the pauser role from the address manager when set
+     */
+    function acceptPauserRole() external onlyRole(Roles.OPERATOR) {
+        addressManager.acceptProposedRole(Roles.PAUSE_GUARDIAN);
+    }
+
+    /**
      * @notice Set guard configuration for a protected vault.
      * @param vault The vault to protect.
      * @param globalWithdrawCap24hAssets Rolling 24h global cap (assets). 0 disables.
