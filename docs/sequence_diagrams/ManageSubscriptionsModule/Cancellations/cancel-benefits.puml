@@ -1,0 +1,86 @@
+@startuml ManageSubscriptions_cancelBenefits
+title cancelBenefitSubscriptions – cancel selected benefits
+autonumber
+
+!include ../common/manage-subscriptions-common.puml
+
+actor Backend
+actor Member
+participant ManageSubscriptionsModule
+participant AddressManager
+participant ProtocolStorageModule
+
+Member -> Backend: request benefit cancellation\n(memberWallet, benefitAddresses)
+Backend -> ManageSubscriptionsModule: cancelBenefitSubscriptions(memberWallet,\n  benefitAddresses)
+
+PRECHECKS_MANAGE_SUBSCRIPTIONS()
+
+ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("MODULE_MANAGER")
+AddressManager --> ManageSubscriptionsModule: MODULE_MANAGER address\n(used by AddressAndStates._onlyModuleState)
+
+ManageSubscriptionsModule -> ManageSubscriptionsModule: _cancelBenefitSubscriptions(\n  memberWallet,\n  benefitAddresses)
+
+' _validateBenefits(...)
+ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("PROTOCOL_STORAGE_MODULE")
+AddressManager --> ManageSubscriptionsModule: PROTOCOL_STORAGE_MODULE
+ManageSubscriptionsModule -> ProtocolStorageModule: getAssociationMember(memberWallet)
+ProtocolStorageModule --> ManageSubscriptionsModule: AssociationMember associationMember
+
+VALIDATE_BENEFITS()
+
+ManageSubscriptionsModule -> ManageSubscriptionsModule: canceled = new address[](benefitAddresses.length)\nuint256 canceledCount = 0
+
+loop [for each benefit in benefitAddresses]
+  ManageSubscriptionsModule -> ProtocolStorageModule: getBenefitMember(benefit,\n  memberWallet)
+  ProtocolStorageModule --> ManageSubscriptionsModule: BenefitMember benefitMember
+
+  alt [benefitMember.memberState != BenefitMemberState.Active]
+'     REVERT("ModuleErrors.Module__WrongMemberState()")
+  else [memberState-Active]
+    alt [not-reach-time]
+      note over ManageSubscriptionsModule: Within first year + grace period →\nmark as PendingCancellation
+    '   benefitMember.memberState = BenefitMemberState.PendingCancellation
+    else [reach-time]
+      note over ManageSubscriptionsModule: Beyond grace period → mark as Canceled\nand remove from AssociationMember.benefits
+'       benefitMember.memberState = BenefitMemberState.Canceled
+      ManageSubscriptionsModule -> ManageSubscriptionsModule: canceled[canceledCount] = benefit\ncanceledCount++
+    end
+
+    ManageSubscriptionsModule -> ProtocolStorageModule: updateBenefitMember(benefit,\n  benefitMember)
+    ManageSubscriptionsModule -> ManageSubscriptionsModule: emit OnBenefitMemberCanceled(\n      benefitMember.memberId,\n      benefit,\n      memberWallet,\n      benefitMember.memberState)
+  end
+end
+
+alt [at-least-one-benefit-to-cancel]
+  note over ManageSubscriptionsModule: Rebuild AssociationMember.benefits\nexcluding any address in canceled[0..canceledCount)
+  ManageSubscriptionsModule -> ManageSubscriptionsModule: oldBenefits = associationMember.benefits
+  ManageSubscriptionsModule -> ManageSubscriptionsModule: temp = new address[](oldBenefits.length)\nuint256 keep = 0
+
+  loop [each-previous-benefit]
+    ManageSubscriptionsModule -> ManageSubscriptionsModule: old = oldBenefits[i]\nremove = false
+
+    loop [each-canceled-benefit]
+      alt [canceled[j]]
+        ManageSubscriptionsModule -> ManageSubscriptionsModule: remove = true\nbreak inner loop
+      end
+    end
+
+    alt [!remove]
+      ManageSubscriptionsModule -> ManageSubscriptionsModule: temp[keep] = old\nkeep++
+    end
+  end
+
+  ManageSubscriptionsModule -> ManageSubscriptionsModule: finalBenefits = new address[](keep)
+  loop [copy 0..keep-1]
+    ManageSubscriptionsModule -> ManageSubscriptionsModule: finalBenefits[k] = temp[k]
+  end
+
+  ManageSubscriptionsModule -> ManageSubscriptionsModule: associationMember.benefits = finalBenefits
+  ManageSubscriptionsModule -> ProtocolStorageModule: updateAssociationMember(associationMember)
+else [nothing-to-cancel]
+  note over ManageSubscriptionsModule: All selected benefits are only\nPendingCancellation; no removal from benefits array
+end
+
+ManageSubscriptionsModule --> Backend: cancellation processed
+
+@enduml

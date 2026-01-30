@@ -1,0 +1,100 @@
+@startuml ManageSubscriptions_payRecurringBenefits
+title payRecurringSubscription – benefit subscriptions flow
+autonumber
+
+!include ../common/manage-subscriptions-common.puml
+
+actor Backend
+actor Member
+participant ManageSubscriptionsModule
+participant AddressManager
+participant ProtocolStorageModule
+participant ContributionToken
+participant Reserve
+participant FeeClaimer
+participant CouponPool
+participant LifeBenefitModule
+
+Member -> Backend: request recurring benefit payments
+Backend -> ManageSubscriptionsModule: payRecurringSubscription(memberWallet,\n  associationCouponAmount=0,\n  benefitAddresses,\n  benefitCouponAmounts)
+
+PRECHECKS_MANAGE_SUBSCRIPTIONS()
+
+ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("MODULE_MANAGER")
+AddressManager --> ManageSubscriptionsModule: MODULE_MANAGER address\n(used by AddressAndStates._onlyModuleState)
+
+ManageSubscriptionsModule -> ManageSubscriptionsModule: _payRecurringBenefitSubscriptions(\n  memberWallet,\n  benefitAddresses,\n  benefitCouponAmounts)
+
+alt [benefitAddresses-length-dont-match-benefitCouponAmounts-length]
+  REVERT("ModuleErrors.Module__InvalidInput()")
+else [lengths-match]
+  ' _validateBenefits(...)
+  ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("PROTOCOL_STORAGE_MODULE")
+  AddressManager --> ManageSubscriptionsModule: PROTOCOL_STORAGE_MODULE
+  ManageSubscriptionsModule -> ProtocolStorageModule: getAssociationMember(memberWallet)
+  ProtocolStorageModule --> ManageSubscriptionsModule: AssociationMember associationMember
+
+  VALIDATE_BENEFITS()
+
+  loop [each-benefit-i]
+    ManageSubscriptionsModule -> ManageSubscriptionsModule: benefit = benefitAddresses[i]\nbenefitCoupon = benefitCouponAmounts[i]
+
+    alt [benefitCoupon-invalid]
+      REVERT("ModuleErrors.Module__InvalidCoupon()")
+    end
+
+    ManageSubscriptionsModule -> ProtocolStorageModule: getBenefitMember(benefit,\n  memberWallet)
+    ProtocolStorageModule --> ManageSubscriptionsModule: BenefitMember benefitMember
+
+    ManageSubscriptionsModule -> ManageSubscriptionsModule: validated = _validateDateAndState(benefitMember)
+
+    alt [validated-false]
+      note over ManageSubscriptionsModule: Outside allowed payment window →\nmark as Canceled and stop
+    '   benefitMember.memberState = BenefitMemberState.Canceled
+      ManageSubscriptionsModule -> ProtocolStorageModule: updateBenefitMember(benefit,\n  benefitMember)
+      ManageSubscriptionsModule -> ManageSubscriptionsModule: emit OnBenefitMemberCanceled(\n        benefitMember.memberId,\n        benefit,\n        memberWallet,\n        benefitMember.memberState)
+      ManageSubscriptionsModule --> Backend: benefitsPaid=false,\n  associationPaid (unchanged)
+      break
+      end
+    else [validated-true]
+      ManageSubscriptionsModule -> ProtocolStorageModule: getUintValue("benefitFee")
+      ProtocolStorageModule --> ManageSubscriptionsModule: uint256 benefitFee
+
+      ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("LIFE_BENEFIT_MODULE")
+      AddressManager --> ManageSubscriptionsModule: LIFE_BENEFIT_MODULE
+
+      alt [is-LIFE_BENEFIT_MODULE]
+        note over ManageSubscriptionsModule: For life benefit, base\nexcludes ModuleConstants.ASSOCIATION_SUBSCRIPTION
+      else [other-benefit]
+        note over ManageSubscriptionsModule: Full contribution used as base
+      end
+
+      ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("CONTRIBUTION_TOKEN")
+      AddressManager --> ManageSubscriptionsModule: ContributionToken
+      ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("TAKASURE_RESERVE")
+      AddressManager --> ManageSubscriptionsModule: Reserve
+      ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("FEE_CLAIM_ADDRESS")
+      AddressManager --> ManageSubscriptionsModule: FeeClaimer
+
+      alt [benefitCoupon-is-0]
+        note over ManageSubscriptionsModule: Member pays benefit contribution\nfrom own wallet
+        ManageSubscriptionsModule -> ContributionToken: safeTransferFrom(memberWallet,\n  Reserve,\n  toTransfer)
+        ManageSubscriptionsModule -> ContributionToken: safeTransferFrom(memberWallet,\n  FeeClaimer,\n  fee)
+      else 
+        note over ManageSubscriptionsModule: Coupon pool pays contribution\non behalf of member
+        ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("COUPON_POOL")
+        AddressManager --> ManageSubscriptionsModule: CouponPool
+        ManageSubscriptionsModule -> ContributionToken: safeTransferFrom(CouponPool,\n  Reserve,\n  toTransfer)
+        ManageSubscriptionsModule -> ContributionToken: safeTransferFrom(CouponPool,\n  FeeClaimer,\n  fee)
+      end
+
+      note over ManageSubscriptionsModule: Update lastPaidYearStartDate,\n totalContributions and totalServiceFee
+      ManageSubscriptionsModule -> ProtocolStorageModule: updateBenefitMember(benefit,\n  benefitMember)
+      ManageSubscriptionsModule -> ManageSubscriptionsModule: emit OnRecurringBenefitPayment(\n        memberWallet,\n        benefitMember.memberId,\n        benefitMember.lastPaidYearStartDate,\n        benefitMember.contribution,\n        benefitMember.totalServiceFee)
+    end
+  end
+
+  ManageSubscriptionsModule --> Backend: benefitsPaid=true,\n  associationPaid (unchanged)
+end
+
+@enduml

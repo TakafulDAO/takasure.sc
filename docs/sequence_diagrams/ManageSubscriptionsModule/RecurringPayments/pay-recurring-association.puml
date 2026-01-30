@@ -1,0 +1,72 @@
+@startuml ManageSubscriptions_payRecurringAssociation
+title payRecurringSubscription – association subscription flow
+autonumber
+
+!include ../common/manage-subscriptions-common.puml
+
+actor Backend
+actor Member
+participant ManageSubscriptionsModule
+participant AddressManager
+participant ProtocolStorageModule
+participant ContributionToken
+participant Reserve
+participant FeeClaimer
+participant CouponPool
+
+Member -> Backend: request recurring association payment
+Backend -> ManageSubscriptionsModule: payRecurringSubscription(memberWallet,\n  associationCouponAmount,\n  [], [])
+
+PRECHECKS_MANAGE_SUBSCRIPTIONS()
+
+ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("MODULE_MANAGER")
+AddressManager --> ManageSubscriptionsModule: MODULE_MANAGER address\n(used by AddressAndStates._onlyModuleState)
+
+ManageSubscriptionsModule -> ManageSubscriptionsModule: _payRecurringAssociationSubscription(\n  memberWallet,\n  associationCouponAmount)
+
+ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("PROTOCOL_STORAGE_MODULE")
+AddressManager --> ManageSubscriptionsModule: PROTOCOL_STORAGE_MODULE
+ManageSubscriptionsModule -> ProtocolStorageModule: getAssociationMember(memberWallet)
+ProtocolStorageModule --> ManageSubscriptionsModule: AssociationMember associationMember
+
+alt [associationCouponAmount-greater-than-25]
+  REVERT("ModuleErrors.Module__InvalidCoupon()")
+else [associationCouponAmount-valid]
+  alt [memberState-not-Active]
+    REVERT("ModuleErrors.Module__WrongMemberState()")
+  else [memberState-Active]
+    alt [latestPaymentTimestamp-in-limits]
+      note over ManageSubscriptionsModule: Calculate new latestPaymentTimestamp,\nfee and toTransfer for association subscription
+
+      ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("CONTRIBUTION_TOKEN")
+      AddressManager --> ManageSubscriptionsModule: ContributionToken
+      ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("TAKASURE_RESERVE")
+      AddressManager --> ManageSubscriptionsModule: Reserve
+      ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("FEE_CLAIM_ADDRESS")
+      AddressManager --> ManageSubscriptionsModule: FeeClaimer
+
+      alt [associationCouponAmount-is-0]
+        note over ManageSubscriptionsModule: Member pays from own wallet
+        ManageSubscriptionsModule -> ContributionToken: safeTransferFrom(memberWallet,\n  Reserve,\n  toTransfer)
+        ManageSubscriptionsModule -> ContributionToken: safeTransferFrom(memberWallet,\n  FeeClaimer,\n  fee)
+      else [associationCouponAmount-is-25]
+        note over ManageSubscriptionsModule: Coupon pool pays on behalf of member
+        ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("COUPON_POOL")
+        AddressManager --> ManageSubscriptionsModule: CouponPool
+        ManageSubscriptionsModule -> ContributionToken: safeTransferFrom(CouponPool,\n  Reserve,\n  toTransfer)
+        ManageSubscriptionsModule -> ContributionToken: safeTransferFrom(CouponPool,\n  FeeClaimer,\n  fee)
+      end
+
+      ManageSubscriptionsModule -> ProtocolStorageModule: updateAssociationMember(associationMember)
+      ManageSubscriptionsModule -> ManageSubscriptionsModule: emit OnRecurringAssociationPayment(\n  memberWallet,\n  associationMember.memberId)
+      ManageSubscriptionsModule --> Backend: associationPaid=true,\n  benefitsPaid (unchanged)
+    else [latestPaymentTimestamp-out-of-limits]
+      note over ManageSubscriptionsModule: Association overdue → auto cancellation
+      ManageSubscriptionsModule -> ManageSubscriptionsModule: _cancelAssociationSubscription(memberWallet)
+      ref over ManageSubscriptionsModule, ProtocolStorageModule [[manage-subscriptions-cancel-association-subscription.puml]] : _cancelAssociationSubscription flow
+      ManageSubscriptionsModule --> Backend: associationPaid=false,\n  benefitsPaid (unchanged)
+    end
+  end
+end
+
+@enduml

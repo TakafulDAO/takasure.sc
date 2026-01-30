@@ -1,0 +1,58 @@
+@startuml ManageSubscriptions_cancelAssociation
+title cancelAssociationSubscription – cancel association and benefits
+autonumber
+
+!include ../common/manage-subscriptions-common.puml
+
+actor Backend
+actor Member
+participant ManageSubscriptionsModule
+participant AddressManager
+participant ProtocolStorageModule
+
+Member -> Backend: request association cancellation\n(memberWallet)
+Backend -> ManageSubscriptionsModule: cancelAssociationSubscription(memberWallet)
+
+PRECHECKS_MANAGE_SUBSCRIPTIONS()
+
+ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("MODULE_MANAGER")
+AddressManager --> ManageSubscriptionsModule: MODULE_MANAGER address\n(used by AddressAndStates._onlyModuleState)
+
+ManageSubscriptionsModule -> ManageSubscriptionsModule: _cancelAssociationSubscription(memberWallet)
+
+ManageSubscriptionsModule -> AddressManager: getProtocolAddressByName("PROTOCOL_STORAGE_MODULE")
+AddressManager --> ManageSubscriptionsModule: PROTOCOL_STORAGE_MODULE
+ManageSubscriptionsModule -> ProtocolStorageModule: getAssociationMember(memberWallet)
+ProtocolStorageModule --> ManageSubscriptionsModule: AssociationMember associationMember
+
+alt [memberState-not-Active]
+  REVERT("ModuleErrors.Module__WrongMemberState()")
+else [associationMember-Active]
+  alt [not-reach-time]
+    note over ManageSubscriptionsModule: Within first year + grace period →\nAssociationMemberState.PendingCancellation
+'     associationMember.memberState = AssociationMemberState.PendingCancellation
+  else [reach-time]
+    note over ManageSubscriptionsModule: Beyond grace period → AssociationMemberState.Canceled
+'     associationMember.memberState = AssociationMemberState.Canceled
+  end
+
+  ManageSubscriptionsModule -> ManageSubscriptionsModule: previousBenefits = associationMember.benefits
+
+  note over ManageSubscriptionsModule: Reset AssociationMember profile while\nkeeping memberId and new memberState
+  ManageSubscriptionsModule -> ManageSubscriptionsModule: associationMember = AssociationMember({\n  memberId: associationMember.memberId,\n  discount: 0,\n  couponAmountRedeemed: 0,\n  associateStartTime: 0,\n  latestPaymentTimestamp: 0,\n  wallet: memberWallet,\n  parent: address(0),\n  memberState: associationMember.memberState,\n  isRefunded: false,\n  benefits: new address,\n  childs: new address\n})
+
+  ManageSubscriptionsModule -> ProtocolStorageModule: updateAssociationMember(associationMember)
+  ManageSubscriptionsModule -> ManageSubscriptionsModule: emit OnAssociationMemberCanceled(\n    associationMember.memberId,\n    memberWallet,\n    associationMember.memberState)
+
+  alt [previousBenefits.length > 0]
+    note over ManageSubscriptionsModule: Cascade cancellation of all\nprevious benefit subscriptions
+    ManageSubscriptionsModule -> ManageSubscriptionsModule: _cancelBenefitSubscriptions(\n      memberWallet,\n      previousBenefits)
+    ref over ManageSubscriptionsModule, ProtocolStorageModule [[manage-subscriptions-cancel-benefits.puml]] : cancelBenefitSubscriptions flow
+  else [no previous benefits]
+    note over ManageSubscriptionsModule: Member had no active benefits to cancel
+  end
+end
+
+ManageSubscriptionsModule --> Backend: association cancellation processed
+
+@enduml
