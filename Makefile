@@ -86,6 +86,21 @@ protocol-prepare-upgrade-referral:
 	@forge script deploy/protocol/upgrades/02-PrepareReferralUpgrade.s.sol:PrepareReferralUpgrade $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
+protocol-upgrade-sf-vault:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/UpgradeSFVault.s.sol:UpgradeSFVault $(NETWORK_ARGS)
+	@cp contracts/saveFunds/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
+
+protocol-upgrade-sf-aggregator:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/UpgradeSFStrategyAggregator.s.sol:UpgradeSFStrategyAggregator $(NETWORK_ARGS)
+	@cp contracts/saveFunds/SFStrategyAggregator.sol contracts/version_previous_contracts/SFStrategyAggregatorV1.sol
+
+protocol-upgrade-sf-uni-v3-strat:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/UpgradeUniV3Strategy.s.sol:UpgradeUniV3Strategy $(NETWORK_ARGS)
+	@cp contracts/saveFunds/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
+
 # Token deployments
 tokens-deploy-nft:
 	@forge clean
