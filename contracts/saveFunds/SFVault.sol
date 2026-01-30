@@ -32,6 +32,7 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 pragma solidity 0.8.28;
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/SFVaultV1.sol:SFVaultV1
 contract SFVault is
     ISFVault,
     Initializable,

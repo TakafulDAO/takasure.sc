@@ -25,6 +25,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 
 pragma solidity 0.8.28;
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/SFStrategyAggregatorV1.sol:SFStrategyAggregatorV1
 contract SFStrategyAggregator is
     ISFStrategy,
     ISFStrategyView,
