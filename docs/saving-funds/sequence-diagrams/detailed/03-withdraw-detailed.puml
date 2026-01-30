@@ -1,0 +1,181 @@
+@startuml Save Fund (SF) – Withdraw (Detailed)
+title Save Fund (SF) – Withdraw (Detailed)
+
+autonumber
+
+actor User
+participant "Frontend\n(SF UI)" as FE
+participant "Wallet\n(EOA / In-app)" as W
+participant "Backend Keeper\n(Off-chain bot)" as K
+participant "SFVault\n(ERC4626 + non-transferable shares)" as Vault
+participant "USDC\n(Underlying ERC20)" as USDC
+participant "SFStrategyAggregator" as Agg
+participant "Sub-Strategy A\n(e.g., Uniswap V3)" as S1
+participant "Sub-Strategy B\n(another child)" as S2
+database "Subgraph" as SG
+
+== Preconditions ==
+
+ref over User, Vault
+User must already hold SFVault shares
+(see: Deposit (Detailed) diagram)
+end ref
+
+== Load withdraw screen ==
+
+User -> FE: Open Withdraw
+FE -> SG: Query user position + history\n(shares, past deposits/withdrawals)
+SG --> FE: User snapshot
+
+FE -> Vault: balanceOf(user)\nconvertToAssets(shares)
+Vault --> FE: userShares + approxAssets
+
+FE -> Vault: idleAssets()
+Vault -> USDC: balanceOf(Vault)
+USDC --> Vault: idleAssets
+Vault --> FE: idleAssets
+
+note over FE
+If idleAssets is low, UI can show:
+"Withdrawal may require liquidity un-winding"
+end note
+
+== User requests withdraw ==
+
+User -> FE: Enter withdraw amount\n(or shares)\nClick "Withdraw"
+FE -> Vault: previewWithdraw(assets)\n(or previewRedeem(shares))
+Vault --> FE: requiredShares (estimate)
+
+FE -> Vault: idleAssets()
+Vault -> USDC: balanceOf(Vault)
+USDC --> Vault: idleAssetsNow
+Vault --> FE: idleAssetsNow
+
+alt idleAssetsNow >= requestedAssets
+  == Direct user withdraw succeeds ==
+  FE -> W: Build tx: Vault.withdraw(assets, receiver, owner=user)\n(or redeem)
+  W -> Vault: withdraw(assets, receiver, owner)
+  activate Vault
+
+  note right of Vault
+ERC4626 flow (not paused):
+- computes shares via previewWithdraw (rounding)
+- if caller != owner, spends share allowance
+- burns shares (non-transferable token allows burn)
+- transfers underlying assets to receiver
+- updates userTotalWithdrawn[owner] in overridden _withdraw
+  end note
+
+  opt caller != owner (withdraw on behalf)
+    Vault -> Vault: _spendAllowance(owner, caller, shares)
+  end
+
+  Vault -> Vault: _burn(owner, shares)
+  Vault -> USDC: transfer(receiver, assets)\n(safeTransfer)
+  USDC --> Vault: Transfer OK
+
+  Vault -> SG: Emit Withdraw(caller, receiver, owner, assets, shares)\n(indexed by Subgraph)
+  Vault --> W: Tx receipt
+  deactivate Vault
+
+  FE <- W: Tx confirmed
+  FE -> SG: Refresh user snapshot
+  SG --> FE: Updated data
+  FE -> User: Updated dashboard
+
+else idleAssetsNow < requestedAssets
+  == Liquidity must be freed first ==
+
+  FE -> K: Request liquidity for user withdrawal\n(needed = requestedAssets - idleAssetsNow)
+
+  K -> Vault: withdrawFromStrategy(needed, strategies[], payloads[])
+  activate Vault
+
+  note right of Vault
+Guards:
+- whenNotPaused
+- nonReentrant
+- only Keeper or Operator
+Checks:
+- aggregator set
+- needed > 0
+Calls:
+- aggregator.withdraw(needed, receiver=Vault, data=bundle)
+Emits:
+- OnWithdrawFromStrategy(requested, withdrawn, bundleHash)
+  end note
+
+  Vault -> Agg: withdraw(needed, receiver=Vault, data=bundle)
+  activate Agg
+
+  note right of Agg
+Guards:
+- whenNotPaused
+- nonReentrant
+- onlyContract("PROTOCOL__SF_VAULT")
+Algorithm:
+1) snapshot prevTotalAssets = totalAssets()
+2) _useIdleFunds(receiver, needed)
+3) if still short: loop children and pull up to maxWithdraw()
+4) if still short: emit loss report
+  end note
+
+  Agg -> USDC: balanceOf(Agg)
+  USDC --> Agg: aggIdle
+
+  Agg -> USDC: transfer(Vault, min(aggIdle, needed))
+  USDC --> Agg: Transfer OK
+
+  loop for each active child while remaining > 0
+    Agg -> S1: maxWithdraw()
+    S1 --> Agg: maxW
+
+    alt maxW == 0
+      Agg -> Agg: skip
+    else
+      Agg -> S1: withdraw(toAsk, receiver=Agg,\nperStrategyPayload)
+      S1 --> Agg: got
+
+      Agg -> USDC: transfer(Vault, got)
+      USDC --> Agg: Transfer OK
+
+      Agg -> SG: Emit OnChildWithdraw(child, Vault, toAsk, got, payloadHash)
+    end
+  end
+
+  opt withdrawn < needed
+    Agg -> SG: Emit OnStrategyLossReported(needed, withdrawn, prevTotalAssets, newTotalAssets, shortfall)
+  end
+
+  Agg --> Vault: withdrawnAssets
+  deactivate Agg
+
+  Vault -> SG: Emit OnWithdrawFromStrategy(needed, withdrawnAssets, bundleHash)\n(indexed by Subgraph)
+  Vault --> K: Tx receipt
+  deactivate Vault
+
+  == Now user retries withdraw ==
+
+  FE -> W: Build tx: Vault.withdraw(assets, receiver, owner=user)\n(or redeem)
+  W -> Vault: withdraw(assets, receiver, owner)
+  activate Vault
+
+  opt caller != owner
+    Vault -> Vault: _spendAllowance(owner, caller, shares)
+  end
+
+  Vault -> Vault: _burn(owner, shares)
+  Vault -> USDC: transfer(receiver, assets)
+  USDC --> Vault: Transfer OK
+
+  Vault -> SG: Emit Withdraw(caller, receiver, owner, assets, shares)\n(indexed by Subgraph)
+  Vault --> W: Tx receipt
+  deactivate Vault
+
+  FE <- W: Tx confirmed
+  FE -> SG: Refresh user snapshot
+  SG --> FE: Updated data
+  FE -> User: Updated dashboard
+end
+
+@enduml
