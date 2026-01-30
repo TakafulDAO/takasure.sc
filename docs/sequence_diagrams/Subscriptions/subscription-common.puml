@@ -1,0 +1,77 @@
+!define REVERT(reason) SubscriptionModule -x Backend: revert reason
+
+' Plan exists
+!definelong PRECHECKS_PLAN_EXISTS()
+break [Plan-NOT-found]
+  REVERT(PlanNotFound())
+end
+!enddefinelong
+
+' Caller / Module
+!definelong PRECHECKS_CALLER_MODULE()
+break [Caller-NOT-valid]
+  REVERT(InvalidCaller())
+end
+break [Module-disabled]
+  REVERT(ModuleDisabled())
+end
+!enddefinelong
+
+' Contribution guards
+!definelong PRECHECKS_CONTRIB_MIN25()
+break [Contribution-less-than-25-USDC]
+  REVERT(WrongContribution())
+end
+!enddefinelong
+
+!definelong PRECHECKS_CONTRIB_MIN25_NOTMIN()
+break [Contribution-IS-NOT-minimum-(25-USDC)]
+  REVERT(WrongContribution())
+end
+!enddefinelong
+
+!definelong PRECHECKS_CONTRIB_RANGE25_250()
+break [Contribution-out-of-limits-(<25-or->250-USDC)]
+  REVERT(WrongContribution())
+end
+!enddefinelong
+
+' Load & validate member
+!definelong LOAD_MEMBER_AND_VALIDATE()
+SubscriptionModule -> MembersData: getAssociationMemberData(memberWallet)
+MembersData --> SubscriptionModule: Member data
+break [Member-invalid]
+  REVERT(InvalidMember())
+end
+!enddefinelong
+
+' Optional parent fetch & validate
+!definelong OPTIONAL_PARENT_VALIDATE()
+opt [Parent-wallet-not-zero]
+  SubscriptionModule -> MembersData: getAssociationMemberData(parentWallet)
+  MembersData --> SubscriptionModule: Parent data
+  break [Parent-invalid]
+    REVERT(InvalidParent())
+  end
+end
+!enddefinelong
+
+' Register member and confirm
+!definelong REGISTER_AND_CONFIRM()
+SubscriptionModule -> MembersData: registerAssociationMember(memberWallet, parentWallet, contribution)
+MembersData -> MembersData: Emits event
+MembersData --> SubscriptionModule: success
+!enddefinelong
+
+' KYC
+!definelong KYC_OPT()
+opt [KYC-user]
+  SubscriptionModule -> KYCModule: approveKYC(memberWallet)
+  KYCModule -> KYCModule: Emits event
+end
+!enddefinelong
+
+!definelong KYC_MANDATORY()
+SubscriptionModule -> KYCModule: approveKYC(memberWallet)
+KYCModule -> KYCModule: Emits event
+!enddefinelong

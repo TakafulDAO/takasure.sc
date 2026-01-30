@@ -1,0 +1,42 @@
+@startuml Subscriptions_without_benefits
+title Subscription without benefits
+autonumber
+
+!include subscription-common.puml
+
+actor Backend
+actor Parent
+actor Member
+participant SubscriptionModule
+participant KYCModule
+participant MembersData
+participant RewardsModule
+participant CouponPool
+participant Reserve
+
+Member -> Backend: requests subscription
+Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, planPrice, contribution)
+
+ref over Backend, SubscriptionModule, MembersData, KYCModule, CouponPool, RewardsModule [[refund.puml]] : Refund flow
+
+opt [there-was-a-parent]
+  SubscriptionModule -> RewardsModule: assignParentReward
+end
+
+REGISTER_AND_CONFIRM()
+
+CouponPool -> SubscriptionModule: transfer contribution
+KYC_OPT()
+
+alt [user-requested-a-refund]
+  ref over Backend, SubscriptionModule [[refund.puml]] : Refund flow
+else [apply for service]
+  alt [>-30-days]
+    ref over SubscriptionModule, LifeBenefitModule [[subscription-with-benefit-prorate.puml]] : With proration
+  else [≤-30-days]
+    ref over SubscriptionModule, LifeBenefitModule [[subscription-with-benefit-no-prorate.puml]] : No proration
+  end
+end
+
+
+@enduml

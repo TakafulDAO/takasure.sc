@@ -1,0 +1,66 @@
+@startuml Subscription_with_benefits_prorate
+title Subscription with benefits — prorate
+autonumber
+
+!include subscription-common.puml
+
+actor Backend
+actor Parent
+actor Member
+participant SubscriptionModule
+participant MembersData
+participant KYCModule
+participant CouponPool
+participant RewardsModule
+participant LifeBenefitModule
+participant Reserve
+
+Member -> Backend: requests subscription
+Backend -> SubscriptionModule: paySubscriptionOnBehalfOf(memberWallet, parentWallet, planPrice, contribution)
+
+PRECHECKS_PLAN_EXISTS()
+PRECHECKS_CALLER_MODULE()
+PRECHECKS_CONTRIB_MIN25_NOTMIN()
+LOAD_MEMBER_AND_VALIDATE()
+OPTIONAL_PARENT_VALIDATE()
+
+opt [there-was-a-parent]
+  SubscriptionModule -> RewardsModule: assignParentReward(for the minimum contribution)
+end
+
+REGISTER_AND_CONFIRM()
+
+CouponPool -> SubscriptionModule: transfer minimum contribution
+KYC_MANDATORY()
+
+opt [30d-passed-(cronjob)]
+  SubscriptionModule -> Reserve: transfer minimum contribution
+  Reserve -> Reserve: Run algorithms (Do not include member)
+
+  opt [there-was-a-parent]
+    SubscriptionModule -> RewardsModule: rewardParent
+    RewardsModule -> RewardsModule: Emits event
+    RewardsModule --> Parent: transfer parent reward
+  end
+end
+
+opt [>30d-passed]
+  Member -> Backend: requests benefit
+  Backend -> LifeBenefitModule: joinBenefit(memberWallet)
+  LifeBenefitModule -> MembersData: getAssociationMemberData(memberWallet)
+  MembersData --> LifeBenefitModule: Member data
+  LifeBenefitModule -> LifeBenefitModule: Calculate prorated contribution
+
+  opt [there-was-a-parent]
+    LifeBenefitModule -> RewardsModule: assignParentReward(for the prorated contribution)
+    LifeBenefitModule -> RewardsModule: rewardParent
+    RewardsModule -> RewardsModule: Emits event
+    RewardsModule --> Parent: transfer parent reward
+  end
+
+  LifeBenefitModule -> MembersData: updateMember(memberWallet)
+  CouponPool -> Reserve: transfer prorated contribution to Reserve
+  Reserve -> Reserve: Run algorithms (include member)
+end
+
+@enduml
