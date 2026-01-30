@@ -42,3 +42,15 @@ arb_sepolia = { key = "${ETHERSCAN_API_KEY}" }
 [rpc_endpoints]
 arb_one = "${ARBITRUM_MAINNET_RPC_URL}"
 arb_sepolia = "${ARBITRUM_TESTNET_SEPOLIA_RPC_URL}"
+
+[fmt]
+line_lenth = 120
+tab_width = 4
+bracket_spacing = false
+quote_style = "double"
+int_types = "long"
+single_line_statement_blocks = "preserve"
+multiline_func_header = "attributes_first"
+number_underscore = "preserve"
+hex_underscore = "remove"
+wrap_comments = false
