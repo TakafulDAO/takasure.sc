@@ -803,13 +803,20 @@ contract SFUniswapV3Strategy is
             totalIn += amountIn;
         }
 
-        if (totalIn != _amount) revert SFUniswapV3Strategy__InvalidStrategyData();
+        // Allow dust / unexpected extra balance in the contract
+        // We only require that swap inputs sum to `_amount`.
+        require(totalIn <= _amount, SFUniswapV3Strategy__InvalidStrategyData());
+
+        // Enforce we actually have enough `tokenIn` to cover swap payload
+        require(tokenIn.balanceOf(address(this)) >= totalIn, SFUniswapV3Strategy__InvalidStrategyData());
+
+        uint256 amountToSwap = totalIn;
 
         // Make UniversalRouter swaps work, as it pays via Permit2
         _ensurePermit2Max(tokenIn);
 
-        // ? Not sure if keep thisline, it doesn't satisfy Permit2 but also doesn't hurt
-        tokenIn.forceApprove(address(universalRouter), _amount);
+        // Not strictly needed for Permit2, but doesn't hurt
+        tokenIn.forceApprove(address(universalRouter), amountToSwap);
 
         uint256 outBefore = IERC20(expectedOut).balanceOf(address(this));
 
@@ -817,7 +824,7 @@ contract SFUniswapV3Strategy is
 
         uint256 outAfter = IERC20(expectedOut).balanceOf(address(this));
 
-        emit OnSwapExecuted(address(tokenIn), expectedOut, _amount, outAfter - outBefore);
+        emit OnSwapExecuted(address(tokenIn), expectedOut, amountToSwap, outAfter - outBefore);
 
         // Clear allowance
         tokenIn.forceApprove(address(universalRouter), 0);
