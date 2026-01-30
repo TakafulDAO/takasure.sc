@@ -803,7 +803,7 @@ contract SFUniswapV3Strategy is
 
         // Allow dust / unexpected extra balance in the contract
         // We only require that swap inputs sum to `_amount`.
-        if (totalIn > _amount) revert SFUniswapV3Strategy__InvalidStrategyData();
+        require(totalIn <= _amount, SFUniswapV3Strategy__InvalidStrategyData());
 
         // Enforce we actually have enough `tokenIn` to cover swap payload
         require(tokenIn.balanceOf(address(this)) >= totalIn, SFUniswapV3Strategy__InvalidStrategyData());
