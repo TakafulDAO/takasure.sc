@@ -29,6 +29,8 @@ build-certora:; forge build --contracts ./certora/
 
 test :; forge test 
 
+sim-test :; forge test --mc SaveFundInvariantTest --jobs 1
+
 coverage-report :; forge coverage --ir-minimum --report debug > coverage-report.txt
 
 snapshot :; forge snapshot
@@ -83,6 +85,21 @@ protocol-prepare-upgrade-referral:
 	@forge clean
 	@forge script deploy/protocol/upgrades/02-PrepareReferralUpgrade.s.sol:PrepareReferralUpgrade $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
+
+protocol-upgrade-sf-vault:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/UpgradeSFVault.s.sol:UpgradeSFVault $(NETWORK_ARGS)
+	@cp contracts/saveFunds/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
+
+protocol-upgrade-sf-aggregator:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/UpgradeSFStrategyAggregator.s.sol:UpgradeSFStrategyAggregator $(NETWORK_ARGS)
+	@cp contracts/saveFunds/SFStrategyAggregator.sol contracts/version_previous_contracts/SFStrategyAggregatorV1.sol
+
+protocol-upgrade-sf-uni-v3-strat:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/UpgradeUniV3Strategy.s.sol:UpgradeUniV3Strategy $(NETWORK_ARGS)
+	@cp contracts/saveFunds/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
 
 # Token deployments
 tokens-deploy-nft:
@@ -143,12 +160,21 @@ config-strat:
 invest-into-strat:
 	@forge script scripts/contract-interactions/saveFunds/InvestIntoStrategy.s.sol:InvestIntoStrategy $(NETWORK_ARGS)
 
+deploy-simulations:
+	@forge clean
+	@forge script scripts/simulations/save-fund-sims/DeploySFSystemArbVNet.s.sol:DeploySFSystemArbVNet $(NETWORK_ARGS)
+
+deploy-chainlink-upkeep:
+	@forge script scripts/save-funds-interaction/DeploySaveFundsAutomationRunner.s.sol:DeploySaveFundsAutomationRunner $(NETWORK_ARGS)
+
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)
 	NETWORK_ARGS := --rpc-url $(ARBITRUM_MAINNET_RPC_URL) --trezor --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network arb_sepolia,$(ARGS)),--network arb_sepolia)
 	NETWORK_ARGS := --rpc-url $(ARBITRUM_TESTNET_SEPOLIA_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+else ifeq ($(findstring --network tenderly,$(ARGS)),--network tenderly)
+	NETWORK_ARGS := --rpc-url $(PUBLIC_RPC) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast -vvvv
 endif
 
 # Certora

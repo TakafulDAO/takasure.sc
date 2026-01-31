@@ -50,7 +50,7 @@ contract SFVaultInvariantTest is StdInvariant, Test {
         // Ensure fee recipient exists (used by takeFees + preview fee branches)
         feeRecipient = makeAddr("feeRecipient");
         vm.prank(addrMgr.owner());
-        addrMgr.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
 
         handler = new SFVaultHandler(vault, asset, addrMgr, takadao);
 
