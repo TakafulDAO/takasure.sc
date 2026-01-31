@@ -10,48 +10,16 @@ import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-/// @dev Small helper that can call pool.swap and pays the pool in the callback using transferFrom(payer).
-contract MarketSwapCaller {
+contract SaveFundHandler is Test {
     using SafeERC20 for IERC20;
 
-    uint160 internal constant MIN_SQRT_RATIO_PLUS_ONE = 4295128739 + 1;
-    uint160 internal constant MAX_SQRT_RATIO_MINUS_ONE = 1461446703485210103287273052203988822378723970342 - 1;
-
-    IUniswapV3Pool public immutable pool;
-
-    error MarketSwapCaller__AmountInZero();
-    error MarketSwapCaller__NotPool();
-
-    constructor(address _pool) {
-        pool = IUniswapV3Pool(_pool);
-    }
-
-    function marketSwapExactIn(address payer, bool zeroForOne, uint256 amountIn) external {
-        require(amountIn > 0, MarketSwapCaller__AmountInZero());
-        uint160 limit = zeroForOne ? MIN_SQRT_RATIO_PLUS_ONE : MAX_SQRT_RATIO_MINUS_ONE;
-        pool.swap(address(this), zeroForOne, int256(amountIn), limit, abi.encode(payer));
-    }
-
-    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
-        require(msg.sender == address(pool), MarketSwapCaller__NotPool());
-        address payer = abi.decode(data, (address));
-
-        if (amount0Delta > 0) IERC20(pool.token0()).safeTransferFrom(payer, msg.sender, uint256(amount0Delta));
-        if (amount1Delta > 0) IERC20(pool.token1()).safeTransferFrom(payer, msg.sender, uint256(amount1Delta));
-    }
-}
-
-/// @notice Handler for simulation-based invariant testing.
-contract SaveFundHandler is Test {
     // ========= scenario constants (Arbitrum One) =========
-    // WETH/USDC 0.05% pool per scenario doc
-    address internal constant POOL_WETH_USDC_500 = 0xC6962004f452bE9203591991D15f6b388e09E8D0;
+    // USDC/USDT Uniswap V3 (Arbitrum) 0.01% (fee=100)
+    address internal constant POOL_USDC_USDT_100 = 0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6;
 
     // Tokens (Arbitrum One)
     address internal constant ARB_USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-    address internal constant ARB_WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
-
-    uint24 internal constant POOL_FEE = 500;
+    address internal constant ARB_USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
 
     // ========= protocol refs =========
     SFVault public vault;
@@ -68,11 +36,9 @@ contract SaveFundHandler is Test {
     IUniswapV3Pool public pool;
     MarketSwapCaller public market;
 
-    // cache pool tokens to avoid repeated external calls
     address internal poolToken0;
     address internal poolToken1;
 
-    // token handles
     IERC20 internal underlying;
     IERC20 internal other;
 
@@ -95,24 +61,16 @@ contract SaveFundHandler is Test {
     bool internal actorsConfigured;
     bool internal scenarioConfigured;
 
-    // ------------------------------------------------------------
-    // Constructor
-    // ------------------------------------------------------------
-
     constructor() {
-        pool = IUniswapV3Pool(POOL_WETH_USDC_500);
-        market = new MarketSwapCaller(POOL_WETH_USDC_500);
+        pool = IUniswapV3Pool(POOL_USDC_USDT_100);
+        market = new MarketSwapCaller(POOL_USDC_USDT_100);
 
         poolToken0 = pool.token0();
         poolToken1 = pool.token1();
 
         underlying = IERC20(ARB_USDC);
-        other = IERC20(ARB_WETH);
+        other = IERC20(ARB_USDT);
     }
-
-    // ------------------------------------------------------------
-    // One-time configuration (called from setUp)
-    // ------------------------------------------------------------
 
     function configureProtocol(SFVault _vault, SFStrategyAggregator _aggregator, SFUniswapV3Strategy _uniV3) external {
         vault = _vault;
@@ -167,10 +125,6 @@ contract SaveFundHandler is Test {
         return protocolConfigured && actorsConfigured && scenarioConfigured && users.length != 0;
     }
 
-    // ------------------------------------------------------------
-    // Fuzz actions (protocol side)
-    // ------------------------------------------------------------
-
     function backend_registerMember(uint256 userSeed) external {
         if (!_isConfigured()) return;
 
@@ -197,9 +151,11 @@ contract SaveFundHandler is Test {
 
         vm.startPrank(u);
         underlying.approve(address(vault), type(uint256).max);
+
         // If user not registered, deposit reverts; avoid killing invariant run.
         (bool ok,) = address(vault).call(abi.encodeWithSignature("deposit(uint256,address)", amount, u));
         ok;
+
         vm.stopPrank();
 
         _afterProtocolOp(amtSeed);
@@ -237,11 +193,17 @@ contract SaveFundHandler is Test {
         }
 
         uint256 amount = bound(amtSeed, 1e6, idle);
-        uint256 ratioBps = uint256(bound(ratioSeed, 0, 10_000));
+        uint16 ratioBps = uint16(bound(ratioSeed, 0, 10_000));
         uint256 deadline = block.timestamp + bound(deadlineSeed, 1, 1 days);
 
-        bytes memory swapToOther = _encodeUniV3ExactInSwap(address(underlying), address(other), POOL_FEE, amount);
-        bytes memory actionData = abi.encode(ratioBps, swapToOther, bytes(""), deadline, uint256(0), uint256(0));
+        // Strategy.deposit swaps amountToSwap = assets * ratioBps / 10_000
+        uint256 amountToSwap = (amount * uint256(ratioBps)) / 10_000;
+
+        bytes memory swapToOtherData = (amountToSwap == 0) ? bytes("") : _encodeUniV3SwapToOther(amountToSwap, deadline);
+
+        // V3ActionData encoding:
+        // (otherRatioBPS, swapToOtherData, swapToUnderlyingData, pmDeadline, minUnderlying, minOther)
+        bytes memory actionData = abi.encode(ratioBps, swapToOtherData, bytes(""), deadline, uint256(0), uint256(0));
 
         (address[] memory strategies, bytes[] memory payloads) = _singleStrategyArrays(actionData);
 
@@ -267,8 +229,13 @@ contract SaveFundHandler is Test {
         uint256 amount = bound(amtSeed, 1e6, stratAssets);
         uint256 deadline = block.timestamp + bound(deadlineSeed, 1, 1 days);
 
-        // UniV3 withdraw path decodes (pmDeadline, minUnderlying, minOther)
-        bytes memory actionData = abi.encode(deadline, uint256(0), uint256(0));
+        uint256 preOtherBal = other.balanceOf(address(uniV3));
+        bytes memory swapToUnderlyingData =
+            (preOtherBal == 0) ? bytes("") : _encodeUniV3SwapToUnderlying(preOtherBal, deadline);
+
+        // V3ActionData encoding for strategy.withdraw:
+        bytes memory actionData =
+            abi.encode(uint16(0), bytes(""), swapToUnderlyingData, deadline, uint256(0), uint256(0));
 
         (address[] memory strategies, bytes[] memory payloads) = _singleStrategyArrays(actionData);
 
@@ -282,24 +249,29 @@ contract SaveFundHandler is Test {
         _afterProtocolOp(amtSeed);
     }
 
-    function keeper_harvest(uint256 ratioSeed, uint256 deadlineSeed) external {
+    function keeper_harvest(
+        uint256,
+        /*ratioSeed*/
+        uint256 deadlineSeed
+    )
+        external
+    {
         if (!_isConfigured()) return;
 
-        uint256 ratioBps = uint256(bound(ratioSeed, 0, 10_000));
+        // Harvest path: strategy._collectFees() decodes V3ActionData.
+        // Keep ratioBps=0 to avoid requiring swapToOtherData.
+        uint16 ratioBps = 0;
         uint256 deadline = block.timestamp + bound(deadlineSeed, 1, 1 days);
 
         uint256 otherBal = other.balanceOf(address(uniV3));
-        if (otherBal == 0) {
-            _afterProtocolOp(ratioSeed);
-            return;
+        bytes memory swapToUnderlyingData;
+
+        if (otherBal > 0) {
+            uint256 amountIn = otherBal > 1_000e6 ? 1_000e6 : otherBal; // swap up to 1000 USDT
+            if (amountIn > 0) swapToUnderlyingData = _encodeUniV3SwapToUnderlying(amountIn, deadline);
         }
 
-        uint256 amountIn = otherBal > 1e6 ? 1e6 : otherBal;
-
-        bytes memory swapToUnderlying =
-            _encodeUniV3ExactInSwap(address(other), address(underlying), uint24(100), amountIn);
-
-        bytes memory data = abi.encode(ratioBps, swapToUnderlying, bytes(""), deadline, uint256(0), uint256(0));
+        bytes memory data = abi.encode(ratioBps, bytes(""), swapToUnderlyingData, deadline, uint256(0), uint256(0));
 
         bytes memory encoded = _encodeSingleStrategyPayload(data);
 
@@ -307,7 +279,7 @@ contract SaveFundHandler is Test {
         (bool ok,) = address(aggregator).call(abi.encodeWithSignature("harvest(bytes)", encoded));
         ok;
 
-        _afterProtocolOp(ratioSeed);
+        _afterProtocolOp(deadlineSeed);
     }
 
     function keeper_rebalance(uint256 seed) external {
@@ -412,10 +384,6 @@ contract SaveFundHandler is Test {
         _afterProtocolOp(shareSeed);
     }
 
-    // ------------------------------------------------------------
-    // Internal helpers
-    // ------------------------------------------------------------
-
     function _afterProtocolOp(uint256 seed) internal {
         protocolOps++;
         _simulateMarket(seed, 5);
@@ -444,9 +412,8 @@ contract SaveFundHandler is Test {
 
         // fund swapper and approve MarketSwapCaller to pull in callback
         _dealPlus(tokenIn, swapper, amountIn);
+
         vm.prank(swapper);
-        // approve pool token to be pulled by the callback via transferFrom
-        // Note: MarketSwapCaller uses transferFrom(payer, pool, amountDelta), so payer must approve MarketSwapCaller.
         (bool okApprove,) =
             tokenIn.call(abi.encodeWithSignature("approve(address,uint256)", address(market), type(uint256).max));
         okApprove;
@@ -479,14 +446,9 @@ contract SaveFundHandler is Test {
     function _pickMarketAmountIn(address tokenIn, uint256 seed, uint256 i) internal pure returns (uint256) {
         uint256 r = uint256(keccak256(abi.encode(seed, i, uint256(0xA11CE))));
 
-        // Scenario-ish ranges:
-        // - USDC: 500–2000 USDC (6 decimals)
-        // - WETH: 0.25–1 WETH (18 decimals)
-        if (tokenIn == ARB_USDC) {
+        // 500–2000 USDC/USDT
+        if (tokenIn == ARB_USDC || tokenIn == ARB_USDT) {
             return bound(r, 500e6, 2_000e6);
-        }
-        if (tokenIn == ARB_WETH) {
-            return bound(r, 0.25 ether, 1 ether);
         }
 
         return bound(r, 1, 1e18);
@@ -513,11 +475,59 @@ contract SaveFundHandler is Test {
         return abi.encode(strategies, payloads);
     }
 
-    function _encodeUniV3ExactInSwap(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn)
+    function _encodeUniV3SwapToOther(uint256 amountIn, uint256 deadline) internal view returns (bytes memory) {
+        return _encodeUniV3ExactInSwap(address(underlying), address(other), amountIn, deadline);
+    }
+
+    function _encodeUniV3SwapToUnderlying(uint256 amountIn, uint256 deadline) internal view returns (bytes memory) {
+        return _encodeUniV3ExactInSwap(address(other), address(underlying), amountIn, deadline);
+    }
+
+    function _encodeUniV3ExactInSwap(address tokenIn, address tokenOut, uint256 amountIn, uint256 deadline)
         internal
-        pure
+        view
         returns (bytes memory)
     {
-        return abi.encode(tokenIn, tokenOut, fee, amountIn);
+        if (amountIn == 0) return bytes("");
+
+        // Uniswap V3 single-hop path: tokenIn(20) + fee(3) + tokenOut(20)
+        uint24 fee = pool.fee();
+        bytes memory path = abi.encodePacked(tokenIn, fee, tokenOut);
+
+        bytes[] memory inputs = new bytes[](1);
+
+        inputs[0] = abi.encode(address(uniV3), amountIn, uint256(0), path, true);
+
+        return abi.encode(inputs, deadline);
+    }
+}
+
+contract MarketSwapCaller {
+    using SafeERC20 for IERC20;
+
+    uint160 internal constant MIN_SQRT_RATIO_PLUS_ONE = 4295128739 + 1;
+    uint160 internal constant MAX_SQRT_RATIO_MINUS_ONE = 1461446703485210103287273052203988822378723970342 - 1;
+
+    IUniswapV3Pool public immutable pool;
+
+    error MarketSwapCaller__AmountInZero();
+    error MarketSwapCaller__NotPool();
+
+    constructor(address _pool) {
+        pool = IUniswapV3Pool(_pool);
+    }
+
+    function marketSwapExactIn(address payer, bool zeroForOne, uint256 amountIn) external {
+        require(amountIn > 0, MarketSwapCaller__AmountInZero());
+        uint160 limit = zeroForOne ? MIN_SQRT_RATIO_PLUS_ONE : MAX_SQRT_RATIO_MINUS_ONE;
+        pool.swap(address(this), zeroForOne, int256(amountIn), limit, abi.encode(payer));
+    }
+
+    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
+        require(msg.sender == address(pool), MarketSwapCaller__NotPool());
+        address payer = abi.decode(data, (address));
+
+        if (amount0Delta > 0) IERC20(pool.token0()).safeTransferFrom(payer, msg.sender, uint256(amount0Delta));
+        if (amount1Delta > 0) IERC20(pool.token1()).safeTransferFrom(payer, msg.sender, uint256(amount1Delta));
     }
 }

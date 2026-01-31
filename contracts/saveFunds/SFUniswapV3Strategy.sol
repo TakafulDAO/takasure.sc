@@ -1250,7 +1250,13 @@ contract SFUniswapV3Strategy is
     }
 
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation) internal view override {
+    function _authorizeUpgrade(
+        address /*newImplementation*/
+    )
+        internal
+        view
+        override
+    {
         _onlyRole(Roles.OPERATOR);
     }
 }

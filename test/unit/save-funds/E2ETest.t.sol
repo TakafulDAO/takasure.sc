@@ -19,6 +19,7 @@ import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
 import {UniswapV3MathHelper} from "contracts/helpers/uniswapHelpers/UniswapV3MathHelper.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 
 contract E2ETest is Test {
@@ -26,10 +27,10 @@ contract E2ETest is Test {
 
     // ===== Arbitrum One / Scenario constants =====
     address internal constant ARB_USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-    address internal constant ARB_WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
+    address internal constant ARB_USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
 
-    // WETH/USDC 0.05% pool
-    address internal constant POOL_WETH_USDC_500 = 0xC6962004f452bE9203591991D15f6b388e09E8D0;
+    // Uniswap V3 core factory on Arbitrum One
+    address internal constant UNIV3_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
     // Uniswap V3 periphery on Arbitrum
     address internal constant UNIV3_NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
@@ -73,8 +74,8 @@ contract E2ETest is Test {
     int24 internal constant HALF_RANGE_TICKS = 1200;
 
     // dust thresholds
-    uint256 internal constant DUST_USDC = 100;
-    uint256 internal constant DUST_WETH = 1;
+    uint256 internal constant DUST_USDC = 100; // 0.0001 USDC
+    uint256 internal constant DUST_USDT = 100; // 0.0001 USDT
 
     // ===== deploy helpers =====
     DeployManagers internal managersDeployer;
@@ -90,7 +91,9 @@ contract E2ETest is Test {
     UniswapV3MathHelper internal mathHelper;
 
     IERC20 internal usdc = IERC20(ARB_USDC);
-    IERC20 internal weth = IERC20(ARB_WETH);
+    IERC20 internal usdt = IERC20(ARB_USDT);
+
+    address internal POOL_USDC_USDT;
 
     address internal operator;
     address internal backendAdmin;
@@ -104,11 +107,9 @@ contract E2ETest is Test {
     MarketSwapCaller internal market;
 
     function setUp() public {
-        // ===== fork =====
         uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"), FORK_BLOCK);
         vm.selectFork(forkId);
 
-        // ===== deploy managers + base roles/addresses =====
         managersDeployer = new DeployManagers();
         addressesAndRoles = new AddAddressesAndRoles();
         aggregatorDeployer = new DeploySFStrategyAggregator();
@@ -122,16 +123,10 @@ contract E2ETest is Test {
         (operator,,, backendAdmin,,,) = addressesAndRoles.run(addrMgr, config, address(modMgr));
 
         vm.startPrank(addrMgr.owner());
-
-        // PAUSE_GUARDIAN
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauseGuardian);
-
-        // KEEPER
         addrMgr.createNewRole(Roles.KEEPER);
         addrMgr.proposeRoleHolder(Roles.KEEPER, keeper);
-
-        // fee receiver
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeReceiver, ProtocolAddressType.Admin);
         vm.stopPrank();
 
@@ -141,7 +136,6 @@ contract E2ETest is Test {
         vm.prank(keeper);
         addrMgr.acceptProposedRole(Roles.KEEPER);
 
-        // ===== deploy vault =====
         vault = SFVault(
             UnsafeUpgrades.deployUUPSProxy(
                 address(new SFVault()),
@@ -149,7 +143,6 @@ contract E2ETest is Test {
             )
         );
 
-        // ===== deploy aggregator =====
         aggregator = aggregatorDeployer.run(IAddressManager(address(addrMgr)), usdc, address(vault));
 
         vm.startPrank(addrMgr.owner());
@@ -160,21 +153,26 @@ contract E2ETest is Test {
         // ===== wire vault + whitelist other token =====
         vm.startPrank(operator);
         vault.setAggregator(ISFStrategy(address(aggregator)));
-        vault.whitelistToken(address(weth));
+        vault.whitelistToken(address(usdt));
 
-        // set fees (perf 10%) and management fee 0 for scenario-style takeFees cadence
         vault.setFeeConfig(0, 1000, 0);
         vm.stopPrank();
+
+        // ===== find USDC/USDT pool (Uniswap V3) =====
+        POOL_USDC_USDT = _findUsdcUsdtPool();
+        require(POOL_USDC_USDT != address(0), "USDC/USDT v3 pool not found");
 
         // ===== deploy math helper + UniV3 strategy =====
         mathHelper = new UniswapV3MathHelper();
 
-        // use a high maxTVL for scenario runs
+        // High maxTVL for scenario runs
         uint256 strategyMaxTVL = 100_000_000e6;
 
-        // initial ticks
-        int24 initLower = -200;
-        int24 initUpper = 200;
+        // initial ticks (align to pool tickSpacing)
+        int24 spacing = IUniswapV3Pool(POOL_USDC_USDT).tickSpacing();
+        int24 initLower = _floorToSpacing(-200, spacing);
+        int24 initUpper = _floorToSpacing(200, spacing);
+        if (initUpper <= initLower) initUpper = initLower + spacing;
 
         uniV3 = SFUniswapV3Strategy(
             UnsafeUpgrades.deployUUPSProxy(
@@ -185,8 +183,8 @@ contract E2ETest is Test {
                         addrMgr,
                         address(vault),
                         usdc,
-                        weth,
-                        POOL_WETH_USDC_500,
+                        usdt,
+                        POOL_USDC_USDT,
                         UNIV3_NONFUNGIBLE_POSITION_MANAGER,
                         address(mathHelper),
                         strategyMaxTVL,
@@ -207,14 +205,13 @@ contract E2ETest is Test {
         vault.setERC721ApprovalForAll(UNIV3_NONFUNGIBLE_POSITION_MANAGER, address(uniV3), true);
 
         // ===== market swap helper =====
-        market = new MarketSwapCaller(POOL_WETH_USDC_500);
+        market = new MarketSwapCaller(POOL_USDC_USDT);
 
         // ===== actors =====
         _createActors();
         _registerAllUsers();
         _approveAll();
 
-        // sanity: strategy should start with no router approvals
         _assertNoStaleRouterApprovals();
     }
 
@@ -230,7 +227,6 @@ contract E2ETest is Test {
             // baseline swaps
             seed = _doRandomMarketSwaps(BASELINE_SWAPS_PER_TICK, seed);
 
-            // sample count of protocol actions for this tick (Poisson-ish lambda~3)
             uint256 nActions;
             (seed, nActions) = _samplePoissonLambda3(seed);
 
@@ -293,9 +289,7 @@ contract E2ETest is Test {
         assertLe(sumClaimable, vault.totalAssets() + 10, "sum claimable > totalAssets (rounding?)");
     }
 
-    // =============================================================
-    //                     Protocol action helpers
-    // =============================================================
+    // Helpers
 
     function _protocolDeposit(uint256 seed) internal returns (uint256) {
         uint256 ui;
@@ -319,7 +313,6 @@ contract E2ETest is Test {
         return _next(seed);
     }
 
-    /// @dev returns true if a withdrawal happened
     function _protocolWithdraw(uint256 seed) internal returns (bool) {
         uint256 ui;
         (seed, ui) = _randBound(seed, users.length);
@@ -402,8 +395,8 @@ contract E2ETest is Test {
 
     function _keeperRebalanceToCurrentTickRange() internal {
         // read current tick
-        (, int24 tickNow,,,,,) = IUniswapV3Pool(POOL_WETH_USDC_500).slot0();
-        int24 spacing = IUniswapV3Pool(POOL_WETH_USDC_500).tickSpacing();
+        (, int24 tickNow,,,,,) = IUniswapV3Pool(POOL_USDC_USDT).slot0();
+        int24 spacing = IUniswapV3Pool(POOL_USDC_USDT).tickSpacing();
 
         int24 lower = _floorToSpacing(tickNow - HALF_RANGE_TICKS, spacing);
         int24 upper = _floorToSpacing(tickNow + HALF_RANGE_TICKS, spacing);
@@ -424,16 +417,15 @@ contract E2ETest is Test {
         aggregator.rebalance(abi.encode(strats, payloads));
     }
 
-    // =============================================================
-    //                     Strategy payload builders
-    // =============================================================
+    // Strategy payload
 
     function _buildDepositActionData(uint256 assets) internal view returns (bytes memory) {
         // 50/50 into otherToken by default
         uint16 ratioBps = 5000;
         uint256 amountIn = (assets * ratioBps) / 10_000;
 
-        bytes memory path = abi.encodePacked(ARB_USDC, uint24(500), ARB_WETH);
+        uint24 fee = IUniswapV3Pool(POOL_USDC_USDT).fee();
+        bytes memory path = abi.encodePacked(ARB_USDC, fee, ARB_USDT);
 
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(uniV3), amountIn, uint256(0), path, true);
@@ -445,13 +437,11 @@ contract E2ETest is Test {
     }
 
     function _buildWithdrawActionData() internal view returns (bytes memory) {
-        // no swap-back payload (strategy will sweep both tokens to vault)
+        // no swap-back payload (strategy behavior unchanged)
         return abi.encode(uint16(0), bytes(""), bytes(""), block.timestamp + 30 minutes, 0, 0);
     }
 
-    // =============================================================
-    //                     Market swaps simulation
-    // =============================================================
+    // Market swaps simulation
 
     function _doRandomMarketSwaps(uint256 n, uint256 seed) internal returns (uint256) {
         for (uint256 i; i < n; ++i) {
@@ -463,17 +453,17 @@ contract E2ETest is Test {
             (seed, dir) = _randBound(seed, 2);
 
             if (dir == 0) {
-                // USDC -> WETH amount range 500..2000 USDC
+                // USDC -> USDT amount range 500..2000 USDC
                 uint256 amt;
                 (seed, amt) = _randRange(seed, 500e6, 2000e6);
                 vm.prank(s);
-                market.swapExactInput(ARB_USDC, ARB_WETH, amt);
+                market.swapExactInput(ARB_USDC, ARB_USDT, amt);
             } else {
-                // WETH -> USDC amount range 0.25..1 WETH
-                uint256 amtW;
-                (seed, amtW) = _randRange(seed, 0.25 ether, 1 ether);
+                // USDT -> USDC amount range 500..2000 USDT
+                uint256 amtT;
+                (seed, amtT) = _randRange(seed, 500e6, 2000e6);
                 vm.prank(s);
-                market.swapExactInput(ARB_WETH, ARB_USDC, amtW);
+                market.swapExactInput(ARB_USDT, ARB_USDC, amtT);
             }
 
             seed = _next(seed);
@@ -481,9 +471,7 @@ contract E2ETest is Test {
         return seed;
     }
 
-    // =============================================================
-    //                         Assertions
-    // =============================================================
+    // Assertions
 
     function _assertTotalSupplyEqualsSumUserBalances() internal view {
         uint256 sum;
@@ -495,17 +483,15 @@ contract E2ETest is Test {
 
     function _assertStrategyHoldsNoTokens() internal view {
         assertLe(usdc.balanceOf(address(uniV3)), DUST_USDC, "uniV3 holds too much USDC");
-        assertLe(weth.balanceOf(address(uniV3)), DUST_WETH, "uniV3 holds too much WETH");
+        assertLe(usdt.balanceOf(address(uniV3)), DUST_USDT, "uniV3 holds too much USDT");
     }
 
     function _assertNoStaleRouterApprovals() internal view {
         assertEq(usdc.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "USDC router allowance not cleared");
-        assertEq(weth.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "WETH router allowance not cleared");
+        assertEq(usdt.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "USDT router allowance not cleared");
     }
 
-    // =============================================================
-    //                        Setup helpers
-    // =============================================================
+    // Setup helpers
 
     function _createActors() internal {
         users = new address[](NUM_USERS);
@@ -525,7 +511,7 @@ contract E2ETest is Test {
 
             // fund swappers with both sides of the pool
             deal(ARB_USDC, s, 5_000_000e6);
-            deal(ARB_WETH, s, 2_000 ether);
+            deal(ARB_USDT, s, 5_000_000e6);
         }
     }
 
@@ -551,14 +537,36 @@ contract E2ETest is Test {
             address s = swappers[j];
             vm.startPrank(s);
             usdc.approve(address(market), type(uint256).max);
-            weth.approve(address(market), type(uint256).max);
+            usdt.approve(address(market), type(uint256).max);
             vm.stopPrank();
         }
     }
 
-    // =============================================================
-    //                     Randomness / sampling
-    // =============================================================
+    // Pool discovery
+
+    function _findUsdcUsdtPool() internal view returns (address pool) {
+        (address t0, address t1) = _sortTokens(ARB_USDC, ARB_USDT);
+
+        // Try common fee tiers
+        pool = IUniswapV3Factory(UNIV3_FACTORY).getPool(t0, t1, 100);
+        if (pool != address(0)) return pool;
+
+        pool = IUniswapV3Factory(UNIV3_FACTORY).getPool(t0, t1, 500);
+        if (pool != address(0)) return pool;
+
+        pool = IUniswapV3Factory(UNIV3_FACTORY).getPool(t0, t1, 3000);
+        if (pool != address(0)) return pool;
+
+        pool = IUniswapV3Factory(UNIV3_FACTORY).getPool(t0, t1, 10_000);
+        if (pool != address(0)) return pool;
+
+        return address(0);
+    }
+
+    function _sortTokens(address a, address b) internal pure returns (address token0, address token1) {
+        if (a < b) return (a, b);
+        return (b, a);
+    }
 
     function _next(uint256 seed) internal pure returns (uint256) {
         return uint256(keccak256(abi.encodePacked(seed)));
@@ -580,7 +588,6 @@ contract E2ETest is Test {
         r = minIncl + r;
     }
 
-    /// @dev Discrete sampler approximating Poisson(lambda=3) with CDF thresholds (scaled 1e6)
     function _samplePoissonLambda3(uint256 seed) internal pure returns (uint256 newSeed, uint256 k) {
         uint256 r;
         (newSeed, r) = _randBound(seed, 1_000_000);
@@ -614,20 +621,14 @@ contract E2ETest is Test {
     function _floorToSpacing(int24 tick, int24 spacing) internal pure returns (int24) {
         int24 mod = tick % spacing;
         int24 floored = tick - mod;
-        // for negative ticks, mod is negative in Solidity; adjust toward -infinity
         if (mod < 0) floored -= spacing;
         return floored;
     }
 }
 
-// =============================================================
-//                       Minimal UniV3 swapper
-// =============================================================
-
 contract MarketSwapCaller is IUniswapV3SwapCallback {
     address public immutable pool;
 
-    // Uniswap V3 sqrt ratio bounds
     uint160 internal constant MIN_SQRT_RATIO_PLUS_ONE = 4295128740;
     uint160 internal constant MAX_SQRT_RATIO_MINUS_ONE = 1461446703485210103287273052203988822378723970341;
 
