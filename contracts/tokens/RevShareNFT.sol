@@ -300,6 +300,6 @@ contract RevShareNFT is
 
     /// @dev Temporary function to recover tokens mistakenly sent to some pioneer
     function _isAuthorized(address owner, address spender, uint256 tokenId) internal view override returns (bool) {
-        return super._isAuthorized(owner, spender, tokenId) || addressManager.hasRole(Roles.OPERATOR, msg.sender);
+        return super._isAuthorized(owner, spender, tokenId) || msg.sender == owner;
     }
 }
