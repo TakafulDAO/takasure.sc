@@ -17,6 +17,7 @@ import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC72
 import {ProtocolAddress} from "contracts/types/Managers.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 pragma solidity 0.8.28;
 
@@ -295,5 +296,10 @@ contract RevShareNFT is
                 pioneerMintedAt[owner][OWNER_LOCK_KEY] = ts;
             }
         }
+    }
+
+    /// @dev Temporary function to recover tokens mistakenly sent to some pioneer
+    function _isAuthorized(address owner, address spender, uint256 tokenId) internal view override returns (bool) {
+        return super._isAuthorized(owner, spender, tokenId) || msg.sender == owner;
     }
 }
