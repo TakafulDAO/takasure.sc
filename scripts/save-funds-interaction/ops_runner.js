@@ -70,17 +70,20 @@ function argHas(flag) {
 }
 
 // ----------------- tick helpers -----------------
-function roundUpToSpacing(tick, spacing) {
-    const rem = tick % spacing
-    if (rem === 0) return tick
-    if (tick >= 0) return tick + (spacing - rem)
-    return tick - rem // toward zero
+function floorToSpacing(tick, spacing) {
+    // floor(tick / spacing) * spacing, spacing > 0
+    let q = Math.trunc(tick / spacing) // toward 0
+    const r = tick % spacing
+    if (tick < 0 && r !== 0) q -= 1
+    return q * spacing
 }
-function roundDownToSpacing(tick, spacing) {
-    const rem = tick % spacing
-    if (rem === 0) return tick
-    if (tick >= 0) return tick - rem
-    return tick - (spacing + rem) // more negative
+
+function ceilToSpacing(tick, spacing) {
+    // ceil(tick / spacing) * spacing, spacing > 0
+    let q = Math.trunc(tick / spacing) // toward 0
+    const r = tick % spacing
+    if (tick > 0 && r !== 0) q += 1
+    return q * spacing
 }
 
 // ----------------- revert decoding -----------------
@@ -308,10 +311,10 @@ async function main() {
 
     let newTickLower, newTickUpper
     if (token0IsUSDC) {
-        newTickLower = roundUpToSpacing(currentTick + offset, spacing)
+        newTickLower = ceilToSpacing(currentTick + offset, spacing)
         newTickUpper = newTickLower + width
     } else {
-        newTickUpper = roundDownToSpacing(currentTick - offset, spacing)
+        newTickUpper = floorToSpacing(currentTick - offset, spacing)
         newTickLower = newTickUpper - width
     }
 

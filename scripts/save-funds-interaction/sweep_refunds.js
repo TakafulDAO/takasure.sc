@@ -14,25 +14,33 @@ function argValue(flag, def) {
 }
 
 async function refundAllEthBack(userWallet, rolesEOA, provider) {
-    const gasPrice = await provider.getGasPrice()
-    const gasLimit = ethers.BigNumber.from(21000)
-    const safety = ethers.utils.parseEther("0.00002")
+    const feeData = await provider.getFeeData()
+
+    const maxFeePerGas =
+        feeData.maxFeePerGas || feeData.gasPrice || ethers.utils.parseUnits("0.1", "gwei")
+    const maxPriorityFeePerGas =
+        feeData.maxPriorityFeePerGas || ethers.utils.parseUnits("0.01", "gwei")
 
     const bal = await provider.getBalance(userWallet.address)
     if (bal.isZero()) return { sent: false, reason: "zero balance" }
 
-    const reserve = gasPrice.mul(gasLimit).add(safety)
-    if (bal.lte(reserve)) return { sent: false, reason: "not enough after gas reserve" }
+    const gasLimit = ethers.BigNumber.from(21000)
+    const safety = ethers.utils.parseEther("0.00002")
 
-    const value = bal.sub(reserve)
+    const feeReserve = gasLimit.mul(maxFeePerGas).add(safety)
+    if (bal.lte(feeReserve)) return { sent: false, reason: "not enough after gas reserve" }
 
-    const tx = await userWallet.sendTransaction({
-        to: rolesEOA,
-        value,
-        gasLimit,
-        gasPrice,
-    })
+    const value = bal.sub(feeReserve)
 
+    const txReq = { to: rolesEOA, value, gasLimit }
+    if (feeData.maxFeePerGas) {
+        txReq.maxFeePerGas = maxFeePerGas
+        txReq.maxPriorityFeePerGas = maxPriorityFeePerGas
+    } else if (feeData.gasPrice) {
+        txReq.gasPrice = feeData.gasPrice
+    }
+
+    const tx = await userWallet.sendTransaction(txReq)
     const receipt = await tx.wait(1)
     return { sent: true, value, hash: receipt.transactionHash }
 }

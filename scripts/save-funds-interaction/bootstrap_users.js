@@ -18,7 +18,6 @@ const ADDR = {
     RolesEOA: "0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1",
 }
 
-// Only  ABI needed for this script
 const ERC20_ABI = [
     "function approve(address spender, uint256 amount) external returns (bool)",
     "function balanceOf(address account) external view returns (uint256)",
@@ -48,9 +47,44 @@ function argHas(flag) {
     return process.argv.includes(flag)
 }
 
+function ensureDir(p) {
+    if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true })
+}
+
+function resolveOutDir() {
+    // Priority:
+    // 1) CLI: --outDir
+    // 2) ENV: SF_BOOTSTRAP_OUT_DIR
+    // 3) Default: <this script folder>/users_out
+    const cli = argValue("--outDir", "")
+    const env = process.env.SF_BOOTSTRAP_OUT_DIR || ""
+    const base = cli || env
+    const scriptDir = __dirname
+
+    const resolved = base
+        ? path.isAbsolute(base)
+            ? base
+            : path.resolve(process.cwd(), base)
+        : path.join(scriptDir, "users_out")
+
+    ensureDir(resolved)
+    return resolved
+}
+
+function resolveUsersJsonPath() {
+    // Optional: if set, we'll LOAD existing users instead of generating new ones.
+    // Priority:
+    // 1) CLI: --usersJson
+    // 2) ENV: SF_BOOTSTRAP_USERS_JSON
+    const cli = argValue("--usersJson", "")
+    const env = process.env.SF_BOOTSTRAP_USERS_JSON || ""
+    const p = cli || env
+    if (!p) return ""
+    return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p)
+}
+
 async function runBatched(items, batchSize, fn) {
     const results = []
-
     for (let i = 0; i < items.length; i += batchSize) {
         const batch = items.slice(i, i + batchSize)
         const out = await Promise.all(
@@ -67,7 +101,6 @@ async function runBatched(items, batchSize, fn) {
         )
         results.push(...out)
     }
-
     return results
 }
 
@@ -81,26 +114,19 @@ async function refundAllEthBack(userWallet, rolesEOA, provider) {
         feeData.maxPriorityFeePerGas || ethers.utils.parseUnits("0.01", "gwei")
 
     const bal = await provider.getBalance(userWallet.address)
-
     if (bal.isZero()) return { sent: false, reason: "zero balance" }
 
     const gasLimit = ethers.BigNumber.from(21000)
     const safety = ethers.utils.parseEther("0.00002") // 0.00002 ETH
 
     const feeReserve = gasLimit.mul(maxFeePerGas).add(safety)
-
     if (bal.lte(feeReserve)) {
         return { sent: false, reason: "not enough to refund after reserving gas" }
     }
 
     const value = bal.sub(feeReserve)
 
-    const txReq = {
-        to: rolesEOA,
-        value,
-        gasLimit,
-    }
-
+    const txReq = { to: rolesEOA, value, gasLimit }
     if (feeData.maxFeePerGas) {
         txReq.maxFeePerGas = maxFeePerGas
         txReq.maxPriorityFeePerGas = maxPriorityFeePerGas
@@ -125,6 +151,9 @@ async function main() {
     const DEPOSIT_USDC = argValue("--deposit", "100") // per user (whole units, 6 decimals)
     const USER_BATCH = Number(argValue("--userBatch", "10"))
     const SKIP_REFUND = argHas("--skipRefund")
+
+    const OUT_DIR = resolveOutDir()
+    const USERS_JSON_IN = resolveUsersJsonPath()
 
     const provider = new ethers.providers.JsonRpcProvider(RPC_URL)
     const rolesWallet = new ethers.Wallet(ROLES_PK, provider)
@@ -155,79 +184,97 @@ async function main() {
     const depositUnits = ethers.utils.parseUnits(DEPOSIT_USDC, usdcDecimals)
     const fundUnits = ethers.utils.parseEther(FUND_ETH)
 
-    // 1) Generate wallets
-    console.log(`\nGenerating ${COUNT} wallets...`)
-    const users = []
-    for (let i = 0; i < COUNT; i++) {
-        const w = ethers.Wallet.createRandom()
-        users.push({
-            idx: i,
-            address: w.address,
-            privateKey: w.privateKey,
-        })
+    // 1) Load existing users OR generate new ones
+    let users = []
+    let jsonPath = ""
+    let xlsxPath = ""
+
+    if (USERS_JSON_IN && fs.existsSync(USERS_JSON_IN)) {
+        console.log(`\nLoading users from: ${USERS_JSON_IN}`)
+        users = JSON.parse(fs.readFileSync(USERS_JSON_IN, "utf8"))
+
+        if (!Array.isArray(users) || !users.length) throw new Error("Users JSON is empty/invalid.")
+        // normalize idx if missing
+        users = users.map((u, i) => ({
+            idx: u.idx ?? i,
+            address: u.address,
+            privateKey: u.privateKey,
+        }))
+        console.log(`Loaded ${users.length} users.`)
+    } else {
+        console.log(`\nGenerating ${COUNT} wallets...`)
+        for (let i = 0; i < COUNT; i++) {
+            const w = ethers.Wallet.createRandom()
+            users.push({ idx: i, address: w.address, privateKey: w.privateKey })
+        }
+
+        // 2) Save users to JSON + XLSX in OUT_DIR
+        const ts = new Date().toISOString().replace(/[:.]/g, "-")
+        jsonPath = path.join(OUT_DIR, `users_${users.length}_${ts}.json`)
+        xlsxPath = path.join(OUT_DIR, `users_${users.length}_${ts}.xlsx`)
+
+        fs.writeFileSync(jsonPath, JSON.stringify(users, null, 2))
+        console.log("Wrote:", jsonPath)
+
+        const sheetRows = users.map((u) => ({
+            idx: u.idx,
+            address: u.address,
+            privateKey: u.privateKey,
+            depositUSDC: DEPOSIT_USDC,
+            fundETH: FUND_ETH,
+        }))
+
+        const wb = XLSX.utils.book_new()
+        const ws = XLSX.utils.json_to_sheet(sheetRows)
+        XLSX.utils.book_append_sheet(wb, ws, "users")
+        XLSX.writeFile(wb, xlsxPath)
+        console.log("Wrote:", xlsxPath)
+
+        const latestJson = path.join(OUT_DIR, "users_latest.json")
+        const latestXlsx = path.join(OUT_DIR, "users_latest.xlsx")
+        fs.copyFileSync(jsonPath, latestJson)
+        fs.copyFileSync(xlsxPath, latestXlsx)
+        console.log("Wrote:", latestJson)
+        console.log("Wrote:", latestXlsx)
+
+        console.log("\nTip: add this to your .env for future runs:")
+        console.log(`SF_BOOTSTRAP_USERS_JSON=${path.relative(process.cwd(), latestJson)}`)
     }
 
-    // 2) Save users to JSON + XLSX
-    const ts = new Date().toISOString().replace(/[:.]/g, "-")
-    const outDir = path.join(process.cwd(), "out")
-    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true })
-
-    const jsonPath = path.join(outDir, `users_${COUNT}_${ts}.json`)
-    fs.writeFileSync(jsonPath, JSON.stringify(users, null, 2))
-    console.log("Wrote:", jsonPath)
-
-    const xlsxPath = path.join(outDir, `users_${COUNT}_${ts}.xlsx`)
-    const sheetRows = users.map((u) => ({
-        idx: u.idx,
-        address: u.address,
-        privateKey: u.privateKey,
-        depositUSDC: DEPOSIT_USDC,
-        fundETH: FUND_ETH,
-    }))
-    const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(sheetRows)
-    XLSX.utils.book_append_sheet(wb, ws, "users")
-    XLSX.writeFile(wb, xlsxPath)
-    console.log("Wrote:", xlsxPath)
-
-    // 3) Fund each user (rolesWallet pays)
-    console.log(`\nFunding ${COUNT} users with ${FUND_ETH} ETH each...`)
+    // 3) Fund each user
+    console.log(`\nFunding ${users.length} users with ${FUND_ETH} ETH each...`)
     for (const u of users) {
-        const tx = await rolesWallet.sendTransaction({
-            to: u.address,
-            value: fundUnits,
-        })
+        const tx = await rolesWallet.sendTransaction({ to: u.address, value: fundUnits })
         await tx.wait(1)
-        if (u.idx % 10 === 0) console.log(`  funded ${u.idx}/${COUNT - 1}`)
+        if (u.idx % 10 === 0) console.log(`  funded ${u.idx}/${users.length - 1}`)
     }
     console.log("Funding complete.")
 
-    // 4) Register members (rolesWallet pays)
+    // 4) Register members
     console.log("\nRegistering members on SFVault...")
     const vaultAsRoles = vault.connect(rolesWallet)
     for (const u of users) {
         const tx = await vaultAsRoles.registerMember(u.address)
         await tx.wait(1)
-        if (u.idx % 10 === 0) console.log(`  registered ${u.idx}/${COUNT - 1}`)
+        if (u.idx % 10 === 0) console.log(`  registered ${u.idx}/${users.length - 1}`)
     }
     console.log("Member registration complete.")
 
-    // 5) Mint USDC to users (rolesWallet pays)
+    // 5) Mint USDC to users
     console.log(`\nMinting ${DEPOSIT_USDC} ${usdcSymbol} to each user...`)
     const usdcAsRoles = usdc.connect(rolesWallet)
     for (const u of users) {
         const tx = await usdcAsRoles.mintUSDC(u.address, depositUnits)
         await tx.wait(1)
-        if (u.idx % 10 === 0) console.log(`  minted ${u.idx}/${COUNT - 1}`)
+        if (u.idx % 10 === 0) console.log(`  minted ${u.idx}/${users.length - 1}`)
     }
     console.log("Minting complete.")
 
-    // 6) Each user approves + deposits (user wallets pay their own gas)
+    // 6) Each user approves + deposits
     console.log(`\nUsers approving + depositing into SFVault in batches of ${USER_BATCH}...`)
 
     const userResults = await runBatched(users, USER_BATCH, async (u) => {
         const userWallet = new ethers.Wallet(u.privateKey, provider)
-
         const usdcAsUser = usdc.connect(userWallet)
         const vaultAsUser = vault.connect(userWallet)
 
@@ -237,12 +284,7 @@ async function main() {
         const tx2 = await vaultAsUser.deposit(depositUnits, userWallet.address)
         const r2 = await tx2.wait(1)
 
-        return {
-            ok: true,
-            idx: u.idx,
-            address: u.address,
-            depositTx: r2.transactionHash,
-        }
+        return { ok: true, idx: u.idx, address: u.address, depositTx: r2.transactionHash }
     })
 
     const okDeposits = userResults.filter((r) => r.ok).length
@@ -266,7 +308,7 @@ async function main() {
         })
 
         const refunded = refundResults.filter((r) => r.sent).length
-        console.log(`Refund complete. refunded=${refunded}/${COUNT}`)
+        console.log(`Refund complete. refunded=${refunded}/${users.length}`)
 
         const sample = refundResults
             .filter((r) => r.sent)
@@ -296,9 +338,14 @@ async function main() {
     }
 
     console.log("\nDONE.")
-    console.log("User files:")
-    console.log("  JSON:", jsonPath)
-    console.log("  XLSX:", xlsxPath)
+    console.log("Out dir:", OUT_DIR)
+    if (jsonPath) {
+        console.log("User files:")
+        console.log("  JSON:", jsonPath)
+        console.log("  XLSX:", xlsxPath)
+    } else {
+        console.log("Used existing users JSON.")
+    }
 }
 
 main().catch((e) => {
@@ -307,9 +354,18 @@ main().catch((e) => {
 })
 
 /*
+Examples:
+
 node scripts/bootstrap_users.js
 
-Or with optionanl flags:
 node scripts/bootstrap_users.js --count 100 --fund 0.01 --deposit 100 --userBatch 10
+
+Use a custom output directory:
+node scripts/bootstrap_users.js --outDir ./scripts/save-funds-interaction/users_out
+
+Reuse an existing users JSON (no regen):
+node scripts/bootstrap_users.js --usersJson ./scripts/save-funds-interaction/users_out/users_latest.json
+
+Skip refunds:
 node scripts/bootstrap_users.js --skipRefund
 */
