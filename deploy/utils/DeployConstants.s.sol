@@ -123,4 +123,6 @@ abstract contract DeployConstants {
 
     address public constant UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
     address public constant UNIVERSAL_ROUTER = 0xA51afAFe0263b40EdaEf0Df8781eA9aa03E381a3;
+    address public constant USDT_ARBITRUM = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9; // USDT on Arbitrum
+    address public constant UNI_PERMIT2_ARBITRUM = 0x000000000022D473030F116dDEE9F6B43aC78BA3; // Permit2 on Arbitrum
 }
