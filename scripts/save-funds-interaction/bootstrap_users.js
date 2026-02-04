@@ -356,16 +356,16 @@ main().catch((e) => {
 /*
 Examples:
 
-node scripts/bootstrap_users.js
+node scripts/save-funds-interaction/bootstrap_users.js
 
-node scripts/bootstrap_users.js --count 100 --fund 0.01 --deposit 100 --userBatch 10
+node scripts/save-funds-interaction/bootstrap_users.js --count 100 --fund 0.01 --deposit 100 --userBatch 10
 
 Use a custom output directory:
-node scripts/bootstrap_users.js --outDir ./scripts/save-funds-interaction/users_out
+node scripts/save-funds-interaction/bootstrap_users.js --outDir ./scripts/save-funds-interaction/users_out
 
 Reuse an existing users JSON (no regen):
-node scripts/bootstrap_users.js --usersJson ./scripts/save-funds-interaction/users_out/users_latest.json
+node scripts/save-funds-interaction/bootstrap_users.js --usersJson ./scripts/save-funds-interaction/users_out/users_latest.json
 
 Skip refunds:
-node scripts/bootstrap_users.js --skipRefund
+node scripts/save-funds-interaction/bootstrap_users.js --skipRefund
 */
