@@ -54,7 +54,6 @@ contract SFVault is
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    ISFStrategy public aggregator; // the vault uses as strategy an aggregator to manage different sub-strategies for the underlying assets
     IAddressManager private addressManager;
 
     EnumerableSet.AddressSet private whitelistedTokens;
@@ -83,7 +82,6 @@ contract SFVault is
     event OnTVLCapUpdated(uint256 oldCap, uint256 newCap);
     event OnTokenRemovedFromWhitelist(address indexed token);
     event OnTokenHardCapUpdated(address indexed token, uint16 oldCapBPS, uint16 newCapBPS);
-    event OnAggregatorUpdated(address indexed newAggregator);
     event OnFeeConfigUpdated(uint16 managementFeeBPS, uint16 performanceFeeBPS, uint16 performanceFeeHurdleBPS);
     event OnMemberRegistered(address indexed newMember, address indexed caller);
     event OnMemberUnregistered(address indexed member, address indexed caller);
@@ -255,17 +253,6 @@ contract SFVault is
         uint16 old = tokenHardCapBPS[token];
         tokenHardCapBPS[token] = newCapBPS;
         emit OnTokenHardCapUpdated(token, old, newCapBPS);
-    }
-
-    /**
-     * @notice Set or change the active aggregator contract used by the vault.
-     * @dev Setting the aggregator to address(0) disables aggregator invest/withdraw operations.
-     * @param newAggregator New aggregator contract implementing {ISFStrategy}.
-     * @custom:invariant After the call, `aggregator` equals `newAggregator`.
-     */
-    function setAggregator(ISFStrategy newAggregator) external onlyRole(Roles.OPERATOR) {
-        aggregator = newAggregator;
-        emit OnAggregatorUpdated(address(newAggregator));
     }
 
     /**
@@ -482,7 +469,7 @@ contract SFVault is
         returns (uint256 investedAssets)
     {
         _onlyKeeperOrOperator();
-        ISFStrategy strat = aggregator;
+        ISFStrategy strat = ISFStrategy(addressManager.getProtocolAddressByName("PROTOCOL__SF_AGGREGATOR").addr);
         require(address(strat) != address(0), SFVault__StrategyNotSet());
         require(assets > 0, SFVault__ZeroAssets());
 
@@ -516,7 +503,7 @@ contract SFVault is
         returns (uint256 withdrawnAssets)
     {
         _onlyKeeperOrOperator();
-        ISFStrategy strat = aggregator;
+        ISFStrategy strat = ISFStrategy(addressManager.getProtocolAddressByName("PROTOCOL__SF_AGGREGATOR").addr);
         require(address(strat) != address(0), SFVault__StrategyNotSet());
         require(assets > 0, SFVault__ZeroAssets());
 
@@ -777,6 +764,7 @@ contract SFVault is
      * @custom:invariant If `aggregator` is the zero address, this MUST return 0.
      */
     function aggregatorAssets() public view returns (uint256) {
+        ISFStrategy aggregator = ISFStrategy(addressManager.getProtocolAddressByName("PROTOCOL__SF_AGGREGATOR").addr);
         if (address(aggregator) == address(0)) return 0;
         return aggregator.totalAssets();
     }

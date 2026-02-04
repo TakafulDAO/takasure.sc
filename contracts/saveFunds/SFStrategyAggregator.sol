@@ -62,8 +62,6 @@ contract SFStrategyAggregator is
         bytes[] payloads;
     }
 
-    address public vault;
-
     uint16 public totalTargetWeightBPS; // sum of all target weights in BPS
 
     mapping(address strategy => SubStrategyMeta) private subStrategyMeta;
@@ -165,12 +163,11 @@ contract SFStrategyAggregator is
         _disableInitializers();
     }
 
-    function initialize(IAddressManager _addressManager, IERC20 _asset, address _vault)
+    function initialize(IAddressManager _addressManager, IERC20 _asset)
         external
         initializer
         notAddressZero(address(_addressManager))
         notAddressZero(address(_asset))
-        notAddressZero(_vault)
     {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
@@ -179,7 +176,6 @@ contract SFStrategyAggregator is
         addressManager = _addressManager;
 
         underlying = _asset;
-        vault = _vault;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -286,6 +282,7 @@ contract SFStrategyAggregator is
         returns (uint256 investedAssets)
     {
         address[] memory allocatableStrats = _allocatableSubStrategies();
+        address vault = addressManager.getProtocolAddressByName("PROTOCOL__SF_VAULT").addr;
 
         if (allocatableStrats.length == 0) {
             underlying.safeTransfer(vault, assets);
@@ -346,6 +343,7 @@ contract SFStrategyAggregator is
         returns (uint256 withdrawnAssets)
     {
         require(assets > 0, SFStrategyAggregator__NotZeroAmount());
+        address vault = addressManager.getProtocolAddressByName("PROTOCOL__SF_VAULT").addr;
 
         // snapshot before moving anything
         uint256 prevTotalAssets = totalAssets();
@@ -553,7 +551,7 @@ contract SFStrategyAggregator is
     function getConfig() external view returns (StrategyConfig memory) {
         return StrategyConfig({
             asset: address(underlying),
-            vault: vault,
+            vault: addressManager.getProtocolAddressByName("PROTOCOL__SF_VAULT").addr,
             pool: address(0), // aggregator has no single pool
             paused: paused()
         });
