@@ -168,7 +168,6 @@ contract SFVault is
         whitelistedTokens.add(address(_underlying));
         tokenHardCapBPS[address(_underlying)] = uint16(MAX_BPS);
         emit OnTokenWhitelisted(address(_underlying), uint16(MAX_BPS));
-        // ? Ask if we want to set an initial strategy at deployment
     }
 
     /// @notice Accept ERC721 safe transfers to this vault.
