@@ -33,6 +33,7 @@ import {PositionReader} from "contracts/helpers/uniswapHelpers/libraries/Positio
 
 pragma solidity 0.8.28;
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol:SFUniswapV3StrategyV1
 contract SFUniswapV3Strategy is
     ISFStrategy,
     ISFStrategyView,
@@ -1249,7 +1250,13 @@ contract SFUniswapV3Strategy is
     }
 
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation) internal view override {
+    function _authorizeUpgrade(
+        address /*newImplementation*/
+    )
+        internal
+        view
+        override
+    {
         _onlyRole(Roles.OPERATOR);
     }
 }
