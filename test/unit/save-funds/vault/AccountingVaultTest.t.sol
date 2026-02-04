@@ -67,6 +67,11 @@ contract AccountingVaultTest is Test {
     }
 
     function testSFVault_IdleAssets_StrategyAssets_TotalAssets_Accounting() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint256 amount = 1_000_000;
         address user = makeAddr("user");
 
@@ -80,11 +85,6 @@ contract AccountingVaultTest is Test {
         assertEq(vault.aggregatorAssets(), 0);
         assertEq(vault.idleAssets(), asset.balanceOf(address(vault)));
         assertEq(vault.totalAssets(), vault.idleAssets());
-
-        // attach mock strategy
-        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
-        vm.prank(takadao);
-        vault.setAggregator(ISFStrategy(address(mock)));
 
         // put assets into strategy (independent of vault; totalAssets() sums both)
         uint256 stratAssets = 500_000;

@@ -88,15 +88,6 @@ contract AccessAndSettersVaultTest is Test {
         assertEq(vault.TVLCap(), newCap);
     }
 
-    function testSFVault_SetAggregator_UpdatesValue() public {
-        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
-
-        vm.prank(takadao);
-        vault.setAggregator(ISFStrategy(address(mock)));
-
-        assertEq(address(vault.aggregator()), address(mock));
-    }
-
     function testSFVault_SetFeeConfig_UpdatesValues() public {
         uint16 mgmtBPS = 200; // 2%
         uint16 perfBPS = 2000; // 20%
@@ -150,7 +141,7 @@ contract AccessAndSettersVaultTest is Test {
         vault.upgradeToAndCall(address(newImpl), "");
 
         // sanity: state should remain accessible
-        vault.totalAssets();
+        vault.TVLCap();
     }
 
     function testSFVault_setERC721ApprovalForAll_OnlyOperator_AndMakesCall() public {

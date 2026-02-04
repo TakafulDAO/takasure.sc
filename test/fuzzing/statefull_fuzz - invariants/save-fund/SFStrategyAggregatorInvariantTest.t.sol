@@ -55,7 +55,7 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
-        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset);
 
         // fee recipient often required elsewhere; keep consistent
         address feeRecipient = makeAddr("feeRecipient");

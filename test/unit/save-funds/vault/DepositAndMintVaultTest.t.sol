@@ -83,6 +83,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_MaxDeposit_ZeroWhenCapReached() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint256 cap = 500_000;
 
         vm.prank(takadao);
@@ -96,6 +101,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_MaxDeposit_RespectsTVLCap_NoFee() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint256 cap = 1_000_000;
 
         vm.prank(takadao);
@@ -116,6 +126,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_MaxDeposit_AdjustsForManagementFee_WhenCapped() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint256 cap = 1_000_000;
         uint16 mgmtBPS = 1000; // 10%
 
@@ -167,6 +182,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_PreviewDeposit_WithFee_UsesNetAssets() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 mgmtBPS = 500; // 5%
         vm.prank(takadao);
         vault.setFeeConfig(mgmtBPS, 0, 0);
@@ -182,6 +202,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_PreviewDeposit_SkipsFeeIfRecipientZero() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 mgmtBPS = 500; // 5%
         vm.prank(takadao);
         vault.setFeeConfig(mgmtBPS, 0, 0);
@@ -197,6 +222,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_PreviewMint_NoFeeWhenMgmtBPSZero() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         vm.prank(takadao);
         vault.setFeeConfig(0, 0, 0);
 
@@ -205,6 +235,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_PreviewMint_WithFee_AddsCeilFee() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 mgmtBPS = 500; // 5%
         vm.prank(takadao);
         vault.setFeeConfig(mgmtBPS, 0, 0);
@@ -233,6 +268,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_Deposit_RevertsWhenExceedsCap() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint256 cap = 100_000;
 
         vm.prank(takadao);
@@ -246,6 +286,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_Deposit_TakesManagementFeeAndMintsNetShares() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 mgmtBPS = 500; // 5%
         vm.prank(takadao);
         vault.setFeeConfig(mgmtBPS, 0, 0);
@@ -267,6 +312,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_Deposit_SkipsFeeIfRecipientZero() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 mgmtBPS = 500; // 5%
         vm.prank(takadao);
         vault.setFeeConfig(mgmtBPS, 0, 0);
@@ -285,6 +335,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_Deposit_RevertsWhenNetSharesZero() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         vm.prank(takadao);
         vault.setFeeConfig(0, 0, 0);
 
@@ -323,6 +378,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_Mint_TakesManagementFeeAndReturnsGrossAssets() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 mgmtBPS = 500; // 5%
         vm.prank(takadao);
         vault.setFeeConfig(mgmtBPS, 0, 0);
@@ -345,6 +405,11 @@ contract DepositAndMintVaultTest is Test {
     }
 
     function testSFVault_Mint_RevertsWhenExceedsCap() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 mgmtBPS = 500; // 5%
         uint256 cap = 100_000;
 

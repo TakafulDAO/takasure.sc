@@ -85,8 +85,8 @@ contract GettersVaultTest is Test {
     function testSFVault_GetStrategyAssets_WrapperMatchesStrategyAssets() public {
         MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
 
-        vm.prank(takadao);
-        vault.setAggregator(ISFStrategy(address(mock)));
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
 
         uint256 amt = 777 * ONE_USDC;
 
@@ -102,6 +102,11 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetVaultTVL_WrapperMatchesTotalAssets() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint256 amt = 555 * ONE_USDC;
         deal(address(asset), address(vault), amt);
 
@@ -120,6 +125,11 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserTotalDeposited_TracksDepositAndMint() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 a1 = 1_000 * ONE_USDC;
@@ -139,6 +149,11 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserTotalWithdrawn_TracksWithdrawAndRedeem() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 depositAmt = 1_000 * ONE_USDC;
@@ -162,6 +177,11 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserNetDeposited_ReturnsDepositedMinusWithdrawn_WhenLossOrNoProfit() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 depositAmt = 1_000 * ONE_USDC;
@@ -176,6 +196,11 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserNetDeposited_ClampsToZero_WhenWithdrawnExceedsDepositedOnProfit() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 depositAmt = 1_000 * ONE_USDC;
@@ -195,6 +220,11 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserPnL_PositiveAfterProfit() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 depositAmt = 1_000 * ONE_USDC;
@@ -212,6 +242,11 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetUserPnL_NegativeAfterLoss() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         _prepareUser(user, 10_000 * ONE_USDC);
 
         uint256 depositAmt = 1_000 * ONE_USDC;
@@ -232,14 +267,19 @@ contract GettersVaultTest is Test {
                         STRATEGY ALLOCATION GETTER
     //////////////////////////////////////////////////////////////*/
 
-    function testSFVault_GetAggregatorAllocation_ZeroWhenNoTVL() public view {
+    function testSFVault_GetAggregatorAllocation_ZeroWhenNoTVL() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         assertEq(vault.getAggregatorAllocation(), 0);
     }
 
     function testSFVault_GetAggregatorAllocation_ComputesBps() public {
         MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
-        vm.prank(takadao);
-        vault.setAggregator(ISFStrategy(address(mock)));
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
 
         // tvl = 1_000, strategy = 800, idle = 200 => 8000 bps
         deal(address(asset), address(vault), 200 * ONE_USDC);
@@ -258,6 +298,11 @@ contract GettersVaultTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testSFVault_GetLastReport_InitialThenUpdatedByTakeFees() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         (uint256 ts0, uint256 assets0) = vault.getLastReport();
         assertEq(ts0, 0);
         assertEq(assets0, vault.totalAssets());
@@ -281,6 +326,11 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetVaultPerformanceSince_TimestampGreaterThanLastReportReturnsZero() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         _prepareUser(user, 10_000 * ONE_USDC);
         vm.prank(user);
         vault.deposit(1_000 * ONE_USDC, user);
@@ -290,6 +340,11 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetVaultPerformanceSince_BaseHighWaterMarkZeroReturnsZero() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         vm.warp(777);
         vm.prank(takadao);
         vault.takeFees();
@@ -298,6 +353,11 @@ contract GettersVaultTest is Test {
     }
 
     function testSFVault_GetVaultPerformanceSince_PositiveAndNegativeRelativeToBaseline() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         _prepareUser(user, 10_000 * ONE_USDC);
 
         vm.prank(user);

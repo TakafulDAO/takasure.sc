@@ -75,6 +75,11 @@ contract NonTransfersVaultTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testSFVault_SharesAreNonTransferable_TransferReverts() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint256 amount = 1_000_000;
         _prepareUser(user, amount);
         vm.prank(user);
@@ -88,6 +93,11 @@ contract NonTransfersVaultTest is Test {
     }
 
     function testSFVault_SharesAreNonTransferable_RedeemBurnAllowed() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint256 amount = 1_000_000;
         _prepareUser(user, amount);
         vm.prank(user);

@@ -50,7 +50,7 @@ contract SFStrategyAggregatorFuzzTest is Test {
 
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
-        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset);
 
         feeRecipient = makeAddr("feeRecipient");
 

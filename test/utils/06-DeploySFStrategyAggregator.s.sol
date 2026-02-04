@@ -9,7 +9,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 contract DeploySFStrategyAggregator is Script {
-    function run(IAddressManager addressManager, IERC20 asset, address vault)
+    function run(IAddressManager addressManager, IERC20 asset)
         external
         returns (SFStrategyAggregator sfStrategyAggregator)
     {
@@ -19,8 +19,7 @@ contract DeploySFStrategyAggregator is Script {
         address sfStrategyAggregatorImplementation = address(new SFStrategyAggregator());
 
         address sfStrategyAggregatorAddress = UnsafeUpgrades.deployUUPSProxy(
-            sfStrategyAggregatorImplementation,
-            abi.encodeCall(SFStrategyAggregator.initialize, (addressManager, asset, vault))
+            sfStrategyAggregatorImplementation, abi.encodeCall(SFStrategyAggregator.initialize, (addressManager, asset))
         );
 
         sfStrategyAggregator = SFStrategyAggregator(sfStrategyAggregatorAddress);
