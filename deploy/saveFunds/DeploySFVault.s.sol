@@ -14,9 +14,9 @@ contract DeploySFVault is Script, GetContractAddress {
     address constant SFUSDT_ADDRESS_ARBITRUM_SEPOLIA = 0x27a59b95553BE7D51103E772A713f0A15d447356;
 
     function run() external returns (address proxy) {
-        uint256 chainId = block.chainid;
-        HelperConfig helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
+        // uint256 chainId = block.chainid;
+        // HelperConfig helperConfig = new HelperConfig();
+        // HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
 
         IAddressManager addressManager = IAddressManager(_getContractAddress(block.chainid, "AddressManager"));
 

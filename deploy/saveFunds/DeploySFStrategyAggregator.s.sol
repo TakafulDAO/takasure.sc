@@ -13,12 +13,12 @@ contract DeploySFStrategyAggregator is Script, GetContractAddress {
     address constant SFUSDC_ADDRESS_ARBITRUM_SEPOLIA = 0x2fE9378AF2f1aeB8b013031d1a3567F6E0d44dA1;
 
     function run() external returns (address proxy) {
-        uint256 chainId = block.chainid;
-        HelperConfig helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
+        // uint256 chainId = block.chainid;
+        // HelperConfig helperConfig = new HelperConfig();
+        // HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
 
         IAddressManager addressManager = IAddressManager(_getContractAddress(block.chainid, "AddressManager"));
-        address vault = _getContractAddress(block.chainid, "SFVault");
+        // address vault = _getContractAddress(block.chainid, "SFVault");
 
         vm.startBroadcast();
 
@@ -26,9 +26,7 @@ contract DeploySFStrategyAggregator is Script, GetContractAddress {
         // todo: update for mainnnet deployment
         proxy = Upgrades.deployUUPSProxy(
             "SFStrategyAggregator.sol",
-            abi.encodeCall(
-                SFStrategyAggregator.initialize, (addressManager, IERC20(SFUSDC_ADDRESS_ARBITRUM_SEPOLIA), 0, vault)
-            )
+            abi.encodeCall(SFStrategyAggregator.initialize, (addressManager, IERC20(SFUSDC_ADDRESS_ARBITRUM_SEPOLIA)))
         );
 
         vm.stopBroadcast();

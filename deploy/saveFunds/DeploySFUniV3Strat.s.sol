@@ -17,9 +17,9 @@ contract DeploySFUniV3Strat is Script, GetContractAddress {
     address constant ROUTER = 0x4A7b5Da61326A6379179b40d00F57E5bbDC962c2;
 
     function run() external returns (address proxy) {
-        uint256 chainId = block.chainid;
-        HelperConfig helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
+        // uint256 chainId = block.chainid;
+        // HelperConfig helperConfig = new HelperConfig();
+        // HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
 
         IAddressManager addressManager = IAddressManager(_getContractAddress(block.chainid, "AddressManager"));
         address vault = _getContractAddress(block.chainid, "SFVault");
