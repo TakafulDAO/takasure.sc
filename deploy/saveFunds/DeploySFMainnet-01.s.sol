@@ -8,6 +8,7 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
+import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
 import {UniswapV3MathHelper} from "contracts/helpers/uniswapHelpers/UniswapV3MathHelper.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
@@ -18,10 +19,16 @@ contract DeploySFMainnet is Script, DeployConstants {
     AddressManager addressManager;
     SFVault sfVault;
     SFStrategyAggregator sfStrategyAggregator;
+    SFUniswapV3Strategy sfUniswapV3Strategy;
 
     address constant OPERATOR_MULTISIG = 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F;
     address constant BACKEND = 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe; // TODO: Confirm this one
     address constant FEE_RECEIVER_MULTISIG = 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F; // TODO: Change this one
+    address constant POOL = 0x905dfCD5649217c42684f23958568e533C711Aa3; // TODO: Change this one
+
+    uint256 constant MAX_TVL = 20_000e6; // TODO: Change this one
+    int24 constant TICK_LOWER = -600; // TODO: Change this one
+    int24 constant TICK_UPPER = 600; // TODO: Change this one
 
     function run()
         external
@@ -29,6 +36,7 @@ contract DeploySFMainnet is Script, DeployConstants {
             address addressManagerAddr,
             address sfVaultAddr,
             address sfStrategyAggregatorAddr,
+            address sfUniswapV3StrategyAddr,
             address uniswapV3MathHelperAddr
         )
     {
@@ -70,6 +78,29 @@ contract DeploySFMainnet is Script, DeployConstants {
         // Deploy UniswapV3MathHelper
         uniswapV3MathHelperAddr = address(new UniswapV3MathHelper());
 
+        // Deploy SFUniswapV3Strategy
+        sfUniswapV3StrategyAddr = Upgrades.deployUUPSProxy(
+            "SFUniswapV3Strategy.sol",
+            abi.encodeCall(
+                SFUniswapV3Strategy.initialize,
+                (
+                    IAddressManager(addressManagerAddr),
+                    sfVaultAddr,
+                    IERC20(usdcAddress.arbMainnetUSDC),
+                    IERC20(USDT_ARBITRUM),
+                    POOL,
+                    UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM,
+                    uniswapV3MathHelperAddr,
+                    MAX_TVL,
+                    UNIVERSAL_ROUTER,
+                    TICK_LOWER,
+                    TICK_UPPER
+                )
+            )
+        );
+        sfUniswapV3Strategy = SFUniswapV3Strategy(sfUniswapV3StrategyAddr);
+        console2.log("SFUniswapV3Strategy deployed at:", sfUniswapV3StrategyAddr);
+
         // Creating roles in AddressManager
         addressManager.createNewRole(Roles.OPERATOR);
         addressManager.createNewRole(Roles.PAUSE_GUARDIAN);
@@ -91,10 +122,13 @@ contract DeploySFMainnet is Script, DeployConstants {
         addressManager.addProtocolAddress("ADMIN__BACKEND_ADMIN", BACKEND, ProtocolAddressType.Admin);
         addressManager.addProtocolAddress("PROTOCOL__SF_VAULT", sfVaultAddr, ProtocolAddressType.Protocol);
         addressManager.addProtocolAddress(
-            "PROTOCOL__SF_STRATEGY_AGGREGATOR", sfStrategyAggregatorAddr, ProtocolAddressType.Protocol
+            "PROTOCOL__SF_AGGREGATOR", sfStrategyAggregatorAddr, ProtocolAddressType.Protocol
         );
         addressManager.addProtocolAddress(
             "HELPER__UNISWAP_V3_MATH_HELPER", uniswapV3MathHelperAddr, ProtocolAddressType.Helper
+        );
+        addressManager.addProtocolAddress(
+            "PROTOCOL__SF_UNISWAP_V3_STRATEGY", sfUniswapV3StrategyAddr, ProtocolAddressType.Protocol
         );
 
         // Also some usefull external addresses
@@ -115,6 +149,31 @@ contract DeploySFMainnet is Script, DeployConstants {
 
         vm.stopBroadcast();
 
-        return (addressManagerAddr, sfVaultAddr, sfStrategyAggregatorAddr, uniswapV3MathHelperAddr);
+        return
+            (
+                addressManagerAddr,
+                sfVaultAddr,
+                sfStrategyAggregatorAddr,
+                sfUniswapV3StrategyAddr,
+                uniswapV3MathHelperAddr
+            );
     }
 }
+
+/*
+Pemding calls in the operator multisig after deployment:
+vault.setERC721ApprovalForAll({nft: UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM, operator: uniV3Strategy, approved: true});
+vault.whitelistToken(usdt);
+aggregator.addSubStrategy({strategy: uniV3Strategy, targetWeightBPS: 100});
+addressManager.acceptOwnership();
+addressManager.acceptProposedRole(Roles.OPERATOR);
+addressManager.acceptProposedRole(Roles.PAUSE_GUARDIAN);
+addressManager.acceptProposedRole(Roles.KEEPER);
+addressManager.acceptProposedRole(Roles.BACKEND_ADMIN);
+
+Checks
+vault.isTokenWhitelisted(usdt) == true
+vault.isTokenWhitelisted(usdc) == true
+aggregator.getSubStrategies()
+addressManager.owner() == OPERATOR_MULTISIG
+*/
