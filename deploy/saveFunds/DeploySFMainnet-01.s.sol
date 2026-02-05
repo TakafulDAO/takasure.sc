@@ -79,27 +79,27 @@ contract DeploySFMainnet is Script, DeployConstants {
         uniswapV3MathHelperAddr = address(new UniswapV3MathHelper());
 
         // Deploy SFUniswapV3Strategy
-        sfUniswapV3StrategyAddr = Upgrades.deployUUPSProxy(
-            "SFUniswapV3Strategy.sol",
-            abi.encodeCall(
-                SFUniswapV3Strategy.initialize,
-                (
-                    IAddressManager(addressManagerAddr),
-                    sfVaultAddr,
-                    IERC20(usdcAddress.arbMainnetUSDC),
-                    IERC20(USDT_ARBITRUM),
-                    POOL,
-                    UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM,
-                    uniswapV3MathHelperAddr,
-                    MAX_TVL,
-                    UNIVERSAL_ROUTER,
-                    TICK_LOWER,
-                    TICK_UPPER
-                )
-            )
-        );
-        sfUniswapV3Strategy = SFUniswapV3Strategy(sfUniswapV3StrategyAddr);
-        console2.log("SFUniswapV3Strategy deployed at:", sfUniswapV3StrategyAddr);
+        // sfUniswapV3StrategyAddr = Upgrades.deployUUPSProxy(
+        //     "SFUniswapV3Strategy.sol",
+        //     abi.encodeCall(
+        //         SFUniswapV3Strategy.initialize,
+        //         (
+        //             IAddressManager(addressManagerAddr),
+        //             sfVaultAddr,
+        //             IERC20(usdcAddress.arbMainnetUSDC),
+        //             IERC20(USDT_ARBITRUM),
+        //             POOL,
+        //             UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM,
+        //             uniswapV3MathHelperAddr,
+        //             MAX_TVL,
+        //             UNIVERSAL_ROUTER,
+        //             TICK_LOWER,
+        //             TICK_UPPER
+        //         )
+        //     )
+        // );
+        // sfUniswapV3Strategy = SFUniswapV3Strategy(sfUniswapV3StrategyAddr);
+        // console2.log("SFUniswapV3Strategy deployed at:", sfUniswapV3StrategyAddr);
 
         // Creating roles in AddressManager
         addressManager.createNewRole(Roles.OPERATOR);
@@ -127,9 +127,9 @@ contract DeploySFMainnet is Script, DeployConstants {
         addressManager.addProtocolAddress(
             "HELPER__UNISWAP_V3_MATH_HELPER", uniswapV3MathHelperAddr, ProtocolAddressType.Helper
         );
-        addressManager.addProtocolAddress(
-            "PROTOCOL__SF_UNISWAP_V3_STRATEGY", sfUniswapV3StrategyAddr, ProtocolAddressType.Protocol
-        );
+        // addressManager.addProtocolAddress(
+        //     "PROTOCOL__SF_UNISWAP_V3_STRATEGY", sfUniswapV3StrategyAddr, ProtocolAddressType.Protocol
+        // );
 
         // Also some usefull external addresses
         addressManager.addProtocolAddress("EXTERNAL__USDC", usdcAddress.arbMainnetUSDC, ProtocolAddressType.External);
