@@ -1,5 +1,5 @@
 {
-    "address": "0xaa0F42417a971642a6eA81134fd47d4B5097b0d6",
+    "address": "",
     "abi": [
         {
             "type": "constructor",
@@ -15,37 +15,6 @@
                     "name": "",
                     "type": "string",
                     "internalType": "string"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "addSubStrategy",
-            "inputs": [
-                {
-                    "name": "strategy",
-                    "type": "address",
-                    "internalType": "address"
-                },
-                {
-                    "name": "targetWeightBPS",
-                    "type": "uint16",
-                    "internalType": "uint16"
-                }
-            ],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
-            "name": "addressManager",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "address",
-                    "internalType": "contract IAddressManager"
                 }
             ],
             "stateMutability": "view"
@@ -150,36 +119,6 @@
         },
         {
             "type": "function",
-            "name": "getSubStrategies",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "out",
-                    "type": "tuple[]",
-                    "internalType": "struct SubStrategy[]",
-                    "components": [
-                        {
-                            "name": "strategy",
-                            "type": "address",
-                            "internalType": "contract ISFStrategy"
-                        },
-                        {
-                            "name": "targetWeightBPS",
-                            "type": "uint16",
-                            "internalType": "uint16"
-                        },
-                        {
-                            "name": "isActive",
-                            "type": "bool",
-                            "internalType": "bool"
-                        }
-                    ]
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
             "name": "harvest",
             "inputs": [
                 {
@@ -201,13 +140,71 @@
                     "internalType": "contract IAddressManager"
                 },
                 {
-                    "name": "_asset",
+                    "name": "_vault",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "_underlying",
                     "type": "address",
                     "internalType": "contract IERC20"
+                },
+                {
+                    "name": "_otherToken",
+                    "type": "address",
+                    "internalType": "contract IERC20"
+                },
+                {
+                    "name": "_pool",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "_positionManager",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "_math",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "_maxTVL",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "_router",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "_tickLower",
+                    "type": "int24",
+                    "internalType": "int24"
+                },
+                {
+                    "name": "_tickUpper",
+                    "type": "int24",
+                    "internalType": "int24"
                 }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "maxDeposit",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
         },
         {
             "type": "function",
@@ -218,6 +215,19 @@
                     "name": "",
                     "type": "uint256",
                     "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "otherToken",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "contract IERC20"
                 }
             ],
             "stateMutability": "view"
@@ -238,6 +248,32 @@
                     "name": "",
                     "type": "bool",
                     "internalType": "bool"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "pool",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "contract IUniswapV3Pool"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "positionTokenId",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint256",
+                    "internalType": "uint256"
                 }
             ],
             "stateMutability": "view"
@@ -283,12 +319,12 @@
         },
         {
             "type": "function",
-            "name": "removeSubStrategy",
+            "name": "setMaxTVL",
             "inputs": [
                 {
-                    "name": "strategy",
-                    "type": "address",
-                    "internalType": "address"
+                    "name": "newMaxTVL",
+                    "type": "uint256",
+                    "internalType": "uint256"
                 }
             ],
             "outputs": [],
@@ -296,12 +332,12 @@
         },
         {
             "type": "function",
-            "name": "setConfig",
+            "name": "setTwapWindow",
             "inputs": [
                 {
-                    "name": "newConfig",
-                    "type": "bytes",
-                    "internalType": "bytes"
+                    "name": "newWindow",
+                    "type": "uint32",
+                    "internalType": "uint32"
                 }
             ],
             "outputs": [],
@@ -322,44 +358,8 @@
         },
         {
             "type": "function",
-            "name": "totalTargetWeightBPS",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint16",
-                    "internalType": "uint16"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
             "name": "unpause",
             "inputs": [],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
-            "name": "updateSubStrategy",
-            "inputs": [
-                {
-                    "name": "strategy",
-                    "type": "address",
-                    "internalType": "address"
-                },
-                {
-                    "name": "targetWeightBPS",
-                    "type": "uint16",
-                    "internalType": "uint16"
-                },
-                {
-                    "name": "isActive",
-                    "type": "bool",
-                    "internalType": "bool"
-                }
-            ],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -380,6 +380,19 @@
             ],
             "outputs": [],
             "stateMutability": "payable"
+        },
+        {
+            "type": "function",
+            "name": "vault",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "stateMutability": "view"
         },
         {
             "type": "function",
@@ -425,44 +438,7 @@
         },
         {
             "type": "event",
-            "name": "OnAggregatorDeposit",
-            "inputs": [
-                {
-                    "name": "vault",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
-                },
-                {
-                    "name": "requestedAssets",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "investedAssets",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "leftoverReturned",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "bundleHash",
-                    "type": "bytes32",
-                    "indexed": true,
-                    "internalType": "bytes32"
-                }
-            ],
-            "anonymous": false
-        },
-        {
-            "type": "event",
-            "name": "OnAggregatorEmergencyExit",
+            "name": "OnEmergencyExit",
             "inputs": [
                 {
                     "name": "receiver",
@@ -471,7 +447,19 @@
                     "internalType": "address"
                 },
                 {
-                    "name": "idleSent",
+                    "name": "oldTokenId",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "underlyingSent",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "otherSent",
                     "type": "uint256",
                     "indexed": false,
                     "internalType": "uint256"
@@ -481,183 +469,28 @@
         },
         {
             "type": "event",
-            "name": "OnAggregatorWithdraw",
+            "name": "OnLiquidityDecreased",
             "inputs": [
                 {
-                    "name": "vault",
-                    "type": "address",
+                    "name": "tokenId",
+                    "type": "uint256",
                     "indexed": true,
-                    "internalType": "address"
+                    "internalType": "uint256"
                 },
                 {
-                    "name": "receiver",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
+                    "name": "liquidityRemoved",
+                    "type": "uint128",
+                    "indexed": false,
+                    "internalType": "uint128"
                 },
                 {
-                    "name": "requestedAssets",
+                    "name": "amount0",
                     "type": "uint256",
                     "indexed": false,
                     "internalType": "uint256"
                 },
                 {
-                    "name": "withdrawnAssets",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "bundleHash",
-                    "type": "bytes32",
-                    "indexed": true,
-                    "internalType": "bytes32"
-                }
-            ],
-            "anonymous": false
-        },
-        {
-            "type": "event",
-            "name": "OnChildDeposit",
-            "inputs": [
-                {
-                    "name": "childStrategy",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
-                },
-                {
-                    "name": "allocatedAssets",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "childInvested",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "actualSpent",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "bundleHash",
-                    "type": "bytes32",
-                    "indexed": true,
-                    "internalType": "bytes32"
-                }
-            ],
-            "anonymous": false
-        },
-        {
-            "type": "event",
-            "name": "OnChildHarvest",
-            "inputs": [
-                {
-                    "name": "childStrategy",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
-                },
-                {
-                    "name": "caller",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
-                }
-            ],
-            "anonymous": false
-        },
-        {
-            "type": "event",
-            "name": "OnChildRebalance",
-            "inputs": [
-                {
-                    "name": "childStrategy",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
-                },
-                {
-                    "name": "caller",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
-                }
-            ],
-            "anonymous": false
-        },
-        {
-            "type": "event",
-            "name": "OnChildWithdraw",
-            "inputs": [
-                {
-                    "name": "childStrategy",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
-                },
-                {
-                    "name": "receiver",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
-                },
-                {
-                    "name": "requestedAssets",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "withdrawnAssets",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "bundleHash",
-                    "type": "bytes32",
-                    "indexed": true,
-                    "internalType": "bytes32"
-                }
-            ],
-            "anonymous": false
-        },
-        {
-            "type": "event",
-            "name": "OnStrategyLossReported",
-            "inputs": [
-                {
-                    "name": "requestedAssets",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "withdrawnAssets",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "prevTotalAssets",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "newTotalAssets",
-                    "type": "uint256",
-                    "indexed": false,
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "shortfall",
+                    "name": "amount1",
                     "type": "uint256",
                     "indexed": false,
                     "internalType": "uint256"
@@ -667,69 +500,223 @@
         },
         {
             "type": "event",
-            "name": "OnSubStrategyAdded",
+            "name": "OnLiquidityIncreased",
             "inputs": [
                 {
-                    "name": "strategy",
-                    "type": "address",
+                    "name": "tokenId",
+                    "type": "uint256",
                     "indexed": true,
-                    "internalType": "address"
+                    "internalType": "uint256"
                 },
                 {
-                    "name": "targetWeightBPS",
-                    "type": "uint16",
+                    "name": "liquidityAdded",
+                    "type": "uint128",
                     "indexed": false,
-                    "internalType": "uint16"
+                    "internalType": "uint128"
                 },
                 {
-                    "name": "isActive",
-                    "type": "bool",
+                    "name": "amount0",
+                    "type": "uint256",
                     "indexed": false,
-                    "internalType": "bool"
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "amount1",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
                 }
             ],
             "anonymous": false
         },
         {
             "type": "event",
-            "name": "OnSubStrategyRemoved",
+            "name": "OnMaxTVLUpdated",
             "inputs": [
                 {
-                    "name": "strategy",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
+                    "name": "oldMaxTVL",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
                 },
                 {
-                    "name": "caller",
-                    "type": "address",
-                    "indexed": true,
-                    "internalType": "address"
+                    "name": "newMaxTVL",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
                 }
             ],
             "anonymous": false
         },
         {
             "type": "event",
-            "name": "OnSubStrategyUpdated",
+            "name": "OnPositionCollected",
             "inputs": [
                 {
-                    "name": "strategy",
+                    "name": "tokenId",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "amount0",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "amount1",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnPositionMinted",
+            "inputs": [
+                {
+                    "name": "tokenId",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "tickLower",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "tickUpper",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "liquidity",
+                    "type": "uint128",
+                    "indexed": false,
+                    "internalType": "uint128"
+                },
+                {
+                    "name": "amount0",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "amount1",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnPositionRebalanced",
+            "inputs": [
+                {
+                    "name": "oldTokenId",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "newTokenId",
+                    "type": "uint256",
+                    "indexed": true,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "oldTickLower",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "oldTickUpper",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "newTickLower",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "newTickUpper",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnSwapExecuted",
+            "inputs": [
+                {
+                    "name": "tokenIn",
                     "type": "address",
                     "indexed": true,
                     "internalType": "address"
                 },
                 {
-                    "name": "targetWeightBPS",
-                    "type": "uint16",
-                    "indexed": false,
-                    "internalType": "uint16"
+                    "name": "tokenOut",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
                 },
                 {
-                    "name": "isActive",
-                    "type": "bool",
+                    "name": "amountIn",
+                    "type": "uint256",
                     "indexed": false,
-                    "internalType": "bool"
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "amountOut",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnTickRangeUpdated",
+            "inputs": [
+                {
+                    "name": "oldTickLower",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "oldTickUpper",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "newTickLower",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "newTickUpper",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
                 }
             ],
             "anonymous": false
@@ -743,6 +730,25 @@
                     "type": "address",
                     "indexed": false,
                     "internalType": "address"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "TwapWindowUpdated",
+            "inputs": [
+                {
+                    "name": "oldWindow",
+                    "type": "uint32",
+                    "indexed": false,
+                    "internalType": "uint32"
+                },
+                {
+                    "name": "newWindow",
+                    "type": "uint32",
+                    "indexed": false,
+                    "internalType": "uint32"
                 }
             ],
             "anonymous": false
@@ -827,72 +833,87 @@
         },
         {
             "type": "error",
+            "name": "PositionReader__IdxOutOfBounds",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "PositionReader__StaticcallFailed",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "PositionReader__UnexpectedReturnLength",
+            "inputs": []
+        },
+        {
+            "type": "error",
             "name": "ReentrancyGuardReentrantCall",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__DuplicatePerStrategyDataStrategy",
+            "name": "SFUniswapV3Strategy__InvalidDeadline",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__DuplicateStrategy",
+            "name": "SFUniswapV3Strategy__InvalidPoolTokens",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__InvalidConfig",
+            "name": "SFUniswapV3Strategy__InvalidRebalanceParams",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__InvalidPerStrategyData",
+            "name": "SFUniswapV3Strategy__InvalidStrategyData",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__InvalidStrategyAsset",
+            "name": "SFUniswapV3Strategy__InvalidTicks",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__InvalidTargetWeightBPS",
+            "name": "SFUniswapV3Strategy__InvalidTwapWindow",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__NotAddressZero",
+            "name": "SFUniswapV3Strategy__MaxTVLReached",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__NotAuthorizedCaller",
+            "name": "SFUniswapV3Strategy__NoPosition",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__NotZeroAmount",
+            "name": "SFUniswapV3Strategy__NotAuthorizedCaller",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__StrategyNotAContract",
+            "name": "SFUniswapV3Strategy__NotZeroValue",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__SubStrategyAlreadyExists",
+            "name": "SFUniswapV3Strategy__Permit2AmountTooLarge",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__SubStrategyNotFound",
+            "name": "SFUniswapV3Strategy__UnexpectedPositionTokenId",
             "inputs": []
         },
         {
             "type": "error",
-            "name": "SFStrategyAggregator__UnknownPerStrategyDataStrategy",
+            "name": "SFUniswapV3Strategy__VaultNotApprovedForNFT",
             "inputs": []
         },
         {
