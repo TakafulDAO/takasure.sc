@@ -24,7 +24,7 @@ contract DeploySFMainnet is Script, DeployConstants {
     address constant OPERATOR_MULTISIG = 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F;
     address constant BACKEND = 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe; // TODO: Confirm this one
     address constant FEE_RECEIVER_MULTISIG = 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F; // TODO: Change this one
-    address constant POOL = 0x905dfCD5649217c42684f23958568e533C711Aa3; // TODO: Change this one
+    address constant POOL = 0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6;
 
     uint256 constant MAX_TVL = 20_000e6; // TODO: Change this one
     int24 constant TICK_LOWER = -600; // TODO: Change this one
@@ -40,10 +40,6 @@ contract DeploySFMainnet is Script, DeployConstants {
             address uniswapV3MathHelperAddr
         )
     {
-        // uint256 chainId = block.chainid;
-        // HelperConfig helperConfig = new HelperConfig();
-        // HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
-
         vm.startBroadcast();
 
         // Deploy AddressManager
