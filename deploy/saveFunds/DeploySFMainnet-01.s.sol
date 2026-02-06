@@ -121,9 +121,12 @@ contract DeploySFMainnet is DeploymentArtifacts {
         addressManager.createNewRole(Roles.KEEPER);
         console2.log("Roles created in AddressManager");
 
+        // Propose operator to msg.sender and accept it so we can do operator actions in this script
+        addressManager.proposeRoleHolder(Roles.OPERATOR, msg.sender);
+        addressManager.acceptProposedRole(Roles.OPERATOR);
+
         // Propose initial role holders
-        // Initially the operator multisig will hold multiple roles
-        addressManager.proposeRoleHolder(Roles.OPERATOR, OPERATOR_MULTISIG);
+        // The operator multisig will hold multiple roles after accepting
         addressManager.proposeRoleHolder(Roles.PAUSE_GUARDIAN, OPERATOR_MULTISIG);
         addressManager.proposeRoleHolder(Roles.KEEPER, OPERATOR_MULTISIG);
         addressManager.proposeRoleHolder(Roles.BACKEND_ADMIN, BACKEND);
@@ -164,6 +167,18 @@ contract DeploySFMainnet is DeploymentArtifacts {
         );
         addressManager.addProtocolAddress("EXTERNAL__UNI_PERMIT_2", UNI_PERMIT2_ARBITRUM, ProtocolAddressType.External);
         console2.log("Protocol addresses added in AddressManager");
+
+        // Operator actions
+        SFVault(sfVaultAddr)
+            .setERC721ApprovalForAll(UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM, sfUniswapV3StrategyAddr, true);
+        SFVault(sfVaultAddr).whitelistToken(USDT_ARBITRUM);
+        SFTwapValuator(sfTwapValuatorAddr).setValuationPool(USDT_ARBITRUM, POOL);
+        SFTwapValuator(sfTwapValuatorAddr).setTwapWindow(1800);
+        SFStrategyAggregator(sfStrategyAggregatorAddr).addSubStrategy(sfUniswapV3StrategyAddr, 100);
+        SFStrategyAggregator(sfStrategyAggregatorAddr).setDefaultWithdrawPayload(sfUniswapV3StrategyAddr, bytes(""));
+
+        // Propose new operator before transferring ownership
+        addressManager.proposeRoleHolder(Roles.OPERATOR, OPERATOR_MULTISIG);
 
         // Transfer Ownership to Operator Multisig
         addressManager.transferOwnership(OPERATOR_MULTISIG);
@@ -258,11 +273,6 @@ contract DeploySFMainnet is DeploymentArtifacts {
 
 /*
 Pending calls in the operator multisig after deployment:
-vault.setERC721ApprovalForAll({nft: UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM, operator: uniV3Strategy, approved: true});
-vault.whitelistToken(usdt);
-sfTwapValuator.setValuationPool(usdt, POOL);
-sfTwapValuator.setTwapWindow(1800);
-aggregator.addSubStrategy({strategy: uniV3Strategy, targetWeightBPS: 100});
 addressManager.acceptOwnership();
 addressManager.acceptProposedRole(Roles.OPERATOR);
 addressManager.acceptProposedRole(Roles.PAUSE_GUARDIAN);
