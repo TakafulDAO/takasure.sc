@@ -12,9 +12,11 @@ import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
 import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
+import {SFUniswapV3StrategyLens} from "contracts/saveFunds/SFUniswapV3StrategyLens.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -36,6 +38,7 @@ contract UniV3StratTest is Test {
     SFVault internal vault;
     SFStrategyAggregator internal aggregator;
     SFUniswapV3Strategy internal uniV3Strategy;
+    SFUniswapV3StrategyLens internal uniV3Lens;
     AddressManager internal addrMgr;
     ModuleManager internal modMgr;
 
@@ -45,6 +48,7 @@ contract UniV3StratTest is Test {
     address internal takadao; // operator
     address internal feeRecipient;
     address internal pauser = makeAddr("pauser");
+    MockValuator internal valuator;
 
     uint256 internal constant MAX_BPS = 10_000;
 
@@ -95,8 +99,10 @@ contract UniV3StratTest is Test {
 
         // Fee recipient required by SFVault
         feeRecipient = makeAddr("feeRecipient");
+        valuator = new MockValuator();
         vm.startPrank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
         addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
         addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
         vm.stopPrank();
@@ -133,6 +139,7 @@ contract UniV3StratTest is Test {
             )
         );
         uniV3Strategy = SFUniswapV3Strategy(stratProxy);
+        uniV3Lens = new SFUniswapV3StrategyLens();
 
         // The only strategy in the aggregator
         vm.prank(takadao);
@@ -318,7 +325,7 @@ contract UniV3StratTest is Test {
         aggregator.rebalance(_perStrategyData(data));
 
         (uint8 version,, address poolAddr, int24 tl, int24 tu) =
-            abi.decode(uniV3Strategy.getPositionDetails(), (uint8, uint256, address, int24, int24));
+            abi.decode(uniV3Lens.getPositionDetails(address(uniV3Strategy)), (uint8, uint256, address, int24, int24));
 
         assertEq(version, 1);
         assertEq(poolAddr, POOL_USDC_USDT);
@@ -352,7 +359,7 @@ contract UniV3StratTest is Test {
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
 
         (,,, int24 tl, int24 tu) =
-            abi.decode(uniV3Strategy.getPositionDetails(), (uint8, uint256, address, int24, int24));
+            abi.decode(uniV3Lens.getPositionDetails(address(uniV3Strategy)), (uint8, uint256, address, int24, int24));
         assertEq(tl, -600);
         assertEq(tu, 600);
     }
@@ -394,7 +401,6 @@ contract UniV3StratTest is Test {
         uniV3Strategy.setTwapWindow(0);
 
         uniV3Strategy.totalAssets();
-        uniV3Strategy.maxDeposit();
         uniV3Strategy.maxWithdraw();
 
         vm.prank(takadao);
@@ -422,7 +428,7 @@ contract UniV3StratTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                HELPERS
+                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
     function _fundAggregator(uint256 amountUSDC) internal {

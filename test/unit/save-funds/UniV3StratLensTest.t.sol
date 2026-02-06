@@ -8,51 +8,7 @@ import {StrategyConfig} from "contracts/types/Strategies.sol";
 
 import {TestERC20} from "test/mocks/TestERC20.sol";
 import {MockUniV3Pool} from "test/mocks/MockUniV3Pool.sol";
-
-contract MockUniV3StrategyLensTarget {
-    address public asset;
-    address public pool;
-    address public otherToken;
-    address public vault;
-    bool public paused;
-    uint256 public positionTokenId;
-    int24 public tickLower;
-    int24 public tickUpper;
-    uint32 public twapWindow;
-    uint256 private _totalAssets;
-
-    constructor(address asset_, address other_, address pool_, address vault_) {
-        asset = asset_;
-        otherToken = other_;
-        pool = pool_;
-        vault = vault_;
-    }
-
-    function setPaused(bool v) external {
-        paused = v;
-    }
-
-    function setPositionTokenId(uint256 v) external {
-        positionTokenId = v;
-    }
-
-    function setTicks(int24 lower, int24 upper) external {
-        tickLower = lower;
-        tickUpper = upper;
-    }
-
-    function setTwapWindow(uint32 w) external {
-        twapWindow = w;
-    }
-
-    function setTotalAssets(uint256 v) external {
-        _totalAssets = v;
-    }
-
-    function totalAssets() external view returns (uint256) {
-        return _totalAssets;
-    }
-}
+import {MockUniV3StrategyLensTarget} from "test/mocks/MockUniV3StrategyLensTarget.sol";
 
 contract UniV3StratLensTest is Test {
     SFUniswapV3StrategyLens internal lens;
@@ -78,8 +34,10 @@ contract UniV3StratLensTest is Test {
 
         pool = new MockUniV3Pool(address(token0), address(token1), PRICE_FOUR);
 
-        stratToken0Asset = new MockUniV3StrategyLensTarget(address(token0), address(token1), address(pool), address(0xBEEF));
-        stratToken1Asset = new MockUniV3StrategyLensTarget(address(token1), address(token0), address(pool), address(0xBEEF));
+        stratToken0Asset =
+            new MockUniV3StrategyLensTarget(address(token0), address(token1), address(pool), address(0xBEEF));
+        stratToken1Asset =
+            new MockUniV3StrategyLensTarget(address(token1), address(token0), address(pool), address(0xBEEF));
     }
 
     function testUniV3StratLens_getConfig_ReturnsExpected() public {

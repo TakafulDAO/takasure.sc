@@ -13,6 +13,7 @@ import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {TestSubStrategy} from "test/mocks/MockSFStrategy.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
@@ -34,6 +35,7 @@ contract WithdrawVaultTest is Test {
     address internal feeRecipient;
     address internal pauser = makeAddr("pauser");
     address internal user = makeAddr("user");
+    MockValuator internal valuator;
 
     uint256 internal constant ONE_USDC = 1e6;
 
@@ -57,9 +59,11 @@ contract WithdrawVaultTest is Test {
         aggregator = aggregatorDeployer.run(addrMgr, asset);
 
         feeRecipient = makeAddr("feeRecipient");
+        valuator = new MockValuator();
 
         vm.startPrank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
         addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
         addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);

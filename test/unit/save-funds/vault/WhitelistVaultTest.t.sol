@@ -9,6 +9,7 @@ import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {MockSFStrategy} from "test/mocks/MockSFStrategy.sol";
 import {MockERC721ApprovalForAll} from "test/mocks/MockERC721ApprovalForAll.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
@@ -33,6 +34,7 @@ contract WhitelistVaultTest is Test {
     address internal takadao; // operator
     address internal feeRecipient;
     address internal pauser = makeAddr("pauser");
+    MockValuator internal valuator;
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant ONE_USDC = 1e6;
@@ -54,9 +56,11 @@ contract WhitelistVaultTest is Test {
         asset = IERC20(vault.asset());
 
         feeRecipient = makeAddr("feeRecipient");
+        valuator = new MockValuator();
 
         vm.startPrank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
@@ -68,25 +72,10 @@ contract WhitelistVaultTest is Test {
     function testSFVault_WhitelistToken_BasicFlow() public {
         address token = makeAddr("tokenA");
 
-        uint256 lenBefore = vault.whitelistedTokensLength();
-
         vm.prank(takadao);
         vault.whitelistToken(token);
 
         assertTrue(vault.isTokenWhitelisted(token));
-        assertEq(vault.whitelistedTokensLength(), lenBefore + 1);
-
-        address[] memory tokens = vault.getWhitelistedTokens();
-
-        bool found;
-        for (uint256 i; i < tokens.length; i++) {
-            if (tokens[i] == token) {
-                found = true;
-                break;
-            }
-        }
-        assertTrue(found);
-
         assertEq(vault.tokenHardCapBPS(token), uint16(MAX_BPS));
     }
 
@@ -167,7 +156,6 @@ contract WhitelistVaultTest is Test {
         vault.removeTokenFromWhitelist(token);
 
         assertTrue(!vault.isTokenWhitelisted(token));
-        assertEq(vault.whitelistedTokensLength(), 1);
     }
 
     function testSFVault_RemoveTokenFromWhitelist_RevertsIfNotWhitelisted() public {

@@ -9,6 +9,7 @@ import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {MockSFStrategy} from "test/mocks/MockSFStrategy.sol";
 import {MockERC721ApprovalForAll} from "test/mocks/MockERC721ApprovalForAll.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
@@ -34,6 +35,7 @@ contract AccountingVaultTest is Test {
     address internal feeRecipient;
     address internal backend;
     address internal pauser = makeAddr("pauser");
+    MockValuator internal valuator;
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant ONE_USDC = 1e6;
@@ -55,9 +57,11 @@ contract AccountingVaultTest is Test {
         asset = IERC20(vault.asset());
 
         feeRecipient = makeAddr("feeRecipient");
+        valuator = new MockValuator();
 
         vm.startPrank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
