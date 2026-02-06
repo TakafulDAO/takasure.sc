@@ -282,6 +282,17 @@ addressManager.acceptProposedRole(Roles.BACKEND_ADMIN);
 Checks
 vault.isTokenWhitelisted(usdt) == true
 vault.isTokenWhitelisted(usdc) == true
+IERC721(UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM).isApprovedForAll(vault, uniV3Strategy) == true
+sfTwapValuator.valuationPool(usdt) == POOL
+sfTwapValuator.twapWindow() == 1800
 aggregator.getSubStrategies()
+aggregator.getSubStrategies().length == 1
+address(aggregator.getSubStrategies()[0].strategy) == uniV3Strategy
+aggregator.getSubStrategies()[0].targetWeightBPS == 100
+aggregator.getSubStrategies()[0].isActive == true
+aggregator.getDefaultWithdrawPayload(uniV3Strategy).length == 0
+addressManager.getProtocolAddressByName("PROTOCOL__SF_VAULT").addr == sfVault
+addressManager.currentRoleHolders(Roles.OPERATOR) == OPERATOR_MULTISIG
+addressManager.hasRole(Roles.OPERATOR, OPERATOR_MULTISIG) == true
 addressManager.owner() == 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F
 */
