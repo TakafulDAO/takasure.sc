@@ -13,7 +13,7 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISFVault} from "contracts/interfaces/saveFunds/ISFVault.sol";
-import {ISFValuator} from "contracts/interfaces/saveFunds/ISFValuator.sol";
+import {ISFTwapValuator} from "contracts/interfaces/saveFunds/ISFTwapValuator.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {
@@ -845,7 +845,7 @@ contract SFVault is
             uint256 _bal = IERC20(_token).balanceOf(address(this));
             if (_bal == 0) continue;
 
-            value_ += ISFValuator(_valuator).quote(_token, _bal, _underlying);
+            value_ += ISFTwapValuator(_valuator).quote(_token, _bal, _underlying);
         }
     }
 
