@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-/**
- * @title SFVaultLens
- * @author Maikel Ordaz
- * @notice View-only helper for SFVault.
- */
-
 pragma solidity 0.8.28;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
