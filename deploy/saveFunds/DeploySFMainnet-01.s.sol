@@ -171,6 +171,20 @@ contract DeploySFMainnet is DeploymentArtifacts {
 
         vm.stopBroadcast();
 
+        DeploymentItem[] memory deployments = new DeploymentItem[](10);
+        deployments[0] = DeploymentItem({name: "AddressManager", addr: addressManagerAddr});
+        deployments[1] = DeploymentItem({name: "SFVault", addr: sfVaultAddr});
+        deployments[2] = DeploymentItem({name: "SFStrategyAggregator", addr: sfStrategyAggregatorAddr});
+        deployments[3] = DeploymentItem({name: "SFUniswapV3Strategy", addr: sfUniswapV3StrategyAddr});
+        deployments[4] = DeploymentItem({name: "UniswapV3MathHelper", addr: uniswapV3MathHelperAddr});
+        deployments[5] = DeploymentItem({name: "SFTwapValuator", addr: sfTwapValuatorAddr});
+        deployments[6] = DeploymentItem({name: "SFVaultLens", addr: sfVaultLensAddr});
+        deployments[7] = DeploymentItem({name: "SFStrategyAggregatorLens", addr: sfStrategyAggregatorLensAddr});
+        deployments[8] = DeploymentItem({name: "SFUniswapV3StrategyLens", addr: sfUniswapV3StrategyLensAddr});
+        deployments[9] = DeploymentItem({name: "SFLens", addr: sfLensAddr});
+
+        _writeDeployments(block.chainid, deployments);
+
         ProtocolAddressRow[] memory protocolAddresses = new ProtocolAddressRow[](17);
         protocolAddresses[0] = ProtocolAddressRow({
             name: "ADMIN__SF_FEE_RECEIVER", addr: FEE_RECEIVER_MULTISIG, addrType: ProtocolAddressType.Admin
