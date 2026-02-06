@@ -217,6 +217,23 @@ contract WithdrawAggregatorTest is Test {
         assertEq(asset.balanceOf(receiver), 200);
     }
 
+    function testAggregator_withdraw_UsesDefaultPayloadWhenDataEmpty() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        bytes memory payload = abi.encode(uint256(123), address(this));
+        vm.prank(takadao);
+        aggregator.setDefaultWithdrawPayload(address(s1), payload);
+
+        _fundStrategy(address(s1), 500);
+
+        vm.prank(address(vault));
+        uint256 got = aggregator.withdraw(200, address(this), _emptyPerStrategyData());
+
+        assertEq(got, 200);
+        assertEq(s1.lastWithdrawDataHash(), keccak256(payload));
+    }
+
     /*//////////////////////////////////////////////////////////////
                              Helpers
     //////////////////////////////////////////////////////////////*/

@@ -13,6 +13,7 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISFVault} from "contracts/interfaces/saveFunds/ISFVault.sol";
+import {ISFValuator} from "contracts/interfaces/saveFunds/ISFValuator.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {
@@ -72,8 +73,8 @@ contract SFVault is
     uint256 public highWaterMark; // assets per share, scaled by 1e18
 
     mapping(address token => uint16 capBPS) public tokenHardCapBPS;
-    mapping(address user => uint256 totalDeposited) private userTotalDeposited;
-    mapping(address user => uint256 totalWithdrawn) private userTotalWithdrawn;
+    mapping(address user => uint256 totalDeposited) public userTotalDeposited;
+    mapping(address user => uint256 totalWithdrawn) public userTotalWithdrawn;
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -117,15 +118,6 @@ contract SFVault is
     error SFVault__InsufficientIdleAssets();
     error SFVault__InsufficientUSDCForFees();
     error SFVault__NonTransferableShares();
-
-    /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    modifier onlyRole(bytes32 role) {
-        require(addressManager.hasRole(role, msg.sender), SFVault__NotAuthorizedCaller());
-        _;
-    }
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -185,7 +177,8 @@ contract SFVault is
      * @param newCap New cap for total managed assets (idle + strategy).
      * @custom:invariant If TVLCap != 0, then totalAssets() is intended to remain <= TVLCap after user deposits (subject to rounding and external strategy behavior).
      */
-    function setTVLCap(uint256 newCap) external onlyRole(Roles.OPERATOR) {
+    function setTVLCap(uint256 newCap) external {
+        _onlyRole(Roles.OPERATOR);
         uint256 oldCap = TVLCap;
         TVLCap = newCap;
         emit OnTVLCapUpdated(oldCap, newCap);
@@ -197,7 +190,8 @@ contract SFVault is
      * @param token ERC20 token address to whitelist.
      * @custom:invariant If the call succeeds, whitelistedTokens.contains(token) is true and tokenHardCapBPS[token] <= MAX_BPS.
      */
-    function whitelistToken(address token) external onlyRole(Roles.OPERATOR) {
+    function whitelistToken(address token) external {
+        _onlyRole(Roles.OPERATOR);
         require(token != address(0), SFVault__InvalidToken());
         require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
 
@@ -214,7 +208,8 @@ contract SFVault is
      * @param hardCapBPS Maximum allocation for `token` in basis points of total portfolio value.
      * @custom:invariant If the call succeeds, tokenHardCapBPS[token] == hardCapBPS and whitelistedTokens.contains(token) is true.
      */
-    function whitelistTokenWithCap(address token, uint16 hardCapBPS) external onlyRole(Roles.OPERATOR) {
+    function whitelistTokenWithCap(address token, uint16 hardCapBPS) external {
+        _onlyRole(Roles.OPERATOR);
         require(token != address(0), SFVault__InvalidToken());
         require(!whitelistedTokens.contains(token), SFVault__TokenAlreadyWhitelisted());
         require(hardCapBPS <= MAX_BPS, SFVault__InvalidCapBPS());
@@ -231,7 +226,8 @@ contract SFVault is
      * @param token ERC20 token address to remove.
      * @custom:invariant If the call succeeds, whitelistedTokens.contains(token) is false.
      */
-    function removeTokenFromWhitelist(address token) external onlyRole(Roles.OPERATOR) {
+    function removeTokenFromWhitelist(address token) external {
+        _onlyRole(Roles.OPERATOR);
         require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
 
         whitelistedTokens.remove(token);
@@ -245,7 +241,8 @@ contract SFVault is
      * @param newCapBPS New hard cap in basis points of total portfolio value.
      * @custom:invariant tokenHardCapBPS[token] is always intended to be <= MAX_BPS for whitelisted tokens.
      */
-    function setTokenHardCap(address token, uint16 newCapBPS) external onlyRole(Roles.OPERATOR) {
+    function setTokenHardCap(address token, uint16 newCapBPS) external {
+        _onlyRole(Roles.OPERATOR);
         require(whitelistedTokens.contains(token), SFVault__TokenNotWhitelisted());
         require(newCapBPS <= MAX_BPS, SFVault__InvalidCapBPS());
 
@@ -264,8 +261,8 @@ contract SFVault is
      */
     function setFeeConfig(uint16 _managementFeeBPS, uint16 _performanceFeeBPS, uint16 _performanceFeeHurdleBPS)
         external
-        onlyRole(Roles.OPERATOR)
     {
+        _onlyRole(Roles.OPERATOR);
         require(
             _managementFeeBPS < MAX_BPS && _performanceFeeBPS <= MAX_BPS && _performanceFeeHurdleBPS <= MAX_BPS,
             SFVault__InvalidFeeBPS()
@@ -285,7 +282,8 @@ contract SFVault is
      * @param approved True to approve, false to revoke.
      * @custom:invariant This function does not change vault accounting; it only updates ERC721 approvals.
      */
-    function setERC721ApprovalForAll(address nft, address operator, bool approved) external onlyRole(Roles.OPERATOR) {
+    function setERC721ApprovalForAll(address nft, address operator, bool approved) external {
+        _onlyRole(Roles.OPERATOR);
         IERC721(nft).setApprovalForAll(operator, approved);
     }
 
@@ -294,14 +292,16 @@ contract SFVault is
      * @param newMember Member to register.
      * @custom:invariant After the call, `validMembers.contains(newMember)` equals `true`.
      */
-    function registerMember(address newMember) external onlyRole(Roles.BACKEND_ADMIN) {
+    function registerMember(address newMember) external {
+        _onlyRole(Roles.BACKEND_ADMIN);
         require(newMember != address(0), SFVault__NotAddressZero());
         validMembers.add(newMember);
 
         emit OnMemberRegistered(newMember, msg.sender);
     }
 
-    function unregisterMember(address member) external onlyRole(Roles.BACKEND_ADMIN) {
+    function unregisterMember(address member) external {
+        _onlyRole(Roles.BACKEND_ADMIN);
         require(validMembers.remove(member), SFVault__NotAMember());
         emit OnMemberUnregistered(member, msg.sender);
     }
@@ -310,11 +310,13 @@ contract SFVault is
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
 
-    function pause() external onlyRole(Roles.PAUSE_GUARDIAN) {
+    function pause() external {
+        _onlyRole(Roles.PAUSE_GUARDIAN);
         _pause();
     }
 
-    function unpause() external onlyRole(Roles.PAUSE_GUARDIAN) {
+    function unpause() external {
+        _onlyRole(Roles.PAUSE_GUARDIAN);
         _unpause();
     }
 
@@ -329,12 +331,8 @@ contract SFVault is
      * @return performanceFeeAssets Assets taken as performance fee and transferred to the fee recipient.
      * @custom:invariant After a successful non-zero fee charge, `lastReport` is updated to block.timestamp and `highWaterMark` is updated to post-fee assets/share.
      */
-    function takeFees()
-        external
-        nonReentrant
-        onlyRole(Roles.OPERATOR)
-        returns (uint256 managementFeeAssets, uint256 performanceFeeAssets)
-    {
+    function takeFees() external nonReentrant returns (uint256 managementFeeAssets, uint256 performanceFeeAssets) {
+        _onlyRole(Roles.OPERATOR);
         (managementFeeAssets, performanceFeeAssets) = _chargeFees();
     }
 
@@ -453,6 +451,37 @@ contract SFVault is
     }
 
     /**
+     * @notice Withdraw `assets` of underlying from the vault, pulling from the strategy if idle liquidity is insufficient.
+     * @dev Overrides ERC4626 withdraw to ensure underlying liquidity is available before burning shares.
+     */
+    function withdraw(uint256 assets, address receiver, address owner)
+        public
+        override
+        whenNotPaused
+        nonReentrant
+        returns (uint256 shares)
+    {
+        _ensureLiquidity(assets);
+        return super.withdraw(assets, receiver, owner);
+    }
+
+    /**
+     * @notice Redeem `shares` for underlying, pulling from the strategy if idle liquidity is insufficient.
+     * @dev Overrides ERC4626 redeem to ensure underlying liquidity is available before burning shares.
+     */
+    function redeem(uint256 shares, address receiver, address owner)
+        public
+        override
+        whenNotPaused
+        nonReentrant
+        returns (uint256 assets)
+    {
+        assets = previewRedeem(shares);
+        _ensureLiquidity(assets);
+        return super.redeem(shares, receiver, owner);
+    }
+
+    /**
      * @notice Move idle underlying into the configured strategy using an aggregator bundle.
      * @dev Callable only by an account with the KEEPER or OPERATOR role. Transfers `assets` to the strategy before calling `strategy.deposit`.
      * @param assets Amount of underlying to invest from idle funds.
@@ -521,14 +550,6 @@ contract SFVault is
         return whitelistedTokens.contains(token);
     }
 
-    function whitelistedTokensLength() external view returns (uint256) {
-        return whitelistedTokens.length();
-    }
-
-    function getWhitelistedTokens() external view returns (address[] memory) {
-        return whitelistedTokens.values();
-    }
-
     /**
      * @notice Return the maximum amount of underlying that can be deposited for `receiver`, enforcing a global TVL cap.
      * @dev If `TVLCap` is 0, this defers to the ERC4626 implementation. If a management fee is enabled, this returns the *gross* maximum such that the net assets retained do not exceed remaining capacity.
@@ -567,6 +588,29 @@ contract SFVault is
     }
 
     /**
+     * @notice Return the maximum amount of underlying that can be withdrawn by `owner` right now.
+     * @dev Limited by the user's share value and available liquidity (idle + strategy maxWithdraw).
+     */
+    function maxWithdraw(address owner) public view override returns (uint256) {
+        uint256 ownerAssets = convertToAssets(balanceOf(owner));
+        uint256 available = idleAssets() + _aggregatorMaxWithdraw();
+        return ownerAssets < available ? ownerAssets : available;
+    }
+
+    /**
+     * @notice Return the maximum number of shares that can be redeemed by `owner` right now.
+     * @dev Limited by the user's share balance and available liquidity.
+     */
+    function maxRedeem(address owner) public view override returns (uint256) {
+        uint256 ownerShares = balanceOf(owner);
+        if (ownerShares == 0) return 0;
+
+        uint256 availableAssets = idleAssets() + _aggregatorMaxWithdraw();
+        uint256 availableShares = convertToShares(availableAssets);
+        return availableShares < ownerShares ? availableShares : ownerShares;
+    }
+
+    /**
      * @notice Return the amount of idle underlying held directly by the vault.
      * @dev This is the ERC20 balance of the underlying asset held by this contract (not invested in the strategy).
      * @return Idle underlying balance of the vault.
@@ -574,186 +618,6 @@ contract SFVault is
      */
     function idleAssets() public view returns (uint256) {
         return IERC20(asset()).balanceOf(address(this));
-    }
-
-    /**
-     * @notice Return the amount of idle underlying held directly by the vault.
-     * @dev Convenience wrapper for {idleAssets} to satisfy the {ISFVault} interface.
-     * @return Idle underlying balance of the vault.
-     * @custom:invariant This function MUST return the same value as {idleAssets}.
-     */
-    function getIdleAssets() external view override returns (uint256) {
-        return idleAssets();
-    }
-
-    /**
-     * @notice Return the last fee report timestamp and the current total managed assets.
-     * @dev `lastReportAssets` is computed live via {totalAssets} and is not an on-chain checkpointed snapshot.
-     * @return lastReportTimestamp Timestamp (seconds) when fees were last reported/updated.
-     * @return lastReportAssets Current total managed assets at the time of the call.
-     * @custom:invariant lastReportTimestamp is always <= block.timestamp.
-     */
-    function getLastReport() external view override returns (uint256 lastReportTimestamp, uint256 lastReportAssets) {
-        return (uint256(lastReport), totalAssets());
-    }
-
-    /**
-     * @notice Return the fraction of the vault's TVL invested in the aggregator, in basis points.
-     * @dev Computed as aggregatorAssets / (idleAssets + aggregatorAssets) scaled by MAX_BPS. Returns 0 if TVL is 0.
-     * @return allocationBps Aggregator allocation in basis points (MAX_BPS = 100%).
-     * @custom:invariant The return value is always in the range [0, MAX_BPS].
-     */
-    function getAggregatorAllocation() external view override returns (uint256) {
-        uint256 strat = aggregatorAssets(); // single external call into aggregator (if set)
-        uint256 tvl = idleAssets() + strat;
-
-        if (tvl == 0) return 0;
-
-        return Math.mulDiv(strat, MAX_BPS, tvl);
-    }
-
-    /**
-     * @notice Return total assets reported by the configured aggregator.
-     * @dev Convenience wrapper for {aggregatorAssets} to satisfy the {ISFVault} interface.
-     * @return Assets reported by the aggregator (0 if no aggregator is set).
-     * @custom:invariant If `aggregator` is the zero address, this MUST return 0.
-     */
-    function getAggregatorAssets() external view override returns (uint256) {
-        return aggregatorAssets();
-    }
-
-    /**
-     * @notice Return the current underlying value of `user`'s share balance.
-     * @dev Uses ERC4626 conversion via {convertToAssets}. This reflects current share price and does not include historical withdrawals.
-     * @param user Account whose position value is being queried.
-     * @return Current position value in underlying units.
-     * @custom:invariant If `balanceOf(user) == 0`, this MUST return 0.
-     */
-    function getUserAssets(address user) external view override returns (uint256) {
-        uint256 shares = balanceOf(user);
-        if (shares == 0) return 0;
-
-        // ERC4626-consistent “position value” in underlying units.
-        return convertToAssets(shares);
-    }
-
-    /**
-     * @notice Return the net deposited amount for `user` as max(totalDeposited - totalWithdrawn, 0).
-     * @dev Uses tracked gross deposit/withdraw totals; net deposits cannot be negative and are clamped at 0.
-     * @param user Account to query.
-     * @return Net deposited amount in underlying units.
-     * @custom:invariant The return value is never negative.
-     */
-    function getUserNetDeposited(address user) external view override returns (uint256) {
-        uint256 deposited = getUserTotalDeposited(user);
-        uint256 withdrawn = getUserTotalWithdrawn(user);
-
-        // Net deposits can't be negative with uint256; clamp at 0.
-        return deposited > withdrawn ? deposited - withdrawn : 0;
-    }
-
-    /**
-     * @notice Return the total gross deposits attributed to `user`.
-     * @dev Updated on {deposit} and {mint}. This value includes any management fee portion paid out on deposit/mint.
-     * @param user Account to query.
-     * @return Total deposited amount in underlying units (gross).
-     * @custom:invariant This value is monotonic non-decreasing for each user.
-     */
-    function getUserTotalDeposited(address user) public view override returns (uint256) {
-        return userTotalDeposited[user];
-    }
-
-    /**
-     * @notice Return the total withdrawals attributed to `user`.
-     * @dev Updated in {_withdraw} on both ERC4626 {withdraw} and {redeem}.
-     * @param user Account to query.
-     * @return Total withdrawn amount in underlying units.
-     * @custom:invariant This value is monotonic non-decreasing for each user.
-     */
-    function getUserTotalWithdrawn(address user) public view override returns (uint256) {
-        return userTotalWithdrawn[user];
-    }
-
-    /**
-     * @notice Return the profit/loss for `user` as a signed value in underlying units.
-     * @dev PnL = currentPositionValue + totalWithdrawn - totalDeposited.
-     * @param user Account to query.
-     * @return pnl Signed profit/loss in underlying units.
-     */
-    function getUserPnL(address user) external view override returns (int256) {
-        uint256 shares = balanceOf(user);
-
-        uint256 currentAssets = shares == 0 ? 0 : convertToAssets(shares);
-        uint256 totalValue = currentAssets + userTotalWithdrawn[user];
-        uint256 deposited = userTotalDeposited[user];
-
-        if (totalValue >= deposited) return int256(totalValue - deposited);
-
-        return -int256(deposited - totalValue);
-    }
-
-    /**
-     * @notice Return the share balance of `user`.
-     * @dev Shares are non-transferable: balances change only via mint/burn (deposits/withdrawals).
-     * @param user Account to query.
-     * @return Share balance of `user`.
-     * @custom:invariant This MUST return the same value as {balanceOf(user)}.
-     */
-    function getUserShares(address user) external view override returns (uint256) {
-        return balanceOf(user);
-    }
-
-    /**
-     * @notice Return vault performance since `timestamp` as a signed basis-points delta based on assets-per-share.
-     * @dev If `timestamp == 0`, uses an inception baseline of 1.0 assets/share (1e18). If `timestamp <= lastReport`, uses `highWaterMark` as the baseline.
-     *      If `timestamp > lastReport`, returns 0 because no on-chain checkpoint exists for future timestamps.
-     * @param timestamp Baseline timestamp (seconds). Use 0 for inception baseline.
-     * @return performanceBps Signed performance in BPS where +10_000 represents +100%.
-     * @custom:invariant The returned value is within int256 bounds (saturated when necessary).
-     */
-    function getVaultPerformanceSince(uint256 timestamp) external view override returns (int256) {
-        uint256 totalShares = totalSupply();
-        if (totalShares == 0) return 0;
-
-        // Current assets/share in WAD
-        uint256 currentAssetsPerShareWad = Math.mulDiv(totalAssets(), 1e18, totalShares);
-
-        uint256 baseAssetsPerShareWad;
-        if (timestamp == 0) {
-            // inception baseline: 1.0 asset/share in WAD
-            baseAssetsPerShareWad = 1e18;
-        } else if (timestamp <= uint256(lastReport)) {
-            // `highWaterMark` is used as the last report baseline in this vault’s fee logic
-            baseAssetsPerShareWad = highWaterMark;
-        } else {
-            // no on-chain historical checkpoint for future timestamps
-            return 0;
-        }
-
-        if (baseAssetsPerShareWad == 0) return 0;
-
-        // ratio in BPS = current/base * 10_000
-        uint256 ratioBps = Math.mulDiv(currentAssetsPerShareWad, MAX_BPS, baseAssetsPerShareWad);
-
-        if (ratioBps >= MAX_BPS) {
-            uint256 diff = ratioBps - MAX_BPS;
-            if (diff > uint256(type(int256).max)) return type(int256).max;
-            return int256(diff);
-        } else {
-            uint256 diff = MAX_BPS - ratioBps;
-            if (diff > uint256(type(int256).max)) return type(int256).min;
-            return -int256(diff);
-        }
-    }
-
-    /**
-     * @notice Return the vault's total value locked (TVL) in underlying units.
-     * @dev Convenience wrapper for {totalAssets} to satisfy the {ISFVault} interface.
-     * @return Total managed assets (idle + strategy) in underlying units.
-     * @custom:invariant This MUST return the same value as {totalAssets}.
-     */
-    function getVaultTVL() external view override returns (uint256) {
-        return totalAssets();
     }
 
     /**
@@ -775,7 +639,7 @@ contract SFVault is
      * @custom:invariant totalAssets() == idleAssets() + aggregatorAssets() (assuming the aggregator reports accurately).
      */
     function totalAssets() public view override returns (uint256) {
-        return idleAssets() + aggregatorAssets();
+        return idleAssets() + aggregatorAssets() + _vaultNonUnderlyingValue();
     }
 
     /**
@@ -941,6 +805,50 @@ contract SFVault is
         return cap - assets;
     }
 
+    /// @dev Returns the maximum withdrawable amount from the configured aggregator (0 if unset).
+    function _aggregatorMaxWithdraw() internal view returns (uint256) {
+        ISFStrategy aggregator = ISFStrategy(addressManager.getProtocolAddressByName("PROTOCOL__SF_AGGREGATOR").addr);
+        if (address(aggregator) == address(0)) return 0;
+        return aggregator.maxWithdraw();
+    }
+
+    /// @dev Ensures the vault holds at least `_assets` underlying by pulling from the aggregator if needed.
+    function _ensureLiquidity(uint256 _assets) internal {
+        if (_assets == 0) return;
+
+        uint256 _idle = idleAssets();
+        if (_idle >= _assets) return;
+
+        uint256 _shortfall = _assets - _idle;
+        ISFStrategy _aggregator = ISFStrategy(addressManager.getProtocolAddressByName("PROTOCOL__SF_AGGREGATOR").addr);
+        require(address(_aggregator) != address(0), SFVault__StrategyNotSet());
+
+        // Use default per-strategy withdraw payloads in the aggregator when data is empty.
+        _aggregator.withdraw(_shortfall, address(this), bytes(""));
+
+        require(idleAssets() >= _assets, SFVault__InsufficientIdleAssets());
+    }
+
+    /// @dev Computes the total underlying value of non-underlying tokens held directly by the vault.
+    function _vaultNonUnderlyingValue() internal view returns (uint256 value_) {
+        address _underlying = asset();
+        uint256 _len = whitelistedTokens.length();
+
+        // Valuator for non-underlying tokens held by the vault
+        address _valuator = addressManager.getProtocolAddressByName("HELPER__SF_VALUATOR").addr;
+        require(_valuator != address(0), SFVault__NotAddressZero());
+
+        for (uint256 i; i < _len; ++i) {
+            address _token = whitelistedTokens.at(i);
+            if (_token == _underlying) continue;
+
+            uint256 _bal = IERC20(_token).balanceOf(address(this));
+            if (_bal == 0) continue;
+
+            value_ += ISFValuator(_valuator).quote(_token, _bal, _underlying);
+        }
+    }
+
     /**
      * @dev Override ERC20 balance updates to enforce non-transferable shares.
      * @custom:invariant Transfers between two non-zero addresses MUST revert; only mint (from=0) and burn (to=0) are allowed.
@@ -970,6 +878,10 @@ contract SFVault is
         userTotalWithdrawn[owner] += assets;
     }
 
+    function _onlyRole(bytes32 _role) internal view {
+        require(addressManager.hasRole(_role, msg.sender), SFVault__NotAuthorizedCaller());
+    }
+
     function _onlyKeeperOrOperator() internal view {
         require(
             addressManager.hasRole(Roles.KEEPER, msg.sender) || addressManager.hasRole(Roles.OPERATOR, msg.sender),
@@ -978,5 +890,13 @@ contract SFVault is
     }
 
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR) {}
+    function _authorizeUpgrade(
+        address /*newImplementation*/
+    )
+        internal
+        view
+        override
+    {
+        _onlyRole(Roles.OPERATOR);
+    }
 }
