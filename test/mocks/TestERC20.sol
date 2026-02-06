@@ -11,4 +11,6 @@ contract TestERC20 is MockERC20 {
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
+
+    function test() public view {}
 }
