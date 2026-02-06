@@ -14,6 +14,7 @@ import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {SFVaultHandler} from "test/helpers/handlers/SFVaultHandler.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 
 contract SFVaultInvariantTest is StdInvariant, Test {
     SFVault internal vault;
@@ -23,6 +24,7 @@ contract SFVaultInvariantTest is StdInvariant, Test {
 
     address internal takadao;
     address internal feeRecipient;
+    MockValuator internal valuator;
 
     SFVaultHandler internal handler;
 
@@ -47,9 +49,11 @@ contract SFVaultInvariantTest is StdInvariant, Test {
         // Ensure fee recipient exists (used by takeFees + preview fee branches)
         feeRecipient = makeAddr("feeRecipient");
         MockSFStrategy aggregator = new MockSFStrategy(address(vault), vault.asset());
+        valuator = new MockValuator();
 
         vm.startPrank(addrMgr.owner());
-        addrMgr.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
         addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
         addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
         vm.stopPrank();
@@ -78,7 +82,7 @@ contract SFVaultInvariantTest is StdInvariant, Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                INVARIANTS
+                                 INVARIANTS
     //////////////////////////////////////////////////////////////*/
 
     function invariant_SFVault_totalAssetsEqualsIdlePlusAggregator() public view {
@@ -107,11 +111,9 @@ contract SFVaultInvariantTest is StdInvariant, Test {
     }
 
     function invariant_SFVault_whitelistCapsStayInBounds() public view {
-        address[] memory tokens = vault.getWhitelistedTokens();
-        for (uint256 i = 0; i < tokens.length; i++) {
-            assertTrue(tokens[i] != address(0));
-            assertTrue(vault.tokenHardCapBPS(tokens[i]) <= MAX_BPS);
-        }
+        address underlying = address(asset);
+        assertTrue(vault.isTokenWhitelisted(underlying));
+        assertTrue(vault.tokenHardCapBPS(underlying) <= MAX_BPS);
     }
 
     function invariant_SFVault_previewZeroIsZero() public view {
