@@ -10,7 +10,7 @@ pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {ISFUniswapV3StrategyLens} from "contracts/interfaces/saveFunds/ISFUniswapV3StrategyLens.sol";
+import {ISFUniswapV3StrategyLensTarget} from "contracts/interfaces/saveFunds/ISFUniswapV3StrategyLensTarget.sol";
 
 import {TickMathV3} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -18,18 +18,18 @@ import {StrategyConfig} from "contracts/types/Strategies.sol";
 
 contract SFUniswapV3StrategyLens {
     function getConfig(address strategy) external view returns (StrategyConfig memory) {
-        ISFUniswapV3StrategyLens target = ISFUniswapV3StrategyLens(strategy);
+        ISFUniswapV3StrategyLensTarget target = ISFUniswapV3StrategyLensTarget(strategy);
         return
             StrategyConfig({asset: target.asset(), vault: target.vault(), pool: target.pool(), paused: target.paused()});
     }
 
     function getPositionDetails(address strategy) external view returns (bytes memory) {
-        ISFUniswapV3StrategyLens target = ISFUniswapV3StrategyLens(strategy);
+        ISFUniswapV3StrategyLensTarget target = ISFUniswapV3StrategyLensTarget(strategy);
         return abi.encode(uint8(1), target.positionTokenId(), target.pool(), target.tickLower(), target.tickUpper());
     }
 
     function positionValue(address strategy) external view returns (uint256) {
-        ISFUniswapV3StrategyLens target = ISFUniswapV3StrategyLens(strategy);
+        ISFUniswapV3StrategyLensTarget target = ISFUniswapV3StrategyLensTarget(strategy);
 
         uint256 total = target.totalAssets();
         if (total == 0) return 0;

@@ -11,7 +11,7 @@ pragma solidity 0.8.28;
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {SubStrategy} from "contracts/types/Strategies.sol";
 
-interface ISFStrategyAggregatorLens {
+interface ISFStrategyAggregatorLensTarget {
     function asset() external view returns (address);
     function paused() external view returns (bool);
     function addressManager() external view returns (IAddressManager);

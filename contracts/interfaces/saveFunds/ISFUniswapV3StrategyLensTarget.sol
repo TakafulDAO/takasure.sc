@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.28;
 
-interface ISFUniswapV3StrategyLens {
+interface ISFUniswapV3StrategyLensTarget {
     function asset() external view returns (address);
     function pool() external view returns (address);
     function otherToken() external view returns (address);

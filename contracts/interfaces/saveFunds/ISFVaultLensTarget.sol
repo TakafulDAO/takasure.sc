@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-interface ISFVaultLens {
+interface ISFVaultLensTarget {
     function totalAssets() external view returns (uint256);
     function idleAssets() external view returns (uint256);
     function aggregatorAssets() external view returns (uint256);
