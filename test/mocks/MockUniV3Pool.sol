@@ -65,4 +65,6 @@ contract MockUniV3Pool {
         tickCumulatives[0] = 0;
         tickCumulatives[1] = delta;
     }
+
+    function test() public view {}
 }
