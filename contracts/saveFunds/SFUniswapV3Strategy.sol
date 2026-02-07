@@ -640,11 +640,12 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @notice Returns the total strategy value in underlying units (LP position + idle balances).
+     * @notice Returns the total strategy value in underlying units (LP position + fees + idle balances).
      * @dev Uses spot/TWAP pricing depending on `twapWindow`. Includes:
      *      (1) liquidity-only valuation of the LP position,
-     *      (2) idle underlying balance, and
-     *      (3) idle otherToken converted into underlying at the same price.
+     *      (2) uncollected fees (tokensOwed) converted into underlying at the same price,
+     *      (3) idle underlying balance, and
+     *      (4) idle otherToken converted into underlying at the same price.
      * @return total Value in underlying units.
      * @custom:invariant View function must not mutate state.
      */
@@ -652,6 +653,24 @@ contract SFUniswapV3Strategy is
         uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
 
         uint256 value = _positionValueAtSqrtPrice(sqrtPriceX96);
+
+        // Include uncollected fees (tokensOwed) in total assets.
+        if (positionTokenId != 0) {
+            address t0 = PositionReader._getAddress(positionManager, positionTokenId, 2);
+            address t1 = PositionReader._getAddress(positionManager, positionTokenId, 3);
+            uint128 owed0 = PositionReader._getUint128(positionManager, positionTokenId, 10);
+            uint128 owed1 = PositionReader._getUint128(positionManager, positionTokenId, 11);
+
+            if (owed0 > 0) {
+                if (t0 == address(underlying)) value += uint256(owed0);
+                else if (t0 == address(otherToken)) value += _quoteOtherAsUnderlyingAtSqrtPrice(uint256(owed0), sqrtPriceX96);
+            }
+
+            if (owed1 > 0) {
+                if (t1 == address(underlying)) value += uint256(owed1);
+                else if (t1 == address(otherToken)) value += _quoteOtherAsUnderlyingAtSqrtPrice(uint256(owed1), sqrtPriceX96);
+            }
+        }
 
         uint256 idleU = underlying.balanceOf(address(this));
         if (idleU > 0) value += idleU;
