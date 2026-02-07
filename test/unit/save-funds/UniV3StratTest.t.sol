@@ -17,16 +17,52 @@ import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {MockValuator} from "test/mocks/MockValuator.sol";
+import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfungiblePositionManager.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {UniswapV3MathHelper} from "contracts/helpers/uniswapHelpers/UniswapV3MathHelper.sol";
+import {PositionReader} from "contracts/helpers/uniswapHelpers/libraries/PositionReader.sol";
+import {TickMathV3} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
 
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+
+contract UniV3SwapHelper is IUniswapV3SwapCallback {
+    using SafeERC20 for IERC20;
+
+    IUniswapV3Pool internal immutable pool;
+    IERC20 internal immutable token0;
+    IERC20 internal immutable token1;
+
+    constructor(address pool_) {
+        pool = IUniswapV3Pool(pool_);
+        token0 = IERC20(pool.token0());
+        token1 = IERC20(pool.token1());
+    }
+
+    function swapExactIn(bool zeroForOne, uint256 amountIn) external returns (uint256 amountOut) {
+        require(amountIn > 0, "amountIn=0");
+        (int256 amount0, int256 amount1) = pool.swap(
+            address(this),
+            zeroForOne,
+            int256(amountIn),
+            zeroForOne ? TickMathV3.MIN_SQRT_RATIO + 1 : TickMathV3.MAX_SQRT_RATIO - 1,
+            bytes("")
+        );
+        amountOut = uint256(-(zeroForOne ? amount1 : amount0));
+    }
+
+    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata) external override {
+        require(msg.sender == address(pool), "pool");
+        if (amount0Delta > 0) token0.safeTransfer(msg.sender, uint256(amount0Delta));
+        if (amount1Delta > 0) token1.safeTransfer(msg.sender, uint256(amount1Delta));
+    }
+}
 
 contract UniV3StratTest is Test {
     using SafeERC20 for IERC20;
@@ -44,6 +80,7 @@ contract UniV3StratTest is Test {
 
     IERC20 internal asset;
     IERC20 internal usdt;
+    UniV3SwapHelper internal swapper;
 
     address internal takadao; // operator
     address internal feeRecipient;
@@ -140,6 +177,7 @@ contract UniV3StratTest is Test {
         );
         uniV3Strategy = SFUniswapV3Strategy(stratProxy);
         uniV3Lens = new SFUniswapV3StrategyLens();
+        swapper = new UniV3SwapHelper(POOL_USDC_USDT);
 
         // The only strategy in the aggregator
         vm.prank(takadao);
@@ -410,6 +448,47 @@ contract UniV3StratTest is Test {
         vm.prank(takadao);
         uniV3Strategy.setTwapWindow(type(uint32).max);
         uniV3Strategy.totalAssets();
+    }
+
+    function testUniV3Strat_totalAssets_IncludesUncollectedFees() public {
+        vm.prank(takadao);
+        uniV3Strategy.setMaxTVL(0);
+
+        uint256 assetsToInvest = 1_000_000e6;
+        uint16 ratio = 5_000;
+        uint256 amountToSwap = (assetsToInvest * ratio) / MAX_BPS;
+
+        bytes memory swapToOther = _encodeSwapDataExactIn(ARB_USDC, ARB_USDT, amountToSwap);
+        bytes memory v3Deposit = _encodeV3ActionData(ratio, swapToOther, bytes(""), block.timestamp + 1, 0, 0);
+        _depositViaAggregator(assetsToInvest, v3Deposit);
+
+        uint256 totalBefore = uniV3Strategy.totalAssets();
+
+        bool token0IsUSDC = IUniswapV3Pool(POOL_USDC_USDT).token0() == ARB_USDC;
+        uint256 swapAmount = 2_000_000e6;
+
+        deal(address(asset), address(swapper), swapAmount);
+        swapper.swapExactIn(token0IsUSDC, swapAmount);
+
+        deal(address(usdt), address(swapper), swapAmount);
+        swapper.swapExactIn(!token0IsUSDC, swapAmount);
+
+        INonfungiblePositionManager pm = INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER);
+        uint256 tokenId = uniV3Strategy.positionTokenId();
+
+        vm.prank(address(vault));
+        pm.collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: tokenId, recipient: address(0xdead), amount0Max: 1, amount1Max: 1
+            })
+        );
+
+        uint128 owed0 = PositionReader._getUint128(pm, tokenId, 10);
+        uint128 owed1 = PositionReader._getUint128(pm, tokenId, 11);
+        assertGt(uint256(owed0) + uint256(owed1), 0);
+
+        uint256 totalAfter = uniV3Strategy.totalAssets();
+        assertGt(totalAfter, totalBefore);
     }
 
     function testUniV3Strat_actionDataValidation_RevertsOnBadRatio_AndBadDeadline() public {
