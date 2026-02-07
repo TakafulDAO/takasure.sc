@@ -174,7 +174,7 @@ contract DeploySFMainnet is DeploymentArtifacts {
         SFVault(sfVaultAddr).whitelistToken(USDT_ARBITRUM);
         SFTwapValuator(sfTwapValuatorAddr).setValuationPool(USDT_ARBITRUM, POOL);
         SFTwapValuator(sfTwapValuatorAddr).setTwapWindow(1800);
-        SFStrategyAggregator(sfStrategyAggregatorAddr).addSubStrategy(sfUniswapV3StrategyAddr, 100);
+        SFStrategyAggregator(sfStrategyAggregatorAddr).addSubStrategy(sfUniswapV3StrategyAddr, 10_000);
         SFStrategyAggregator(sfStrategyAggregatorAddr).setDefaultWithdrawPayload(sfUniswapV3StrategyAddr, bytes(""));
 
         // Propose new operator before transferring ownership
