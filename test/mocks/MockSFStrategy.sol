@@ -7,7 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @dev Simple mock strategy to test `strategyAssets()` and `totalAssets()`.
 contract MockSFStrategy is ISFStrategy {
-    address public immutable override vault;
+    address public immutable vault;
     address public immutable override asset;
 
     uint256 internal _totalAssets;

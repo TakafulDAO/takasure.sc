@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 
 interface ISFStrategy {
     function asset() external view returns (address);
-    function vault() external view returns (address);
     function totalAssets() external view returns (uint256);
     function maxWithdraw() external view returns (uint256);
     function deposit(uint256 assets, bytes calldata data) external returns (uint256 investedAssets);

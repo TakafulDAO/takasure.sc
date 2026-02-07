@@ -11,7 +11,9 @@ enum ProtocolAddressType {
     Admin, // Admin EOAs or multisigs
     Benefit, // Special type of module that manages benefits (e.g., life, farewell)
     Module, // Modules that are part of the protocol
-    Protocol // Core protocol contracts
+    Protocol, // Core protocol contracts
+    External, // External contracts (e.g., USDC, Chainlink)
+    Helper // Helper contracts (e.g., UniswapV3MathHelper)
 }
 
 // Struct to represent an address in the protocol

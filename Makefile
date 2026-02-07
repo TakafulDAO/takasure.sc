@@ -69,6 +69,11 @@ protocol-deploy-sf-uni-v3-strat:
 	@forge script deploy/saveFunds/DeploySFUniV3Strat.s.sol:DeploySFUniV3Strat $(NETWORK_ARGS)
 	@cp contracts/saveFunds/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
 
+protocol-deploy-sf-mainnet:
+	@forge clean
+	@forge script deploy/saveFunds/DeploySFMainnet-01.s.sol:DeploySFMainnet $(NETWORK_ARGS)
+	@cp contracts/saveFunds/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
+
 # Protocol upgrades
 protocol-upgrade-referral:
 	@forge clean

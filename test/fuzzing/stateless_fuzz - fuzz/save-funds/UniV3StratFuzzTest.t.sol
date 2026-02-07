@@ -15,6 +15,7 @@ import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -45,6 +46,7 @@ contract UniV3StratFuzzTest is Test {
     address internal takadao; // operator
     address internal feeRecipient;
     address internal pauser = makeAddr("pauser");
+    MockValuator internal valuator;
 
     uint256 internal constant MAX_BPS = 10_000;
 
@@ -88,26 +90,20 @@ contract UniV3StratFuzzTest is Test {
         usdt = IERC20(ARB_USDT);
 
         // Deploy aggregator and set as vault strategy
-        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset);
 
-        vm.startPrank(takadao);
+        vm.prank(takadao);
         vault.whitelistToken(ARB_USDT);
-        vault.setAggregator(ISFStrategy(address(aggregator)));
-        vm.stopPrank();
 
         // Fee recipient required by SFVault
         feeRecipient = makeAddr("feeRecipient");
-        vm.prank(addrMgr.owner());
-        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
-
-        // Ensure vault + aggregator are recognized as "PROTOCOL__SF_VAULT" for onlyContract checks.
+        valuator = new MockValuator();
         vm.startPrank(addrMgr.owner());
-        if (!addrMgr.hasName("PROTOCOL__SF_VAULT", address(vault))) {
-            addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
-        }
-        if (!addrMgr.hasName("PROTOCOL__SF_AGGREGATOR", address(aggregator))) {
-            addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
-        }
+
+        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         // Pause guardian role for pause/unpause coverage

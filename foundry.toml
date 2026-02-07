@@ -11,6 +11,7 @@ extra_output = ['storageLayout']
 fs_permissions = [
     { access = "read", path = "./out" },
     { access = 'read', path = './deployments' },
+    { access = "write", path = "./deployments" },
     { access = 'read', path = './scripts/chainlink-functions/' },
     { access = "read", path = "./broadcast" },
     { access = "read", path = "./reports" },
@@ -20,7 +21,7 @@ fs_permissions = [
 # Compiler settings
 auto_detect_solc = true
 optimizer = true
-optimizer_runs = 4500
+optimizer_runs = 450
 evm_version = 'cancun'
 
 [lint]

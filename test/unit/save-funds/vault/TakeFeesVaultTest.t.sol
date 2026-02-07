@@ -9,6 +9,7 @@ import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {MockSFStrategy} from "test/mocks/MockSFStrategy.sol";
 import {MockERC721ApprovalForAll} from "test/mocks/MockERC721ApprovalForAll.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
@@ -35,6 +36,7 @@ contract TakeFeesVaultTest is Test {
     address internal backend;
     address internal pauser = makeAddr("pauser");
     address internal user = makeAddr("user");
+    MockValuator internal valuator;
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant ONE_USDC = 1e6;
@@ -56,9 +58,11 @@ contract TakeFeesVaultTest is Test {
         asset = IERC20(vault.asset());
 
         feeRecipient = makeAddr("feeRecipient");
+        valuator = new MockValuator();
 
         vm.startPrank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
@@ -75,6 +79,11 @@ contract TakeFeesVaultTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testSFVault_TakeFees_ReturnsZeroIfFeeRecipientZero() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         _mockFeeRecipient(address(0));
 
         uint64 beforeReport = vault.lastReport();
@@ -90,6 +99,11 @@ contract TakeFeesVaultTest is Test {
     }
 
     function testSFVault_TakeFees_ReturnsZeroIfNoSharesOrAssets() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         vm.prank(takadao);
         vault.setFeeConfig(0, 2000, 0);
 
@@ -103,6 +117,11 @@ contract TakeFeesVaultTest is Test {
     }
 
     function testSFVault_TakeFees_PerformanceFeeBPSZero_UpdatesHWMNoTransfer() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         vm.prank(takadao);
         vault.setFeeConfig(0, 0, 0);
 
@@ -128,6 +147,11 @@ contract TakeFeesVaultTest is Test {
     }
 
     function testSFVault_TakeFees_NoGain_ReturnsZeroAndUpdatesHWM() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         vm.prank(takadao);
         vault.setFeeConfig(0, 2000, 0);
 
@@ -152,6 +176,11 @@ contract TakeFeesVaultTest is Test {
     }
 
     function testSFVault_TakeFees_WithGain_ChargesPerformanceFee() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 perfBPS = 2000; // 20%
         vm.prank(takadao);
         vault.setFeeConfig(0, perfBPS, 0);
@@ -197,6 +226,11 @@ contract TakeFeesVaultTest is Test {
     }
 
     function testSFVault_TakeFees_WithHurdle_ProfitBelowHurdle_NoFee() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 perfBPS = 2000; // 20%
         uint16 hurdleBPS = 1000; // 10% APY
         vm.prank(takadao);
@@ -230,6 +264,11 @@ contract TakeFeesVaultTest is Test {
     }
 
     function testSFVault_TakeFees_WithHurdle_ProfitAboveHurdle_FeeOnExcess() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 perfBPS = 2000; // 20%
         uint16 hurdleBPS = 1000; // 10% APY
         vm.prank(takadao);
@@ -274,6 +313,11 @@ contract TakeFeesVaultTest is Test {
     }
 
     function testSFVault_TakeFees_RevertsIfInsufficientUSDCForFees() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint16 perfBPS = 2000; // 20%
         vm.prank(takadao);
         vault.setFeeConfig(0, perfBPS, 0);
@@ -285,11 +329,6 @@ contract TakeFeesVaultTest is Test {
         vm.warp(block.timestamp + 1);
         vm.prank(takadao);
         vault.takeFees();
-
-        // Set strategy and put huge assets into it, so totalAssets spikes but idle remains ~amount
-        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
-        vm.prank(takadao);
-        vault.setAggregator(ISFStrategy(address(mock)));
 
         uint256 stratProfit = 10_000_000; // makes perf fee > idle
         deal(address(asset), address(this), stratProfit);

@@ -13,6 +13,7 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
@@ -31,6 +32,7 @@ contract SFVaultFuzzTest is Test {
     address internal takadao; // OPERATOR
     address internal feeRecipient;
     address internal pauser = makeAddr("pauser"); // PAUSE_GUARDIAN
+    MockValuator internal valuator;
 
     function setUp() public {
         managersDeployer = new DeployManagers();
@@ -49,9 +51,11 @@ contract SFVaultFuzzTest is Test {
         asset = IERC20(vault.asset());
 
         feeRecipient = makeAddr("feeRecipient");
+        valuator = new MockValuator();
 
         vm.startPrank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
 
         // Ensure PAUSE_GUARDIAN exists and is held by `pauser`
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
@@ -110,14 +114,6 @@ contract SFVaultFuzzTest is Test {
         vm.prank(caller);
         vm.expectRevert(SFVault.SFVault__NotAuthorizedCaller.selector);
         vault.setTokenHardCap(token, newCapBPS);
-    }
-
-    function testFuzzSFVault_SetAggregator_RevertsIfCallerNotOperator(address caller, address newAggregator) public {
-        vm.assume(!addrMgr.hasRole(Roles.OPERATOR, caller));
-
-        vm.prank(caller);
-        vm.expectRevert(SFVault.SFVault__NotAuthorizedCaller.selector);
-        vault.setAggregator(ISFStrategy(newAggregator));
     }
 
     function testFuzzSFVault_SetFeeConfig_RevertsIfCallerNotOperator(

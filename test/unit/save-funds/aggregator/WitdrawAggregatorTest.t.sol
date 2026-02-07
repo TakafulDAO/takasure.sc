@@ -14,6 +14,7 @@ import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {TestSubStrategy, RecorderSubStrategy} from "test/mocks/MockSFStrategy.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -40,6 +41,7 @@ contract WithdrawAggregatorTest is Test {
     address internal takadao; // operator
     address internal feeRecipient;
     address internal pauser = makeAddr("pauser");
+    MockValuator internal valuator;
 
     uint256 internal constant MAX_BPS = 10_000;
 
@@ -64,12 +66,15 @@ contract WithdrawAggregatorTest is Test {
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
-        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset);
 
         // Fee recipient required by SFVault; not strictly needed for aggregator itself but kept consistent with other setup.
         feeRecipient = makeAddr("feeRecipient");
         vm.prank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        valuator = new MockValuator();
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
 
         // Ensure the vault is recognized as "PROTOCOL__SF_VAULT" for onlyContract checks.
         vm.startPrank(addrMgr.owner());
@@ -215,6 +220,23 @@ contract WithdrawAggregatorTest is Test {
 
         assertEq(got, 200);
         assertEq(asset.balanceOf(receiver), 200);
+    }
+
+    function testAggregator_withdraw_UsesDefaultPayloadWhenDataEmpty() public {
+        RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
+        _addStrategy(address(s1), 10000, true);
+
+        bytes memory payload = abi.encode(uint256(123), address(this));
+        vm.prank(takadao);
+        aggregator.setDefaultWithdrawPayload(address(s1), payload);
+
+        _fundStrategy(address(s1), 500);
+
+        vm.prank(address(vault));
+        uint256 got = aggregator.withdraw(200, address(this), _emptyPerStrategyData());
+
+        assertEq(got, 200);
+        assertEq(s1.lastWithdrawDataHash(), keccak256(payload));
     }
 
     /*//////////////////////////////////////////////////////////////

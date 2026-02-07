@@ -11,7 +11,6 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISFVault} from "contracts/interfaces/saveFunds/ISFVault.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
-import {ISFStrategyView} from "contracts/interfaces/saveFunds/ISFStrategyView.sol";
 import {ISFStrategyMaintenance} from "contracts/interfaces/saveFunds/ISFStrategyMaintenance.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfungiblePositionManager.sol";
@@ -26,7 +25,6 @@ import {
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-import {StrategyConfig} from "contracts/types/Strategies.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol";
 import {PositionReader} from "contracts/helpers/uniswapHelpers/libraries/PositionReader.sol";
@@ -35,7 +33,6 @@ pragma solidity 0.8.28;
 
 contract SFUniswapV3Strategy is
     ISFStrategy,
-    ISFStrategyView,
     ISFStrategyMaintenance,
     Initializable,
     UUPSUpgradeable,
@@ -49,6 +46,13 @@ contract SFUniswapV3Strategy is
     //////////////////////////////////////////////////////////////*/
 
     uint16 internal constant MAX_BPS = 10_000;
+    // Sentinel format for "amountIn":
+    // - If high bit is set (AMOUNT_IN_BPS_FLAG), low 16 bits are BPS (0..10000) of the swap base amount.
+    // - Otherwise, amountIn is treated as a literal token amount.
+    uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
+    uint256 internal constant AMOUNT_IN_BPS_MASK = 0xFFFF;
+    uint256 internal constant DEFAULT_SWAP_DEADLINE = 300; // 5 minutes
+    uint256 internal constant DEFAULT_PM_DEADLINE = 300; // 5 minutes
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -71,9 +75,10 @@ contract SFUniswapV3Strategy is
     // Position parameters
     uint256 public positionTokenId; // LP NFT ID, ideally owned by vault
     uint256 internal maxTVL;
-    int24 internal tickLower;
-    int24 internal tickUpper;
-    uint32 internal twapWindow; // seconds; 0 => spot
+    int24 public tickLower;
+    int24 public tickUpper;
+    uint32 public twapWindow; // seconds; 0 => spot
+    uint16 public swapSlippageBPS;
 
     struct V3ActionData {
         uint16 otherRatioBPS; // 0..10000 (default 5000)
@@ -104,6 +109,7 @@ contract SFUniswapV3Strategy is
     );
     event OnLiquidityDecreased(uint256 indexed tokenId, uint128 liquidityRemoved, uint256 amount0, uint256 amount1);
     event OnSwapExecuted(address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut);
+    event OnSwapSlippageBPSUpdated(uint16 oldBps, uint16 newBps);
     event OnPositionMinted(
         uint256 indexed tokenId, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 amount0, uint256 amount1
     );
@@ -209,6 +215,7 @@ contract SFUniswapV3Strategy is
         );
 
         twapWindow = 1800; // 30 minutes
+        swapSlippageBPS = 100; // 1%
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -243,6 +250,19 @@ contract SFUniswapV3Strategy is
         uint32 old = twapWindow;
         twapWindow = newWindow;
         emit TwapWindowUpdated(old, newWindow);
+    }
+
+    /**
+     * @notice Updates the swap slippage tolerance (in BPS) used for TWAP-based minOut checks.
+     * @dev Only callable by `Roles.OPERATOR`. 0 disables slippage discount; MAX_BPS allows any output.
+     * @param newBps New slippage tolerance in BPS (0..10_000).
+     */
+    function setSwapSlippageBPS(uint16 newBps) external {
+        _onlyRole(Roles.OPERATOR);
+        require(newBps <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
+        uint16 old = swapSlippageBPS;
+        swapSlippageBPS = newBps;
+        emit OnSwapSlippageBPSUpdated(old, newBps);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -311,7 +331,7 @@ contract SFUniswapV3Strategy is
      *      where `swapToOtherData` / `swapToUnderlyingData` are each encoded as:
      *      `abi.encode(bytes[] inputs, uint256 deadline)` (passed to Universal Router `execute`).
      *
-     *      If `data.length == 0`, defaults are used: 50/50 ratio, no swaps, `pmDeadline = block.timestamp`, mins = 0.
+     *      If `data.length == 0`, defaults are used: 0% to `otherToken` (no swaps), `pmDeadline = block.timestamp`, mins = 0.
      * @param assets Amount of `underlying` to deposit.
      * @param data ABI-encoded V3 action data (see @dev for exact encoding).
      * @return investedAssets Amount of `underlying` effectively deployed into LP (usedUnderlying side).
@@ -335,15 +355,13 @@ contract SFUniswapV3Strategy is
 
         V3ActionData memory p = _decodeV3ActionData(data);
 
-        // 1. decide how much to swap to otherToken
-        uint256 amountToSwap = (assets * p.otherRatioBPS) / MAX_BPS;
-        uint256 amountUnderlyingForLP = assets - amountToSwap;
+        // 1) normalize balances to target ratio (if configured)
+        if (p.otherRatioBPS > 0) {
+            _swapToTargetRatio(p.otherRatioBPS, p.swapToOtherData, p.swapToUnderlyingData);
+        }
 
-        // 2. swap with the correct payload (underlying -> otherToken)
-        if (amountToSwap > 0) _V3Swap(amountToSwap, p.swapToOtherData, true);
-
-        // 3) use actual balances to prevent swap fees makes mint revert
-        uint256 desiredUnderlying = amountUnderlyingForLP;
+        // 2) use actual balances to prevent swap fees makes mint revert
+        uint256 desiredUnderlying = underlying.balanceOf(address(this));
         uint256 desiredOther = otherToken.balanceOf(address(this));
 
         // Sanity check ticks
@@ -463,9 +481,11 @@ contract SFUniswapV3Strategy is
      *      If a position exists, fully exits and burns the old NFT, updates ticks, and mints a new position with current balances.
      *      Any residual balances are swept to the vault.
      *
-     *      `data` MUST be encoded as:
-     *      `abi.encode(int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`
-     *      where mins + deadline apply to both the exit (decrease) and the new mint.
+     *      `data` MUST be encoded as either:
+     *      - legacy: `abi.encode(int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`
+     *      - new: `abi.encode(int24 newTickLower, int24 newTickUpper, bytes actionData)` where `actionData` is the
+     *        same V3ActionData encoding used by {deposit}/{withdraw} (allows optional swaps before minting).
+     *      In both cases, mins + deadline apply to both the exit (decrease) and the new mint.
      * @param data ABI-encoded rebalance params (see @dev for exact encoding).
      * @custom:invariant `tickLower` and `tickUpper` must remain aligned to pool tickSpacing; ERC20 leftovers are swept to `vault`.
      */
@@ -475,8 +495,30 @@ contract SFUniswapV3Strategy is
         int24 oldTickLower = tickLower;
         int24 oldTickUpper = tickUpper;
 
-        (int24 newTickLower, int24 newTickUpper, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) =
-            abi.decode(data, (int24, int24, uint256, uint256, uint256));
+        int24 newTickLower;
+        int24 newTickUpper;
+        uint256 pmDeadline;
+        uint256 minUnderlying;
+        uint256 minOther;
+        V3ActionData memory p;
+        bytes memory pmData;
+
+        // Backwards-compatible encoding:
+        // - legacy: abi.encode(int24,int24,uint256,uint256,uint256) (160 bytes)
+        // - new: abi.encode(int24,int24,bytes actionData), where actionData is V3ActionData encoding
+        if (data.length == 160) {
+            (newTickLower, newTickUpper, pmDeadline, minUnderlying, minOther) =
+                abi.decode(data, (int24, int24, uint256, uint256, uint256));
+            pmData = data;
+        } else {
+            bytes memory actionData;
+            (newTickLower, newTickUpper, actionData) = abi.decode(data, (int24, int24, bytes));
+            p = _decodeV3ActionData(actionData);
+            pmDeadline = p.pmDeadline;
+            minUnderlying = p.minUnderlying;
+            minOther = p.minOther;
+            pmData = actionData;
+        }
 
         require(pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidRebalanceParams());
         require(newTickLower < newTickUpper, SFUniswapV3Strategy__InvalidRebalanceParams());
@@ -500,7 +542,7 @@ contract SFUniswapV3Strategy is
         uint128 currentLiquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
 
         // IMPORTANT: pass `data` so mins+deadline are applied on exit too
-        if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, data);
+        if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, pmData);
 
         // 2) Burn the old NFT once all liquidity has been removed.
         positionManager.burn(positionTokenId);
@@ -512,7 +554,12 @@ contract SFUniswapV3Strategy is
 
         emit OnTickRangeUpdated(oldTickLower, oldTickUpper, newTickLower, newTickUpper);
 
-        // 4) Mint a new position using whatever balances we now hold.
+        // 4) Optionally rebalance token ratios before minting.
+        if (p.otherRatioBPS > 0) {
+            _swapToTargetRatio(p.otherRatioBPS, p.swapToOtherData, p.swapToUnderlyingData);
+        }
+
+        // 5) Mint a new position using whatever balances we now hold.
         uint256 balUnderlying = underlying.balanceOf(address(this));
         uint256 balOther = otherToken.balanceOf(address(this));
 
@@ -539,21 +586,6 @@ contract SFUniswapV3Strategy is
      */
     function asset() external view returns (address) {
         return address(underlying);
-    }
-
-    /**
-     * @notice Returns the maximum additional `underlying` amount this strategy can accept right now.
-     * @dev If `maxTVL == 0`, returns `type(uint256).max`. Otherwise returns remaining capacity until hitting `maxTVL`.
-     * @return maxAssets Maximum depositable underlying amount at current state.
-     * @custom:invariant View function must not mutate state.
-     */
-    function maxDeposit() external view returns (uint256) {
-        if (maxTVL == 0) return type(uint256).max;
-
-        uint256 current = totalAssets();
-        if (current >= maxTVL) return 0;
-
-        return maxTVL - current;
     }
 
     /**
@@ -608,44 +640,12 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @notice Returns the current strategy configuration for offchain/indexer usage.
-     * @dev Packs core fields into a `StrategyConfig` struct.
-     * @return config Strategy configuration snapshot.
-     * @custom:invariant View function must not mutate state.
-     */
-    function getConfig() external view returns (StrategyConfig memory) {
-        return StrategyConfig({asset: address(underlying), vault: vault, pool: address(pool), paused: paused()});
-    }
-
-    /**
-     * @notice Returns the value of the active LP position in underlying units, excluding idle balances.
-     * @dev Uses spot/TWAP pricing depending on `twapWindow` and values liquidity only (fees excluded).
-     * @return valueUnderlying Value of the LP position denominated in underlying units.
-     * @custom:invariant View function must not mutate state.
-     */
-    function positionValue() external view returns (uint256) {
-        // Only the LP; excludes idle balances.
-        return _positionValueAtSqrtPrice(_valuationSqrtPriceX96());
-    }
-
-    /**
-     * @notice Returns a compact, versioned encoding of the current Uniswap V3 position metadata.
-     * @dev Encoded as: `abi.encode(uint8 version, uint256 tokenId, address pool, int24 tickLower, int24 tickUpper)`.
-     *      `version` is intended for cross-strategy decoding (e.g., 1 = Uniswap V3).
-     * @return positionDetails ABI-encoded position metadata blob.
-     * @custom:invariant View function must not mutate state.
-     */
-    function getPositionDetails() external view returns (bytes memory) {
-        // Versioned layout for cross-strategy decoding (v3=1, v4=2, ...)
-        return abi.encode(uint8(1), positionTokenId, address(pool), tickLower, tickUpper);
-    }
-
-    /**
-     * @notice Returns the total strategy value in underlying units (LP position + idle balances).
+     * @notice Returns the total strategy value in underlying units (LP position + fees + idle balances).
      * @dev Uses spot/TWAP pricing depending on `twapWindow`. Includes:
      *      (1) liquidity-only valuation of the LP position,
-     *      (2) idle underlying balance, and
-     *      (3) idle otherToken converted into underlying at the same price.
+     *      (2) uncollected fees (tokensOwed) converted into underlying at the same price,
+     *      (3) idle underlying balance, and
+     *      (4) idle otherToken converted into underlying at the same price.
      * @return total Value in underlying units.
      * @custom:invariant View function must not mutate state.
      */
@@ -653,6 +653,24 @@ contract SFUniswapV3Strategy is
         uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
 
         uint256 value = _positionValueAtSqrtPrice(sqrtPriceX96);
+
+        // Include uncollected fees (tokensOwed) in total assets.
+        if (positionTokenId != 0) {
+            address t0 = PositionReader._getAddress(positionManager, positionTokenId, 2);
+            address t1 = PositionReader._getAddress(positionManager, positionTokenId, 3);
+            uint128 owed0 = PositionReader._getUint128(positionManager, positionTokenId, 10);
+            uint128 owed1 = PositionReader._getUint128(positionManager, positionTokenId, 11);
+
+            if (owed0 > 0) {
+                if (t0 == address(underlying)) value += uint256(owed0);
+                else if (t0 == address(otherToken)) value += _quoteOtherAsUnderlyingAtSqrtPrice(uint256(owed0), sqrtPriceX96);
+            }
+
+            if (owed1 > 0) {
+                if (t1 == address(underlying)) value += uint256(owed1);
+                else if (t1 == address(otherToken)) value += _quoteOtherAsUnderlyingAtSqrtPrice(uint256(owed1), sqrtPriceX96);
+            }
+        }
 
         uint256 idleU = underlying.balanceOf(address(this));
         if (idleU > 0) value += idleU;
@@ -735,14 +753,13 @@ contract SFUniswapV3Strategy is
      * @dev Decodes the strategy action bundle used for deposit/withdraw/harvest/fee collection.
      *      Expected encoding:
      *      `abi.encode(uint16 otherRatioBPS, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`.
-     *      If `_data.length == 0`, defaults are used (50/50 ratio, no swaps, `pmDeadline = block.timestamp`, mins = 0).
+     *      If `_data.length == 0`, defaults are used (0% to `otherToken`, no swaps, `pmDeadline = block.timestamp`, mins = 0).
      * @param _data ABI-encoded action data.
      * @return p_ Decoded `V3ActionData` struct.
      * @custom:invariant `otherRatioBPS` must be `<= MAX_BPS` and `pmDeadline >= block.timestamp` when provided.
      */
     function _decodeV3ActionData(bytes memory _data) internal view returns (V3ActionData memory p_) {
         // Defaults: no swap (0% to otherToken), and immediate position management deadline.
-        // Payloads in `data` MUST be provided to swap.
         if (_data.length == 0) {
             p_.otherRatioBPS = 0;
             p_.pmDeadline = block.timestamp;
@@ -753,10 +770,10 @@ contract SFUniswapV3Strategy is
             abi.decode(_data, (uint16, bytes, bytes, uint256, uint256, uint256));
 
         require(p_.otherRatioBPS <= MAX_BPS, SFUniswapV3Strategy__InvalidRebalanceParams());
-        require(p_.pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidStrategyData());
 
-        // If caller requests swapping some of the deposit into otherToken, they must provide swap calldata.
-        if (p_.otherRatioBPS > 0) require(p_.swapToOtherData.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
+        if (p_.pmDeadline == 0) p_.pmDeadline = block.timestamp + DEFAULT_PM_DEADLINE;
+
+        require(p_.pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidStrategyData());
     }
 
     /**
@@ -764,6 +781,10 @@ contract SFUniswapV3Strategy is
      *      `_data` MUST be encoded as `abi.encode(bytes[] inputs, uint256 deadline)` where each `inputs[i]` is the
      *      Universal Router input for a `Commands.V3_SWAP_EXACT_IN` action. Commands are constructed internally.
      *      Passing empty `_data` is treated as a no-op (useful for tests/emergency paths).
+     *      Sentinel rules for safer defaults:
+     *      - If `amountIn` has the high-bit flag set, its low 16 bits are treated as BPS (0..10_000) of `_amount`.
+     *        The actual amountIn is computed at runtime and a TWAP-based minOut is enforced.
+     *      - If `deadline == 0`, it is replaced with `block.timestamp + DEFAULT_SWAP_DEADLINE`.
      * @param _amount Amount of tokens intended to be swapped.
      * @param _data ABI-encoded Universal Router inputs + deadline: `abi.encode(bytes[] inputs, uint256 deadline)`.
      * @param _zeroForOne If true, swaps `underlying -> otherToken`; otherwise swaps `otherToken -> underlying`.
@@ -777,56 +798,129 @@ contract SFUniswapV3Strategy is
         //  Expect data as `abi.encode(bytes[] inputs, uint256 deadline)`
         (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
         require(inputs.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
+        if (deadline == 0) deadline = block.timestamp + DEFAULT_SWAP_DEADLINE;
+
         require(deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
 
-        bytes memory commands = new bytes(inputs.length);
-        IERC20 tokenIn = _zeroForOne ? underlying : otherToken;
-        address expectedIn = address(tokenIn);
-        address expectedOut = _zeroForOne ? address(otherToken) : address(underlying);
-
-        uint256 totalIn;
-
-        for (uint256 i; i < inputs.length; ++i) {
-            commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
-
-            // (recipient, amountIn, amountOutMin, path, payerIsUser)
-            (address recipient, uint256 amountIn,, bytes memory path, bool payerIsUser) =
-                abi.decode(inputs[i], (address, uint256, uint256, bytes, bool));
-
-            // Safety checks
-            require(recipient == address(this), SFUniswapV3Strategy__InvalidStrategyData());
-            require(payerIsUser, SFUniswapV3Strategy__InvalidStrategyData());
-
-            _validateSingleHopPath(path, expectedIn, expectedOut);
-
-            totalIn += amountIn;
-        }
+        (bytes memory commands, bytes[] memory patchedInputs, uint256 totalIn) =
+            _buildSwapInputs(inputs, _amount, _zeroForOne);
 
         // Allow dust / unexpected extra balance in the contract
         // We only require that swap inputs sum to `_amount`.
         require(totalIn <= _amount, SFUniswapV3Strategy__InvalidStrategyData());
 
-        // Enforce we actually have enough `tokenIn` to cover swap payload
-        require(tokenIn.balanceOf(address(this)) >= totalIn, SFUniswapV3Strategy__InvalidStrategyData());
+        IERC20 tokenIn = _zeroForOne ? underlying : otherToken;
+        address expectedOut = _zeroForOne ? address(otherToken) : address(underlying);
 
-        uint256 amountToSwap = totalIn;
+        _executeSwap(tokenIn, expectedOut, commands, patchedInputs, totalIn, deadline);
+    }
+
+    function _buildSwapInputs(bytes[] memory _inputs, uint256 _amount, bool _zeroForOne)
+        internal
+        view
+        returns (bytes memory commands_, bytes[] memory patchedInputs_, uint256 totalIn_)
+    {
+        commands_ = new bytes(_inputs.length);
+        patchedInputs_ = new bytes[](_inputs.length);
+
+        uint160 _sqrtPriceX96;
+        bool _hasPrice;
+
+        for (uint256 i; i < _inputs.length; ++i) {
+            commands_[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
+
+            (bytes memory patched, uint256 actualAmountIn, uint160 newSqrtPriceX96, bool newHasPrice) =
+                _patchSwapInput(_inputs[i], _amount, _zeroForOne, _sqrtPriceX96, _hasPrice);
+
+            totalIn_ += actualAmountIn;
+            patchedInputs_[i] = patched;
+            _sqrtPriceX96 = newSqrtPriceX96;
+            _hasPrice = newHasPrice;
+        }
+    }
+
+    function _executeSwap(
+        IERC20 _tokenIn,
+        address _expectedOut,
+        bytes memory _commands,
+        bytes[] memory _patchedInputs,
+        uint256 _totalIn,
+        uint256 _deadline
+    ) internal {
+        // Enforce we actually have enough `tokenIn` to cover swap payload
+        require(_tokenIn.balanceOf(address(this)) >= _totalIn, SFUniswapV3Strategy__InvalidStrategyData());
 
         // Make UniversalRouter swaps work, as it pays via Permit2
-        _ensurePermit2Max(tokenIn);
+        _ensurePermit2Max(_tokenIn);
 
         // Not strictly needed for Permit2, but doesn't hurt
-        tokenIn.forceApprove(address(universalRouter), amountToSwap);
+        _tokenIn.forceApprove(address(universalRouter), _totalIn);
 
-        uint256 outBefore = IERC20(expectedOut).balanceOf(address(this));
+        uint256 _outBefore = IERC20(_expectedOut).balanceOf(address(this));
 
-        universalRouter.execute(commands, inputs, deadline);
+        universalRouter.execute(_commands, _patchedInputs, _deadline);
 
-        uint256 outAfter = IERC20(expectedOut).balanceOf(address(this));
+        uint256 _outAfter = IERC20(_expectedOut).balanceOf(address(this));
 
-        emit OnSwapExecuted(address(tokenIn), expectedOut, amountToSwap, outAfter - outBefore);
+        emit OnSwapExecuted(address(_tokenIn), _expectedOut, _totalIn, _outAfter - _outBefore);
 
         // Clear allowance
-        tokenIn.forceApprove(address(universalRouter), 0);
+        _tokenIn.forceApprove(address(universalRouter), 0);
+    }
+
+    function _patchSwapInput(
+        bytes memory _input,
+        uint256 _amount,
+        bool _zeroForOne,
+        uint160 _sqrtPriceX96,
+        bool _hasPrice
+    )
+        internal
+        view
+        returns (bytes memory patched_, uint256 actualAmountIn_, uint160 newSqrtPriceX96_, bool newHasPrice_)
+    {
+        // (recipient, amountIn, amountOutMin, path, payerIsUser)
+        (address _recipient, uint256 _amountIn, uint256 _minOut, bytes memory _path, bool _payerIsUser) =
+            abi.decode(_input, (address, uint256, uint256, bytes, bool));
+
+        // Safety checks
+        require(_recipient == address(this), SFUniswapV3Strategy__InvalidStrategyData());
+        require(_payerIsUser, SFUniswapV3Strategy__InvalidStrategyData());
+
+        _validateSingleHopPath(
+            _path,
+            _zeroForOne ? address(underlying) : address(otherToken),
+            _zeroForOne ? address(otherToken) : address(underlying)
+        );
+
+        actualAmountIn_ = _amountIn;
+        if ((_amountIn & AMOUNT_IN_BPS_FLAG) != 0) {
+            uint256 bps = _amountIn & AMOUNT_IN_BPS_MASK;
+            require(bps <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
+            actualAmountIn_ = math.mulDiv(_amount, bps, MAX_BPS);
+        }
+        require(actualAmountIn_ > 0, SFUniswapV3Strategy__InvalidStrategyData());
+
+        newSqrtPriceX96_ = _sqrtPriceX96;
+        newHasPrice_ = _hasPrice;
+
+        if ((_amountIn & AMOUNT_IN_BPS_FLAG) != 0) {
+            if (!newHasPrice_) {
+                newSqrtPriceX96_ = _valuationSqrtPriceX96();
+                newHasPrice_ = true;
+            }
+
+            uint256 _twapMinOut = math.mulDiv(
+                _zeroForOne
+                    ? _quoteUnderlyingAsOtherAtSqrtPrice(actualAmountIn_, newSqrtPriceX96_)
+                    : _quoteOtherAsUnderlyingAtSqrtPrice(actualAmountIn_, newSqrtPriceX96_),
+                (MAX_BPS - swapSlippageBPS),
+                MAX_BPS
+            );
+            if (_minOut < _twapMinOut) _minOut = _twapMinOut;
+        }
+
+        patched_ = abi.encode(_recipient, actualAmountIn_, _minOut, _path, _payerIsUser);
     }
 
     /**
@@ -1124,31 +1218,105 @@ contract SFUniswapV3Strategy is
     /**
      * @dev Converts an `otherToken` amount into underlying units using the given sqrt price.
      *      Assumes the pool tokens are exactly (underlying, otherToken) in either ordering.
-     * @param amountOther Amount of `otherToken` to convert.
-     * @param sqrtPriceX96 Sqrt price Q64.96 used for conversion.
+     * @param _amountOther Amount of `otherToken` to convert.
+     * @param _sqrtPriceX96 Sqrt price Q64.96 used for conversion.
      * @return amountUnderlying Underlying-equivalent amount at the given price.
      * @custom:invariant Must revert if pool tokens are inconsistent with configured `underlying`/`otherToken`.
      */
-    function _quoteOtherAsUnderlyingAtSqrtPrice(uint256 amountOther, uint160 sqrtPriceX96)
+    function _quoteOtherAsUnderlyingAtSqrtPrice(uint256 _amountOther, uint160 _sqrtPriceX96)
         internal
         view
         returns (uint256)
     {
-        if (amountOther == 0) return 0;
-        if (address(underlying) == address(otherToken)) return amountOther;
+        if (_amountOther == 0) return 0;
+        if (address(underlying) == address(otherToken)) return _amountOther;
 
         // price = token1/token0 = (sqrtPriceX96^2) / 2^192
-        uint256 priceX192 = uint256(sqrtPriceX96) * uint256(sqrtPriceX96);
-        uint256 q192 = 1 << 192;
+        uint256 _priceX192 = uint256(_sqrtPriceX96) * uint256(_sqrtPriceX96);
+        uint256 _q192 = 1 << 192;
 
         if (address(otherToken) == token0 && address(underlying) == token1) {
             // other = token0, underlying = token1 -> amountOther * price
-            return math.mulDiv(amountOther, priceX192, q192);
+            return math.mulDiv(_amountOther, _priceX192, _q192);
         } else if (address(otherToken) == token1 && address(underlying) == token0) {
             // other = token1, underlying = token0 -> amountOther / price
-            return math.mulDiv(amountOther, q192, priceX192);
+            return math.mulDiv(_amountOther, _q192, _priceX192);
         } else {
             revert SFUniswapV3Strategy__InvalidPoolTokens();
+        }
+    }
+
+    /**
+     * @dev Converts an `underlying` amount into otherToken units using the given sqrt price.
+     * @param _amountUnderlying Amount of underlying to convert.
+     * @param _sqrtPriceX96 Sqrt price Q64.96 used for conversion.
+     * @return amountOther otherToken-equivalent amount at the given price.
+     * @custom:invariant Must revert if pool tokens are inconsistent with configured `underlying`/`otherToken`.
+     */
+    function _quoteUnderlyingAsOtherAtSqrtPrice(uint256 _amountUnderlying, uint160 _sqrtPriceX96)
+        internal
+        view
+        returns (uint256)
+    {
+        if (_amountUnderlying == 0) return 0;
+        if (address(underlying) == address(otherToken)) return _amountUnderlying;
+
+        // price = token1/token0 = (sqrtPriceX96^2) / 2^192
+        uint256 _priceX192 = uint256(_sqrtPriceX96) * uint256(_sqrtPriceX96);
+        uint256 _q192 = 1 << 192;
+
+        if (address(otherToken) == token0 && address(underlying) == token1) {
+            // other = token0, underlying = token1 -> amountOther = amountUnderlying / price
+            return math.mulDiv(_amountUnderlying, _q192, _priceX192);
+        } else if (address(otherToken) == token1 && address(underlying) == token0) {
+            // other = token1, underlying = token0 -> amountOther = amountUnderlying * price
+            return math.mulDiv(_amountUnderlying, _priceX192, _q192);
+        } else {
+            revert SFUniswapV3Strategy__InvalidPoolTokens();
+        }
+    }
+
+    /**
+     * @dev Swaps balances to reach a target otherToken ratio (by value) using the current valuation price.
+     *      Requires swap payloads for the direction used.
+     * @param _otherRatioBPS Target otherToken ratio by value (BPS).
+     * @param _swapToOtherData Swap payload for underlying -> otherToken.
+     * @param _swapToUnderlyingData Swap payload for otherToken -> underlying.
+     */
+    function _swapToTargetRatio(
+        uint16 _otherRatioBPS,
+        bytes memory _swapToOtherData,
+        bytes memory _swapToUnderlyingData
+    ) internal {
+        if (_otherRatioBPS == 0) return;
+
+        uint256 _balUnderlying = underlying.balanceOf(address(this));
+        uint256 _balOther = otherToken.balanceOf(address(this));
+        if (_balUnderlying == 0 && _balOther == 0) return;
+
+        uint160 _sqrtPriceX96 = _valuationSqrtPriceX96();
+        uint256 _otherValue = _quoteOtherAsUnderlyingAtSqrtPrice(_balOther, _sqrtPriceX96);
+        uint256 _totalValue = _balUnderlying + _otherValue;
+        if (_totalValue == 0) return;
+
+        uint256 _targetOtherValue = math.mulDiv(_totalValue, uint256(_otherRatioBPS), MAX_BPS);
+
+        if (_otherValue < _targetOtherValue) {
+            uint256 _valueToSwap = _targetOtherValue - _otherValue;
+            if (_valueToSwap > 0) {
+                require(_swapToOtherData.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
+                _V3Swap(_valueToSwap, _swapToOtherData, true);
+            }
+            return;
+        }
+
+        if (_otherValue > _targetOtherValue) {
+            uint256 _excessValue = _otherValue - _targetOtherValue;
+            if (_excessValue > 0) {
+                require(_swapToUnderlyingData.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
+                uint256 amountOtherToSwap = _quoteUnderlyingAsOtherAtSqrtPrice(_excessValue, _sqrtPriceX96);
+                _V3Swap(amountOtherToSwap, _swapToUnderlyingData, false);
+            }
         }
     }
 
@@ -1249,7 +1417,13 @@ contract SFUniswapV3Strategy is
     }
 
     /// @dev required by the OZ UUPS module.
-    function _authorizeUpgrade(address newImplementation) internal view override {
+    function _authorizeUpgrade(
+        address /*newImplementation*/
+    )
+        internal
+        view
+        override
+    {
         _onlyRole(Roles.OPERATOR);
     }
 }

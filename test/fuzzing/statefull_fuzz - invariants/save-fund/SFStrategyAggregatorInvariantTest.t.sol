@@ -12,8 +12,10 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
+import {SFStrategyAggregatorLens} from "contracts/saveFunds/SFStrategyAggregatorLens.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
@@ -27,12 +29,14 @@ import {SFStrategyAggregatorHandler} from "test/helpers/handlers/SFStrategyAggre
 contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
     SFVault internal vault;
     SFStrategyAggregator internal aggregator;
+    SFStrategyAggregatorLens internal aggregatorLens;
     AddressManager internal addrMgr;
     ModuleManager internal modMgr;
     IERC20 internal asset;
 
     address internal takadao; // OPERATOR
     address internal pauser = makeAddr("pauser");
+    MockValuator internal valuator;
 
     SFStrategyAggregatorHandler internal handler;
 
@@ -55,12 +59,16 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
-        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset);
+        aggregatorLens = new SFStrategyAggregatorLens();
 
         // fee recipient often required elsewhere; keep consistent
         address feeRecipient = makeAddr("feeRecipient");
+        valuator = new MockValuator();
         vm.prank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
 
         // register the vault for aggregator's onlyContract("PROTOCOL__SF_VAULT") check
         vm.startPrank(addrMgr.owner());
@@ -97,7 +105,7 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                INVARIANTS
+                                 INVARIANTS
     //////////////////////////////////////////////////////////////*/
 
     function invariant_Aggregator_TotalWeightIsInBoundsAndMatchesActiveSum() public view {
@@ -140,7 +148,7 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
 
         uint256 idle = asset.balanceOf(address(aggregator));
 
-        assertEq(aggregator.positionValue(), strategiesSum);
+        assertEq(aggregatorLens.positionValue(address(aggregator)), strategiesSum);
         assertEq(aggregator.totalAssets(), idle + strategiesSum);
     }
 
@@ -149,7 +157,7 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
     }
 
     function invariant_Aggregator_ConfigAssetAndVaultStable() public view {
-        StrategyConfig memory cfg = aggregator.getConfig();
+        StrategyConfig memory cfg = aggregatorLens.getConfig(address(aggregator));
 
         assertEq(cfg.asset, address(asset));
         assertEq(cfg.vault, address(vault));

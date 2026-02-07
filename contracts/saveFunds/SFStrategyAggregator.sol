@@ -8,7 +8,6 @@
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
-import {ISFStrategyView} from "contracts/interfaces/saveFunds/ISFStrategyView.sol";
 import {ISFStrategyMaintenance} from "contracts/interfaces/saveFunds/ISFStrategyMaintenance.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
@@ -19,7 +18,7 @@ import {
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-import {StrategyConfig, SubStrategy} from "contracts/types/Strategies.sol";
+import {SubStrategy} from "contracts/types/Strategies.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -27,7 +26,6 @@ pragma solidity 0.8.28;
 
 contract SFStrategyAggregator is
     ISFStrategy,
-    ISFStrategyView,
     ISFStrategyMaintenance,
     Initializable,
     UUPSUpgradeable,
@@ -62,11 +60,10 @@ contract SFStrategyAggregator is
         bytes[] payloads;
     }
 
-    address public vault;
-
     uint16 public totalTargetWeightBPS; // sum of all target weights in BPS
 
     mapping(address strategy => SubStrategyMeta) private subStrategyMeta;
+    mapping(address strategy => bytes payload) private defaultWithdrawPayload;
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -106,6 +103,7 @@ contract SFStrategyAggregator is
         uint256 withdrawnAssets,
         bytes32 indexed bundleHash
     );
+    event OnDefaultWithdrawPayloadSet(address indexed strategy, bytes32 indexed payloadHash);
     event OnStrategyLossReported(
         uint256 requestedAssets,
         uint256 withdrawnAssets,
@@ -165,12 +163,11 @@ contract SFStrategyAggregator is
         _disableInitializers();
     }
 
-    function initialize(IAddressManager _addressManager, IERC20 _asset, address _vault)
+    function initialize(IAddressManager _addressManager, IERC20 _asset)
         external
         initializer
         notAddressZero(address(_addressManager))
         notAddressZero(address(_asset))
-        notAddressZero(_vault)
     {
         __UUPSUpgradeable_init();
         __ReentrancyGuardTransient_init();
@@ -179,7 +176,6 @@ contract SFStrategyAggregator is
         addressManager = _addressManager;
 
         underlying = _asset;
-        vault = _vault;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -228,6 +224,22 @@ contract SFStrategyAggregator is
         }
 
         _recomputeTotalTargetWeightBPS();
+    }
+
+    /**
+     * @notice Sets a default withdraw payload for a child strategy.
+     * @dev Only callable by an OPERATOR. Used when vault withdrawals pass an empty bundle.
+     * @param strategy Child strategy address.
+     * @param payload ABI-encoded payload to forward to the child strategy on withdraw.
+     */
+    function setDefaultWithdrawPayload(address strategy, bytes calldata payload)
+        external
+        notAddressZero(strategy)
+        onlyRole(Roles.OPERATOR)
+    {
+        require(subStrategySet.contains(strategy), SFStrategyAggregator__SubStrategyNotFound());
+        defaultWithdrawPayload[strategy] = payload;
+        emit OnDefaultWithdrawPayloadSet(strategy, keccak256(payload));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -286,6 +298,7 @@ contract SFStrategyAggregator is
         returns (uint256 investedAssets)
     {
         address[] memory allocatableStrats = _allocatableSubStrategies();
+        address vault = addressManager.getProtocolAddressByName("PROTOCOL__SF_VAULT").addr;
 
         if (allocatableStrats.length == 0) {
             underlying.safeTransfer(vault, assets);
@@ -346,6 +359,7 @@ contract SFStrategyAggregator is
         returns (uint256 withdrawnAssets)
     {
         require(assets > 0, SFStrategyAggregator__NotZeroAmount());
+        address vault = addressManager.getProtocolAddressByName("PROTOCOL__SF_VAULT").addr;
 
         // snapshot before moving anything
         uint256 prevTotalAssets = totalAssets();
@@ -519,6 +533,15 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Returns the default withdraw payload for a child strategy.
+     * @param strategy Child strategy address.
+     * @return payload ABI-encoded payload to forward to the child strategy on withdraw.
+     */
+    function getDefaultWithdrawPayload(address strategy) external view returns (bytes memory payload) {
+        return defaultWithdrawPayload[strategy];
+    }
+
+    /**
      * @notice Returns the underlying asset managed by this aggregator and all child strategies.
      * @dev Child strategies are required to return this same asset from their `asset()` function.
      * @return asset_ Address of the underlying ERC20 asset.
@@ -543,62 +566,6 @@ contract SFStrategyAggregator is
         }
 
         return sum;
-    }
-
-    /**
-     * @notice Returns high-level configuration metadata for this aggregator.
-     * @dev The returned config is intended for off-chain introspection (frontends, monitoring, etc.).
-     * @return config StrategyConfig with fields: asset, vault, pool (0 for aggregator),  paused.
-     */
-    function getConfig() external view returns (StrategyConfig memory) {
-        return StrategyConfig({
-            asset: address(underlying),
-            vault: vault,
-            pool: address(0), // aggregator has no single pool
-            paused: paused()
-        });
-    }
-
-    /**
-     * @notice Returns the total value held in child strategies (excluding idle funds held by the aggregator).
-     * @dev Sums `totalAssets()` from all registered child strategies, regardless of active status.
-     * @return value Total underlying value held inside child strategies.
-     * @custom:invariant value <= totalAssets().
-     */
-    function positionValue() external view returns (uint256) {
-        uint256 sum;
-        uint256 len = subStrategySet.length();
-
-        for (uint256 i; i < len; ++i) {
-            sum += ISFStrategy(subStrategySet.at(i)).totalAssets();
-        }
-
-        return sum;
-    }
-
-    /**
-     * @notice Returns an encoded snapshot of the sub-strategy configuration.
-     * @dev Intended for off-chain consumers. The encoding mirrors the `setConfig` input arrays.
-     * @return details ABI-encoded value: abi.encode(address[] strategies, uint16[] weightsBps, bool[] actives).
-     * @custom:invariant Decoded arrays have equal length and correspond to the current subStrategySet iteration order.
-     */
-    function getPositionDetails() external view returns (bytes memory) {
-        uint256 len = subStrategySet.length();
-
-        address[] memory strategies = new address[](len);
-        uint16[] memory weights = new uint16[](len);
-        bool[] memory actives = new bool[](len);
-
-        for (uint256 i; i < len; ++i) {
-            address s = subStrategySet.at(i);
-            SubStrategyMeta memory m = subStrategyMeta[s];
-
-            strategies[i] = s;
-            weights[i] = m.targetWeightBPS;
-            actives[i] = m.isActive;
-        }
-
-        return abi.encode(strategies, weights, actives);
     }
 
     /**
@@ -818,12 +785,11 @@ contract SFStrategyAggregator is
             uint256 toAsk = maxW > (_remaining - sent_) ? (_remaining - sent_) : maxW;
             if (toAsk == 0) continue;
 
-            uint256 got = ISFStrategy(stratAddr)
-                .withdraw(toAsk, address(this), _payloadFor(stratAddr, _dataStrategies, _perChildData));
+            bytes memory payload = _payloadForWithdraw(stratAddr, _dataStrategies, _perChildData);
 
-            emit OnChildWithdraw(
-                stratAddr, _receiver, toAsk, got, keccak256(_payloadFor(stratAddr, _dataStrategies, _perChildData))
-            );
+            uint256 got = ISFStrategy(stratAddr).withdraw(toAsk, address(this), payload);
+
+            emit OnChildWithdraw(stratAddr, _receiver, toAsk, got, keccak256(payload));
 
             if (got == 0) continue;
 
@@ -844,6 +810,25 @@ contract SFStrategyAggregator is
         uint256 shortfall = requestedAssets - withdrawnAssets;
 
         emit OnStrategyLossReported(requestedAssets, withdrawnAssets, prevTotalAssets, newTotalAssets, shortfall);
+    }
+
+    /**
+     * @dev Returns the withdraw payload for `_strategy`. If `_strategy` is not present in `_strategies`,
+     *      falls back to the default withdraw payload configured for that strategy.
+     * @param _strategy Strategy to look up.
+     * @param _strategies Strategy addresses in the payload bundle.
+     * @param _payloads Payloads aligned to `_strategies` by index.
+     * @return payload_ Payload for `_strategy` (bundle override or default).
+     */
+    function _payloadForWithdraw(address _strategy, address[] memory _strategies, bytes[] memory _payloads)
+        internal
+        view
+        returns (bytes memory payload_)
+    {
+        for (uint256 i; i < _strategies.length; ++i) {
+            if (_strategies[i] == _strategy) return _payloads[i];
+        }
+        return defaultWithdrawPayload[_strategy];
     }
 
     /// @dev required by the OZ UUPS module.

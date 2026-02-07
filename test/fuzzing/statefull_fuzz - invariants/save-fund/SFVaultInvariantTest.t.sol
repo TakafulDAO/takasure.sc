@@ -3,20 +3,18 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {StdInvariant} from "forge-std/StdInvariant.sol";
-
+import {MockSFStrategy} from "test/mocks/MockSFStrategy.sol";
 import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {DeploySFVault} from "test/utils/05-DeploySFVault.s.sol";
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-
 import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
-
 import {SFVaultHandler} from "test/helpers/handlers/SFVaultHandler.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 
 contract SFVaultInvariantTest is StdInvariant, Test {
     SFVault internal vault;
@@ -26,6 +24,7 @@ contract SFVaultInvariantTest is StdInvariant, Test {
 
     address internal takadao;
     address internal feeRecipient;
+    MockValuator internal valuator;
 
     SFVaultHandler internal handler;
 
@@ -49,8 +48,15 @@ contract SFVaultInvariantTest is StdInvariant, Test {
 
         // Ensure fee recipient exists (used by takeFees + preview fee branches)
         feeRecipient = makeAddr("feeRecipient");
-        vm.prank(addrMgr.owner());
-        addrMgr.addProtocolAddress("SF_VAULT_FEE_RECIPIENT", feeRecipient, ProtocolAddressType.Admin);
+        MockSFStrategy aggregator = new MockSFStrategy(address(vault), vault.asset());
+        valuator = new MockValuator();
+
+        vm.startPrank(addrMgr.owner());
+        addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
+        vm.stopPrank();
 
         handler = new SFVaultHandler(vault, asset, addrMgr, takadao);
 
@@ -76,7 +82,7 @@ contract SFVaultInvariantTest is StdInvariant, Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                INVARIANTS
+                                 INVARIANTS
     //////////////////////////////////////////////////////////////*/
 
     function invariant_SFVault_totalAssetsEqualsIdlePlusAggregator() public view {
@@ -105,11 +111,9 @@ contract SFVaultInvariantTest is StdInvariant, Test {
     }
 
     function invariant_SFVault_whitelistCapsStayInBounds() public view {
-        address[] memory tokens = vault.getWhitelistedTokens();
-        for (uint256 i = 0; i < tokens.length; i++) {
-            assertTrue(tokens[i] != address(0));
-            assertTrue(vault.tokenHardCapBPS(tokens[i]) <= MAX_BPS);
-        }
+        address underlying = address(asset);
+        assertTrue(vault.isTokenWhitelisted(underlying));
+        assertTrue(vault.tokenHardCapBPS(underlying) <= MAX_BPS);
     }
 
     function invariant_SFVault_previewZeroIsZero() public view {
