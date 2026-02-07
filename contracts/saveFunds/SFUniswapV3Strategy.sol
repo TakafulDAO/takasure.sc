@@ -46,6 +46,13 @@ contract SFUniswapV3Strategy is
     //////////////////////////////////////////////////////////////*/
 
     uint16 internal constant MAX_BPS = 10_000;
+    // Sentinel format for "amountIn":
+    // - If high bit is set (AMOUNT_IN_BPS_FLAG), low 16 bits are BPS (0..10000) of the swap base amount.
+    // - Otherwise, amountIn is treated as a literal token amount.
+    uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
+    uint256 internal constant AMOUNT_IN_BPS_MASK = 0xFFFF;
+    uint256 internal constant DEFAULT_SWAP_DEADLINE = 300; // 5 minutes
+    uint256 internal constant DEFAULT_PM_DEADLINE = 300; // 5 minutes
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -71,6 +78,7 @@ contract SFUniswapV3Strategy is
     int24 public tickLower;
     int24 public tickUpper;
     uint32 public twapWindow; // seconds; 0 => spot
+    uint16 public swapSlippageBPS;
 
     struct V3ActionData {
         uint16 otherRatioBPS; // 0..10000 (default 5000)
@@ -101,6 +109,7 @@ contract SFUniswapV3Strategy is
     );
     event OnLiquidityDecreased(uint256 indexed tokenId, uint128 liquidityRemoved, uint256 amount0, uint256 amount1);
     event OnSwapExecuted(address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut);
+    event OnSwapSlippageBPSUpdated(uint16 oldBps, uint16 newBps);
     event OnPositionMinted(
         uint256 indexed tokenId, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 amount0, uint256 amount1
     );
@@ -206,6 +215,7 @@ contract SFUniswapV3Strategy is
         );
 
         twapWindow = 1800; // 30 minutes
+        swapSlippageBPS = 100; // 1%
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -240,6 +250,19 @@ contract SFUniswapV3Strategy is
         uint32 old = twapWindow;
         twapWindow = newWindow;
         emit TwapWindowUpdated(old, newWindow);
+    }
+
+    /**
+     * @notice Updates the swap slippage tolerance (in BPS) used for TWAP-based minOut checks.
+     * @dev Only callable by `Roles.OPERATOR`. 0 disables slippage discount; MAX_BPS allows any output.
+     * @param newBps New slippage tolerance in BPS (0..10_000).
+     */
+    function setSwapSlippageBPS(uint16 newBps) external {
+        _onlyRole(Roles.OPERATOR);
+        require(newBps <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
+        uint16 old = swapSlippageBPS;
+        swapSlippageBPS = newBps;
+        emit OnSwapSlippageBPSUpdated(old, newBps);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -728,6 +751,9 @@ contract SFUniswapV3Strategy is
             abi.decode(_data, (uint16, bytes, bytes, uint256, uint256, uint256));
 
         require(p_.otherRatioBPS <= MAX_BPS, SFUniswapV3Strategy__InvalidRebalanceParams());
+
+        if (p_.pmDeadline == 0) p_.pmDeadline = block.timestamp + DEFAULT_PM_DEADLINE;
+
         require(p_.pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidStrategyData());
     }
 
@@ -736,6 +762,10 @@ contract SFUniswapV3Strategy is
      *      `_data` MUST be encoded as `abi.encode(bytes[] inputs, uint256 deadline)` where each `inputs[i]` is the
      *      Universal Router input for a `Commands.V3_SWAP_EXACT_IN` action. Commands are constructed internally.
      *      Passing empty `_data` is treated as a no-op (useful for tests/emergency paths).
+     *      Sentinel rules for safer defaults:
+     *      - If `amountIn` has the high-bit flag set, its low 16 bits are treated as BPS (0..10_000) of `_amount`.
+     *        The actual amountIn is computed at runtime and a TWAP-based minOut is enforced.
+     *      - If `deadline == 0`, it is replaced with `block.timestamp + DEFAULT_SWAP_DEADLINE`.
      * @param _amount Amount of tokens intended to be swapped.
      * @param _data ABI-encoded Universal Router inputs + deadline: `abi.encode(bytes[] inputs, uint256 deadline)`.
      * @param _zeroForOne If true, swaps `underlying -> otherToken`; otherwise swaps `otherToken -> underlying`.
@@ -749,56 +779,129 @@ contract SFUniswapV3Strategy is
         //  Expect data as `abi.encode(bytes[] inputs, uint256 deadline)`
         (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
         require(inputs.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
+        if (deadline == 0) deadline = block.timestamp + DEFAULT_SWAP_DEADLINE;
+
         require(deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
 
-        bytes memory commands = new bytes(inputs.length);
-        IERC20 tokenIn = _zeroForOne ? underlying : otherToken;
-        address expectedIn = address(tokenIn);
-        address expectedOut = _zeroForOne ? address(otherToken) : address(underlying);
-
-        uint256 totalIn;
-
-        for (uint256 i; i < inputs.length; ++i) {
-            commands[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
-
-            // (recipient, amountIn, amountOutMin, path, payerIsUser)
-            (address recipient, uint256 amountIn,, bytes memory path, bool payerIsUser) =
-                abi.decode(inputs[i], (address, uint256, uint256, bytes, bool));
-
-            // Safety checks
-            require(recipient == address(this), SFUniswapV3Strategy__InvalidStrategyData());
-            require(payerIsUser, SFUniswapV3Strategy__InvalidStrategyData());
-
-            _validateSingleHopPath(path, expectedIn, expectedOut);
-
-            totalIn += amountIn;
-        }
+        (bytes memory commands, bytes[] memory patchedInputs, uint256 totalIn) =
+            _buildSwapInputs(inputs, _amount, _zeroForOne);
 
         // Allow dust / unexpected extra balance in the contract
         // We only require that swap inputs sum to `_amount`.
         require(totalIn <= _amount, SFUniswapV3Strategy__InvalidStrategyData());
 
-        // Enforce we actually have enough `tokenIn` to cover swap payload
-        require(tokenIn.balanceOf(address(this)) >= totalIn, SFUniswapV3Strategy__InvalidStrategyData());
+        IERC20 tokenIn = _zeroForOne ? underlying : otherToken;
+        address expectedOut = _zeroForOne ? address(otherToken) : address(underlying);
 
-        uint256 amountToSwap = totalIn;
+        _executeSwap(tokenIn, expectedOut, commands, patchedInputs, totalIn, deadline);
+    }
+
+    function _buildSwapInputs(bytes[] memory _inputs, uint256 _amount, bool _zeroForOne)
+        internal
+        view
+        returns (bytes memory commands_, bytes[] memory patchedInputs_, uint256 totalIn_)
+    {
+        commands_ = new bytes(_inputs.length);
+        patchedInputs_ = new bytes[](_inputs.length);
+
+        uint160 _sqrtPriceX96;
+        bool _hasPrice;
+
+        for (uint256 i; i < _inputs.length; ++i) {
+            commands_[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
+
+            (bytes memory patched, uint256 actualAmountIn, uint160 newSqrtPriceX96, bool newHasPrice) =
+                _patchSwapInput(_inputs[i], _amount, _zeroForOne, _sqrtPriceX96, _hasPrice);
+
+            totalIn_ += actualAmountIn;
+            patchedInputs_[i] = patched;
+            _sqrtPriceX96 = newSqrtPriceX96;
+            _hasPrice = newHasPrice;
+        }
+    }
+
+    function _executeSwap(
+        IERC20 _tokenIn,
+        address _expectedOut,
+        bytes memory _commands,
+        bytes[] memory _patchedInputs,
+        uint256 _totalIn,
+        uint256 _deadline
+    ) internal {
+        // Enforce we actually have enough `tokenIn` to cover swap payload
+        require(_tokenIn.balanceOf(address(this)) >= _totalIn, SFUniswapV3Strategy__InvalidStrategyData());
 
         // Make UniversalRouter swaps work, as it pays via Permit2
-        _ensurePermit2Max(tokenIn);
+        _ensurePermit2Max(_tokenIn);
 
         // Not strictly needed for Permit2, but doesn't hurt
-        tokenIn.forceApprove(address(universalRouter), amountToSwap);
+        _tokenIn.forceApprove(address(universalRouter), _totalIn);
 
-        uint256 outBefore = IERC20(expectedOut).balanceOf(address(this));
+        uint256 _outBefore = IERC20(_expectedOut).balanceOf(address(this));
 
-        universalRouter.execute(commands, inputs, deadline);
+        universalRouter.execute(_commands, _patchedInputs, _deadline);
 
-        uint256 outAfter = IERC20(expectedOut).balanceOf(address(this));
+        uint256 _outAfter = IERC20(_expectedOut).balanceOf(address(this));
 
-        emit OnSwapExecuted(address(tokenIn), expectedOut, amountToSwap, outAfter - outBefore);
+        emit OnSwapExecuted(address(_tokenIn), _expectedOut, _totalIn, _outAfter - _outBefore);
 
         // Clear allowance
-        tokenIn.forceApprove(address(universalRouter), 0);
+        _tokenIn.forceApprove(address(universalRouter), 0);
+    }
+
+    function _patchSwapInput(
+        bytes memory _input,
+        uint256 _amount,
+        bool _zeroForOne,
+        uint160 _sqrtPriceX96,
+        bool _hasPrice
+    )
+        internal
+        view
+        returns (bytes memory patched_, uint256 actualAmountIn_, uint160 newSqrtPriceX96_, bool newHasPrice_)
+    {
+        // (recipient, amountIn, amountOutMin, path, payerIsUser)
+        (address _recipient, uint256 _amountIn, uint256 _minOut, bytes memory _path, bool _payerIsUser) =
+            abi.decode(_input, (address, uint256, uint256, bytes, bool));
+
+        // Safety checks
+        require(_recipient == address(this), SFUniswapV3Strategy__InvalidStrategyData());
+        require(_payerIsUser, SFUniswapV3Strategy__InvalidStrategyData());
+
+        _validateSingleHopPath(
+            _path,
+            _zeroForOne ? address(underlying) : address(otherToken),
+            _zeroForOne ? address(otherToken) : address(underlying)
+        );
+
+        actualAmountIn_ = _amountIn;
+        if ((_amountIn & AMOUNT_IN_BPS_FLAG) != 0) {
+            uint256 bps = _amountIn & AMOUNT_IN_BPS_MASK;
+            require(bps <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
+            actualAmountIn_ = math.mulDiv(_amount, bps, MAX_BPS);
+        }
+        require(actualAmountIn_ > 0, SFUniswapV3Strategy__InvalidStrategyData());
+
+        newSqrtPriceX96_ = _sqrtPriceX96;
+        newHasPrice_ = _hasPrice;
+
+        if ((_amountIn & AMOUNT_IN_BPS_FLAG) != 0) {
+            if (!newHasPrice_) {
+                newSqrtPriceX96_ = _valuationSqrtPriceX96();
+                newHasPrice_ = true;
+            }
+
+            uint256 _twapMinOut = math.mulDiv(
+                _zeroForOne
+                    ? _quoteUnderlyingAsOtherAtSqrtPrice(actualAmountIn_, newSqrtPriceX96_)
+                    : _quoteOtherAsUnderlyingAtSqrtPrice(actualAmountIn_, newSqrtPriceX96_),
+                (MAX_BPS - swapSlippageBPS),
+                MAX_BPS
+            );
+            if (_minOut < _twapMinOut) _minOut = _twapMinOut;
+        }
+
+        patched_ = abi.encode(_recipient, actualAmountIn_, _minOut, _path, _payerIsUser);
     }
 
     /**
