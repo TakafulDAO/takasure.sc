@@ -15,6 +15,7 @@ import {SFStrategyAggregatorLens} from "contracts/saveFunds/SFStrategyAggregator
 import {SFUniswapV3StrategyLens} from "contracts/saveFunds/SFUniswapV3StrategyLens.sol";
 import {SFLens} from "contracts/saveFunds/SFLens.sol";
 import {UniswapV3MathHelper} from "contracts/helpers/uniswapHelpers/UniswapV3MathHelper.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
@@ -175,7 +176,22 @@ contract DeploySFMainnet is DeploymentArtifacts {
         SFTwapValuator(sfTwapValuatorAddr).setValuationPool(USDT_ARBITRUM, POOL);
         SFTwapValuator(sfTwapValuatorAddr).setTwapWindow(1800);
         SFStrategyAggregator(sfStrategyAggregatorAddr).addSubStrategy(sfUniswapV3StrategyAddr, 10_000);
-        SFStrategyAggregator(sfStrategyAggregatorAddr).setDefaultWithdrawPayload(sfUniswapV3StrategyAddr, bytes(""));
+        {
+            uint256 amountInBpsFlag = (uint256(1) << 255) | 10_000; // swap 100% of balance
+            uint24 poolFee = IUniswapV3Pool(POOL).fee();
+            bytes memory path = abi.encodePacked(USDT_ARBITRUM, poolFee, usdcAddress.arbMainnetUSDC);
+
+            bytes[] memory inputs = new bytes[](1);
+            inputs[0] = abi.encode(sfUniswapV3StrategyAddr, amountInBpsFlag, uint256(0), path, true);
+
+            bytes memory swapToUnderlyingData = abi.encode(inputs, uint256(0)); // deadline sentinel
+            bytes memory defaultWithdrawPayload =
+                abi.encode(uint16(0), bytes(""), swapToUnderlyingData, uint256(0), uint256(0), uint256(0));
+
+            SFStrategyAggregator(sfStrategyAggregatorAddr).setDefaultWithdrawPayload(
+                sfUniswapV3StrategyAddr, defaultWithdrawPayload
+            );
+        }
 
         // Propose new operator before transferring ownership
         addressManager.proposeRoleHolder(Roles.OPERATOR, OPERATOR_MULTISIG);
@@ -290,7 +306,7 @@ aggregator.getSubStrategies().length == 1
 address(aggregator.getSubStrategies()[0].strategy) == uniV3Strategy
 aggregator.getSubStrategies()[0].targetWeightBPS == 100
 aggregator.getSubStrategies()[0].isActive == true
-aggregator.getDefaultWithdrawPayload(uniV3Strategy).length == 0
+aggregator.getDefaultWithdrawPayload(uniV3Strategy).length > 0
 addressManager.getProtocolAddressByName("PROTOCOL__SF_VAULT").addr == sfVault
 addressManager.currentRoleHolders(Roles.OPERATOR) == OPERATOR_MULTISIG
 addressManager.hasRole(Roles.OPERATOR, OPERATOR_MULTISIG) == true
