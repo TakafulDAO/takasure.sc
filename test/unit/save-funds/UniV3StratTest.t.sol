@@ -62,6 +62,8 @@ contract UniV3SwapHelper is IUniswapV3SwapCallback {
         if (amount0Delta > 0) token0.safeTransfer(msg.sender, uint256(amount0Delta));
         if (amount1Delta > 0) token1.safeTransfer(msg.sender, uint256(amount1Delta));
     }
+
+    function test() public {}
 }
 
 contract UniV3StratTest is Test {
