@@ -129,8 +129,7 @@ contract WithdrawAggregatorTest is Test {
 
     function testAggregator_withdraw_PullsFromStrategiesWhenIdleInsufficient() public {
         TestSubStrategy s1 = new TestSubStrategy(asset);
-        vm.prank(takadao);
-        aggregator.addSubStrategy(address(s1), 10_000);
+        _addStrategyWithDefault(address(s1), 10_000, true);
 
         // fund + invest 1000 into s1
         _fundAggregator(1_000);
@@ -151,10 +150,8 @@ contract WithdrawAggregatorTest is Test {
         TestSubStrategy s1 = new TestSubStrategy(asset);
         TestSubStrategy s2 = new TestSubStrategy(asset);
 
-        vm.startPrank(takadao);
-        aggregator.addSubStrategy(address(s1), 5000);
-        aggregator.addSubStrategy(address(s2), 5000);
-        vm.stopPrank();
+        _addStrategyWithDefault(address(s1), 5000, true);
+        _addStrategyWithDefault(address(s2), 5000, true);
 
         // put funds directly in both strategies (no need to go through deposit for this branch)
         deal(address(asset), address(s1), 1_000);
@@ -173,10 +170,8 @@ contract WithdrawAggregatorTest is Test {
         TestSubStrategy s1 = new TestSubStrategy(asset);
         TestSubStrategy s2 = new TestSubStrategy(asset);
 
-        vm.startPrank(takadao);
-        aggregator.addSubStrategy(address(s1), 5000);
-        aggregator.addSubStrategy(address(s2), 5000);
-        vm.stopPrank();
+        _addStrategyWithDefault(address(s1), 5000, true);
+        _addStrategyWithDefault(address(s2), 5000, true);
 
         deal(address(asset), address(s1), 1_000);
         deal(address(asset), address(s2), 1_000);
@@ -192,8 +187,7 @@ contract WithdrawAggregatorTest is Test {
     function testAggregator_withdraw_EmitsLossWhenUnableToWithdrawFull() public {
         // Use a strategy that only returns half of what it withdraws (forcing loss branch)
         TestSubStrategy s1 = new TestSubStrategy(asset);
-        vm.prank(takadao);
-        aggregator.addSubStrategy(address(s1), 10_000);
+        _addStrategyWithDefault(address(s1), 10_000, true);
 
         // give strategy only 400 so withdrawing 800 cannot be satisfied
         deal(address(asset), address(s1), 400);
@@ -208,7 +202,7 @@ contract WithdrawAggregatorTest is Test {
 
     function testAggregator_withdraw_WhenIdleIsZero_PullsFromChildAndTransfersReceiver() public {
         RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
-        _addStrategy(address(s1), 10000, true);
+        _addStrategyWithDefault(address(s1), 10000, true);
 
         // ensure aggregator idle == 0; fund strategy directly
         _fundStrategy(address(s1), 500);
@@ -224,7 +218,7 @@ contract WithdrawAggregatorTest is Test {
 
     function testAggregator_withdraw_UsesDefaultPayloadWhenDataEmpty() public {
         RecorderSubStrategy s1 = new RecorderSubStrategy(asset);
-        _addStrategy(address(s1), 10000, true);
+        _addStrategyWithDefault(address(s1), 10000, true);
 
         bytes memory payload = abi.encode(uint256(123), address(this));
         vm.prank(takadao);
@@ -251,6 +245,13 @@ contract WithdrawAggregatorTest is Test {
             vm.prank(takadao);
             aggregator.updateSubStrategy(s, w, false);
         }
+    }
+
+    function _addStrategyWithDefault(address s, uint16 w, bool active) internal {
+        _addStrategy(s, w, active);
+        bytes memory payload = abi.encode(uint256(1));
+        vm.prank(takadao);
+        aggregator.setDefaultWithdrawPayload(s, payload);
     }
 
     function _fundStrategy(address strat, uint256 amount) internal {

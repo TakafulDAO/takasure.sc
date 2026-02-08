@@ -83,7 +83,14 @@ contract SFStrategyAggregatorHandler is Test {
 
         vm.prank(operator);
         (bool ok,) = address(aggregator).call(abi.encodeWithSelector(aggregator.addSubStrategy.selector, s, w));
-        ok;
+        if (ok) {
+            bytes memory payload = abi.encode(uint256(1));
+            vm.prank(operator);
+            (bool ok2,) = address(aggregator).call(
+                abi.encodeWithSelector(aggregator.setDefaultWithdrawPayload.selector, s, payload)
+            );
+            ok2;
+        }
     }
 
     function opUpdateSubStrategy(uint256 stratSeed, uint16 weightIn, bool active) external {

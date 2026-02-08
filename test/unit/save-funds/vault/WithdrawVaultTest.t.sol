@@ -81,6 +81,8 @@ contract WithdrawVaultTest is Test {
         TestSubStrategy s1 = new TestSubStrategy(asset);
         vm.prank(takadao);
         aggregator.addSubStrategy(address(s1), 10_000);
+        vm.prank(takadao);
+        aggregator.setDefaultWithdrawPayload(address(s1), abi.encode(uint256(1)));
 
         uint256 depositAmt = 1_000 * ONE_USDC;
         _prepareUser(user, depositAmt);
