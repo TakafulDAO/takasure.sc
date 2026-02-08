@@ -778,28 +778,29 @@ contract SFStrategyAggregator is
         address[] memory _dataStrategies,
         bytes[] memory _perChildData
     ) internal returns (uint256 sent_) {
-        uint256 len = subStrategySet.length();
+        uint256 _len = subStrategySet.length();
 
-        for (uint256 i; i < len && sent_ < _remaining; ++i) {
-            address stratAddr = subStrategySet.at(i);
+        for (uint256 i; i < _len && sent_ < _remaining; ++i) {
+            address _stratAddr = subStrategySet.at(i);
 
-            uint256 maxW = ISFStrategy(stratAddr).maxWithdraw();
-            if (maxW == 0) continue;
+            uint256 _maxW = ISFStrategy(_stratAddr).maxWithdraw();
+            if (_maxW == 0) continue;
 
-            uint256 toAsk = maxW > (_remaining - sent_) ? (_remaining - sent_) : maxW;
-            if (toAsk == 0) continue;
+            uint256 _toAsk = _maxW > (_remaining - sent_) ? (_remaining - sent_) : _maxW;
+            if (_toAsk == 0) continue;
 
-            bytes memory payload = _payloadForWithdraw(stratAddr, _dataStrategies, _perChildData);
-            require(payload.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
+            bytes memory _payload = _payloadForWithdraw(_stratAddr, _dataStrategies, _perChildData);
+            require(_payload.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
+            if (_isUniV3Strategy(_stratAddr)) _validateUniV3WithdrawPayload(_payload);
 
-            uint256 got = ISFStrategy(stratAddr).withdraw(toAsk, address(this), payload);
+            uint256 _got = ISFStrategy(_stratAddr).withdraw(_toAsk, address(this), _payload);
 
-            emit OnChildWithdraw(stratAddr, _receiver, toAsk, got, keccak256(payload));
+            emit OnChildWithdraw(_stratAddr, _receiver, _toAsk, _got, keccak256(_payload));
 
-            if (got == 0) continue;
+            if (_got == 0) continue;
 
-            underlying.safeTransfer(_receiver, got);
-            sent_ += got;
+            underlying.safeTransfer(_receiver, _got);
+            sent_ += _got;
         }
     }
 
@@ -846,16 +847,36 @@ contract SFStrategyAggregator is
         return true;
     }
 
-    function _validateUniV3WithdrawPayload(bytes calldata _payload) internal pure {
-        (,, bytes memory _swapToUnderlyingData,,,) =
+    function _validateUniV3WithdrawPayload(bytes memory _payload) internal pure {
+        (uint16 _otherRatioBPS, bytes memory _swapToOtherData, bytes memory _swapToUnderlyingData,,,) =
             abi.decode(_payload, (uint16, bytes, bytes, uint256, uint256, uint256));
 
-        // Require a swap-to-underlying payload to avoid overestimating liquidity.
-        require(_swapToUnderlyingData.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
+        require(_otherRatioBPS <= MAX_BPS, SFStrategyAggregator__InvalidWithdrawPayload());
 
-        // Must include at least one swap input for V3 router.
-        (bytes[] memory inputs,) = abi.decode(_swapToUnderlyingData, (bytes[], uint256));
-        require(inputs.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
+        // Require a swap-to-underlying payload to avoid overestimating liquidity.
+        _validateUniV3SwapData(_swapToUnderlyingData);
+
+        // If operator is requesting a non-zero target ratio, swap-to-other must also be valid.
+        if (_otherRatioBPS > 0) _validateUniV3SwapData(_swapToOtherData);
+    }
+
+    function _validateUniV3SwapData(bytes memory _swapData) internal pure {
+        require(_swapData.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
+
+        (bytes[] memory _inputs,) = abi.decode(_swapData, (bytes[], uint256));
+        require(_inputs.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
+
+        for (uint256 i; i < _inputs.length; ++i) {
+            (address _recipient, uint256 _amountIn,, bytes memory _path, bool _payerIsUser) =
+                abi.decode(_inputs[i], (address, uint256, uint256, bytes, bool));
+
+            require(_recipient != address(0), SFStrategyAggregator__InvalidWithdrawPayload());
+            require(_payerIsUser, SFStrategyAggregator__InvalidWithdrawPayload());
+            require(_amountIn != 0, SFStrategyAggregator__InvalidWithdrawPayload());
+
+            // UniV3 single-hop path: tokenIn(20) + fee(3) + tokenOut(20) = 43 bytes
+            require(_path.length == 43, SFStrategyAggregator__InvalidWithdrawPayload());
+        }
     }
 
     /// @dev required by the OZ UUPS module.
