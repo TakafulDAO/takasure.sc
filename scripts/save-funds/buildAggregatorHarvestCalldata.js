@@ -150,6 +150,45 @@ function main() {
                 "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
                 "  (Or provide raw: --swapToOtherData <0x> --swapToUnderlyingData <0x>)",
                 "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --data <0x...>",
+                "",
+                "Examples:",
+                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js \\",
+                "    --strategies 0xStrat1,0xStrat2",
+                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js \\",
+                "    --strategies 0xStrat1,0xStrat2 \\",
+                "    --payloads 0xdeadbeef,0x",
+                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js \\",
+                "    --strategies 0xStrat1 \\",
+                "    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 10000 \\",
+                "    --pmDeadline 0",
+                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --data 0x",
+                "",
+                "Flags",
+                "  --data <0x>                         Raw ABI-encoded data for harvest(bytes).",
+                "  --minOther <uint>                   Min other token out for PM actions (encoded in payload).",
+                "  --minUnderlying <uint>              Min underlying out for PM actions (encoded in payload).",
+                "  --otherRatioBps <bps>               Target otherToken ratio (0..10000) for action data.",
+                "  --payloads <p1,p2>                  Per-strategy payloads (hex). Length must match strategies.",
+                "  --pmDeadline <uint>                 PM deadline (0 = sentinel).",
+                "  --strategies <a,b>                  Strategy addresses for the bundle.",
+                "  --swapToOtherAmountIn <uint>        Swap input amount for otherToken path (absolute).",
+                "  --swapToOtherAmountOutMin <uint>    Swap min out for otherToken path.",
+                "  --swapToOtherBps <bps>              Swap input amount as BPS sentinel (0..10000).",
+                "  --swapToOtherData <0x>              Raw swapToOtherData bytes (overrides builder).",
+                "  --swapToOtherDeadline <uint>        Swap deadline for otherToken path.",
+                "  --swapToOtherFee <fee>              Uniswap V3 pool fee for otherToken path.",
+                "  --swapToOtherRecipient <addr>       Swap recipient (should be strategy address).",
+                "  --swapToOtherTokenIn <addr>         Swap tokenIn for otherToken path.",
+                "  --swapToOtherTokenOut <addr>        Swap tokenOut for otherToken path.",
+                "  --swapToUnderlyingAmountIn <uint>   Swap input amount for underlying path (absolute).",
+                "  --swapToUnderlyingAmountOutMin <uint>  Swap min out for underlying path.",
+                "  --swapToUnderlyingBps <bps>         Swap input amount as BPS sentinel (0..10000).",
+                "  --swapToUnderlyingData <0x>         Raw swapToUnderlyingData bytes (overrides builder).",
+                "  --swapToUnderlyingDeadline <uint>   Swap deadline for underlying path.",
+                "  --swapToUnderlyingFee <fee>         Uniswap V3 pool fee for underlying path.",
+                "  --swapToUnderlyingRecipient <addr>  Swap recipient (should be strategy address).",
+                "  --swapToUnderlyingTokenIn <addr>    Swap tokenIn for underlying path.",
+                "  --swapToUnderlyingTokenOut <addr>   Swap tokenOut for underlying path.",
             ].join("\n"),
         )
         process.exit(0)
@@ -165,7 +204,8 @@ function main() {
         const payloads = parseList(getArg("payloads"), "payloads")
         if (strategies) {
             let finalPayloads = payloads
-            const wantsSwapBuild = hasSwapBuilderArgs("swapToOther") || hasSwapBuilderArgs("swapToUnderlying")
+            const wantsSwapBuild =
+                hasSwapBuilderArgs("swapToOther") || hasSwapBuilderArgs("swapToUnderlying")
             const wantsActionData = Boolean(
                 getArg("otherRatioBps") ||
                     getArg("swapToOtherData") ||
@@ -181,7 +221,9 @@ function main() {
                     finalPayloads = strategies.map(() => "0x")
                 } else {
                     if (wantsSwapBuild && strategies.length > 1) {
-                        console.error("swap data builder supports a single strategy (recipient must be that strategy)")
+                        console.error(
+                            "swap data builder supports a single strategy (recipient must be that strategy)",
+                        )
                         process.exit(1)
                     }
 
@@ -202,7 +244,14 @@ function main() {
 
                     const payload = utils.defaultAbiCoder.encode(
                         ["uint16", "bytes", "bytes", "uint256", "uint256", "uint256"],
-                        [otherRatioBps, swapToOtherData, swapToUnderlyingData, pmDeadline, minUnderlying, minOther],
+                        [
+                            otherRatioBps,
+                            swapToOtherData,
+                            swapToUnderlyingData,
+                            pmDeadline,
+                            minUnderlying,
+                            minOther,
+                        ],
                     )
                     finalPayloads = strategies.map(() => payload)
                 }
@@ -211,7 +260,10 @@ function main() {
                 console.error("strategies and payloads length mismatch")
                 process.exit(1)
             }
-            data = utils.defaultAbiCoder.encode(["address[]", "bytes[]"], [strategies, finalPayloads])
+            data = utils.defaultAbiCoder.encode(
+                ["address[]", "bytes[]"],
+                [strategies, finalPayloads],
+            )
         }
     }
 
