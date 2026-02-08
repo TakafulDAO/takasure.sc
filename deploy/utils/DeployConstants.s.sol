@@ -140,6 +140,7 @@ abstract contract DeployConstants {
 
     address public constant SF_OPERATOR_ARB_ONE = 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F;
     address public constant SF_FEE_RECEIVER_ARB_ONE = 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F;
+    address public constant SF_PAUSE_GUARDIAN_ARB_ONE = 0xbc946180771866c56981075A5eb9e3Efc7077cb9;
     address public constant SF_BACKEND_ADMIN_ARB_ONE = 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe;
 
     address public constant SF_OPERATOR_ARB_SEPOLIA = 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1;

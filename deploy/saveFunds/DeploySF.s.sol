@@ -224,7 +224,7 @@ contract DeploySF is DeploymentArtifacts, GetContractAddress {
         if (_chainId == ARB_MAINNET_CHAIN_ID) {
             cfg_.operator = SF_OPERATOR_ARB_ONE;
             cfg_.feeReceiver = SF_FEE_RECEIVER_ARB_ONE;
-            cfg_.pauseGuardian = SF_OPERATOR_ARB_ONE;
+            cfg_.pauseGuardian = SF_PAUSE_GUARDIAN_ARB_ONE;
             cfg_.backendAdmin = SF_BACKEND_ADMIN_ARB_ONE;
             cfg_.pool = SF_UNI_POOL_ARB_ONE;
             cfg_.usdc = usdcAddress.arbMainnetUSDC;
