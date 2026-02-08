@@ -1,20 +1,39 @@
 /*
 Builds calldata for SFStrategyAggregator.rebalance(bytes data).
-You can provide human-readable strategies + payloads (bundle), or pass raw --data.
+You can provide:
+  - raw --data (already ABI-encoded), or
+  - --strategies with optional --payloads (defaults to empty bytes per strategy), or
+  - --strategies with rebalance params (ticks + optional action data), which will be
+    encoded into a payload and applied to every strategy in the list.
 
-Example (bundle):
+Example (bundle, explicit payloads):
+  node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
+    --strategies 0xStrat1,0xStrat2 \
+    --payloads 0xdeadbeef,0x
+
+Example (human-readable UniV3 rebalance):
   node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
     --strategies 0xStrat1 \
-    --payloads 0xdeadbeef
+    --tickLower -400 --tickUpper 400 \
+    --pmDeadline 1700000000 --minUnderlying 0 --minOther 0
 
-Example (raw data):
+Example (human-readable UniV3 rebalance, encoding with action data):
+  node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
+    --strategies 0xStrat1 \
+    --tickLower -400 --tickUpper 400 \
+    --otherRatioBps 5000 \
+    --swapToOtherTokenIn 0xUSDC --swapToOtherTokenOut 0xUSDT --swapToOtherFee 500 --swapToOtherBps 5000 \
+    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 5000 \
+    --pmDeadline 0
+
+Example (raw data / rebalance all active):
   node scripts/save-funds/buildAggregatorRebalanceCalldata.js --data 0x
 
 Output:
   data: 0x...
   rebalanceCalldata: 0x...
 */
-const { utils } = require("ethers")
+const { BigNumber, utils } = require("ethers")
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -37,12 +56,102 @@ function parseList(value, label) {
     return items
 }
 
+function parseIntArg(value, label) {
+    const n = Number(value)
+    if (!Number.isFinite(n)) {
+        console.error(`Invalid ${label}: ${value}`)
+        process.exit(1)
+    }
+    return n
+}
+
+function parseUint(value, label) {
+    try {
+        return BigNumber.from(value)
+    } catch (e) {
+        console.error(`Invalid ${label}: ${value}`)
+        process.exit(1)
+    }
+}
+
+function parseBps(value, label) {
+    const v = BigNumber.from(value)
+    if (v.lt(0) || v.gt(10000)) {
+        console.error(`${label} must be between 0 and 10000`)
+        process.exit(1)
+    }
+    return v
+}
+
+function encodePath(tokenIn, fee, tokenOut) {
+    return utils.solidityPack(["address", "uint24", "address"], [tokenIn, fee, tokenOut])
+}
+
+function buildSwapData(prefix, defaultRecipient) {
+    const dataRaw = getArg(`${prefix}Data`)
+    if (dataRaw) return dataRaw
+
+    const tokenIn = getArg(`${prefix}TokenIn`)
+    const tokenOut = getArg(`${prefix}TokenOut`)
+    const fee = getArg(`${prefix}Fee`)
+    const bps = getArg(`${prefix}Bps`)
+    const amountInRaw = getArg(`${prefix}AmountIn`)
+
+    // No builder inputs
+    if (!tokenIn && !tokenOut && !fee && !bps && !amountInRaw) return "0x"
+
+    if (!tokenIn || !tokenOut || !fee) {
+        console.error(`${prefix}: tokenIn, tokenOut and fee are required to build swap data`)
+        process.exit(1)
+    }
+
+    if (!bps && !amountInRaw) {
+        console.error(`${prefix}: either bps or amountIn is required`)
+        process.exit(1)
+    }
+
+    if (bps && amountInRaw) {
+        console.error(`${prefix}: provide either bps or amountIn (not both)`)
+        process.exit(1)
+    }
+
+    const recipient = getArg(`${prefix}Recipient`, defaultRecipient || "")
+    if (!recipient) {
+        console.error(`${prefix}: recipient is required (use --${prefix}Recipient)`)
+        process.exit(1)
+    }
+
+    const amountOutMin = parseUint(getArg(`${prefix}AmountOutMin`, "0"), `${prefix}AmountOutMin`)
+    const deadline = parseUint(getArg(`${prefix}Deadline`, "0"), `${prefix}Deadline`)
+
+    let amountIn
+    if (amountInRaw) {
+        amountIn = parseUint(amountInRaw, `${prefix}AmountIn`)
+    } else {
+        const AMOUNT_IN_BPS_FLAG = BigNumber.from(1).shl(255)
+        amountIn = AMOUNT_IN_BPS_FLAG.or(parseBps(bps, `${prefix}Bps`))
+    }
+
+    const path = encodePath(tokenIn, parseUint(fee, `${prefix}Fee`), tokenOut)
+    const input = utils.defaultAbiCoder.encode(
+        ["address", "uint256", "uint256", "bytes", "bool"],
+        [recipient, amountIn, amountOutMin, path, true],
+    )
+    return utils.defaultAbiCoder.encode(["bytes[]", "uint256"], [[input], deadline])
+}
+
 function main() {
     if (process.argv.includes("--help")) {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildAggregatorRebalanceCalldata.js --strategies <a,b> --payloads <p1,p2>",
+                "  node scripts/save-funds/buildAggregatorRebalanceCalldata.js --strategies <a,b> [--payloads <p1,p2>]",
+                "  node scripts/save-funds/buildAggregatorRebalanceCalldata.js --strategies <a,b> --tickLower <int> --tickUpper <int> [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
+                "  node scripts/save-funds/buildAggregatorRebalanceCalldata.js --strategies <a,b> --tickLower <int> --tickUpper <int> --otherRatioBps <bps> \\",
+                "    --swapToOtherTokenIn <addr> --swapToOtherTokenOut <addr> --swapToOtherFee <fee> --swapToOtherBps <bps> \\",
+                "    --swapToUnderlyingTokenIn <addr> --swapToUnderlyingTokenOut <addr> --swapToUnderlyingFee <fee> --swapToUnderlyingBps <bps> \\",
+                "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
+                "  (Or provide raw: --swapToOtherData <0x> --swapToUnderlyingData <0x>)",
                 "  node scripts/save-funds/buildAggregatorRebalanceCalldata.js --data <0x...>",
             ].join("\n"),
         )
@@ -57,12 +166,95 @@ function main() {
     } else {
         const strategies = parseList(getArg("strategies"), "strategies")
         const payloads = parseList(getArg("payloads"), "payloads")
-        if (strategies && payloads) {
-            if (strategies.length !== payloads.length) {
+        const tickLowerArg = getArg("tickLower")
+        const tickUpperArg = getArg("tickUpper")
+
+        if (strategies) {
+            let finalPayloads = payloads
+            const singleStrategy = strategies.length === 1 ? strategies[0] : ""
+
+            if (!finalPayloads && tickLowerArg !== undefined && tickUpperArg !== undefined) {
+                const tickLower = parseIntArg(tickLowerArg, "tickLower")
+                const tickUpper = parseIntArg(tickUpperArg, "tickUpper")
+
+                const actionDataRaw = getArg("actionData")
+                const otherRatioBps = getArg("otherRatioBps")
+                let swapToOtherData = getArg("swapToOtherData", "0x")
+                let swapToUnderlyingData = getArg("swapToUnderlyingData", "0x")
+                const pmDeadline = parseUint(getArg("pmDeadline", "0"), "pmDeadline")
+                const minUnderlying = parseUint(getArg("minUnderlying", "0"), "minUnderlying")
+                const minOther = parseUint(getArg("minOther", "0"), "minOther")
+
+                let payload
+
+                if (actionDataRaw) {
+                    payload = utils.defaultAbiCoder.encode(
+                        ["int24", "int24", "bytes"],
+                        [tickLower, tickUpper, actionDataRaw],
+                    )
+                } else if (
+                    otherRatioBps !== undefined ||
+                    swapToOtherData !== "0x" ||
+                    swapToUnderlyingData !== "0x"
+                ) {
+                    if (strategies.length > 1) {
+                        console.error(
+                            "swap data builder supports a single strategy (recipient must be that strategy)",
+                        )
+                        process.exit(1)
+                    }
+                    if (swapToOtherData === "0x") {
+                        swapToOtherData = buildSwapData("swapToOther", singleStrategy)
+                    }
+                    if (swapToUnderlyingData === "0x") {
+                        swapToUnderlyingData = buildSwapData("swapToUnderlying", singleStrategy)
+                    }
+
+                    const ratio = Number(otherRatioBps || 0)
+                    if (!Number.isFinite(ratio) || ratio < 0 || ratio > 10000) {
+                        console.error(`Invalid otherRatioBps (0..10000): ${otherRatioBps}`)
+                        process.exit(1)
+                    }
+                    const actionData = utils.defaultAbiCoder.encode(
+                        ["uint16", "bytes", "bytes", "uint256", "uint256", "uint256"],
+                        [
+                            ratio,
+                            swapToOtherData,
+                            swapToUnderlyingData,
+                            pmDeadline,
+                            minUnderlying,
+                            minOther,
+                        ],
+                    )
+                    payload = utils.defaultAbiCoder.encode(
+                        ["int24", "int24", "bytes"],
+                        [tickLower, tickUpper, actionData],
+                    )
+                } else {
+                    if (pmDeadline.isZero()) {
+                        console.error("pmDeadline is required for legacy rebalance encoding")
+                        process.exit(1)
+                    }
+                    payload = utils.defaultAbiCoder.encode(
+                        ["int24", "int24", "uint256", "uint256", "uint256"],
+                        [tickLower, tickUpper, pmDeadline, minUnderlying, minOther],
+                    )
+                }
+
+                finalPayloads = strategies.map(() => payload)
+            } else if (!finalPayloads) {
+                finalPayloads = strategies.map(() => "0x")
+            }
+
+            if (strategies.length !== finalPayloads.length) {
                 console.error("strategies and payloads length mismatch")
                 process.exit(1)
             }
-            data = utils.defaultAbiCoder.encode(["address[]", "bytes[]"], [strategies, payloads])
+
+            data = utils.defaultAbiCoder.encode(
+                ["address[]", "bytes[]"],
+                [strategies, finalPayloads],
+            )
         }
     }
 
