@@ -123,6 +123,7 @@ contract SFStrategyAggregator is
     error SFStrategyAggregator__StrategyNotAContract();
     error SFStrategyAggregator__InvalidStrategyAsset();
     error SFStrategyAggregator__InvalidPerStrategyData();
+    error SFStrategyAggregator__InvalidWithdrawPayload();
     error SFStrategyAggregator__UnknownPerStrategyDataStrategy();
     error SFStrategyAggregator__DuplicatePerStrategyDataStrategy();
 
@@ -786,6 +787,7 @@ contract SFStrategyAggregator is
             if (toAsk == 0) continue;
 
             bytes memory payload = _payloadForWithdraw(stratAddr, _dataStrategies, _perChildData);
+            require(payload.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
 
             uint256 got = ISFStrategy(stratAddr).withdraw(toAsk, address(this), payload);
 
