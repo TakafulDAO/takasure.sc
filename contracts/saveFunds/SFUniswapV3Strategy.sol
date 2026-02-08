@@ -298,7 +298,7 @@ contract SFUniswapV3Strategy is
         if (tokenId_ != 0) {
             uint128 liquidity = PositionReader._getUint128(positionManager, tokenId_, 7);
 
-            if (liquidity > 0) _decreaseLiquidityAndCollect(liquidity, bytes(""));
+            if (liquidity > 0) _decreaseLiquidityAndCollect(liquidity, block.timestamp, 0, 0);
 
             positionManager.burn(tokenId_);
             positionTokenId = 0;
@@ -421,8 +421,9 @@ contract SFUniswapV3Strategy is
         // 1. Compute fraction of LP to remove
         uint128 liquidityToBurn = _liquidityForValue(assets);
 
+        // Reuse decoded PM params to avoid redundant decoding
         if (liquidityToBurn > 0 && positionTokenId != 0) {
-            _decreaseLiquidityAndCollect(liquidityToBurn, data);
+            _decreaseLiquidityAndCollect(liquidityToBurn, p.pmDeadline, p.minUnderlying, p.minOther);
         }
 
         // 2. swap all otherToken to underlying (if swap payload provided)
@@ -501,7 +502,6 @@ contract SFUniswapV3Strategy is
         uint256 minUnderlying;
         uint256 minOther;
         V3ActionData memory p;
-        bytes memory pmData;
 
         // Backwards-compatible encoding:
         // - legacy: abi.encode(int24,int24,uint256,uint256,uint256) (160 bytes)
@@ -509,7 +509,6 @@ contract SFUniswapV3Strategy is
         if (data.length == 160) {
             (newTickLower, newTickUpper, pmDeadline, minUnderlying, minOther) =
                 abi.decode(data, (int24, int24, uint256, uint256, uint256));
-            pmData = data;
         } else {
             bytes memory actionData;
             (newTickLower, newTickUpper, actionData) = abi.decode(data, (int24, int24, bytes));
@@ -517,7 +516,6 @@ contract SFUniswapV3Strategy is
             pmDeadline = p.pmDeadline;
             minUnderlying = p.minUnderlying;
             minOther = p.minOther;
-            pmData = actionData;
         }
 
         require(pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidRebalanceParams());
@@ -541,8 +539,7 @@ contract SFUniswapV3Strategy is
         // 1) Read current liquidity and fully exit the existing position.
         uint128 currentLiquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
 
-        // IMPORTANT: pass `data` so mins+deadline are applied on exit too
-        if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, pmData);
+        if (currentLiquidity > 0) _decreaseLiquidityAndCollect(currentLiquidity, pmDeadline, minUnderlying, minOther);
 
         // 2) Burn the old NFT once all liquidity has been removed.
         positionManager.burn(positionTokenId);
@@ -662,13 +659,19 @@ contract SFUniswapV3Strategy is
             uint128 owed1 = PositionReader._getUint128(positionManager, positionTokenId, 11);
 
             if (owed0 > 0) {
-                if (t0 == address(underlying)) value += uint256(owed0);
-                else if (t0 == address(otherToken)) value += _quoteOtherAsUnderlyingAtSqrtPrice(uint256(owed0), sqrtPriceX96);
+                if (t0 == address(underlying)) {
+                    value += uint256(owed0);
+                } else if (t0 == address(otherToken)) {
+                    value += _quoteOtherAsUnderlyingAtSqrtPrice(uint256(owed0), sqrtPriceX96);
+                }
             }
 
             if (owed1 > 0) {
-                if (t1 == address(underlying)) value += uint256(owed1);
-                else if (t1 == address(otherToken)) value += _quoteOtherAsUnderlyingAtSqrtPrice(uint256(owed1), sqrtPriceX96);
+                if (t1 == address(underlying)) {
+                    value += uint256(owed1);
+                } else if (t1 == address(otherToken)) {
+                    value += _quoteOtherAsUnderlyingAtSqrtPrice(uint256(owed1), sqrtPriceX96);
+                }
             }
         }
 
@@ -700,29 +703,30 @@ contract SFUniswapV3Strategy is
 
     /**
      * @dev Decreases liquidity for the active position and collects all owed tokens to this strategy.
-     *      Slippage mins + deadline are decoded via `_decodePMParams(_data)`.
      * @param _liquidity Amount of liquidity to remove.
-     * @param _data ABI-encoded params. Accepted encodings:
-     *      - empty bytes: defaults (`deadline=block.timestamp`, mins = 0),
-     *      - rebalance params: `abi.encode(int24,int24,uint256 pmDeadline,uint256 minUnderlying,uint256 minOther)` (160 bytes),
-     *      - V3 action data: `abi.encode(uint16,bytes,bytes,uint256 pmDeadline,uint256 minUnderlying,uint256 minOther)`.
+     * @param _pmDeadline PositionManager deadline.
+     * @param _minUnderlying Slippage floor for underlying.
+     * @param _minOther Slippage floor for otherToken.
      * @custom:invariant Must only operate when `positionTokenId != 0` and must not change `positionTokenId`.
      */
-    function _decreaseLiquidityAndCollect(uint128 _liquidity, bytes memory _data) internal {
+    function _decreaseLiquidityAndCollect(
+        uint128 _liquidity,
+        uint256 _pmDeadline,
+        uint256 _minUnderlying,
+        uint256 _minOther
+    ) internal {
         require(positionTokenId != 0, SFUniswapV3Strategy__NoPosition());
-
-        (uint256 pmDeadline, uint256 minUnderlying, uint256 minOther) = _decodePMParams(_data);
 
         // Map mins according to token0/token1 ordering
         uint256 amount0Min;
         uint256 amount1Min;
 
         if (token0 == address(underlying)) {
-            amount0Min = minUnderlying;
-            amount1Min = minOther;
+            amount0Min = _minUnderlying;
+            amount1Min = _minOther;
         } else {
-            amount0Min = minOther;
-            amount1Min = minUnderlying;
+            amount0Min = _minOther;
+            amount1Min = _minUnderlying;
         }
 
         INonfungiblePositionManager.DecreaseLiquidityParams memory params =
@@ -731,7 +735,7 @@ contract SFUniswapV3Strategy is
                 liquidity: _liquidity,
                 amount0Min: amount0Min,
                 amount1Min: amount1Min,
-                deadline: pmDeadline
+                deadline: _pmDeadline
             });
 
         (uint256 amount0, uint256 amount1) = positionManager.decreaseLiquidity(params);
@@ -1318,41 +1322,6 @@ contract SFUniswapV3Strategy is
                 _V3Swap(amountOtherToSwap, _swapToUnderlyingData, false);
             }
         }
-    }
-
-    /**
-     * @dev Extracts PositionManager min amounts and deadline from flexible input encodings.
-     *      Accepted formats:
-     *      - empty bytes: defaults (`deadline=block.timestamp`, mins = 0),
-     *      - rebalance params: `abi.encode(int24,int24,uint256 pmDeadline,uint256 minUnderlying,uint256 minOther)` (160 bytes),
-     *      - V3 action data: `abi.encode(uint16,bytes,bytes,uint256 pmDeadline,uint256 minUnderlying,uint256 minOther)`.
-     * @param _data ABI-encoded parameter blob.
-     * @return pmDeadline_ Deadline for PositionManager operations.
-     * @return minUnderlying_ Slippage floor for the underlying side.
-     * @return minOther_ Slippage floor for the otherToken side.
-     * @custom:invariant Returns sane defaults when `_data` is empty and must not mutate state.
-     */
-    function _decodePMParams(bytes memory _data)
-        internal
-        view
-        returns (uint256 pmDeadline_, uint256 minUnderlying_, uint256 minOther_)
-    {
-        // defaults
-        pmDeadline_ = block.timestamp;
-        minUnderlying_ = 0;
-        minOther_ = 0;
-
-        if (_data.length == 0) return (pmDeadline_, minUnderlying_, minOther_);
-
-        // Format: (int24,int24,uint256,uint256,uint256) => 5 * 32 = 160 bytes
-        if (_data.length == 160) {
-            (,, pmDeadline_, minUnderlying_, minOther_) = abi.decode(_data, (int24, int24, uint256, uint256, uint256));
-            return (pmDeadline_, minUnderlying_, minOther_);
-        }
-
-        // Otherwise treat as V3ActionData (deposit/withdraw data schema)
-        V3ActionData memory p = _decodeV3ActionData(_data);
-        return (p.pmDeadline, p.minUnderlying, p.minOther);
     }
 
     function _ensurePermit2Max(IERC20 _tokenIn) internal {
