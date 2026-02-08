@@ -587,53 +587,13 @@ contract SFUniswapV3Strategy is
 
     /**
      * @notice Returns the maximum withdrawable amount in underlying units at current state and price.
-     * @dev Includes idle underlying held by the strategy plus the underlying-equivalent value of the LP position and owed fees.
-     *      Does not attempt to value any idle `otherToken` balance (which should normally be swept to the vault).
+     * @dev Mirrors `totalAssets()` so max-withdraw aligns with overall valuation (idle balances + LP + fees),
+     *      including `otherToken` converted to underlying at the current spot/TWAP price.
      * @return maxAssets Maximum withdrawable underlying amount.
      * @custom:invariant View function must not mutate state.
      */
     function maxWithdraw() external view returns (uint256) {
-        uint256 maxUnderlying = underlying.balanceOf(address(this));
-
-        if (positionTokenId == 0) return maxUnderlying;
-
-        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
-
-        // Pull liquidity + ticks + fees owed from the position
-        address t0 = PositionReader._getAddress(positionManager, positionTokenId, 2);
-        address t1 = PositionReader._getAddress(positionManager, positionTokenId, 3);
-        int24 tl = PositionReader._getInt24(positionManager, positionTokenId, 5);
-        int24 tu = PositionReader._getInt24(positionManager, positionTokenId, 6);
-        uint128 liquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
-        uint128 owed0 = PositionReader._getUint128(positionManager, positionTokenId, 10);
-        uint128 owed1 = PositionReader._getUint128(positionManager, positionTokenId, 11);
-
-        // Basic sanity: this strategy should only manage pools with (underlying, otherToken)
-        if (!((t0 == address(underlying) && t1 == address(otherToken))
-                    || (t0 == address(otherToken) && t1 == address(underlying)))) {
-            return maxUnderlying;
-        }
-
-        if (liquidity == 0) {
-            // Only fees are withdrawable
-            if (t0 == address(underlying)) maxUnderlying += uint256(owed0);
-            else maxUnderlying += uint256(owed1);
-            return maxUnderlying;
-        }
-
-        // Compute current amounts in the position (NO fees included)
-        (uint256 amt0, uint256 amt1) = math.getAmountsForLiquidity(
-            sqrtPriceX96, math.getSqrtRatioAtTick(tl), math.getSqrtRatioAtTick(tu), liquidity
-        );
-
-        // Only count the underlying side (other side would require swap data)
-        if (t0 == address(underlying)) {
-            maxUnderlying += amt0 + uint256(owed0);
-        } else {
-            maxUnderlying += amt1 + uint256(owed1);
-        }
-
-        return maxUnderlying;
+        return totalAssets();
     }
 
     /**

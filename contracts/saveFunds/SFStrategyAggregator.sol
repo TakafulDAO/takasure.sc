@@ -239,6 +239,9 @@ contract SFStrategyAggregator is
         onlyRole(Roles.OPERATOR)
     {
         require(subStrategySet.contains(strategy), SFStrategyAggregator__SubStrategyNotFound());
+        require(payload.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
+        if (_isUniV3Strategy(strategy)) _validateUniV3WithdrawPayload(payload);
+
         defaultWithdrawPayload[strategy] = payload;
         emit OnDefaultWithdrawPayloadSet(strategy, keccak256(payload));
     }
@@ -831,6 +834,28 @@ contract SFStrategyAggregator is
             if (_strategies[i] == _strategy) return _payloads[i];
         }
         return defaultWithdrawPayload[_strategy];
+    }
+
+    function _isUniV3Strategy(address _strategy) internal view returns (bool) {
+        (bool _okPool, bytes memory _retPool) = _strategy.staticcall(abi.encodeWithSignature("pool()"));
+        if (!_okPool || _retPool.length < 32) return false;
+
+        (bool _okOther, bytes memory _retOther) = _strategy.staticcall(abi.encodeWithSignature("otherToken()"));
+        if (!_okOther || _retOther.length < 32) return false;
+
+        return true;
+    }
+
+    function _validateUniV3WithdrawPayload(bytes calldata _payload) internal pure {
+        (,, bytes memory _swapToUnderlyingData,,,) =
+            abi.decode(_payload, (uint16, bytes, bytes, uint256, uint256, uint256));
+
+        // Require a swap-to-underlying payload to avoid overestimating liquidity.
+        require(_swapToUnderlyingData.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
+
+        // Must include at least one swap input for V3 router.
+        (bytes[] memory inputs,) = abi.decode(_swapToUnderlyingData, (bytes[], uint256));
+        require(inputs.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
     }
 
     /// @dev required by the OZ UUPS module.
