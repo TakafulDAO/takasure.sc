@@ -22,98 +22,101 @@ import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {DeploymentArtifacts} from "deploy/utils/DeploymentArtifacts.s.sol";
 
 contract DeploySFMainnet is DeploymentArtifacts {
+    struct DeploymentState {
+        address addressManager;
+        address sfVault;
+        address sfStrategyAggregator;
+        address sfUniswapV3Strategy;
+        address uniswapV3MathHelper;
+        address sfTwapValuator;
+        address sfVaultLens;
+        address sfStrategyAggregatorLens;
+        address sfUniswapV3StrategyLens;
+        address sfLens;
+    }
+
     address constant OPERATOR_MULTISIG = 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F;
     address constant BACKEND = 0x38Ea1c9243962E52ACf92CE4b4bB84879792BCbe;
     address constant FEE_RECEIVER_MULTISIG = 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F; // TODO: Change this one
     address constant POOL = 0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6;
 
     uint256 constant MAX_TVL = 20_000e6;
-    int24 constant TICK_LOWER = 2;
-    int24 constant TICK_UPPER = 3;
-
     function run()
         external
         returns (
-            address addressManagerAddr,
-            address sfVaultAddr,
-            address sfStrategyAggregatorAddr,
-            address sfUniswapV3StrategyAddr,
-            address uniswapV3MathHelperAddr,
-            address sfTwapValuatorAddr,
-            address sfVaultLensAddr,
-            address sfStrategyAggregatorLensAddr,
-            address sfUniswapV3StrategyLensAddr,
-            address sfLensAddr
+            address,
+            address,
+            address,
+            address,
+            address,
+            address,
+            address,
+            address,
+            address,
+            address
         )
     {
         vm.startBroadcast();
 
         // Deploy AddressManager
-        addressManagerAddr =
+        DeploymentState memory state;
+        state.addressManager =
             Upgrades.deployUUPSProxy("AddressManager.sol", abi.encodeCall(AddressManager.initialize, (msg.sender)));
 
-        AddressManager addressManager = AddressManager(addressManagerAddr);
-        console2.log("AddressManager deployed at:", addressManagerAddr);
+        AddressManager addressManager = AddressManager(state.addressManager);
+        console2.log("AddressManager deployed at:", state.addressManager);
 
         // Deploy SFVault
-        sfVaultAddr = Upgrades.deployUUPSProxy(
+        state.sfVault = Upgrades.deployUUPSProxy(
             "SFVault.sol",
             abi.encodeCall(
                 SFVault.initialize,
-                (IAddressManager(addressManagerAddr), IERC20(usdcAddress.arbMainnetUSDC), "TLDSaveVault", "TLDSV")
+                (IAddressManager(state.addressManager), IERC20(usdcAddress.arbMainnetUSDC), "TLDSaveVault", "TLDSV")
             )
         );
-        console2.log("SFVault deployed at:", sfVaultAddr);
+        console2.log("SFVault deployed at:", state.sfVault);
 
         // Deploy SFStrategyAggregator
-        sfStrategyAggregatorAddr = Upgrades.deployUUPSProxy(
+        state.sfStrategyAggregator = Upgrades.deployUUPSProxy(
             "SFStrategyAggregator.sol",
             abi.encodeCall(
                 SFStrategyAggregator.initialize,
-                (IAddressManager(addressManagerAddr), IERC20(usdcAddress.arbMainnetUSDC))
+                (IAddressManager(state.addressManager), IERC20(usdcAddress.arbMainnetUSDC))
             )
         );
-        console2.log("SFStrategyAggregator deployed at:", sfStrategyAggregatorAddr);
+        console2.log("SFStrategyAggregator deployed at:", state.sfStrategyAggregator);
 
         // Deploy SFTwapValuator
-        sfTwapValuatorAddr = address(new SFTwapValuator(IAddressManager(addressManagerAddr), 1800));
-        console2.log("SFTwapValuator deployed at:", sfTwapValuatorAddr);
+        state.sfTwapValuator = address(new SFTwapValuator(IAddressManager(state.addressManager), 1800));
+        console2.log("SFTwapValuator deployed at:", state.sfTwapValuator);
 
         // Deploy UniswapV3MathHelper
-        uniswapV3MathHelperAddr = address(new UniswapV3MathHelper());
+        state.uniswapV3MathHelper = address(new UniswapV3MathHelper());
+
+        (, int24 currentTick,,,,,) = IUniswapV3Pool(POOL).slot0();
+        int24 tickLower = currentTick - int24(3);
+        int24 tickUpper = currentTick + int24(2);
+        console2.log("currentTick:", currentTick);
+        console2.log("tickLower:", tickLower);
+        console2.log("tickUpper:", tickUpper);
 
         // Deploy SFUniswapV3Strategy
-        sfUniswapV3StrategyAddr = Upgrades.deployUUPSProxy(
-            "SFUniswapV3Strategy.sol",
-            abi.encodeCall(
-                SFUniswapV3Strategy.initialize,
-                (
-                    IAddressManager(addressManagerAddr),
-                    sfVaultAddr,
-                    IERC20(usdcAddress.arbMainnetUSDC),
-                    IERC20(USDT_ARBITRUM),
-                    POOL,
-                    UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM,
-                    uniswapV3MathHelperAddr,
-                    MAX_TVL,
-                    UNIVERSAL_ROUTER,
-                    TICK_LOWER,
-                    TICK_UPPER
-                )
-            )
+        state.sfUniswapV3Strategy = _deployUniV3Strategy(
+            state.addressManager, state.sfVault, state.uniswapV3MathHelper, tickLower, tickUpper
         );
-        console2.log("SFUniswapV3Strategy deployed at:", sfUniswapV3StrategyAddr);
+        console2.log("SFUniswapV3Strategy deployed at:", state.sfUniswapV3Strategy);
 
         // Deploy lens contracts
-        sfVaultLensAddr = address(new SFVaultLens());
-        sfStrategyAggregatorLensAddr = address(new SFStrategyAggregatorLens());
-        sfUniswapV3StrategyLensAddr = address(new SFUniswapV3StrategyLens());
-        sfLensAddr = address(new SFLens(sfVaultLensAddr, sfStrategyAggregatorLensAddr, sfUniswapV3StrategyLensAddr));
+        state.sfVaultLens = address(new SFVaultLens());
+        state.sfStrategyAggregatorLens = address(new SFStrategyAggregatorLens());
+        state.sfUniswapV3StrategyLens = address(new SFUniswapV3StrategyLens());
+        state.sfLens =
+            address(new SFLens(state.sfVaultLens, state.sfStrategyAggregatorLens, state.sfUniswapV3StrategyLens));
 
-        console2.log("SFVaultLens deployed at:", sfVaultLensAddr);
-        console2.log("SFStrategyAggregatorLens deployed at:", sfStrategyAggregatorLensAddr);
-        console2.log("SFUniswapV3StrategyLens deployed at:", sfUniswapV3StrategyLensAddr);
-        console2.log("SFLens deployed at:", sfLensAddr);
+        console2.log("SFVaultLens deployed at:", state.sfVaultLens);
+        console2.log("SFStrategyAggregatorLens deployed at:", state.sfStrategyAggregatorLens);
+        console2.log("SFUniswapV3StrategyLens deployed at:", state.sfUniswapV3StrategyLens);
+        console2.log("SFLens deployed at:", state.sfLens);
 
         // Creating roles in AddressManager
         addressManager.createNewRole(Roles.OPERATOR);
@@ -137,25 +140,25 @@ contract DeploySFMainnet is DeploymentArtifacts {
         addressManager.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", FEE_RECEIVER_MULTISIG, ProtocolAddressType.Admin);
         addressManager.addProtocolAddress("ADMIN__OPERATOR", OPERATOR_MULTISIG, ProtocolAddressType.Admin);
         addressManager.addProtocolAddress("ADMIN__BACKEND_ADMIN", BACKEND, ProtocolAddressType.Admin);
-        addressManager.addProtocolAddress("PROTOCOL__SF_VAULT", sfVaultAddr, ProtocolAddressType.Protocol);
+        addressManager.addProtocolAddress("PROTOCOL__SF_VAULT", state.sfVault, ProtocolAddressType.Protocol);
         addressManager.addProtocolAddress(
-            "PROTOCOL__SF_AGGREGATOR", sfStrategyAggregatorAddr, ProtocolAddressType.Protocol
+            "PROTOCOL__SF_AGGREGATOR", state.sfStrategyAggregator, ProtocolAddressType.Protocol
         );
         addressManager.addProtocolAddress(
-            "PROTOCOL__SF_UNISWAP_V3_STRATEGY", sfUniswapV3StrategyAddr, ProtocolAddressType.Protocol
+            "PROTOCOL__SF_UNISWAP_V3_STRATEGY", state.sfUniswapV3Strategy, ProtocolAddressType.Protocol
         );
         addressManager.addProtocolAddress(
-            "HELPER__UNISWAP_V3_MATH_HELPER", uniswapV3MathHelperAddr, ProtocolAddressType.Helper
+            "HELPER__UNISWAP_V3_MATH_HELPER", state.uniswapV3MathHelper, ProtocolAddressType.Helper
         );
-        addressManager.addProtocolAddress("HELPER__SF_VALUATOR", sfTwapValuatorAddr, ProtocolAddressType.Helper);
-        addressManager.addProtocolAddress("HELPER__SF_VAULT_LENS", sfVaultLensAddr, ProtocolAddressType.Helper);
+        addressManager.addProtocolAddress("HELPER__SF_VALUATOR", state.sfTwapValuator, ProtocolAddressType.Helper);
+        addressManager.addProtocolAddress("HELPER__SF_VAULT_LENS", state.sfVaultLens, ProtocolAddressType.Helper);
         addressManager.addProtocolAddress(
-            "HELPER__SF_STRATEGY_AGG_LENS", sfStrategyAggregatorLensAddr, ProtocolAddressType.Helper
+            "HELPER__SF_STRATEGY_AGG_LENS", state.sfStrategyAggregatorLens, ProtocolAddressType.Helper
         );
         addressManager.addProtocolAddress(
-            "HELPER__SF_UNIV3_STRAT_LENS", sfUniswapV3StrategyLensAddr, ProtocolAddressType.Helper
+            "HELPER__SF_UNIV3_STRAT_LENS", state.sfUniswapV3StrategyLens, ProtocolAddressType.Helper
         );
-        addressManager.addProtocolAddress("HELPER__SF_LENS", sfLensAddr, ProtocolAddressType.Helper);
+        addressManager.addProtocolAddress("HELPER__SF_LENS", state.sfLens, ProtocolAddressType.Helper);
 
         // Also some usefull external addresses
         addressManager.addProtocolAddress("EXTERNAL__USDC", usdcAddress.arbMainnetUSDC, ProtocolAddressType.External);
@@ -170,28 +173,14 @@ contract DeploySFMainnet is DeploymentArtifacts {
         console2.log("Protocol addresses added in AddressManager");
 
         // Operator actions
-        SFVault(sfVaultAddr)
-            .setERC721ApprovalForAll(UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM, sfUniswapV3StrategyAddr, true);
-        SFVault(sfVaultAddr).whitelistToken(USDT_ARBITRUM);
-        SFTwapValuator(sfTwapValuatorAddr).setValuationPool(USDT_ARBITRUM, POOL);
-        SFTwapValuator(sfTwapValuatorAddr).setTwapWindow(1800);
-        SFStrategyAggregator(sfStrategyAggregatorAddr).addSubStrategy(sfUniswapV3StrategyAddr, 10_000);
-        {
-            uint256 amountInBpsFlag = (uint256(1) << 255) | 10_000; // swap 100% of balance
-            uint24 poolFee = IUniswapV3Pool(POOL).fee();
-            bytes memory path = abi.encodePacked(USDT_ARBITRUM, poolFee, usdcAddress.arbMainnetUSDC);
-
-            bytes[] memory inputs = new bytes[](1);
-            inputs[0] = abi.encode(sfUniswapV3StrategyAddr, amountInBpsFlag, uint256(0), path, true);
-
-            bytes memory swapToUnderlyingData = abi.encode(inputs, uint256(0)); // deadline sentinel
-            bytes memory defaultWithdrawPayload =
-                abi.encode(uint16(0), bytes(""), swapToUnderlyingData, uint256(0), uint256(0), uint256(0));
-
-            SFStrategyAggregator(sfStrategyAggregatorAddr).setDefaultWithdrawPayload(
-                sfUniswapV3StrategyAddr, defaultWithdrawPayload
-            );
-        }
+        SFVault(state.sfVault).setERC721ApprovalForAll(
+            UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM, state.sfUniswapV3Strategy, true
+        );
+        SFVault(state.sfVault).whitelistToken(USDT_ARBITRUM);
+        SFTwapValuator(state.sfTwapValuator).setValuationPool(USDT_ARBITRUM, POOL);
+        SFTwapValuator(state.sfTwapValuator).setTwapWindow(1800);
+        SFStrategyAggregator(state.sfStrategyAggregator).addSubStrategy(state.sfUniswapV3Strategy, 10_000);
+        _setDefaultWithdrawPayload(state.sfStrategyAggregator, state.sfUniswapV3Strategy);
 
         // Propose new operator before transferring ownership
         addressManager.proposeRoleHolder(Roles.OPERATOR, OPERATOR_MULTISIG);
@@ -202,17 +191,81 @@ contract DeploySFMainnet is DeploymentArtifacts {
 
         vm.stopBroadcast();
 
+        _writeArtifacts(state);
+
+        return (
+            state.addressManager,
+            state.sfVault,
+            state.sfStrategyAggregator,
+            state.sfUniswapV3Strategy,
+            state.uniswapV3MathHelper,
+            state.sfTwapValuator,
+            state.sfVaultLens,
+            state.sfStrategyAggregatorLens,
+            state.sfUniswapV3StrategyLens,
+            state.sfLens
+        );
+    }
+
+    function _deployUniV3Strategy(
+        address addressManagerAddr,
+        address sfVaultAddr,
+        address uniswapV3MathHelperAddr,
+        int24 tickLower,
+        int24 tickUpper
+    ) internal returns (address) {
+        return Upgrades.deployUUPSProxy(
+            "SFUniswapV3Strategy.sol",
+            abi.encodeCall(
+                SFUniswapV3Strategy.initialize,
+                (
+                    IAddressManager(addressManagerAddr),
+                    sfVaultAddr,
+                    IERC20(usdcAddress.arbMainnetUSDC),
+                    IERC20(USDT_ARBITRUM),
+                    POOL,
+                    UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM,
+                    uniswapV3MathHelperAddr,
+                    MAX_TVL,
+                    UNIVERSAL_ROUTER,
+                    tickLower,
+                    tickUpper
+                )
+            )
+        );
+    }
+
+    function _setDefaultWithdrawPayload(address sfStrategyAggregatorAddr, address sfUniswapV3StrategyAddr)
+        internal
+    {
+        uint256 amountInBpsFlag = (uint256(1) << 255) | 10_000; // swap 100% of balance
+        uint24 poolFee = IUniswapV3Pool(POOL).fee();
+        bytes memory path = abi.encodePacked(USDT_ARBITRUM, poolFee, usdcAddress.arbMainnetUSDC);
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(sfUniswapV3StrategyAddr, amountInBpsFlag, uint256(0), path, true);
+
+        bytes memory swapToUnderlyingData = abi.encode(inputs, uint256(0)); // deadline sentinel
+        bytes memory defaultWithdrawPayload =
+            abi.encode(uint16(0), bytes(""), swapToUnderlyingData, uint256(0), uint256(0), uint256(0));
+
+        SFStrategyAggregator(sfStrategyAggregatorAddr).setDefaultWithdrawPayload(
+            sfUniswapV3StrategyAddr, defaultWithdrawPayload
+        );
+    }
+
+    function _writeArtifacts(DeploymentState memory state) internal {
         DeploymentItem[] memory deployments = new DeploymentItem[](10);
-        deployments[0] = DeploymentItem({name: "AddressManager", addr: addressManagerAddr});
-        deployments[1] = DeploymentItem({name: "SFVault", addr: sfVaultAddr});
-        deployments[2] = DeploymentItem({name: "SFStrategyAggregator", addr: sfStrategyAggregatorAddr});
-        deployments[3] = DeploymentItem({name: "SFUniswapV3Strategy", addr: sfUniswapV3StrategyAddr});
-        deployments[4] = DeploymentItem({name: "UniswapV3MathHelper", addr: uniswapV3MathHelperAddr});
-        deployments[5] = DeploymentItem({name: "SFTwapValuator", addr: sfTwapValuatorAddr});
-        deployments[6] = DeploymentItem({name: "SFVaultLens", addr: sfVaultLensAddr});
-        deployments[7] = DeploymentItem({name: "SFStrategyAggregatorLens", addr: sfStrategyAggregatorLensAddr});
-        deployments[8] = DeploymentItem({name: "SFUniswapV3StrategyLens", addr: sfUniswapV3StrategyLensAddr});
-        deployments[9] = DeploymentItem({name: "SFLens", addr: sfLensAddr});
+        deployments[0] = DeploymentItem({name: "AddressManager", addr: state.addressManager});
+        deployments[1] = DeploymentItem({name: "SFVault", addr: state.sfVault});
+        deployments[2] = DeploymentItem({name: "SFStrategyAggregator", addr: state.sfStrategyAggregator});
+        deployments[3] = DeploymentItem({name: "SFUniswapV3Strategy", addr: state.sfUniswapV3Strategy});
+        deployments[4] = DeploymentItem({name: "UniswapV3MathHelper", addr: state.uniswapV3MathHelper});
+        deployments[5] = DeploymentItem({name: "SFTwapValuator", addr: state.sfTwapValuator});
+        deployments[6] = DeploymentItem({name: "SFVaultLens", addr: state.sfVaultLens});
+        deployments[7] = DeploymentItem({name: "SFStrategyAggregatorLens", addr: state.sfStrategyAggregatorLens});
+        deployments[8] = DeploymentItem({name: "SFUniswapV3StrategyLens", addr: state.sfUniswapV3StrategyLens});
+        deployments[9] = DeploymentItem({name: "SFLens", addr: state.sfLens});
 
         _writeDeployments(block.chainid, deployments);
 
@@ -225,34 +278,38 @@ contract DeploySFMainnet is DeploymentArtifacts {
         protocolAddresses[2] =
             ProtocolAddressRow({name: "ADMIN__BACKEND_ADMIN", addr: BACKEND, addrType: ProtocolAddressType.Admin});
         protocolAddresses[3] =
-            ProtocolAddressRow({name: "PROTOCOL__SF_VAULT", addr: sfVaultAddr, addrType: ProtocolAddressType.Protocol});
+            ProtocolAddressRow({name: "PROTOCOL__SF_VAULT", addr: state.sfVault, addrType: ProtocolAddressType.Protocol});
         protocolAddresses[4] = ProtocolAddressRow({
-            name: "PROTOCOL__SF_AGGREGATOR", addr: sfStrategyAggregatorAddr, addrType: ProtocolAddressType.Protocol
+            name: "PROTOCOL__SF_AGGREGATOR",
+            addr: state.sfStrategyAggregator,
+            addrType: ProtocolAddressType.Protocol
         });
         protocolAddresses[5] = ProtocolAddressRow({
             name: "PROTOCOL__SF_UNISWAP_V3_STRATEGY",
-            addr: sfUniswapV3StrategyAddr,
+            addr: state.sfUniswapV3Strategy,
             addrType: ProtocolAddressType.Protocol
         });
         protocolAddresses[6] = ProtocolAddressRow({
-            name: "HELPER__UNISWAP_V3_MATH_HELPER", addr: uniswapV3MathHelperAddr, addrType: ProtocolAddressType.Helper
+            name: "HELPER__UNISWAP_V3_MATH_HELPER", addr: state.uniswapV3MathHelper, addrType: ProtocolAddressType.Helper
         });
         protocolAddresses[7] = ProtocolAddressRow({
-            name: "HELPER__SF_VALUATOR", addr: sfTwapValuatorAddr, addrType: ProtocolAddressType.Helper
+            name: "HELPER__SF_VALUATOR", addr: state.sfTwapValuator, addrType: ProtocolAddressType.Helper
         });
         protocolAddresses[8] = ProtocolAddressRow({
-            name: "HELPER__SF_VAULT_LENS", addr: sfVaultLensAddr, addrType: ProtocolAddressType.Helper
+            name: "HELPER__SF_VAULT_LENS", addr: state.sfVaultLens, addrType: ProtocolAddressType.Helper
         });
         protocolAddresses[9] = ProtocolAddressRow({
             name: "HELPER__SF_STRATEGY_AGG_LENS",
-            addr: sfStrategyAggregatorLensAddr,
+            addr: state.sfStrategyAggregatorLens,
             addrType: ProtocolAddressType.Helper
         });
         protocolAddresses[10] = ProtocolAddressRow({
-            name: "HELPER__SF_UNIV3_STRAT_LENS", addr: sfUniswapV3StrategyLensAddr, addrType: ProtocolAddressType.Helper
+            name: "HELPER__SF_UNIV3_STRAT_LENS",
+            addr: state.sfUniswapV3StrategyLens,
+            addrType: ProtocolAddressType.Helper
         });
         protocolAddresses[11] =
-            ProtocolAddressRow({name: "HELPER__SF_LENS", addr: sfLensAddr, addrType: ProtocolAddressType.Helper});
+            ProtocolAddressRow({name: "HELPER__SF_LENS", addr: state.sfLens, addrType: ProtocolAddressType.Helper});
         protocolAddresses[12] = ProtocolAddressRow({
             name: "EXTERNAL__USDC", addr: usdcAddress.arbMainnetUSDC, addrType: ProtocolAddressType.External
         });
@@ -270,19 +327,11 @@ contract DeploySFMainnet is DeploymentArtifacts {
             name: "EXTERNAL__UNI_PERMIT_2", addr: UNI_PERMIT2_ARBITRUM, addrType: ProtocolAddressType.External
         });
 
-        _writeAddressManagerCsv(block.chainid, addressManager, protocolAddresses, "AddressManager.csv");
-
-        return (
-            addressManagerAddr,
-            sfVaultAddr,
-            sfStrategyAggregatorAddr,
-            sfUniswapV3StrategyAddr,
-            uniswapV3MathHelperAddr,
-            sfTwapValuatorAddr,
-            sfVaultLensAddr,
-            sfStrategyAggregatorLensAddr,
-            sfUniswapV3StrategyLensAddr,
-            sfLensAddr
+        _writeAddressManagerCsv(
+            block.chainid,
+            AddressManager(state.addressManager),
+            protocolAddresses,
+            "AddressManager.csv"
         );
     }
 }
