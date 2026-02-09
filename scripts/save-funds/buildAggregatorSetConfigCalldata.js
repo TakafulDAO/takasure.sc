@@ -13,6 +13,7 @@ Output:
   setConfigCalldata: 0x...
 */
 const { utils } = require("ethers")
+const { getChainConfig, resolveStrategies } = require("./chainConfig")
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -69,7 +70,7 @@ function main() {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildAggregatorSetConfigCalldata.js --strategies <a,b> --weights <w1,w2> --actives <t1,t2>",
+                "  node scripts/save-funds/buildAggregatorSetConfigCalldata.js --strategies <a,b> --weights <w1,w2> --actives <t1,t2> [--chain <arb-one|arb-sepolia>]",
                 "",
                 "Examples:",
                 "  node scripts/save-funds/buildAggregatorSetConfigCalldata.js \\",
@@ -79,14 +80,17 @@ function main() {
                 "",
                 "Flags",
                 "  --actives <t1,t2>    Strategy active flags (true/false/1/0/yes/no).",
-                "  --strategies <a,b>   Strategy addresses to configure.",
+                "  --chain <arb-one|arb-sepolia> Optional chain shortcut for strategy addresses.",
+                "  --strategies <a,b>   Strategy addresses (or uniV3 when --chain is set).",
                 "  --weights <w1,w2>    Target weights in BPS (0..10000).",
             ].join("\n"),
         )
         process.exit(0)
     }
 
-    const strategies = parseList(requireArg("strategies"), "strategies")
+    const chainCfg = getChainConfig(getArg("chain"))
+    const strategiesInput = parseList(requireArg("strategies"), "strategies")
+    const strategies = resolveStrategies(strategiesInput, chainCfg)
     const weights = parseWeights(requireArg("weights"))
     const actives = parseActives(requireArg("actives"))
 

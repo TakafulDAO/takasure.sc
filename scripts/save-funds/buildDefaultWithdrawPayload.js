@@ -19,6 +19,7 @@ Output:
   setDefaultWithdrawPayloadCalldata: 0x...
 */
 const { BigNumber, utils } = require("ethers")
+const { getChainConfig, getTokenAddresses, resolveStrategy } = require("./chainConfig")
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -64,8 +65,8 @@ function main() {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildDefaultWithdrawPayload.js --recipient <strategy> --tokenIn <USDT> --tokenOut <USDC> --fee <poolFee> --bps <0..10000>",
-                "  node scripts/save-funds/buildDefaultWithdrawPayload.js --strategy <strategy> --payload <0x...>",
+                "  node scripts/save-funds/buildDefaultWithdrawPayload.js --recipient <strategy> --tokenIn <USDT> --tokenOut <USDC> --fee <poolFee> --bps <0..10000> [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/buildDefaultWithdrawPayload.js --strategy <strategy|uniV3> --payload <0x...> [--chain <arb-one|arb-sepolia>]",
                 "",
                 "",
                 "Examples:",
@@ -91,6 +92,7 @@ function main() {
                 "Flags",
                 "  --amountOutMin <uint>    Swap min out (default 0).",
                 "  --bps <0..10000>         Swap amount as BPS sentinel.",
+                "  --chain <arb-one|arb-sepolia> Optional chain shortcut for token/strategy defaults.",
                 "  --deadline <uint>        Swap deadline (0 = sentinel).",
                 "  --fee <uint>             Uniswap V3 pool fee.",
                 "  --minOther <uint>        Min other token out for PM actions.",
@@ -99,7 +101,7 @@ function main() {
                 "  --payload <0x>           Raw payload override (skips UniV3 build).",
                 "  --pmDeadline <uint>      PM deadline (0 = sentinel).",
                 "  --recipient <addr>       Swap recipient (strategy address).",
-                "  --strategy <addr>        Strategy used for calldata (default: recipient).",
+                "  --strategy <addr>        Strategy used for calldata (default: recipient). Use uniV3 when --chain is set.",
                 "  --tokenIn <addr>         Swap tokenIn.",
                 "  --tokenOut <addr>        Swap tokenOut.",
             ].join("\n"),
@@ -107,19 +109,43 @@ function main() {
         process.exit(0)
     }
 
+    const chainCfg = getChainConfig(getArg("chain"))
     const rawPayload = getArg("payload")
-    const recipient = getArg("recipient")
-    const strategy = getArg("strategy", recipient || "")
+    const recipientArg = getArg("recipient")
+    const strategyArg = getArg("strategy")
+    let strategy = strategyArg || recipientArg || ""
+    if (chainCfg) {
+        if (!strategyArg) {
+            console.error("Missing --strategy (required when --chain is set)")
+            process.exit(1)
+        }
+        strategy = resolveStrategy(strategyArg, chainCfg)
+    } else if (strategy) {
+        strategy = resolveStrategy(strategy, chainCfg)
+    }
+
+    const recipient = recipientArg || (chainCfg ? strategy : "")
 
     let defaultWithdrawPayload = rawPayload || ""
     let swapToUnderlyingData = ""
     let amountIn = BigNumber.from(0)
 
     if (!rawPayload) {
-        const recipientReq = requireArg("recipient")
-        const tokenIn = requireArg("tokenIn")
-        const tokenOut = requireArg("tokenOut")
-        const fee = parseUint(requireArg("fee"), "fee")
+        const recipientReq = recipient || ""
+        if (!recipientReq) {
+            console.error("Missing --recipient (or provide --strategy with --chain)")
+            process.exit(1)
+        }
+
+        const tokens = chainCfg ? getTokenAddresses(chainCfg) : null
+        const tokenIn = getArg("tokenIn", tokens ? tokens.other : "")
+        const tokenOut = getArg("tokenOut", tokens ? tokens.underlying : "")
+        const feeRaw = getArg("fee")
+        if (!tokenIn || !tokenOut || !feeRaw) {
+            console.error("tokenIn, tokenOut and fee are required to build swap data")
+            process.exit(1)
+        }
+        const fee = parseUint(feeRaw, "fee")
         const bps = parseBps(requireArg("bps"), "bps")
 
         const amountOutMin = parseUint(getArg("amountOutMin", "0"), "amountOutMin")

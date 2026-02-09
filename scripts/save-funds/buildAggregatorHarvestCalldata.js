@@ -28,6 +28,7 @@ Output:
   harvestCalldata: 0x...
 */
 const { BigNumber, utils } = require("ethers")
+const { getChainConfig, getTokenAddresses, resolveStrategies } = require("./chainConfig")
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -81,16 +82,29 @@ function hasSwapBuilderArgs(prefix) {
     )
 }
 
+function getTokenDefaults(prefix, chainCfg) {
+    if (!chainCfg) return {}
+    const tokens = getTokenAddresses(chainCfg)
+    if (prefix === "swapToOther") {
+        return { tokenIn: tokens.underlying, tokenOut: tokens.other }
+    }
+    if (prefix === "swapToUnderlying") {
+        return { tokenIn: tokens.other, tokenOut: tokens.underlying }
+    }
+    return {}
+}
+
 function encodePath(tokenIn, fee, tokenOut) {
     return utils.solidityPack(["address", "uint24", "address"], [tokenIn, fee, tokenOut])
 }
 
-function buildSwapData(prefix, defaultRecipient) {
+function buildSwapData(prefix, defaultRecipient, chainCfg) {
     const dataRaw = getArg(`${prefix}Data`)
     if (dataRaw) return dataRaw
 
-    const tokenIn = getArg(`${prefix}TokenIn`)
-    const tokenOut = getArg(`${prefix}TokenOut`)
+    const defaults = getTokenDefaults(prefix, chainCfg)
+    const tokenIn = getArg(`${prefix}TokenIn`, defaults.tokenIn)
+    const tokenOut = getArg(`${prefix}TokenOut`, defaults.tokenOut)
     const fee = getArg(`${prefix}Fee`)
     const bps = getArg(`${prefix}Bps`)
     const amountInRaw = getArg(`${prefix}AmountIn`)
@@ -143,8 +157,8 @@ function main() {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --strategies <a,b> [--payloads <p1,p2>]",
-                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --strategies <addr> --otherRatioBps <bps> \\",
+                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --strategies <a,b> [--payloads <p1,p2>] [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --strategies <addr|uniV3> --otherRatioBps <bps> \\",
                 "    --swapToOtherTokenIn <addr> --swapToOtherTokenOut <addr> --swapToOtherFee <fee> --swapToOtherBps <bps> \\",
                 "    --swapToUnderlyingTokenIn <addr> --swapToUnderlyingTokenOut <addr> --swapToUnderlyingFee <fee> --swapToUnderlyingBps <bps> \\",
                 "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
@@ -158,19 +172,20 @@ function main() {
                 "    --strategies 0xStrat1,0xStrat2 \\",
                 "    --payloads 0xdeadbeef,0x",
                 "  node scripts/save-funds/buildAggregatorHarvestCalldata.js \\",
-                "    --strategies 0xStrat1 \\",
+                "    --strategies uniV3 --chain arb-one \\",
                 "    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 10000 \\",
                 "    --pmDeadline 0",
                 "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --data 0x",
                 "",
                 "Flags",
+                "  --chain <arb-one|arb-sepolia>      Optional chain shortcut for token/strategy defaults.",
                 "  --data <0x>                         Raw ABI-encoded data for harvest(bytes).",
                 "  --minOther <uint>                   Min other token out for PM actions (encoded in payload).",
                 "  --minUnderlying <uint>              Min underlying out for PM actions (encoded in payload).",
                 "  --otherRatioBps <bps>               Target otherToken ratio (0..10000) for action data.",
                 "  --payloads <p1,p2>                  Per-strategy payloads (hex). Length must match strategies.",
                 "  --pmDeadline <uint>                 PM deadline (0 = sentinel).",
-                "  --strategies <a,b>                  Strategy addresses for the bundle.",
+                "  --strategies <a,b>                  Strategy addresses (or uniV3 when --chain is set).",
                 "  --swapToOtherAmountIn <uint>        Swap input amount for otherToken path (absolute).",
                 "  --swapToOtherAmountOutMin <uint>    Swap min out for otherToken path.",
                 "  --swapToOtherBps <bps>              Swap input amount as BPS sentinel (0..10000).",
@@ -194,13 +209,15 @@ function main() {
         process.exit(0)
     }
 
+    const chainCfg = getChainConfig(getArg("chain"))
     const rawData = getArg("data")
     let data = "0x"
 
     if (rawData) {
         data = rawData
     } else {
-        const strategies = parseList(getArg("strategies"), "strategies")
+        const strategiesInput = parseList(getArg("strategies"), "strategies")
+        const strategies = strategiesInput ? resolveStrategies(strategiesInput, chainCfg) : null
         const payloads = parseList(getArg("payloads"), "payloads")
         if (strategies) {
             let finalPayloads = payloads
@@ -236,10 +253,10 @@ function main() {
 
                     const singleStrategy = strategies.length === 1 ? strategies[0] : ""
                     if (swapToOtherData === "0x") {
-                        swapToOtherData = buildSwapData("swapToOther", singleStrategy)
+                        swapToOtherData = buildSwapData("swapToOther", singleStrategy, chainCfg)
                     }
                     if (swapToUnderlyingData === "0x") {
-                        swapToUnderlyingData = buildSwapData("swapToUnderlying", singleStrategy)
+                        swapToUnderlyingData = buildSwapData("swapToUnderlying", singleStrategy, chainCfg)
                     }
 
                     const payload = utils.defaultAbiCoder.encode(

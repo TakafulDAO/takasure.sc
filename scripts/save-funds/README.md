@@ -12,12 +12,20 @@ Notes:
 Steps:
 1. Safe: approve `SFVault` to spend `100000000` USDC.
 2. Safe: call `SFVault.deposit(100000000, <SAFE_ADDRESS>)`.
-3. Build calldata for `SFVault.investIntoStrategy(...)` (full amount into UniV3):
+3. Build calldata for `SFVault.investIntoStrategy(...)` (full amount into UniV3).
+   You can pass `--chain arb-one` or `--chain arb-sepolia` to avoid typing token/strategy addresses.
 
 ```bash
 node scripts/save-funds/buildVaultInvestCalldata.js \
   --assets 100000000 \
   --strategies <UNIV3_STRATEGY_ADDRESS> \
+  --payloads 0x
+
+# or with chain shortcut + alias
+node scripts/save-funds/buildVaultInvestCalldata.js \
+  --chain arb-one \
+  --assets 100000000 \
+  --strategies uniV3 \
   --payloads 0x
 ```
 
