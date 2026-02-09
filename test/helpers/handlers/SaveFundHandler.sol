@@ -3,10 +3,9 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
-import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
-import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
+import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
+import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
