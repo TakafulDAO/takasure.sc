@@ -82,6 +82,7 @@ async function main() {
                 "  --actives <t1,t2>    Strategy active flags (true/false/1/0/yes/no).",
                 "  --chain <arb-one|arb-sepolia> Optional chain shortcut for strategy addresses.",
                 "  --sendToSafe         Propose tx to the Arbitrum One Safe (requires --chain arb-one).",
+                "  --sendTx             Send tx onchain for Arbitrum Sepolia (requires --chain arb-sepolia).",
                 "  --strategies <a,b>   Strategy addresses (or uniV3 when --chain is set).",
                 "  --weights <w1,w2>    Target weights in BPS (0..10000).",
             ].join("\n"),
@@ -90,10 +91,22 @@ async function main() {
     }
 
     const wantsSendToSafe = process.argv.includes("--sendToSafe")
-    const chainArg = getArg("chain", wantsSendToSafe ? "arb-one" : undefined)
+    const wantsSendTx = process.argv.includes("--sendTx")
+    if (wantsSendToSafe && wantsSendTx) {
+        console.error("Use only one of --sendToSafe or --sendTx")
+        process.exit(1)
+    }
+    const chainArg = getArg(
+        "chain",
+        wantsSendToSafe ? "arb-one" : wantsSendTx ? "arb-sepolia" : undefined,
+    )
     const chainCfg = getChainConfig(chainArg)
     if (wantsSendToSafe && (!chainCfg || chainCfg.name !== "arb-one")) {
         console.error("--sendToSafe is only supported for --chain arb-one")
+        process.exit(1)
+    }
+    if (wantsSendTx && (!chainCfg || chainCfg.name !== "arb-sepolia")) {
+        console.error("--sendTx is only supported for --chain arb-sepolia")
         process.exit(1)
     }
 
@@ -125,6 +138,20 @@ async function main() {
         console.log("safeAddress:", SAFE_ADDRESS)
         console.log("safeTxHash:", result.safeTxHash)
         console.log("txServiceUrl:", result.txServiceUrl)
+    }
+
+    if (wantsSendTx) {
+        const { sendOnchain } = require("./sendOnchain")
+        const target = loadDeploymentAddress(chainCfg, "SFStrategyAggregator")
+        const result = await sendOnchain({
+            to: target,
+            data: setConfigCalldata,
+            value: "0",
+            chainCfg,
+        })
+        console.log("txHash:", result.hash)
+        console.log("blockNumber:", result.blockNumber)
+        console.log("gasUsed:", result.gasUsed)
     }
 }
 

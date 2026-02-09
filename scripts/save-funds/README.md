@@ -40,3 +40,11 @@ Required env vars:
 - `SAFE_PROPOSER_PK`
 - `SAFE_RPC_URL` (or `ARBITRUM_MAINNET_RPC_URL`)
 - Optional: `SAFE_TX_SERVICE_URL`
+
+**Direct send (arb-sepolia only)**
+
+You can pass `--sendTx` to broadcast the transaction directly on Arbitrum Sepolia.
+
+Required env vars:
+- `TESTNET_PK`
+- `ARBITRUM_TESTNET_SEPOLIA_RPC_URL`

@@ -186,6 +186,7 @@ async function main() {
                 "  --assets <uint>                  Amount of underlying to invest.",
                 "  --chain <arb-one|arb-sepolia>    Optional chain shortcut for token/strategy defaults.",
                 "  --sendToSafe                    Propose tx to the Arbitrum One Safe (requires --chain arb-one).",
+                "  --sendTx                        Send tx onchain for Arbitrum Sepolia (requires --chain arb-sepolia).",
                 "  --minOther <uint>                Min other token out for PM actions.",
                 "  --minUnderlying <uint>           Min underlying out for PM actions.",
                 "  --otherRatioBps <bps>            Target otherToken ratio (0..10000).",
@@ -216,10 +217,22 @@ async function main() {
     }
 
     const wantsSendToSafe = process.argv.includes("--sendToSafe")
-    const chainArg = getArg("chain", wantsSendToSafe ? "arb-one" : undefined)
+    const wantsSendTx = process.argv.includes("--sendTx")
+    if (wantsSendToSafe && wantsSendTx) {
+        console.error("Use only one of --sendToSafe or --sendTx")
+        process.exit(1)
+    }
+    const chainArg = getArg(
+        "chain",
+        wantsSendToSafe ? "arb-one" : wantsSendTx ? "arb-sepolia" : undefined,
+    )
     const chainCfg = getChainConfig(chainArg)
     if (wantsSendToSafe && (!chainCfg || chainCfg.name !== "arb-one")) {
         console.error("--sendToSafe is only supported for --chain arb-one")
+        process.exit(1)
+    }
+    if (wantsSendTx && (!chainCfg || chainCfg.name !== "arb-sepolia")) {
+        console.error("--sendTx is only supported for --chain arb-sepolia")
         process.exit(1)
     }
 
@@ -315,6 +328,15 @@ async function main() {
         console.log("safeAddress:", SAFE_ADDRESS)
         console.log("safeTxHash:", result.safeTxHash)
         console.log("txServiceUrl:", result.txServiceUrl)
+    }
+
+    if (wantsSendTx) {
+        const { sendOnchain } = require("./sendOnchain")
+        const target = loadDeploymentAddress(chainCfg, "SFVault")
+        const result = await sendOnchain({ to: target, data: calldata, value: "0", chainCfg })
+        console.log("txHash:", result.hash)
+        console.log("blockNumber:", result.blockNumber)
+        console.log("gasUsed:", result.gasUsed)
     }
 }
 
