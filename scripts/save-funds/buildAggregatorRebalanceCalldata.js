@@ -271,7 +271,11 @@ function main() {
                         swapToOtherData = buildSwapData("swapToOther", singleStrategy, chainCfg)
                     }
                     if (swapToUnderlyingData === "0x") {
-                        swapToUnderlyingData = buildSwapData("swapToUnderlying", singleStrategy, chainCfg)
+                        swapToUnderlyingData = buildSwapData(
+                            "swapToUnderlying",
+                            singleStrategy,
+                            chainCfg,
+                        )
                     }
 
                     const ratio = Number(otherRatioBps || 0)
@@ -343,6 +347,20 @@ node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
   --swapToOtherBps 10000 \
   --swapToUnderlyingTokenIn 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9 \
   --swapToUnderlyingTokenOut 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline 0
+
+===========================================================
+
+node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
+  --chain arb-one \
+  --strategies uniV3 \
+  --tickLower -594 \
+  --tickUpper 606 \
+  --otherRatioBps 7000 \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
   --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline 0

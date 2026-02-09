@@ -298,4 +298,16 @@ node scripts/save-funds/buildVaultInvestCalldata.js \
   --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
   --pmDeadline 0
+
+===================================================================
+
+node scripts/save-funds/buildVaultInvestCalldata.js \
+  --chain arb-one \
+  --assets 1000000000 \
+  --strategies uniV3 \
+  --otherRatioBps 7000 \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
+  --pmDeadline 0
+
 */
