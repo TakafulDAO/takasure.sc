@@ -183,6 +183,10 @@ async function main() {
                 "  --chain <arb-one|arb-sepolia>    Optional chain shortcut for token/strategy defaults.",
                 "  --sendToSafe                    Propose tx to the Arbitrum One Safe (requires --chain arb-one).",
                 "  --sendTx                        Send tx onchain for Arbitrum Sepolia (requires --chain arb-sepolia).",
+                "  --simulateTenderly              Simulate on Tenderly before sending (arb-one only).",
+                "  --tenderlyGas <uint>            Gas limit override for Tenderly simulation.",
+                "  --tenderlyBlock <uint|latest>   Block number for Tenderly simulation.",
+                "  --tenderlySimulationType <str>  Optional Tenderly simulation type.",
                 "  --minOther <uint>                Min other token out for PM actions.",
                 "  --minUnderlying <uint>           Min underlying out for PM actions.",
                 "  --otherRatioBps <bps>            Target otherToken ratio (0..10000).",
@@ -214,6 +218,7 @@ async function main() {
 
     const wantsSendToSafe = process.argv.includes("--sendToSafe")
     const wantsSendTx = process.argv.includes("--sendTx")
+    const wantsSimTenderly = process.argv.includes("--simulateTenderly")
     if (wantsSendToSafe && wantsSendTx) {
         console.error("Use only one of --sendToSafe or --sendTx")
         process.exit(1)
@@ -229,6 +234,10 @@ async function main() {
     }
     if (wantsSendTx && (!chainCfg || chainCfg.name !== "arb-sepolia")) {
         console.error("--sendTx is only supported for --chain arb-sepolia")
+        process.exit(1)
+    }
+    if (wantsSimTenderly && (!chainCfg || chainCfg.name !== "arb-one")) {
+        console.error("--simulateTenderly is only supported for --chain arb-one")
         process.exit(1)
     }
 
@@ -312,6 +321,29 @@ async function main() {
     ])
 
     console.log("withdrawCalldata:", calldata)
+
+    if (wantsSimTenderly) {
+        const { SAFE_ADDRESS } = require("./safeSubmit")
+        const { simulateTenderly } = require("./tenderlySimulate")
+        const target = loadDeploymentAddress(chainCfg, "SFVault")
+        const sim = await simulateTenderly({
+            chainCfg,
+            from: SAFE_ADDRESS,
+            to: target,
+            data: calldata,
+            value: "0",
+            gas: getArg("tenderlyGas"),
+            blockNumber: getArg("tenderlyBlock"),
+            simulationType: getArg("tenderlySimulationType"),
+        })
+        if (sim.simulationId) console.log("tenderlySimulationId:", sim.simulationId)
+        if (sim.publicUrl) console.log("tenderlyPublicUrl:", sim.publicUrl)
+        if (sim.status !== true) {
+            console.error("Tenderly simulation did not return success status")
+            process.exit(1)
+        }
+        console.log("tenderlyStatus: ok")
+    }
 
     if (wantsSendToSafe) {
         const { SAFE_ADDRESS, sendToSafe } = require("./safeSubmit")

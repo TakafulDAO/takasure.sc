@@ -41,6 +41,16 @@ Required env vars:
 - `SAFE_RPC_URL` (or `ARBITRUM_MAINNET_RPC_URL`)
 - Optional: `SAFE_TX_SERVICE_URL`
 
+**Tenderly simulation (arb-one only)**
+
+You can pass `--simulateTenderly` to run a Tenderly simulation before sending to Safe.
+The script will also create a public share link (if allowed) and print `tenderlyPublicUrl`.
+
+Required env vars:
+- `TENDERLY_ACCESS_KEY`
+- `TENDERLY_ACCOUNT_SLUG`
+- `TENDERLY_PROJECT_SLUG`
+
 **Direct send (arb-sepolia only)**
 
 You can pass `--sendTx` to broadcast the transaction directly on Arbitrum Sepolia.

@@ -4,6 +4,7 @@ const path = require("path")
 const CHAINS = {
     "arb-one": {
         deploymentsDir: "mainnet_arbitrum_one",
+        chainId: "42161",
         tokens: {
             underlying: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // USDC
             other: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", // USDT
@@ -11,6 +12,7 @@ const CHAINS = {
     },
     "arb-sepolia": {
         deploymentsDir: "testnet_arbitrum_sepolia",
+        chainId: "421614",
         tokenDeployments: {
             underlying: "SFUSDC",
             other: "SFUSDT",
