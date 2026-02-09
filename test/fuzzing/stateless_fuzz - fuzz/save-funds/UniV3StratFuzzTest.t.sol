@@ -8,22 +8,18 @@ import {DeploySFStrategyAggregator} from "test/utils/06-DeploySFStrategyAggregat
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
-import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
-import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
+import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
+import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {MockValuator} from "test/mocks/MockValuator.sol";
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {UniswapV3MathHelper} from "contracts/helpers/uniswapHelpers/UniswapV3MathHelper.sol";
-
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 

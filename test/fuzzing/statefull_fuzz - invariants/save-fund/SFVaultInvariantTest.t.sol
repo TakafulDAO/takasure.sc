@@ -8,7 +8,7 @@ import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {DeploySFVault} from "test/utils/05-DeploySFVault.s.sol";
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

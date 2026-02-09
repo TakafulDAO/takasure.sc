@@ -9,21 +9,17 @@ import {DeploySFVault} from "test/utils/05-DeploySFVault.s.sol";
 import {DeploySFStrategyAggregator} from "test/utils/06-DeploySFStrategyAggregator.s.sol";
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
-import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
-import {SFStrategyAggregatorLens} from "contracts/saveFunds/SFStrategyAggregatorLens.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
+import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
+import {SFStrategyAggregatorLens} from "contracts/saveFunds/lens/SFStrategyAggregatorLens.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {MockValuator} from "test/mocks/MockValuator.sol";
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-
 import {StrategyConfig, SubStrategy} from "contracts/types/Strategies.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
-
 import {SFStrategyAggregatorHandler} from "test/helpers/handlers/SFStrategyAggregatorHandler.sol";
 
 contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {

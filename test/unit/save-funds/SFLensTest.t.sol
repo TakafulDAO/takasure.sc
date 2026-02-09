@@ -2,8 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-
-import {SFLens} from "contracts/saveFunds/SFLens.sol";
+import {SFLens} from "contracts/saveFunds/lens/SFLens.sol";
 import {StrategyConfig} from "contracts/types/Strategies.sol";
 import {MockVaultLens, MockAggregatorLens, MockUniswapLens} from "test/mocks/MockLens.sol";
 

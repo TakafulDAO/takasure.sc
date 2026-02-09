@@ -6,14 +6,11 @@ import {Test} from "forge-std/Test.sol";
 import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-import {SFTwapValuator} from "contracts/saveFunds/SFTwapValuator.sol";
-
+import {SFTwapValuator} from "contracts/saveFunds/valuator/SFTwapValuator.sol";
 import {TestERC20} from "test/mocks/TestERC20.sol";
 import {MockUniV3Pool} from "test/mocks/MockUniV3Pool.sol";
-
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 

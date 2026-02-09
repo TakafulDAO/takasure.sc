@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

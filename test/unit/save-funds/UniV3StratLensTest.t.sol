@@ -3,9 +3,8 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 
-import {SFUniswapV3StrategyLens} from "contracts/saveFunds/SFUniswapV3StrategyLens.sol";
+import {SFUniswapV3StrategyLens} from "contracts/saveFunds/lens/SFUniswapV3StrategyLens.sol";
 import {StrategyConfig} from "contracts/types/Strategies.sol";
-
 import {TestERC20} from "test/mocks/TestERC20.sol";
 import {MockUniV3Pool} from "test/mocks/MockUniV3Pool.sol";
 import {MockUniV3StrategyLensTarget} from "test/mocks/MockUniV3StrategyLensTarget.sol";

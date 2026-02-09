@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 

@@ -10,7 +10,7 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {MockSFStrategy} from "test/mocks/MockSFStrategy.sol";
 import {MockERC721ApprovalForAll} from "test/mocks/MockERC721ApprovalForAll.sol";
 import {MockValuator} from "test/mocks/MockValuator.sol";
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
