@@ -1,5 +1,5 @@
 {
-    "address": "",
+    "address": "0x2e9db0a46ab897d0e1e08cca9157d06b61f8112e",
     "abi": [
         {
             "type": "constructor",
@@ -68,54 +68,6 @@
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
-            "name": "getConfig",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "tuple",
-                    "internalType": "struct StrategyConfig",
-                    "components": [
-                        {
-                            "name": "asset",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "vault",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "pool",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "paused",
-                            "type": "bool",
-                            "internalType": "bool"
-                        }
-                    ]
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getPositionDetails",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "bytes",
-                    "internalType": "bytes"
-                }
-            ],
-            "stateMutability": "view"
         },
         {
             "type": "function",
@@ -195,19 +147,6 @@
         },
         {
             "type": "function",
-            "name": "maxDeposit",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
             "name": "maxWithdraw",
             "inputs": [],
             "outputs": [
@@ -280,19 +219,6 @@
         },
         {
             "type": "function",
-            "name": "positionValue",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
             "name": "proxiableUUID",
             "inputs": [],
             "outputs": [
@@ -332,6 +258,19 @@
         },
         {
             "type": "function",
+            "name": "setSwapSlippageBPS",
+            "inputs": [
+                {
+                    "name": "newBps",
+                    "type": "uint16",
+                    "internalType": "uint16"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "setTwapWindow",
             "inputs": [
                 {
@@ -345,6 +284,45 @@
         },
         {
             "type": "function",
+            "name": "swapSlippageBPS",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint16",
+                    "internalType": "uint16"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "tickLower",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "int24",
+                    "internalType": "int24"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "tickUpper",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "int24",
+                    "internalType": "int24"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "totalAssets",
             "inputs": [],
             "outputs": [
@@ -352,6 +330,19 @@
                     "name": "",
                     "type": "uint256",
                     "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "twapWindow",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint32",
+                    "internalType": "uint32"
                 }
             ],
             "stateMutability": "view"
@@ -686,6 +677,25 @@
                     "type": "uint256",
                     "indexed": false,
                     "internalType": "uint256"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnSwapSlippageBPSUpdated",
+            "inputs": [
+                {
+                    "name": "oldBps",
+                    "type": "uint16",
+                    "indexed": false,
+                    "internalType": "uint16"
+                },
+                {
+                    "name": "newBps",
+                    "type": "uint16",
+                    "indexed": false,
+                    "internalType": "uint16"
                 }
             ],
             "anonymous": false

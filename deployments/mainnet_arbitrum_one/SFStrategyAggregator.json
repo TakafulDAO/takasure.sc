@@ -1,5 +1,5 @@
 {
-    "address": "",
+    "address": "0xfe23a1d0e823f15a2b3af47f128dd2bd8b047a21",
     "abi": [
         {
             "type": "constructor",
@@ -102,46 +102,17 @@
         },
         {
             "type": "function",
-            "name": "getConfig",
-            "inputs": [],
-            "outputs": [
+            "name": "getDefaultWithdrawPayload",
+            "inputs": [
                 {
-                    "name": "",
-                    "type": "tuple",
-                    "internalType": "struct StrategyConfig",
-                    "components": [
-                        {
-                            "name": "asset",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "vault",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "pool",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "paused",
-                            "type": "bool",
-                            "internalType": "bool"
-                        }
-                    ]
+                    "name": "strategy",
+                    "type": "address",
+                    "internalType": "address"
                 }
             ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getPositionDetails",
-            "inputs": [],
             "outputs": [
                 {
-                    "name": "",
+                    "name": "payload",
                     "type": "bytes",
                     "internalType": "bytes"
                 }
@@ -244,19 +215,6 @@
         },
         {
             "type": "function",
-            "name": "positionValue",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
             "name": "proxiableUUID",
             "inputs": [],
             "outputs": [
@@ -300,6 +258,24 @@
             "inputs": [
                 {
                     "name": "newConfig",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setDefaultWithdrawPayload",
+            "inputs": [
+                {
+                    "name": "strategy",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "payload",
                     "type": "bytes",
                     "internalType": "bytes"
                 }
@@ -630,6 +606,25 @@
         },
         {
             "type": "event",
+            "name": "OnDefaultWithdrawPayloadSet",
+            "inputs": [
+                {
+                    "name": "strategy",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "payloadHash",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
             "name": "OnStrategyLossReported",
             "inputs": [
                 {
@@ -858,6 +853,11 @@
         {
             "type": "error",
             "name": "SFStrategyAggregator__InvalidTargetWeightBPS",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "SFStrategyAggregator__InvalidWithdrawPayload",
             "inputs": []
         },
         {

@@ -1,5 +1,5 @@
 {
-    "address": "",
+    "address": "0x6d1bd94cd572e51aa018ae6bf909ba61f8f8d4f9",
     "abi": [
         {
             "type": "constructor",
@@ -199,222 +199,6 @@
                 }
             ],
             "stateMutability": "nonpayable"
-        },
-        {
-            "type": "function",
-            "name": "getAggregatorAllocation",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getAggregatorAssets",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getIdleAssets",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getLastReport",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "lastReportTimestamp",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                },
-                {
-                    "name": "lastReportAssets",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getUserAssets",
-            "inputs": [
-                {
-                    "name": "user",
-                    "type": "address",
-                    "internalType": "address"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getUserNetDeposited",
-            "inputs": [
-                {
-                    "name": "user",
-                    "type": "address",
-                    "internalType": "address"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getUserPnL",
-            "inputs": [
-                {
-                    "name": "user",
-                    "type": "address",
-                    "internalType": "address"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "int256",
-                    "internalType": "int256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getUserShares",
-            "inputs": [
-                {
-                    "name": "user",
-                    "type": "address",
-                    "internalType": "address"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getUserTotalDeposited",
-            "inputs": [
-                {
-                    "name": "user",
-                    "type": "address",
-                    "internalType": "address"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getUserTotalWithdrawn",
-            "inputs": [
-                {
-                    "name": "user",
-                    "type": "address",
-                    "internalType": "address"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getVaultPerformanceSince",
-            "inputs": [
-                {
-                    "name": "timestamp",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "int256",
-                    "internalType": "int256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getVaultTVL",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getWhitelistedTokens",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "address[]",
-                    "internalType": "address[]"
-                }
-            ],
-            "stateMutability": "view"
         },
         {
             "type": "function",
@@ -848,7 +632,7 @@
             ],
             "outputs": [
                 {
-                    "name": "",
+                    "name": "assets",
                     "type": "uint256",
                     "internalType": "uint256"
                 }
@@ -1127,6 +911,44 @@
         },
         {
             "type": "function",
+            "name": "userTotalDeposited",
+            "inputs": [
+                {
+                    "name": "user",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "totalDeposited",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "userTotalWithdrawn",
+            "inputs": [
+                {
+                    "name": "user",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "totalWithdrawn",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "whitelistToken",
             "inputs": [
                 {
@@ -1158,19 +980,6 @@
         },
         {
             "type": "function",
-            "name": "whitelistedTokensLength",
-            "inputs": [],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "uint256",
-                    "internalType": "uint256"
-                }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
             "name": "withdraw",
             "inputs": [
                 {
@@ -1191,7 +1000,7 @@
             ],
             "outputs": [
                 {
-                    "name": "",
+                    "name": "shares",
                     "type": "uint256",
                     "internalType": "uint256"
                 }
