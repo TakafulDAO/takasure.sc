@@ -73,6 +73,9 @@ protocol-deploy-sf:
 	@forge clean
 	@forge script deploy/saveFunds/DeploySF.s.sol:DeploySF $(NETWORK_ARGS)
 
+protocol-deploy-uniswap-pool-sepolia:
+	@forge script deploy/saveFunds/DeploySFUniV3PoolSepolia.s.sol:DeploySFUniV3PoolSepolia $(NETWORK_ARGS)
+
 # Protocol upgrades
 protocol-upgrade-referral:
 	@forge clean
