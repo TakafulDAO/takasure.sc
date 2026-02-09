@@ -136,7 +136,8 @@ abstract contract DeployConstants {
 
     uint256 public constant SF_MAX_TVL = 20_000e6;
     address public constant SF_UNI_POOL_ARB_ONE = 0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6;
-    address public constant SF_UNI_POOL_ARB_SEPOLIA = 0x51dff4A270295C78CA668c3B6a8b427269AeaA7f;
+    // address public constant SF_UNI_POOL_ARB_SEPOLIA = 0x51dff4A270295C78CA668c3B6a8b427269AeaA7f;
+    address public constant SF_UNI_POOL_ARB_SEPOLIA = 0x33a0728C87C71A22be84f20493C97f41B3Da00A9;
 
     address public constant SF_OPERATOR_ARB_ONE = 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F;
     address public constant SF_FEE_RECEIVER_ARB_ONE = 0x73Fd06671dEbfdebdbc9bdc736E5D2E52c0497DB;
