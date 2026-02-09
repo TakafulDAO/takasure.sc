@@ -19,7 +19,12 @@ Output:
   setDefaultWithdrawPayloadCalldata: 0x...
 */
 const { BigNumber, utils } = require("ethers")
-const { getChainConfig, getTokenAddresses, resolveStrategy } = require("./chainConfig")
+const {
+    getChainConfig,
+    getTokenAddresses,
+    loadDeploymentAddress,
+    resolveStrategy,
+} = require("./chainConfig")
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -60,7 +65,7 @@ function encodePath(tokenIn, fee, tokenOut) {
     return utils.solidityPack(["address", "uint24", "address"], [tokenIn, fee, tokenOut])
 }
 
-function main() {
+async function main() {
     if (process.argv.includes("--help")) {
         console.log(
             [
@@ -100,6 +105,7 @@ function main() {
                 "  --otherRatioBps <bps>    Target otherToken ratio (0..10000).",
                 "  --payload <0x>           Raw payload override (skips UniV3 build).",
                 "  --pmDeadline <uint>      PM deadline (0 = sentinel).",
+                "  --sendToSafe             Propose tx to the Arbitrum One Safe (requires --chain arb-one).",
                 "  --recipient <addr>       Swap recipient (strategy address).",
                 "  --strategy <addr>        Strategy used for calldata (default: recipient). Use uniV3 when --chain is set.",
                 "  --tokenIn <addr>         Swap tokenIn.",
@@ -109,7 +115,14 @@ function main() {
         process.exit(0)
     }
 
-    const chainCfg = getChainConfig(getArg("chain"))
+    const wantsSendToSafe = process.argv.includes("--sendToSafe")
+    const chainArg = getArg("chain", wantsSendToSafe ? "arb-one" : undefined)
+    const chainCfg = getChainConfig(chainArg)
+    if (wantsSendToSafe && (!chainCfg || chainCfg.name !== "arb-one")) {
+        console.error("--sendToSafe is only supported for --chain arb-one")
+        process.exit(1)
+    }
+
     const rawPayload = getArg("payload")
     const recipientArg = getArg("recipient")
     const strategyArg = getArg("strategy")
@@ -197,9 +210,21 @@ function main() {
     if (!amountIn.isZero()) {
         console.log("amountInSentinel:", amountIn.toString())
     }
+
+    if (wantsSendToSafe) {
+        const { SAFE_ADDRESS, sendToSafe } = require("./safeSubmit")
+        const target = loadDeploymentAddress(chainCfg, "SFStrategyAggregator")
+        const result = await sendToSafe({ to: target, data: setDefaultWithdrawPayloadCalldata, value: "0" })
+        console.log("safeAddress:", SAFE_ADDRESS)
+        console.log("safeTxHash:", result.safeTxHash)
+        console.log("txServiceUrl:", result.txServiceUrl)
+    }
 }
 
-main()
+main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+})
 
 /*
 Example commands:

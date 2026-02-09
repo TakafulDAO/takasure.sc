@@ -34,7 +34,12 @@ Output:
   rebalanceCalldata: 0x...
 */
 const { BigNumber, utils } = require("ethers")
-const { getChainConfig, getTokenAddresses, resolveStrategies } = require("./chainConfig")
+const {
+    getChainConfig,
+    getTokenAddresses,
+    loadDeploymentAddress,
+    resolveStrategies,
+} = require("./chainConfig")
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -82,6 +87,19 @@ function parseBps(value, label) {
         process.exit(1)
     }
     return v
+}
+
+function hasSwapBuilderArgs(prefix) {
+    return Boolean(
+        getArg(`${prefix}TokenIn`) ||
+            getArg(`${prefix}TokenOut`) ||
+            getArg(`${prefix}Fee`) ||
+            getArg(`${prefix}Bps`) ||
+            getArg(`${prefix}AmountIn`) ||
+            getArg(`${prefix}AmountOutMin`) ||
+            getArg(`${prefix}Deadline`) ||
+            getArg(`${prefix}Recipient`),
+    )
 }
 
 function encodePath(tokenIn, fee, tokenOut) {
@@ -154,7 +172,7 @@ function buildSwapData(prefix, defaultRecipient, chainCfg) {
     return utils.defaultAbiCoder.encode(["bytes[]", "uint256"], [[input], deadline])
 }
 
-function main() {
+async function main() {
     if (process.argv.includes("--help")) {
         console.log(
             [
@@ -188,6 +206,7 @@ function main() {
                 "Flags",
                 "  --actionData <0x>                  Raw actionData for new encoding (overrides builder fields).",
                 "  --chain <arb-one|arb-sepolia>      Optional chain shortcut for token/strategy defaults.",
+                "  --sendToSafe                      Propose tx to the Arbitrum One Safe (requires --chain arb-one).",
                 "  --data <0x>                        Raw ABI-encoded data for rebalance(bytes).",
                 "  --minOther <uint>                  Min other token out for PM actions.",
                 "  --minUnderlying <uint>             Min underlying out for PM actions.",
@@ -220,7 +239,14 @@ function main() {
         process.exit(0)
     }
 
-    const chainCfg = getChainConfig(getArg("chain"))
+    const wantsSendToSafe = process.argv.includes("--sendToSafe")
+    const chainArg = getArg("chain", wantsSendToSafe ? "arb-one" : undefined)
+    const chainCfg = getChainConfig(chainArg)
+    if (wantsSendToSafe && (!chainCfg || chainCfg.name !== "arb-one")) {
+        console.error("--sendToSafe is only supported for --chain arb-one")
+        process.exit(1)
+    }
+
     const rawData = getArg("data")
     let data = "0x"
 
@@ -250,6 +276,8 @@ function main() {
                 const minOther = parseUint(getArg("minOther", "0"), "minOther")
 
                 let payload
+                const wantsSwapToOtherBuild = hasSwapBuilderArgs("swapToOther")
+                const wantsSwapToUnderlyingBuild = hasSwapBuilderArgs("swapToUnderlying")
 
                 if (actionDataRaw) {
                     payload = utils.defaultAbiCoder.encode(
@@ -270,7 +298,7 @@ function main() {
                     if (swapToOtherData === "0x") {
                         swapToOtherData = buildSwapData("swapToOther", singleStrategy, chainCfg)
                     }
-                    if (swapToUnderlyingData === "0x") {
+                    if (swapToUnderlyingData === "0x" && wantsSwapToUnderlyingBuild) {
                         swapToUnderlyingData = buildSwapData(
                             "swapToUnderlying",
                             singleStrategy,
@@ -282,6 +310,11 @@ function main() {
                     if (!Number.isFinite(ratio) || ratio < 0 || ratio > 10000) {
                         console.error(`Invalid otherRatioBps (0..10000): ${otherRatioBps}`)
                         process.exit(1)
+                    }
+                    if (ratio > 0 && swapToUnderlyingData === "0x" && !wantsSwapToUnderlyingBuild) {
+                        console.error(
+                            "warning: swapToUnderlyingData not provided; strategy may revert if it needs otherToken -> underlying swaps",
+                        )
                     }
                     const actionData = utils.defaultAbiCoder.encode(
                         ["uint16", "bytes", "bytes", "uint256", "uint256", "uint256"],
@@ -331,9 +364,21 @@ function main() {
 
     console.log("data:", data)
     console.log("rebalanceCalldata:", rebalanceCalldata)
+
+    if (wantsSendToSafe) {
+        const { SAFE_ADDRESS, sendToSafe } = require("./safeSubmit")
+        const target = loadDeploymentAddress(chainCfg, "SFStrategyAggregator")
+        const result = await sendToSafe({ to: target, data: rebalanceCalldata, value: "0" })
+        console.log("safeAddress:", SAFE_ADDRESS)
+        console.log("safeTxHash:", result.safeTxHash)
+        console.log("txServiceUrl:", result.txServiceUrl)
+    }
 }
 
-main()
+main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+})
 
 /*
 node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
@@ -364,5 +409,21 @@ node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
   --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline 0
+
+  ===========================================================
+
+  node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
+  --chain arb-one \
+  --strategies uniV3 \
+  --tickLower -594 \
+  --tickUpper 606 \
+  --otherRatioBps 7000 \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline 0 \
+  --sendToSafe
+
 
 */

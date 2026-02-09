@@ -13,7 +13,7 @@ Output:
   setConfigCalldata: 0x...
 */
 const { utils } = require("ethers")
-const { getChainConfig, resolveStrategies } = require("./chainConfig")
+const { getChainConfig, loadDeploymentAddress, resolveStrategies } = require("./chainConfig")
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -65,7 +65,7 @@ function parseActives(value) {
     })
 }
 
-function main() {
+async function main() {
     if (process.argv.includes("--help")) {
         console.log(
             [
@@ -81,6 +81,7 @@ function main() {
                 "Flags",
                 "  --actives <t1,t2>    Strategy active flags (true/false/1/0/yes/no).",
                 "  --chain <arb-one|arb-sepolia> Optional chain shortcut for strategy addresses.",
+                "  --sendToSafe         Propose tx to the Arbitrum One Safe (requires --chain arb-one).",
                 "  --strategies <a,b>   Strategy addresses (or uniV3 when --chain is set).",
                 "  --weights <w1,w2>    Target weights in BPS (0..10000).",
             ].join("\n"),
@@ -88,7 +89,14 @@ function main() {
         process.exit(0)
     }
 
-    const chainCfg = getChainConfig(getArg("chain"))
+    const wantsSendToSafe = process.argv.includes("--sendToSafe")
+    const chainArg = getArg("chain", wantsSendToSafe ? "arb-one" : undefined)
+    const chainCfg = getChainConfig(chainArg)
+    if (wantsSendToSafe && (!chainCfg || chainCfg.name !== "arb-one")) {
+        console.error("--sendToSafe is only supported for --chain arb-one")
+        process.exit(1)
+    }
+
     const strategiesInput = parseList(requireArg("strategies"), "strategies")
     const strategies = resolveStrategies(strategiesInput, chainCfg)
     const weights = parseWeights(requireArg("weights"))
@@ -109,6 +117,18 @@ function main() {
 
     console.log("newConfig:", newConfig)
     console.log("setConfigCalldata:", setConfigCalldata)
+
+    if (wantsSendToSafe) {
+        const { SAFE_ADDRESS, sendToSafe } = require("./safeSubmit")
+        const target = loadDeploymentAddress(chainCfg, "SFStrategyAggregator")
+        const result = await sendToSafe({ to: target, data: setConfigCalldata, value: "0" })
+        console.log("safeAddress:", SAFE_ADDRESS)
+        console.log("safeTxHash:", result.safeTxHash)
+        console.log("txServiceUrl:", result.txServiceUrl)
+    }
 }
 
-main()
+main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+})

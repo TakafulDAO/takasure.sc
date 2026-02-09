@@ -20,7 +20,12 @@ Output:
   investCalldata: 0x...
 */
 const { BigNumber, utils } = require("ethers")
-const { getChainConfig, getTokenAddresses, resolveStrategies } = require("./chainConfig")
+const {
+    getChainConfig,
+    getTokenAddresses,
+    loadDeploymentAddress,
+    resolveStrategies,
+} = require("./chainConfig")
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -153,7 +158,7 @@ function buildSwapData(prefix, defaultRecipient, chainCfg) {
     return utils.defaultAbiCoder.encode(["bytes[]", "uint256"], [[input], deadline])
 }
 
-function main() {
+async function main() {
     if (process.argv.includes("--help")) {
         console.log(
             [
@@ -180,6 +185,7 @@ function main() {
                 "Flags",
                 "  --assets <uint>                  Amount of underlying to invest.",
                 "  --chain <arb-one|arb-sepolia>    Optional chain shortcut for token/strategy defaults.",
+                "  --sendToSafe                    Propose tx to the Arbitrum One Safe (requires --chain arb-one).",
                 "  --minOther <uint>                Min other token out for PM actions.",
                 "  --minUnderlying <uint>           Min underlying out for PM actions.",
                 "  --otherRatioBps <bps>            Target otherToken ratio (0..10000).",
@@ -209,13 +215,21 @@ function main() {
         process.exit(0)
     }
 
-    const chainCfg = getChainConfig(getArg("chain"))
+    const wantsSendToSafe = process.argv.includes("--sendToSafe")
+    const chainArg = getArg("chain", wantsSendToSafe ? "arb-one" : undefined)
+    const chainCfg = getChainConfig(chainArg)
+    if (wantsSendToSafe && (!chainCfg || chainCfg.name !== "arb-one")) {
+        console.error("--sendToSafe is only supported for --chain arb-one")
+        process.exit(1)
+    }
+
     const assets = parseUint(requireArg("assets"), "assets")
     const strategiesInput = parseList(requireArg("strategies"), "strategies")
     const strategies = resolveStrategies(strategiesInput, chainCfg)
     const payloads = parseList(getArg("payloads"), "payloads")
-    const wantsSwapBuild =
-        hasSwapBuilderArgs("swapToOther") || hasSwapBuilderArgs("swapToUnderlying")
+    const wantsSwapToOtherBuild = hasSwapBuilderArgs("swapToOther")
+    const wantsSwapToUnderlyingBuild = hasSwapBuilderArgs("swapToUnderlying")
+    const wantsSwapBuild = wantsSwapToOtherBuild || wantsSwapToUnderlyingBuild
     const wantsActionData = Boolean(
         getArg("otherRatioBps") ||
             getArg("swapToOtherData") ||
@@ -250,8 +264,17 @@ function main() {
             if (swapToOtherData === "0x") {
                 swapToOtherData = buildSwapData("swapToOther", singleStrategy, chainCfg)
             }
-            if (swapToUnderlyingData === "0x") {
+            if (swapToUnderlyingData === "0x" && wantsSwapToUnderlyingBuild) {
                 swapToUnderlyingData = buildSwapData("swapToUnderlying", singleStrategy, chainCfg)
+            }
+            if (
+                otherRatioBps.gt(0) &&
+                swapToUnderlyingData === "0x" &&
+                !wantsSwapToUnderlyingBuild
+            ) {
+                console.error(
+                    "warning: swapToUnderlyingData not provided; strategy may revert if it needs otherToken -> underlying swaps",
+                )
             }
 
             const payload = utils.defaultAbiCoder.encode(
@@ -284,9 +307,21 @@ function main() {
     ])
 
     console.log("investCalldata:", calldata)
+
+    if (wantsSendToSafe) {
+        const { SAFE_ADDRESS, sendToSafe } = require("./safeSubmit")
+        const target = loadDeploymentAddress(chainCfg, "SFVault")
+        const result = await sendToSafe({ to: target, data: calldata, value: "0" })
+        console.log("safeAddress:", SAFE_ADDRESS)
+        console.log("safeTxHash:", result.safeTxHash)
+        console.log("txServiceUrl:", result.txServiceUrl)
+    }
 }
 
-main()
+main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+})
 
 /*
 node scripts/save-funds/buildVaultInvestCalldata.js \
@@ -310,4 +345,29 @@ node scripts/save-funds/buildVaultInvestCalldata.js \
   --swapToOtherBps 10000 \
   --pmDeadline 0
 
+  ===================================================================
+
+  node scripts/save-funds/buildVaultInvestCalldata.js \
+  --chain arb-one \
+  --assets 1000000000 \
+  --strategies uniV3 \
+  --otherRatioBps 7000 \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
+  --pmDeadline 0 \
+  --sendToSafe
+
+=============================================================
+
+node scripts/save-funds/buildVaultInvestCalldata.js \
+  --chain arb-one \
+  --assets 1000000000 \
+  --strategies uniV3 \
+  --otherRatioBps 7000 \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline 0 \
+  --sendToSafe
 */

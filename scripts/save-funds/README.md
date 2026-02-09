@@ -30,3 +30,13 @@ node scripts/save-funds/buildVaultInvestCalldata.js \
 ```
 
 4. Safe: submit the printed `investCalldata` to `SFVault.investIntoStrategy(...)`.
+
+**Safe submission (arb-one only)**
+
+You can pass `--sendToSafe` to propose the transaction directly to the Arbitrum One Safe
+`0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F`.
+
+Required env vars:
+- `SAFE_PROPOSER_PK`
+- `SAFE_RPC_URL` (or `ARBITRUM_MAINNET_RPC_URL`)
+- Optional: `SAFE_TX_SERVICE_URL`
