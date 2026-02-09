@@ -57,7 +57,7 @@ contract DeploySF is DeploymentArtifacts, GetContractAddress {
         uint256 chainId = block.chainid;
         DeployConfig memory cfg = _getDeployConfig(chainId);
 
-        vm.startBroadcast();
+        vm.startBroadcast(msg.sender);
 
         // Deploy AddressManager
         DeploymentState memory state;
@@ -93,26 +93,19 @@ contract DeploySF is DeploymentArtifacts, GetContractAddress {
         console2.log("SFTwapValuator deployed at:", state.sfTwapValuator);
 
         // Deploy UniswapV3MathHelper
-        if (cfg.uniswapV3MathHelper == address(0)) {
-            state.uniswapV3MathHelper = address(new UniswapV3MathHelper());
-            console2.log("UniswapV3MathHelper deployed at:", state.uniswapV3MathHelper);
-        } else {
-            state.uniswapV3MathHelper = cfg.uniswapV3MathHelper;
-            console2.log("UniswapV3MathHelper reused at:", state.uniswapV3MathHelper);
-        }
+        state.uniswapV3MathHelper = address(new UniswapV3MathHelper());
+        console2.log("UniswapV3MathHelper deployed at:", state.uniswapV3MathHelper);
 
         // Creating roles in AddressManager
-        if (!addressManager.isValidRole(Roles.OPERATOR)) addressManager.createNewRole(Roles.OPERATOR);
-        if (!addressManager.isValidRole(Roles.PAUSE_GUARDIAN)) addressManager.createNewRole(Roles.PAUSE_GUARDIAN);
-        if (!addressManager.isValidRole(Roles.BACKEND_ADMIN)) addressManager.createNewRole(Roles.BACKEND_ADMIN);
-        if (!addressManager.isValidRole(Roles.KEEPER)) addressManager.createNewRole(Roles.KEEPER);
+        addressManager.createNewRole(Roles.OPERATOR);
+        addressManager.createNewRole(Roles.PAUSE_GUARDIAN);
+        addressManager.createNewRole(Roles.BACKEND_ADMIN);
+        addressManager.createNewRole(Roles.KEEPER);
         console2.log("Roles created in AddressManager");
 
         // Propose operator to msg.sender and accept it so we can do operator actions in this script
-        if (!addressManager.hasRole(Roles.OPERATOR, msg.sender)) {
-            addressManager.proposeRoleHolder(Roles.OPERATOR, msg.sender);
-            addressManager.acceptProposedRole(Roles.OPERATOR);
-        }
+        addressManager.proposeRoleHolder(Roles.OPERATOR, msg.sender);
+        addressManager.acceptProposedRole(Roles.OPERATOR);
 
         // Whitelist USDT before deploying the strategy (it validates pool tokens on init)
         if (!SFVault(state.sfVault).isTokenWhitelisted(cfg.usdt)) {
@@ -123,13 +116,6 @@ contract DeploySF is DeploymentArtifacts, GetContractAddress {
         int24 tickLower = currentTick + cfg.tickLowerDelta;
         int24 tickUpper = currentTick + cfg.tickUpperDelta;
         int24 tickSpacing = IUniswapV3Pool(cfg.pool).tickSpacing();
-        if (chainId == ARB_SEPOLIA_CHAIN_ID) {
-            tickLower = _roundDownToSpacing(tickLower, tickSpacing);
-            tickUpper = _roundDownToSpacing(tickUpper, tickSpacing);
-            if (tickUpper <= tickLower) {
-                tickUpper = tickLower + tickSpacing;
-            }
-        }
         console2.log("currentTick:", currentTick);
         console2.log("tickSpacing:", tickSpacing);
         console2.log("tickLower:", tickLower);
@@ -201,22 +187,25 @@ contract DeploySF is DeploymentArtifacts, GetContractAddress {
         SFStrategyAggregator(state.sfStrategyAggregator).addSubStrategy(state.sfUniswapV3Strategy, 10_000);
         _setDefaultWithdrawPayload(state.sfStrategyAggregator, state.sfUniswapV3Strategy, cfg.pool, cfg.usdt, cfg.usdc);
 
-        // Propose new operator before transferring ownership
-        addressManager.proposeRoleHolder(Roles.OPERATOR, cfg.operator);
+        if (msg.sender != cfg.operator) {
+            // Propose new operator before transferring ownership
+            addressManager.proposeRoleHolder(Roles.OPERATOR, cfg.operator);
+            console2.log("Proposed new operator:", cfg.operator);
 
-        // Transfer Ownership to Operator Multisig
-        addressManager.transferOwnership(cfg.operator);
-        console2.log("AddressManager ownership transferred to:", cfg.operator);
+            // Transfer Ownership to Operator Multisig
+            addressManager.transferOwnership(cfg.operator);
+            console2.log("AddressManager ownership transferred to:", cfg.operator);
+        }
 
         console2.log("SaveFunds deployment completed successfully!");
 
         vm.stopBroadcast();
 
-        console2.log("Writing deployment artifacts...");
+        // console2.log("Writing deployment artifacts...");
 
-        _writeArtifacts(state, cfg, chainId);
+        // _writeArtifacts(state, cfg, chainId);
 
-        console2.log("Deployment artifacts written successfully!");
+        // console2.log("Deployment artifacts written successfully!");
         console2.log("SaveFunds deployment script finished.");
     }
 
@@ -248,10 +237,10 @@ contract DeploySF is DeploymentArtifacts, GetContractAddress {
             cfg_.usdt = _getContractAddress(_chainId, "SFUSDT");
             cfg_.uniV3PositionManager = UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARB_SEPOLIA;
             cfg_.universalRouter = UNIVERSAL_ROUTER_ARB_SEPOLIA;
-            cfg_.addressManager = _getContractAddress(_chainId, "AddressManager");
-            cfg_.uniswapV3MathHelper = _getContractAddress(_chainId, "UniswapV3MathHelper");
-            cfg_.tickLowerDelta = int24(-100);
-            cfg_.tickUpperDelta = int24(100);
+            cfg_.addressManager = address(0);
+            cfg_.uniswapV3MathHelper = address(0);
+            cfg_.tickLowerDelta = int24(-3);
+            cfg_.tickUpperDelta = int24(2);
             return cfg_;
         }
 
@@ -305,15 +294,6 @@ contract DeploySF is DeploymentArtifacts, GetContractAddress {
 
         SFStrategyAggregator(_sfStrategyAggregatorAddr)
             .setDefaultWithdrawPayload(_sfUniswapV3StrategyAddr, _defaultWithdrawPayload);
-    }
-
-    function _roundDownToSpacing(int24 _tick, int24 _spacing) internal pure returns (int24) {
-        int24 remainder = _tick % _spacing;
-        if (remainder == 0) return _tick;
-        if (_tick < 0) {
-            return _tick - (_spacing + remainder);
-        }
-        return _tick - remainder;
     }
 
     function _writeArtifacts(DeploymentState memory _state, DeployConfig memory _cfg, uint256 _chainId) internal {
