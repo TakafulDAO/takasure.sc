@@ -24,6 +24,7 @@ import {ModuleState} from "contracts/types/States.sol";
 
 pragma solidity 0.8.28;
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/AddressManagerV1.sol:AddressManagerV1
 contract AddressManager is
     Initializable,
     UUPSUpgradeable,
