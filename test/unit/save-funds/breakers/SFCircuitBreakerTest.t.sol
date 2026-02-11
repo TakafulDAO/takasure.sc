@@ -15,6 +15,7 @@ import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strat
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {UniswapV3MathHelper} from "contracts/helpers/uniswapHelpers/UniswapV3MathHelper.sol";
@@ -44,6 +45,7 @@ contract SFCircuitBreakerTest is Test {
     address internal takadao; // operator
     address internal feeRecipient;
     address internal pauser = makeAddr("pauser");
+    MockValuator internal valuator;
 
     address internal alice = makeAddr("alice");
     address internal bob = makeAddr("bob");
@@ -100,8 +102,10 @@ contract SFCircuitBreakerTest is Test {
 
         // Fee recipient required by SFVault
         feeRecipient = makeAddr("feeRecipient");
+        valuator = new MockValuator();
         vm.startPrank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
         addrMgr.addProtocolAddress("PROTOCOL__CIRCUIT_BREAKER", address(circuitBreaker), ProtocolAddressType.Admin);
         addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
         addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
