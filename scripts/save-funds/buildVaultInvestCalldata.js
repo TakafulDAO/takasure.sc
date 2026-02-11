@@ -414,14 +414,21 @@ node scripts/save-funds/buildVaultInvestCalldata.js \
 =============================================================
 node scripts/save-funds/buildVaultInvestCalldata.js \
   --chain arb-one \
-  --assets 1000000000 \
+  --assets 300000000 \
   --strategies uniV3 \
-  --otherRatioBps 7000 \
+  --otherRatioBps 5150 \
   --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
   --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
-  --pmDeadline 0 \
+  --pmDeadline $(( $(date +%s) + 600 )) \
   --simulateTenderly \
   --sendToSafe
 */
+
+/*
+POOL=0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6
+cast call --rpc-url $ARBITRUM_MAINNET_RPC_URL $POOL "slot0()(uint160,int24,uint16,uint16,uint16,uint8,bool)"
+*/
+
+// todo: calculate better the other ratio to other token

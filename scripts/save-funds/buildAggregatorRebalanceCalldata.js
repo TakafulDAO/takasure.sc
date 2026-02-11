@@ -484,5 +484,12 @@ node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
   --pmDeadline 0 \
   --sendToSafe
 
-
+  node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
+  --chain arb-one \
+  --strategies uniV3 \
+  --tickLower 5 \
+  --tickUpper 10 \
+  --pmDeadline $(( $(date +%s) + 600 )) \
+  --simulateTenderly \
+  --sendToSafe
 */
