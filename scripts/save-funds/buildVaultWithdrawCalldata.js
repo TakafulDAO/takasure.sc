@@ -52,7 +52,13 @@ function parseUint(value, label) {
 }
 
 function parseBps(value, label) {
-    const v = BigNumber.from(value)
+    let v
+    try {
+        v = BigNumber.from(value)
+    } catch (e) {
+        console.error(`Invalid ${label}: ${value}`)
+        process.exit(1)
+    }
     if (v.lt(0) || v.gt(10000)) {
         console.error(`${label} must be between 0 and 10000`)
         process.exit(1)
@@ -279,11 +285,16 @@ async function main() {
             const minOther = parseUint(getArg("minOther", "0"), "minOther")
 
             const singleStrategy = strategies.length === 1 ? strategies[0] : ""
-            if (swapToOtherData === "0x") {
+            if (swapToOtherData === "0x" && wantsSwapToOtherBuild) {
                 swapToOtherData = buildSwapData("swapToOther", singleStrategy, chainCfg)
             }
             if (swapToUnderlyingData === "0x" && wantsSwapToUnderlyingBuild) {
                 swapToUnderlyingData = buildSwapData("swapToUnderlying", singleStrategy, chainCfg)
+            }
+            if (otherRatioBps.gt(0) && swapToOtherData === "0x" && !wantsSwapToOtherBuild) {
+                console.error(
+                    "warning: swapToOtherData not provided; strategy may revert if it needs underlying -> otherToken swaps",
+                )
             }
             if (otherRatioBps.gt(0) && swapToUnderlyingData === "0x" && !wantsSwapToUnderlyingBuild) {
                 console.error(

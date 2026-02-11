@@ -19,13 +19,21 @@ Example (human-readable UniV3 action data, same payload for all strategies):
 Output:
   investCalldata: 0x...
 */
-const { BigNumber, utils } = require("ethers")
+require("dotenv").config()
+const { BigNumber, Contract, providers, utils } = require("ethers")
 const {
     getChainConfig,
     getTokenAddresses,
     loadDeploymentAddress,
     resolveStrategies,
 } = require("./chainConfig")
+
+const DEFAULT_CHAIN = "arb-one"
+const DEFAULT_STRATEGIES = "uniV3"
+const DEFAULT_SWAP_FEE_BY_CHAIN = {
+    "arb-one": "100",
+    "arb-sepolia": "100",
+}
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -54,7 +62,13 @@ function parseUint(value, label) {
 }
 
 function parseBps(value, label) {
-    const v = BigNumber.from(value)
+    let v
+    try {
+        v = BigNumber.from(value)
+    } catch (e) {
+        console.error(`Invalid ${label}: ${value}`)
+        process.exit(1)
+    }
     if (v.lt(0) || v.gt(10000)) {
         console.error(`${label} must be between 0 and 10000`)
         process.exit(1)
@@ -104,14 +118,85 @@ function encodePath(tokenIn, fee, tokenOut) {
     return utils.solidityPack(["address", "uint24", "address"], [tokenIn, fee, tokenOut])
 }
 
-function buildSwapData(prefix, defaultRecipient, chainCfg) {
+function getDefaultSwapFee(chainCfg) {
+    if (!chainCfg) return undefined
+    return DEFAULT_SWAP_FEE_BY_CHAIN[chainCfg.name]
+}
+
+function getRpcUrl(chainCfg) {
+    if (!chainCfg) return ""
+    if (chainCfg.name === "arb-one") {
+        return process.env.SAFE_RPC_URL || process.env.ARBITRUM_MAINNET_RPC_URL || ""
+    }
+    if (chainCfg.name === "arb-sepolia") {
+        return process.env.ARBITRUM_TESTNET_SEPOLIA_RPC_URL || ""
+    }
+    return ""
+}
+
+async function resolveAssets(assetsArg, chainCfg) {
+    const normalized = String(assetsArg || "")
+        .trim()
+        .toLowerCase()
+    if (normalized !== "full" && normalized !== "max" && normalized !== "all") {
+        return parseUint(assetsArg, "assets")
+    }
+
+    if (!chainCfg) {
+        console.error("--assets full|max|all requires --chain")
+        process.exit(1)
+    }
+
+    const rpcUrl = getRpcUrl(chainCfg)
+    if (!rpcUrl) {
+        if (chainCfg.name === "arb-one") {
+            console.error(
+                "Missing SAFE_RPC_URL or ARBITRUM_MAINNET_RPC_URL (required for --assets full|max|all)",
+            )
+            process.exit(1)
+        }
+        if (chainCfg.name === "arb-sepolia") {
+            console.error(
+                "Missing ARBITRUM_TESTNET_SEPOLIA_RPC_URL (required for --assets full|max|all)",
+            )
+            process.exit(1)
+        }
+        console.error("Missing RPC URL for selected --chain")
+        process.exit(1)
+    }
+
+    const vault = loadDeploymentAddress(chainCfg, "SFVault")
+    const provider = new providers.JsonRpcProvider(rpcUrl)
+    const vaultContract = new Contract(
+        vault,
+        ["function idleAssets() view returns (uint256)"],
+        provider,
+    )
+    let idleAssets
+    try {
+        idleAssets = await vaultContract.idleAssets()
+    } catch (e) {
+        console.error(`Failed to read SFVault.idleAssets(): ${e.message || e}`)
+        process.exit(1)
+    }
+
+    if (idleAssets.lte(0)) {
+        console.error("SFVault.idleAssets() is 0; nothing to invest")
+        process.exit(1)
+    }
+
+    console.log("resolvedAssets:", idleAssets.toString())
+    return idleAssets
+}
+
+function buildSwapData(prefix, defaultRecipient, chainCfg, defaultFee) {
     const dataRaw = getArg(`${prefix}Data`)
     if (dataRaw) return dataRaw
 
     const defaults = getTokenDefaults(prefix, chainCfg)
     const tokenIn = getArg(`${prefix}TokenIn`, defaults.tokenIn)
     const tokenOut = getArg(`${prefix}TokenOut`, defaults.tokenOut)
-    const fee = getArg(`${prefix}Fee`)
+    const fee = getArg(`${prefix}Fee`, defaultFee)
     const bps = getArg(`${prefix}Bps`)
     const amountInRaw = getArg(`${prefix}AmountIn`)
 
@@ -163,8 +248,8 @@ async function main() {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildVaultInvestCalldata.js --assets <uint> --strategies <addr1,addr2> [--payloads <0x...,0x...>] [--chain <arb-one|arb-sepolia>]",
-                "  node scripts/save-funds/buildVaultInvestCalldata.js --assets <uint> --strategies <addr|uniV3> --otherRatioBps <bps> \\",
+                "  node scripts/save-funds/buildVaultInvestCalldata.js --assets <uint|full|max|all> [--strategies <addr1,addr2>] [--payloads <0x...,0x...>] [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/buildVaultInvestCalldata.js --assets <uint|full|max|all> [--strategies <addr|uniV3>] --otherRatioBps <bps> \\",
                 "    --swapToOtherTokenIn <addr> --swapToOtherTokenOut <addr> --swapToOtherFee <fee> --swapToOtherBps <bps> \\",
                 "    --swapToUnderlyingTokenIn <addr> --swapToUnderlyingTokenOut <addr> --swapToUnderlyingFee <fee> --swapToUnderlyingBps <bps> \\",
                 "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
@@ -178,13 +263,16 @@ async function main() {
                 "    --assets 1000000 \\",
                 "    --strategies uniV3 --chain arb-one \\",
                 "    --otherRatioBps 5000 \\",
-                "    --swapToOtherTokenIn 0xUSDC --swapToOtherTokenOut 0xUSDT --swapToOtherFee 500 --swapToOtherBps 5000 \\",
-                "    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 5000 \\",
+                "    --swapToOtherBps 5000 \\",
+                "    --swapToUnderlyingBps 5000 \\",
                 "    --pmDeadline 0",
+                "  node scripts/save-funds/buildVaultInvestCalldata.js \\",
+                "    --assets full",
                 "",
                 "Flags",
-                "  --assets <uint>                  Amount of underlying to invest.",
-                "  --chain <arb-one|arb-sepolia>    Optional chain shortcut for token/strategy defaults.",
+                "  --assets <uint|full|max|all>     Amount of underlying to invest; full/max/all = SFVault.idleAssets().",
+                "  --chain <arb-one|arb-sepolia>    Chain shortcut for defaults. Defaults to arb-one.",
+                "  --defaultSwapFee <fee>           Default Uniswap V3 fee for swap builders when --swapTo*Fee is omitted.",
                 "  --sendToSafe                    Propose tx to the Arbitrum One Safe (requires --chain arb-one).",
                 "  --sendTx                        Send tx onchain for Arbitrum Sepolia (requires --chain arb-sepolia).",
                 "  --simulateTenderly              Simulate on Tenderly before sending (arb-one only).",
@@ -196,7 +284,7 @@ async function main() {
                 "  --otherRatioBps <bps>            Target otherToken ratio (0..10000).",
                 "  --payloads <p1,p2>               Per-strategy payloads (hex). Length must match strategies.",
                 "  --pmDeadline <uint>              PM deadline (0 = sentinel).",
-                "  --strategies <a,b>               Strategy addresses (or uniV3 when --chain is set).",
+                "  --strategies <a,b>               Strategy addresses (or uniV3). Defaults to uniV3.",
                 "  --swapToOtherAmountIn <uint>     Swap input amount for otherToken path (absolute).",
                 "  --swapToOtherAmountOutMin <uint> Swap min out for otherToken path.",
                 "  --swapToOtherBps <bps>           Swap input amount as BPS sentinel (0..10000).",
@@ -229,7 +317,7 @@ async function main() {
     }
     const chainArg = getArg(
         "chain",
-        wantsSendToSafe ? "arb-one" : wantsSendTx ? "arb-sepolia" : undefined,
+        wantsSendToSafe ? "arb-one" : wantsSendTx ? "arb-sepolia" : DEFAULT_CHAIN,
     )
     const chainCfg = getChainConfig(chainArg)
     if (wantsSendToSafe && (!chainCfg || chainCfg.name !== "arb-one")) {
@@ -245,10 +333,15 @@ async function main() {
         process.exit(1)
     }
 
-    const assets = parseUint(requireArg("assets"), "assets")
-    const strategiesInput = parseList(requireArg("strategies"), "strategies")
+    const assets = await resolveAssets(requireArg("assets"), chainCfg)
+    const strategiesInput = parseList(getArg("strategies", DEFAULT_STRATEGIES), "strategies")
+    if (!strategiesInput) {
+        console.error("Missing --strategies")
+        process.exit(1)
+    }
     const strategies = resolveStrategies(strategiesInput, chainCfg)
     const payloads = parseList(getArg("payloads"), "payloads")
+    const defaultSwapFee = getArg("defaultSwapFee", getDefaultSwapFee(chainCfg))
     const wantsSwapToOtherBuild = hasSwapBuilderArgs("swapToOther")
     const wantsSwapToUnderlyingBuild = hasSwapBuilderArgs("swapToUnderlying")
     const wantsSwapBuild = wantsSwapToOtherBuild || wantsSwapToUnderlyingBuild
@@ -283,11 +376,26 @@ async function main() {
             const minOther = parseUint(getArg("minOther", "0"), "minOther")
 
             const singleStrategy = strategies.length === 1 ? strategies[0] : ""
-            if (swapToOtherData === "0x") {
-                swapToOtherData = buildSwapData("swapToOther", singleStrategy, chainCfg)
+            if (swapToOtherData === "0x" && wantsSwapToOtherBuild) {
+                swapToOtherData = buildSwapData(
+                    "swapToOther",
+                    singleStrategy,
+                    chainCfg,
+                    defaultSwapFee,
+                )
             }
             if (swapToUnderlyingData === "0x" && wantsSwapToUnderlyingBuild) {
-                swapToUnderlyingData = buildSwapData("swapToUnderlying", singleStrategy, chainCfg)
+                swapToUnderlyingData = buildSwapData(
+                    "swapToUnderlying",
+                    singleStrategy,
+                    chainCfg,
+                    defaultSwapFee,
+                )
+            }
+            if (otherRatioBps.gt(0) && swapToOtherData === "0x" && !wantsSwapToOtherBuild) {
+                console.error(
+                    "warning: swapToOtherData not provided; strategy may revert if it needs underlying -> otherToken swaps",
+                )
             }
             if (
                 otherRatioBps.gt(0) &&
@@ -378,40 +486,6 @@ main().catch((err) => {
 })
 
 /*
-node scripts/save-funds/buildVaultInvestCalldata.js \
-  --assets 1000000000 \
-  --strategies 0x2e9db0a46ab897d0e1e08cca9157d06b61f8112e \
-  --otherRatioBps 7000 \
-  --swapToOtherTokenIn 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 \
-  --swapToOtherTokenOut 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9 \
-  --swapToOtherFee 100 \
-  --swapToOtherBps 10000 \
-  --pmDeadline 0
-
-===================================================================
-
-node scripts/save-funds/buildVaultInvestCalldata.js \
-  --chain arb-one \
-  --assets 1000000000 \
-  --strategies uniV3 \
-  --otherRatioBps 7000 \
-  --swapToOtherFee 100 \
-  --swapToOtherBps 10000 \
-  --pmDeadline 0
-
-  ===================================================================
-
-  node scripts/save-funds/buildVaultInvestCalldata.js \
-  --chain arb-one \
-  --assets 1000000000 \
-  --strategies uniV3 \
-  --otherRatioBps 7000 \
-  --swapToOtherFee 100 \
-  --swapToOtherBps 10000 \
-  --pmDeadline 0 \
-  --sendToSafe
-
-=============================================================
 node scripts/save-funds/buildVaultInvestCalldata.js \
   --chain arb-one \
   --assets 300000000 \
