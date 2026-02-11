@@ -66,7 +66,7 @@ contract WithdrawVaultTest is Test {
         addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
         addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
         addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
-        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
+        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN, true);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
 

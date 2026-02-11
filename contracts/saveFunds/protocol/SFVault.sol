@@ -454,8 +454,8 @@ contract SFVault is
     }
 
     /**
-     * @notice Withdraw `assets` of underlying from the vault, pulling from the strategy if idle liquidity is insufficient.
-     * @dev Overrides ERC4626 withdraw to ensure underlying liquidity is available before burning shares.
+     * @notice Withdraw `assets` of underlying from the vault.
+     * @dev Runs circuit breaker checks first, then ensures liquidity by pulling from the strategy if needed.
      */
     function withdraw(uint256 assets, address receiver, address owner)
         public
@@ -464,13 +464,19 @@ contract SFVault is
         nonReentrant
         returns (uint256 shares)
     {
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        if (address(circuitBreaker) != address(0)) {
+            (bool proceed,) = circuitBreaker.hookWithdraw(owner, receiver, assets);
+            if (!proceed) return 0;
+        }
+
         _ensureLiquidity(assets);
         return super.withdraw(assets, receiver, owner);
     }
 
     /**
-     * @notice Redeem `shares` for underlying, pulling from the strategy if idle liquidity is insufficient.
-     * @dev Overrides ERC4626 redeem to ensure underlying liquidity is available before burning shares.
+     * @notice Redeem `shares` for underlying.
+     * @dev Runs circuit breaker checks first, then ensures liquidity by pulling from the strategy if needed.
      */
     function redeem(uint256 shares, address receiver, address owner)
         public
@@ -479,6 +485,12 @@ contract SFVault is
         nonReentrant
         returns (uint256 assets)
     {
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        if (address(circuitBreaker) != address(0)) {
+            (bool proceed,) = circuitBreaker.hookRedeem(owner, receiver, shares);
+            if (!proceed) return 0;
+        }
+
         assets = previewRedeem(shares);
         _ensureLiquidity(assets);
         return super.redeem(shares, receiver, owner);
@@ -543,31 +555,6 @@ contract SFVault is
         withdrawnAssets = strat.withdraw(assets, address(this), data);
 
         emit OnWithdrawFromStrategy(assets, withdrawnAssets, keccak256(data));
-    }
-
-    function withdraw(uint256 assets, address receiver, address owner) public override whenNotPaused returns (uint256) {
-        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
-        if (address(circuitBreaker) != address(0)) {
-            (bool proceed,) = circuitBreaker.hookWithdraw(owner, receiver, assets);
-            if (!proceed) return 0;
-        }
-
-        return super.withdraw(assets, receiver, owner);
-    }
-
-    function redeem(uint256 shares, address receiver, address owner)
-        public
-        override
-        whenNotPaused
-        returns (uint256 assets)
-    {
-        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
-        if (address(circuitBreaker) != address(0)) {
-            (bool proceed,) = circuitBreaker.hookRedeem(owner, receiver, shares);
-            if (!proceed) return 0;
-        }
-
-        return super.redeem(shares, receiver, owner);
     }
 
     function executeApprovedCircuitBreakersWithdrawals(uint256 requestId)

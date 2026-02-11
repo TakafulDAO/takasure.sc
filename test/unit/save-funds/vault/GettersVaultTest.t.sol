@@ -10,7 +10,7 @@ import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {MockSFStrategy} from "test/mocks/MockSFStrategy.sol";
 import {MockERC721ApprovalForAll} from "test/mocks/MockERC721ApprovalForAll.sol";
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFAndIFCircuitBreaker} from "contracts/breakers/SFAndIFCircuitBreaker.sol";
 import {MockValuator} from "test/mocks/MockValuator.sol";
 import {SFVaultLens} from "contracts/saveFunds/lens/SFVaultLens.sol";

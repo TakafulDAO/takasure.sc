@@ -8,10 +8,10 @@ import {DeploySFAndIFCircuitBreaker} from "test/utils/08-DeployCircuitBreaker.s.
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFAndIFCircuitBreaker} from "contracts/breakers/SFAndIFCircuitBreaker.sol";
-import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
-import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
+import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
+import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
@@ -93,12 +93,10 @@ contract SFCircuitBreakerTest is Test {
         usdt = IERC20(ARB_USDT);
 
         // Deploy aggregator and set as vault strategy
-        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset);
 
-        vm.startPrank(takadao);
+        vm.prank(takadao);
         vault.whitelistToken(ARB_USDT);
-        vault.setAggregator(ISFStrategy(address(aggregator)));
-        vm.stopPrank();
 
         // Fee recipient required by SFVault
         feeRecipient = makeAddr("feeRecipient");
