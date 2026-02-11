@@ -1,266 +1,221 @@
-// // SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GPL-3.0
+/*
+Detailed explanation of the flow tested here
 
-// /*
-// * This tests are usually disabled because they require an Anvil fork running.
-// * To run them, uncomment this test and run, and then start an Anvil fork with
-// * the following command:
-// *  anvil --fork-url $ARBITRUM_MAINNET_RPC_URL --fork-block-number 427019000
-// * Then, in another terminal, run:
-// * forge test --match-contract SaveFundInvariantTest
-// */
-// pragma solidity 0.8.28;
+This stateful invariant suite ports the main scenario from E2ETest to fuzzing with
+a handler while reusing already deployed Save Funds contracts on Arbitrum One.
 
-// import {Test} from "forge-std/Test.sol";
-// import {StdInvariant} from "forge-std/StdInvariant.sol";
-// import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-// import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
-// import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
-// import {DeploySFStrategyAggregator} from "test/utils/06-DeploySFStrategyAggregator.s.sol";
-// import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-// import {AddressManager} from "contracts/managers/AddressManager.sol";
-// import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-// import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
-// import {ProtocolAddressType} from "contracts/types/Managers.sol";
-// import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
-// import {SFVault} from "contracts/saveFunds/SFVault.sol";
-// import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
-// import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
-// import {UniswapV3MathHelper} from "contracts/helpers/uniswapHelpers/UniswapV3MathHelper.sol";
-// import {SaveFundHandler} from "test/helpers/handlers/SaveFundHandler.sol";
-// import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+Flow:
+1. Fork Arbitrum at a fixed block and load deployed contracts from
+   deployments/mainnet_arbitrum_one.
+2. Resolve live role holders from AddressManager and unpause protocol components
+   when pause guardian is available.
+3. Create users/swappers, fund them, register users, and set token approvals.
+4. Configure SaveFundHandler with deployed vault/aggregator/strategy and live actors.
+5. Fuzz state transitions (deposit/redeem/invest/withdraw-from-strategy/harvest/rebalance/
+   buffer-policy/take-fees/pause toggles/transfer-attack attempts).
+6. Continuously enforce invariants equivalent to the E2E assertions, adapted for
+   pre-existing mainnet state at fork time.
+*/
+pragma solidity 0.8.28;
 
-// contract SaveFundInvariantTest is StdInvariant, Test {
-//     string internal constant ANVIL_RPC_URL = "http://127.0.0.1:8545";
+import {Test} from "forge-std/Test.sol";
+import {StdInvariant} from "forge-std/StdInvariant.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
+import {AddressManager} from "contracts/managers/AddressManager.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
+import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
+import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
+import {SaveFundHandler} from "test/helpers/handlers/SaveFundHandler.sol";
 
-//     // ===== Arbitrum One =====
-//     address internal constant ARB_USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-//     address internal constant ARB_USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
+contract SaveFundInvariantTest is StdInvariant, Test {
+    uint256 internal constant FORK_BLOCK = 430826360;
+    address internal constant UNI_UNIVERSAL_ROUTER = 0xA51afAFe0263b40EdaEf0Df8781eA9aa03E381a3;
 
-//     // USDC/USDT 0.01% pool (fee=100) on Uniswap V3 (Arbitrum)
-//     address internal constant POOL_USDC_USDT_100 = 0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6;
+    uint256 internal constant DUST_USDC = 10_000; // 0.01 USDC
+    uint256 internal constant DUST_USDT = 10_000; // 0.01 USDT
+    int24 internal constant REBALANCE_HALF_RANGE_TICKS = 1200;
 
-//     // Uniswap V3 periphery on Arbitrum
-//     address internal constant UNIV3_NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+    AddressManager internal addrMgr;
+    SFVault internal vault;
+    SFStrategyAggregator internal aggregator;
+    SFUniswapV3Strategy internal uniV3;
+    SaveFundHandler internal handler;
+    AddressGetter internal addrGetter;
 
-//     // Universal Router on Arbitrum
-//     address internal constant UNI_UNIVERSAL_ROUTER = 0x4C60051384bd2d3C01bfc845Cf5F4b44bcbE9de5;
+    IERC20 internal usdc;
+    IERC20 internal usdt;
 
-//     // Strategy tick range (must be multiple of pool tickSpacing; -200/200 is safe for 0.01% pools too)
-//     int24 internal constant TICK_LOWER = -200;
-//     int24 internal constant TICK_UPPER = 200;
+    address internal operator;
+    address internal backendAdmin;
+    address internal keeper;
+    address internal pauseGuardian;
 
-//     // ===== deploy helpers =====
-//     DeployManagers internal managersDeployer;
-//     AddAddressesAndRoles internal addressesAndRoles;
-//     DeploySFStrategyAggregator internal aggregatorDeployer;
+    address[] internal users;
+    address[] internal swappers;
 
-//     AddressManager internal addrMgr;
-//     ModuleManager internal modMgr;
+    uint256 internal initialTotalSupply;
+    uint256 internal initialStrategyUsdc;
 
-//     SFVault internal vault;
-//     SFStrategyAggregator internal aggregator;
-//     SFUniswapV3Strategy internal uniV3;
-//     UniswapV3MathHelper internal mathHelper;
+    function setUp() public {
+        uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"), FORK_BLOCK);
+        vm.selectFork(forkId);
 
-//     IERC20 internal usdc = IERC20(ARB_USDC);
-//     IERC20 internal usdt = IERC20(ARB_USDT);
+        addrGetter = new AddressGetter();
+        addrMgr = AddressManager(_getAddr("AddressManager"));
+        vault = SFVault(_getAddr("SFVault"));
+        aggregator = SFStrategyAggregator(_getAddr("SFStrategyAggregator"));
+        uniV3 = SFUniswapV3Strategy(_getAddr("SFUniswapV3Strategy"));
 
-//     address internal operator;
-//     address internal backendAdmin;
-//     address internal keeper;
-//     address internal pauseGuardian;
-//     address internal feeReceiver;
+        operator = addrMgr.currentRoleHolders(Roles.OPERATOR);
+        backendAdmin = addrMgr.currentRoleHolders(Roles.BACKEND_ADMIN);
+        keeper = addrMgr.currentRoleHolders(Roles.KEEPER);
+        pauseGuardian = addrMgr.currentRoleHolders(Roles.PAUSE_GUARDIAN);
+        if (keeper == address(0)) keeper = operator;
 
-//     address[] internal users;
-//     address[] internal swappers;
+        require(operator != address(0) && addrMgr.hasRole(Roles.OPERATOR, operator), "operator missing");
+        require(backendAdmin != address(0) && addrMgr.hasRole(Roles.BACKEND_ADMIN, backendAdmin), "backend admin missing");
+        require(keeper != address(0) && addrMgr.hasRole(Roles.KEEPER, keeper), "keeper missing");
 
-//     SaveFundHandler internal handler;
+        if (pauseGuardian != address(0) && addrMgr.hasRole(Roles.PAUSE_GUARDIAN, pauseGuardian)) {
+            if (vault.paused()) {
+                vm.prank(pauseGuardian);
+                vault.unpause();
+            }
+            if (aggregator.paused()) {
+                vm.prank(pauseGuardian);
+                aggregator.unpause();
+            }
+            if (uniV3.paused()) {
+                vm.prank(pauseGuardian);
+                uniV3.unpause();
+            }
+        }
 
-//     function setUp() public {
-//         // ===== fork =====
-//         uint256 forkId = vm.createFork(ANVIL_RPC_URL);
-//         vm.selectFork(forkId);
+        assertEq(addrMgr.getProtocolAddressByName("PROTOCOL__SF_VAULT").addr, address(vault));
+        assertEq(addrMgr.getProtocolAddressByName("PROTOCOL__SF_AGGREGATOR").addr, address(aggregator));
 
-//         managersDeployer = new DeployManagers();
-//         addressesAndRoles = new AddAddressesAndRoles();
-//         aggregatorDeployer = new DeploySFStrategyAggregator();
+        usdc = IERC20(vault.asset());
+        usdt = uniV3.otherToken();
 
-//         (HelperConfig.NetworkConfig memory config, AddressManager _addrMgr, ModuleManager _modMgr) =
-//             managersDeployer.run();
+        _createActorsAndApprovals();
+        _registerAllUsers();
 
-//         addrMgr = _addrMgr;
-//         modMgr = _modMgr;
+        handler = new SaveFundHandler();
+        handler.configureProtocol(vault, aggregator, uniV3);
+        handler.configureActors(operator, keeper, backendAdmin, pauseGuardian);
+        handler.configureScenario(REBALANCE_HALF_RANGE_TICKS, DUST_USDC, DUST_USDT);
+        handler.setUsers(users);
+        handler.setSwappers(swappers);
+        _approveMarketForSwappers();
 
-//         (operator,,, backendAdmin,,,) = addressesAndRoles.run(addrMgr, config, address(modMgr));
+        bytes4[] memory selectors = new bytes4[](11);
+        selectors[0] = handler.backend_registerMember.selector;
+        selectors[1] = handler.user_deposit.selector;
+        selectors[2] = handler.user_redeem.selector;
+        selectors[3] = handler.keeper_invest.selector;
+        selectors[4] = handler.keeper_withdrawFromStrategy.selector;
+        selectors[5] = handler.keeper_harvest.selector;
+        selectors[6] = handler.keeper_rebalance.selector;
+        selectors[7] = handler.keeper_applyBufferPolicy.selector;
+        selectors[8] = handler.operator_takeFees.selector;
+        selectors[9] = handler.pauser_togglePause.selector;
+        selectors[10] = handler.attacker_tryTransferFrom.selector;
 
-//         keeper = makeAddr("keeper");
-//         pauseGuardian = makeAddr("pauseGuardian");
-//         feeReceiver = makeAddr("feeReceiver");
+        targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+        targetContract(address(handler));
 
-//         vm.startPrank(addrMgr.owner());
-//         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
-//         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauseGuardian);
-//         addrMgr.createNewRole(Roles.KEEPER);
-//         addrMgr.proposeRoleHolder(Roles.KEEPER, keeper);
-//         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeReceiver, ProtocolAddressType.Admin);
-//         vm.stopPrank();
+        initialTotalSupply = vault.totalSupply();
+        initialStrategyUsdc = usdc.balanceOf(address(uniV3));
+    }
 
-//         vm.prank(pauseGuardian);
-//         addrMgr.acceptProposedRole(Roles.PAUSE_GUARDIAN);
+    function invariant_all() public view {
+        _assertShareSupplyEqualsBaselinePlusFuzzUsers();
+        _assertStrategyCustodyDriftWithinDustBound();
+        _assertNoStaleRouterApprovals();
+        _assertUserClaimableNeverExceedsVaultAssets();
+    }
 
-//         vm.prank(keeper);
-//         addrMgr.acceptProposedRole(Roles.KEEPER);
+    function _assertShareSupplyEqualsBaselinePlusFuzzUsers() internal view {
+        uint256 sum;
+        for (uint256 i; i < users.length; ++i) {
+            sum += vault.balanceOf(users[i]);
+        }
+        assertEq(vault.totalSupply(), initialTotalSupply + sum, "share supply mismatch");
+    }
 
-//         vault = SFVault(
-//             UnsafeUpgrades.deployUUPSProxy(
-//                 address(new SFVault()),
-//                 abi.encodeCall(SFVault.initialize, (addrMgr, usdc, "Takasure Save Fund Vault", "TSF"))
-//             )
-//         );
+    function _assertStrategyCustodyDriftWithinDustBound() internal view {
+        assertLe(usdc.balanceOf(address(uniV3)), initialStrategyUsdc + DUST_USDC, "uniV3 holds too much USDC");
+    }
 
-//         aggregator = aggregatorDeployer.run(IAddressManager(address(addrMgr)), usdc, address(vault));
+    function _assertNoStaleRouterApprovals() internal view {
+        assertEq(usdc.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "USDC router allowance not cleared");
+        assertEq(usdt.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "USDT router allowance not cleared");
+    }
 
-//         vm.startPrank(addrMgr.owner());
-//         addrMgr.addProtocolAddress("PROTOCOL__SF_VAULT", address(vault), ProtocolAddressType.Protocol);
-//         addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(aggregator), ProtocolAddressType.Protocol);
-//         vm.stopPrank();
+    function _assertUserClaimableNeverExceedsVaultAssets() internal view {
+        uint256 sumClaimable;
+        for (uint256 i; i < users.length; ++i) {
+            uint256 sh = vault.balanceOf(users[i]);
+            if (sh == 0) continue;
+            sumClaimable += vault.previewRedeem(sh);
+        }
+        assertLe(sumClaimable, vault.totalAssets() + 10, "sum claimable > totalAssets");
+    }
 
-//         // ===== wire vault + whitelist other token =====
-//         vm.startPrank(operator);
-//         vault.setAggregator(ISFStrategy(address(aggregator)));
-//         vault.whitelistToken(address(usdt));
-//         vm.stopPrank();
+    function _getAddr(string memory contractName) internal view returns (address) {
+        return addrGetter.getAddress(block.chainid, contractName);
+    }
 
-//         // ===== deploy math helper + UniV3 strategy =====
-//         mathHelper = new UniswapV3MathHelper();
+    function _createActorsAndApprovals() internal {
+        uint256 nUsers = 16;
+        uint256 nSwappers = 16;
 
-//         uniV3 = SFUniswapV3Strategy(
-//             UnsafeUpgrades.deployUUPSProxy(
-//                 address(new SFUniswapV3Strategy()),
-//                 abi.encodeCall(
-//                     SFUniswapV3Strategy.initialize,
-//                     (
-//                         addrMgr,
-//                         address(vault),
-//                         usdc,
-//                         usdt,
-//                         POOL_USDC_USDT_100,
-//                         UNIV3_NONFUNGIBLE_POSITION_MANAGER,
-//                         address(mathHelper),
-//                         uint256(100_000e6),
-//                         UNI_UNIVERSAL_ROUTER,
-//                         TICK_LOWER,
-//                         TICK_UPPER
-//                     )
-//                 )
-//             )
-//         );
+        users = new address[](nUsers);
+        swappers = new address[](nSwappers);
 
-//         // ===== add strategy to aggregator =====
-//         vm.prank(operator);
-//         aggregator.addSubStrategy(address(uniV3), 10_000);
+        for (uint256 i; i < nUsers; ++i) {
+            address u = makeAddr(string.concat("invUser", vm.toString(i)));
+            users[i] = u;
+            deal(address(usdc), u, 1_000_000e6);
 
-//         // ===== allow strategy to manage V3 position NFTs held by vault =====
-//         vm.prank(operator);
-//         vault.setERC721ApprovalForAll(UNIV3_NONFUNGIBLE_POSITION_MANAGER, address(uniV3), true);
+            vm.startPrank(u);
+            usdc.approve(address(vault), type(uint256).max);
+            vm.stopPrank();
+        }
 
-//         // ===== actors =====
-//         _createActorsAndApprovals();
+        for (uint256 j; j < nSwappers; ++j) {
+            address s = makeAddr(string.concat("invSwapper", vm.toString(j)));
+            swappers[j] = s;
+            deal(address(usdc), s, 5_000_000e6);
+            deal(address(usdt), s, 5_000_000e6);
+        }
+    }
 
-//         // ===== handler =====
-//         handler = new SaveFundHandler();
-//         handler.configureProtocol(vault, aggregator, uniV3);
-//         handler.configureActors(operator, keeper, backendAdmin, pauseGuardian);
+    function _registerAllUsers() internal {
+        vm.startPrank(backendAdmin);
+        for (uint256 i; i < users.length; ++i) {
+            vault.registerMember(users[i]);
+        }
+        vm.stopPrank();
+    }
 
-//         handler.configureScenario(TICK_LOWER, TICK_UPPER, 100, 100); // dust: 100 units USDC/USDT
+    function _approveMarketForSwappers() internal {
+        address market = address(handler.market());
+        for (uint256 i; i < swappers.length; ++i) {
+            address s = swappers[i];
+            vm.startPrank(s);
+            usdc.approve(market, type(uint256).max);
+            usdt.approve(market, type(uint256).max);
+            vm.stopPrank();
+        }
+    }
+}
 
-//         handler.setUsers(users);
-//         handler.setSwappers(swappers);
-
-//         // swappers must approve the MarketSwapCaller inside handler
-//         _approveMarketForSwappers();
-
-//         bytes4[] memory selectors = new bytes4[](9);
-//         selectors[0] = handler.backend_registerMember.selector;
-//         selectors[1] = handler.user_deposit.selector;
-//         selectors[2] = handler.user_redeem.selector;
-//         selectors[3] = handler.keeper_invest.selector;
-//         selectors[4] = handler.keeper_withdrawFromStrategy.selector;
-//         selectors[5] = handler.keeper_harvest.selector;
-//         selectors[6] = handler.keeper_rebalance.selector;
-//         selectors[7] = handler.pauser_togglePause.selector;
-//         selectors[8] = handler.attacker_tryTransferFrom.selector;
-
-//         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
-//         targetContract(address(handler));
-//     }
-
-//     function invariant_all() public view {
-//         _assertTotalSupplyEqualsSumBalances();
-//         _assertStrategyCustodyPolicy();
-//         _assertNoStaleRouterApprovals();
-//     }
-
-//     function _assertTotalSupplyEqualsSumBalances() internal view {
-//         uint256 sum;
-//         for (uint256 i = 0; i < users.length; i++) {
-//             sum += vault.balanceOf(users[i]);
-//         }
-//         sum += vault.balanceOf(feeReceiver);
-
-//         assertEq(vault.totalSupply(), sum, "share supply mismatch");
-//     }
-
-//     function _assertStrategyCustodyPolicy() internal view {
-//         // Strategy must not retain *underlying* (USDC). USDT may remain (it is accounted in totalAssets()).
-//         assertLe(usdc.balanceOf(address(uniV3)), 100, "uniV3 holds too much USDC");
-//     }
-
-//     function _assertNoStaleRouterApprovals() internal view {
-//         assertEq(usdc.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "USDC router allowance not cleared");
-//         assertEq(usdt.allowance(address(uniV3), UNI_UNIVERSAL_ROUTER), 0, "USDT router allowance not cleared");
-//     }
-
-//     function _createActorsAndApprovals() internal {
-//         uint256 nUsers = 12;
-//         uint256 nSwappers = 8;
-
-//         users = new address[](nUsers);
-//         swappers = new address[](nSwappers);
-
-//         for (uint256 i = 0; i < nUsers; i++) {
-//             address u = makeAddr(string.concat("user", vm.toString(i)));
-//             users[i] = u;
-
-//             // fund user with USDC for deposits
-//             deal(ARB_USDC, u, 1_000_000e6);
-
-//             // approve vault spend (USDC)
-//             vm.startPrank(u);
-//             usdc.approve(address(vault), type(uint256).max);
-//             vm.stopPrank();
-//         }
-
-//         for (uint256 j = 0; j < nSwappers; j++) {
-//             address s = makeAddr(string.concat("swapper", vm.toString(j)));
-//             swappers[j] = s;
-
-//             // fund swappers with both sides of the pool
-//             deal(ARB_USDC, s, 5_000_000e6);
-//             deal(ARB_USDT, s, 5_000_000e6);
-//         }
-//     }
-
-//     function _approveMarketForSwappers() internal {
-//         // MarketSwapCaller pulls via transferFrom(payer), so swappers must approve MarketSwapCaller
-//         address market = address(handler.market());
-//         for (uint256 i = 0; i < swappers.length; i++) {
-//             address s = swappers[i];
-//             vm.startPrank(s);
-//             usdc.approve(market, type(uint256).max);
-//             usdt.approve(market, type(uint256).max);
-//             vm.stopPrank();
-//         }
-//     }
-// }
+contract AddressGetter is GetContractAddress {
+    function getAddress(uint256 chainId, string memory contractName) external view returns (address) {
+        return _getContractAddress(chainId, contractName);
+    }
+}

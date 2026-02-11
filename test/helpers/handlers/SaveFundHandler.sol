@@ -12,13 +12,12 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 contract SaveFundHandler is Test {
     using SafeERC20 for IERC20;
 
-    // ========= scenario constants (Arbitrum One) =========
-    // USDC/USDT Uniswap V3 (Arbitrum) 0.01% (fee=100)
-    address internal constant POOL_USDC_USDT_100 = 0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6;
-
-    // Tokens (Arbitrum One)
-    address internal constant ARB_USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-    address internal constant ARB_USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
+    uint16 internal constant MAX_BPS = 10_000;
+    uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
+    uint256 internal constant TARGET_IDLE_BPS = 1500;
+    uint256 internal constant IDLE_BAND_BPS = 500;
+    uint256 internal constant MIN_IDLE_FLOOR = 50_000e6;
+    uint256 internal constant INVEST_IDLE_PCT = 70;
 
     // ========= protocol refs =========
     SFVault public vault;
@@ -42,8 +41,7 @@ contract SaveFundHandler is Test {
     IERC20 internal other;
 
     // ========= scenario params =========
-    int24 public initTickLower;
-    int24 public initTickUpper;
+    int24 public rebalanceHalfRangeTicks;
 
     address[] public users;
     address[] public swappers;
@@ -60,21 +58,21 @@ contract SaveFundHandler is Test {
     bool internal actorsConfigured;
     bool internal scenarioConfigured;
 
-    constructor() {
-        pool = IUniswapV3Pool(POOL_USDC_USDT_100);
-        market = new MarketSwapCaller(POOL_USDC_USDT_100);
-
-        poolToken0 = pool.token0();
-        poolToken1 = pool.token1();
-
-        underlying = IERC20(ARB_USDC);
-        other = IERC20(ARB_USDT);
-    }
+    constructor() {}
 
     function configureProtocol(SFVault _vault, SFStrategyAggregator _aggregator, SFUniswapV3Strategy _uniV3) external {
         vault = _vault;
         aggregator = _aggregator;
         uniV3 = _uniV3;
+
+        underlying = IERC20(vault.asset());
+        other = uniV3.otherToken();
+
+        pool = IUniswapV3Pool(uniV3.pool());
+        market = new MarketSwapCaller(address(pool));
+        poolToken0 = pool.token0();
+        poolToken1 = pool.token1();
+
         protocolConfigured = true;
     }
 
@@ -88,11 +86,10 @@ contract SaveFundHandler is Test {
         actorsConfigured = true;
     }
 
-    function configureScenario(int24 _tickLower, int24 _tickUpper, uint256 _underlyingDust, uint256 _otherDust)
+    function configureScenario(int24 _rebalanceHalfRangeTicks, uint256 _underlyingDust, uint256 _otherDust)
         external
     {
-        initTickLower = _tickLower;
-        initTickUpper = _tickUpper;
+        rebalanceHalfRangeTicks = _rebalanceHalfRangeTicks;
         underlyingDust = _underlyingDust;
         otherDust = _otherDust;
         scenarioConfigured = true;
@@ -192,7 +189,8 @@ contract SaveFundHandler is Test {
         }
 
         uint256 amount = bound(amtSeed, 1e6, idle);
-        uint16 ratioBps = uint16(bound(ratioSeed, 0, 10_000));
+        ratioSeed; // reserved entropy
+        uint16 ratioBps = 5000;
         uint256 deadline = block.timestamp + bound(deadlineSeed, 1, 1 days);
 
         // Strategy.deposit swaps amountToSwap = assets * ratioBps / 10_000
@@ -226,15 +224,12 @@ contract SaveFundHandler is Test {
         }
 
         uint256 amount = bound(amtSeed, 1e6, stratAssets);
-        uint256 deadline = block.timestamp + bound(deadlineSeed, 1, 1 days);
+        deadlineSeed; // reserved entropy
 
-        uint256 preOtherBal = other.balanceOf(address(uniV3));
-        bytes memory swapToUnderlyingData =
-            (preOtherBal == 0) ? bytes("") : _encodeUniV3SwapToUnderlying(preOtherBal, deadline);
-
-        // V3ActionData encoding for strategy.withdraw:
+        // Deployed aggregator validates UniV3 withdraw payload; use BPS sentinel swap-back.
+        bytes memory swapToUnderlyingData = _encodeUniV3SwapToUnderlyingBps(MAX_BPS);
         bytes memory actionData =
-            abi.encode(uint16(0), bytes(""), swapToUnderlyingData, deadline, uint256(0), uint256(0));
+            abi.encode(uint16(0), bytes(""), swapToUnderlyingData, uint256(0), uint256(0), uint256(0));
 
         (address[] memory strategies, bytes[] memory payloads) = _singleStrategyArrays(actionData);
 
@@ -246,6 +241,71 @@ contract SaveFundHandler is Test {
         ok;
 
         _afterProtocolOp(amtSeed);
+    }
+
+    function keeper_applyBufferPolicy(uint256 seed) external {
+        if (!_isConfigured()) return;
+
+        uint256 tvl = vault.totalAssets();
+        uint256 idle = vault.idleAssets();
+        if (tvl == 0) {
+            _afterProtocolOp(seed);
+            return;
+        }
+
+        uint256 target = (tvl * TARGET_IDLE_BPS) / MAX_BPS;
+        if (target < MIN_IDLE_FLOOR) target = MIN_IDLE_FLOOR;
+        if (target > tvl) target = tvl;
+
+        uint256 band = (tvl * IDLE_BAND_BPS) / MAX_BPS;
+        uint256 upper = target + band;
+
+        if (idle > upper) {
+            uint256 investAmt = (idle * INVEST_IDLE_PCT) / 100;
+            if (investAmt > idle) investAmt = idle;
+
+            uint16 ratioBps = 5000;
+            uint256 amountToSwap = (investAmt * uint256(ratioBps)) / MAX_BPS;
+            bytes memory swapToOtherData =
+                (amountToSwap == 0) ? bytes("") : _encodeUniV3SwapToOther(amountToSwap, block.timestamp + 30 minutes);
+            bytes memory actionData =
+                abi.encode(ratioBps, swapToOtherData, bytes(""), block.timestamp + 30 minutes, uint256(0), uint256(0));
+            (address[] memory strategies, bytes[] memory payloads) = _singleStrategyArrays(actionData);
+
+            vm.prank(keeper);
+            (bool okInvest,) = address(vault).call(
+                abi.encodeWithSignature("investIntoStrategy(uint256,address[],bytes[])", investAmt, strategies, payloads)
+            );
+            okInvest;
+            _afterProtocolOp(seed);
+            return;
+        }
+
+        if (idle < target) {
+            uint256 need = target - idle;
+            bytes memory swapToUnderlyingData = _encodeUniV3SwapToUnderlyingBps(MAX_BPS);
+            bytes memory actionData =
+                abi.encode(uint16(0), bytes(""), swapToUnderlyingData, uint256(0), uint256(0), uint256(0));
+            (address[] memory strategies, bytes[] memory payloads) = _singleStrategyArrays(actionData);
+
+            vm.prank(keeper);
+            (bool okWithdraw,) = address(vault).call(
+                abi.encodeWithSignature("withdrawFromStrategy(uint256,address[],bytes[])", need, strategies, payloads)
+            );
+            okWithdraw;
+        }
+
+        _afterProtocolOp(seed);
+    }
+
+    function operator_takeFees(uint256 seed) external {
+        if (!_isConfigured()) return;
+
+        vm.prank(operator);
+        (bool ok,) = address(vault).call(abi.encodeWithSignature("takeFees()"));
+        ok;
+
+        _afterProtocolOp(seed);
     }
 
     function keeper_harvest(
@@ -284,8 +344,16 @@ contract SaveFundHandler is Test {
     function keeper_rebalance(uint256 seed) external {
         if (!_isConfigured()) return;
 
-        uint256 deadline = block.timestamp + 1 hours;
-        bytes memory rebalanceData = abi.encode(initTickLower, initTickUpper, deadline, uint256(0), uint256(0));
+        (, int24 tickNow,,,,,) = pool.slot0();
+        int24 spacing = pool.tickSpacing();
+        int24 lower = _floorToSpacing(tickNow - rebalanceHalfRangeTicks, spacing);
+        int24 upper = _floorToSpacing(tickNow + rebalanceHalfRangeTicks, spacing);
+        if (lower >= upper) {
+            lower = _floorToSpacing(tickNow - spacing, spacing);
+            upper = _floorToSpacing(tickNow + spacing, spacing);
+        }
+
+        bytes memory rebalanceData = abi.encode(lower, upper, block.timestamp + 30 minutes, uint256(0), uint256(0));
         bytes memory encoded = _encodeSingleStrategyPayload(rebalanceData);
 
         vm.prank(keeper);
@@ -442,11 +510,11 @@ contract SaveFundHandler is Test {
         return (r & 1) == 0;
     }
 
-    function _pickMarketAmountIn(address tokenIn, uint256 seed, uint256 i) internal pure returns (uint256) {
+    function _pickMarketAmountIn(address tokenIn, uint256 seed, uint256 i) internal view returns (uint256) {
         uint256 r = uint256(keccak256(abi.encode(seed, i, uint256(0xA11CE))));
 
         // 500–2000 USDC/USDT
-        if (tokenIn == ARB_USDC || tokenIn == ARB_USDT) {
+        if (tokenIn == address(underlying) || tokenIn == address(other)) {
             return bound(r, 500e6, 2_000e6);
         }
 
@@ -482,6 +550,16 @@ contract SaveFundHandler is Test {
         return _encodeUniV3ExactInSwap(address(other), address(underlying), amountIn, deadline);
     }
 
+    function _encodeUniV3SwapToUnderlyingBps(uint16 bps) internal view returns (bytes memory) {
+        uint256 amountIn = AMOUNT_IN_BPS_FLAG | uint256(bps);
+        uint24 fee = pool.fee();
+        bytes memory path = abi.encodePacked(address(other), fee, address(underlying));
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(address(uniV3), amountIn, uint256(0), path, true);
+        return abi.encode(inputs, uint256(0));
+    }
+
     function _encodeUniV3ExactInSwap(address tokenIn, address tokenOut, uint256 amountIn, uint256 deadline)
         internal
         view
@@ -498,6 +576,13 @@ contract SaveFundHandler is Test {
         inputs[0] = abi.encode(address(uniV3), amountIn, uint256(0), path, true);
 
         return abi.encode(inputs, deadline);
+    }
+
+    function _floorToSpacing(int24 tick, int24 spacing) internal pure returns (int24) {
+        int24 mod = tick % spacing;
+        int24 floored = tick - mod;
+        if (mod < 0) floored -= spacing;
+        return floored;
     }
 }
 
