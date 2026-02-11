@@ -30,6 +30,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {FeeType} from "contracts/types/Cash.sol";
+import {ProtocolAddress} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {WithdrawalRequest, RequestKind} from "contracts/types/CircuitBreakerTypes.sol";
 
@@ -933,7 +934,14 @@ contract SFVault is
     }
 
     function _circuitBreaker() internal view returns (ISFAndIFCircuitBreaker) {
-        return ISFAndIFCircuitBreaker(addressManager.getProtocolAddressByName("PROTOCOL__CIRCUIT_BREAKER").addr);
+        // Dont fail if circuit breaker is not set yet
+        try addressManager.getProtocolAddressByName("PROTOCOL__CIRCUIT_BREAKER") returns (
+            ProtocolAddress memory protocolAddr
+        ) {
+            return ISFAndIFCircuitBreaker(protocolAddr.addr);
+        } catch {
+            return ISFAndIFCircuitBreaker(address(0));
+        }
     }
 
     function _onlyKeeperOrOperator() internal view {
