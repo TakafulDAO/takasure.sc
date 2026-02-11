@@ -34,6 +34,7 @@ const DEFAULT_SWAP_FEE_BY_CHAIN = {
     "arb-one": "100",
     "arb-sepolia": "100",
 }
+const OTHER_RATIO_AUTO_ALIASES = new Set(["auto", "best"])
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -123,6 +124,11 @@ function getDefaultSwapFee(chainCfg) {
     return DEFAULT_SWAP_FEE_BY_CHAIN[chainCfg.name]
 }
 
+function isAutoOtherRatio(value) {
+    if (value === undefined || value === null) return false
+    return OTHER_RATIO_AUTO_ALIASES.has(String(value).trim().toLowerCase())
+}
+
 function getRpcUrl(chainCfg) {
     if (!chainCfg) return ""
     if (chainCfg.name === "arb-one") {
@@ -189,6 +195,184 @@ async function resolveAssets(assetsArg, chainCfg) {
     return idleAssets
 }
 
+function getSqrtRatioApproxFromTick(tick) {
+    return Math.pow(1.0001, tick / 2)
+}
+
+function computeOtherRatioBpsFromTicks({
+    currentTick,
+    tickLower,
+    tickUpper,
+    token0,
+    token1,
+    underlying,
+    other,
+}) {
+    const t0 = token0.toLowerCase()
+    const t1 = token1.toLowerCase()
+    const under = underlying.toLowerCase()
+    const oth = other.toLowerCase()
+
+    if ((under !== t0 && under !== t1) || (oth !== t0 && oth !== t1) || under === oth) {
+        console.error("Failed to compute auto otherRatioBps: strategy/pool tokens mismatch")
+        process.exit(1)
+    }
+
+    const otherIsToken0 = oth === t0
+    const sa = getSqrtRatioApproxFromTick(tickLower)
+    const sb = getSqrtRatioApproxFromTick(tickUpper)
+    const s = getSqrtRatioApproxFromTick(currentTick)
+
+    if (
+        !(sa > 0) ||
+        !(sb > 0) ||
+        !(s > 0) ||
+        !Number.isFinite(sa) ||
+        !Number.isFinite(sb) ||
+        !Number.isFinite(s)
+    ) {
+        console.error("Failed to compute auto otherRatioBps: invalid sqrt ratios")
+        process.exit(1)
+    }
+
+    // Out-of-range boundaries: position is single-sided.
+    if (s <= sa) return otherIsToken0 ? 10000 : 0
+    if (s >= sb) return otherIsToken0 ? 0 : 10000
+
+    // Unit-liquidity token mix at current price/range:
+    // amount0 = (sb - s) / (s * sb), amount1 = (s - sa)
+    const amount0 = (sb - s) / (s * sb)
+    const amount1 = s - sa
+    const priceToken1PerToken0 = s * s
+
+    let otherValueInUnderlying
+    let totalValueInUnderlying
+
+    if (otherIsToken0) {
+        // other=token0, underlying=token1
+        otherValueInUnderlying = amount0 * priceToken1PerToken0
+        totalValueInUnderlying = amount1 + otherValueInUnderlying
+    } else {
+        // other=token1, underlying=token0
+        otherValueInUnderlying = amount1 / priceToken1PerToken0
+        totalValueInUnderlying = amount0 + otherValueInUnderlying
+    }
+
+    if (!(totalValueInUnderlying > 0) || !Number.isFinite(totalValueInUnderlying)) {
+        return 0
+    }
+
+    const ratio = otherValueInUnderlying / totalValueInUnderlying
+    if (!Number.isFinite(ratio)) return 0
+    const bps = Math.round(ratio * 10000)
+    if (bps < 0) return 0
+    if (bps > 10000) return 10000
+    return bps
+}
+
+async function resolveAutoOtherRatioBps(strategyAddress, chainCfg) {
+    if (!chainCfg) {
+        console.error("--otherRatioBps auto requires --chain")
+        process.exit(1)
+    }
+
+    const rpcUrl = getRpcUrl(chainCfg)
+    if (!rpcUrl) {
+        if (chainCfg.name === "arb-one") {
+            console.error(
+                "Missing SAFE_RPC_URL or ARBITRUM_MAINNET_RPC_URL (required for --otherRatioBps auto)",
+            )
+            process.exit(1)
+        }
+        if (chainCfg.name === "arb-sepolia") {
+            console.error(
+                "Missing ARBITRUM_TESTNET_SEPOLIA_RPC_URL (required for --otherRatioBps auto)",
+            )
+            process.exit(1)
+        }
+        console.error("Missing RPC URL for selected --chain")
+        process.exit(1)
+    }
+
+    const provider = new providers.JsonRpcProvider(rpcUrl)
+    const strategy = new Contract(
+        strategyAddress,
+        [
+            "function pool() view returns (address)",
+            "function tickLower() view returns (int24)",
+            "function tickUpper() view returns (int24)",
+            "function asset() view returns (address)",
+            "function otherToken() view returns (address)",
+            "function twapWindow() view returns (uint32)",
+        ],
+        provider,
+    )
+
+    let poolAddress
+    let tickLower
+    let tickUpper
+    let underlying
+    let other
+    let twapWindow
+    try {
+        ;[poolAddress, tickLower, tickUpper, underlying, other, twapWindow] = await Promise.all([
+            strategy.pool(),
+            strategy.tickLower(),
+            strategy.tickUpper(),
+            strategy.asset(),
+            strategy.otherToken(),
+            strategy.twapWindow(),
+        ])
+    } catch (e) {
+        console.error(`Failed to read strategy config for auto ratio: ${e.message || e}`)
+        process.exit(1)
+    }
+
+    const pool = new Contract(
+        poolAddress,
+        [
+            "function token0() view returns (address)",
+            "function token1() view returns (address)",
+            "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16, uint16, uint16, uint8, bool)",
+            "function observe(uint32[] secondsAgos) view returns (int56[] tickCumulatives, uint160[] secondsPerLiquidityCumulativeX128s)",
+        ],
+        provider,
+    )
+
+    let token0
+    let token1
+    let currentTick
+    try {
+        ;[token0, token1] = await Promise.all([pool.token0(), pool.token1()])
+        const window = Number(twapWindow.toString())
+        if (window > 0) {
+            const [tickCumulatives] = await pool.observe([window, 0])
+            const delta = Number(tickCumulatives[1].sub(tickCumulatives[0]).toString())
+            currentTick = Math.trunc(delta / window)
+            if (delta < 0 && delta % window !== 0) currentTick -= 1
+        } else {
+            const slot0 = await pool.slot0()
+            currentTick = Number(slot0.tick)
+        }
+    } catch (e) {
+        console.error(`Failed to read pool state for auto ratio: ${e.message || e}`)
+        process.exit(1)
+    }
+
+    const ratioBps = computeOtherRatioBpsFromTicks({
+        currentTick,
+        tickLower: Number(tickLower.toString()),
+        tickUpper: Number(tickUpper.toString()),
+        token0,
+        token1,
+        underlying,
+        other,
+    })
+
+    console.log("autoOtherRatioBps:", ratioBps)
+    return BigNumber.from(ratioBps)
+}
+
 function buildSwapData(prefix, defaultRecipient, chainCfg, defaultFee) {
     const dataRaw = getArg(`${prefix}Data`)
     if (dataRaw) return dataRaw
@@ -249,7 +433,7 @@ async function main() {
             [
                 "Usage:",
                 "  node scripts/save-funds/buildVaultInvestCalldata.js --assets <uint|full|max|all> [--strategies <addr1,addr2>] [--payloads <0x...,0x...>] [--chain <arb-one|arb-sepolia>]",
-                "  node scripts/save-funds/buildVaultInvestCalldata.js --assets <uint|full|max|all> [--strategies <addr|uniV3>] --otherRatioBps <bps> \\",
+                "  node scripts/save-funds/buildVaultInvestCalldata.js --assets <uint|full|max|all> [--strategies <addr|uniV3>] --otherRatioBps <bps|auto> \\",
                 "    --swapToOtherTokenIn <addr> --swapToOtherTokenOut <addr> --swapToOtherFee <fee> --swapToOtherBps <bps> \\",
                 "    --swapToUnderlyingTokenIn <addr> --swapToUnderlyingTokenOut <addr> --swapToUnderlyingFee <fee> --swapToUnderlyingBps <bps> \\",
                 "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
@@ -281,7 +465,7 @@ async function main() {
                 "  --tenderlySimulationType <str>  Optional Tenderly simulation type.",
                 "  --minOther <uint>                Min other token out for PM actions.",
                 "  --minUnderlying <uint>           Min underlying out for PM actions.",
-                "  --otherRatioBps <bps>            Target otherToken ratio (0..10000).",
+                "  --otherRatioBps <bps|auto>       Target otherToken ratio (0..10000) or auto LP-target ratio.",
                 "  --payloads <p1,p2>               Per-strategy payloads (hex). Length must match strategies.",
                 "  --pmDeadline <uint>              PM deadline (0 = sentinel).",
                 "  --strategies <a,b>               Strategy addresses (or uniV3). Defaults to uniV3.",
@@ -368,7 +552,17 @@ async function main() {
                 process.exit(1)
             }
 
-            const otherRatioBps = parseBps(getArg("otherRatioBps", "0"), "otherRatioBps")
+            const otherRatioArg = getArg("otherRatioBps", "0")
+            let otherRatioBps
+            if (isAutoOtherRatio(otherRatioArg)) {
+                if (strategies.length !== 1) {
+                    console.error("--otherRatioBps auto supports a single strategy")
+                    process.exit(1)
+                }
+                otherRatioBps = await resolveAutoOtherRatioBps(strategies[0], chainCfg)
+            } else {
+                otherRatioBps = parseBps(otherRatioArg, "otherRatioBps")
+            }
             let swapToOtherData = getArg("swapToOtherData", "0x")
             let swapToUnderlyingData = getArg("swapToUnderlyingData", "0x")
             const pmDeadline = parseUint(getArg("pmDeadline", "0"), "pmDeadline")
@@ -492,10 +686,24 @@ node scripts/save-funds/buildVaultInvestCalldata.js \
   --strategies uniV3 \
   --otherRatioBps 5150 \
   --swapToOtherFee 100 \
+  --assets full \
+  --otherRatioBps auto \
   --swapToOtherBps 10000 \
   --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 600 )) \
+  --pmDeadline $(( $(date +%s) + 1800 )) \
+  --simulateTenderly \
+  --sendToSafe
+
+===========================================================================
+
+node scripts/save-funds/buildVaultInvestCalldata.js \
+  --assets full \
+  --otherRatioBps auto \
+  --swapToOtherBps 10000 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly \
   --sendToSafe
 */
@@ -505,4 +713,4 @@ POOL=0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6
 cast call --rpc-url $ARBITRUM_MAINNET_RPC_URL $POOL "slot0()(uint160,int24,uint16,uint16,uint16,uint8,bool)"
 */
 
-// todo: calculate better the other ratio to other token
+// todo: improve auto ratio precision with exact TickMath/LiquidityAmounts parity
