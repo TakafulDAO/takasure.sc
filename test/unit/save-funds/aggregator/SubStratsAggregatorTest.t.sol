@@ -8,9 +8,8 @@ import {DeploySFVault} from "test/utils/05-DeploySFVault.s.sol";
 import {DeploySFStrategyAggregator} from "test/utils/06-DeploySFStrategyAggregator.s.sol";
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
-import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
+import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {
@@ -19,10 +18,9 @@ import {
     ShortReturnAssetStrategy,
     WrongAssetStrategy
 } from "test/mocks/MockSFStrategy.sol";
-
+import {MockValuator} from "test/mocks/MockValuator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {SubStrategy} from "contracts/types/Strategies.sol";
@@ -45,6 +43,7 @@ contract SubStratsAggregatorTest is Test {
     address internal takadao; // operator
     address internal feeRecipient;
     address internal pauser = makeAddr("pauser");
+    MockValuator internal valuator;
 
     uint256 internal constant MAX_BPS = 10_000;
 
@@ -69,12 +68,15 @@ contract SubStratsAggregatorTest is Test {
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
 
-        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset);
 
         // Fee recipient required by SFVault; not strictly needed for aggregator itself but kept consistent with other setup.
         feeRecipient = makeAddr("feeRecipient");
         vm.prank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        valuator = new MockValuator();
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
 
         // Ensure the vault is recognized as "PROTOCOL__SF_VAULT" for onlyContract checks.
         vm.startPrank(addrMgr.owner());

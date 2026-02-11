@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
-import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
+import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -17,9 +17,9 @@ contract DeploySFUniV3Strat is Script, GetContractAddress {
     address constant ROUTER = 0x4A7b5Da61326A6379179b40d00F57E5bbDC962c2;
 
     function run() external returns (address proxy) {
-        uint256 chainId = block.chainid;
-        HelperConfig helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
+        // uint256 chainId = block.chainid;
+        // HelperConfig helperConfig = new HelperConfig();
+        // HelperConfig.NetworkConfig memory config = helperConfig.getConfigByChainId(chainId);
 
         IAddressManager addressManager = IAddressManager(_getContractAddress(block.chainid, "AddressManager"));
         address vault = _getContractAddress(block.chainid, "SFVault");

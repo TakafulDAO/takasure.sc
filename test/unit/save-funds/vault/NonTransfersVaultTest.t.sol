@@ -8,8 +8,11 @@ import {DeploySFVault} from "test/utils/05-DeploySFVault.s.sol";
 import {DeploySFAndIFCircuitBreaker} from "test/utils/08-DeployCircuitBreaker.s.sol";
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
 import {SFAndIFCircuitBreaker} from "contracts/breakers/SFAndIFCircuitBreaker.sol";
+import {MockSFStrategy} from "test/mocks/MockSFStrategy.sol";
+import {MockERC721ApprovalForAll} from "test/mocks/MockERC721ApprovalForAll.sol";
+import {MockValuator} from "test/mocks/MockValuator.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -33,6 +36,7 @@ contract NonTransfersVaultTest is Test {
     address internal backend;
     address internal pauser = makeAddr("pauser");
     address internal user = makeAddr("user");
+    MockValuator internal valuator;
 
     uint256 internal constant ONE_USDC = 1e6;
 
@@ -63,11 +67,13 @@ contract NonTransfersVaultTest is Test {
         asset = IERC20(vault.asset());
 
         feeRecipient = makeAddr("feeRecipient");
+        valuator = new MockValuator();
 
         vm.startPrank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
         addrMgr.addProtocolAddress("PROTOCOL__CIRCUIT_BREAKER", address(circuitBreaker), ProtocolAddressType.Admin);
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN, true);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
 
@@ -86,6 +92,11 @@ contract NonTransfersVaultTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testSFVault_SharesAreNonTransferable_TransferReverts() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint256 amount = 1_000_000;
         _prepareUser(user, amount);
 
@@ -100,6 +111,11 @@ contract NonTransfersVaultTest is Test {
     }
 
     function testSFVault_SharesAreNonTransferable_RedeemBurnAllowed() public {
+        MockSFStrategy mock = new MockSFStrategy(address(vault), vault.asset());
+
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress("PROTOCOL__SF_AGGREGATOR", address(mock), ProtocolAddressType.Protocol);
+
         uint256 amount = 1_000_000;
         _prepareUser(user, amount);
 

@@ -2,18 +2,16 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-
 import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {DeploySFVault} from "test/utils/05-DeploySFVault.s.sol";
 import {DeploySFStrategyAggregator} from "test/utils/06-DeploySFStrategyAggregator.s.sol";
 import {AddAddressesAndRoles} from "test/utils/04-AddAddressesAndRoles.s.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
-
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
-import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
+import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-
+import {MockValuator} from "test/mocks/MockValuator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
@@ -33,6 +31,7 @@ contract SFStrategyAggregatorFuzzTest is Test {
     address internal takadao; // OPERATOR
     address internal feeRecipient;
     address internal pauser = makeAddr("pauser"); // PAUSE_GUARDIAN
+    MockValuator internal valuator;
 
     function setUp() public {
         managersDeployer = new DeployManagers();
@@ -50,12 +49,14 @@ contract SFStrategyAggregatorFuzzTest is Test {
 
         vault = vaultDeployer.run(addrMgr);
         asset = IERC20(vault.asset());
-        aggregator = aggregatorDeployer.run(addrMgr, asset, address(vault));
+        aggregator = aggregatorDeployer.run(addrMgr, asset);
 
         feeRecipient = makeAddr("feeRecipient");
+        valuator = new MockValuator();
 
         vm.startPrank(addrMgr.owner());
         addrMgr.addProtocolAddress("ADMIN__SF_FEE_RECEIVER", feeRecipient, ProtocolAddressType.Admin);
+        addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
 
         // Ensure PAUSE_GUARDIAN exists and is held by `pauser`
         addrMgr.createNewRole(Roles.PAUSE_GUARDIAN, true);
