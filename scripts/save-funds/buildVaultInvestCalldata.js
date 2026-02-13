@@ -199,6 +199,13 @@ function getSqrtRatioApproxFromTick(tick) {
     return Math.pow(1.0001, tick / 2)
 }
 
+function quoteOtherAsUnderlyingAtTick(otherAmount, tick, otherIsToken0) {
+    if (!Number.isFinite(otherAmount) || otherAmount <= 0) return 0
+    const priceToken1PerToken0 = Math.pow(1.0001, tick)
+    if (!Number.isFinite(priceToken1PerToken0) || priceToken1PerToken0 <= 0) return 0
+    return otherIsToken0 ? otherAmount * priceToken1PerToken0 : otherAmount / priceToken1PerToken0
+}
+
 function computeOtherRatioBpsFromTicks({
     currentTick,
     tickLower,
@@ -270,7 +277,7 @@ function computeOtherRatioBpsFromTicks({
     return bps
 }
 
-async function resolveAutoOtherRatioBps(strategyAddress, chainCfg) {
+async function resolveAutoOtherRatioBps(strategyAddress, chainCfg, assetsIncoming) {
     if (!chainCfg) {
         console.error("--otherRatioBps auto requires --chain")
         process.exit(1)
@@ -359,7 +366,7 @@ async function resolveAutoOtherRatioBps(strategyAddress, chainCfg) {
         process.exit(1)
     }
 
-    const ratioBps = computeOtherRatioBpsFromTicks({
+    let ratioBps = computeOtherRatioBpsFromTicks({
         currentTick,
         tickLower: Number(tickLower.toString()),
         tickUpper: Number(tickUpper.toString()),
@@ -368,6 +375,61 @@ async function resolveAutoOtherRatioBps(strategyAddress, chainCfg) {
         underlying,
         other,
     })
+
+    // Strategy contract only executes rebalancing swaps when otherRatioBps > 0.
+    // If LP-optimal ratio is 0, we may still force 1bps only when current balances already
+    // have >=1bps in otherToken value; this can help reduce legacy otherToken leftovers.
+    if (ratioBps === 0) {
+        const erc20 = [
+            "function decimals() view returns (uint8)",
+            "function balanceOf(address) view returns (uint256)",
+        ]
+        const underlyingToken = new Contract(underlying, erc20, provider)
+        const otherToken = new Contract(other, erc20, provider)
+
+        let underlyingDecimals
+        let otherDecimals
+        let strategyUnderlyingBal
+        let strategyOtherBal
+        try {
+            ;[underlyingDecimals, otherDecimals, strategyUnderlyingBal, strategyOtherBal] =
+                await Promise.all([
+                    underlyingToken.decimals(),
+                    otherToken.decimals(),
+                    underlyingToken.balanceOf(strategyAddress),
+                    otherToken.balanceOf(strategyAddress),
+                ])
+        } catch (e) {
+            console.error(`Failed to read token balances for auto ratio: ${e.message || e}`)
+            process.exit(1)
+        }
+
+        const incoming = assetsIncoming || BigNumber.from(0)
+        const underlyingTotal = Number(
+            utils.formatUnits(strategyUnderlyingBal.add(incoming), underlyingDecimals),
+        )
+        const otherBalance = Number(utils.formatUnits(strategyOtherBal, otherDecimals))
+        const otherIsToken0 = other.toLowerCase() === token0.toLowerCase()
+        const otherValueInUnderlying = quoteOtherAsUnderlyingAtTick(
+            otherBalance,
+            currentTick,
+            otherIsToken0,
+        )
+        const totalValueInUnderlying = underlyingTotal + otherValueInUnderlying
+        const currentOtherRatioBps =
+            totalValueInUnderlying > 0 && Number.isFinite(totalValueInUnderlying)
+                ? (otherValueInUnderlying / totalValueInUnderlying) * 10000
+                : 0
+
+        if (currentOtherRatioBps >= 1) {
+            ratioBps = 1
+            console.log(
+                "autoOtherRatioBpsAdjusted:",
+                "1",
+                "(forced from 0 to trigger cleanup swap toward underlying)",
+            )
+        }
+    }
 
     console.log("autoOtherRatioBps:", ratioBps)
     return BigNumber.from(ratioBps)
@@ -465,7 +527,7 @@ async function main() {
                 "  --tenderlySimulationType <str>  Optional Tenderly simulation type.",
                 "  --minOther <uint>                Min other token out for PM actions.",
                 "  --minUnderlying <uint>           Min underlying out for PM actions.",
-                "  --otherRatioBps <bps|auto>       Target otherToken ratio (0..10000) or auto LP-target ratio.",
+                "  --otherRatioBps <bps|auto>       Target otherToken ratio (0..10000) or auto LP-target ratio (best-effort cleanup).",
                 "  --payloads <p1,p2>               Per-strategy payloads (hex). Length must match strategies.",
                 "  --pmDeadline <uint>              PM deadline (0 = sentinel).",
                 "  --strategies <a,b>               Strategy addresses (or uniV3). Defaults to uniV3.",
@@ -559,7 +621,7 @@ async function main() {
                     console.error("--otherRatioBps auto supports a single strategy")
                     process.exit(1)
                 }
-                otherRatioBps = await resolveAutoOtherRatioBps(strategies[0], chainCfg)
+                otherRatioBps = await resolveAutoOtherRatioBps(strategies[0], chainCfg, assets)
             } else {
                 otherRatioBps = parseBps(otherRatioArg, "otherRatioBps")
             }
@@ -691,7 +753,6 @@ node scripts/save-funds/buildVaultInvestCalldata.js \
   --swapToOtherBps 10000 \
   --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
-  --pmDeadline $(( $(date +%s) + 600 )) \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly \
   --sendToSafe
@@ -706,11 +767,22 @@ node scripts/save-funds/buildVaultInvestCalldata.js \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly \
   --sendToSafe
+
+  node scripts/save-funds/buildVaultInvestCalldata.js \
+  --chain arb-one \
+  --assets 300000000 \
+  --strategies uniV3 \
+  --otherRatioBps 1 \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline $(( $(date +%s) + 1800 )) \
+  --simulateTenderly \
+  --sendToSafe
 */
 
 /*
 POOL=0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6
 cast call --rpc-url $ARBITRUM_MAINNET_RPC_URL $POOL "slot0()(uint160,int24,uint16,uint16,uint16,uint8,bool)"
 */
-
-// todo: improve auto ratio precision with exact TickMath/LiquidityAmounts parity
