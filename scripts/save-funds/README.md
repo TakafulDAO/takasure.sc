@@ -44,7 +44,8 @@ Required env vars:
 **Tenderly simulation (arb-one only)**
 
 You can pass `--simulateTenderly` to run a Tenderly simulation before sending to Safe.
-The script will also create a public share link (if allowed) and print `tenderlyPublicUrl`.
+The script prints `tenderlyDashboardUrl` for direct navigation in your Tenderly project.
+If sharing is allowed, it also prints `tenderlyPublicUrl`.
 
 Required env vars:
 - `TENDERLY_ACCESS_KEY`

@@ -347,6 +347,10 @@ async function main() {
         })
         if (sim.simulationId) console.log("tenderlySimulationId:", sim.simulationId)
         if (sim.publicUrl) console.log("tenderlyPublicUrl:", sim.publicUrl)
+        if (sim.dashboardUrl) {
+            console.log("tenderlyDashboardUrl:")
+            console.log(sim.dashboardUrl)
+        }
         if (sim.status !== true) {
             console.error("Tenderly simulation did not return success status")
             process.exit(1)

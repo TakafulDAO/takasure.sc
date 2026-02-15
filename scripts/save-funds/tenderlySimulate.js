@@ -42,13 +42,7 @@ function extractSimulationStatus(result) {
 }
 
 function extractSimulationId(result) {
-    return (
-        result?.simulation?.id ||
-        result?.simulation_id ||
-        result?.id ||
-        result?.transaction?.id ||
-        null
-    )
+    return result?.simulation?.id || result?.simulation_id || null
 }
 
 function extractShareUrl(result) {
@@ -67,6 +61,11 @@ async function shareSimulation({ account, project, simulationId, accessKey }) {
     const shareUrl = `https://api.tenderly.co/api/v1/account/${account}/project/${project}/simulations/${simulationId}/share`
     const shareResp = await postJson(shareUrl, {}, accessKey)
     return { shareResp, publicUrl: extractShareUrl(shareResp) }
+}
+
+function buildDashboardUrl(simulationId) {
+    if (!simulationId) return null
+    return `https://dashboard.tenderly.co/simulator/${simulationId}`
 }
 
 async function simulateTenderly({
@@ -113,6 +112,8 @@ async function simulateTenderly({
         input: data,
         gas: parseInt(gas || DEFAULT_GAS, 10),
         value: value || "0",
+        save: true,
+        save_if_fails: true,
     }
 
     if (blockNumber) {
@@ -136,6 +137,7 @@ async function simulateTenderly({
     const result = await postJson(url, payload, accessKey)
     const status = extractSimulationStatus(result)
     const simulationId = extractSimulationId(result)
+    const dashboardUrl = buildDashboardUrl(simulationId)
     let publicUrl = null
 
     if (simulationId) {
@@ -147,15 +149,10 @@ async function simulateTenderly({
                 accessKey,
             })
             publicUrl = share.publicUrl
-            if (!publicUrl) {
-                console.warn("Tenderly share did not return a public URL")
-            }
-        } catch (err) {
-            console.warn(`Tenderly share failed: ${err.message || err}`)
-        }
+        } catch (err) {}
     }
 
-    return { result, status, simulationId, publicUrl, url }
+    return { result, status, simulationId, publicUrl, dashboardUrl, url }
 }
 
 module.exports = {
