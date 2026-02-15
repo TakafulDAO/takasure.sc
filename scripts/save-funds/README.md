@@ -1,61 +1,377 @@
 # Save Funds Scripts
 
-This folder contains helper scripts to produce calldata for Safe Multisig transactions and a deploy command for the
-mainnet Save Funds stack.
+This folder contains helper scripts to build calldata and optionally:
+- simulate in Tenderly,
+- propose to Safe (arb-one),
+- broadcast onchain (arb-sepolia).
 
-**Deposit 100 USDC and Invest 100% into UniV3 Strategy**
+## `.env` setup
 
-Notes:
-- `buildVaultInvestCalldata.js` prints calldata to stdout (console). It does not write to a file.
-- USDC has 6 decimals, so 100 USDC = `100000000`.
+Add these variables to the repo root `.env`:
 
-Steps:
-1. Safe: approve `SFVault` to spend `100000000` USDC.
-2. Safe: call `SFVault.deposit(100000000, <SAFE_ADDRESS>)`.
-3. Build calldata for `SFVault.investIntoStrategy(...)` (full amount into UniV3).
-   You can pass `--chain arb-one` or `--chain arb-sepolia` to avoid typing token/strategy addresses.
+```dotenv
+# -------- Required for arb-one reads --------
+ARBITRUM_MAINNET_RPC_URL=
+# Optional alias used by some scripts for arb-one RPC
+SAFE_RPC_URL=
+
+# -------- Required for --simulateTenderly --------
+TENDERLY_ACCESS_KEY=
+TENDERLY_ACCOUNT_SLUG=
+TENDERLY_PROJECT_SLUG=
+
+# -------- Required only for --sendToSafe (arb-one) --------
+SAFE_PROPOSER_PK=
+SAFE_TX_SERVICE_URL=https://safe-transaction-arbitrum.safe.global/api/v1
+
+# -------- Required only for --sendTx (arb-sepolia) --------
+TESTNET_PK=
+ARBITRUM_TESTNET_SEPOLIA_RPC_URL=
+```
+
+### Where to find Tenderly values
+
+Use Tenderly dashboard `Settings` > `Integration`:
+- `TENDERLY_ACCESS_KEY`: API access key.
+- `TENDERLY_ACCOUNT_SLUG`: workspace/account slug.
+- `TENDERLY_PROJECT_SLUG`: project slug.
+
+## Read current pool state
+
+```bash
+source .env
+POOL=0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6
+cast call --rpc-url $ARBITRUM_MAINNET_RPC_URL $POOL "slot0()(uint160,int24,uint16,uint16,uint16,uint8,bool)"
+```
+
+`slot0()` returns:
+- `sqrtPriceX96`
+- `tick`
+- `observationIndex`
+- `observationCardinality`
+- `observationCardinalityNext`
+- `feeProtocol`
+- `unlocked`
+
+## Global behavior (shared)
+
+These scripts share the same execution pattern:
+1. Build calldata only (default behavior).
+2. Add `--simulateTenderly` to run simulation first.
+3. Add `--sendToSafe` (arb-one) to propose transaction to Safe.
+4. Or add `--sendTx` (arb-sepolia) to broadcast directly.
+
+Recommended safe flow:
+1. Run with `--simulateTenderly`.
+2. Confirm `tenderlyStatus: ok` and inspect `tenderlyDashboardUrl`.
+3. Re-run the same command adding `--sendToSafe` when you want execution.
+
+## Common params (shared)
+
+These are shared across:
+- `buildVaultInvestCalldata.js`
+- `buildAggregatorRebalanceCalldata.js`
+- `buildAggregatorHarvestCalldata.js`
+
+### Common execution params
+
+- `--help`  
+  Show usage.
+
+- `--chain <arb-one|arb-sepolia>`  
+  Select chain config / deployment defaults.
+
+- `--strategies <a,b>`  
+  Comma-separated strategy addresses. `uniV3` alias is supported when chain context is available.
+
+- `--payloads <p1,p2>`  
+  Pre-encoded per-strategy payloads. Length must match `--strategies`.
+
+- `--simulateTenderly`  
+  Simulate transaction in Tenderly (arb-one only).
+
+- `--tenderlyGas <uint>`  
+  Override simulation gas limit.
+
+- `--tenderlyBlock <uint|latest>`  
+  Override simulation block.
+
+- `--tenderlySimulationType <str>`  
+  Optional simulation type.
+
+- `--sendToSafe`  
+  Propose transaction to Arbitrum One Safe (`--chain arb-one` required).
+
+- `--sendTx`  
+  Broadcast on Arbitrum Sepolia (`--chain arb-sepolia` required).
+
+### Common action/swap params
+
+Used in action-data mode (supported by invest/rebalance/harvest builders):
+
+- `--otherRatioBps <bps>`  
+  Target other-token ratio (0..10000).  
+  Note: invest also supports `auto` (see invest section).
+
+- `--pmDeadline <uint>`  
+  Position manager deadline (`0` is sentinel in new encoding flows).
+
+- `--minUnderlying <uint>`  
+  Minimum underlying out for PM actions.
+
+- `--minOther <uint>`  
+  Minimum other-token out for PM actions.
+
+- `--swapToOtherData <0x>`  
+  Raw encoded underlying -> other swap data.
+
+- `--swapToOtherTokenIn <addr>`
+- `--swapToOtherTokenOut <addr>`
+- `--swapToOtherFee <fee>`
+- `--swapToOtherBps <bps>`
+- `--swapToOtherAmountIn <uint>`
+- `--swapToOtherAmountOutMin <uint>`
+- `--swapToOtherDeadline <uint>`
+- `--swapToOtherRecipient <addr>`
+
+- `--swapToUnderlyingData <0x>`  
+  Raw encoded other -> underlying swap data.
+
+- `--swapToUnderlyingTokenIn <addr>`
+- `--swapToUnderlyingTokenOut <addr>`
+- `--swapToUnderlyingFee <fee>`
+- `--swapToUnderlyingBps <bps>`
+- `--swapToUnderlyingAmountIn <uint>`
+- `--swapToUnderlyingAmountOutMin <uint>`
+- `--swapToUnderlyingDeadline <uint>`
+- `--swapToUnderlyingRecipient <addr>`
+
+## `SFVault::investIntoStrategy`
+
+Script: `scripts/save-funds/buildVaultInvestCalldata.js`  
+Builds calldata for:
+`SFVault.investIntoStrategy(uint256 assets, address[] strategies, bytes[] payloads)`.
+
+### Script-specific params
+
+- `--assets <uint|full|max|all>`  
+  Amount of underlying to invest.  
+  `full|max|all` reads `SFVault.idleAssets()`.
+
+- `--defaultSwapFee <fee>`  
+  Default fee used by swap builders when per-swap fee is omitted.
+
+- `--otherRatioBps <bps|auto>`  
+  Invest supports `auto` (LP-target ratio estimation).
+
+### Example: simulate invest full vault balance
 
 ```bash
 node scripts/save-funds/buildVaultInvestCalldata.js \
-  --assets 100000000 \
-  --strategies <UNIV3_STRATEGY_ADDRESS> \
-  --payloads 0x
-
-# or with chain shortcut + alias
-node scripts/save-funds/buildVaultInvestCalldata.js \
   --chain arb-one \
-  --assets 100000000 \
+  --assets full \
   --strategies uniV3 \
-  --payloads 0x
+  --otherRatioBps auto \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline $(( $(date +%s) + 1800 )) \
+  --simulateTenderly
 ```
 
-4. Safe: submit the printed `investCalldata` to `SFVault.investIntoStrategy(...)`.
+> [!TIP]
+> USDC uses 6 decimals (`100 USDC = 100000000`).
 
-**Safe submission (arb-one only)**
+## `SFStrategyAggregator::rebalance`
 
-You can pass `--sendToSafe` to propose the transaction directly to the Arbitrum One Safe
-`0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F`.
+Script: `scripts/save-funds/buildAggregatorRebalanceCalldata.js`  
+Builds calldata for:
+`SFStrategyAggregator.rebalance(bytes data)`.
 
-Required env vars:
-- `SAFE_PROPOSER_PK`
-- `SAFE_RPC_URL` (or `ARBITRUM_MAINNET_RPC_URL`)
-- Optional: `SAFE_TX_SERVICE_URL`
+### Modes
 
-**Tenderly simulation (arb-one only)**
+- raw mode: `--data <0x>`
+- bundle mode: `--strategies` + optional `--payloads`
+- builder mode: `--tickLower` + `--tickUpper` (+ optional action-data / swap params)
 
-You can pass `--simulateTenderly` to run a Tenderly simulation before sending to Safe.
-The script prints `tenderlyDashboardUrl` for direct navigation in your Tenderly project.
-If sharing is allowed, it also prints `tenderlyPublicUrl`.
+### Script-specific params
 
-Required env vars:
-- `TENDERLY_ACCESS_KEY`
-- `TENDERLY_ACCOUNT_SLUG`
-- `TENDERLY_PROJECT_SLUG`
+- `--data <0x>`  
+  Raw ABI-encoded rebalance bundle.
 
-**Direct send (arb-sepolia only)**
+- `--tickLower <int>`  
+  New lower tick (builder mode).
 
-You can pass `--sendTx` to broadcast the transaction directly on Arbitrum Sepolia.
+- `--tickUpper <int>`  
+  New upper tick (builder mode).
 
-Required env vars:
-- `TESTNET_PK`
-- `ARBITRUM_TESTNET_SEPOLIA_RPC_URL`
+- `--actionData <0x>`  
+  Raw actionData for new encoding, overrides action builder fields.
+
+### Rebalance examples (Git Bash)
+
+1. Rebalance only updating ticks
+
+```bash
+node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
+  --chain arb-one \
+  --strategies uniV3 \
+  --tickLower -594 \
+  --tickUpper 606 \
+  --pmDeadline $(( $(date +%s) + 1800 )) \
+  --simulateTenderly
+```
+
+2. Out of position (current tick is outside range, either `< lower` or `> upper`): rebalance and redeploy available liquidity
+
+```bash
+node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
+  --chain arb-one \
+  --strategies uniV3 \
+  --tickLower <new_lower_tick> \
+  --tickUpper <new_upper_tick> \
+  --otherRatioBps 5000 \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline $(( $(date +%s) + 1800 )) \
+  --simulateTenderly
+```
+
+3. Rebalance all active sub-strategies with empty payloads
+
+```bash
+node scripts/save-funds/buildAggregatorRebalanceCalldata.js \
+  --chain arb-one \
+  --data 0x \
+  --simulateTenderly
+```
+
+Expected simulation output includes:
+- `tenderlySimulationId`
+- `tenderlyDashboardUrl`
+- `tenderlyStatus: ok`
+
+> [!TIP]
+> Swap-builder mode supports a single strategy only.
+
+> [!TIP]
+> To maximize deployment after rebalance, choose a range that contains the current tick.
+
+> [!WARNING]
+> `--otherRatioBps 5000` is a practical default, but with asymmetric ranges it may not be exact max-liquidity ratio. Small leftovers can remain.
+
+### Safe leftovers process (after rebalance)
+
+If leftovers remain:
+1. Harvest with full `USDT -> USDC` swap (sweep proceeds to vault as underlying).
+2. Re-invest vault `full` underlying with `auto` ratio.
+
+1) Sweep leftovers to vault via harvest:
+
+```bash
+node scripts/save-funds/buildAggregatorHarvestCalldata.js \
+  --chain arb-one \
+  --strategies uniV3 \
+  --swapToOtherData 0x \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline 0 \
+  --simulateTenderly
+```
+
+2) Re-invest everything from vault:
+
+```bash
+node scripts/save-funds/buildVaultInvestCalldata.js \
+  --chain arb-one \
+  --assets full \
+  --strategies uniV3 \
+  --otherRatioBps auto \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline $(( $(date +%s) + 1800 )) \
+  --simulateTenderly
+```
+
+After simulations are good, rerun each with `--sendToSafe` to execute.
+
+## `SFStrategyAggregator::harvest`
+
+Script: `scripts/save-funds/buildAggregatorHarvestCalldata.js`  
+Builds calldata for:
+`SFStrategyAggregator.harvest(bytes data)`.
+
+### Modes
+
+- raw mode: `--data <0x>`
+- bundle mode: `--strategies` + optional `--payloads`
+- action-data mode: ratio + optional swap builder data
+
+### Script-specific params
+
+- `--data <0x>`  
+  Raw ABI-encoded harvest bundle.
+
+### Harvest examples (Git Bash)
+
+1. Harvest all active sub-strategies (empty bundle payload)
+
+```bash
+node scripts/save-funds/buildAggregatorHarvestCalldata.js \
+  --chain arb-one \
+  --data 0x \
+  --simulateTenderly
+```
+
+2. Harvest one strategy with empty payload
+
+```bash
+node scripts/save-funds/buildAggregatorHarvestCalldata.js \
+  --chain arb-one \
+  --strategies uniV3 \
+  --simulateTenderly
+```
+
+3. Harvest with action-data swap builders
+
+```bash
+node scripts/save-funds/buildAggregatorHarvestCalldata.js \
+  --chain arb-one \
+  --strategies uniV3 \
+  --otherRatioBps 5000 \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline $(( $(date +%s) + 1800 )) \
+  --simulateTenderly
+```
+
+4. Harvest and swap all received USDT -> USDC before sweep
+
+```bash
+node scripts/save-funds/buildAggregatorHarvestCalldata.js \
+  --chain arb-one \
+  --strategies uniV3 \
+  --swapToOtherData 0x \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline 0 \
+  --simulateTenderly
+```
+
+Expected simulation output includes:
+- `tenderlySimulationId`
+- `tenderlyDashboardUrl`
+- `tenderlyStatus: ok`
+
+> [!TIP]
+> `--data 0x` means aggregator harvests all active child strategies with empty payloads.
+
+> [!TIP]
+> Swap-builder mode supports a single strategy only.
