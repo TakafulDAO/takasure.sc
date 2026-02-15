@@ -209,7 +209,7 @@ Builds calldata for:
 - `--actionData <0x>`  
   Raw actionData for new encoding, overrides action builder fields.
 
-### Rebalance examples (Git Bash)
+### Rebalance examples
 
 1. Rebalance only updating ticks
 
@@ -317,7 +317,7 @@ Builds calldata for:
 - `--data <0x>`  
   Raw ABI-encoded harvest bundle.
 
-### Harvest examples (Git Bash)
+### Harvest examples
 
 1. Harvest all active sub-strategies (empty bundle payload)
 
