@@ -88,7 +88,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         address _usdc,
         address _receiverContract,
         uint64 _chainSelector,
-        address _owner,
+        address _owner
     ) external initializer {
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
