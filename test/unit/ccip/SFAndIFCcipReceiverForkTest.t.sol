@@ -13,7 +13,7 @@ import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol
 import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
 import {GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 
-import {CCIPTestERC20, CCIPTestVault} from "test/unit/ccip/CCIPTestMocks.sol";
+import {CCIPTestERC20, CCIPTestVault} from "test/mocks/CCIPTestMocks.sol";
 
 contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
     uint256 private constant SAFE_BLOCK_LAG = 128;
@@ -85,9 +85,8 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
     }
 
     function testSFAndIFCcip_receiver_ccipReceiveRevertsWhenCallerIsNotRouter() public {
-        Client.Any2EVMMessage memory message = _buildValidMessage(
-            keccak256("NOT_ROUTER"), Protocols.SAVE_VAULT, 10e6, user, allowedSender
-        );
+        Client.Any2EVMMessage memory message =
+            _buildValidMessage(keccak256("NOT_ROUTER"), Protocols.SAVE_VAULT, 10e6, user, allowedSender);
 
         vm.expectRevert(abi.encodeWithSelector(CCIPReceiver.InvalidRouter.selector, address(this)));
         receiver.ccipReceive(message);
@@ -145,7 +144,9 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
         uint256 userBalanceAfter = usdc.balanceOf(user);
 
         assertEq(userBalanceAfter - userBalanceBefore, amount, "user should receive recovered amount");
-        assertEq(uint256(_statusById(messageId)), uint256(SFAndIFCcipReceiver.StatusCode.RECOVERED), "expected RECOVERED");
+        assertEq(
+            uint256(_statusById(messageId)), uint256(SFAndIFCcipReceiver.StatusCode.RECOVERED), "expected RECOVERED"
+        );
     }
 
     function testSFAndIFCcip_receiver_retryLatestAndRecoverLatestAcrossMultipleFailedMessages() public {
@@ -172,10 +173,14 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
         receiver.recoverTokens(user); // remaining failed = firstMessageId
 
         assertEq(
-            uint256(_statusById(secondMessageId)), uint256(SFAndIFCcipReceiver.StatusCode.RESOLVED), "second should resolve"
+            uint256(_statusById(secondMessageId)),
+            uint256(SFAndIFCcipReceiver.StatusCode.RESOLVED),
+            "second should resolve"
         );
         assertEq(
-            uint256(_statusById(firstMessageId)), uint256(SFAndIFCcipReceiver.StatusCode.RECOVERED), "first should recover"
+            uint256(_statusById(firstMessageId)),
+            uint256(SFAndIFCcipReceiver.StatusCode.RECOVERED),
+            "first should recover"
         );
     }
 
@@ -301,11 +306,13 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
         assertEq(uint256(_statusById(messageId)), uint256(SFAndIFCcipReceiver.StatusCode.FAILED), "expected FAILED");
     }
 
-    function _buildValidMessage(bytes32 messageId, uint256 protocolToCall, uint256 amount, address receiverAddr, address senderAddr)
-        internal
-        view
-        returns (Client.Any2EVMMessage memory)
-    {
+    function _buildValidMessage(
+        bytes32 messageId,
+        uint256 protocolToCall,
+        uint256 amount,
+        address receiverAddr,
+        address senderAddr
+    ) internal view returns (Client.Any2EVMMessage memory) {
         return _buildValidMessage(
             messageId,
             protocolToCall,
@@ -352,9 +359,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
     function _mockProtocolAddress(string memory name, address protocolAddr) internal {
         ProtocolAddress memory protocolAddress = ProtocolAddress({
-            name: keccak256(bytes(name)),
-            addr: protocolAddr,
-            addressType: ProtocolAddressType.Protocol
+            name: keccak256(bytes(name)), addr: protocolAddr, addressType: ProtocolAddressType.Protocol
         });
 
         vm.mockCall(

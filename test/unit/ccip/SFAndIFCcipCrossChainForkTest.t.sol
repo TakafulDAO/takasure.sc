@@ -14,7 +14,7 @@ import {Protocols} from "contracts/helpers/chainlink/Protocols.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
 
-import {CCIPTestVault} from "test/unit/ccip/CCIPTestMocks.sol";
+import {CCIPTestVault} from "test/mocks/CCIPTestMocks.sol";
 
 contract SFAndIFCcipCrossChainForkTest is Test {
     string private constant ETH_SEPOLIA_RPC_ALIAS = "eth_sepolia";
@@ -103,7 +103,9 @@ contract SFAndIFCcipCrossChainForkTest is Test {
         vm.selectFork(sourceFork);
         bytes32 messageId = sender.sendMessage(Protocols.SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
         assertNotEq(messageId, bytes32(0), "messageId should not be zero");
-        assertEq(IERC20(address(sourceToken)).balanceOf(user), balanceBefore - SEND_AMOUNT, "source user balance mismatch");
+        assertEq(
+            IERC20(address(sourceToken)).balanceOf(user), balanceBefore - SEND_AMOUNT, "source user balance mismatch"
+        );
 
         vm.selectFork(sourceFork);
         ccipLocalSimulatorFork.switchChainAndRouteMessage(destinationFork);
@@ -112,7 +114,9 @@ contract SFAndIFCcipCrossChainForkTest is Test {
         assertEq(sfVault.lastCaller(), address(receiver), "vault caller should be receiver");
         assertEq(sfVault.lastReceiver(), user, "vault receiver mismatch");
         assertEq(sfVault.lastAssets(), SEND_AMOUNT, "vault assets mismatch");
-        assertEq(IERC20(address(destinationToken)).balanceOf(address(sfVault)), SEND_AMOUNT, "vault token balance mismatch");
+        assertEq(
+            IERC20(address(destinationToken)).balanceOf(address(sfVault)), SEND_AMOUNT, "vault token balance mismatch"
+        );
     }
 
     function testSFAndIFCcip_crossChain_sendInvestVaultAndReceiveOnDestination() public onlyConfigured {
@@ -126,7 +130,9 @@ contract SFAndIFCcipCrossChainForkTest is Test {
         assertEq(ifVault.lastCaller(), address(receiver), "vault caller should be receiver");
         assertEq(ifVault.lastReceiver(), user, "vault receiver mismatch");
         assertEq(ifVault.lastAssets(), SEND_AMOUNT, "vault assets mismatch");
-        assertEq(IERC20(address(destinationToken)).balanceOf(address(ifVault)), SEND_AMOUNT, "vault token balance mismatch");
+        assertEq(
+            IERC20(address(destinationToken)).balanceOf(address(ifVault)), SEND_AMOUNT, "vault token balance mismatch"
+        );
     }
 
     function _deploySenderProxy(address _owner, uint64 destinationChainSelector, address receiverContract)
@@ -148,9 +154,7 @@ contract SFAndIFCcipCrossChainForkTest is Test {
 
     function _mockProtocolAddress(string memory name, address protocolAddr) internal {
         ProtocolAddress memory protocolAddress = ProtocolAddress({
-            name: keccak256(bytes(name)),
-            addr: protocolAddr,
-            addressType: ProtocolAddressType.Protocol
+            name: keccak256(bytes(name)), addr: protocolAddr, addressType: ProtocolAddressType.Protocol
         });
 
         vm.mockCall(

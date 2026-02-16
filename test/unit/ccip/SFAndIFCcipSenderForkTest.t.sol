@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {SFAndIFCcipSender} from "contracts/helpers/chainlink/SFAndIFCcipSender.sol";
 import {Protocols} from "contracts/helpers/chainlink/Protocols.sol";
-import {CCIPTestERC20, CCIPTestRouter} from "test/unit/ccip/CCIPTestMocks.sol";
+import {CCIPTestERC20, CCIPTestRouter} from "test/mocks/CCIPTestMocks.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract SFAndIFCcipSenderForkTest is Test {
