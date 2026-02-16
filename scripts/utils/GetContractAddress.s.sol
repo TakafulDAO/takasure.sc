@@ -8,10 +8,7 @@ import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 contract GetContractAddress is Script, DeployConstants {
     using stdJson for string;
 
-    function _getContractAddress(
-        uint256 chainId,
-        string memory contractName
-    ) internal view returns (address) {
+    function _getContractAddress(uint256 chainId, string memory contractName) internal view returns (address) {
         string memory chainName;
 
         if (chainId == ARB_MAINNET_CHAIN_ID) {
@@ -25,14 +22,7 @@ contract GetContractAddress is Script, DeployConstants {
         }
 
         string memory root = vm.projectRoot();
-        string memory path = string.concat(
-            root,
-            "/deployments/",
-            chainName,
-            "/",
-            contractName,
-            ".json"
-        );
+        string memory path = string.concat(root, "/deployments/", chainName, "/", contractName, ".json");
         string memory json = vm.readFile(path);
         address contractAddress = json.readAddress(".address");
         console2.log(contractName, "address:");
@@ -41,4 +31,6 @@ contract GetContractAddress is Script, DeployConstants {
 
         return contractAddress;
     }
+
+    function test() external {}
 }
