@@ -70,6 +70,8 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     error SFAndIFCcipReceiver__InvalidProtocol(uint256 protocolToCall);
     error SFAndIFCcipReceiver__CallFailed(bytes reason);
     error SFAndIFCcipReceiver__VaultNotConfigured(uint256 protocolToCall);
+    error SFAndIFCcipReceiver__InvalidDestTokenAmountsLength(uint256 length);
+    error SFAndIFCcipReceiver__InvalidDestTokenAddress(address token);
     error SFAndIFCcipReceiver__MessageNotFailed(bytes32 messageId);
     error SFAndIFCcipReceiver__NoFailedMessages(address user);
     error SFAndIFCcipReceiver__MessageUserMismatch(address user, bytes32 messageId);
@@ -189,9 +191,9 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     function retryFailedMessageById(address user, bytes32 messageId) public onlyOwnerOrUser(user) {
         (Client.Any2EVMMessage memory message,) = _getUserMessage(user, messageId);
         (uint256 _protocolToCall, bytes memory _protocolCallData) = _decodeMessageData(message.data);
+        uint256 _tokenAmount = _getValidatedTokenAmount(message);
 
-        (bool _success, bytes memory _returnData) =
-            _callVault(_protocolToCall, _protocolCallData, message.destTokenAmounts[0].amount);
+        (bool _success, bytes memory _returnData) = _callVault(_protocolToCall, _protocolCallData, _tokenAmount);
 
         require(_success, SFAndIFCcipReceiver__CallFailed(_returnData));
 
@@ -215,11 +217,12 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      */
     function recoverTokensById(address user, bytes32 messageId) public onlyOwnerOrUser(user) {
         (Client.Any2EVMMessage memory message,) = _getUserMessage(user, messageId);
+        uint256 _tokenAmount = _getValidatedTokenAmount(message);
 
         failedMessages.set(messageId, uint256(StatusCode.RECOVERED));
-        usdc.safeTransfer(user, message.destTokenAmounts[0].amount);
+        usdc.safeTransfer(user, _tokenAmount);
 
-        emit OnTokensRecovered(user, message.destTokenAmounts[0].amount);
+        emit OnTokensRecovered(user, _tokenAmount);
     }
 
     /**
@@ -263,13 +266,13 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
             _protocolToCall == Protocols.SAVE_VAULT || _protocolToCall == Protocols.INVEST_VAULT,
             SFAndIFCcipReceiver__InvalidProtocol(_protocolToCall)
         );
+        uint256 _tokenAmount = _getValidatedTokenAmount(any2EvmMessage);
 
         address _user = _getUserAddress(any2EvmMessage.data);
 
         emit OnMessageDecoded(any2EvmMessage.messageId, _protocolToCall, _user);
 
-        (bool _success, bytes memory _returnData) =
-            _callVault(_protocolToCall, _protocolCallData, any2EvmMessage.destTokenAmounts[0].amount);
+        (bool _success, bytes memory _returnData) = _callVault(_protocolToCall, _protocolCallData, _tokenAmount);
 
         if (_success) {
             emit OnMessageReceived(
@@ -277,7 +280,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
                 any2EvmMessage.sourceChainSelector,
                 abi.decode(any2EvmMessage.sender, (address)),
                 _protocolCallData,
-                any2EvmMessage.destTokenAmounts[0].amount
+                _tokenAmount
             );
         } else {
             revert SFAndIFCcipReceiver__CallFailed(_returnData);
@@ -384,5 +387,15 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
 
         usdc.approve(_vault, _tokenAmount);
         return _vault.call(_protocolCallData);
+    }
+
+    function _getValidatedTokenAmount(Client.Any2EVMMessage memory _message) internal view returns (uint256 tokenAmount_) {
+        uint256 _length = _message.destTokenAmounts.length;
+        require(_length == 1, SFAndIFCcipReceiver__InvalidDestTokenAmountsLength(_length));
+
+        Client.EVMTokenAmount memory _tokenAmount = _message.destTokenAmounts[0];
+        require(_tokenAmount.token == address(usdc), SFAndIFCcipReceiver__InvalidDestTokenAddress(_tokenAmount.token));
+
+        tokenAmount_ = _tokenAmount.amount;
     }
 }
