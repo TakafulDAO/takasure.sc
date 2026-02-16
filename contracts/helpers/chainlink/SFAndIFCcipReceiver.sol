@@ -285,13 +285,39 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     }
 
     function _getUserAddress(bytes memory _data) internal pure returns (address userAddr_) {
-        (, bytes memory _protocolCallData) = _decodeMessageData(_data);
-        if (_protocolCallData.length < 0x44) return address(0);
+        uint256 dataLength = _data.length;
+        // abi.encode(uint256, bytes) minimum payload is 3 words
+        if (dataLength < 0x60) return address(0);
 
-        // `_protocolCallData` is expected to be: deposit(uint256 assets, address receiver)
-        // receiver starts at: bytes(4 selector + 32 first arg) = offset 0x24 from data start
+        uint256 bytesOffset;
+
         assembly {
-            userAddr_ := mload(add(_protocolCallData, 0x44))
+            // second head word in abi.encode(uint256, bytes) points to bytes offset
+            bytesOffset := mload(add(_data, 0x40))
+        }
+
+        // Dynamic-bytes length word must be inside bounds
+        if (bytesOffset > dataLength - 0x20) return address(0);
+
+        uint256 protocolCallDataLength;
+        uint256 protocolCallDataStart;
+
+        assembly {
+            let payloadStart := add(_data, 0x20)
+            let protocolCallDataLengthPos := add(payloadStart, bytesOffset)
+            protocolCallDataLength := mload(protocolCallDataLengthPos)
+            protocolCallDataStart := add(protocolCallDataLengthPos, 0x20)
+        }
+
+        //  Bytes data itself must be fully inside bounds
+        if (protocolCallDataLength > dataLength - bytesOffset - 0x20) return address(0);
+        // Need selector (4 bytes) + uint256 (32 bytes) + address slot (32 bytes)
+        if (protocolCallDataLength < 0x44) return address(0);
+
+        // `protocolCallData` expected: deposit(uint256 assets, address receiver)
+        // receiver starts at offset 0x24 (4-byte selector + first 32-byte arg)
+        assembly {
+            userAddr_ := mload(add(protocolCallDataStart, 0x24))
         }
     }
 
