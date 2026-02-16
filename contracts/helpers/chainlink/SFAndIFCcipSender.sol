@@ -206,7 +206,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         require(_linkBalance >= ccipFees_, SFAndIFCcipSender__NotEnoughBalance(_linkBalance, ccipFees_));
 
         // Approve the Router to transfer LINK tokens from this contract if needed
-        linkToken.approve(address(router), ccipFees_);
+        linkToken.forceApprove(address(router), ccipFees_);
     }
 
     function _sendMessage(
@@ -216,10 +216,14 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         Client.EVM2AnyMessage memory _message
     ) internal returns (bytes32 messageId_) {
         usdc.safeTransferFrom(_userAddr, address(this), _amountToTransfer);
-        usdc.approve(address(router), _amountToTransfer);
+        usdc.forceApprove(address(router), _amountToTransfer);
 
         // Send the message through the router and store the returned message ID
         messageId_ = router.ccipSend(destinationChainSelector, _message);
+
+        // Keep allowances short-lived and deterministic across ERC20 implementations
+        linkToken.forceApprove(address(router), 0);
+        usdc.forceApprove(address(router), 0);
 
         // Emit an event with message details
         emit OnTokensTransferred(messageId_, _amountToTransfer, _ccipFees, _userAddr);

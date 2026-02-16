@@ -391,8 +391,9 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
 
         address _vault = _getVaultAddress(_protocolToCall);
 
-        usdc.approve(_vault, _tokenAmount);
-        return _vault.call(_protocolCallData);
+        usdc.forceApprove(_vault, _tokenAmount);
+        (success_, returnData_) = _vault.call(_protocolCallData);
+        usdc.forceApprove(_vault, 0);
     }
 
     function _getValidatedTokenAmount(Client.Any2EVMMessage memory _message) internal view returns (uint256 tokenAmount_) {
