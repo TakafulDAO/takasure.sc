@@ -238,7 +238,10 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      */
     function getFailedMessages(uint256 offset, uint256 limit) external view returns (FailedMessage[] memory) {
         uint256 length = failedMessages.length();
-        uint256 returnLength = (offset + limit > length) ? length - offset : limit;
+        if (offset >= length || limit == 0) return new FailedMessage[](0);
+
+        uint256 remaining = length - offset;
+        uint256 returnLength = limit > remaining ? remaining : limit;
 
         FailedMessage[] memory failedMessagesList = new FailedMessage[](returnLength);
 
