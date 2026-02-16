@@ -32,6 +32,8 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     mapping(bytes32 messageId => Client.Any2EVMMessage message) public messageContentsById;
     mapping(address user => Client.Any2EVMMessage message) public messageByUser;
     mapping(address user => bytes32 messageId) public messageIdByUser;
+    mapping(bytes32 messageId => address user) public userByMessageId;
+    mapping(address user => bytes32[] messageIds) private failedMessageIdsByUser;
 
     EnumerableMap.Bytes32ToUintMap internal failedMessages;
 
@@ -69,6 +71,8 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     error SFAndIFCcipReceiver__CallFailed(bytes reason);
     error SFAndIFCcipReceiver__VaultNotConfigured(uint256 protocolToCall);
     error SFAndIFCcipReceiver__MessageNotFailed(bytes32 messageId);
+    error SFAndIFCcipReceiver__NoFailedMessages(address user);
+    error SFAndIFCcipReceiver__MessageUserMismatch(address user, bytes32 messageId);
     error SFAndIFCcipReceiver__NotAuthorized();
 
     /**
@@ -138,13 +142,17 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     {
         try this.processMessage(any2EvmMessage) {}
         catch (bytes memory reason) {
-            failedMessages.set(any2EvmMessage.messageId, uint256(StatusCode.FAILED));
-            messageContentsById[any2EvmMessage.messageId] = any2EvmMessage;
-
             // Save the message by user for easy access
             address user = _getUserAddress(any2EvmMessage.data);
+            if (!failedMessages.contains(any2EvmMessage.messageId)) {
+                failedMessageIdsByUser[user].push(any2EvmMessage.messageId);
+            }
+
+            failedMessages.set(any2EvmMessage.messageId, uint256(StatusCode.FAILED));
+            messageContentsById[any2EvmMessage.messageId] = any2EvmMessage;
             messageByUser[user] = any2EvmMessage;
             messageIdByUser[user] = any2EvmMessage.messageId;
+            userByMessageId[any2EvmMessage.messageId] = user;
 
             emit OnMessageFailed(any2EvmMessage.messageId, reason, user);
             return;
@@ -164,13 +172,22 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     }
 
     /**
-     * @notice Allows the owner to retry a failed message in order to unblock the associated tokens.
+     * @notice Allows the owner to retry the latest failed message in order to unblock the associated tokens.
      * @param user The user which message failed
      * @dev This function is only callable by the user or contract owner
      * @dev It changes the status of the message from 'failed' to 'resolved'
      */
     function retryFailedMessage(address user) external onlyOwnerOrUser(user) {
-        (Client.Any2EVMMessage memory message, bytes32 messageId) = _getUserMessage(user);
+        retryFailedMessageById(user, _getLatestFailedMessageId(user));
+    }
+
+    /**
+     * @notice Allows the owner to retry a specific failed message.
+     * @param user The user linked to the failed message.
+     * @param messageId The failed message ID to retry.
+     */
+    function retryFailedMessageById(address user, bytes32 messageId) public onlyOwnerOrUser(user) {
+        (Client.Any2EVMMessage memory message,) = _getUserMessage(user, messageId);
         (uint256 _protocolToCall, bytes memory _protocolCallData) = _decodeMessageData(message.data);
 
         (bool _success, bytes memory _returnData) =
@@ -188,12 +205,29 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @dev This function is only callable by the user or the contract owner
      */
     function recoverTokens(address user) external onlyOwnerOrUser(user) {
-        (Client.Any2EVMMessage memory message, bytes32 messageId) = _getUserMessage(user);
+        recoverTokensById(user, _getLatestFailedMessageId(user));
+    }
+
+    /**
+     * @notice Allows the owner or user to recover a specific failed message amount.
+     * @param user The user linked to the failed message.
+     * @param messageId The failed message ID to recover.
+     */
+    function recoverTokensById(address user, bytes32 messageId) public onlyOwnerOrUser(user) {
+        (Client.Any2EVMMessage memory message,) = _getUserMessage(user, messageId);
 
         failedMessages.set(messageId, uint256(StatusCode.RECOVERED));
         usdc.safeTransfer(user, message.destTokenAmounts[0].amount);
 
         emit OnTokensRecovered(user, message.destTokenAmounts[0].amount);
+    }
+
+    /**
+     * @notice Returns the full list of failed-message IDs ever associated with a user.
+     * @dev IDs may include messages already resolved/recovered; check status in failedMessages map.
+     */
+    function getFailedMessageIdsByUser(address user) external view returns (bytes32[] memory) {
+        return failedMessageIdsByUser[user];
     }
 
     /**
@@ -280,18 +314,37 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         return abi.decode(_data, (uint256, bytes));
     }
 
-    function _getUserMessage(address _user)
+    function _getUserMessage(address _user, bytes32 _messageId)
         internal
         view
         returns (Client.Any2EVMMessage memory message_, bytes32 messageId_)
     {
-        messageId_ = messageIdByUser[_user];
+        messageId_ = _messageId;
+        require(userByMessageId[messageId_] == _user, SFAndIFCcipReceiver__MessageUserMismatch(_user, messageId_));
         require(failedMessages.contains(messageId_), SFAndIFCcipReceiver__MessageNotFailed(messageId_));
         require(
             failedMessages.get(messageId_) == uint256(StatusCode.FAILED),
             SFAndIFCcipReceiver__MessageNotFailed(messageId_)
         );
         message_ = messageContentsById[messageId_];
+    }
+
+    function _getLatestFailedMessageId(address _user) internal view returns (bytes32 messageId_) {
+        bytes32[] storage messageIds = failedMessageIdsByUser[_user];
+        uint256 length = messageIds.length;
+        require(length > 0, SFAndIFCcipReceiver__NoFailedMessages(_user));
+
+        for (uint256 i = length; i > 0; --i) {
+            bytes32 currentMessageId = messageIds[i - 1];
+            if (failedMessages.contains(currentMessageId)) {
+                uint256 statusCode = failedMessages.get(currentMessageId);
+                if (statusCode == uint256(StatusCode.FAILED)) {
+                    return currentMessageId;
+                }
+            }
+        }
+
+        revert SFAndIFCcipReceiver__NoFailedMessages(_user);
     }
 
     function _callVault(uint256 _protocolToCall, bytes memory _protocolCallData, uint256 _tokenAmount)
