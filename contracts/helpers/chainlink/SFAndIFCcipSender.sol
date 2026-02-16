@@ -90,6 +90,11 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         uint64 _chainSelector,
         address _owner
     ) external initializer {
+        require(
+            _router != address(0) && _link != address(0) && _usdc != address(0) && _receiverContract != address(0),
+            SFAndIFCcipSender__AddressZeroNotAllowed()
+        );
+
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __Ownable_init(_owner);
