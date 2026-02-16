@@ -40,5 +40,9 @@ arb_one = { key = "${ETHERSCAN_API_KEY}" }
 arb_sepolia = { key = "${ETHERSCAN_API_KEY}" }
 
 [rpc_endpoints]
+avax_mainnet = "${AVALANCHE_MAINNET_RPC_URL}"
+base_mainnet = "${BASE_MAINNET_RPC_URL}"
+eth_mainnet = "${ETHEREUM_MAINNET_RPC_URL}"
+op_mainnet = "${OPTIMISM_MAINNET_RPC_URL}"
 arb_one = "${ARBITRUM_MAINNET_RPC_URL}"
 arb_sepolia = "${ARBITRUM_TESTNET_SEPOLIA_RPC_URL}"
