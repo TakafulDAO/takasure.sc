@@ -25,8 +25,6 @@ contract SFAndIFCcipCrossChainForkTest is Test {
     uint256 private constant SEND_AMOUNT = 2e17;
     uint256 private constant GAS_LIMIT = 500_000;
 
-    bool internal isConfigured;
-
     address internal owner;
     address internal user;
 
@@ -48,19 +46,9 @@ contract SFAndIFCcipCrossChainForkTest is Test {
     BurnMintERC677Helper internal sourceToken;
     BurnMintERC677Helper internal destinationToken;
 
-    modifier onlyConfigured() {
-        if (!isConfigured) {
-            vm.skip(true, "requires ETHEREUM_TESTNET_SEPOLIA_RPC_URL and ARBITRUM_TESTNET_SEPOLIA_RPC_URL");
-        }
-        _;
-    }
-
     function setUp() public {
         owner = makeAddr("owner");
         user = makeAddr("user");
-
-        isConfigured = vm.envExists(ETH_SEPOLIA_RPC_ENV) && vm.envExists(ARB_SEPOLIA_RPC_ENV);
-        if (!isConfigured) return;
 
         sourceFork = vm.createSelectFork(vm.rpcUrl(ETH_SEPOLIA_RPC_ALIAS));
         destinationFork = vm.createFork(vm.rpcUrl(ARB_SEPOLIA_RPC_ALIAS));
@@ -97,7 +85,7 @@ contract SFAndIFCcipCrossChainForkTest is Test {
         IERC20(address(sourceToken)).approve(address(sender), type(uint256).max);
     }
 
-    function testSFAndIFCcip_crossChain_sendSaveVaultAndReceiveOnDestination() public onlyConfigured {
+    function testSFAndIFCcip_crossChain_sendSaveVaultAndReceiveOnDestination() public {
         uint256 balanceBefore = IERC20(address(sourceToken)).balanceOf(user);
 
         vm.selectFork(sourceFork);
@@ -119,7 +107,7 @@ contract SFAndIFCcipCrossChainForkTest is Test {
         );
     }
 
-    function testSFAndIFCcip_crossChain_sendInvestVaultAndReceiveOnDestination() public onlyConfigured {
+    function testSFAndIFCcip_crossChain_sendInvestVaultAndReceiveOnDestination() public {
         vm.selectFork(sourceFork);
         sender.sendMessage(Protocols.INVEST_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
 
