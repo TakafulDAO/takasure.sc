@@ -81,10 +81,6 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     error SFAndIFCcipReceiver__MessageUserMismatch(address user, bytes32 messageId);
     error SFAndIFCcipReceiver__NotAuthorized();
 
-    /**
-     * @param _sourceChainSelector Identify the source blockchain
-     * @param _sender Identify the sender contract in the source blockchain
-     */
     modifier onlyAllowedSource(uint64 _sourceChainSelector, address _sender) {
         require(isSenderAllowedByChain[_sourceChainSelector][_sender], SFAndIFCcipReceiver__NotAllowedSource());
         _;
@@ -100,9 +96,10 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @param _addressManager TLD address resolver
-     * @param _router The address of the router contract.
-     * @param _usdc The address of the usdc contract.
+     * @notice Deploys the receiver with immutable dependencies.
+     * @param _addressManager Address resolver for protocol contracts.
+     * @param _router CCIP router address authorized to call `ccipReceive`.
+     * @param _usdc USDC token used for inbound bridged amounts.
      */
     constructor(IAddressManager _addressManager, address _router, address _usdc)
         CCIPReceiver(_router)
@@ -124,6 +121,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @notice Allows the owner to enable/disable a sender.
      * @param chainSelector source chain
      * @param sender The address of the sender contract.
+     * @custom:invariant Post-call, sender allowlist state flips for `(chainSelector, sender)`.
      */
     function toggleAllowedSender(uint64 chainSelector, address sender) external onlyOwner {
         require(sender != address(0), SFAndIFCcipReceiver__NotAllowedSource());
@@ -139,6 +137,8 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @notice CCIP router calls this function. Should never revert, errors are handled internally
      * @param any2EvmMessage The message to process
      * @dev Only router can call
+     * @custom:invariant Message-processing failures are persisted into `failedMessages` with status `FAILED`.
+     * @custom:invariant On failure, user/message indexing mappings are updated for recovery flows.
      */
     function ccipReceive(Client.Any2EVMMessage calldata any2EvmMessage)
         external
@@ -168,6 +168,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     /**
      * @notice It process the message received from the CCIP protocol.
      * @param any2EvmMessage Received CCIP message.
+     * @custom:invariant Can only be called by this contract (`msg.sender == address(this)`).
      */
     function processMessage(Client.Any2EVMMessage calldata any2EvmMessage)
         external
@@ -182,6 +183,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @param user The user which message failed
      * @dev This function is only callable by the user or contract owner
      * @dev It changes the status of the message from 'failed' to 'resolved'
+     * @custom:invariant Delegates to ID-based retry using the latest message whose status is still `FAILED`.
      */
     function retryFailedMessage(address user) external onlyOwnerOrUser(user) {
         retryFailedMessageById(user, _getLatestFailedMessageId(user));
@@ -191,6 +193,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @notice Allows the owner to retry a specific failed message.
      * @param user The user linked to the failed message.
      * @param messageId The failed message ID to retry.
+     * @custom:invariant On success, `failedMessages[messageId]` transitions from `FAILED` to `RESOLVED`.
      */
     function retryFailedMessageById(address user, bytes32 messageId) public onlyOwnerOrUser(user) {
         (Client.Any2EVMMessage memory message,) = _getUserMessage(user, messageId);
@@ -209,6 +212,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @notice An emergency function to allow a user to recover their tokens in case of a failed message.
      * @param user The user which message failed
      * @dev This function is only callable by the user or the contract owner
+     * @custom:invariant Delegates to ID-based recovery using the latest message whose status is still `FAILED`.
      */
     function recoverTokens(address user) external onlyOwnerOrUser(user) {
         recoverTokensById(user, _getLatestFailedMessageId(user));
@@ -218,6 +222,8 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @notice Allows the owner or user to recover a specific failed message amount.
      * @param user The user linked to the failed message.
      * @param messageId The failed message ID to recover.
+     * @custom:invariant On success, `failedMessages[messageId]` transitions from `FAILED` to `RECOVERED`.
+     * @custom:invariant On success, exactly the validated bridged token amount is transferred to `user`.
      */
     function recoverTokensById(address user, bytes32 messageId) public onlyOwnerOrUser(user) {
         (Client.Any2EVMMessage memory message,) = _getUserMessage(user, messageId);
@@ -232,6 +238,9 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     /**
      * @notice Returns the full list of failed-message IDs ever associated with a user.
      * @dev IDs may include messages already resolved/recovered; check status in failedMessages map.
+     * @param user User address to inspect.
+     * @return messageIds Ordered list (append order) of failed-message IDs seen for `user`.
+     * @custom:invariant Returned list order is stable and reflects insertion chronology.
      */
     function getFailedMessageIdsByUser(address user) external view returns (bytes32[] memory) {
         return failedMessageIdsByUser[user];
@@ -242,6 +251,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @param offset The index of the first failed message to return, enabling pagination by skipping a specified number of messages
      * @param limit The maximum number of failed messages to return, this is the size of the returned array
      * @return failedMessages. Array of `FailedMessage` struct, with a `messageId` and an `statusCode` (RESOLVED or FAILED)
+     * @custom:invariant Function never underflows on out-of-range `offset`; returns empty list when `offset >= length`.
      */
     function getFailedMessages(uint256 offset, uint256 limit) external view returns (FailedMessage[] memory) {
         uint256 length = failedMessages.length();
@@ -264,6 +274,12 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Core CCIP receive handler invoked from `processMessage`.
+     * @param any2EvmMessage Decoded CCIP message.
+     * @custom:invariant Accepts only declared protocol flags and validated token payloads.
+     * @custom:invariant Emits `OnMessageReceived` only after successful low-level vault call.
+     */
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
         (uint256 _protocolToCall, bytes memory _protocolCallData) = _decodeMessageData(any2EvmMessage.data);
         require(
@@ -291,6 +307,12 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         }
     }
 
+    /**
+     * @notice Safely extracts user address from encoded message payload.
+     * @param _data Message data expected as `abi.encode(protocolToCall, protocolCallData)`.
+     * @return userAddr_ Decoded user receiver address, or `address(0)` when payload is malformed.
+     * @custom:invariant Function never reverts on malformed payload; returns `address(0)` instead.
+     */
     function _getUserAddress(bytes memory _data) internal pure returns (address userAddr_) {
         uint256 dataLength = _data.length;
         // abi.encode(uint256, bytes) minimum payload is 3 words
@@ -299,8 +321,12 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         uint256 bytesOffset;
 
         assembly {
-            // second head word in abi.encode(uint256, bytes) points to bytes offset
-            bytesOffset := mload(add(_data, 0x40))
+            // `_data` points to length; payload words start at `_data + 0x20`.
+            // In `abi.encode(uint256, bytes)`, the second head word lives at payload offset `0x20`.
+            // Reading from `_data + 0x40` yields that second head word.
+            let bytesOffsetWordPtr := add(_data, 0x40)
+            // Load the dynamic-bytes offset (relative to payload start) into `bytesOffset`.
+            bytesOffset := mload(bytesOffsetWordPtr)
         }
 
         // Dynamic-bytes length word must be inside bounds
@@ -310,9 +336,13 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         uint256 protocolCallDataStart;
 
         assembly {
+            // Move pointer from length slot to start of ABI payload.
             let payloadStart := add(_data, 0x20)
+            // Compute pointer to dynamic-bytes length slot: payload start + dynamic offset.
             let protocolCallDataLengthPos := add(payloadStart, bytesOffset)
+            // Read length of nested `protocolCallData`.
             protocolCallDataLength := mload(protocolCallDataLengthPos)
+            // Nested bytes body starts right after its length word.
             protocolCallDataStart := add(protocolCallDataLengthPos, 0x20)
         }
 
@@ -324,10 +354,18 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         // `protocolCallData` expected: deposit(uint256 assets, address receiver)
         // receiver starts at offset 0x24 (4-byte selector + first 32-byte arg)
         assembly {
+            // Read 32-byte word at receiver offset and assign to `userAddr_`.
+            // Solidity will keep the low 20 bytes as the canonical address value.
             userAddr_ := mload(add(protocolCallDataStart, 0x24))
         }
     }
 
+    /**
+     * @notice Resolves destination vault address based on protocol flag.
+     * @param _protocolToCall Protocol flag (`SAVE_VAULT` or `INVEST_VAULT`).
+     * @return vaultAddr_ Resolved vault address from AddressManager.
+     * @custom:invariant Returned vault address is non-zero and contains contract code.
+     */
     function _getVaultAddress(uint256 _protocolToCall) internal view returns (address vaultAddr_) {
         if (_protocolToCall == Protocols.SAVE_VAULT) {
             vaultAddr_ = addressManager.getProtocolAddressByName("PROTOCOL__SF_VAULT").addr;
@@ -341,6 +379,13 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         );
     }
 
+    /**
+     * @notice Decodes sender payload into protocol flag and nested protocol call data.
+     * @param _data Encoded payload sent by CCIP sender.
+     * @return protocolToCall_ Protocol flag used for vault resolution.
+     * @return protocolCallData_ Nested calldata intended for vault execution.
+     * @custom:invariant Reverts if `_data` is not encoded as `abi.encode(uint256,bytes)`.
+     */
     function _decodeMessageData(bytes memory _data)
         internal
         pure
@@ -350,6 +395,14 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         return abi.decode(_data, (uint256, bytes));
     }
 
+    /**
+     * @notice Fetches and validates a failed message for a specific user and message ID.
+     * @param _user User expected to own the failed message.
+     * @param _messageId Failed message ID to fetch.
+     * @return message_ Stored CCIP message payload.
+     * @return messageId_ Echoed message ID.
+     * @custom:invariant Reverts unless message is associated with `_user` and currently marked `FAILED`.
+     */
     function _getUserMessage(address _user, bytes32 _messageId)
         internal
         view
@@ -365,6 +418,12 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         message_ = messageContentsById[messageId_];
     }
 
+    /**
+     * @notice Finds the most recent message ID for a user that is still in `FAILED` state.
+     * @param _user User to inspect.
+     * @return messageId_ Latest failed message ID.
+     * @custom:invariant Reverts if user has no currently-failed message.
+     */
     function _getLatestFailedMessageId(address _user) internal view returns (bytes32 messageId_) {
         bytes32[] storage messageIds = failedMessageIdsByUser[_user];
         uint256 length = messageIds.length;
@@ -383,6 +442,15 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         revert SFAndIFCcipReceiver__NoFailedMessages(_user);
     }
 
+    /**
+     * @notice Executes validated protocol call against the resolved vault.
+     * @param _protocolToCall Protocol flag selecting destination vault.
+     * @param _protocolCallData Nested function calldata to execute.
+     * @param _tokenAmount USDC amount to approve for vault pull.
+     * @return success_ Whether the low-level call succeeded.
+     * @return returnData_ Return or revert bytes from vault call.
+     * @custom:invariant USDC allowance granted to vault is always reset to zero before function returns.
+     */
     function _callVault(uint256 _protocolToCall, bytes memory _protocolCallData, uint256 _tokenAmount)
         internal
         returns (bool success_, bytes memory returnData_)
@@ -396,7 +464,17 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         usdc.forceApprove(_vault, 0);
     }
 
-    function _getValidatedTokenAmount(Client.Any2EVMMessage memory _message) internal view returns (uint256 tokenAmount_) {
+    /**
+     * @notice Validates inbound token payload shape and token address, then returns amount.
+     * @param _message Any2EVM message carrying token transfer metadata.
+     * @return tokenAmount_ Validated token amount.
+     * @custom:invariant Reverts unless exactly one destination token amount exists and token is USDC.
+     */
+    function _getValidatedTokenAmount(Client.Any2EVMMessage memory _message)
+        internal
+        view
+        returns (uint256 tokenAmount_)
+    {
         uint256 _length = _message.destTokenAmounts.length;
         require(_length == 1, SFAndIFCcipReceiver__InvalidDestTokenAmountsLength(_length));
 
@@ -406,12 +484,20 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         tokenAmount_ = _tokenAmount.amount;
     }
 
+    /**
+     * @notice Validates nested protocol calldata shape and function selector.
+     * @param _protocolCallData Nested calldata from the CCIP payload.
+     * @custom:invariant Reverts unless calldata selector is exactly `deposit(uint256,address)`.
+     */
     function _validateProtocolCallData(bytes memory _protocolCallData) internal pure {
         uint256 _length = _protocolCallData.length;
         require(_length >= 4, SFAndIFCcipReceiver__InvalidProtocolCallDataLength(_length));
 
         bytes4 _selector;
         assembly {
+            // Load first 32 bytes of bytes payload body (starts at `_protocolCallData + 0x20`).
+            // The selector occupies the highest 4 bytes of that word.
+            // Shift right by 224 bits to isolate those top 4 bytes.
             _selector := shr(224, mload(add(_protocolCallData, 0x20)))
         }
 

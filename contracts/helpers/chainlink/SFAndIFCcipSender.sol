@@ -70,17 +70,18 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
                              INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
     /**
+     * @notice Initializes the CCIP sender instance.
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
+     * @param _usdc The address of the USDC token to bridge.
      * @param _receiverContract Receiver contract in the destination blockchain. This will be the only receiver
      * @param _chainSelector The chain selector of the destination chain. Only Arbitrum (One, Sepolia) is supported.
-     * @param _owner admin address
+     * @param _owner Admin address.
      */
     function initialize(
         address _router,
@@ -117,6 +118,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
      * @notice Set the address of the receiver contract.
      * @dev The first receiver will be the PrejoinModule. When the DAO is launched we change this to the EntryModule.
      * @param _receiverContract New receiver contract address.
+     * @custom:invariant On success, `receiverContract` is non-zero and equals `_receiverContract`.
      */
     function setReceiverContract(address _receiverContract) external onlyOwner notZeroAddress(_receiverContract) {
         address oldReceiverContract = receiverContract;
@@ -137,6 +139,8 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
      * @param gasLimit gas allowed by the user to be the maximum spend in the destination blockchain by the CCIP protocol
      * @param userAddr The address of the user wanting to participate in the Save Fund or Investment Fund use case.
      * @return messageId The ID of the message that was sent.
+     * @custom:invariant On success, message payload always encodes protocol + `deposit(uint256,address)` call data.
+     * @custom:invariant On success, both LINK and USDC router allowances are reset to zero at the end of execution.
      */
     function sendMessage(uint256 protocolToCall, uint256 amountToTransfer, uint256 gasLimit, address userAddr)
         external
@@ -170,6 +174,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     /**
      * @notice Emergency function to withdraw all Link tokens.
      * @param beneficiary The address to which the tokens will be sent.
+     * @custom:invariant On success, this contract LINK balance becomes zero.
      */
     function withdrawLink(address beneficiary) external onlyOwner notZeroAddress(beneficiary) {
         // Retrieve the balance of this contract
@@ -184,6 +189,15 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Builds the complete CCIP message from user-level parameters.
+     * @param _protocolToCall Protocol flag indicating target vault type.
+     * @param _amountToTransfer Amount of USDC to transfer cross-chain.
+     * @param _gasLimit Gas limit requested for destination execution.
+     * @param _userAddr Receiver/user address for vault deposit.
+     * @return _message Encoded EVM2AnyMessage ready for fee estimation/sending.
+     * @custom:invariant Returned message contains exactly one token transfer amount (USDC).
+     */
     function _setup(uint256 _protocolToCall, uint256 _amountToTransfer, uint256 _gasLimit, address _userAddr)
         internal
         view
@@ -197,6 +211,13 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         _message = _buildCCIPMessage(messageBuild);
     }
 
+    /**
+     * @notice Calculates CCIP fees and approves LINK for fee payment.
+     * @param _message Encoded CCIP message for fee quotation.
+     * @return ccipFees_ Fee amount quoted by the router in LINK.
+     * @custom:invariant Reverts if LINK balance is insufficient for quoted fee.
+     * @custom:invariant On success, router LINK allowance is set to exactly `ccipFees_`.
+     */
     function _feeChecks(Client.EVM2AnyMessage memory _message) internal returns (uint256 ccipFees_) {
         // Fee required to send the message
         ccipFees_ = router.getFee(destinationChainSelector, _message);
@@ -209,6 +230,15 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         linkToken.forceApprove(address(router), ccipFees_);
     }
 
+    /**
+     * @notice Transfers USDC in, sends message through CCIP router, and clears allowances.
+     * @param _userAddr User address from which USDC is pulled.
+     * @param _amountToTransfer USDC amount to transfer cross-chain.
+     * @param _ccipFees Quoted CCIP fee amount (for event accounting).
+     * @param _message Encoded CCIP message.
+     * @return messageId_ CCIP message identifier returned by router.
+     * @custom:invariant On success, router LINK and USDC allowances are both reset to zero.
+     */
     function _sendMessage(
         address _userAddr,
         uint256 _amountToTransfer,
@@ -229,6 +259,13 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         emit OnTokensTransferred(messageId_, _amountToTransfer, _ccipFees, _userAddr);
     }
 
+    /**
+     * @notice Encodes the final CCIP payload and token transfer configuration.
+     * @param _messageBuild Pre-assembled message inputs.
+     * @return message_ Final CCIP message structure.
+     * @custom:invariant `message_.tokenAmounts.length == 1` and token is USDC.
+     * @custom:invariant `message_.data` is encoded as `abi.encode(protocolToCall, protocolCallData)`.
+     */
     function _buildCCIPMessage(MessageBuild memory _messageBuild)
         internal
         view
@@ -258,7 +295,11 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         });
     }
 
-    ///@dev required by the OZ UUPS module
+    /**
+     * @dev Required by the OZ UUPS module.
+     * @param newImplementation Address of the candidate implementation.
+     * @custom:invariant Only owner can authorize an upgrade.
+     */
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
 
