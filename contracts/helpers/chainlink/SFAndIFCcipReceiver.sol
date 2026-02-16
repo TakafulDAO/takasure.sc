@@ -74,6 +74,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     error SFAndIFCcipReceiver__VaultNotConfigured(uint256 protocolToCall);
     error SFAndIFCcipReceiver__InvalidProtocolCallDataLength(uint256 length);
     error SFAndIFCcipReceiver__InvalidProtocolCallSelector(bytes4 selector);
+    error SFAndIFCcipReceiver__InvalidMessageData();
     error SFAndIFCcipReceiver__InvalidDestTokenAmountsLength(uint256 length);
     error SFAndIFCcipReceiver__InvalidDestTokenAddress(address token);
     error SFAndIFCcipReceiver__MessageNotFailed(bytes32 messageId);
@@ -391,8 +392,51 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         pure
         returns (uint256 protocolToCall_, bytes memory protocolCallData_)
     {
-        // Data format from sender: abi.encode(protocolToCall, protocolCallData)
-        return abi.decode(_data, (uint256, bytes));
+        uint256 dataLength = _data.length;
+        // abi.encode(uint256, bytes) has 2 head words + at least one tail length word.
+        require(dataLength >= 0x60, SFAndIFCcipReceiver__InvalidMessageData());
+
+        uint256 bytesOffset;
+        uint256 protocolCallDataLength;
+        uint256 protocolCallDataStart;
+
+        assembly {
+            // Read first head word (protocol flag) from payload offset 0x00.
+            protocolToCall_ := mload(add(_data, 0x20))
+            // Read second head word (dynamic bytes offset) from payload offset 0x20.
+            bytesOffset := mload(add(_data, 0x40))
+        }
+
+        // Dynamic bytes length word must sit within payload bounds.
+        require(bytesOffset <= dataLength - 0x20, SFAndIFCcipReceiver__InvalidMessageData());
+
+        assembly {
+            // Move pointer from length slot to start of ABI payload.
+            let payloadStart := add(_data, 0x20)
+            // Compute pointer to nested-bytes length word.
+            let protocolCallDataLengthPos := add(payloadStart, bytesOffset)
+            // Load nested calldata byte length.
+            protocolCallDataLength := mload(protocolCallDataLengthPos)
+            // Nested calldata bytes start immediately after that length word.
+            protocolCallDataStart := add(protocolCallDataLengthPos, 0x20)
+        }
+
+        // Nested calldata bytes must be fully contained in `_data`.
+        require(protocolCallDataLength <= dataLength - bytesOffset - 0x20, SFAndIFCcipReceiver__InvalidMessageData());
+
+        protocolCallData_ = new bytes(protocolCallDataLength);
+        if (protocolCallDataLength == 0) return (protocolToCall_, protocolCallData_);
+
+        assembly {
+            // Destination pointer: first byte of allocated `protocolCallData_` body.
+            let dst := add(protocolCallData_, 0x20)
+            // Source pointer: first byte of nested calldata inside `_data`.
+            let src := protocolCallDataStart
+            // End pointer for copy loop.
+            let end := add(src, protocolCallDataLength)
+            // Copy in 32-byte chunks; trailing partial word is copied once as padded word.
+            for {} lt(src, end) { src := add(src, 0x20) dst := add(dst, 0x20) } { mstore(dst, mload(src)) }
+        }
     }
 
     /**
@@ -493,13 +537,10 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         uint256 _length = _protocolCallData.length;
         require(_length >= 4, SFAndIFCcipReceiver__InvalidProtocolCallDataLength(_length));
 
-        bytes4 _selector;
-        assembly {
-            // Load first 32 bytes of bytes payload body (starts at `_protocolCallData + 0x20`).
-            // The selector occupies the highest 4 bytes of that word.
-            // Shift right by 224 bits to isolate those top 4 bytes.
-            _selector := shr(224, mload(add(_protocolCallData, 0x20)))
-        }
+        bytes4 _selector = bytes4(
+            (uint32(uint8(_protocolCallData[0])) << 24) | (uint32(uint8(_protocolCallData[1])) << 16)
+                | (uint32(uint8(_protocolCallData[2])) << 8) | uint32(uint8(_protocolCallData[3]))
+        );
 
         require(_selector == DEPOSIT_SELECTOR, SFAndIFCcipReceiver__InvalidProtocolCallSelector(_selector));
     }
