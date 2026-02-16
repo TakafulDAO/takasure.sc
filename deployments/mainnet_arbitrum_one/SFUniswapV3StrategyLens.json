@@ -1,0 +1,84 @@
+{
+    "address": "0x9d79f6a809b414367c8bb10071b5f86604f0ba47",
+    "abi": [
+        {
+            "type": "function",
+            "name": "getConfig",
+            "inputs": [
+                {
+                    "name": "strategy",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "tuple",
+                    "internalType": "struct StrategyConfig",
+                    "components": [
+                        {
+                            "name": "asset",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "vault",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "pool",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "paused",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getPositionDetails",
+            "inputs": [
+                {
+                    "name": "strategy",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "positionValue",
+            "inputs": [
+                {
+                    "name": "strategy",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        }
+    ]
+}

@@ -2,11 +2,9 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-
-import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
+import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {TestAggSubStrategy} from "test/mocks/MockSFStrategy.sol";
 
@@ -83,7 +81,13 @@ contract SFStrategyAggregatorHandler is Test {
 
         vm.prank(operator);
         (bool ok,) = address(aggregator).call(abi.encodeWithSelector(aggregator.addSubStrategy.selector, s, w));
-        ok;
+        if (ok) {
+            bytes memory payload = abi.encode(uint256(1));
+            vm.prank(operator);
+            (bool ok2,) = address(aggregator)
+                .call(abi.encodeWithSelector(aggregator.setDefaultWithdrawPayload.selector, s, payload));
+            ok2;
+        }
     }
 
     function opUpdateSubStrategy(uint256 stratSeed, uint16 weightIn, bool active) external {
