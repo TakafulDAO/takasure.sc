@@ -25,6 +25,8 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     using SafeERC20 for IERC20;
     using EnumerableMap for EnumerableMap.Bytes32ToUintMap;
 
+    bytes4 private constant DEPOSIT_SELECTOR = bytes4(keccak256("deposit(uint256,address)"));
+
     IAddressManager private immutable addressManager;
     IERC20 private immutable usdc;
 
@@ -70,6 +72,8 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     error SFAndIFCcipReceiver__InvalidProtocol(uint256 protocolToCall);
     error SFAndIFCcipReceiver__CallFailed(bytes reason);
     error SFAndIFCcipReceiver__VaultNotConfigured(uint256 protocolToCall);
+    error SFAndIFCcipReceiver__InvalidProtocolCallDataLength(uint256 length);
+    error SFAndIFCcipReceiver__InvalidProtocolCallSelector(bytes4 selector);
     error SFAndIFCcipReceiver__InvalidDestTokenAmountsLength(uint256 length);
     error SFAndIFCcipReceiver__InvalidDestTokenAddress(address token);
     error SFAndIFCcipReceiver__MessageNotFailed(bytes32 messageId);
@@ -383,6 +387,8 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         internal
         returns (bool success_, bytes memory returnData_)
     {
+        _validateProtocolCallData(_protocolCallData);
+
         address _vault = _getVaultAddress(_protocolToCall);
 
         usdc.approve(_vault, _tokenAmount);
@@ -397,5 +403,17 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         require(_tokenAmount.token == address(usdc), SFAndIFCcipReceiver__InvalidDestTokenAddress(_tokenAmount.token));
 
         tokenAmount_ = _tokenAmount.amount;
+    }
+
+    function _validateProtocolCallData(bytes memory _protocolCallData) internal pure {
+        uint256 _length = _protocolCallData.length;
+        require(_length >= 4, SFAndIFCcipReceiver__InvalidProtocolCallDataLength(_length));
+
+        bytes4 _selector;
+        assembly {
+            _selector := shr(224, mload(add(_protocolCallData, 0x20)))
+        }
+
+        require(_selector == DEPOSIT_SELECTOR, SFAndIFCcipReceiver__InvalidProtocolCallSelector(_selector));
     }
 }
