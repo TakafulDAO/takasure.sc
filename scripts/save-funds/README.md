@@ -278,7 +278,7 @@ node scripts/save-funds/buildAggregatorHarvestCalldata.js \
   --swapToOtherData 0x \
   --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
-  --pmDeadline 0 \
+  --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
 ```
 
@@ -361,7 +361,7 @@ node scripts/save-funds/buildAggregatorHarvestCalldata.js \
   --swapToOtherData 0x \
   --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
-  --pmDeadline 0 \
+  --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
 ```
 
