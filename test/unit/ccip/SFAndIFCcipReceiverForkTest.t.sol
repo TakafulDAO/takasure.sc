@@ -8,7 +8,6 @@ import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {CCIPReceiver} from "ccip/contracts/src/v0.8/ccip/applications/CCIPReceiver.sol";
 
 import {SFAndIFCcipReceiver} from "contracts/helpers/chainlink/SFAndIFCcipReceiver.sol";
-import {Protocols} from "contracts/helpers/chainlink/Protocols.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
 import {GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
@@ -18,6 +17,8 @@ import {CCIPTestERC20, CCIPTestVault} from "test/mocks/CCIPTestMocks.sol";
 contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
     uint256 private constant SAFE_BLOCK_LAG = 128;
     uint64 private constant SOURCE_CHAIN_SELECTOR = 1;
+    string private constant SAVE_VAULT = "PROTOCOL__SF_VAULT";
+    string private constant INVEST_VAULT = "PROTOCOL__IF_VAULT";
 
     IAddressManager internal addressManager;
     SFAndIFCcipReceiver internal receiver;
@@ -55,7 +56,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
         usdc.mint(address(receiver), amount);
         Client.Any2EVMMessage memory message =
-            _buildValidMessage(messageId, Protocols.SAVE_VAULT, amount, user, allowedSender);
+            _buildValidMessage(messageId, SAVE_VAULT, amount, user, allowedSender);
 
         vm.prank(router);
         receiver.ccipReceive(message);
@@ -73,7 +74,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
         usdc.mint(address(receiver), amount);
         Client.Any2EVMMessage memory message =
-            _buildValidMessage(messageId, Protocols.INVEST_VAULT, amount, user, allowedSender);
+            _buildValidMessage(messageId, INVEST_VAULT, amount, user, allowedSender);
 
         vm.prank(router);
         receiver.ccipReceive(message);
@@ -86,7 +87,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
     function testSFAndIFCcip_receiver_ccipReceiveRevertsWhenCallerIsNotRouter() public {
         Client.Any2EVMMessage memory message =
-            _buildValidMessage(keccak256("NOT_ROUTER"), Protocols.SAVE_VAULT, 10e6, user, allowedSender);
+            _buildValidMessage(keccak256("NOT_ROUTER"), SAVE_VAULT, 10e6, user, allowedSender);
 
         vm.expectRevert(abi.encodeWithSelector(CCIPReceiver.InvalidRouter.selector, address(this)));
         receiver.ccipReceive(message);
@@ -94,7 +95,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
     function testSFAndIFCcip_receiver_ccipReceiveRevertsWhenSourceSenderIsNotAllowed() public {
         Client.Any2EVMMessage memory message =
-            _buildValidMessage(keccak256("NOT_ALLOWED"), Protocols.SAVE_VAULT, 10e6, user, makeAddr("notAllowed"));
+            _buildValidMessage(keccak256("NOT_ALLOWED"), SAVE_VAULT, 10e6, user, makeAddr("notAllowed"));
 
         vm.prank(router);
         vm.expectRevert(SFAndIFCcipReceiver.SFAndIFCcipReceiver__NotAllowedSource.selector);
@@ -109,7 +110,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
         usdc.mint(address(receiver), amount);
 
         Client.Any2EVMMessage memory message =
-            _buildValidMessage(messageId, Protocols.SAVE_VAULT, amount, user, allowedSender);
+            _buildValidMessage(messageId, SAVE_VAULT, amount, user, allowedSender);
 
         vm.prank(router);
         receiver.ccipReceive(message);
@@ -134,7 +135,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
         usdc.mint(address(receiver), amount);
 
         Client.Any2EVMMessage memory message =
-            _buildValidMessage(messageId, Protocols.SAVE_VAULT, amount, user, allowedSender);
+            _buildValidMessage(messageId, SAVE_VAULT, amount, user, allowedSender);
 
         vm.prank(router);
         receiver.ccipReceive(message);
@@ -159,9 +160,9 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
         usdc.mint(address(receiver), firstAmount + secondAmount);
 
         Client.Any2EVMMessage memory first =
-            _buildValidMessage(firstMessageId, Protocols.SAVE_VAULT, firstAmount, user, allowedSender);
+            _buildValidMessage(firstMessageId, SAVE_VAULT, firstAmount, user, allowedSender);
         Client.Any2EVMMessage memory second =
-            _buildValidMessage(secondMessageId, Protocols.SAVE_VAULT, secondAmount, user, allowedSender);
+            _buildValidMessage(secondMessageId, SAVE_VAULT, secondAmount, user, allowedSender);
 
         vm.prank(router);
         receiver.ccipReceive(first);
@@ -218,7 +219,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
         Client.EVMTokenAmount[] memory destTokenAmounts = new Client.EVMTokenAmount[](0);
         Client.Any2EVMMessage memory message = _buildMessage({
             messageId: messageId,
-            protocolToCall: Protocols.SAVE_VAULT,
+            protocolName: SAVE_VAULT,
             protocolCallData: abi.encodeWithSignature("deposit(uint256,address)", 11e6, user),
             senderAddr: allowedSender,
             destTokenAmounts: destTokenAmounts
@@ -242,7 +243,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
         Client.Any2EVMMessage memory message = _buildMessage({
             messageId: messageId,
-            protocolToCall: Protocols.SAVE_VAULT,
+            protocolName: SAVE_VAULT,
             protocolCallData: abi.encodeWithSignature("deposit(uint256,address)", 11e6, user),
             senderAddr: allowedSender,
             destTokenAmounts: destTokenAmounts
@@ -267,7 +268,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
         Client.Any2EVMMessage memory message = _buildValidMessage(
             messageId,
-            Protocols.SAVE_VAULT,
+            SAVE_VAULT,
             amount,
             allowedSender,
             abi.encodeWithSignature("mint(uint256,address)", amount, user)
@@ -294,7 +295,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
         usdc.mint(address(receiver), amount);
 
         Client.Any2EVMMessage memory message =
-            _buildValidMessage(messageId, Protocols.SAVE_VAULT, amount, user, allowedSender);
+            _buildValidMessage(messageId, SAVE_VAULT, amount, user, allowedSender);
 
         vm.prank(router);
         receiver.ccipReceive(message);
@@ -308,14 +309,14 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
     function _buildValidMessage(
         bytes32 messageId,
-        uint256 protocolToCall,
+        string memory protocolName,
         uint256 amount,
         address receiverAddr,
         address senderAddr
     ) internal view returns (Client.Any2EVMMessage memory) {
         return _buildValidMessage(
             messageId,
-            protocolToCall,
+            protocolName,
             amount,
             senderAddr,
             abi.encodeWithSignature("deposit(uint256,address)", amount, receiverAddr)
@@ -324,7 +325,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
     function _buildValidMessage(
         bytes32 messageId,
-        uint256 protocolToCall,
+        string memory protocolName,
         uint256 amount,
         address senderAddr,
         bytes memory protocolCallData
@@ -334,7 +335,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
         return _buildMessage({
             messageId: messageId,
-            protocolToCall: protocolToCall,
+            protocolName: protocolName,
             protocolCallData: protocolCallData,
             senderAddr: senderAddr,
             destTokenAmounts: destTokenAmounts
@@ -343,7 +344,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
 
     function _buildMessage(
         bytes32 messageId,
-        uint256 protocolToCall,
+        string memory protocolName,
         bytes memory protocolCallData,
         address senderAddr,
         Client.EVMTokenAmount[] memory destTokenAmounts
@@ -352,7 +353,7 @@ contract SFAndIFCcipReceiverForkTest is Test, GetContractAddress {
             messageId: messageId,
             sourceChainSelector: SOURCE_CHAIN_SELECTOR,
             sender: abi.encode(senderAddr),
-            data: abi.encode(protocolToCall, protocolCallData),
+            data: abi.encode(protocolName, protocolCallData),
             destTokenAmounts: destTokenAmounts
         });
     }

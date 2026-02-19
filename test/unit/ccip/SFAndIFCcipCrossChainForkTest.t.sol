@@ -10,7 +10,6 @@ import {BurnMintERC677Helper} from "@chainlink/local/src/ccip/BurnMintERC677Help
 
 import {SFAndIFCcipSender} from "contracts/helpers/chainlink/SFAndIFCcipSender.sol";
 import {SFAndIFCcipReceiver} from "contracts/helpers/chainlink/SFAndIFCcipReceiver.sol";
-import {Protocols} from "contracts/helpers/chainlink/Protocols.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
 
@@ -24,6 +23,8 @@ contract SFAndIFCcipCrossChainForkTest is Test {
 
     uint256 private constant SEND_AMOUNT = 2e17;
     uint256 private constant GAS_LIMIT = 500_000;
+    string private constant SAVE_VAULT = "PROTOCOL__SF_VAULT";
+    string private constant INVEST_VAULT = "PROTOCOL__IF_VAULT";
 
     address internal owner;
     address internal user;
@@ -89,7 +90,7 @@ contract SFAndIFCcipCrossChainForkTest is Test {
         uint256 balanceBefore = IERC20(address(sourceToken)).balanceOf(user);
 
         vm.selectFork(sourceFork);
-        bytes32 messageId = sender.sendMessage(Protocols.SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
+        bytes32 messageId = sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
         assertNotEq(messageId, bytes32(0), "messageId should not be zero");
         assertEq(
             IERC20(address(sourceToken)).balanceOf(user), balanceBefore - SEND_AMOUNT, "source user balance mismatch"
@@ -109,7 +110,7 @@ contract SFAndIFCcipCrossChainForkTest is Test {
 
     function testSFAndIFCcip_crossChain_sendInvestVaultAndReceiveOnDestination() public {
         vm.selectFork(sourceFork);
-        sender.sendMessage(Protocols.INVEST_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
+        sender.sendMessage(INVEST_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
 
         vm.selectFork(sourceFork);
         ccipLocalSimulatorFork.switchChainAndRouteMessage(destinationFork);

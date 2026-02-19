@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {SFAndIFCcipSender} from "contracts/helpers/chainlink/SFAndIFCcipSender.sol";
-import {Protocols} from "contracts/helpers/chainlink/Protocols.sol";
 import {CCIPTestERC20, CCIPTestRouter} from "test/mocks/CCIPTestMocks.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
@@ -12,6 +11,7 @@ contract SFAndIFCcipSenderForkTest is Test {
     uint64 private constant DEST_CHAIN_SELECTOR = 4_949_039_107_694_359_620; // Arbitrum One
     uint256 private constant GAS_LIMIT = 300_000;
     uint256 private constant SEND_AMOUNT = 25e6; // 25 USDC (6 decimals)
+    string private constant SAVE_VAULT = "PROTOCOL__SF_VAULT";
 
     function testSFAndIFCcip_sender_sendMessageOnAvaxMainnetFork() public {
         _assertSenderSendMessageFlow("avax_mainnet");
@@ -69,7 +69,7 @@ contract SFAndIFCcipSenderForkTest is Test {
         (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
 
         vm.expectRevert();
-        sender.sendMessage(3, SEND_AMOUNT, GAS_LIMIT, makeAddr("user"));
+        sender.sendMessage("PROTOCOL__sf_VAULT", SEND_AMOUNT, GAS_LIMIT, makeAddr("user"));
     }
 
     function testSFAndIFCcip_sender_sendMessageRevertsForZeroAmount() public {
@@ -77,7 +77,7 @@ contract SFAndIFCcipSenderForkTest is Test {
         (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
 
         vm.expectRevert();
-        sender.sendMessage(Protocols.SAVE_VAULT, 0, GAS_LIMIT, makeAddr("user"));
+        sender.sendMessage(SAVE_VAULT, 0, GAS_LIMIT, makeAddr("user"));
     }
 
     function testSFAndIFCcip_sender_sendMessageRevertsForZeroUserAddress() public {
@@ -85,7 +85,7 @@ contract SFAndIFCcipSenderForkTest is Test {
         (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
 
         vm.expectRevert();
-        sender.sendMessage(Protocols.SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, address(0));
+        sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, address(0));
     }
 
     function testSFAndIFCcip_sender_sendMessageRevertsWhenLinkBalanceIsInsufficient() public {
@@ -102,7 +102,7 @@ contract SFAndIFCcipSenderForkTest is Test {
         _assertRevertSelector(
             address(sender),
             abi.encodeWithSelector(
-                SFAndIFCcipSender.sendMessage.selector, Protocols.SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, user
+                SFAndIFCcipSender.sendMessage.selector, SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, user
             ),
             SFAndIFCcipSender.SFAndIFCcipSender__NotEnoughBalance.selector
         );
@@ -143,7 +143,7 @@ contract SFAndIFCcipSenderForkTest is Test {
         vm.prank(user);
         usdc.approve(address(sender), SEND_AMOUNT);
 
-        bytes32 messageId = sender.sendMessage(Protocols.SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
+        bytes32 messageId = sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
 
         assertEq(messageId, bytes32(uint256(1)), "unexpected messageId");
         assertEq(router.lastDestinationChainSelector(), DEST_CHAIN_SELECTOR, "wrong destination selector");
@@ -158,8 +158,8 @@ contract SFAndIFCcipSenderForkTest is Test {
         assertEq(link.balanceOf(address(router)), 1e18, "router should receive LINK fee");
         assertEq(usdc.balanceOf(address(router)), SEND_AMOUNT, "router should receive bridged USDC");
 
-        (uint256 protocolToCall, bytes memory protocolCallData) = abi.decode(router.lastData(), (uint256, bytes));
-        assertEq(protocolToCall, Protocols.SAVE_VAULT, "wrong protocol encoded");
+        (string memory protocolName, bytes memory protocolCallData) = abi.decode(router.lastData(), (string, bytes));
+        assertEq(protocolName, SAVE_VAULT, "wrong protocol encoded");
         assertEq(
             keccak256(protocolCallData),
             keccak256(abi.encodeWithSignature("deposit(uint256,address)", SEND_AMOUNT, user)),
