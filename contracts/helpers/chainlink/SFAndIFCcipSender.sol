@@ -30,7 +30,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
 
     IRouterClient private router;
     IERC20 private linkToken;
-    IERC20 private usdc;
+    IERC20 private underlying;
 
     uint64 public destinationChainSelector; // Only Arbitrum (One, Sepolia)
     address public receiverContract;
@@ -78,7 +78,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
      * @notice Initializes the CCIP sender instance.
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
-     * @param _usdc The address of the USDC token to bridge.
+     * @param _underlying The address of the underlying token to bridge (USDC).
      * @param _receiverContract Receiver contract in the destination blockchain. This will be the only receiver
      * @param _chainSelector The chain selector of the destination chain. Only Arbitrum (One, Sepolia) is supported.
      * @param _owner Admin address.
@@ -86,13 +86,14 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     function initialize(
         address _router,
         address _link,
-        address _usdc,
+        address _underlying,
         address _receiverContract,
         uint64 _chainSelector,
         address _owner
     ) external initializer {
         require(
-            _router != address(0) && _link != address(0) && _usdc != address(0) && _receiverContract != address(0),
+            _router != address(0) && _link != address(0) && _underlying != address(0)
+                && _receiverContract != address(0),
             SFAndIFCcipSender__AddressZeroNotAllowed()
         );
 
@@ -102,7 +103,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
 
         router = IRouterClient(_router);
         linkToken = IERC20(_link);
-        usdc = IERC20(_usdc);
+        underlying = IERC20(_underlying);
 
         receiverContract = _receiverContract;
         destinationChainSelector = _chainSelector;
@@ -140,7 +141,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
      * @param userAddr The address of the user wanting to participate in the Save Fund or Investment Fund use case.
      * @return messageId The ID of the message that was sent.
      * @custom:invariant On success, message payload always encodes protocol + `deposit(uint256,address)` call data.
-     * @custom:invariant On success, both LINK and USDC router allowances are reset to zero at the end of execution.
+     * @custom:invariant On success, both LINK and underlying router allowances are reset to zero at the end of execution.
      */
     function sendMessage(uint256 protocolToCall, uint256 amountToTransfer, uint256 gasLimit, address userAddr)
         external
@@ -192,11 +193,11 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     /**
      * @notice Builds the complete CCIP message from user-level parameters.
      * @param _protocolToCall Protocol flag indicating target vault type.
-     * @param _amountToTransfer Amount of USDC to transfer cross-chain.
+     * @param _amountToTransfer Amount of underlying token to transfer cross-chain.
      * @param _gasLimit Gas limit requested for destination execution.
      * @param _userAddr Receiver/user address for vault deposit.
      * @return _message Encoded EVM2AnyMessage ready for fee estimation/sending.
-     * @custom:invariant Returned message contains exactly one token transfer amount (USDC).
+     * @custom:invariant Returned message contains exactly one token transfer amount (underlying).
      */
     function _setup(uint256 _protocolToCall, uint256 _amountToTransfer, uint256 _gasLimit, address _userAddr)
         internal
@@ -231,13 +232,13 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     }
 
     /**
-     * @notice Transfers USDC in, sends message through CCIP router, and clears allowances.
-     * @param _userAddr User address from which USDC is pulled.
-     * @param _amountToTransfer USDC amount to transfer cross-chain.
+     * @notice Transfers underlying token in, sends message through CCIP router, and clears allowances.
+     * @param _userAddr User address from which underlying token is pulled.
+     * @param _amountToTransfer underlying token amount to transfer cross-chain.
      * @param _ccipFees Quoted CCIP fee amount (for event accounting).
      * @param _message Encoded CCIP message.
      * @return messageId_ CCIP message identifier returned by router.
-     * @custom:invariant On success, router LINK and USDC allowances are both reset to zero.
+     * @custom:invariant On success, router LINK and underlying token allowances are both reset to zero.
      */
     function _sendMessage(
         address _userAddr,
@@ -245,15 +246,15 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         uint256 _ccipFees,
         Client.EVM2AnyMessage memory _message
     ) internal returns (bytes32 messageId_) {
-        usdc.safeTransferFrom(_userAddr, address(this), _amountToTransfer);
-        usdc.forceApprove(address(router), _amountToTransfer);
+        underlying.safeTransferFrom(_userAddr, address(this), _amountToTransfer);
+        underlying.forceApprove(address(router), _amountToTransfer);
 
         // Send the message through the router and store the returned message ID
         messageId_ = router.ccipSend(destinationChainSelector, _message);
 
         // Keep allowances short-lived and deterministic across ERC20 implementations
         linkToken.forceApprove(address(router), 0);
-        usdc.forceApprove(address(router), 0);
+        underlying.forceApprove(address(router), 0);
 
         // Emit an event with message details
         emit OnTokensTransferred(messageId_, _amountToTransfer, _ccipFees, _userAddr);
@@ -263,7 +264,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
      * @notice Encodes the final CCIP payload and token transfer configuration.
      * @param _messageBuild Pre-assembled message inputs.
      * @return message_ Final CCIP message structure.
-     * @custom:invariant `message_.tokenAmounts.length == 1` and token is USDC.
+     * @custom:invariant `message_.tokenAmounts.length == 1` and token is underlying token.
      * @custom:invariant `message_.data` is encoded as `abi.encode(protocolToCall, protocolCallData)`.
      */
     function _buildCCIPMessage(MessageBuild memory _messageBuild)
@@ -273,7 +274,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     {
         // Set the token amounts
         Client.EVMTokenAmount[] memory _tokenAmounts = new Client.EVMTokenAmount[](1);
-        _tokenAmounts[0] = Client.EVMTokenAmount({token: address(usdc), amount: _messageBuild.amount});
+        _tokenAmounts[0] = Client.EVMTokenAmount({token: address(underlying), amount: _messageBuild.amount});
 
         // Function to call in the receiver contract is the standard deposit function from ERC4626
         // deposit(uint256 assets, address receiver)

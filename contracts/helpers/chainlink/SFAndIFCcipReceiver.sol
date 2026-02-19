@@ -28,7 +28,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     bytes4 private constant DEPOSIT_SELECTOR = bytes4(keccak256("deposit(uint256,address)"));
 
     IAddressManager private immutable addressManager;
-    IERC20 private immutable usdc;
+    IERC20 private immutable underlying;
 
     mapping(uint64 chainSelector => mapping(address sender => bool)) public isSenderAllowedByChain;
     mapping(bytes32 messageId => Client.Any2EVMMessage message) public messageContentsById;
@@ -100,17 +100,17 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @notice Deploys the receiver with immutable dependencies.
      * @param _addressManager Address resolver for protocol contracts.
      * @param _router CCIP router address authorized to call `ccipReceive`.
-     * @param _usdc USDC token used for inbound bridged amounts.
+     * @param _underlying The underlying token used for inbound bridged amounts.
      */
-    constructor(IAddressManager _addressManager, address _router, address _usdc)
+    constructor(IAddressManager _addressManager, address _router, address _underlying)
         CCIPReceiver(_router)
         Ownable(msg.sender)
     {
         require(
-            address(_addressManager) != address(0) && _router != address(0) && _usdc != address(0),
+            address(_addressManager) != address(0) && _router != address(0) && _underlying != address(0),
             SFAndIFCcipReceiver__NotZeroAddress()
         );
-        usdc = IERC20(_usdc);
+        underlying = IERC20(_underlying);
         addressManager = _addressManager;
     }
 
@@ -231,7 +231,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         uint256 _tokenAmount = _getValidatedTokenAmount(message);
 
         failedMessages.set(messageId, uint256(StatusCode.RECOVERED));
-        usdc.safeTransfer(user, _tokenAmount);
+        underlying.safeTransfer(user, _tokenAmount);
 
         emit OnTokensRecovered(user, _tokenAmount);
     }
@@ -435,7 +435,10 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
             // End pointer for copy loop.
             let end := add(src, protocolCallDataLength)
             // Copy in 32-byte chunks; trailing partial word is copied once as padded word.
-            for {} lt(src, end) { src := add(src, 0x20) dst := add(dst, 0x20) } { mstore(dst, mload(src)) }
+            for {} lt(src, end) {
+                src := add(src, 0x20)
+                dst := add(dst, 0x20)
+            } { mstore(dst, mload(src)) }
         }
     }
 
@@ -490,10 +493,10 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @notice Executes validated protocol call against the resolved vault.
      * @param _protocolToCall Protocol flag selecting destination vault.
      * @param _protocolCallData Nested function calldata to execute.
-     * @param _tokenAmount USDC amount to approve for vault pull.
+     * @param _tokenAmount underlying token amount to approve for vault pull.
      * @return success_ Whether the low-level call succeeded.
      * @return returnData_ Return or revert bytes from vault call.
-     * @custom:invariant USDC allowance granted to vault is always reset to zero before function returns.
+     * @custom:invariant underlying token allowance granted to vault is always reset to zero before function returns.
      */
     function _callVault(uint256 _protocolToCall, bytes memory _protocolCallData, uint256 _tokenAmount)
         internal
@@ -503,16 +506,16 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
 
         address _vault = _getVaultAddress(_protocolToCall);
 
-        usdc.forceApprove(_vault, _tokenAmount);
+        underlying.forceApprove(_vault, _tokenAmount);
         (success_, returnData_) = _vault.call(_protocolCallData);
-        usdc.forceApprove(_vault, 0);
+        underlying.forceApprove(_vault, 0);
     }
 
     /**
      * @notice Validates inbound token payload shape and token address, then returns amount.
      * @param _message Any2EVM message carrying token transfer metadata.
      * @return tokenAmount_ Validated token amount.
-     * @custom:invariant Reverts unless exactly one destination token amount exists and token is USDC.
+     * @custom:invariant Reverts unless exactly one destination token amount exists and token is underlying.
      */
     function _getValidatedTokenAmount(Client.Any2EVMMessage memory _message)
         internal
@@ -523,7 +526,9 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         require(_length == 1, SFAndIFCcipReceiver__InvalidDestTokenAmountsLength(_length));
 
         Client.EVMTokenAmount memory _tokenAmount = _message.destTokenAmounts[0];
-        require(_tokenAmount.token == address(usdc), SFAndIFCcipReceiver__InvalidDestTokenAddress(_tokenAmount.token));
+        require(
+            _tokenAmount.token == address(underlying), SFAndIFCcipReceiver__InvalidDestTokenAddress(_tokenAmount.token)
+        );
 
         tokenAmount_ = _tokenAmount.amount;
     }
