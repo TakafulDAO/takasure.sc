@@ -22,7 +22,6 @@ import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/acces
 
 import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Protocols} from "contracts/helpers/chainlink/Protocols.sol";
 
 /// @custom:oz-upgrades-from contracts/version_previous_contracts/SFAndIFCcipSenderV1.sol:SFAndIFCcipSenderV1
 contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
@@ -35,8 +34,11 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     uint64 public destinationChainSelector; // Only Arbitrum (One, Sepolia)
     address public receiverContract;
 
+    bytes private constant PROTOCOL_PREFIX = "PROTOCOL__";
+    bytes private constant PROTOCOL_SUFFIX = "_VAULT";
+
     struct MessageBuild {
-        uint256 protocolToCall;
+        string protocolName;
         uint256 amount;
         uint256 gasLimit;
         address userAddr;
@@ -53,7 +55,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
 
     error SFAndIFCcipSender__AddressZeroNotAllowed();
     error SFAndIFCcipSender__ZeroTransferNotAllowed();
-    error SFAndIFCcipSender__InvalidProtocol(uint256 protocolToCall);
+    error SFAndIFCcipSender__InvalidProtocolName();
     error SFAndIFCcipSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
     error SFAndIFCcipSender__NothingToWithdraw();
 
@@ -117,7 +119,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
 
     /**
      * @notice Set the address of the receiver contract.
-     * @dev Destination must be the CCIP receiver; that receiver routes to SF/IF vault by `protocolToCall`.
+     * @dev Destination must be the CCIP receiver; that receiver routes to vaults by protocol name.
      * @param _receiverContract New receiver contract address.
      * @custom:invariant On success, `receiverContract` is non-zero and equals `_receiverContract`.
      */
@@ -135,30 +137,24 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     /**
      * @notice Transfer tokens to receiver contract on the destination chain.
      * @dev Revert if this contract dont have sufficient LINK balance to pay for the fees.
-     * @param protocolToCall The protocol to call in the destination chain. 0x01 for Save Fund, 0x02 for Investment Fund.
+     * @param protocolName The protocol name to resolve in destination chain AddressManager.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
      * @param gasLimit gas allowed by the user to be the maximum spend in the destination blockchain by the CCIP protocol
      * @param userAddr The address of the user wanting to participate in the Save Fund or Investment Fund use case.
      * @return messageId The ID of the message that was sent.
-     * @custom:invariant On success, message payload always encodes protocol + `deposit(uint256,address)` call data.
+     * @custom:invariant On success, message always encodes protocol name + `deposit(uint256,address)` call data.
      * @custom:invariant On success, both LINK and underlying router allowances are reset to zero at the end of execution.
      */
-    function sendMessage(uint256 protocolToCall, uint256 amountToTransfer, uint256 gasLimit, address userAddr)
+    function sendMessage(string calldata protocolName, uint256 amountToTransfer, uint256 gasLimit, address userAddr)
         external
         notZeroAddress(userAddr)
         returns (bytes32 messageId)
     {
-        require(
-            protocolToCall == Protocols.SAVE_VAULT || protocolToCall == Protocols.INVEST_VAULT,
-            SFAndIFCcipSender__InvalidProtocol(protocolToCall)
-        );
+        require(_isValidProtocolName(protocolName), SFAndIFCcipSender__InvalidProtocolName());
         require(amountToTransfer > 0, SFAndIFCcipSender__ZeroTransferNotAllowed());
 
         Client.EVM2AnyMessage memory message = _setup({
-            _protocolToCall: protocolToCall,
-            _amountToTransfer: amountToTransfer,
-            _gasLimit: gasLimit,
-            _userAddr: userAddr
+            _protocolName: protocolName, _amountToTransfer: amountToTransfer, _gasLimit: gasLimit, _userAddr: userAddr
         });
 
         uint256 ccipFees = _feeChecks(message);
@@ -192,20 +188,20 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
 
     /**
      * @notice Builds the complete CCIP message from user-level parameters.
-     * @param _protocolToCall Protocol flag indicating target vault type.
+     * @param _protocolName Protocol name indicating target vault in destination AddressManager.
      * @param _amountToTransfer Amount of underlying token to transfer cross-chain.
      * @param _gasLimit Gas limit requested for destination execution.
      * @param _userAddr Receiver/user address for vault deposit.
      * @return _message Encoded EVM2AnyMessage ready for fee estimation/sending.
      * @custom:invariant Returned message contains exactly one token transfer amount (underlying).
      */
-    function _setup(uint256 _protocolToCall, uint256 _amountToTransfer, uint256 _gasLimit, address _userAddr)
+    function _setup(string memory _protocolName, uint256 _amountToTransfer, uint256 _gasLimit, address _userAddr)
         internal
         view
         returns (Client.EVM2AnyMessage memory _message)
     {
         MessageBuild memory messageBuild = MessageBuild({
-            protocolToCall: _protocolToCall, amount: _amountToTransfer, gasLimit: _gasLimit, userAddr: _userAddr
+            protocolName: _protocolName, amount: _amountToTransfer, gasLimit: _gasLimit, userAddr: _userAddr
         });
 
         // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
@@ -265,7 +261,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
      * @param _messageBuild Pre-assembled message inputs.
      * @return message_ Final CCIP message structure.
      * @custom:invariant `message_.tokenAmounts.length == 1` and token is underlying token.
-     * @custom:invariant `message_.data` is encoded as `abi.encode(protocolToCall, protocolCallData)`.
+     * @custom:invariant `message_.data` is encoded as `abi.encode(protocolName, protocolCallData)`.
      */
     function _buildCCIPMessage(MessageBuild memory _messageBuild)
         internal
@@ -281,8 +277,8 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         bytes memory _protocolCallData =
             abi.encodeWithSignature("deposit(uint256,address)", _messageBuild.amount, _messageBuild.userAddr);
 
-        // Data format: abi.encode(protocolToCall, protocolCallData)
-        bytes memory dataToSend = abi.encode(_messageBuild.protocolToCall, _protocolCallData);
+        // Data format: abi.encode(protocolName, protocolCallData)
+        bytes memory dataToSend = abi.encode(_messageBuild.protocolName, _protocolCallData);
 
         // EVM2AnyMessage struct
         message_ = Client.EVM2AnyMessage({
@@ -294,6 +290,52 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
             ),
             feeToken: address(linkToken)
         });
+    }
+
+    /**
+     * @notice Validates protocol name format before paying CCIP fees.
+     * @param _protocolName Protocol key expected as `PROTOCOL__<SCOPE>_VAULT`.
+     * @return valid_ True when `_protocolName` matches expected shape and charset.
+     * @dev Validation rules:
+     *      1. Total length must be `<= 32` (same as in AddressManager).
+     *      2. Name must start with `PROTOCOL__`.
+     *      3. Name must end with `_VAULT`.
+     *      4. Middle scope (`<SCOPE>`) must be non-empty.
+     *      5. `<SCOPE>` charset is restricted to `[A-Z0-9_]`.
+     */
+    function _isValidProtocolName(string memory _protocolName) internal pure returns (bool valid_) {
+        bytes memory _protocolNameBytes = bytes(_protocolName);
+        uint256 _length = _protocolNameBytes.length;
+        uint256 _prefixLength = PROTOCOL_PREFIX.length;
+        uint256 _suffixLength = PROTOCOL_SUFFIX.length;
+
+        // Enforce AddressManager-compatible max length and require a non-empty scope segment.
+        if (_length > 32 || _length <= _prefixLength + _suffixLength) return false;
+
+        // Check fixed prefix `PROTOCOL__`.
+        for (uint256 i; i < _prefixLength; ++i) {
+            if (_protocolNameBytes[i] != PROTOCOL_PREFIX[i]) return false;
+        }
+
+        uint256 _suffixStart = _length - _suffixLength;
+        // Check fixed suffix `_VAULT`.
+        for (uint256 i; i < _suffixLength; ++i) {
+            if (_protocolNameBytes[_suffixStart + i] != PROTOCOL_SUFFIX[i]) return false;
+        }
+
+        // Validate only the dynamic scope segment between prefix and suffix.
+        for (uint256 i = _prefixLength; i < _suffixStart; ++i) {
+            bytes1 _char = _protocolNameBytes[i];
+            // `A-Z`
+            bool _isUppercase = _char >= 0x41 && _char <= 0x5A;
+            // `0-9`
+            bool _isDigit = _char >= 0x30 && _char <= 0x39;
+            // `_`
+            bool _isUnderscore = _char == 0x5F;
+            if (!_isUppercase && !_isDigit && !_isUnderscore) return false;
+        }
+
+        return true;
     }
 
     /**

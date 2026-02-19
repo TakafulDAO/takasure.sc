@@ -13,7 +13,6 @@ pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {Protocols} from "contracts/helpers/chainlink/Protocols.sol";
 
 import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {CCIPReceiver} from "ccip/contracts/src/v0.8/ccip/applications/CCIPReceiver.sol";
@@ -64,14 +63,13 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     event OnMessageFailed(bytes32 indexed messageId, bytes reason, address user);
     event OnMessageRecovered(bytes32 indexed messageId);
     event OnTokensRecovered(address indexed user, uint256 amount);
-    event OnMessageDecoded(bytes32 indexed messageId, uint256 indexed protocolToCall, address indexed user);
+    event OnMessageDecoded(bytes32 indexed messageId, string protocolName, address indexed user);
 
     error SFAndIFCcipReceiver__NotZeroAddress();
     error SFAndIFCcipReceiver__NotAllowedSource();
     error SFAndIFCcipReceiver__OnlySelf();
-    error SFAndIFCcipReceiver__InvalidProtocol(uint256 protocolToCall);
     error SFAndIFCcipReceiver__CallFailed(bytes reason);
-    error SFAndIFCcipReceiver__VaultNotConfigured(uint256 protocolToCall);
+    error SFAndIFCcipReceiver__VaultNotConfigured(string protocolName);
     error SFAndIFCcipReceiver__InvalidProtocolCallDataLength(uint256 length);
     error SFAndIFCcipReceiver__InvalidProtocolCallSelector(bytes4 selector);
     error SFAndIFCcipReceiver__InvalidMessageData();
@@ -198,10 +196,10 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      */
     function retryFailedMessageById(address user, bytes32 messageId) public onlyOwnerOrUser(user) {
         (Client.Any2EVMMessage memory message,) = _getUserMessage(user, messageId);
-        (uint256 _protocolToCall, bytes memory _protocolCallData) = _decodeMessageData(message.data);
+        (string memory _protocolName, bytes memory _protocolCallData) = _decodeMessageData(message.data);
         uint256 _tokenAmount = _getValidatedTokenAmount(message);
 
-        (bool _success, bytes memory _returnData) = _callVault(_protocolToCall, _protocolCallData, _tokenAmount);
+        (bool _success, bytes memory _returnData) = _callVault(_protocolName, _protocolCallData, _tokenAmount);
 
         require(_success, SFAndIFCcipReceiver__CallFailed(_returnData));
 
@@ -278,22 +276,18 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     /**
      * @notice Core CCIP receive handler invoked from `processMessage`.
      * @param any2EvmMessage Decoded CCIP message.
-     * @custom:invariant Accepts only declared protocol flags and validated token payloads.
+     * @custom:invariant Accepts validated token payloads and routes by protocol name.
      * @custom:invariant Emits `OnMessageReceived` only after successful low-level vault call.
      */
     function _ccipReceive(Client.Any2EVMMessage memory any2EvmMessage) internal override {
-        (uint256 _protocolToCall, bytes memory _protocolCallData) = _decodeMessageData(any2EvmMessage.data);
-        require(
-            _protocolToCall == Protocols.SAVE_VAULT || _protocolToCall == Protocols.INVEST_VAULT,
-            SFAndIFCcipReceiver__InvalidProtocol(_protocolToCall)
-        );
+        (string memory _protocolName, bytes memory _protocolCallData) = _decodeMessageData(any2EvmMessage.data);
         uint256 _tokenAmount = _getValidatedTokenAmount(any2EvmMessage);
 
         address _user = _getUserAddress(any2EvmMessage.data);
 
-        emit OnMessageDecoded(any2EvmMessage.messageId, _protocolToCall, _user);
+        emit OnMessageDecoded(any2EvmMessage.messageId, _protocolName, _user);
 
-        (bool _success, bytes memory _returnData) = _callVault(_protocolToCall, _protocolCallData, _tokenAmount);
+        (bool _success, bytes memory _returnData) = _callVault(_protocolName, _protocolCallData, _tokenAmount);
 
         if (_success) {
             emit OnMessageReceived(
@@ -310,20 +304,20 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
 
     /**
      * @notice Safely extracts user address from encoded message payload.
-     * @param _data Message data expected as `abi.encode(protocolToCall, protocolCallData)`.
+     * @param _data Message data expected as `abi.encode(protocolName, protocolCallData)`.
      * @return userAddr_ Decoded user receiver address, or `address(0)` when payload is malformed.
      * @custom:invariant Function never reverts on malformed payload; returns `address(0)` instead.
      */
     function _getUserAddress(bytes memory _data) internal pure returns (address userAddr_) {
         uint256 dataLength = _data.length;
-        // abi.encode(uint256, bytes) minimum payload is 3 words
-        if (dataLength < 0x60) return address(0);
+        // abi.encode(string, bytes) minimum payload is 4 words
+        if (dataLength < 0x80) return address(0);
 
         uint256 bytesOffset;
 
         assembly {
             // `_data` points to length; payload words start at `_data + 0x20`.
-            // In `abi.encode(uint256, bytes)`, the second head word lives at payload offset `0x20`.
+            // In `abi.encode(string, bytes)`, the second head word lives at payload offset `0x20`.
             // Reading from `_data + 0x40` yields that second head word.
             let bytesOffsetWordPtr := add(_data, 0x40)
             // Load the dynamic-bytes offset (relative to payload start) into `bytesOffset`.
@@ -362,70 +356,102 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     }
 
     /**
-     * @notice Resolves destination vault address based on protocol flag.
-     * @param _protocolToCall Protocol flag (`SAVE_VAULT` or `INVEST_VAULT`).
+     * @notice Resolves destination vault address by protocol name.
+     * @param _protocolName Protocol key expected in AddressManager.
      * @return vaultAddr_ Resolved vault address from AddressManager.
      * @custom:invariant Returned vault address is non-zero and contains contract code.
      */
-    function _getVaultAddress(uint256 _protocolToCall) internal view returns (address vaultAddr_) {
-        if (_protocolToCall == Protocols.SAVE_VAULT) {
-            vaultAddr_ = addressManager.getProtocolAddressByName("PROTOCOL__SF_VAULT").addr;
-        } else if (_protocolToCall == Protocols.INVEST_VAULT) {
-            vaultAddr_ = addressManager.getProtocolAddressByName("PROTOCOL__IF_VAULT").addr;
-        }
+    function _getVaultAddress(string memory _protocolName) internal view returns (address vaultAddr_) {
+        vaultAddr_ = addressManager.getProtocolAddressByName(_protocolName).addr;
 
         require(
             vaultAddr_ != address(0) && vaultAddr_.code.length > 0,
-            SFAndIFCcipReceiver__VaultNotConfigured(_protocolToCall)
+            SFAndIFCcipReceiver__VaultNotConfigured(_protocolName)
         );
     }
 
     /**
-     * @notice Decodes sender payload into protocol flag and nested protocol call data.
+     * @notice Decodes sender payload into protocol name and nested protocol call data.
      * @param _data Encoded payload sent by CCIP sender.
-     * @return protocolToCall_ Protocol flag used for vault resolution.
+     * @return protocolName_ Protocol name used for vault resolution.
      * @return protocolCallData_ Nested calldata intended for vault execution.
-     * @custom:invariant Reverts if `_data` is not encoded as `abi.encode(uint256,bytes)`.
+     * @custom:invariant Reverts if `_data` is not encoded as `abi.encode(string,bytes)`.
      */
     function _decodeMessageData(bytes memory _data)
         internal
         pure
-        returns (uint256 protocolToCall_, bytes memory protocolCallData_)
+        returns (string memory protocolName_, bytes memory protocolCallData_)
     {
         uint256 dataLength = _data.length;
-        // abi.encode(uint256, bytes) has 2 head words + at least one tail length word.
-        require(dataLength >= 0x60, SFAndIFCcipReceiver__InvalidMessageData());
+        // abi.encode(string, bytes) has 2 head words + 2 tail lengths at minimum.
+        require(dataLength >= 0x80, SFAndIFCcipReceiver__InvalidMessageData());
 
-        uint256 bytesOffset;
+        uint256 protocolNameOffset;
+        uint256 protocolCallDataOffset;
+        uint256 protocolNameLength;
+        uint256 protocolNameStart;
         uint256 protocolCallDataLength;
         uint256 protocolCallDataStart;
 
         assembly {
-            // Read first head word (protocol flag) from payload offset 0x00.
-            protocolToCall_ := mload(add(_data, 0x20))
+            // Read first head word (dynamic string offset) from payload offset 0x00.
+            protocolNameOffset := mload(add(_data, 0x20))
             // Read second head word (dynamic bytes offset) from payload offset 0x20.
-            bytesOffset := mload(add(_data, 0x40))
+            protocolCallDataOffset := mload(add(_data, 0x40))
         }
 
-        // Dynamic bytes length word must sit within payload bounds.
-        require(bytesOffset <= dataLength - 0x20, SFAndIFCcipReceiver__InvalidMessageData());
+        // Dynamic string and bytes length words must sit within payload bounds.
+        require(protocolNameOffset <= dataLength - 0x20, SFAndIFCcipReceiver__InvalidMessageData());
+        require(protocolCallDataOffset <= dataLength - 0x20, SFAndIFCcipReceiver__InvalidMessageData());
+
+        bytes memory protocolNameBytes;
 
         assembly {
             // Move pointer from length slot to start of ABI payload.
             let payloadStart := add(_data, 0x20)
+            // Compute pointer to nested-string length word.
+            let protocolNameLengthPos := add(payloadStart, protocolNameOffset)
+            // Load nested string byte length.
+            protocolNameLength := mload(protocolNameLengthPos)
+            // Nested string bytes start immediately after that length word.
+            protocolNameStart := add(protocolNameLengthPos, 0x20)
             // Compute pointer to nested-bytes length word.
-            let protocolCallDataLengthPos := add(payloadStart, bytesOffset)
+            let protocolCallDataLengthPos := add(payloadStart, protocolCallDataOffset)
             // Load nested calldata byte length.
             protocolCallDataLength := mload(protocolCallDataLengthPos)
             // Nested calldata bytes start immediately after that length word.
             protocolCallDataStart := add(protocolCallDataLengthPos, 0x20)
         }
 
+        // Nested string bytes must be fully contained in `_data`.
+        require(protocolNameLength <= dataLength - protocolNameOffset - 0x20, SFAndIFCcipReceiver__InvalidMessageData());
+
+        protocolNameBytes = new bytes(protocolNameLength);
+        if (protocolNameLength > 0) {
+            assembly {
+                // Destination pointer: first byte of allocated `protocolNameBytes` body.
+                let dst := add(protocolNameBytes, 0x20)
+                // Source pointer: first byte of nested string inside `_data`.
+                let src := protocolNameStart
+                // End pointer for copy loop.
+                let end := add(src, protocolNameLength)
+                // Copy in 32-byte chunks; trailing partial word is copied once as padded word.
+                for {} lt(src, end) {
+                    src := add(src, 0x20)
+                    dst := add(dst, 0x20)
+                } { mstore(dst, mload(src)) }
+            }
+        }
+        protocolName_ = string(protocolNameBytes);
+
         // Nested calldata bytes must be fully contained in `_data`.
-        require(protocolCallDataLength <= dataLength - bytesOffset - 0x20, SFAndIFCcipReceiver__InvalidMessageData());
+        require(
+            protocolCallDataLength <= dataLength - protocolCallDataOffset - 0x20,
+            SFAndIFCcipReceiver__InvalidMessageData()
+        );
 
         protocolCallData_ = new bytes(protocolCallDataLength);
-        if (protocolCallDataLength == 0) return (protocolToCall_, protocolCallData_);
+        if (protocolCallDataLength == 0) return (protocolName_, protocolCallData_);
 
         assembly {
             // Destination pointer: first byte of allocated `protocolCallData_` body.
@@ -491,20 +517,20 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
 
     /**
      * @notice Executes validated protocol call against the resolved vault.
-     * @param _protocolToCall Protocol flag selecting destination vault.
+     * @param _protocolName Protocol name selecting destination vault.
      * @param _protocolCallData Nested function calldata to execute.
      * @param _tokenAmount underlying token amount to approve for vault pull.
      * @return success_ Whether the low-level call succeeded.
      * @return returnData_ Return or revert bytes from vault call.
      * @custom:invariant underlying token allowance granted to vault is always reset to zero before function returns.
      */
-    function _callVault(uint256 _protocolToCall, bytes memory _protocolCallData, uint256 _tokenAmount)
+    function _callVault(string memory _protocolName, bytes memory _protocolCallData, uint256 _tokenAmount)
         internal
         returns (bool success_, bytes memory returnData_)
     {
         _validateProtocolCallData(_protocolCallData);
 
-        address _vault = _getVaultAddress(_protocolToCall);
+        address _vault = _getVaultAddress(_protocolName);
 
         underlying.forceApprove(_vault, _tokenAmount);
         (success_, returnData_) = _vault.call(_protocolCallData);
