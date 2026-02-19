@@ -79,7 +79,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
      * @param _router The address of the router contract.
      * @param _link The address of the link contract.
      * @param _underlying The address of the underlying token to bridge (USDC).
-     * @param _receiverContract Receiver contract in the destination blockchain. This will be the only receiver
+     * @param _receiverContract Deployed CCIP receiver contract in the destination chain.
      * @param _chainSelector The chain selector of the destination chain. Only Arbitrum (One, Sepolia) is supported.
      * @param _owner Admin address.
      */
@@ -117,7 +117,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
 
     /**
      * @notice Set the address of the receiver contract.
-     * @dev The first receiver will be the PrejoinModule. When the DAO is launched we change this to the EntryModule.
+     * @dev Destination must be the CCIP receiver; that receiver routes to SF/IF vault by `protocolToCall`.
      * @param _receiverContract New receiver contract address.
      * @custom:invariant On success, `receiverContract` is non-zero and equals `_receiverContract`.
      */
