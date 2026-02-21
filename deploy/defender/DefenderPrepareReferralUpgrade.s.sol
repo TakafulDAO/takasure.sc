@@ -7,7 +7,7 @@ import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {Defender, Options, ApprovalProcessResponse} from "openzeppelin-foundry-upgrades/Defender.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
-contract DefenderPrepareUpgrade is Script {
+contract DefenderPrepareReferralUpgrade is Script {
     function run() external {
         ApprovalProcessResponse memory approvalProcess = Defender.getDeployApprovalProcess();
         console2.log("Approval process id", approvalProcess.approvalProcessId);
