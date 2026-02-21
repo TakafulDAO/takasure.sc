@@ -103,6 +103,9 @@ tokens-upgrade-nft:
 	@forge script deploy/tokens/nft/UpgradeRevShareNFT.s.sol:UpgradeRevShareNFT $(NETWORK_ARGS)
 	@cp contracts/tokens/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
 
+# CCIP deployments
+ccip-deploy-receiver:
+	@forge script deploy/ccip/00-DeploySFAndIFReceiver.s.sol:DeploySFAndIFReceiver $(NETWORK_ARGS)
 
 # Defender
 defender-validate-upgrade:

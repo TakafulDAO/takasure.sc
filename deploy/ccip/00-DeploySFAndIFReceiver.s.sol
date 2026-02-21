@@ -10,7 +10,7 @@ import {SFAndIFCcipReceiver} from "contracts/helpers/chainlink/SFAndIFCcipReceiv
 import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 
-contract DeploySFAndIFCcipReceiver is Script, DeployConstants, GetContractAddress {
+contract DeploySFAndIFReceiver is Script, DeployConstants, GetContractAddress {
     function run() external returns (SFAndIFCcipReceiver) {
         uint256 chainId = block.chainid;
 
