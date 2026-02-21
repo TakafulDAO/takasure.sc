@@ -107,6 +107,10 @@ tokens-upgrade-nft:
 ccip-deploy-receiver:
 	@forge script deploy/ccip/00-DeploySFAndIFReceiver.s.sol:DeploySFAndIFReceiver $(NETWORK_ARGS)
 
+ccip-deploy-sender:
+	@forge clean
+	@forge script deploy/ccip/01-DeploySFAndIFSender.s.sol:DeploySFAndIFSender $(NETWORK_ARGS)
+
 # Defender
 defender-validate-upgrade:
 	@forge clean
