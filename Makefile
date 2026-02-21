@@ -111,15 +111,24 @@ ccip-deploy-sender:
 	@forge clean
 	@forge script deploy/ccip/01-DeploySFAndIFSender.s.sol:DeploySFAndIFSender $(NETWORK_ARGS)
 
+# CCIP upgrades
+ccip-upgrade-sender:
+	@forge clean
+	@forge script deploy/ccip/02-UpgrapdeSFAndIFSender.s.sol:UpgrapdeSFAndIFSender $(NETWORK_ARGS)
+
 # Defender
 defender-validate-upgrade:
 	@forge clean
 	@forge script deploy/defender/00-DefenderValidateUpgrade.s.sol:DefenderValidateUpgrade 
 
-defender-prepare-upgrade:
+defender-prepare-referral-upgrade:
 	@forge clean
-	@forge script deploy/defender/01-DefenderPrepareUpgrade.s.sol:DefenderPrepareUpgrade $(NETWORK_ARGS)
+	@forge script deploy/defender/DefenderPrepareReferralUpgrade.s.sol:DefenderPrepareReferralUpgrade $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
+
+defender-prepare-ccip-sender-upgrade:
+	@forge clean
+	@forge script deploy/defender/DefenderPrepareCcipSenderUpgrade.s.sol:DefenderPrepareCcipSenderUpgrade $(NETWORK_ARGS)
 
 defender-upgrade-referral:
 	@forge clean
