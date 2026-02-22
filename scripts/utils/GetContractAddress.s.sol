@@ -13,10 +13,28 @@ contract GetContractAddress is Script, DeployConstants {
 
         if (chainId == ARB_MAINNET_CHAIN_ID) {
             chainName = "mainnet_arbitrum_one";
+        } else if (chainId == AVAX_MAINNET_CHAIN_ID) {
+            chainName = "mainnet_avalanche";
+        } else if (chainId == BASE_MAINNET_CHAIN_ID) {
+            chainName = "mainnet_base";
+        } else if (chainId == ETH_MAINNET_CHAIN_ID) {
+            chainName = "mainnet_ethereum";
+        } else if (chainId == OP_MAINNET_CHAIN_ID) {
+            chainName = "mainnet_optimism";
+        } else if (chainId == POL_MAINNET_CHAIN_ID) {
+            chainName = "mainnet_polygon";
         } else if (chainId == ARB_SEPOLIA_CHAIN_ID) {
             chainName = "testnet_arbitrum_sepolia";
+        } else if (chainId == AVAX_FUJI_CHAIN_ID) {
+            chainName = "testnet_avalanche_fuji";
+        } else if (chainId == BASE_SEPOLIA_CHAIN_ID) {
+            chainName = "testnet_base_sepolia";
         } else if (chainId == ETH_SEPOLIA_CHAIN_ID) {
             chainName = "testnet_ethereum_sepolia";
+        } else if (chainId == OP_SEPOLIA_CHAIN_ID) {
+            chainName = "testnet_optimism_sepolia";
+        } else if (chainId == POL_AMOY_CHAIN_ID) {
+            chainName = "testnet_polygon_amoy";
         } else {
             revert("Invalid chainId");
         }

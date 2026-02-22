@@ -19,11 +19,14 @@ contract DeploySFAndIFReceiver is Script, DeployConstants, GetContractAddress {
         CcipHelperConfig.CCIPNetworkConfig memory config = ccipHelperConfig.getConfigByChainId(block.chainid);
 
         IAddressManager addressManager = IAddressManager(_getContractAddress(chainId, "AddressManager"));
+        address usdcAddress;
+        if (chainId == ARB_SEPOLIA_CHAIN_ID) usdcAddress = _getContractAddress(chainId, "SFUSDC");
+        else usdcAddress = config.usdc;
 
         vm.startBroadcast();
 
         // Deploy SFAndIFCcipReceiver contract
-        SFAndIFCcipReceiver receiver = new SFAndIFCcipReceiver(addressManager, config.router, config.usdc);
+        SFAndIFCcipReceiver receiver = new SFAndIFCcipReceiver(addressManager, config.router, usdcAddress);
 
         vm.stopBroadcast();
 

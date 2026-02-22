@@ -22,11 +22,10 @@ contract DeploySFAndIFSender is Script, DeployConstants, GetContractAddress {
         address receiverContractAddress;
         uint64 destinationChainSelector;
         bytes32 salt = "222025";
+        bool isTestNet = chainId == AVAX_FUJI_CHAIN_ID || chainId == BASE_SEPOLIA_CHAIN_ID
+            || chainId == ETH_SEPOLIA_CHAIN_ID || chainId == OP_SEPOLIA_CHAIN_ID || chainId == POL_AMOY_CHAIN_ID;
 
-        if (
-            chainId == AVAX_FUJI_CHAIN_ID || chainId == BASE_SEPOLIA_CHAIN_ID || chainId == ETH_SEPOLIA_CHAIN_ID
-                || chainId == OP_SEPOLIA_CHAIN_ID || chainId == POL_AMOY_CHAIN_ID
-        ) {
+        if (isTestNet) {
             receiverContractAddress = _getContractAddress(ARB_SEPOLIA_CHAIN_ID, "SFAndIFCcipReceiver");
             destinationChainSelector = ARB_SEPOLIA_SELECTOR;
         } else {
