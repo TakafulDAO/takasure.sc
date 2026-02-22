@@ -2,39 +2,39 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {SFAndIFCcipSender} from "contracts/helpers/chainlink/SFAndIFCcipSender.sol";
+import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/SaveInvestCCIPSender.sol";
 import {CCIPTestERC20, CCIPTestRouter} from "test/mocks/CCIPTestMocks.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
-contract SFAndIFCcipSenderForkTest is Test {
+contract SaveInvestCCIPSenderForkTest is Test {
     uint256 private constant SAFE_BLOCK_LAG = 128;
     uint64 private constant DEST_CHAIN_SELECTOR = 4_949_039_107_694_359_620; // Arbitrum One
     uint256 private constant GAS_LIMIT = 300_000;
     uint256 private constant SEND_AMOUNT = 125e6; // 125 USDC (6 decimals)
     string private constant SAVE_VAULT = "PROTOCOL__SF_VAULT";
 
-    function testSFAndIFCcip_sender_sendMessageOnAvaxMainnetFork() public {
+    function testSaveInvestCCIP_sender_sendMessageOnAvaxMainnetFork() public {
         _assertSenderSendMessageFlow("avax_mainnet");
     }
 
-    function testSFAndIFCcip_sender_sendMessageOnBaseMainnetFork() public {
+    function testSaveInvestCCIP_sender_sendMessageOnBaseMainnetFork() public {
         _assertSenderSendMessageFlow("base_mainnet");
     }
 
-    function testSFAndIFCcip_sender_sendMessageOnEthereumMainnetFork() public {
+    function testSaveInvestCCIP_sender_sendMessageOnEthereumMainnetFork() public {
         _assertSenderSendMessageFlow("eth_mainnet");
     }
 
-    function testSFAndIFCcip_sender_sendMessageOnOptimismMainnetFork() public {
+    function testSaveInvestCCIP_sender_sendMessageOnOptimismMainnetFork() public {
         _assertSenderSendMessageFlow("op_mainnet");
     }
 
-    function testSFAndIFCcip_sender_initializeRevertsWhenCriticalAddressIsZero() public {
+    function testSaveInvestCCIP_sender_initializeRevertsWhenCriticalAddressIsZero() public {
         _createAndSelectPinnedFork("eth_mainnet");
 
-        address implementation = address(new SFAndIFCcipSender());
+        address implementation = address(new SaveInvestCCIPSender());
         bytes memory initData = abi.encodeWithSelector(
-            SFAndIFCcipSender.initialize.selector,
+            SaveInvestCCIPSender.initialize.selector,
             address(0),
             address(1),
             address(2),
@@ -43,46 +43,46 @@ contract SFAndIFCcipSenderForkTest is Test {
             address(this)
         );
 
-        vm.expectRevert(SFAndIFCcipSender.SFAndIFCcipSender__AddressZeroNotAllowed.selector);
+        vm.expectRevert(SaveInvestCCIPSender.SaveInvestCCIPSender__AddressZeroNotAllowed.selector);
         UnsafeUpgrades.deployUUPSProxy(implementation, initData);
     }
 
-    function testSFAndIFCcip_sender_setReceiverContractRevertsForNonOwner() public {
+    function testSaveInvestCCIP_sender_setReceiverContractRevertsForNonOwner() public {
         _createAndSelectPinnedFork("eth_mainnet");
-        (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
 
         vm.prank(makeAddr("attacker"));
         vm.expectRevert();
         sender.setReceiverContract(makeAddr("newReceiver"));
     }
 
-    function testSFAndIFCcip_sender_setReceiverContractRevertsForZeroAddress() public {
+    function testSaveInvestCCIP_sender_setReceiverContractRevertsForZeroAddress() public {
         _createAndSelectPinnedFork("eth_mainnet");
-        (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
 
         vm.expectRevert();
         sender.setReceiverContract(address(0));
     }
 
-    function testSFAndIFCcip_sender_sendMessageRevertsForZeroAmount() public {
+    function testSaveInvestCCIP_sender_sendMessageRevertsForZeroAmount() public {
         _createAndSelectPinnedFork("eth_mainnet");
-        (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
 
         vm.expectRevert();
         sender.sendMessage(SAVE_VAULT, 0, GAS_LIMIT);
     }
 
-    function testSFAndIFCcip_sender_sendMessageRevertsWhenAmountIsBelowMinimumDeposit() public {
+    function testSaveInvestCCIP_sender_sendMessageRevertsWhenAmountIsBelowMinimumDeposit() public {
         _createAndSelectPinnedFork("eth_mainnet");
-        (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
 
         vm.expectRevert();
         sender.sendMessage(SAVE_VAULT, 99e6, GAS_LIMIT);
     }
 
-    function testSFAndIFCcip_sender_sendMessageCannotPullFundsFromAnotherApprovedUser() public {
+    function testSaveInvestCCIP_sender_sendMessageCannotPullFundsFromAnotherApprovedUser() public {
         _createAndSelectPinnedFork("eth_mainnet");
-        (SFAndIFCcipSender sender, CCIPTestRouter router,, CCIPTestERC20 usdc) = _deploySenderFixture();
+        (SaveInvestCCIPSender sender, CCIPTestRouter router,, CCIPTestERC20 usdc) = _deploySenderFixture();
         address user = makeAddr("user");
         address attacker = makeAddr("attacker");
 
@@ -97,9 +97,9 @@ contract SFAndIFCcipSenderForkTest is Test {
         sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT);
     }
 
-    function testSFAndIFCcip_sender_sendMessageRevertsWhenLinkBalanceIsInsufficient() public {
+    function testSaveInvestCCIP_sender_sendMessageRevertsWhenLinkBalanceIsInsufficient() public {
         _createAndSelectPinnedFork("eth_mainnet");
-        (SFAndIFCcipSender sender, CCIPTestRouter router,, CCIPTestERC20 usdc) = _deploySenderFixture();
+        (SaveInvestCCIPSender sender, CCIPTestRouter router,, CCIPTestERC20 usdc) = _deploySenderFixture();
 
         address user = makeAddr("user");
         usdc.mint(user, SEND_AMOUNT);
@@ -110,22 +110,22 @@ contract SFAndIFCcipSenderForkTest is Test {
 
         _assertRevertSelector(
             address(sender),
-            abi.encodeWithSelector(SFAndIFCcipSender.sendMessage.selector, SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT),
-            SFAndIFCcipSender.SFAndIFCcipSender__NotEnoughBalance.selector
+            abi.encodeWithSelector(SaveInvestCCIPSender.sendMessage.selector, SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT),
+            SaveInvestCCIPSender.SaveInvestCCIPSender__NotEnoughBalance.selector
         );
     }
 
-    function testSFAndIFCcip_sender_withdrawLinkRevertsWhenNoBalance() public {
+    function testSaveInvestCCIP_sender_withdrawLinkRevertsWhenNoBalance() public {
         _createAndSelectPinnedFork("eth_mainnet");
-        (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
 
-        vm.expectRevert(SFAndIFCcipSender.SFAndIFCcipSender__NothingToWithdraw.selector);
+        vm.expectRevert(SaveInvestCCIPSender.SaveInvestCCIPSender__NothingToWithdraw.selector);
         sender.withdrawLink(makeAddr("beneficiary"));
     }
 
-    function testSFAndIFCcip_sender_withdrawLinkTransfersAllBalance() public {
+    function testSaveInvestCCIP_sender_withdrawLinkTransfersAllBalance() public {
         _createAndSelectPinnedFork("eth_mainnet");
-        (SFAndIFCcipSender sender,, CCIPTestERC20 link,) = _deploySenderFixture();
+        (SaveInvestCCIPSender sender,, CCIPTestERC20 link,) = _deploySenderFixture();
 
         address beneficiary = makeAddr("beneficiary");
         link.mint(address(sender), 5e18);
@@ -139,7 +139,7 @@ contract SFAndIFCcipSenderForkTest is Test {
     function _assertSenderSendMessageFlow(string memory rpcAlias) internal {
         _createAndSelectPinnedFork(rpcAlias);
 
-        (SFAndIFCcipSender sender, CCIPTestRouter router, CCIPTestERC20 link, CCIPTestERC20 usdc) =
+        (SaveInvestCCIPSender sender, CCIPTestRouter router, CCIPTestERC20 link, CCIPTestERC20 usdc) =
             _deploySenderFixture();
 
         address user = makeAddr("user");
@@ -177,15 +177,15 @@ contract SFAndIFCcipSenderForkTest is Test {
 
     function _deploySenderFixture()
         internal
-        returns (SFAndIFCcipSender sender, CCIPTestRouter router, CCIPTestERC20 link, CCIPTestERC20 usdc)
+        returns (SaveInvestCCIPSender sender, CCIPTestRouter router, CCIPTestERC20 link, CCIPTestERC20 usdc)
     {
         router = new CCIPTestRouter();
         link = new CCIPTestERC20("Chainlink", "LINK", 18);
         usdc = new CCIPTestERC20("USD Coin", "USDC", 6);
 
-        address implementation = address(new SFAndIFCcipSender());
+        address implementation = address(new SaveInvestCCIPSender());
         bytes memory initData = abi.encodeWithSelector(
-            SFAndIFCcipSender.initialize.selector,
+            SaveInvestCCIPSender.initialize.selector,
             address(router),
             address(link),
             address(usdc),
@@ -194,7 +194,7 @@ contract SFAndIFCcipSenderForkTest is Test {
             address(this)
         );
 
-        sender = SFAndIFCcipSender(UnsafeUpgrades.deployUUPSProxy(implementation, initData));
+        sender = SaveInvestCCIPSender(UnsafeUpgrades.deployUUPSProxy(implementation, initData));
 
         vm.makePersistent(address(router));
         vm.makePersistent(address(link));

@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GNU GPLv3
 
 /**
- * @title SFAndIFCcipSender
+ * @title SaveInvestCCIPSender
  * @author Maikel Ordaz
  * @notice This contract will:
  *          - Interact with the CCIP protocol
@@ -23,8 +23,7 @@ import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/acces
 import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-/// @custom:oz-upgrades-from contracts/version_previous_contracts/SFAndIFCcipSenderV1.sol:SFAndIFCcipSenderV1
-contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
+contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     using SafeERC20 for IERC20;
 
     IRouterClient private router;
@@ -52,18 +51,18 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         bytes32 indexed messageId, uint256 indexed tokenAmount, uint256 indexed fees, address userAddr
     );
 
-    error SFAndIFCcipSender__AddressZeroNotAllowed();
-    error SFAndIFCcipSender__ZeroTransferNotAllowed();
-    error SFAndIFCcipSender__AmountBelowMinimum(uint256 amount, uint256 minimum);
-    error SFAndIFCcipSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
-    error SFAndIFCcipSender__NothingToWithdraw();
+    error SaveInvestCCIPSender__AddressZeroNotAllowed();
+    error SaveInvestCCIPSender__ZeroTransferNotAllowed();
+    error SaveInvestCCIPSender__AmountBelowMinimum(uint256 amount, uint256 minimum);
+    error SaveInvestCCIPSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
+    error SaveInvestCCIPSender__NothingToWithdraw();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
     modifier notZeroAddress(address addressToCheck) {
-        require(addressToCheck != address(0), SFAndIFCcipSender__AddressZeroNotAllowed());
+        require(addressToCheck != address(0), SaveInvestCCIPSender__AddressZeroNotAllowed());
         _;
     }
 
@@ -95,7 +94,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         require(
             _router != address(0) && _link != address(0) && _underlying != address(0)
                 && _receiverContract != address(0),
-            SFAndIFCcipSender__AddressZeroNotAllowed()
+            SaveInvestCCIPSender__AddressZeroNotAllowed()
         );
 
         __UUPSUpgradeable_init();
@@ -148,18 +147,20 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         external
         returns (bytes32 messageId)
     {
-        require(amountToTransfer > 0, SFAndIFCcipSender__ZeroTransferNotAllowed());
-        require(amountToTransfer >= MIN_DEPOSIT, SFAndIFCcipSender__AmountBelowMinimum(amountToTransfer, MIN_DEPOSIT));
+        require(amountToTransfer > 0, SaveInvestCCIPSender__ZeroTransferNotAllowed());
+        require(
+            amountToTransfer >= MIN_DEPOSIT, SaveInvestCCIPSender__AmountBelowMinimum(amountToTransfer, MIN_DEPOSIT)
+        );
         address userAddr = msg.sender;
 
         Client.EVM2AnyMessage memory message = _setup({
             _protocolName: protocolName, _amountToTransfer: amountToTransfer, _gasLimit: gasLimit, _userAddr: userAddr
         });
 
-        uint256 ccipFees = _feeChecks(message);
+        uint256 CCIPFees = _feeChecks(message);
 
         messageId = _sendMessage({
-            _userAddr: userAddr, _amountToTransfer: amountToTransfer, _ccipFees: ccipFees, _message: message
+            _userAddr: userAddr, _amountToTransfer: amountToTransfer, _CCIPFees: CCIPFees, _message: message
         });
     }
 
@@ -176,7 +177,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         // Retrieve the balance of this contract
         uint256 amount = linkToken.balanceOf(address(this));
 
-        require(amount > 0, SFAndIFCcipSender__NothingToWithdraw());
+        require(amount > 0, SaveInvestCCIPSender__NothingToWithdraw());
 
         linkToken.safeTransfer(beneficiary, amount);
     }
@@ -210,27 +211,27 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     /**
      * @notice Calculates CCIP fees and approves LINK for fee payment.
      * @param _message Encoded CCIP message for fee quotation.
-     * @return ccipFees_ Fee amount quoted by the router in LINK.
+     * @return CCIPFees_ Fee amount quoted by the router in LINK.
      * @custom:invariant Reverts if LINK balance is insufficient for quoted fee.
-     * @custom:invariant On success, router LINK allowance is set to exactly `ccipFees_`.
+     * @custom:invariant On success, router LINK allowance is set to exactly `CCIPFees_`.
      */
-    function _feeChecks(Client.EVM2AnyMessage memory _message) internal returns (uint256 ccipFees_) {
+    function _feeChecks(Client.EVM2AnyMessage memory _message) internal returns (uint256 CCIPFees_) {
         // Fee required to send the message
-        ccipFees_ = router.getFee(destinationChainSelector, _message);
+        CCIPFees_ = router.getFee(destinationChainSelector, _message);
 
         uint256 _linkBalance = linkToken.balanceOf(address(this));
 
-        require(_linkBalance >= ccipFees_, SFAndIFCcipSender__NotEnoughBalance(_linkBalance, ccipFees_));
+        require(_linkBalance >= CCIPFees_, SaveInvestCCIPSender__NotEnoughBalance(_linkBalance, CCIPFees_));
 
         // Approve the Router to transfer LINK tokens from this contract if needed
-        linkToken.forceApprove(address(router), ccipFees_);
+        linkToken.forceApprove(address(router), CCIPFees_);
     }
 
     /**
      * @notice Transfers underlying token in, sends message through CCIP router, and clears allowances.
      * @param _userAddr User address from which underlying token is pulled.
      * @param _amountToTransfer underlying token amount to transfer cross-chain.
-     * @param _ccipFees Quoted CCIP fee amount (for event accounting).
+     * @param _CCIPFees Quoted CCIP fee amount (for event accounting).
      * @param _message Encoded CCIP message.
      * @return messageId_ CCIP message identifier returned by router.
      * @custom:invariant On success, router LINK and underlying token allowances are both reset to zero.
@@ -238,7 +239,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     function _sendMessage(
         address _userAddr,
         uint256 _amountToTransfer,
-        uint256 _ccipFees,
+        uint256 _CCIPFees,
         Client.EVM2AnyMessage memory _message
     ) internal returns (bytes32 messageId_) {
         underlying.safeTransferFrom(_userAddr, address(this), _amountToTransfer);
@@ -252,7 +253,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         underlying.forceApprove(address(router), 0);
 
         // Emit an event with message details
-        emit OnTokensTransferred(messageId_, _amountToTransfer, _ccipFees, _userAddr);
+        emit OnTokensTransferred(messageId_, _amountToTransfer, _CCIPFees, _userAddr);
     }
 
     /**

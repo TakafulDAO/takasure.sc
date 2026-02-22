@@ -8,14 +8,14 @@ import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {CCIPLocalSimulatorFork, Register} from "@chainlink/local/src/ccip/CCIPLocalSimulatorFork.sol";
 import {BurnMintERC677Helper} from "@chainlink/local/src/ccip/BurnMintERC677Helper.sol";
 
-import {SFAndIFCcipSender} from "contracts/helpers/chainlink/SFAndIFCcipSender.sol";
-import {SFAndIFCcipReceiver} from "contracts/helpers/chainlink/SFAndIFCcipReceiver.sol";
+import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/SaveInvestCCIPSender.sol";
+import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/SaveInvestCCIPReceiver.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
 
 import {CCIPTestVault} from "test/mocks/CCIPTestMocks.sol";
 
-contract SFAndIFCcipCrossChainForkTest is Test {
+contract SaveInvestCcipCrossChainForkTest is Test {
     string private constant ETH_SEPOLIA_RPC_ALIAS = "eth_sepolia";
     string private constant ARB_SEPOLIA_RPC_ALIAS = "arb_sepolia";
     string private constant ETH_SEPOLIA_RPC_ENV = "ETHEREUM_TESTNET_SEPOLIA_RPC_URL";
@@ -37,8 +37,8 @@ contract SFAndIFCcipCrossChainForkTest is Test {
 
     CCIPLocalSimulatorFork internal ccipLocalSimulatorFork;
 
-    SFAndIFCcipSender internal sender;
-    SFAndIFCcipReceiver internal receiver;
+    SaveInvestCCIPSender internal sender;
+    SaveInvestCCIPReceiver internal receiver;
 
     CCIPTestVault internal sfVault;
     CCIPTestVault internal ifVault;
@@ -68,7 +68,8 @@ contract SFAndIFCcipCrossChainForkTest is Test {
         sfVault = new CCIPTestVault(IERC20(address(destinationToken)));
         ifVault = new CCIPTestVault(IERC20(address(destinationToken)));
 
-        receiver = new SFAndIFCcipReceiver(addressManager, destinationNetwork.routerAddress, address(destinationToken));
+        receiver =
+            new SaveInvestCCIPReceiver(addressManager, destinationNetwork.routerAddress, address(destinationToken));
         _mockProtocolAddress("PROTOCOL__SF_VAULT", address(sfVault));
         _mockProtocolAddress("PROTOCOL__IF_VAULT", address(ifVault));
 
@@ -86,7 +87,7 @@ contract SFAndIFCcipCrossChainForkTest is Test {
         IERC20(address(sourceToken)).approve(address(sender), type(uint256).max);
     }
 
-    function testSFAndIFCcip_crossChain_sendSaveVaultAndReceiveOnDestination() public {
+    function testSaveInvestCCIP_crossChain_sendSaveVaultAndReceiveOnDestination() public {
         uint256 balanceBefore = IERC20(address(sourceToken)).balanceOf(user);
 
         vm.selectFork(sourceFork);
@@ -109,7 +110,7 @@ contract SFAndIFCcipCrossChainForkTest is Test {
         );
     }
 
-    function testSFAndIFCcip_crossChain_sendInvestVaultAndReceiveOnDestination() public {
+    function testSaveInvestCCIP_crossChain_sendInvestVaultAndReceiveOnDestination() public {
         vm.selectFork(sourceFork);
         vm.prank(user);
         sender.sendMessage(INVEST_VAULT, SEND_AMOUNT, GAS_LIMIT);
@@ -128,11 +129,11 @@ contract SFAndIFCcipCrossChainForkTest is Test {
 
     function _deploySenderProxy(address _owner, uint64 destinationChainSelector, address receiverContract)
         internal
-        returns (SFAndIFCcipSender)
+        returns (SaveInvestCCIPSender)
     {
-        address implementation = address(new SFAndIFCcipSender());
+        address implementation = address(new SaveInvestCCIPSender());
         bytes memory initData = abi.encodeWithSelector(
-            SFAndIFCcipSender.initialize.selector,
+            SaveInvestCCIPSender.initialize.selector,
             sourceNetwork.routerAddress,
             sourceNetwork.linkAddress,
             address(sourceToken),
@@ -140,7 +141,7 @@ contract SFAndIFCcipCrossChainForkTest is Test {
             destinationChainSelector,
             _owner
         );
-        return SFAndIFCcipSender(UnsafeUpgrades.deployUUPSProxy(implementation, initData));
+        return SaveInvestCCIPSender(UnsafeUpgrades.deployUUPSProxy(implementation, initData));
     }
 
     function _mockProtocolAddress(string memory name, address protocolAddr) internal {

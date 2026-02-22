@@ -6,24 +6,24 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
-import {SFAndIFCcipSender} from "contracts/helpers/chainlink/SFAndIFCcipSender.sol";
+import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/SaveInvestCCIPSender.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
-contract UpgrapdeSFAndIFSender is Script, GetContractAddress {
+contract UpgrapdeSaveInvestCCIPSender is Script, GetContractAddress {
     function run() external returns (address) {
-        address senderContractAddress = _getContractAddress(block.chainid, "SFAndIFCcipSender");
+        address senderContractAddress = _getContractAddress(block.chainid, "SaveInvestCCIPSender");
         address oldImplementation = Upgrades.getImplementationAddress(senderContractAddress);
-        console2.log("Old SF and IF CCIP Sender contract implementation address: ", oldImplementation);
+        console2.log("Old Save and Invest CCIP Sender contract implementation address: ", oldImplementation);
 
         vm.startBroadcast();
 
-        // Upgrade SFAndIFCcipSender
-        Upgrades.upgradeProxy(senderContractAddress, "SFAndIFCcipSender.sol", "");
+        // Upgrade SaveInvestCCIPSender
+        Upgrades.upgradeProxy(senderContractAddress, "SaveInvestCCIPSender.sol", "");
 
         vm.stopBroadcast();
 
         address newImplementation = Upgrades.getImplementationAddress(senderContractAddress);
-        console2.log("New SF and IF CCIP Sender contract implementation address: ", newImplementation);
+        console2.log("New Save and Invest CCIP Sender contract implementation address: ", newImplementation);
 
         return (newImplementation);
     }

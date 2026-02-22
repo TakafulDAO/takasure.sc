@@ -2,17 +2,17 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {SFAndIFCcipReceiver} from "contracts/helpers/chainlink/SFAndIFCcipReceiver.sol";
-import {SFAndIFCcipReceiverHarness} from "test/helpers/harness/SFAndIFCcipReceiverHarness.t.sol";
+import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/SaveInvestCCIPReceiver.sol";
+import {SaveInvestCCIPReceiverHarness} from "test/helpers/harness/SaveInvestCCIPReceiverHarness.t.sol";
 
-contract SFAndIFCcipReceiverDecodeMessageDataTest is Test {
-    SFAndIFCcipReceiverHarness private harness;
+contract SaveInvestCCIPReceiverDecodeMessageDataTest is Test {
+    SaveInvestCCIPReceiverHarness private harness;
 
     function setUp() public {
-        harness = new SFAndIFCcipReceiverHarness();
+        harness = new SaveInvestCCIPReceiverHarness();
     }
 
-    function testSFAndIFCcip_receiver_decodeMessageData_decodesValidPayload() public view {
+    function testSaveInvestCCIP_receiver_decodeMessageData_decodesValidPayload() public view {
         string memory protocolName = "PROTOCOL__SF_VAULT";
         address user = address(0xBEEF);
         bytes memory protocolCallData = abi.encodeWithSignature("deposit(uint256,address)", 25e6, user);
@@ -24,7 +24,7 @@ contract SFAndIFCcipReceiverDecodeMessageDataTest is Test {
         assertEq(keccak256(decodedCallData), keccak256(protocolCallData), "decoded protocol call data mismatch");
     }
 
-    function testSFAndIFCcip_receiver_decodeMessageData_decodesEmptyProtocolCallData() public view {
+    function testSaveInvestCCIP_receiver_decodeMessageData_decodesEmptyProtocolCallData() public view {
         string memory protocolName = "PROTOCOL__IF_VAULT";
         bytes memory protocolCallData = "";
 
@@ -35,38 +35,38 @@ contract SFAndIFCcipReceiverDecodeMessageDataTest is Test {
         assertEq(decodedCallData.length, 0, "decoded protocol call data should be empty");
     }
 
-    function testSFAndIFCcip_receiver_decodeMessageData_revertsForShortPayload() public {
-        vm.expectRevert(SFAndIFCcipReceiver.SFAndIFCcipReceiver__InvalidMessageData.selector);
+    function testSaveInvestCCIP_receiver_decodeMessageData_revertsForShortPayload() public {
+        vm.expectRevert(SaveInvestCCIPReceiver.SaveInvestCCIPReceiver__InvalidMessageData.selector);
         harness.exposed__decodeMessageData(hex"1234");
     }
 
-    function testSFAndIFCcip_receiver_decodeMessageData_revertsWhenProtocolNameOffsetIsOutOfBounds() public {
+    function testSaveInvestCCIP_receiver_decodeMessageData_revertsWhenProtocolNameOffsetIsOutOfBounds() public {
         bytes memory malformed = abi.encode(uint256(0xFFFF), bytes("abc"));
 
-        vm.expectRevert(SFAndIFCcipReceiver.SFAndIFCcipReceiver__InvalidMessageData.selector);
+        vm.expectRevert(SaveInvestCCIPReceiver.SaveInvestCCIPReceiver__InvalidMessageData.selector);
         harness.exposed__decodeMessageData(malformed);
     }
 
-    function testSFAndIFCcip_receiver_decodeMessageData_revertsWhenProtocolCallDataOffsetIsOutOfBounds() public {
+    function testSaveInvestCCIP_receiver_decodeMessageData_revertsWhenProtocolCallDataOffsetIsOutOfBounds() public {
         bytes memory malformed = abi.encode("PROTOCOL__SF_VAULT", uint256(0xFFFF));
 
-        vm.expectRevert(SFAndIFCcipReceiver.SFAndIFCcipReceiver__InvalidMessageData.selector);
+        vm.expectRevert(SaveInvestCCIPReceiver.SaveInvestCCIPReceiver__InvalidMessageData.selector);
         harness.exposed__decodeMessageData(malformed);
     }
 
-    function testSFAndIFCcip_receiver_decodeMessageData_revertsWhenProtocolNameLengthOverflowsPayload() public {
+    function testSaveInvestCCIP_receiver_decodeMessageData_revertsWhenProtocolNameLengthOverflowsPayload() public {
         bytes memory malformed = abi.encode("PROTOCOL__SF_VAULT", bytes("abcd"));
         _setProtocolNameLength(malformed, type(uint256).max);
 
-        vm.expectRevert(SFAndIFCcipReceiver.SFAndIFCcipReceiver__InvalidMessageData.selector);
+        vm.expectRevert(SaveInvestCCIPReceiver.SaveInvestCCIPReceiver__InvalidMessageData.selector);
         harness.exposed__decodeMessageData(malformed);
     }
 
-    function testSFAndIFCcip_receiver_decodeMessageData_revertsWhenProtocolCallDataLengthOverflowsPayload() public {
+    function testSaveInvestCCIP_receiver_decodeMessageData_revertsWhenProtocolCallDataLengthOverflowsPayload() public {
         bytes memory malformed = abi.encode("PROTOCOL__SF_VAULT", bytes("abcd"));
         _setProtocolCallDataLength(malformed, type(uint256).max);
 
-        vm.expectRevert(SFAndIFCcipReceiver.SFAndIFCcipReceiver__InvalidMessageData.selector);
+        vm.expectRevert(SaveInvestCCIPReceiver.SaveInvestCCIPReceiver__InvalidMessageData.selector);
         harness.exposed__decodeMessageData(malformed);
     }
 

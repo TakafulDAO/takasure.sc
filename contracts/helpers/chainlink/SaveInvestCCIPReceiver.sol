@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: GNU GPLv3
 
 /**
- * @title SFAndIFCcipReceiver
+ * @title SaveInvestCCIPReceiver
  * @author Maikel Ordaz
  * @notice This contract will:
  *          - Interact with the CCIP pprotocol
@@ -20,7 +20,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
-contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
+contract SaveInvestCCIPReceiver is CCIPReceiver, Ownable2Step {
     using SafeERC20 for IERC20;
     using EnumerableMap for EnumerableMap.Bytes32ToUintMap;
 
@@ -65,28 +65,28 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     event OnTokensRecovered(address indexed user, uint256 amount);
     event OnMessageDecoded(bytes32 indexed messageId, string protocolName, address indexed user);
 
-    error SFAndIFCcipReceiver__NotZeroAddress();
-    error SFAndIFCcipReceiver__NotAllowedSource();
-    error SFAndIFCcipReceiver__OnlySelf();
-    error SFAndIFCcipReceiver__CallFailed(bytes reason);
-    error SFAndIFCcipReceiver__VaultNotConfigured(string protocolName);
-    error SFAndIFCcipReceiver__InvalidProtocolCallDataLength(uint256 length);
-    error SFAndIFCcipReceiver__InvalidProtocolCallSelector(bytes4 selector);
-    error SFAndIFCcipReceiver__InvalidMessageData();
-    error SFAndIFCcipReceiver__InvalidDestTokenAmountsLength(uint256 length);
-    error SFAndIFCcipReceiver__InvalidDestTokenAddress(address token);
-    error SFAndIFCcipReceiver__MessageNotFailed(bytes32 messageId);
-    error SFAndIFCcipReceiver__NoFailedMessages(address user);
-    error SFAndIFCcipReceiver__MessageUserMismatch(address user, bytes32 messageId);
-    error SFAndIFCcipReceiver__NotAuthorized();
+    error SaveInvestCCIPReceiver__NotZeroAddress();
+    error SaveInvestCCIPReceiver__NotAllowedSource();
+    error SaveInvestCCIPReceiver__OnlySelf();
+    error SaveInvestCCIPReceiver__CallFailed(bytes reason);
+    error SaveInvestCCIPReceiver__VaultNotConfigured(string protocolName);
+    error SaveInvestCCIPReceiver__InvalidProtocolCallDataLength(uint256 length);
+    error SaveInvestCCIPReceiver__InvalidProtocolCallSelector(bytes4 selector);
+    error SaveInvestCCIPReceiver__InvalidMessageData();
+    error SaveInvestCCIPReceiver__InvalidDestTokenAmountsLength(uint256 length);
+    error SaveInvestCCIPReceiver__InvalidDestTokenAddress(address token);
+    error SaveInvestCCIPReceiver__MessageNotFailed(bytes32 messageId);
+    error SaveInvestCCIPReceiver__NoFailedMessages(address user);
+    error SaveInvestCCIPReceiver__MessageUserMismatch(address user, bytes32 messageId);
+    error SaveInvestCCIPReceiver__NotAuthorized();
 
     modifier onlyAllowedSource(uint64 _sourceChainSelector, address _sender) {
-        require(isSenderAllowedByChain[_sourceChainSelector][_sender], SFAndIFCcipReceiver__NotAllowedSource());
+        require(isSenderAllowedByChain[_sourceChainSelector][_sender], SaveInvestCCIPReceiver__NotAllowedSource());
         _;
     }
 
     modifier onlyOwnerOrUser(address user) {
-        require(msg.sender == owner() || msg.sender == user, SFAndIFCcipReceiver__NotAuthorized());
+        require(msg.sender == owner() || msg.sender == user, SaveInvestCCIPReceiver__NotAuthorized());
         _;
     }
 
@@ -106,7 +106,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     {
         require(
             address(_addressManager) != address(0) && _router != address(0) && _underlying != address(0),
-            SFAndIFCcipReceiver__NotZeroAddress()
+            SaveInvestCCIPReceiver__NotZeroAddress()
         );
         underlying = IERC20(_underlying);
         addressManager = _addressManager;
@@ -123,7 +123,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      * @custom:invariant Post-call, sender allowlist state flips for `(chainSelector, sender)`.
      */
     function toggleAllowedSender(uint64 chainSelector, address sender) external onlyOwner {
-        require(sender != address(0), SFAndIFCcipReceiver__NotAllowedSource());
+        require(sender != address(0), SaveInvestCCIPReceiver__NotAllowedSource());
         bool enable = !isSenderAllowedByChain[chainSelector][sender];
         isSenderAllowedByChain[chainSelector][sender] = enable;
     }
@@ -173,7 +173,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         external
         onlyAllowedSource(any2EvmMessage.sourceChainSelector, abi.decode(any2EvmMessage.sender, (address)))
     {
-        require(msg.sender == address(this), SFAndIFCcipReceiver__OnlySelf());
+        require(msg.sender == address(this), SaveInvestCCIPReceiver__OnlySelf());
         _ccipReceive(any2EvmMessage);
     }
 
@@ -201,7 +201,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
 
         (bool _success, bytes memory _returnData) = _callVault(_protocolName, _protocolCallData, _tokenAmount);
 
-        require(_success, SFAndIFCcipReceiver__CallFailed(_returnData));
+        require(_success, SaveInvestCCIPReceiver__CallFailed(_returnData));
 
         failedMessages.set(messageId, uint256(StatusCode.RESOLVED));
         emit OnMessageRecovered(messageId);
@@ -298,7 +298,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
                 _tokenAmount
             );
         } else {
-            revert SFAndIFCcipReceiver__CallFailed(_returnData);
+            revert SaveInvestCCIPReceiver__CallFailed(_returnData);
         }
     }
 
@@ -366,7 +366,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
 
         require(
             vaultAddr_ != address(0) && vaultAddr_.code.length > 0,
-            SFAndIFCcipReceiver__VaultNotConfigured(_protocolName)
+            SaveInvestCCIPReceiver__VaultNotConfigured(_protocolName)
         );
     }
 
@@ -384,7 +384,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     {
         uint256 dataLength = _data.length;
         // abi.encode(string, bytes) has 2 head words + 2 tail lengths at minimum.
-        require(dataLength >= 0x80, SFAndIFCcipReceiver__InvalidMessageData());
+        require(dataLength >= 0x80, SaveInvestCCIPReceiver__InvalidMessageData());
 
         uint256 protocolNameOffset;
         uint256 protocolCallDataOffset;
@@ -401,8 +401,8 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         }
 
         // Dynamic string and bytes length words must sit within payload bounds.
-        require(protocolNameOffset <= dataLength - 0x20, SFAndIFCcipReceiver__InvalidMessageData());
-        require(protocolCallDataOffset <= dataLength - 0x20, SFAndIFCcipReceiver__InvalidMessageData());
+        require(protocolNameOffset <= dataLength - 0x20, SaveInvestCCIPReceiver__InvalidMessageData());
+        require(protocolCallDataOffset <= dataLength - 0x20, SaveInvestCCIPReceiver__InvalidMessageData());
 
         bytes memory protocolNameBytes;
 
@@ -424,7 +424,9 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         }
 
         // Nested string bytes must be fully contained in `_data`.
-        require(protocolNameLength <= dataLength - protocolNameOffset - 0x20, SFAndIFCcipReceiver__InvalidMessageData());
+        require(
+            protocolNameLength <= dataLength - protocolNameOffset - 0x20, SaveInvestCCIPReceiver__InvalidMessageData()
+        );
 
         protocolNameBytes = new bytes(protocolNameLength);
         if (protocolNameLength > 0) {
@@ -447,7 +449,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         // Nested calldata bytes must be fully contained in `_data`.
         require(
             protocolCallDataLength <= dataLength - protocolCallDataOffset - 0x20,
-            SFAndIFCcipReceiver__InvalidMessageData()
+            SaveInvestCCIPReceiver__InvalidMessageData()
         );
 
         protocolCallData_ = new bytes(protocolCallDataLength);
@@ -482,11 +484,11 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         returns (Client.Any2EVMMessage memory message_, bytes32 messageId_)
     {
         messageId_ = _messageId;
-        require(userByMessageId[messageId_] == _user, SFAndIFCcipReceiver__MessageUserMismatch(_user, messageId_));
-        require(failedMessages.contains(messageId_), SFAndIFCcipReceiver__MessageNotFailed(messageId_));
+        require(userByMessageId[messageId_] == _user, SaveInvestCCIPReceiver__MessageUserMismatch(_user, messageId_));
+        require(failedMessages.contains(messageId_), SaveInvestCCIPReceiver__MessageNotFailed(messageId_));
         require(
             failedMessages.get(messageId_) == uint256(StatusCode.FAILED),
-            SFAndIFCcipReceiver__MessageNotFailed(messageId_)
+            SaveInvestCCIPReceiver__MessageNotFailed(messageId_)
         );
         message_ = messageContentsById[messageId_];
     }
@@ -500,7 +502,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
     function _getLatestFailedMessageId(address _user) internal view returns (bytes32 messageId_) {
         bytes32[] storage messageIds = failedMessageIdsByUser[_user];
         uint256 length = messageIds.length;
-        require(length > 0, SFAndIFCcipReceiver__NoFailedMessages(_user));
+        require(length > 0, SaveInvestCCIPReceiver__NoFailedMessages(_user));
 
         for (uint256 i = length; i > 0; --i) {
             bytes32 currentMessageId = messageIds[i - 1];
@@ -512,7 +514,7 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
             }
         }
 
-        revert SFAndIFCcipReceiver__NoFailedMessages(_user);
+        revert SaveInvestCCIPReceiver__NoFailedMessages(_user);
     }
 
     /**
@@ -549,11 +551,12 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
         returns (uint256 tokenAmount_)
     {
         uint256 _length = _message.destTokenAmounts.length;
-        require(_length == 1, SFAndIFCcipReceiver__InvalidDestTokenAmountsLength(_length));
+        require(_length == 1, SaveInvestCCIPReceiver__InvalidDestTokenAmountsLength(_length));
 
         Client.EVMTokenAmount memory _tokenAmount = _message.destTokenAmounts[0];
         require(
-            _tokenAmount.token == address(underlying), SFAndIFCcipReceiver__InvalidDestTokenAddress(_tokenAmount.token)
+            _tokenAmount.token == address(underlying),
+            SaveInvestCCIPReceiver__InvalidDestTokenAddress(_tokenAmount.token)
         );
 
         tokenAmount_ = _tokenAmount.amount;
@@ -566,13 +569,13 @@ contract SFAndIFCcipReceiver is CCIPReceiver, Ownable2Step {
      */
     function _validateProtocolCallData(bytes memory _protocolCallData) internal pure {
         uint256 _length = _protocolCallData.length;
-        require(_length >= 4, SFAndIFCcipReceiver__InvalidProtocolCallDataLength(_length));
+        require(_length >= 4, SaveInvestCCIPReceiver__InvalidProtocolCallDataLength(_length));
 
         bytes4 _selector = bytes4(
             (uint32(uint8(_protocolCallData[0])) << 24) | (uint32(uint8(_protocolCallData[1])) << 16)
                 | (uint32(uint8(_protocolCallData[2])) << 8) | uint32(uint8(_protocolCallData[3]))
         );
 
-        require(_selector == DEPOSIT_SELECTOR, SFAndIFCcipReceiver__InvalidProtocolCallSelector(_selector));
+        require(_selector == DEPOSIT_SELECTOR, SaveInvestCCIPReceiver__InvalidProtocolCallSelector(_selector));
     }
 }

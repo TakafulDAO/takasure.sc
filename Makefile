@@ -105,16 +105,16 @@ tokens-upgrade-nft:
 
 # CCIP deployments
 ccip-deploy-receiver:
-	@forge script deploy/ccip/00-DeploySFAndIFReceiver.s.sol:DeploySFAndIFReceiver $(NETWORK_ARGS)
+	@forge script deploy/ccip/00-DeploySaveInvestCCIPReceiver.s.sol:DeploySaveInvestCCIPReceiver $(NETWORK_ARGS)
 
 ccip-deploy-sender:
 	@forge clean
-	@forge script deploy/ccip/01-DeploySFAndIFSender.s.sol:DeploySFAndIFSender $(NETWORK_ARGS)
+	@forge script deploy/ccip/01-DeploySaveInvestCCIPSender.s.sol:DeploySaveInvestCCIPSender $(NETWORK_ARGS)
 
 # CCIP upgrades
 ccip-upgrade-sender:
 	@forge clean
-	@forge script deploy/ccip/02-UpgrapdeSFAndIFSender.s.sol:UpgrapdeSFAndIFSender $(NETWORK_ARGS)
+	@forge script deploy/ccip/02-UpgrapdeSaveInvestCCIPSender.s.sol:UpgrapdeSaveInvestCCIPSender $(NETWORK_ARGS)
 
 # Defender
 defender-validate-upgrade:

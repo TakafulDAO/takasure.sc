@@ -6,12 +6,12 @@ pragma solidity 0.8.28;
 
 import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {SFAndIFCcipReceiver} from "contracts/helpers/chainlink/SFAndIFCcipReceiver.sol";
+import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/SaveInvestCCIPReceiver.sol";
 import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 
-contract DeploySFAndIFReceiver is Script, DeployConstants, GetContractAddress {
-    function run() external returns (SFAndIFCcipReceiver) {
+contract DeploySaveInvestCCIPReceiver is Script, DeployConstants, GetContractAddress {
+    function run() external returns (SaveInvestCCIPReceiver) {
         uint256 chainId = block.chainid;
 
         CcipHelperConfig ccipHelperConfig = new CcipHelperConfig();
@@ -25,8 +25,8 @@ contract DeploySFAndIFReceiver is Script, DeployConstants, GetContractAddress {
 
         vm.startBroadcast();
 
-        // Deploy SFAndIFCcipReceiver contract
-        SFAndIFCcipReceiver receiver = new SFAndIFCcipReceiver(addressManager, config.router, usdcAddress);
+        // Deploy SaveInvestCCIPReceiver contract
+        SaveInvestCCIPReceiver receiver = new SaveInvestCCIPReceiver(addressManager, config.router, usdcAddress);
 
         vm.stopBroadcast();
 

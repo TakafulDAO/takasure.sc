@@ -41,22 +41,21 @@ abstract contract TestnetPoolScriptBase is Script, GetContractAddress {
     }
 
     function _tryDeploymentAddress(uint256 chainId, string memory contractName) internal view returns (address, bool) {
-        string memory path = string.concat(
-            vm.projectRoot(), "/deployments/", _chainDeploymentsDir(chainId), "/", contractName, ".json"
-        );
+        string memory path =
+            string.concat(vm.projectRoot(), "/deployments/", _chainDeploymentsDir(chainId), "/", contractName, ".json");
         if (!vm.exists(path)) return (address(0), false);
         return (_getContractAddress(chainId, contractName), true);
     }
 
-    function _envAddressOr(string memory key, address defaultValue) internal returns (address) {
+    function _envAddressOr(string memory key, address defaultValue) internal view returns (address) {
         return vm.envOr(key, defaultValue);
     }
 
-    function _envBoolOr(string memory key, bool defaultValue) internal returns (bool) {
+    function _envBoolOr(string memory key, bool defaultValue) internal view returns (bool) {
         return vm.envOr(key, defaultValue);
     }
 
-    function _envUintOr(string memory key, uint256 defaultValue) internal returns (uint256) {
+    function _envUintOr(string memory key, uint256 defaultValue) internal view returns (uint256) {
         return vm.envOr(key, defaultValue);
     }
 

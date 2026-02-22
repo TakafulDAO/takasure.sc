@@ -33,20 +33,20 @@ contract ConfigureCcipPoolLanes is Script, TestnetPoolScriptBase {
         bool forceReplace = _envBoolOr("CCIP_FORCE_REPLACE_CHAIN_CONFIG", false);
 
         address localPool = _resolveAddress("CCIP_LOCAL_POOL", localChainId, _defaultPoolNameForChain(localChainId));
-        address localToken = _resolveAddress("CCIP_TESTNET_TOKEN", localChainId, _defaultTokenNameForChain(localChainId));
+        address localToken =
+            _resolveAddress("CCIP_TESTNET_TOKEN", localChainId, _defaultTokenNameForChain(localChainId));
         address remotePool = _resolveAddress("CCIP_REMOTE_POOL", remoteChainId, _defaultPoolNameForChain(remoteChainId));
-        address remoteToken = _resolveAddress("CCIP_REMOTE_TOKEN", remoteChainId, _defaultTokenNameForChain(remoteChainId));
+        address remoteToken =
+            _resolveAddress("CCIP_REMOTE_TOKEN", remoteChainId, _defaultTokenNameForChain(remoteChainId));
 
         bytes[] memory remotePoolAddresses = new bytes[](1);
         remotePoolAddresses[0] = abi.encode(remotePool);
         bytes memory remoteTokenAddress = abi.encode(remoteToken);
 
-        RateLimiter.Config memory outboundCfg = _loadRateLimitConfig(
-            "CCIP_OUTBOUND_RL_ENABLED", "CCIP_OUTBOUND_RL_CAPACITY", "CCIP_OUTBOUND_RL_RATE"
-        );
-        RateLimiter.Config memory inboundCfg = _loadRateLimitConfig(
-            "CCIP_INBOUND_RL_ENABLED", "CCIP_INBOUND_RL_CAPACITY", "CCIP_INBOUND_RL_RATE"
-        );
+        RateLimiter.Config memory outboundCfg =
+            _loadRateLimitConfig("CCIP_OUTBOUND_RL_ENABLED", "CCIP_OUTBOUND_RL_CAPACITY", "CCIP_OUTBOUND_RL_RATE");
+        RateLimiter.Config memory inboundCfg =
+            _loadRateLimitConfig("CCIP_INBOUND_RL_ENABLED", "CCIP_INBOUND_RL_CAPACITY", "CCIP_INBOUND_RL_RATE");
 
         vm.startBroadcast();
         _configureLocalPool(
@@ -82,7 +82,9 @@ contract ConfigureCcipPoolLanes is Script, TestnetPoolScriptBase {
         bool chainExists = localPool.isSupportedChain(remoteSelector);
 
         if (!chainExists) {
-            _applyChainUpdate(localPool, remoteSelector, remotePoolAddresses, remoteTokenAddress, outboundCfg, inboundCfg, false);
+            _applyChainUpdate(
+                localPool, remoteSelector, remotePoolAddresses, remoteTokenAddress, outboundCfg, inboundCfg, false
+            );
             console2.log("applyChainUpdates: added new chain config");
             return;
         }
@@ -91,7 +93,9 @@ contract ConfigureCcipPoolLanes is Script, TestnetPoolScriptBase {
         if (keccak256(configuredRemoteToken) != keccak256(remoteTokenAddress)) {
             if (!forceReplace) revert ConfigureCcipPoolLanes__RemoteTokenMismatchRequiresForceReplace();
 
-            _applyChainUpdate(localPool, remoteSelector, remotePoolAddresses, remoteTokenAddress, outboundCfg, inboundCfg, true);
+            _applyChainUpdate(
+                localPool, remoteSelector, remotePoolAddresses, remoteTokenAddress, outboundCfg, inboundCfg, true
+            );
             console2.log("applyChainUpdates: replaced existing chain config");
             return;
         }
@@ -138,6 +142,7 @@ contract ConfigureCcipPoolLanes is Script, TestnetPoolScriptBase {
 
     function _resolveAddress(string memory envKey, uint256 chainId, string memory defaultContractName)
         internal
+        view
         returns (address resolved_)
     {
         resolved_ = _envAddressOr(envKey, address(0));
@@ -151,6 +156,7 @@ contract ConfigureCcipPoolLanes is Script, TestnetPoolScriptBase {
 
     function _loadRateLimitConfig(string memory enabledKey, string memory capacityKey, string memory rateKey)
         internal
+        view
         returns (RateLimiter.Config memory cfg_)
     {
         cfg_.isEnabled = _envBoolOr(enabledKey, false);
