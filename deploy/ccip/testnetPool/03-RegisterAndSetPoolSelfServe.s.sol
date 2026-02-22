@@ -11,12 +11,20 @@ interface IRegistryModuleOwnerCustomMinimal {
 }
 
 /// @notice Self-serve registration + pool binding for source-chain SFUSDCCcipTestnet tokens.
-/// @dev Requires CCIP TokenAdminRegistry and RegistryModuleOwnerCustom addresses via env vars.
 contract RegisterAndSetPoolSelfServe is Script, TestnetPoolScriptBase {
-    error RegisterAndSetPoolSelfServe__MissingRegistryAddress();
-    error RegisterAndSetPoolSelfServe__MissingRegistryModuleAddress();
-    error RegisterAndSetPoolSelfServe__PoolAddressZero();
     error RegisterAndSetPoolSelfServe__ArbSepoliaLegacyTokenRequiresManualPath();
+
+    // Chainlink CCIP self-serve registry addresses (testnet), sourced from Chainlink CCIP chains API.
+    address internal constant AVAX_FUJI_TOKEN_ADMIN_REGISTRY = 0xA92053a4a3922084d992fD2835bdBa4caC6877e6;
+    address internal constant AVAX_FUJI_REGISTRY_MODULE_OWNER_CUSTOM = 0x97300785aF1edE1343DB6d90706A35CF14aA3d81;
+    address internal constant BASE_SEPOLIA_TOKEN_ADMIN_REGISTRY = 0x736D0bBb318c1B27Ff686cd19804094E66250e17;
+    address internal constant BASE_SEPOLIA_REGISTRY_MODULE_OWNER_CUSTOM = 0x8A55C61227f26a3e2f217842eCF20b52007bAaBe;
+    address internal constant ETH_SEPOLIA_TOKEN_ADMIN_REGISTRY = 0x95F29FEE11c5C55d26cCcf1DB6772DE953B37B82;
+    address internal constant ETH_SEPOLIA_REGISTRY_MODULE_OWNER_CUSTOM = 0x62e731218d0D47305aba2BE3751E7EE9E5520790;
+    address internal constant OP_SEPOLIA_TOKEN_ADMIN_REGISTRY = 0x1d702b1FA12F347f0921C722f9D9166F00DEB67A;
+    address internal constant OP_SEPOLIA_REGISTRY_MODULE_OWNER_CUSTOM = 0x49c4ba01dc6F5090f9df43Ab8F79449Db91A0CBB;
+    address internal constant POL_AMOY_TOKEN_ADMIN_REGISTRY = 0x1e73f6842d7afDD78957ac143d1f315404Dd9e5B;
+    address internal constant POL_AMOY_REGISTRY_MODULE_OWNER_CUSTOM = 0x84ad5890A63957C960e0F19b0448A038a574936B;
 
     function run() external {
         uint256 chainId = block.chainid;
@@ -27,16 +35,11 @@ contract RegisterAndSetPoolSelfServe is Script, TestnetPoolScriptBase {
             revert RegisterAndSetPoolSelfServe__ArbSepoliaLegacyTokenRequiresManualPath();
         }
 
-        address registryAddr = _envAddressOr("CCIP_TOKEN_ADMIN_REGISTRY", address(0));
-        address registryModuleAddr = _envAddressOr("CCIP_REGISTRY_MODULE_OWNER_CUSTOM", address(0));
-        if (registryAddr == address(0)) revert RegisterAndSetPoolSelfServe__MissingRegistryAddress();
-        if (registryModuleAddr == address(0)) revert RegisterAndSetPoolSelfServe__MissingRegistryModuleAddress();
+        address registryAddr = _tokenAdminRegistryByChainId(chainId);
+        address registryModuleAddr = _registryModuleOwnerCustomByChainId(chainId);
 
-        address token = _envAddressOr("CCIP_TESTNET_TOKEN", _deploymentAddress(chainId, "SFUSDCCcipTestnet"));
-        address defaultPool;
-        (defaultPool,) = _tryDeploymentAddress(chainId, "BurnMintTokenPool");
-        address pool = _envAddressOr("CCIP_LOCAL_POOL", defaultPool);
-        if (pool == address(0)) revert RegisterAndSetPoolSelfServe__PoolAddressZero();
+        address token = _deploymentAddress(chainId, "SFUSDCCcipTestnet");
+        address pool = _deploymentAddress(chainId, "BurnMintTokenPool");
 
         ITokenAdminRegistry registry = ITokenAdminRegistry(registryAddr);
         IRegistryModuleOwnerCustomMinimal registryModule = IRegistryModuleOwnerCustomMinimal(registryModuleAddr);
@@ -70,5 +73,23 @@ contract RegisterAndSetPoolSelfServe is Script, TestnetPoolScriptBase {
         console2.log("Token:", token);
         console2.log("Pool:", pool);
         console2.log("Registry.getPool(token):", registry.getPool(token));
+    }
+
+    function _tokenAdminRegistryByChainId(uint256 chainId) internal pure returns (address) {
+        if (chainId == AVAX_FUJI_CHAIN_ID) return AVAX_FUJI_TOKEN_ADMIN_REGISTRY;
+        if (chainId == BASE_SEPOLIA_CHAIN_ID) return BASE_SEPOLIA_TOKEN_ADMIN_REGISTRY;
+        if (chainId == ETH_SEPOLIA_CHAIN_ID) return ETH_SEPOLIA_TOKEN_ADMIN_REGISTRY;
+        if (chainId == OP_SEPOLIA_CHAIN_ID) return OP_SEPOLIA_TOKEN_ADMIN_REGISTRY;
+        if (chainId == POL_AMOY_CHAIN_ID) return POL_AMOY_TOKEN_ADMIN_REGISTRY;
+        revert TestnetPoolScriptBase__UnsupportedChainId(chainId);
+    }
+
+    function _registryModuleOwnerCustomByChainId(uint256 chainId) internal pure returns (address) {
+        if (chainId == AVAX_FUJI_CHAIN_ID) return AVAX_FUJI_REGISTRY_MODULE_OWNER_CUSTOM;
+        if (chainId == BASE_SEPOLIA_CHAIN_ID) return BASE_SEPOLIA_REGISTRY_MODULE_OWNER_CUSTOM;
+        if (chainId == ETH_SEPOLIA_CHAIN_ID) return ETH_SEPOLIA_REGISTRY_MODULE_OWNER_CUSTOM;
+        if (chainId == OP_SEPOLIA_CHAIN_ID) return OP_SEPOLIA_REGISTRY_MODULE_OWNER_CUSTOM;
+        if (chainId == POL_AMOY_CHAIN_ID) return POL_AMOY_REGISTRY_MODULE_OWNER_CUSTOM;
+        revert TestnetPoolScriptBase__UnsupportedChainId(chainId);
     }
 }

@@ -118,8 +118,19 @@ ccip-upgrade-sender:
 
 # CCIP testnet prep
 ccip-deploy-sf-usdc-testnet:
-	@forge clean
 	@forge script deploy/ccip/testnetPool/00-DeploySFUSDCCcipTestnet.s.sol:DeploySFUSDCCcipTestnet $(NETWORK_ARGS)
+
+ccip-deploy-source-pool-testnet:
+	@forge script deploy/ccip/testnetPool/01-DeployBurnMintTokenPoolSourceTestnet.s.sol:DeployBurnMintTokenPoolSourceTestnet $(NETWORK_ARGS)
+
+ccip-source-pool-grant-roles-testnet:
+	@forge script deploy/ccip/testnetPool/02-GrantSourcePoolMintBurnRoles.s.sol:GrantSourcePoolMintBurnRoles $(NETWORK_ARGS)
+
+ccip-register-source-pool-testnet:
+	@forge script deploy/ccip/testnetPool/03-RegisterAndSetPoolSelfServe.s.sol:RegisterAndSetPoolSelfServe $(NETWORK_ARGS)
+
+ccip-deploy-dest-pool-testnet:
+	@forge script deploy/ccip/testnetPool/01-DeploySFUSDCMintUSDCOnlyPoolArbSepolia.s.sol:DeploySFUSDCMintUSDCOnlyPoolArbSepolia $(NETWORK_ARGS)
 
 # Defender
 defender-validate-upgrade:
@@ -139,19 +150,6 @@ defender-upgrade-referral:
 	@forge clean
 	@forge script deploy/defender/02-DefenderUpgradeReferralGateway.s.sol:DefenderUpgradeReferralGateway $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
-
-# Interactions with ReferralGateway Contract
-# Create a DAO
-referral-create-dao:
-	@forge script scripts/contract-interactions/referralGateway/CreateDao.s.sol:CreateDao $(NETWORK_ARGS)
-
-# Change operator
-referral-change-operator:
-	@forge script scripts/contract-interactions/referralGateway/ChangeOperator.s.sol:ChangeOperator $(NETWORK_ARGS)
-
-# Renounce admin
-referral-renounce-admin:
-	@forge script scripts/contract-interactions/referralGateway/ChangeAdmin.s.sol:ChangeAdmin $(NETWORK_ARGS)
 
 # Interactions with USDC
 mock-approve-spender:
@@ -190,13 +188,13 @@ else ifeq ($(findstring --network arb_sepolia,$(ARGS)),--network arb_sepolia)
 else ifeq ($(findstring --network avax_fuji,$(ARGS)),--network avax_fuji)
 	NETWORK_ARGS := --rpc-url $(AVAX_TESTNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network base_sepolia,$(ARGS)),--network base_sepolia)
-	NETWORK_ARGS := --rpc-url $(BASE_TESTNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(BASE_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network eth_sepolia,$(ARGS)),--network eth_sepolia)
-	NETWORK_ARGS := --rpc-url $(ETHEREUM_TESTNET_SEPOLIA_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(ETHEREUM_TESTNET_SEPOLIA_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network optimism_sepolia,$(ARGS)),--network optimism_sepolia)
-	NETWORK_ARGS := --rpc-url $(OPTIMISM_TESTNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(OPTIMISM_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network polygon_amoy,$(ARGS)),--network polygon_amoy)
-	NETWORK_ARGS := --rpc-url $(POLYGON_TESTNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(POLYGON_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 endif
 
 # Certora
