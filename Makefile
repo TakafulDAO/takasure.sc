@@ -116,6 +116,11 @@ ccip-upgrade-sender:
 	@forge clean
 	@forge script deploy/ccip/02-UpgrapdeSaveInvestCCIPSender.s.sol:UpgrapdeSaveInvestCCIPSender $(NETWORK_ARGS)
 
+# CCIP testnet prep
+ccip-deploy-sf-usdc-testnet:
+	@forge clean
+	@forge script deploy/ccip/testnetPool/00-DeploySFUSDCCcipTestnet.s.sol:DeploySFUSDCCcipTestnet $(NETWORK_ARGS)
+
 # Defender
 defender-validate-upgrade:
 	@forge clean

@@ -38,14 +38,14 @@ contract SFUSDCCcipTestnet is ERC20, Ownable, IGetCCIPAdmin {
         _;
     }
 
-    constructor() ERC20("SFUSDC", "SFUSDC") Ownable(msg.sender) {
-        isMinter[msg.sender] = true;
-        isBurner[msg.sender] = true;
-        s_ccipAdmin = msg.sender;
+    constructor(address _owner) ERC20("SFUSDC", "SFUSDC") Ownable(_owner) {
+        isMinter[_owner] = true;
+        isBurner[_owner] = true;
+        s_ccipAdmin = _owner;
 
-        emit MintRoleGranted(msg.sender);
-        emit BurnRoleGranted(msg.sender);
-        emit CCIPAdminSet(address(0), msg.sender);
+        emit MintRoleGranted(_owner);
+        emit BurnRoleGranted(_owner);
+        emit CCIPAdminSet(address(0), _owner);
     }
 
     function grantMintRole(address account) external onlyOwner {
