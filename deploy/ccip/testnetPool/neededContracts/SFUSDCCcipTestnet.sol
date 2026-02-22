@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 /**
- * @title SFVault
+ * @title SFUSDCCcipTestnet
  * @author Maikel Ordaz
  * @notice Testnet-only SFUSDC token with CCIP burn/mint compatibility.
  */

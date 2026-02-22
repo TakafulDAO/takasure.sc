@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GNU GPLv3
 
-pragma solidity 0.8.28;
+pragma solidity ^0.8.24;
 
 abstract contract DeployConstants {
     /*//////////////////////////////////////////////////////////////

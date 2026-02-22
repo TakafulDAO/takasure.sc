@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity 0.8.28;
+pragma solidity ^0.8.24;
 
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
