@@ -10,7 +10,7 @@ contract SFAndIFCcipSenderForkTest is Test {
     uint256 private constant SAFE_BLOCK_LAG = 128;
     uint64 private constant DEST_CHAIN_SELECTOR = 4_949_039_107_694_359_620; // Arbitrum One
     uint256 private constant GAS_LIMIT = 300_000;
-    uint256 private constant SEND_AMOUNT = 25e6; // 25 USDC (6 decimals)
+    uint256 private constant SEND_AMOUNT = 125e6; // 125 USDC (6 decimals)
     string private constant SAVE_VAULT = "PROTOCOL__SF_VAULT";
 
     function testSFAndIFCcip_sender_sendMessageOnAvaxMainnetFork() public {
@@ -64,20 +64,20 @@ contract SFAndIFCcipSenderForkTest is Test {
         sender.setReceiverContract(address(0));
     }
 
-    function testSFAndIFCcip_sender_sendMessageRevertsForInvalidProtocol() public {
-        _createAndSelectPinnedFork("eth_mainnet");
-        (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
-
-        vm.expectRevert();
-        sender.sendMessage("PROTOCOL__sf_VAULT", SEND_AMOUNT, GAS_LIMIT);
-    }
-
     function testSFAndIFCcip_sender_sendMessageRevertsForZeroAmount() public {
         _createAndSelectPinnedFork("eth_mainnet");
         (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
 
         vm.expectRevert();
         sender.sendMessage(SAVE_VAULT, 0, GAS_LIMIT);
+    }
+
+    function testSFAndIFCcip_sender_sendMessageRevertsWhenAmountIsBelowMinimumDeposit() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
+
+        vm.expectRevert();
+        sender.sendMessage(SAVE_VAULT, 99e6, GAS_LIMIT);
     }
 
     function testSFAndIFCcip_sender_sendMessageCannotPullFundsFromAnotherApprovedUser() public {

@@ -34,8 +34,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     uint64 public destinationChainSelector; // Only Arbitrum (One, Sepolia)
     address public receiverContract;
 
-    bytes private constant PROTOCOL_PREFIX = "PROTOCOL__";
-    bytes private constant PROTOCOL_SUFFIX = "_VAULT";
+    uint256 public constant MIN_DEPOSIT = 100e6; // 100 USDC (6 decimals)
 
     struct MessageBuild {
         string protocolName;
@@ -55,7 +54,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
 
     error SFAndIFCcipSender__AddressZeroNotAllowed();
     error SFAndIFCcipSender__ZeroTransferNotAllowed();
-    error SFAndIFCcipSender__InvalidProtocolName();
+    error SFAndIFCcipSender__AmountBelowMinimum(uint256 amount, uint256 minimum);
     error SFAndIFCcipSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
     error SFAndIFCcipSender__NothingToWithdraw();
 
@@ -137,6 +136,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
     /**
      * @notice Transfer tokens to receiver contract on the destination chain.
      * @dev Revert if this contract dont have sufficient LINK balance to pay for the fees.
+     * @dev Enforces a minimum deposit of 100 USDC (6 decimals) to reduce LINK-fee griefing from tiny sends.
      * @param protocolName The protocol name to resolve in destination chain AddressManager.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
      * @param gasLimit gas allowed by the user to be the maximum spend in the destination blockchain by the CCIP protocol
@@ -149,6 +149,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         returns (bytes32 messageId)
     {
         require(amountToTransfer > 0, SFAndIFCcipSender__ZeroTransferNotAllowed());
+        require(amountToTransfer >= MIN_DEPOSIT, SFAndIFCcipSender__AmountBelowMinimum(amountToTransfer, MIN_DEPOSIT));
         address userAddr = msg.sender;
 
         Client.EVM2AnyMessage memory message = _setup({
