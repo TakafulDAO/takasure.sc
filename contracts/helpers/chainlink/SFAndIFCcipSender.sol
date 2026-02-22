@@ -150,7 +150,6 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
         notZeroAddress(userAddr)
         returns (bytes32 messageId)
     {
-        require(_isValidProtocolName(protocolName), SFAndIFCcipSender__InvalidProtocolName());
         require(amountToTransfer > 0, SFAndIFCcipSender__ZeroTransferNotAllowed());
 
         Client.EVM2AnyMessage memory message = _setup({
@@ -290,52 +289,6 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
             ),
             feeToken: address(linkToken)
         });
-    }
-
-    /**
-     * @notice Validates protocol name format before paying CCIP fees.
-     * @param _protocolName Protocol key expected as `PROTOCOL__<SCOPE>_VAULT`.
-     * @return valid_ True when `_protocolName` matches expected shape and charset.
-     * @dev Validation rules:
-     *      1. Total length must be `<= 32` (same as in AddressManager).
-     *      2. Name must start with `PROTOCOL__`.
-     *      3. Name must end with `_VAULT`.
-     *      4. Middle scope (`<SCOPE>`) must be non-empty.
-     *      5. `<SCOPE>` charset is restricted to `[A-Z0-9_]`.
-     */
-    function _isValidProtocolName(string memory _protocolName) internal pure returns (bool valid_) {
-        bytes memory _protocolNameBytes = bytes(_protocolName);
-        uint256 _length = _protocolNameBytes.length;
-        uint256 _prefixLength = PROTOCOL_PREFIX.length;
-        uint256 _suffixLength = PROTOCOL_SUFFIX.length;
-
-        // Enforce AddressManager-compatible max length and require a non-empty scope segment.
-        if (_length > 32 || _length <= _prefixLength + _suffixLength) return false;
-
-        // Check fixed prefix `PROTOCOL__`.
-        for (uint256 i; i < _prefixLength; ++i) {
-            if (_protocolNameBytes[i] != PROTOCOL_PREFIX[i]) return false;
-        }
-
-        uint256 _suffixStart = _length - _suffixLength;
-        // Check fixed suffix `_VAULT`.
-        for (uint256 i; i < _suffixLength; ++i) {
-            if (_protocolNameBytes[_suffixStart + i] != PROTOCOL_SUFFIX[i]) return false;
-        }
-
-        // Validate only the dynamic scope segment between prefix and suffix.
-        for (uint256 i = _prefixLength; i < _suffixStart; ++i) {
-            bytes1 _char = _protocolNameBytes[i];
-            // `A-Z`
-            bool _isUppercase = _char >= 0x41 && _char <= 0x5A;
-            // `0-9`
-            bool _isDigit = _char >= 0x30 && _char <= 0x39;
-            // `_`
-            bool _isUnderscore = _char == 0x5F;
-            if (!_isUppercase && !_isDigit && !_isUnderscore) return false;
-        }
-
-        return true;
     }
 
     /**
