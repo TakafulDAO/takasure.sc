@@ -140,7 +140,7 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
      * @param protocolName The protocol name to resolve in destination chain AddressManager.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
      * @param gasLimit gas allowed by the user to be the maximum spend in the destination blockchain by the CCIP protocol
-     * @param userAddr The address of the user wanting to participate in the Save Fund or Investment Fund use case.
+     * @param userAddr The address of the user wanting to participate in the Fund or Investment Fund use case.
      * @return messageId The ID of the message that was sent.
      * @custom:invariant On success, message always encodes protocol name + `deposit(uint256,address)` call data.
      * @custom:invariant On success, both LINK and underlying router allowances are reset to zero at the end of execution.
