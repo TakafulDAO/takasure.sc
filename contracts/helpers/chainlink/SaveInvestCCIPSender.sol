@@ -34,6 +34,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     address public receiverContract;
 
     uint256 public constant MIN_DEPOSIT = 100e6; // 100 USDC (6 decimals)
+    uint256 public constant MAX_GAS_LIMIT = 600_000; // Receiver decode/validation + Vault.deposit path + margin
 
     struct MessageBuild {
         string protocolName;
@@ -54,6 +55,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     error SaveInvestCCIPSender__AddressZeroNotAllowed();
     error SaveInvestCCIPSender__ZeroTransferNotAllowed();
     error SaveInvestCCIPSender__AmountBelowMinimum(uint256 amount, uint256 minimum);
+    error SaveInvestCCIPSender__GasLimitTooHigh(uint256 gasLimit, uint256 maxGasLimit);
     error SaveInvestCCIPSender__NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
     error SaveInvestCCIPSender__NothingToWithdraw();
 
@@ -136,9 +138,10 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
      * @notice Transfer tokens to receiver contract on the destination chain.
      * @dev Revert if this contract dont have sufficient LINK balance to pay for the fees.
      * @dev Enforces a minimum deposit of 100 USDC (6 decimals) to reduce LINK-fee griefing from tiny sends.
+     * @dev Caps user-provided gasLimit to reduce LINK-fee griefing via oversized destination execution limits.
      * @param protocolName The protocol name to resolve in destination chain AddressManager.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
-     * @param gasLimit gas allowed by the user to be the maximum spend in the destination blockchain by the CCIP protocol
+     * @param gasLimit gas allowed by the user for destination execution, capped by `MAX_GAS_LIMIT`.
      * @return messageId The ID of the message that was sent.
      * @custom:invariant On success, message always encodes protocol name + `deposit(uint256,address)` call data.
      * @custom:invariant On success, both LINK and underlying router allowances are reset to zero at the end of execution.
@@ -151,6 +154,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         require(
             amountToTransfer >= MIN_DEPOSIT, SaveInvestCCIPSender__AmountBelowMinimum(amountToTransfer, MIN_DEPOSIT)
         );
+        require(gasLimit <= MAX_GAS_LIMIT, SaveInvestCCIPSender__GasLimitTooHigh(gasLimit, MAX_GAS_LIMIT));
         address userAddr = msg.sender;
 
         Client.EVM2AnyMessage memory message = _setup({

@@ -80,6 +80,22 @@ contract SaveInvestCCIPSenderForkTest is Test {
         sender.sendMessage(SAVE_VAULT, 99e6, GAS_LIMIT);
     }
 
+    function testSaveInvestCCIP_sender_sendMessageRevertsWhenGasLimitExceedsMax() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+
+        uint256 gasLimitTooHigh = sender.MAX_GAS_LIMIT() + 1;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SaveInvestCCIPSender.SaveInvestCCIPSender__GasLimitTooHigh.selector,
+                gasLimitTooHigh,
+                sender.MAX_GAS_LIMIT()
+            )
+        );
+        sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, gasLimitTooHigh);
+    }
+
     function testSaveInvestCCIP_sender_sendMessageCannotPullFundsFromAnotherApprovedUser() public {
         _createAndSelectPinnedFork("eth_mainnet");
         (SaveInvestCCIPSender sender, CCIPTestRouter router,, CCIPTestERC20 usdc) = _deploySenderFixture();
