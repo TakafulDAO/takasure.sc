@@ -140,17 +140,16 @@ contract SFAndIFCcipSender is Initializable, UUPSUpgradeable, Ownable2StepUpgrad
      * @param protocolName The protocol name to resolve in destination chain AddressManager.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
      * @param gasLimit gas allowed by the user to be the maximum spend in the destination blockchain by the CCIP protocol
-     * @param userAddr The address of the user wanting to participate in the Fund or Investment Fund use case.
      * @return messageId The ID of the message that was sent.
      * @custom:invariant On success, message always encodes protocol name + `deposit(uint256,address)` call data.
      * @custom:invariant On success, both LINK and underlying router allowances are reset to zero at the end of execution.
      */
-    function sendMessage(string calldata protocolName, uint256 amountToTransfer, uint256 gasLimit, address userAddr)
+    function sendMessage(string calldata protocolName, uint256 amountToTransfer, uint256 gasLimit)
         external
-        notZeroAddress(userAddr)
         returns (bytes32 messageId)
     {
         require(amountToTransfer > 0, SFAndIFCcipSender__ZeroTransferNotAllowed());
+        address userAddr = msg.sender;
 
         Client.EVM2AnyMessage memory message = _setup({
             _protocolName: protocolName, _amountToTransfer: amountToTransfer, _gasLimit: gasLimit, _userAddr: userAddr

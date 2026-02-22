@@ -90,7 +90,8 @@ contract SFAndIFCcipCrossChainForkTest is Test {
         uint256 balanceBefore = IERC20(address(sourceToken)).balanceOf(user);
 
         vm.selectFork(sourceFork);
-        bytes32 messageId = sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
+        vm.prank(user);
+        bytes32 messageId = sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT);
         assertNotEq(messageId, bytes32(0), "messageId should not be zero");
         assertEq(
             IERC20(address(sourceToken)).balanceOf(user), balanceBefore - SEND_AMOUNT, "source user balance mismatch"
@@ -110,7 +111,8 @@ contract SFAndIFCcipCrossChainForkTest is Test {
 
     function testSFAndIFCcip_crossChain_sendInvestVaultAndReceiveOnDestination() public {
         vm.selectFork(sourceFork);
-        sender.sendMessage(INVEST_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
+        vm.prank(user);
+        sender.sendMessage(INVEST_VAULT, SEND_AMOUNT, GAS_LIMIT);
 
         vm.selectFork(sourceFork);
         ccipLocalSimulatorFork.switchChainAndRouteMessage(destinationFork);

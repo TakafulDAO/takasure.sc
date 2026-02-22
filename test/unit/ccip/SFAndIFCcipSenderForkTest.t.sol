@@ -69,7 +69,7 @@ contract SFAndIFCcipSenderForkTest is Test {
         (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
 
         vm.expectRevert();
-        sender.sendMessage("PROTOCOL__sf_VAULT", SEND_AMOUNT, GAS_LIMIT, makeAddr("user"));
+        sender.sendMessage("PROTOCOL__sf_VAULT", SEND_AMOUNT, GAS_LIMIT);
     }
 
     function testSFAndIFCcip_sender_sendMessageRevertsForZeroAmount() public {
@@ -77,15 +77,24 @@ contract SFAndIFCcipSenderForkTest is Test {
         (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
 
         vm.expectRevert();
-        sender.sendMessage(SAVE_VAULT, 0, GAS_LIMIT, makeAddr("user"));
+        sender.sendMessage(SAVE_VAULT, 0, GAS_LIMIT);
     }
 
-    function testSFAndIFCcip_sender_sendMessageRevertsForZeroUserAddress() public {
+    function testSFAndIFCcip_sender_sendMessageCannotPullFundsFromAnotherApprovedUser() public {
         _createAndSelectPinnedFork("eth_mainnet");
-        (SFAndIFCcipSender sender,,,) = _deploySenderFixture();
+        (SFAndIFCcipSender sender, CCIPTestRouter router,, CCIPTestERC20 usdc) = _deploySenderFixture();
+        address user = makeAddr("user");
+        address attacker = makeAddr("attacker");
 
+        usdc.mint(user, SEND_AMOUNT);
+        vm.prank(user);
+        usdc.approve(address(sender), SEND_AMOUNT);
+
+        router.setFee(0);
+
+        vm.prank(attacker);
         vm.expectRevert();
-        sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, address(0));
+        sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT);
     }
 
     function testSFAndIFCcip_sender_sendMessageRevertsWhenLinkBalanceIsInsufficient() public {
@@ -101,9 +110,7 @@ contract SFAndIFCcipSenderForkTest is Test {
 
         _assertRevertSelector(
             address(sender),
-            abi.encodeWithSelector(
-                SFAndIFCcipSender.sendMessage.selector, SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, user
-            ),
+            abi.encodeWithSelector(SFAndIFCcipSender.sendMessage.selector, SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT),
             SFAndIFCcipSender.SFAndIFCcipSender__NotEnoughBalance.selector
         );
     }
@@ -143,7 +150,8 @@ contract SFAndIFCcipSenderForkTest is Test {
         vm.prank(user);
         usdc.approve(address(sender), SEND_AMOUNT);
 
-        bytes32 messageId = sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT, user);
+        vm.prank(user);
+        bytes32 messageId = sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT);
 
         assertEq(messageId, bytes32(uint256(1)), "unexpected messageId");
         assertEq(router.lastDestinationChainSelector(), DEST_CHAIN_SELECTOR, "wrong destination selector");
