@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
-import {SFAndIFCcipReceiver} from "contracts/helpers/chainlink/SFAndIFCcipReceiver.sol";
+import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/SaveInvestCCIPReceiver.sol";
 
 contract AllowlistCcipSenders is Script, DeployConstants, GetContractAddress {
     struct SourceConfig {
@@ -19,14 +19,14 @@ contract AllowlistCcipSenders is Script, DeployConstants, GetContractAddress {
             "Unsupported receiver chain"
         );
 
-        address receiverAddress = _getContractAddress(receiverChainId, "SFAndIFCcipReceiver");
-        SFAndIFCcipReceiver receiver = SFAndIFCcipReceiver(receiverAddress);
+        address receiverAddress = _getContractAddress(receiverChainId, "SaveInvestCCIPReceiver");
+        SaveInvestCCIPReceiver receiver = SaveInvestCCIPReceiver(receiverAddress);
 
         SourceConfig[] memory sources = _buildSources(receiverChainId);
         address[] memory senders = new address[](sources.length);
 
         for (uint256 i; i < sources.length; ++i) {
-            senders[i] = _getContractAddress(sources[i].chainId, "SFAndIFCcipSender");
+            senders[i] = _getContractAddress(sources[i].chainId, "SaveInvestCCIPSender");
         }
 
         vm.startBroadcast();
@@ -62,11 +62,10 @@ contract AllowlistCcipSenders is Script, DeployConstants, GetContractAddress {
             return sources_;
         }
 
-        sources_ = new SourceConfig[](5);
-        sources_[0] = SourceConfig({chainId: AVAX_FUJI_CHAIN_ID, chainSelector: AVAX_FUJI_SELECTOR});
-        sources_[1] = SourceConfig({chainId: BASE_SEPOLIA_CHAIN_ID, chainSelector: BASE_SEPOLIA_SELECTOR});
-        sources_[2] = SourceConfig({chainId: ETH_SEPOLIA_CHAIN_ID, chainSelector: ETH_SEPOLIA_SELECTOR});
-        sources_[3] = SourceConfig({chainId: OP_SEPOLIA_CHAIN_ID, chainSelector: OP_SEPOLIA_SELECTOR});
-        sources_[4] = SourceConfig({chainId: POL_AMOY_CHAIN_ID, chainSelector: POL_AMOY_SELECTOR});
+        sources_ = new SourceConfig[](3);
+        sources_[0] = SourceConfig({chainId: BASE_SEPOLIA_CHAIN_ID, chainSelector: BASE_SEPOLIA_SELECTOR});
+        sources_[1] = SourceConfig({chainId: ETH_SEPOLIA_CHAIN_ID, chainSelector: ETH_SEPOLIA_SELECTOR});
+        sources_[2] = SourceConfig({chainId: OP_SEPOLIA_CHAIN_ID, chainSelector: OP_SEPOLIA_SELECTOR});
+        return sources_;
     }
 }
