@@ -20,6 +20,7 @@ contract DeploySaveInvestCCIPSender is Script, DeployConstants, GetContractAddre
         CcipHelperConfig.CCIPNetworkConfig memory config = ccipHelperConfig.getConfigByChainId(chainId);
 
         address receiverContractAddress;
+        address tokenToBridge;
         uint64 destinationChainSelector;
         bytes32 salt = "222025";
         bool isTestNet = chainId == AVAX_FUJI_CHAIN_ID || chainId == BASE_SEPOLIA_CHAIN_ID
@@ -28,9 +29,11 @@ contract DeploySaveInvestCCIPSender is Script, DeployConstants, GetContractAddre
         if (isTestNet) {
             receiverContractAddress = _getContractAddress(ARB_SEPOLIA_CHAIN_ID, "SaveInvestCCIPReceiver");
             destinationChainSelector = ARB_SEPOLIA_SELECTOR;
+            tokenToBridge = _getContractAddress(chainId, "SFUSDCCcipTestnet");
         } else {
             receiverContractAddress = _getContractAddress(ARB_MAINNET_CHAIN_ID, "SaveInvestCCIPReceiver");
             destinationChainSelector = ARB_MAINNET_SELECTOR;
+            tokenToBridge = config.usdc;
         }
 
         vm.startBroadcast();
@@ -45,7 +48,7 @@ contract DeploySaveInvestCCIPSender is Script, DeployConstants, GetContractAddre
             .initialize(
                 config.router,
                 config.link,
-                config.usdc,
+                tokenToBridge,
                 receiverContractAddress,
                 destinationChainSelector,
                 config.senderOwner

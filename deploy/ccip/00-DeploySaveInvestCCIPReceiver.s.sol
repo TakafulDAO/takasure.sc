@@ -20,7 +20,7 @@ contract DeploySaveInvestCCIPReceiver is Script, DeployConstants, GetContractAdd
 
         IAddressManager addressManager = IAddressManager(_getContractAddress(chainId, "AddressManager"));
         address usdcAddress;
-        if (chainId == ARB_SEPOLIA_CHAIN_ID) usdcAddress = _getContractAddress(chainId, "SFUSDC");
+        if (chainId == ARB_SEPOLIA_CHAIN_ID) usdcAddress = _getContractAddress(chainId, "SFUSDCCcipTestnet");
         else usdcAddress = config.usdc;
 
         vm.startBroadcast();
