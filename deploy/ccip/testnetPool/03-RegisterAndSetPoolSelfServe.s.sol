@@ -10,11 +10,11 @@ interface IRegistryModuleOwnerCustomMinimal {
     function registerAdminViaGetCCIPAdmin(address token) external;
 }
 
-/// @notice Self-serve registration + pool binding for source-chain SFUSDCCcipTestnet tokens.
+/// @notice Self-serve registration + pool binding for testnet SFUSDCCcipTestnet tokens.
 contract RegisterAndSetPoolSelfServe is Script, TestnetPoolScriptBase {
-    error RegisterAndSetPoolSelfServe__ArbSepoliaLegacyTokenRequiresManualPath();
-
     // Chainlink CCIP self-serve registry addresses (testnet), sourced from Chainlink CCIP chains API.
+    address internal constant ARB_SEPOLIA_TOKEN_ADMIN_REGISTRY = 0x8126bE56454B628a88C17849B9ED99dd5a11Bd2f;
+    address internal constant ARB_SEPOLIA_REGISTRY_MODULE_OWNER_CUSTOM = 0xE625f0b8b0Ac86946035a7729Aba124c8A64cf69;
     address internal constant AVAX_FUJI_TOKEN_ADMIN_REGISTRY = 0xA92053a4a3922084d992fD2835bdBa4caC6877e6;
     address internal constant AVAX_FUJI_REGISTRY_MODULE_OWNER_CUSTOM = 0x97300785aF1edE1343DB6d90706A35CF14aA3d81;
     address internal constant BASE_SEPOLIA_TOKEN_ADMIN_REGISTRY = 0x736D0bBb318c1B27Ff686cd19804094E66250e17;
@@ -30,9 +30,6 @@ contract RegisterAndSetPoolSelfServe is Script, TestnetPoolScriptBase {
         uint256 chainId = block.chainid;
         if (!_isSupportedTestnetChainId(chainId)) {
             revert TestnetPoolScriptBase__UnsupportedChainId(chainId);
-        }
-        if (chainId == ARB_SEPOLIA_CHAIN_ID) {
-            revert RegisterAndSetPoolSelfServe__ArbSepoliaLegacyTokenRequiresManualPath();
         }
 
         address registryAddr = _tokenAdminRegistryByChainId(chainId);
@@ -76,6 +73,7 @@ contract RegisterAndSetPoolSelfServe is Script, TestnetPoolScriptBase {
     }
 
     function _tokenAdminRegistryByChainId(uint256 chainId) internal pure returns (address) {
+        if (chainId == ARB_SEPOLIA_CHAIN_ID) return ARB_SEPOLIA_TOKEN_ADMIN_REGISTRY;
         if (chainId == AVAX_FUJI_CHAIN_ID) return AVAX_FUJI_TOKEN_ADMIN_REGISTRY;
         if (chainId == BASE_SEPOLIA_CHAIN_ID) return BASE_SEPOLIA_TOKEN_ADMIN_REGISTRY;
         if (chainId == ETH_SEPOLIA_CHAIN_ID) return ETH_SEPOLIA_TOKEN_ADMIN_REGISTRY;
@@ -85,6 +83,7 @@ contract RegisterAndSetPoolSelfServe is Script, TestnetPoolScriptBase {
     }
 
     function _registryModuleOwnerCustomByChainId(uint256 chainId) internal pure returns (address) {
+        if (chainId == ARB_SEPOLIA_CHAIN_ID) return ARB_SEPOLIA_REGISTRY_MODULE_OWNER_CUSTOM;
         if (chainId == AVAX_FUJI_CHAIN_ID) return AVAX_FUJI_REGISTRY_MODULE_OWNER_CUSTOM;
         if (chainId == BASE_SEPOLIA_CHAIN_ID) return BASE_SEPOLIA_REGISTRY_MODULE_OWNER_CUSTOM;
         if (chainId == ETH_SEPOLIA_CHAIN_ID) return ETH_SEPOLIA_REGISTRY_MODULE_OWNER_CUSTOM;

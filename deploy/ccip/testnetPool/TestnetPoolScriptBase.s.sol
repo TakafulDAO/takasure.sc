@@ -60,13 +60,11 @@ abstract contract TestnetPoolScriptBase is Script, GetContractAddress {
     }
 
     function _defaultTokenNameForChain(uint256 chainId) internal pure returns (string memory) {
-        if (chainId == ARB_SEPOLIA_CHAIN_ID) return "SFUSDC";
         if (_isSupportedTestnetChainId(chainId)) return "SFUSDCCcipTestnet";
         revert TestnetPoolScriptBase__UnsupportedChainId(chainId);
     }
 
     function _defaultPoolNameForChain(uint256 chainId) internal pure returns (string memory) {
-        if (chainId == ARB_SEPOLIA_CHAIN_ID) return "SFUSDCMintUSDCOnlyPool";
         if (_isSupportedTestnetChainId(chainId)) return "BurnMintTokenPool";
         revert TestnetPoolScriptBase__UnsupportedChainId(chainId);
     }

@@ -11,17 +11,12 @@ interface ISFUSDCCcipTestnetRoles {
     function isBurner(address account) external view returns (bool);
 }
 
-/// @notice Grants mint/burn roles on source-chain SFUSDCCcipTestnet to the source token pool.
-/// @dev Intended for Fuji/BaseSepolia/EthSepolia/OpSepolia/Amoy (not Arbitrum Sepolia legacy token).
+/// @notice Grants mint/burn roles on testnet SFUSDCCcipTestnet to the local BurnMintTokenPool.
 contract GrantSourcePoolMintBurnRoles is Script, TestnetPoolScriptBase {
-    error GrantSourcePoolMintBurnRoles__ArbSepoliaLegacyTokenDoesNotUseThisFlow();
     error GrantSourcePoolMintBurnRoles__PoolAddressZero();
 
     function run() external {
         uint256 chainId = block.chainid;
-        if (chainId == ARB_SEPOLIA_CHAIN_ID) {
-            revert GrantSourcePoolMintBurnRoles__ArbSepoliaLegacyTokenDoesNotUseThisFlow();
-        }
         if (!_isSupportedTestnetChainId(chainId)) revert TestnetPoolScriptBase__UnsupportedChainId(chainId);
 
         address token = _envAddressOr("CCIP_TESTNET_TOKEN", _deploymentAddress(chainId, "SFUSDCCcipTestnet"));
