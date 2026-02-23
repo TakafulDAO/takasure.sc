@@ -163,6 +163,9 @@ ccip-configure-pool-lane-testnet:
 ccip-allowlist-senders:
 	@forge script scripts/contract-interactions/ccip/AllowlistCcipSenders.s.sol:AllowlistCcipSenders $(NETWORK_ARGS)
 
+ccip-test-send-message:
+	@forge script scripts/contract-interactions/ccip/TestSendSaveInvestCcipMessage.s.sol:TestSendSaveInvestCcipMessage $(NETWORK_ARGS)
+
 # Defender
 defender-validate-upgrade:
 	@forge clean
