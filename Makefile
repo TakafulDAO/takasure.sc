@@ -73,10 +73,29 @@ protocol-deploy-sf:
 	@forge clean
 	@forge script deploy/saveFunds/DeploySF.s.sol:DeploySF $(NETWORK_ARGS)
 
+protocol-migrate-sf-ccip-usdc-arb-sepolia:
+	@forge clean
+	@forge script deploy/saveFunds/03-MigrateSFToCcipUSDCArbSepolia.s.sol:MigrateSFToCcipUSDCArbSepolia $(NETWORK_ARGS)
+
 protocol-deploy-uniswap-pool-sepolia:
 	@forge script deploy/saveFunds/DeploySFUniV3PoolSepolia.s.sol:DeploySFUniV3PoolSepolia $(NETWORK_ARGS)
 
 # Protocol upgrades
+protocol-upgrade-sf-vault:
+	@forge clean
+	@forge script deploy/saveFunds/04-UpgradeSFVault.s.sol:UpgradeSFVault $(NETWORK_ARGS)
+	@cp contracts/saveFunds/protocol/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
+
+protocol-upgrade-sf-strat-aggregator:
+	@forge clean
+	@forge script deploy/saveFunds/05-UpgradeSFStrategyAggregator.s.sol:UpgradeSFStrategyAggregator $(NETWORK_ARGS)
+	@cp contracts/saveFunds/protocol/SFStrategyAggregator.sol contracts/version_previous_contracts/SFStrategyAggregatorV1.sol
+
+protocol-upgrade-sf-uni-v3-strat:
+	@forge clean
+	@forge script deploy/saveFunds/06-UpgradeSFUniswapV3Strategy.s.sol:UpgradeSFUniswapV3Strategy $(NETWORK_ARGS)
+	@cp contracts/saveFunds/protocol/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
+
 protocol-upgrade-referral:
 	@forge clean
 	@forge script deploy/protocol/upgrades/00-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
@@ -120,6 +139,9 @@ ccip-upgrade-sender:
 ccip-deploy-sf-usdc-testnet:
 	@forge script deploy/ccip/testnetPool/00-DeploySFUSDCCcipTestnet.s.sol:DeploySFUSDCCcipTestnet $(NETWORK_ARGS)
 
+ccip-deploy-sf-usdc-arb-sepolia-testnet:
+	@forge script deploy/ccip/testnetPool/00-DeploySFUSDCCcipTestnetArbSepolia.s.sol:DeploySFUSDCCcipTestnetArbSepolia $(NETWORK_ARGS)
+
 ccip-deploy-source-pool-testnet:
 	@forge script deploy/ccip/testnetPool/01-DeployBurnMintTokenPoolSourceTestnet.s.sol:DeployBurnMintTokenPoolSourceTestnet $(NETWORK_ARGS)
 
@@ -130,7 +152,16 @@ ccip-register-source-pool-testnet:
 	@forge script deploy/ccip/testnetPool/03-RegisterAndSetPoolSelfServe.s.sol:RegisterAndSetPoolSelfServe $(NETWORK_ARGS)
 
 ccip-deploy-dest-pool-testnet:
+	@forge script deploy/ccip/testnetPool/01-DeployBurnMintTokenPoolArbSepoliaTestnet.s.sol:DeployBurnMintTokenPoolArbSepoliaTestnet $(NETWORK_ARGS)
+
+ccip-deploy-dest-pool-testnet-legacy:
 	@forge script deploy/ccip/testnetPool/01-DeploySFUSDCMintUSDCOnlyPoolArbSepolia.s.sol:DeploySFUSDCMintUSDCOnlyPoolArbSepolia $(NETWORK_ARGS)
+
+ccip-configure-pool-lane-testnet:
+	@forge script deploy/ccip/testnetPool/05-ConfigureCcipPoolLanes.s.sol:ConfigureCcipPoolLanes $(NETWORK_ARGS)
+
+ccip-allowlist-senders:
+	@forge script scripts/contract-interactions/ccip/AllowlistCcipSenders.s.sol:AllowlistCcipSenders $(NETWORK_ARGS)
 
 # Defender
 defender-validate-upgrade:
@@ -188,13 +219,13 @@ else ifeq ($(findstring --network arb_sepolia,$(ARGS)),--network arb_sepolia)
 else ifeq ($(findstring --network avax_fuji,$(ARGS)),--network avax_fuji)
 	NETWORK_ARGS := --rpc-url $(AVAX_TESTNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network base_sepolia,$(ARGS)),--network base_sepolia)
-	NETWORK_ARGS := --rpc-url $(BASE_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(BASE_TESTNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network eth_sepolia,$(ARGS)),--network eth_sepolia)
-	NETWORK_ARGS := --rpc-url $(ETHEREUM_TESTNET_SEPOLIA_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(ETHEREUM_TESTNET_SEPOLIA_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network optimism_sepolia,$(ARGS)),--network optimism_sepolia)
-	NETWORK_ARGS := --rpc-url $(OPTIMISM_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(OPTIMISM_TESTNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network polygon_amoy,$(ARGS)),--network polygon_amoy)
-	NETWORK_ARGS := --rpc-url $(POLYGON_TESTNET_RPC_URL) --account $(TESTNET_ACCOUNT) --sender $(TESTNET_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(POLYGON_TESTNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 endif
 
 # Certora
