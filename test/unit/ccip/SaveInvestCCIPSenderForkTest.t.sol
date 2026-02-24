@@ -5,12 +5,16 @@ import {Test} from "forge-std/Test.sol";
 import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/SaveInvestCCIPSender.sol";
 import {CCIPTestERC20, CCIPTestRouter} from "test/mocks/CCIPTestMocks.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";
 
 contract SaveInvestCCIPSenderForkTest is Test {
     uint256 private constant SAFE_BLOCK_LAG = 128;
     uint64 private constant DEST_CHAIN_SELECTOR = 4_949_039_107_694_359_620; // Arbitrum One
     uint256 private constant GAS_LIMIT = 300_000;
     uint256 private constant SEND_AMOUNT = 125e6; // 125 USDC (6 decimals)
+    uint256 private constant LINK_FEE = 1e18; // 1 LINK
+    int256 private constant LINK_USD_PRICE = 20e8; // $20, 8 decimals
+    int256 private constant USDC_USD_PRICE = 1e8; // $1, 8 decimals
     string private constant SAVE_VAULT = "PROTOCOL__SF_VAULT";
 
     function testSaveInvestCCIP_sender_sendMessageOnAvaxMainnetFork() public {
@@ -131,6 +135,82 @@ contract SaveInvestCCIPSenderForkTest is Test {
         );
     }
 
+    function testSaveInvestCCIP_sender_toggleUserPaysCCIPFee() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+
+        assertFalse(sender.isUserPayingCCIPFee(), "should start disabled");
+        sender.toggleUserPaysCCIPFee();
+        assertTrue(sender.isUserPayingCCIPFee(), "should toggle on");
+        sender.toggleUserPaysCCIPFee();
+        assertFalse(sender.isUserPayingCCIPFee(), "should toggle off");
+    }
+
+    function testSaveInvestCCIP_sender_previewCCIPFeeRevertsWhenFeeInfraIsNotConfigured() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender, CCIPTestRouter router,,) = _deploySenderFixture();
+        router.setFee(LINK_FEE);
+
+        vm.expectRevert(SaveInvestCCIPSender.SaveInvestCCIPSender__FeePaymentInfraNotConfigured.selector);
+        sender.previewCCIPFee(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT);
+    }
+
+    function testSaveInvestCCIP_sender_previewCCIPFeeReturnsLinkAndUsdcAmounts() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender, CCIPTestRouter router,,) = _deploySenderFixture();
+        router.setFee(LINK_FEE);
+        _configureFeeInfrastructure(sender);
+
+        (uint256 linkAmount, uint256 usdcAmount) = sender.previewCCIPFee(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT);
+
+        assertEq(linkAmount, LINK_FEE, "wrong LINK fee");
+        assertEq(usdcAmount, 20e6, "wrong USDC fee quote");
+    }
+
+    function testSaveInvestCCIP_sender_sendMessageCollectsUsdcFeeWhenUserPaysModeEnabled() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender, CCIPTestRouter router, CCIPTestERC20 link, CCIPTestERC20 usdc) =
+            _deploySenderFixture();
+        _configureFeeInfrastructure(sender);
+        sender.toggleUserPaysCCIPFee();
+
+        address user = makeAddr("user");
+        router.setFee(LINK_FEE);
+        link.mint(address(sender), 10e18);
+
+        (, uint256 expectedUsdcFee) = sender.previewCCIPFee(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT);
+
+        usdc.mint(user, SEND_AMOUNT + expectedUsdcFee);
+        vm.prank(user);
+        usdc.approve(address(sender), SEND_AMOUNT + expectedUsdcFee);
+
+        vm.prank(user);
+        sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT);
+
+        assertEq(router.lastTokenAmount(), SEND_AMOUNT, "bridged amount must remain user transfer amount only");
+        assertEq(usdc.balanceOf(address(router)), SEND_AMOUNT, "router should receive only bridged USDC");
+        assertEq(usdc.balanceOf(address(sender)), expectedUsdcFee, "sender should retain collected USDC fee");
+    }
+
+    function testSaveInvestCCIP_sender_swapAllCollectedUsdcToLinkRevertsWhenFeeSwapPoolIsNotConfigured() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+        _configureFeeInfrastructure(sender);
+
+        vm.expectRevert(SaveInvestCCIPSender.SaveInvestCCIPSender__FeeSwapV4PoolNotConfigured.selector);
+        sender.swapAllCollectedUsdcToLink();
+    }
+
+    function testSaveInvestCCIP_sender_swapAllCollectedUsdcToLinkRevertsWhenNoCollectedUsdc() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+        _configureFeeInfrastructure(sender);
+        sender.setFeeSwapV4PoolConfig(3000, 60, address(0));
+
+        vm.expectRevert(SaveInvestCCIPSender.SaveInvestCCIPSender__NothingToSwap.selector);
+        sender.swapAllCollectedUsdcToLink();
+    }
+
     function testSaveInvestCCIP_sender_withdrawLinkRevertsWhenNoBalance() public {
         _createAndSelectPinnedFork("eth_mainnet");
         (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
@@ -216,6 +296,14 @@ contract SaveInvestCCIPSenderForkTest is Test {
         vm.makePersistent(address(link));
         vm.makePersistent(address(usdc));
         vm.makePersistent(address(sender));
+    }
+
+    function _configureFeeInfrastructure(SaveInvestCCIPSender sender) internal {
+        MockV3Aggregator linkUsdFeed = new MockV3Aggregator(8, LINK_USD_PRICE);
+        MockV3Aggregator usdcUsdFeed = new MockV3Aggregator(8, USDC_USD_PRICE);
+
+        // Any non-zero address passes infra checks in tests that don't execute the swap path
+        sender.setFeePaymentInfrastructure(makeAddr("universalRouter"), address(linkUsdFeed), address(usdcUsdFeed));
     }
 
     function _createAndSelectPinnedFork(string memory rpcAlias) internal returns (uint256 forkId, uint256 pinnedBlock) {
