@@ -16,7 +16,8 @@ pragma solidity 0.8.28;
 
 import {IRouterClient} from "ccip/contracts/src/v0.8/ccip/interfaces/IRouterClient.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IUniversalRouter} from "contracts/interfaces/helpers/IUniversalRouter.sol";
+import {IPermit2AllowanceTransfer} from "contracts/interfaces/helpers/IPermit2AllowanceTransfer.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
@@ -24,9 +25,8 @@ import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/acces
 import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {AggregatorV3Interface} from "ccip/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IUniversalRouter} from "contracts/interfaces/helpers/IUniversalRouter.sol";
-import {IPermit2AllowanceTransfer} from "contracts/interfaces/helpers/IPermit2AllowanceTransfer.sol";
 import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     using SafeERC20 for IERC20;
@@ -42,7 +42,9 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     IUniversalRouter private universalRouter;
     AggregatorV3Interface private linkUsdPriceFeed;
     AggregatorV3Interface private usdcUsdPriceFeed;
+
     bool public isUserPayingCCIPFee;
+
     uint24 public feeSwapV4PoolFee;
     int24 public feeSwapV4PoolTickSpacing;
     address public feeSwapV4PoolHooks;
@@ -54,7 +56,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     IPermit2AllowanceTransfer private constant PERMIT2 =
         IPermit2AllowanceTransfer(0x000000000022D473030F116dDEE9F6B43aC78BA3); // Across supported chains
     uint256 public constant BPS_DENOMINATOR = 10_000;
-    uint256 public constant FEE_SWAP_MIN_OUT_BPS = 9_500; // 5% slippage cushion vs Chainlink feed quote
+    uint256 public constant FEE_SWAP_MIN_OUT_BPS = 9_500; // minOut = 95% of Chainlink quote (allows 5% slippage)
     uint256 public constant FEE_SWAP_DEADLINE_WINDOW = 10 minutes; // bounded owner execution window
 
     bytes1 private constant V4_ACTION_SWAP_EXACT_IN_SINGLE = 0x06;
@@ -90,9 +92,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
 
     event OnReceiverContractSet(address oldReceiverContract, address newReceiverContract);
     event OnUserPaysCCIPFeeToggled(bool enabled);
-    event OnFeePaymentInfraSet(
-        address universalRouter, address permit2, address linkUsdPriceFeed, address usdcUsdPriceFeed
-    );
+    event OnFeePaymentInfraSet(address universalRouter, address linkUsdPriceFeed, address usdcUsdPriceFeed);
     event OnFeeSwapV4PoolConfigSet(uint24 fee, int24 tickSpacing, address hooks);
     event OnCCIPFeeCollectedInUnderlying(address indexed user, uint256 linkFeeAmount, uint256 usdcFeeAmount);
     event OnCollectedUsdcSwappedToLink(uint256 usdcAmountIn, uint256 linkAmountOut);
@@ -197,26 +197,23 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
 
     /**
      * @notice Sets the infrastructure used for user fee reimbursement quoting and owner fee swaps.
+     * @dev Permit2 is fixed as a contract constant; this setter configures Universal Router and price feeds only.
      * @dev Feed prices are only used to quote LINK fees into USDC; the actual owner swap is performed via Universal Router.
      */
-    function setFeePaymentInfrastructure(
-        address _universalRouter,
-        address _permit2,
-        address _linkUsdPriceFeed,
-        address _usdcUsdPriceFeed
-    ) external onlyOwner {
+    function setFeePaymentInfrastructure(address _universalRouter, address _linkUsdPriceFeed, address _usdcUsdPriceFeed)
+        external
+        onlyOwner
+    {
         require(
-            _universalRouter != address(0) && _permit2 != address(0) && _linkUsdPriceFeed != address(0)
-                && _usdcUsdPriceFeed != address(0),
+            _universalRouter != address(0) && _linkUsdPriceFeed != address(0) && _usdcUsdPriceFeed != address(0),
             SaveInvestCCIPSender__AddressZeroNotAllowed()
         );
 
         universalRouter = IUniversalRouter(_universalRouter);
-        permit2 = IPermit2AllowanceTransfer(_permit2);
         linkUsdPriceFeed = AggregatorV3Interface(_linkUsdPriceFeed);
         usdcUsdPriceFeed = AggregatorV3Interface(_usdcUsdPriceFeed);
 
-        emit OnFeePaymentInfraSet(_universalRouter, _permit2, _linkUsdPriceFeed, _usdcUsdPriceFeed);
+        emit OnFeePaymentInfraSet(_universalRouter, _linkUsdPriceFeed, _usdcUsdPriceFeed);
     }
 
     /**
@@ -601,10 +598,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     }
 
     function _requireSwapInfraConfigured() internal view {
-        require(
-            address(universalRouter) != address(0) && address(permit2) != address(0),
-            SaveInvestCCIPSender__FeePaymentInfraNotConfigured()
-        );
+        require(address(universalRouter) != address(0), SaveInvestCCIPSender__FeePaymentInfraNotConfigured());
     }
 
     function _requireFeeSwapV4PoolConfigured() internal view {
@@ -615,17 +609,17 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
 
     function _ensurePermit2Max(IERC20 _tokenIn) internal {
         // ERC20 allowance -> Permit2
-        uint256 _erc20Allowance = _tokenIn.allowance(address(this), address(permit2));
+        uint256 _erc20Allowance = _tokenIn.allowance(address(this), address(PERMIT2));
         if (_erc20Allowance != type(uint256).max) {
-            _tokenIn.forceApprove(address(permit2), type(uint256).max);
+            _tokenIn.forceApprove(address(PERMIT2), type(uint256).max);
         }
 
         // Permit2 allowance -> UniversalRouter
         (uint160 _allowed, uint48 _expiration,) =
-            permit2.allowance(address(this), address(_tokenIn), address(universalRouter));
+            PERMIT2.allowance(address(this), address(_tokenIn), address(universalRouter));
 
         if (_allowed != type(uint160).max || _expiration != type(uint48).max) {
-            permit2.approve(address(_tokenIn), address(universalRouter), type(uint160).max, type(uint48).max);
+            PERMIT2.approve(address(_tokenIn), address(universalRouter), type(uint160).max, type(uint48).max);
         }
     }
 
