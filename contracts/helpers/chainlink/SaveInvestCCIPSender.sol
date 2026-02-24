@@ -26,6 +26,7 @@ import {AggregatorV3Interface} from "ccip/contracts/src/v0.8/shared/interfaces/A
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IUniversalRouter} from "contracts/interfaces/helpers/IUniversalRouter.sol";
 import {IPermit2AllowanceTransfer} from "contracts/interfaces/helpers/IPermit2AllowanceTransfer.sol";
+import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol";
 
 contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     using SafeERC20 for IERC20;
@@ -38,23 +39,49 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     uint64 public destinationChainSelector; // Only Arbitrum (One, Sepolia)
     address public receiverContract;
 
-    // APPEND-ONLY STORAGE (upgrade-safe for deployed proxy)
     IUniversalRouter private universalRouter;
-    IPermit2AllowanceTransfer private permit2;
     AggregatorV3Interface private linkUsdPriceFeed;
     AggregatorV3Interface private usdcUsdPriceFeed;
     bool public isUserPayingCCIPFee;
+    uint24 public feeSwapV4PoolFee;
+    int24 public feeSwapV4PoolTickSpacing;
+    address public feeSwapV4PoolHooks;
 
     uint256 public constant MIN_DEPOSIT = 100e6; // 100 USDC (6 decimals)
     uint256 public constant MAX_GAS_LIMIT = 600_000; // Receiver decode/validation + Vault.deposit path + margin
     uint256 public constant LINK_TOKEN_DECIMALS_FACTOR = 1e18; // LINK uses 18 decimals
     uint256 public constant USDC_TOKEN_DECIMALS_FACTOR = 1e6; // USDC uses 6 decimals
+    IPermit2AllowanceTransfer private constant PERMIT2 =
+        IPermit2AllowanceTransfer(0x000000000022D473030F116dDEE9F6B43aC78BA3); // Across supported chains
+    uint256 public constant BPS_DENOMINATOR = 10_000;
+    uint256 public constant FEE_SWAP_MIN_OUT_BPS = 9_500; // 5% slippage cushion vs Chainlink feed quote
+    uint256 public constant FEE_SWAP_DEADLINE_WINDOW = 10 minutes; // bounded owner execution window
+
+    bytes1 private constant V4_ACTION_SWAP_EXACT_IN_SINGLE = 0x06;
+    bytes1 private constant V4_ACTION_SETTLE_ALL = 0x0c;
+    bytes1 private constant V4_ACTION_TAKE_ALL = 0x0f;
 
     struct MessageBuild {
         string protocolName;
         uint256 amount;
         uint256 gasLimit;
         address userAddr;
+    }
+
+    struct V4PoolKey {
+        address currency0;
+        address currency1;
+        uint24 fee;
+        int24 tickSpacing;
+        address hooks;
+    }
+
+    struct V4ExactInputSingleParams {
+        V4PoolKey poolKey;
+        bool zeroForOne;
+        uint128 amountIn;
+        uint128 amountOutMinimum;
+        bytes hookData;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -66,6 +93,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     event OnFeePaymentInfraSet(
         address universalRouter, address permit2, address linkUsdPriceFeed, address usdcUsdPriceFeed
     );
+    event OnFeeSwapV4PoolConfigSet(uint24 fee, int24 tickSpacing, address hooks);
     event OnCCIPFeeCollectedInUnderlying(address indexed user, uint256 linkFeeAmount, uint256 usdcFeeAmount);
     event OnCollectedUsdcSwappedToLink(uint256 usdcAmountIn, uint256 linkAmountOut);
     event OnTokensTransferred(
@@ -83,6 +111,9 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     error SaveInvestCCIPSender__PriceFeedRoundIncomplete(address feed);
     error SaveInvestCCIPSender__NothingToSwap();
     error SaveInvestCCIPSender__CollectedUsdcNotFullySwapped(uint256 remainingUsdc);
+    error SaveInvestCCIPSender__FeeSwapV4PoolNotConfigured();
+    error SaveInvestCCIPSender__InvalidFeeSwapV4PoolConfig();
+    error SaveInvestCCIPSender__AmountTooLargeForV4(uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -188,6 +219,23 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         emit OnFeePaymentInfraSet(_universalRouter, _permit2, _linkUsdPriceFeed, _usdcUsdPriceFeed);
     }
 
+    /**
+     * @notice Sets the fixed Uniswap V4 pool config used to swap collected USDC into LINK.
+     * @dev The contract always swaps `underlying` -> `linkToken`; this setter only defines the V4 pool parameters.
+     * @param _fee Pool fee parameter in the V4 PoolKey.
+     * @param _tickSpacing Pool tick spacing parameter in the V4 PoolKey.
+     * @param _hooks Pool hooks address (zero address for no hooks).
+     */
+    function setFeeSwapV4PoolConfig(uint24 _fee, int24 _tickSpacing, address _hooks) external onlyOwner {
+        require(_fee > 0 && _tickSpacing > 0, SaveInvestCCIPSender__InvalidFeeSwapV4PoolConfig());
+
+        feeSwapV4PoolFee = _fee;
+        feeSwapV4PoolTickSpacing = _tickSpacing;
+        feeSwapV4PoolHooks = _hooks;
+
+        emit OnFeeSwapV4PoolConfigSet(_fee, _tickSpacing, _hooks);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 PAYMENT
     //////////////////////////////////////////////////////////////*/
@@ -275,28 +323,36 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     }
 
     /**
-     * @notice Swaps the contract's entire collected USDC balance into LINK using Uniswap Universal Router.
-     * @dev Owner supplies the pre-encoded router commands/inputs/deadline.
-     * @dev This function assumes commands spend the contract's full USDC balance; it reverts if any USDC remains.
-     * @param commands Universal Router command bytes (e.g. includes V4 swap).
-     * @param inputs Universal Router command inputs.
-     * @param deadline Universal Router execution deadline.
+     * @notice Swaps the contract's entire collected USDC balance into LINK using a fixed Uniswap V4 Universal Router flow.
+     * @dev Builds the Universal Router V4 swap command/actions internally (exact-in single + settle all + take all).
+     * @dev Uses Chainlink feeds to derive a safe `minLinkOut` and sets a bounded execution deadline.
      * @return linkAmountOut LINK amount received by this contract from the swap.
      */
-    function swapAllCollectedUsdcToLink(bytes calldata commands, bytes[] calldata inputs, uint256 deadline)
-        external
-        onlyOwner
-        returns (uint256 linkAmountOut)
-    {
+    function swapAllCollectedUsdcToLink() external onlyOwner returns (uint256 linkAmountOut) {
         _requireSwapInfraConfigured();
+        _requireFeeQuoteFeedsConfigured();
+        _requireFeeSwapV4PoolConfigured();
 
         uint256 usdcAmountIn = underlying.balanceOf(address(this));
         require(usdcAmountIn > 0, SaveInvestCCIPSender__NothingToSwap());
+        require(usdcAmountIn <= type(uint128).max, SaveInvestCCIPSender__AmountTooLargeForV4(usdcAmountIn));
 
         uint256 linkBalanceBefore = linkToken.balanceOf(address(this));
 
+        uint256 minLinkOut = _getFeeSwapMinLinkOut(usdcAmountIn);
+        require(minLinkOut <= type(uint128).max, SaveInvestCCIPSender__AmountTooLargeForV4(minLinkOut));
+
+        V4PoolKey memory poolKey = _buildFeeSwapV4PoolKey();
+        bool zeroForOne = address(underlying) == poolKey.currency0;
+
+        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V4_SWAP)));
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = _buildUniversalRouterV4SwapInput(
+            poolKey, zeroForOne, uint128(usdcAmountIn), uint128(minLinkOut), usdcAmountIn, minLinkOut
+        );
+
         _ensurePermit2Max(underlying);
-        universalRouter.execute(commands, inputs, deadline);
+        universalRouter.execute(commands, inputs, block.timestamp + FEE_SWAP_DEADLINE_WINDOW);
 
         uint256 remainingUsdc = underlying.balanceOf(address(this));
         require(remainingUsdc == 0, SaveInvestCCIPSender__CollectedUsdcNotFullySwapped(remainingUsdc));
@@ -451,6 +507,82 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         usdcAmount_ = Math.mulDiv(_linkAmount, linkUsdPrice * numeratorMultiplier, denominator, Math.Rounding.Ceil);
     }
 
+    function _quoteLinkForUsdcAmount(uint256 _usdcAmount) internal view returns (uint256 linkAmount_) {
+        _requireFeeQuoteFeedsConfigured();
+
+        (uint256 linkUsdPrice, uint8 linkUsdFeedDecimals) = _readValidatedPrice(linkUsdPriceFeed);
+        (uint256 usdcUsdPrice, uint8 usdcUsdFeedDecimals) = _readValidatedPrice(usdcUsdPriceFeed);
+
+        // Convert USDC amount (6 decimals) into LINK amount (18 decimals) using USD price feeds:
+        // link = floor(usdcAmount * usdcUsdPrice * 10^(LINK + linkFeedDec) / (1e6 * linkUsdPrice * 10^(usdcFeedDec)))
+        uint256 numeratorMultiplier = LINK_TOKEN_DECIMALS_FACTOR * (10 ** uint256(linkUsdFeedDecimals));
+        uint256 denominator = USDC_TOKEN_DECIMALS_FACTOR * linkUsdPrice * (10 ** uint256(usdcUsdFeedDecimals));
+
+        linkAmount_ = Math.mulDiv(_usdcAmount, usdcUsdPrice * numeratorMultiplier, denominator, Math.Rounding.Floor);
+    }
+
+    function _getFeeSwapMinLinkOut(uint256 _usdcAmountIn) internal view returns (uint256 minLinkOut_) {
+        uint256 quotedLinkOut = _quoteLinkForUsdcAmount(_usdcAmountIn);
+        minLinkOut_ = Math.mulDiv(quotedLinkOut, FEE_SWAP_MIN_OUT_BPS, BPS_DENOMINATOR, Math.Rounding.Floor);
+    }
+
+    function _buildFeeSwapV4PoolKey() internal view returns (V4PoolKey memory poolKey_) {
+        address _underlyingAddr = address(underlying);
+        address _linkAddr = address(linkToken);
+
+        if (_underlyingAddr < _linkAddr) {
+            poolKey_ = V4PoolKey({
+                currency0: _underlyingAddr,
+                currency1: _linkAddr,
+                fee: feeSwapV4PoolFee,
+                tickSpacing: feeSwapV4PoolTickSpacing,
+                hooks: feeSwapV4PoolHooks
+            });
+        } else {
+            poolKey_ = V4PoolKey({
+                currency0: _linkAddr,
+                currency1: _underlyingAddr,
+                fee: feeSwapV4PoolFee,
+                tickSpacing: feeSwapV4PoolTickSpacing,
+                hooks: feeSwapV4PoolHooks
+            });
+        }
+    }
+
+    function _buildUniversalRouterV4SwapInput(
+        V4PoolKey memory _poolKey,
+        bool _zeroForOne,
+        uint128 _amountIn,
+        uint128 _amountOutMinimum,
+        uint256 _maxInputSettleAmount,
+        uint256 _minOutputTakeAmount
+    ) internal pure returns (bytes memory input_) {
+        // Universal Router V4_SWAP input is `abi.encode(actions, params[])`.
+        // Action sequence:
+        // 1) SWAP_EXACT_IN_SINGLE  2) SETTLE_ALL(input currency)  3) TAKE_ALL(output currency)
+        bytes memory actions =
+            abi.encodePacked(V4_ACTION_SWAP_EXACT_IN_SINGLE, V4_ACTION_SETTLE_ALL, V4_ACTION_TAKE_ALL);
+
+        bytes[] memory params = new bytes[](3);
+        params[0] = abi.encode(
+            V4ExactInputSingleParams({
+                poolKey: _poolKey,
+                zeroForOne: _zeroForOne,
+                amountIn: _amountIn,
+                amountOutMinimum: _amountOutMinimum,
+                hookData: bytes("")
+            })
+        );
+
+        address inputCurrency = _zeroForOne ? _poolKey.currency0 : _poolKey.currency1;
+        address outputCurrency = _zeroForOne ? _poolKey.currency1 : _poolKey.currency0;
+
+        params[1] = abi.encode(inputCurrency, _maxInputSettleAmount);
+        params[2] = abi.encode(outputCurrency, _minOutputTakeAmount);
+
+        input_ = abi.encode(actions, params);
+    }
+
     function _readValidatedPrice(AggregatorV3Interface _feed) internal view returns (uint256 price_, uint8 decimals_) {
         decimals_ = _feed.decimals();
         (, int256 answer,, uint256 updatedAt, uint80 answeredInRound) = _feed.latestRoundData();
@@ -472,6 +604,12 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         require(
             address(universalRouter) != address(0) && address(permit2) != address(0),
             SaveInvestCCIPSender__FeePaymentInfraNotConfigured()
+        );
+    }
+
+    function _requireFeeSwapV4PoolConfigured() internal view {
+        require(
+            feeSwapV4PoolFee > 0 && feeSwapV4PoolTickSpacing > 0, SaveInvestCCIPSender__FeeSwapV4PoolNotConfigured()
         );
     }
 
@@ -498,4 +636,3 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }
-
