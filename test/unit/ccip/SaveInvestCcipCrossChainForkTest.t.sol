@@ -3,30 +3,44 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import {CCIPLocalSimulatorFork, Register} from "@chainlink/local/src/ccip/CCIPLocalSimulatorFork.sol";
-import {BurnMintERC677Helper} from "@chainlink/local/src/ccip/BurnMintERC677Helper.sol";
 
 import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/SaveInvestCCIPSender.sol";
 import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/SaveInvestCCIPReceiver.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
+import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
-import {CCIPTestVault} from "test/mocks/CCIPTestMocks.sol";
+interface ISFUSDCCcipTestnet is IERC20 {
+    function mintUSDC(address to, uint256 amount) external;
+}
+
+interface IAddressManagerRoleReader {
+    function currentRoleHolders(bytes32 role) external view returns (address roleHolder);
+}
+
+interface ISFVaultFork {
+    function registerMember(address newMember) external;
+    function maxDeposit(address receiver) external view returns (uint256);
+    function userTotalDeposited(address user) external view returns (uint256 totalDeposited);
+    function asset() external view returns (address);
+}
 
 contract SaveInvestCcipCrossChainForkTest is Test {
     string private constant ETH_SEPOLIA_RPC_ALIAS = "eth_sepolia";
     string private constant ARB_SEPOLIA_RPC_ALIAS = "arb_sepolia";
-    string private constant ETH_SEPOLIA_RPC_ENV = "ETHEREUM_TESTNET_SEPOLIA_RPC_URL";
-    string private constant ARB_SEPOLIA_RPC_ENV = "ARBITRUM_TESTNET_SEPOLIA_RPC_URL";
 
-    uint256 private constant SEND_AMOUNT = 2e17;
+    address private constant ETH_SEPOLIA_SENDER = 0x3D9B60A1AFdEEeA80cd6841B90e14780EF8418DC;
+    address private constant ETH_SEPOLIA_SFUSDC = 0xA0224A609051308289f3AEa62fc0019086492A45;
+    address private constant ARB_SEPOLIA_RECEIVER = 0x3D616A28649e7023872752aECd9c0d97b3813e38;
+    address private constant ARB_SEPOLIA_ADDRESS_MANAGER = 0xAA1b3Fc1f23c1baed05AEc2952A21A0AfCB740F6;
+    address private constant ARB_SEPOLIA_SF_VAULT = 0x08037CF86aBbF960DA75ae3eAe9d2Fb8fe312A60;
+
+    uint256 private constant SEND_AMOUNT = 125e6; // 125 SFUSDC (6 decimals)
     uint256 private constant GAS_LIMIT = 500_000;
     string private constant SAVE_VAULT = "PROTOCOL__SF_VAULT";
     string private constant INVEST_VAULT = "PROTOCOL__IF_VAULT";
 
-    address internal owner;
     address internal user;
 
     uint256 internal sourceFork;
@@ -39,16 +53,11 @@ contract SaveInvestCcipCrossChainForkTest is Test {
 
     SaveInvestCCIPSender internal sender;
     SaveInvestCCIPReceiver internal receiver;
-
-    CCIPTestVault internal sfVault;
-    CCIPTestVault internal ifVault;
     IAddressManager internal addressManager;
-
-    BurnMintERC677Helper internal sourceToken;
-    BurnMintERC677Helper internal destinationToken;
+    ISFVaultFork internal sfVault;
+    ISFUSDCCcipTestnet internal sourceToken;
 
     function setUp() public {
-        owner = makeAddr("owner");
         user = makeAddr("user");
 
         sourceFork = vm.createSelectFork(vm.rpcUrl(ETH_SEPOLIA_RPC_ALIAS));
@@ -58,101 +67,82 @@ contract SaveInvestCcipCrossChainForkTest is Test {
         vm.makePersistent(address(ccipLocalSimulatorFork));
 
         sourceNetwork = ccipLocalSimulatorFork.getNetworkDetails(block.chainid);
-        sourceToken = BurnMintERC677Helper(sourceNetwork.ccipBnMAddress);
 
         vm.selectFork(destinationFork);
         destinationNetwork = ccipLocalSimulatorFork.getNetworkDetails(block.chainid);
-        destinationToken = BurnMintERC677Helper(destinationNetwork.ccipBnMAddress);
 
-        addressManager = IAddressManager(makeAddr("addressManager"));
-        sfVault = new CCIPTestVault(IERC20(address(destinationToken)));
-        ifVault = new CCIPTestVault(IERC20(address(destinationToken)));
+        receiver = SaveInvestCCIPReceiver(ARB_SEPOLIA_RECEIVER);
+        addressManager = IAddressManager(ARB_SEPOLIA_ADDRESS_MANAGER);
+        sfVault = ISFVaultFork(ARB_SEPOLIA_SF_VAULT);
 
-        receiver =
-            new SaveInvestCCIPReceiver(addressManager, destinationNetwork.routerAddress, address(destinationToken));
-        _mockProtocolAddress("PROTOCOL__SF_VAULT", address(sfVault));
-        _mockProtocolAddress("PROTOCOL__IF_VAULT", address(ifVault));
+        _ensureSenderAllowedOnReceiver();
+        _ensureUserRegisteredInSFVault();
 
         vm.selectFork(sourceFork);
-        sender = _deploySenderProxy(owner, destinationNetwork.chainSelector, address(receiver));
+        sender = SaveInvestCCIPSender(ETH_SEPOLIA_SENDER);
+        sourceToken = ISFUSDCCcipTestnet(ETH_SEPOLIA_SFUSDC);
 
-        vm.selectFork(destinationFork);
-        receiver.toggleAllowedSender(sourceNetwork.chainSelector, address(sender));
-
-        vm.selectFork(sourceFork);
         ccipLocalSimulatorFork.requestLinkFromFaucet(address(sender), 20 ether);
-        sourceToken.drip(user);
+        sourceToken.mintUSDC(user, SEND_AMOUNT * 4);
 
         vm.prank(user);
         IERC20(address(sourceToken)).approve(address(sender), type(uint256).max);
     }
 
-    function testSaveInvestCCIP_crossChain_sendSaveVaultAndReceiveOnDestination() public {
-        uint256 balanceBefore = IERC20(address(sourceToken)).balanceOf(user);
+    function testSaveInvestCCIP_crossChain_sendSaveVaultAndReceiveOnDeployedDestination() public {
+        vm.selectFork(destinationFork);
+        uint256 depositedBefore = sfVault.userTotalDeposited(user);
+        uint256 failedBefore = receiver.getFailedMessageIdsByUser(user).length;
 
         vm.selectFork(sourceFork);
+        uint256 balanceBefore = IERC20(address(sourceToken)).balanceOf(user);
+
         vm.prank(user);
         bytes32 messageId = sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, GAS_LIMIT);
         assertNotEq(messageId, bytes32(0), "messageId should not be zero");
-        assertEq(
-            IERC20(address(sourceToken)).balanceOf(user), balanceBefore - SEND_AMOUNT, "source user balance mismatch"
-        );
+        assertEq(IERC20(address(sourceToken)).balanceOf(user), balanceBefore - SEND_AMOUNT, "source balance mismatch");
 
         vm.selectFork(sourceFork);
         ccipLocalSimulatorFork.switchChainAndRouteMessage(destinationFork);
 
         vm.selectFork(destinationFork);
-        assertEq(sfVault.lastCaller(), address(receiver), "vault caller should be receiver");
-        assertEq(sfVault.lastReceiver(), user, "vault receiver mismatch");
-        assertEq(sfVault.lastAssets(), SEND_AMOUNT, "vault assets mismatch");
-        assertEq(
-            IERC20(address(destinationToken)).balanceOf(address(sfVault)), SEND_AMOUNT, "vault token balance mismatch"
-        );
+        uint256 depositedAfter = sfVault.userTotalDeposited(user);
+        assertEq(depositedAfter - depositedBefore, SEND_AMOUNT, "vault deposited amount mismatch");
+        assertEq(receiver.getFailedMessageIdsByUser(user).length, failedBefore, "save path should not fail");
+        assertEq(receiver.userByMessageId(messageId), address(0), "save path should not be tracked as failed");
     }
 
-    function testSaveInvestCCIP_crossChain_sendInvestVaultAndReceiveOnDestination() public {
+    function testSaveInvestCCIP_crossChain_sendInvestVaultRevertsDuringRoutingWithoutIFVaultOnDeployedReceiver()
+        public
+    {
         vm.selectFork(sourceFork);
         vm.prank(user);
-        sender.sendMessage(INVEST_VAULT, SEND_AMOUNT, GAS_LIMIT);
+        bytes32 messageId = sender.sendMessage(INVEST_VAULT, SEND_AMOUNT, GAS_LIMIT);
+        assertNotEq(messageId, bytes32(0), "messageId should not be zero");
 
         vm.selectFork(sourceFork);
+        vm.expectRevert();
         ccipLocalSimulatorFork.switchChainAndRouteMessage(destinationFork);
-
-        vm.selectFork(destinationFork);
-        assertEq(ifVault.lastCaller(), address(receiver), "vault caller should be receiver");
-        assertEq(ifVault.lastReceiver(), user, "vault receiver mismatch");
-        assertEq(ifVault.lastAssets(), SEND_AMOUNT, "vault assets mismatch");
-        assertEq(
-            IERC20(address(destinationToken)).balanceOf(address(ifVault)), SEND_AMOUNT, "vault token balance mismatch"
-        );
     }
 
-    function _deploySenderProxy(address _owner, uint64 destinationChainSelector, address receiverContract)
-        internal
-        returns (SaveInvestCCIPSender)
-    {
-        address implementation = address(new SaveInvestCCIPSender());
-        bytes memory initData = abi.encodeWithSelector(
-            SaveInvestCCIPSender.initialize.selector,
-            sourceNetwork.routerAddress,
-            sourceNetwork.linkAddress,
-            address(sourceToken),
-            receiverContract,
-            destinationChainSelector,
-            _owner
-        );
-        return SaveInvestCCIPSender(UnsafeUpgrades.deployUUPSProxy(implementation, initData));
+    function _ensureSenderAllowedOnReceiver() internal {
+        if (receiver.isSenderAllowedByChain(sourceNetwork.chainSelector, ETH_SEPOLIA_SENDER)) return;
+
+        address receiverOwner = receiver.owner();
+        vm.prank(receiverOwner);
+        receiver.toggleAllowedSender(sourceNetwork.chainSelector, ETH_SEPOLIA_SENDER);
     }
 
-    function _mockProtocolAddress(string memory name, address protocolAddr) internal {
-        ProtocolAddress memory protocolAddress = ProtocolAddress({
-            name: keccak256(bytes(name)), addr: protocolAddr, addressType: ProtocolAddressType.Protocol
-        });
+    function _ensureUserRegisteredInSFVault() internal {
+        if (sfVault.maxDeposit(user) > 0) return;
 
-        vm.mockCall(
-            address(addressManager),
-            abi.encodeWithSelector(IAddressManager.getProtocolAddressByName.selector, name),
-            abi.encode(protocolAddress)
-        );
+        address backendAdmin =
+            IAddressManagerRoleReader(address(addressManager)).currentRoleHolders(Roles.BACKEND_ADMIN);
+        require(backendAdmin != address(0), "missing BACKEND_ADMIN");
+
+        vm.prank(backendAdmin);
+        sfVault.registerMember(user);
+
+        assertGt(sfVault.maxDeposit(user), 0, "user should be registered in SFVault");
     }
 }
