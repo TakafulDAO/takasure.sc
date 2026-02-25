@@ -206,6 +206,72 @@ function quoteOtherAsUnderlyingAtTick(otherAmount, tick, otherIsToken0) {
     return otherIsToken0 ? otherAmount * priceToken1PerToken0 : otherAmount / priceToken1PerToken0
 }
 
+function computeOtherRatioBpsFromSqrtPrice({
+    sqrtPriceX96,
+    tickLower,
+    tickUpper,
+    token0,
+    token1,
+    underlying,
+    other,
+}) {
+    const t0 = token0.toLowerCase()
+    const t1 = token1.toLowerCase()
+    const under = underlying.toLowerCase()
+    const oth = other.toLowerCase()
+
+    if ((under !== t0 && under !== t1) || (oth !== t0 && oth !== t1) || under === oth) {
+        return null
+    }
+
+    const otherIsToken0 = oth === t0
+
+    // Convert exact sqrtPriceX96 to float (2^96 = 79228162514264337593543950336)
+    const Q96 = 79228162514264337593543950336
+    const p = Number(sqrtPriceX96.toString()) / Q96
+
+    // Tick-based approximation is accurate for boundary ticks (integer values)
+    const sa = getSqrtRatioApproxFromTick(tickLower)
+    const sb = getSqrtRatioApproxFromTick(tickUpper)
+
+    if (
+        !(p > 0) ||
+        !Number.isFinite(p) ||
+        !(sa > 0) ||
+        !(sb > 0) ||
+        !Number.isFinite(sa) ||
+        !Number.isFinite(sb)
+    ) {
+        return null
+    }
+
+    // Out-of-range: position is fully single-sided
+    if (p <= sa) return otherIsToken0 ? 10000 : 0
+    if (p >= sb) return otherIsToken0 ? 0 : 10000
+
+    // Unit-liquidity token mix at spot price/range
+    const amount0 = (sb - p) / (p * sb)
+    const amount1 = p - sa
+    const priceToken1PerToken0 = p * p
+
+    let otherValueInUnderlying
+    let totalValueInUnderlying
+    if (otherIsToken0) {
+        otherValueInUnderlying = amount0 * priceToken1PerToken0
+        totalValueInUnderlying = amount1 + otherValueInUnderlying
+    } else {
+        otherValueInUnderlying = amount1 / priceToken1PerToken0
+        totalValueInUnderlying = amount0 + otherValueInUnderlying
+    }
+
+    if (!(totalValueInUnderlying > 0) || !Number.isFinite(totalValueInUnderlying)) return null
+
+    const ratio = otherValueInUnderlying / totalValueInUnderlying
+    if (!Number.isFinite(ratio)) return null
+    const bps = Math.round(ratio * 10000)
+    return Math.max(0, Math.min(10000, bps))
+}
+
 function computeOtherRatioBpsFromTicks({
     currentTick,
     tickLower,
@@ -348,26 +414,21 @@ async function resolveAutoOtherRatioBps(strategyAddress, chainCfg, assetsIncomin
 
     let token0
     let token1
-    let currentTick
+    let sqrtPriceX96
+    let slot0Tick
     try {
         ;[token0, token1] = await Promise.all([pool.token0(), pool.token1()])
-        const window = Number(twapWindow.toString())
-        if (window > 0) {
-            const [tickCumulatives] = await pool.observe([window, 0])
-            const delta = Number(tickCumulatives[1].sub(tickCumulatives[0]).toString())
-            currentTick = Math.trunc(delta / window)
-            if (delta < 0 && delta % window !== 0) currentTick -= 1
-        } else {
-            const slot0 = await pool.slot0()
-            currentTick = Number(slot0.tick)
-        }
+        const slot0 = await pool.slot0()
+        sqrtPriceX96 = slot0.sqrtPriceX96
+        slot0Tick = Number(slot0.tick)
     } catch (e) {
         console.error(`Failed to read pool state for auto ratio: ${e.message || e}`)
         process.exit(1)
     }
 
-    let ratioBps = computeOtherRatioBpsFromTicks({
-        currentTick,
+    // Primary: use exact sqrtPriceX96 from slot0 — matches Uniswap UI fiat-value ratio.
+    let ratioBps = computeOtherRatioBpsFromSqrtPrice({
+        sqrtPriceX96,
         tickLower: Number(tickLower.toString()),
         tickUpper: Number(tickUpper.toString()),
         token0,
@@ -375,6 +436,31 @@ async function resolveAutoOtherRatioBps(strategyAddress, chainCfg, assetsIncomin
         underlying,
         other,
     })
+
+    // Fallback: tick-based formula (TWAP tick when configured, else spot tick).
+    if (ratioBps === null) {
+        let currentTick = slot0Tick
+        const window = Number(twapWindow.toString())
+        if (window > 0) {
+            try {
+                const [tickCumulatives] = await pool.observe([window, 0])
+                const delta = Number(tickCumulatives[1].sub(tickCumulatives[0]).toString())
+                currentTick = Math.trunc(delta / window)
+                if (delta < 0 && delta % window !== 0) currentTick -= 1
+            } catch {
+                // ignore, use slot0Tick
+            }
+        }
+        ratioBps = computeOtherRatioBpsFromTicks({
+            currentTick,
+            tickLower: Number(tickLower.toString()),
+            tickUpper: Number(tickUpper.toString()),
+            token0,
+            token1,
+            underlying,
+            other,
+        })
+    }
 
     // Strategy contract only executes rebalancing swaps when otherRatioBps > 0.
     // If LP-optimal ratio is 0, we may still force 1bps only when current balances already
@@ -412,7 +498,7 @@ async function resolveAutoOtherRatioBps(strategyAddress, chainCfg, assetsIncomin
         const otherIsToken0 = other.toLowerCase() === token0.toLowerCase()
         const otherValueInUnderlying = quoteOtherAsUnderlyingAtTick(
             otherBalance,
-            currentTick,
+            slot0Tick,
             otherIsToken0,
         )
         const totalValueInUnderlying = underlyingTotal + otherValueInUnderlying
