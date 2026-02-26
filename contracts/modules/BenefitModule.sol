@@ -13,7 +13,7 @@ import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 import {ISubscriptionModule} from "contracts/interfaces/modules/ISubscriptionModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
-import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
+import {IMainStorageModule} from "contracts/interfaces/modules/IMainStorageModule.sol";
 
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -21,13 +21,9 @@ import {
     ReentrancyGuardTransientUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {
-    ModuleState,
-    AssociationMember,
-    Reserve,
-    BenefitMember,
-    BenefitMemberState
-} from "contracts/types/TakasureTypes.sol";
+import {ModuleState} from "contracts/types/States.sol";
+import {AssociationMember, BenefitMember, BenefitMemberState} from "contracts/types/Members.sol";
+import {Reserve} from "contracts/types/Reserve.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol";
@@ -131,8 +127,8 @@ contract BenefitModule is ModuleImplementation, Initializable, ReentrancyGuardTr
 
         require(kycModule.isKYCed(_memberWallet), ModuleErrors.Module__AddressNotKYCed());
 
-        IProtocolStorageModule protocolStorageModule =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+        IMainStorageModule protocolStorageModule =
+            IMainStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
 
         // The member can not be part of the corresponding benefit
         member_ = protocolStorageModule.getAssociationMember(_memberWallet);
@@ -249,8 +245,8 @@ contract BenefitModule is ModuleImplementation, Initializable, ReentrancyGuardTr
     }
 
     function _setBenefitInAssociation(AssociationMember memory _member) internal {
-        IProtocolStorageModule protocolStorageModule =
-            IProtocolStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+        IMainStorageModule protocolStorageModule =
+            IMainStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
         address[] memory newBenefits = new address[](_member.benefits.length + 1);
         uint256 currentBenefitsLength = _member.benefits.length;
 
