@@ -5,7 +5,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {RevShareModuleMock} from "test/mocks/RevShareModuleMock.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {ProtocolAddress, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract RevShareNftHandler is Test {
     RevShareNFT public nft;
@@ -49,15 +49,11 @@ contract RevShareNftHandler is Test {
 
         // Inject AddressManager mock
         vm.etch(mockManager, hex"60006000");
-        bytes memory selector = abi.encodeWithSelector(
-            IAddressManager.getProtocolAddressByName.selector,
-            "REVENUE_SHARE_MODULE"
-        );
+        bytes memory selector =
+            abi.encodeWithSelector(IAddressManager.getProtocolAddressByName.selector, "REVENUE_SHARE_MODULE");
 
         ProtocolAddress memory response = ProtocolAddress({
-            name: keccak256("REVENUE_SHARE_MODULE"),
-            addr: address(rev),
-            addressType: ProtocolAddressType.Protocol
+            name: keccak256("REVENUE_SHARE_MODULE"), addr: address(rev), addressType: ProtocolAddressType.Protocol
         });
 
         vm.mockCall(mockManager, selector, abi.encode(response));

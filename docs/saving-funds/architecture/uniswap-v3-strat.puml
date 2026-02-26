@@ -1,0 +1,70 @@
+@startuml SFUniswapV3Strategy – Internal Architecture
+title SFUniswapV3Strategy – Internal Architecture (Vault ↔ NPM ↔ Pool ↔ Universal Router)
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+package "Save Funds (Takadao Contracts)" as SF {
+  component "SFVault\n- owns Uniswap V3 position NFT\n- grants NFT operator approval\n- receives swept USDC" as Vault
+  component "SFUniswapV3Strategy\n- manages the position NFT on behalf of Vault\n- collects fees\n- optional swaps\n- sweeps USDC back to Vault" as V3
+  component "AddressManager\n- role checks\n- named address registry" as AM
+}
+
+package "Uniswap V3 Core" as UNI {
+  component "UniswapV3Pool\n- price/ticks\n- accrues fees\n- holds liquidity" as Pool
+  component "NonfungiblePositionManager (NPM)\n- mints/changes positions\n- issues ERC721 NFT\n- collect fees" as NPM
+}
+
+package "Swap Infrastructure" as SWAP {
+  component "Universal Router\n- swap tokenA ↔ tokenB\n- used when strategy needs\n  to convert fees into USDC" as UR
+}
+
+package "Tokens" as TOK {
+  component "USDC\n(Underlying)" as USDC
+  component "Other Token\n(pair token)" as OT
+}
+
+' --- Auth / control plane ---
+V3 --> AM : onlyKeeperOrOperator\n(keeper/operator role checks)
+
+' --- NFT ownership + approval (key design nuance) ---
+Vault --> NPM : ERC721 owner of position NFT
+Vault --> NPM : setApprovalForAll(operator=V3, true)\n(so V3 can call NPM)
+note right of Vault
+Critical:
+The Vault is the NFT owner, not the strategy.
+The strategy must be approved as operator to manage it.
+end note
+
+' --- Strategy uses NPM to affect the position ---
+V3 --> NPM : mint / increaseLiquidity\n(deploy liquidity)
+V3 --> NPM : decreaseLiquidity / collect\n(realize fees & remove liquidity)
+V3 --> NPM : burn (when position emptied)
+
+' --- Where liquidity actually lives ---
+NPM --> Pool : mints/updates liquidity\nfor the position
+Pool --> NPM : fee accounting\n(amount0/amount1 owed)
+
+' --- Token flows around operations (conceptual) ---
+Vault --> USDC : holds idle USDC
+Vault --> V3 : (when investing)\nUSDC routed via Aggregator\nthen to V3
+
+V3 --> USDC : holds temporary balances\n(underlying + fees)
+V3 --> OT : holds temporary other-token\n(fees / residual)
+
+' --- Optional conversion path ---
+V3 --> UR : swap OT → USDC\n(using encoded swap data)
+UR --> OT
+UR --> USDC
+
+' --- Sweep back to vault ---
+V3 --> USDC : transfer(Vault, USDC balance)\n(_sweepToVault)
+
+note bottom of V3
+Operational primitives:
+- Harvest: collect() then (optional) swap OT→USDC then sweep
+- Rebalance: decrease/collect, update ticks, mint new position, sweep
+- Withdraw: decrease/collect, then sweep USDC to Vault (via Aggregator/Vault)
+end note
+
+@enduml

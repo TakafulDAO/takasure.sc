@@ -8,6 +8,7 @@
 pragma solidity 0.8.28;
 
 library ModuleErrors {
+    error Module__InvalidInput();
     error Module__InvalidCoupon();
     error Module__AlreadyJoined();
     error Module__AddressNotKYCed();
@@ -16,4 +17,5 @@ library ModuleErrors {
     error Module__InvalidDate();
     error Module__NotAuthorizedCaller();
     error Module__InvalidAddress();
+    error Module__InvalidPlanPrice();
 }

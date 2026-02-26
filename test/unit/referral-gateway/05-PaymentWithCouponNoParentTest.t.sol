@@ -177,7 +177,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__IncompatibleSettings.selector);
-        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
+        referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             address(0),
             child,
@@ -195,7 +195,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__IncompatibleSettings.selector);
-        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
+        referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             address(0),
             child,
@@ -505,7 +505,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__IncompatibleSettings.selector);
-        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
+        referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             address(0),
             child,
@@ -525,7 +525,7 @@ contract ReferralGatewayWithCouponNoParentPaymentTest is Test {
 
         vm.prank(couponRedeemer);
         vm.expectRevert(ReferralGateway.ReferralGateway__IncompatibleSettings.selector);
-        (uint256 feeToOp, ) = referralGateway.payContributionOnBehalfOf(
+        referralGateway.payContributionOnBehalfOf(
             CONTRIBUTION_AMOUNT,
             address(0),
             child,

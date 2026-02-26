@@ -21,10 +21,12 @@ import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol"
 import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder, ModuleState} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/Managers.sol";
+import {ModuleState} from "contracts/types/States.sol";
 
 pragma solidity 0.8.28;
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/AddressManagerV1.sol:AddressManagerV1
 contract AddressManager is
     Initializable,
     UUPSUpgradeable,
@@ -147,7 +149,7 @@ contract AddressManager is
 
         if (protocolAddress.addressType == ProtocolAddressType.Module) {
             // If it is a module, we need to add the new address as a module in the ModuleManager, and deprecate the old one
-            IModuleManager moduleManager = IModuleManager(_getProtocolAddressByName("MODULE_MANAGER").addr);
+            IModuleManager moduleManager = IModuleManager(_getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr);
             require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
 
             moduleManager.changeModuleState(addr, ModuleState.Deprecated);
@@ -185,7 +187,7 @@ contract AddressManager is
 
         if (protocolAddress.addressType == ProtocolAddressType.Module) {
             // If it is a module, we need to add the new address as a module in the ModuleManager, and deprecate the old one
-            IModuleManager moduleManager = IModuleManager(_getProtocolAddressByName("MODULE_MANAGER").addr);
+            IModuleManager moduleManager = IModuleManager(_getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr);
             require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
 
             moduleManager.addModule(newAddr);
@@ -432,7 +434,7 @@ contract AddressManager is
         // If the address is a module, then we call the ModuleManager to register it
         // This means to add any module, the ModuleManager must be deployed first
         if (_addressType == ProtocolAddressType.Module) {
-            IModuleManager moduleManager = IModuleManager(_getProtocolAddressByName("MODULE_MANAGER").addr);
+            IModuleManager moduleManager = IModuleManager(_getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr);
             require(address(moduleManager) != address(0), AddressManager__AddModuleManagerFirst());
 
             // The ModuleManager will be in charge to check if the address is a valid module

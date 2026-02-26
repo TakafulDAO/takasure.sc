@@ -8,7 +8,7 @@
 
 pragma solidity 0.8.28;
 
-import {BenefitMember} from "contracts/types/TakasureTypes.sol";
+import {BenefitMember} from "contracts/types/Members.sol";
 
 library ReserveMathAlgorithms {
     error WrongTimestamps();
@@ -31,9 +31,7 @@ library ReserveMathAlgorithms {
         uint256 _memberContribution,
         uint256 _initialReserveRatio
     ) internal pure returns (uint256 updatedProFormaFundReserve_) {
-        updatedProFormaFundReserve_ =
-            _currentProFormaFundReserve +
-            ((_memberContribution * _initialReserveRatio) / 100);
+        updatedProFormaFundReserve_ = _currentProFormaFundReserve + ((_memberContribution * _initialReserveRatio) / 100);
     }
 
     /**
@@ -52,10 +50,8 @@ library ReserveMathAlgorithms {
     ) internal pure returns (uint256 updatedProFormaClaimReserve_) {
         // updatedProFormaClaimReserve = currentProFormaClaimReserve + (memberContribution * (1 - serviceFee) * (1 - initialReserveRatio))
         // To avoid rounding issues as (1 - serviceFee) * (1 - initialReserveRatio) is always 1, in solidity. We use the percentage values and divide by 10^4
-        updatedProFormaClaimReserve_ =
-            _currentProFormaClaimReserve +
-            ((_memberContribution * (100 - uint256(_serviceFee)) * (100 - _initialReserveRatio)) /
-                10 ** 4);
+        updatedProFormaClaimReserve_ = _currentProFormaClaimReserve
+            + ((_memberContribution * (100 - uint256(_serviceFee)) * (100 - _initialReserveRatio)) / 10 ** 4);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -79,8 +75,7 @@ library ReserveMathAlgorithms {
         int256 fundReserveShortfall = int256(_proFormaFundReserve) - int256(_fundReserve);
 
         if (fundReserveShortfall > 0 && _cashFlowLastPeriod > 0) {
-            uint256 possibleDRR = _initialReserveRatio +
-                ((uint256(fundReserveShortfall) * 100) / _cashFlowLastPeriod);
+            uint256 possibleDRR = _initialReserveRatio + ((uint256(fundReserveShortfall) * 100) / _cashFlowLastPeriod);
 
             if (possibleDRR < 100) {
                 if (_initialReserveRatio < possibleDRR) updatedDynamicReserveRatio_ = possibleDRR;
@@ -110,8 +105,7 @@ library ReserveMathAlgorithms {
         uint256 _initialReserveRatio
     ) internal pure returns (uint256 bmaInflowAssumption_) {
         bmaInflowAssumption_ =
-            (_cashFlowLastPeriod * (100 - _serviceFee) * (100 - _initialReserveRatio)) /
-            10 ** 4;
+            (_cashFlowLastPeriod * (100 - _serviceFee) * (100 - _initialReserveRatio)) / 10 ** 4;
     }
 
     /**
@@ -131,13 +125,11 @@ library ReserveMathAlgorithms {
         uint256 _bmaInflowAssumption
     ) internal pure returns (uint256 bma_) {
         // Calculate BMA numerator
-        uint256 bmaNumerator = _totalClaimReserves +
-            _bmaInflowAssumption +
-            ((_totalFundReserves * _bmaFundReserveShares) / 100);
+        uint256 bmaNumerator =
+            _totalClaimReserves + _bmaInflowAssumption + ((_totalFundReserves * _bmaFundReserveShares) / 100);
 
         // Calculate BMA denominator
-        uint256 bmaDenominator = (2 * _proFormaClaimReserve) +
-            ((_totalFundReserves * _bmaFundReserveShares) / 100);
+        uint256 bmaDenominator = (2 * _proFormaClaimReserve) + ((_totalFundReserves * _bmaFundReserveShares) / 100);
 
         if (bmaDenominator == 0) {
             bma_ = 100;
@@ -152,11 +144,11 @@ library ReserveMathAlgorithms {
         }
     }
 
-    function _calculateBmaLossRatioMethod(
-        uint256 _lossRatioThreshold,
-        uint256 _lossRatio,
-        uint256 _currentBma
-    ) internal pure returns (uint256 bma_) {
+    function _calculateBmaLossRatioMethod(uint256 _lossRatioThreshold, uint256 _lossRatio, uint256 _currentBma)
+        internal
+        pure
+        returns (uint256 bma_)
+    {
         if (_lossRatio > _lossRatioThreshold) {
             bma_ = 100 - (_lossRatio - _lossRatioThreshold);
         } else {
@@ -170,10 +162,11 @@ library ReserveMathAlgorithms {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev return is in six decimals
-    function _calculateLossRatio(
-        uint256 currentTotalFundCost,
-        uint256 currentTotalFundRevenues
-    ) internal pure returns (uint256 newLossRatio_) {
+    function _calculateLossRatio(uint256 currentTotalFundCost, uint256 currentTotalFundRevenues)
+        internal
+        pure
+        returns (uint256 newLossRatio_)
+    {
         uint256 decimalCorrection = 1e2;
         newLossRatio_ = (currentTotalFundCost * decimalCorrection) / currentTotalFundRevenues;
         if (newLossRatio_ > 100) {
@@ -192,19 +185,14 @@ library ReserveMathAlgorithms {
      * @return ecr Earned contribution reserve. Six decimals
      * @return ucr Unearned contribution reserve. Six decimals
      */
-    function _calculateEcrAndUcrByMember(
-        BenefitMember storage member
-    ) internal returns (uint256, uint256) {
+    function _calculateEcrAndUcrByMember(BenefitMember storage member) internal returns (uint256, uint256) {
         uint256 currentTimestamp = block.timestamp;
         uint256 claimReserveAdd = member.claimAddAmount;
         uint256 year = 365;
         uint256 ecr;
 
         // Time passed since the membership started
-        uint256 membershipTerm = _calculateDaysPassed(
-            currentTimestamp,
-            member.lastPaidYearStartDate
-        );
+        uint256 membershipTerm = _calculateDaysPassed(currentTimestamp, member.lastPaidYearStartDate);
 
         if (membershipTerm > year) {
             // Thihs means the user is in the grace period and waiting for payment, we skip it
@@ -229,10 +217,11 @@ library ReserveMathAlgorithms {
      * @param _initialDayTimestamp Initial timestamp
      * @return daysPassed_ Days passed
      */
-    function _calculateDaysPassed(
-        uint256 _finalDayTimestamp,
-        uint256 _initialDayTimestamp
-    ) internal pure returns (uint256 daysPassed_) {
+    function _calculateDaysPassed(uint256 _finalDayTimestamp, uint256 _initialDayTimestamp)
+        internal
+        pure
+        returns (uint256 daysPassed_)
+    {
         require(_finalDayTimestamp >= _initialDayTimestamp, WrongTimestamps());
 
         uint256 dayTimePassed = _finalDayTimestamp - _initialDayTimestamp;
@@ -249,10 +238,11 @@ library ReserveMathAlgorithms {
      * @param _initialMonthTimestamp Initial timestamp
      * @return monthsPassed_ Months passed
      */
-    function _calculateMonthsPassed(
-        uint256 _finalMonthTimestamp,
-        uint256 _initialMonthTimestamp
-    ) internal pure returns (uint256 monthsPassed_) {
+    function _calculateMonthsPassed(uint256 _finalMonthTimestamp, uint256 _initialMonthTimestamp)
+        internal
+        pure
+        returns (uint256 monthsPassed_)
+    {
         require(_finalMonthTimestamp >= _initialMonthTimestamp, WrongTimestamps());
 
         uint256 monthTimePassed = _finalMonthTimestamp - _initialMonthTimestamp;

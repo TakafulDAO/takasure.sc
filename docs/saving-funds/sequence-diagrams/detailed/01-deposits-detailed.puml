@@ -1,0 +1,117 @@
+@startuml Save Fund (SF) – Deposit (Detailed)
+title Save Fund (SF) – Deposit (Detailed)
+
+autonumber
+
+actor User
+participant "Frontend\n(SF UI)" as FE
+participant "Wallet\n(EOA / In-app)" as W
+participant "USDC\n(ERC20)" as USDC
+participant "SFVault\n(ERC4626 + non-transferable shares)" as Vault
+participant "AddressManager" as AM
+database "Subgraph" as SG
+
+== Load deposit screen ==
+
+User -> FE: Open Deposit
+FE -> SG: Query protocol + user snapshot\n(TVL, sharePrice, user history)
+SG --> FE: Snapshot data
+
+FE -> Vault: maxDeposit(receiver)
+Vault --> FE: maxAssetsAllowed
+
+FE -> Vault: previewDeposit(netAssets estimate)\n(totalAssets includes idle + aggregator)
+Vault --> FE: expectedShares (estimate)
+
+FE -> Vault: managementFeeBPS()\nTVLCap()\npaused()
+Vault --> FE: feeBps + caps + status
+
+== Approve (if needed) ==
+
+FE -> W: Request allowance check
+W -> USDC: allowance(user, Vault)
+USDC --> W: allowance
+
+alt allowance < assets
+  FE -> W: Prompt approve(assets)
+  W -> USDC: approve(Vault, assets)
+  USDC --> W: approval tx receipt
+end
+
+== Deposit ==
+
+User -> FE: Confirm deposit amount
+FE -> W: Build tx: Vault.deposit(assets, receiver)
+
+W -> Vault: deposit(assets, receiver)
+
+activate Vault
+note right of Vault
+Guards:
+- whenNotPaused
+- nonReentrant
+Checks:
+- receiver must be in validMembers
+- assets > 0
+- assets <= maxDeposit(receiver)
+(where maxDeposit is TVLCap-aware and, if mgmt fee is enabled,
+"grosses up" so the net assets staying in the vault don’t exceed TVLCap)
+end note
+
+alt receiver is NOT a valid member
+  Vault --> W: REVERT SFVault__NotAMember
+  deactivate Vault
+  FE <- W: Show error
+else assets == 0
+  Vault --> W: REVERT SFVault__ZeroAssets
+  deactivate Vault
+  FE <- W: Show error
+else assets > maxDeposit(receiver)
+  Vault --> W: REVERT SFVault__ExceedsMaxDeposit
+  deactivate Vault
+  FE <- W: Show error
+else paused
+  Vault --> W: REVERT (Pausable)
+  deactivate Vault
+  FE <- W: Show error
+else success path
+  Vault -> AM: getProtocolAddressByName("ADMIN__SF_FEE_RECEIVER")
+  AM --> Vault: feeRecipient.addr
+
+  note over Vault
+  Compute management fee:
+  - if managementFeeBPS > 0 AND feeRecipient != 0:
+      feeAssets = assets * managementFeeBPS / MAX_BPS
+      netAssets = assets - feeAssets
+    else:
+      feeAssets = 0
+      netAssets = assets
+
+  Shares:
+  - userShares = previewDeposit(netAssets)
+  - require userShares > 0
+  end note
+
+  Vault -> USDC: transferFrom(caller, Vault, assets)\n(safeTransferFrom)
+  USDC --> Vault: Transfer OK
+
+  opt feeAssets > 0
+    Vault -> USDC: transfer(feeRecipient, feeAssets)\n(safeTransfer)
+    USDC --> Vault: Transfer OK
+    Vault -> SG: Emit OnFeesTaken(feeAssets, MANAGEMENT)\nEmit OnManagementFeeCharged(...)
+  end
+
+  Vault -> Vault: _mint(receiver, userShares)\n(non-transferable share token)
+  Vault -> Vault: userTotalDeposited[receiver] += assets
+  Vault -> SG: Emit Deposit(caller, receiver, assets, userShares)
+
+  Vault --> W: return userShares + tx receipt
+  deactivate Vault
+
+  FE <- W: Tx confirmed + shares minted
+  FE -> SG: Refresh user history + TVL + balances
+  SG --> FE: Updated indexed data
+  FE -> User: Updated dashboard
+end
+
+@enduml

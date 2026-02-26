@@ -1,0 +1,84 @@
+{
+    "address": "0x744da165d78cafd2d20eb1c10e5d6958447a8937",
+    "abi": [
+        {
+            "type": "function",
+            "name": "getConfig",
+            "inputs": [
+                {
+                    "name": "aggregator",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "tuple",
+                    "internalType": "struct StrategyConfig",
+                    "components": [
+                        {
+                            "name": "asset",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "vault",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "pool",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "paused",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getPositionDetails",
+            "inputs": [
+                {
+                    "name": "aggregator",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "positionValue",
+            "inputs": [
+                {
+                    "name": "aggregator",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        }
+    ]
+}

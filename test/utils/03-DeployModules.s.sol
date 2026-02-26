@@ -6,24 +6,24 @@ import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 // import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 // import {KYCModule} from "contracts/modules/KYCModule.sol";
-// import {MemberModule} from "contracts/modules/MemberModule.sol";
-import {ProtocolStorageModule} from "contracts/modules/ProtocolStorageModule.sol";
+import {SubscriptionManagementModule} from "contracts/modules/SubscriptionManagementModule.sol";
+import {MainStorageModule} from "contracts/modules/MainStorageModule.sol";
 // import {ReferralRewardsModule} from "contracts/modules/ReferralRewardsModule.sol";
 // import {RevenueModule} from "contracts/modules/RevenueModule.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {SubscriptionModule} from "contracts/modules/SubscriptionModule.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract DeployModules is Script {
     // address lifeBenefitModuleAddress;
     // address farewellBenefitModuleAddress;
     // address kycModuleImplementation;
     // address kycModuleAddress;
-    // address memberModuleImplementation;
-    // address memberModuleAddress;
-    address protocolStorageImplementation;
-    address protocolStorageAddress;
+    address subscriptionManagementModuleImplementation;
+    address subscriptionManagementModuleAddress;
+    address mainStorageModuleImplementation;
+    address mainStorageModuleAddress;
     // address referralRewardsModuleImplementation;
     // address referralRewardsModuleAddress;
     // address revenueModuleImplementation;
@@ -33,16 +33,14 @@ contract DeployModules is Script {
     address subscriptionModuleImplementation;
     address subscriptionModuleAddress;
 
-    function run(
-        AddressManager addressManager
-    )
+    function run(AddressManager addressManager)
         external
         returns (
             // BenefitModule lifeBenefitModule,
             // BenefitModule farewellBenefitModule,
             // KYCModule kycModule,
-            // MemberModule memberModule,
-            ProtocolStorageModule protocolStorageModule,
+            SubscriptionManagementModule subscriptionManagementModule,
+            MainStorageModule mainStorageModule,
             // ReferralRewardsModule referralRewardsModule,
             // RevenueModule revenueModule,
             RevShareModule revShareModule,
@@ -55,49 +53,42 @@ contract DeployModules is Script {
         // kycModuleImplementation = address(new KYCModule());
         // kycModuleAddress = UnsafeUpgrades.deployUUPSProxy(
         //     kycModuleImplementation,
-        //     abi.encodeCall(KYCModule.initialize, (address(addressManager), "KYC_MODULE"))
+        //     abi.encodeCall(KYCModule.initialize, (address(addressManager), "MODULE__KYC"))
         // );
 
         // kycModule = KYCModule(kycModuleAddress);
 
         // addressManager.addProtocolAddress(
-        //     "KYC_MODULE",
+        //     "MODULE__KYC",
         //     kycModuleAddress,
         //     ProtocolAddressType.Module
         // );
 
-        // Deploy MemberModule
-        // memberModuleImplementation = address(new MemberModule());
-        // memberModuleAddress = UnsafeUpgrades.deployUUPSProxy(
-        //     memberModuleImplementation,
-        //     abi.encodeCall(MemberModule.initialize, (address(addressManager), "MEMBER_MODULE"))
-        // );
-
-        // memberModule = MemberModule(memberModuleAddress);
-
-        // addressManager.addProtocolAddress(
-        //     "MEMBER_MODULE",
-        //     memberModuleAddress,
-        //     ProtocolAddressType.Module
-        // );
-
-        // Deploy ProtocolStorageModule
-        protocolStorageImplementation = address(new ProtocolStorageModule());
-        protocolStorageAddress = UnsafeUpgrades.deployUUPSProxy(
-            protocolStorageImplementation,
+        // Deploy SubscriptionManagementModule
+        subscriptionManagementModuleImplementation = address(new SubscriptionManagementModule());
+        subscriptionManagementModuleAddress = UnsafeUpgrades.deployUUPSProxy(
+            subscriptionManagementModuleImplementation,
             abi.encodeCall(
-                ProtocolStorageModule.initialize,
-                (address(addressManager), "PROTOCOL_STORAGE_MODULE")
+                SubscriptionManagementModule.initialize, (address(addressManager), "MODULE__SUBSCRIPTION_MANAGEMENT")
             )
         );
 
-        protocolStorageModule = ProtocolStorageModule(protocolStorageAddress);
+        subscriptionManagementModule = SubscriptionManagementModule(subscriptionManagementModuleAddress);
 
         addressManager.addProtocolAddress(
-            "PROTOCOL_STORAGE_MODULE",
-            protocolStorageAddress,
-            ProtocolAddressType.Module
+            "MODULE__SUBSCRIPTION_MANAGEMENT", subscriptionManagementModuleAddress, ProtocolAddressType.Module
         );
+
+        // Deploy MainStorageModule
+        mainStorageModuleImplementation = address(new MainStorageModule());
+        mainStorageModuleAddress = UnsafeUpgrades.deployUUPSProxy(
+            mainStorageModuleImplementation,
+            abi.encodeCall(MainStorageModule.initialize, (address(addressManager), "MODULE__MAIN_STORAGE"))
+        );
+
+        mainStorageModule = MainStorageModule(mainStorageModuleAddress);
+
+        addressManager.addProtocolAddress("MODULE__MAIN_STORAGE", mainStorageModuleAddress, ProtocolAddressType.Module);
 
         // Deploy ReferralRewardsModule
         // referralRewardsModuleImplementation = address(new ReferralRewardsModule());
@@ -105,14 +96,14 @@ contract DeployModules is Script {
         //     referralRewardsModuleImplementation,
         //     abi.encodeCall(
         //         ReferralRewardsModule.initialize,
-        //         (address(addressManager), "REFERRAL_REWARDS_MODULE")
+        //         (address(addressManager), "MODULE__REFERRAL_REWARDS")
         //     )
         // );
 
         // referralRewardsModule = ReferralRewardsModule(referralRewardsModuleAddress);
 
         // addressManager.addProtocolAddress(
-        //     "REFERRAL_REWARDS_MODULE",
+        //     "MODULE__REFERRAL_REWARDS",
         //     referralRewardsModuleAddress,
         //     ProtocolAddressType.Module
         // );
@@ -121,13 +112,13 @@ contract DeployModules is Script {
         // revenueModuleImplementation = address(new RevenueModule());
         // revenueModuleAddress = UnsafeUpgrades.deployUUPSProxy(
         //     revenueModuleImplementation,
-        //     abi.encodeCall(RevenueModule.initialize, (address(addressManager), "REVENUE_MODULE"))
+        //     abi.encodeCall(RevenueModule.initialize, (address(addressManager), "MODULE__REVENUE"))
         // );
 
         // revenueModule = RevenueModule(revenueModuleAddress);
 
         // addressManager.addProtocolAddress(
-        //     "REVENUE_MODULE",
+        //     "MODULE__REVENUE",
         //     revenueModuleAddress,
         //     ProtocolAddressType.Module
         // );
@@ -136,34 +127,23 @@ contract DeployModules is Script {
         revShareModuleImplementation = address(new RevShareModule());
         revShareModuleAddress = UnsafeUpgrades.deployUUPSProxy(
             revShareModuleImplementation,
-            abi.encodeCall(RevShareModule.initialize, (address(addressManager), "REVSHARE_MODULE"))
+            abi.encodeCall(RevShareModule.initialize, (address(addressManager), "MODULE__REVSHARE"))
         );
 
         revShareModule = RevShareModule(revShareModuleAddress);
 
-        addressManager.addProtocolAddress(
-            "REVSHARE_MODULE",
-            revShareModuleAddress,
-            ProtocolAddressType.Module
-        );
+        addressManager.addProtocolAddress("MODULE__REVSHARE", revShareModuleAddress, ProtocolAddressType.Module);
 
         // Deploy SubscriptionModule
         subscriptionModuleImplementation = address(new SubscriptionModule());
         subscriptionModuleAddress = UnsafeUpgrades.deployUUPSProxy(
             subscriptionModuleImplementation,
-            abi.encodeCall(
-                SubscriptionModule.initialize,
-                (address(addressManager), "SUBSCRIPTION_MODULE")
-            )
+            abi.encodeCall(SubscriptionModule.initialize, (address(addressManager), "MODULE__SUBSCRIPTION"))
         );
 
         subscriptionModule = SubscriptionModule(subscriptionModuleAddress);
 
-        addressManager.addProtocolAddress(
-            "SUBSCRIPTION_MODULE",
-            subscriptionModuleAddress,
-            ProtocolAddressType.Module
-        );
+        addressManager.addProtocolAddress("MODULE__SUBSCRIPTION", subscriptionModuleAddress, ProtocolAddressType.Module);
 
         vm.stopBroadcast();
 
@@ -184,8 +164,8 @@ contract DeployModules is Script {
             // lifeBenefitModule,
             // farewellBenefitModule,
             // kycModule,
-            // memberModule,
-            protocolStorageModule,
+            subscriptionManagementModule,
+            mainStorageModule,
             // referralRewardsModule,
             // revenueModule,
             revShareModule,

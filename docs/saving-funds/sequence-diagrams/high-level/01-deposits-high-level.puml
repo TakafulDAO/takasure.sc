@@ -1,0 +1,38 @@
+@startuml Save Fund (SF) – Deposits (High-Level)
+title Save Fund (SF) – Deposits (High-Level)
+
+actor User
+participant "Frontend\n(SF UI)" as FE
+participant "In-App Wallet\n(or EOA)" as Wallet
+participant "SF Vault\n(Smart Contract)" as Vault
+database "Subgraph" as SG
+
+== User deposits ==
+
+User -> FE: Open SF dashboard
+FE -> SG: Query TVL, APY, user history
+SG --> FE: TVL, APY, history
+
+FE -> Vault: (optional) Read maxDeposit / share price
+Vault --> FE: Limits + preview info
+
+User -> FE: Enter amount\nClick "Deposit"
+FE -> Wallet: Build tx: Vault.deposit(amount)
+
+Wallet -> Vault: deposit(amount)
+note right of Vault
+- Member-gated receiver
+- Enforces TVL cap (maxDeposit)
+- Charges mgmt fee (if enabled)
+- Mints non-transferable shares
+end note
+
+Vault --> Wallet: Tx receipt (success/fail)
+Vault -> SG: Emit Deposit + fee events\n(indexed by Subgraph)
+
+FE <- Wallet: Tx result
+FE -> SG: Refresh history / TVL / APY
+SG --> FE: Updated data
+FE -> User: Updated SF dashboard
+
+@enduml

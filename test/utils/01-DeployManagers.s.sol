@@ -8,7 +8,7 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
 contract DeployManagers is Script {

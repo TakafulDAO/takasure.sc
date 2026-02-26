@@ -6,7 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {DeployManagers} from "test/utils/01-DeployManagers.s.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 
-import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/Managers.sol";
 
 contract AddressManagerFuzzTest is Test {
     DeployManagers managerDeployer;
@@ -17,7 +17,7 @@ contract AddressManagerFuzzTest is Test {
 
     function setUp() public {
         managerDeployer = new DeployManagers();
-        (, addressManager, ) = managerDeployer.run();
+        (, addressManager,) = managerDeployer.run();
         addressManagerOwner = addressManager.owner();
     }
 

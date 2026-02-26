@@ -7,7 +7,8 @@
  */
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
 
-import {Reserve, CashFlowVars} from "contracts/types/TakasureTypes.sol";
+import {Reserve} from "contracts/types/Reserve.sol";
+import {CashFlowVars} from "contracts/types/Cash.sol";
 import {ModuleConstants} from "contracts/helpers/libraries/constants/ModuleConstants.sol";
 import {ReserveMathAlgorithms} from "contracts/helpers/libraries/algorithms/ReserveMathAlgorithms.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
@@ -25,18 +26,13 @@ library CashFlowAlgorithms {
         uint256 _contributionBeforeFee,
         Reserve memory _reserve
     ) internal returns (Reserve memory) {
-        (
-            uint256 updatedProFormaFundReserve,
-            uint256 updatedProFormaClaimReserve
-        ) = _updateProFormas(_contributionAfterFee, _contributionBeforeFee, _reserve);
+        (uint256 updatedProFormaFundReserve, uint256 updatedProFormaClaimReserve) =
+            _updateProFormas(_contributionAfterFee, _contributionBeforeFee, _reserve);
         _reserve.proFormaFundReserve = updatedProFormaFundReserve;
         _reserve.proFormaClaimReserve = updatedProFormaClaimReserve;
 
-        (
-            uint256 toFundReserve,
-            uint256 toClaimReserve,
-            uint256 marketExpenditure
-        ) = _updateReserveBalances(_contributionAfterFee, _reserve);
+        (uint256 toFundReserve, uint256 toClaimReserve, uint256 marketExpenditure) =
+            _updateReserveBalances(_contributionAfterFee, _reserve);
 
         _reserve.totalFundReserve += toFundReserve;
         _reserve.totalClaimReserve += toClaimReserve;
@@ -59,59 +55,41 @@ library CashFlowAlgorithms {
         return _reserve;
     }
 
-    function _updateProFormas(
-        uint256 _contributionAfterFee,
-        uint256 _contributionBeforeFee,
-        Reserve memory _reserve
-    ) internal returns (uint256 updatedProFormaFundReserve_, uint256 updatedProFormaClaimReserve_) {
+    function _updateProFormas(uint256 _contributionAfterFee, uint256 _contributionBeforeFee, Reserve memory _reserve)
+        internal
+        returns (uint256 updatedProFormaFundReserve_, uint256 updatedProFormaClaimReserve_)
+    {
         updatedProFormaFundReserve_ = ReserveMathAlgorithms._updateProFormaFundReserve(
-            _reserve.proFormaFundReserve,
-            _contributionAfterFee,
-            _reserve.initialReserveRatio
+            _reserve.proFormaFundReserve, _contributionAfterFee, _reserve.initialReserveRatio
         );
 
         updatedProFormaClaimReserve_ = ReserveMathAlgorithms._updateProFormaClaimReserve(
-            _reserve.proFormaClaimReserve,
-            _contributionBeforeFee,
-            _reserve.serviceFee,
-            _reserve.initialReserveRatio
+            _reserve.proFormaClaimReserve, _contributionBeforeFee, _reserve.serviceFee, _reserve.initialReserveRatio
         );
 
-        emit TakasureEvents.OnNewProFormaValues(
-            updatedProFormaFundReserve_,
-            updatedProFormaClaimReserve_
-        );
+        emit TakasureEvents.OnNewProFormaValues(updatedProFormaFundReserve_, updatedProFormaClaimReserve_);
     }
 
-    function _updateReserveBalances(
-        uint256 _contributionAfterFee,
-        Reserve memory _reserve
-    )
+    function _updateReserveBalances(uint256 _contributionAfterFee, Reserve memory _reserve)
         internal
         returns (uint256 toFundReserve_, uint256 toClaimReserve_, uint256 marketExpenditure_)
     {
-        uint256 toFundReserveBeforeExpenditures = (_contributionAfterFee *
-            _reserve.dynamicReserveRatio) / 100;
+        uint256 toFundReserveBeforeExpenditures = (_contributionAfterFee * _reserve.dynamicReserveRatio) / 100;
 
-        marketExpenditure_ =
-            (toFundReserveBeforeExpenditures * _reserve.fundMarketExpendsAddShare) /
-            100;
+        marketExpenditure_ = (toFundReserveBeforeExpenditures * _reserve.fundMarketExpendsAddShare) / 100;
 
         toFundReserve_ = toFundReserveBeforeExpenditures - marketExpenditure_;
         toClaimReserve_ = _contributionAfterFee - toFundReserveBeforeExpenditures;
 
         emit TakasureEvents.OnNewReserveValues(
-            _reserve.totalContributions,
-            _reserve.totalClaimReserve,
-            _reserve.totalFundReserve,
-            _reserve.totalFundCost
+            _reserve.totalContributions, _reserve.totalClaimReserve, _reserve.totalFundReserve, _reserve.totalFundCost
         );
     }
 
-    function _updateLossRatio(
-        uint256 _totalFundCost,
-        uint256 _totalFundRevenues
-    ) internal returns (uint256 lossRatio_) {
+    function _updateLossRatio(uint256 _totalFundCost, uint256 _totalFundRevenues)
+        internal
+        returns (uint256 lossRatio_)
+    {
         lossRatio_ = ReserveMathAlgorithms._calculateLossRatio(_totalFundCost, _totalFundRevenues);
         emit TakasureEvents.OnNewLossRatio(lossRatio_);
     }
@@ -127,43 +105,26 @@ library CashFlowAlgorithms {
             // Set the initial values for future calculations and reference
             cashFlowVars.dayDepositTimestamp = currentTimestamp;
             cashFlowVars.monthDepositTimestamp = currentTimestamp;
-            _takasureReserve.setMonthToCashFlowValuesFromModule(
-                cashFlowVars.monthReference,
-                _cashIn
-            );
+            _takasureReserve.setMonthToCashFlowValuesFromModule(cashFlowVars.monthReference, _cashIn);
             _takasureReserve.setDayToCashFlowValuesFromModule(
-                cashFlowVars.monthReference,
-                cashFlowVars.dayReference,
-                _cashIn
+                cashFlowVars.monthReference, cashFlowVars.dayReference, _cashIn
             );
         } else {
             // Check how many days and months have passed since the last deposit
-            uint256 daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
-                currentTimestamp,
-                cashFlowVars.dayDepositTimestamp
-            );
-            uint256 monthsPassed = ReserveMathAlgorithms._calculateMonthsPassed(
-                currentTimestamp,
-                cashFlowVars.monthDepositTimestamp
-            );
+            uint256 daysPassed =
+                ReserveMathAlgorithms._calculateDaysPassed(currentTimestamp, cashFlowVars.dayDepositTimestamp);
+            uint256 monthsPassed =
+                ReserveMathAlgorithms._calculateMonthsPassed(currentTimestamp, cashFlowVars.monthDepositTimestamp);
 
             if (monthsPassed == 0) {
                 // If no months have passed, update the mapping for the current month
                 prevCashIn = _takasureReserve.monthToCashFlow(cashFlowVars.monthReference);
-                _takasureReserve.setMonthToCashFlowValuesFromModule(
-                    cashFlowVars.monthReference,
-                    prevCashIn + _cashIn
-                );
+                _takasureReserve.setMonthToCashFlowValuesFromModule(cashFlowVars.monthReference, prevCashIn + _cashIn);
                 if (daysPassed == 0) {
                     // If no days have passed, update the mapping for the current day
-                    prevCashIn = _takasureReserve.dayToCashFlow(
-                        cashFlowVars.monthReference,
-                        cashFlowVars.dayReference
-                    );
+                    prevCashIn = _takasureReserve.dayToCashFlow(cashFlowVars.monthReference, cashFlowVars.dayReference);
                     _takasureReserve.setDayToCashFlowValuesFromModule(
-                        cashFlowVars.monthReference,
-                        cashFlowVars.dayReference,
-                        prevCashIn + _cashIn
+                        cashFlowVars.monthReference, cashFlowVars.dayReference, prevCashIn + _cashIn
                     );
                 } else {
                     // If it is a new day, update the day deposit timestamp and the new day reference
@@ -172,9 +133,7 @@ library CashFlowAlgorithms {
 
                     // Update the mapping for the new day
                     _takasureReserve.setDayToCashFlowValuesFromModule(
-                        cashFlowVars.monthReference,
-                        cashFlowVars.dayReference,
-                        _cashIn
+                        cashFlowVars.monthReference, cashFlowVars.dayReference, _cashIn
                     );
                 }
             } else {
@@ -186,24 +145,17 @@ library CashFlowAlgorithms {
                 cashFlowVars.monthReference += uint16(monthsPassed);
                 // Calculate the day reference for the new month, we need to recalculate the days passed
                 // with the new day deposit timestamp
-                daysPassed = ReserveMathAlgorithms._calculateDaysPassed(
-                    currentTimestamp,
-                    cashFlowVars.dayDepositTimestamp
-                );
+                daysPassed =
+                    ReserveMathAlgorithms._calculateDaysPassed(currentTimestamp, cashFlowVars.dayDepositTimestamp);
                 // The new day reference is the days passed + initial day. Initial day refers
                 // to the first day of the month
                 uint8 initialDay = 1;
                 cashFlowVars.dayReference = uint8(daysPassed) + initialDay;
 
                 // Update the mappings for the new month and day
-                _takasureReserve.setMonthToCashFlowValuesFromModule(
-                    cashFlowVars.monthReference,
-                    _cashIn
-                );
+                _takasureReserve.setMonthToCashFlowValuesFromModule(cashFlowVars.monthReference, _cashIn);
                 _takasureReserve.setDayToCashFlowValuesFromModule(
-                    cashFlowVars.monthReference,
-                    cashFlowVars.dayReference,
-                    _cashIn
+                    cashFlowVars.monthReference, cashFlowVars.dayReference, _cashIn
                 );
             }
         }
@@ -211,9 +163,7 @@ library CashFlowAlgorithms {
         _takasureReserve.setCashFlowValuesFromModule(cashFlowVars);
     }
 
-    function _cashLast12Months(
-        ITakasureReserve _takasureReserve
-    ) internal view returns (uint256 cashLast12Months_) {
+    function _cashLast12Months(ITakasureReserve _takasureReserve) internal view returns (uint256 cashLast12Months_) {
         CashFlowVars memory cashFlowVars = _takasureReserve.getCashFlowValues();
         uint16 _currentMonth = cashFlowVars.monthReference;
         uint8 _currentDay = cashFlowVars.dayReference;
@@ -254,28 +204,17 @@ library CashFlowAlgorithms {
         cashLast12Months_ = cash;
     }
 
-    function _updateDRR(
-        uint256 _cash,
-        Reserve memory _reserve
-    ) internal returns (uint256 updatedDynamicReserveRatio_) {
+    function _updateDRR(uint256 _cash, Reserve memory _reserve) internal returns (uint256 updatedDynamicReserveRatio_) {
         updatedDynamicReserveRatio_ = ReserveMathAlgorithms._calculateDynamicReserveRatio(
-            _reserve.initialReserveRatio,
-            _reserve.proFormaFundReserve,
-            _reserve.totalFundReserve,
-            _cash
+            _reserve.initialReserveRatio, _reserve.proFormaFundReserve, _reserve.totalFundReserve, _cash
         );
 
         emit TakasureEvents.OnNewDynamicReserveRatio(updatedDynamicReserveRatio_);
     }
 
-    function _updateBMA(
-        uint256 _cash,
-        Reserve memory _reserve
-    ) internal returns (uint256 updatedBMA_) {
+    function _updateBMA(uint256 _cash, Reserve memory _reserve) internal returns (uint256 updatedBMA_) {
         uint256 bmaInflowAssumption = ReserveMathAlgorithms._calculateBmaInflowAssumption(
-            _cash,
-            _reserve.serviceFee,
-            _reserve.initialReserveRatio
+            _cash, _reserve.serviceFee, _reserve.initialReserveRatio
         );
 
         updatedBMA_ = ReserveMathAlgorithms._calculateBmaCashFlowMethod(
