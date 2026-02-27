@@ -51,6 +51,12 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
 
     uint256 public maxGasLimit;
 
+    mapping(string protocolName => bool) public supportedProtocols;
+
+    /*//////////////////////////////////////////////////////////////
+                               CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
     uint256 public constant MIN_DEPOSIT = 100e6; // 100 USDC (6 decimals)
     uint256 public constant LINK_TOKEN_DECIMALS_FACTOR = 1e18; // LINK uses 18 decimals
     uint256 public constant USDC_TOKEN_DECIMALS_FACTOR = 1e6; // USDC uses 6 decimals
@@ -93,6 +99,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
 
     event OnReceiverContractSet(address oldReceiverContract, address newReceiverContract);
     event OnMaxGasLimitSet(uint256 oldMaxGasLimit, uint256 newMaxGasLimit);
+    event OnSupportedProtocolSet(string protocolName, bool isSupported);
     event OnUserPaysCCIPFeeToggled(bool enabled);
     event OnFeePaymentInfraSet(address universalRouter, address linkUsdPriceFeed, address usdcUsdPriceFeed);
     event OnFeeSwapV4PoolConfigSet(uint24 fee, int24 tickSpacing, address hooks);
@@ -104,6 +111,8 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
 
     error SaveInvestCCIPSender__AddressZeroNotAllowed();
     error SaveInvestCCIPSender__GasLimitOutOfRange();
+    error SaveInvestCCIPSender__InvalidProtocolNameLength();
+    error SaveInvestCCIPSender__UnsupportedProtocol();
     error SaveInvestCCIPSender__ZeroTransferNotAllowed();
     error SaveInvestCCIPSender__AmountBelowMinimum(uint256 amount, uint256 minimum);
     error SaveInvestCCIPSender__GasLimitTooHigh(uint256 gasLimit, uint256 maxGasLimit);
@@ -183,6 +192,17 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         maxGasLimit = _maxGasLimit;
 
         emit OnMaxGasLimitSet(oldMaxGasLimit, maxGasLimit);
+    }
+
+    function setSupportedProtocol(string calldata protocolName, bool isSupported) external onlyOwner {
+        require(
+            bytes(protocolName).length > 0 && bytes(protocolName).length <= 32,
+            SaveInvestCCIPSender__InvalidProtocolNameLength()
+        );
+
+        supportedProtocols[protocolName] = isSupported;
+
+        emit OnSupportedProtocolSet(protocolName, isSupported);
     }
 
     /**
@@ -265,7 +285,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         external
         returns (bytes32 messageId)
     {
-        _validateSendMessageInputs(amountToTransfer, gasLimit);
+        _validateSendMessageInputs(protocolName, amountToTransfer, gasLimit);
         address userAddr = msg.sender;
 
         Client.EVM2AnyMessage memory message = _setup({
@@ -301,7 +321,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         view
         returns (uint256 linkAmount, uint256 usdcAmount)
     {
-        _validateSendMessageInputs(amountToTransfer, gasLimit);
+        _validateSendMessageInputs(protocolName, amountToTransfer, gasLimit);
 
         Client.EVM2AnyMessage memory message = _setup({
             _protocolName: protocolName,
@@ -494,12 +514,16 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         });
     }
 
-    function _validateSendMessageInputs(uint256 amountToTransfer, uint256 gasLimit) internal view {
-        require(amountToTransfer > 0, SaveInvestCCIPSender__ZeroTransferNotAllowed());
+    function _validateSendMessageInputs(string calldata _protocolName, uint256 _amountToTransfer, uint256 _gasLimit)
+        internal
+        view
+    {
+        require(supportedProtocols[_protocolName], SaveInvestCCIPSender__UnsupportedProtocol());
+        require(_amountToTransfer > 0, SaveInvestCCIPSender__ZeroTransferNotAllowed());
         require(
-            amountToTransfer >= MIN_DEPOSIT, SaveInvestCCIPSender__AmountBelowMinimum(amountToTransfer, MIN_DEPOSIT)
+            _amountToTransfer >= MIN_DEPOSIT, SaveInvestCCIPSender__AmountBelowMinimum(_amountToTransfer, MIN_DEPOSIT)
         );
-        require(gasLimit <= maxGasLimit, SaveInvestCCIPSender__GasLimitTooHigh(gasLimit, maxGasLimit));
+        require(_gasLimit <= maxGasLimit, SaveInvestCCIPSender__GasLimitTooHigh(_gasLimit, maxGasLimit));
     }
 
     function _quoteUsdcForLinkAmount(uint256 _linkAmount) internal view returns (uint256 usdcAmount_) {

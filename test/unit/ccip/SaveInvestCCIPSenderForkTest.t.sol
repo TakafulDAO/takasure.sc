@@ -17,6 +17,7 @@ contract SaveInvestCCIPSenderForkTest is Test {
     int256 private constant LINK_USD_PRICE = 20e8; // $20, 8 decimals
     int256 private constant USDC_USD_PRICE = 1e8; // $1, 8 decimals
     string private constant SAVE_VAULT = "PROTOCOL__SF_VAULT";
+    string private constant TOO_LONG_PROTOCOL_NAME = "PROTOCOL__ABCDEFGHIJKLMNOPQRSTUVWXYZ_VAULT";
 
     function testSaveInvestCCIP_sender_sendMessageOnAvaxMainnetFork() public {
         _assertSenderSendMessageFlow("avax_mainnet");
@@ -69,6 +70,45 @@ contract SaveInvestCCIPSenderForkTest is Test {
         sender.setReceiverContract(address(0));
     }
 
+    function testSaveInvestCCIP_sender_setSupportedProtocolRevertsForNonOwner() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+
+        vm.prank(makeAddr("attacker"));
+        vm.expectRevert();
+        sender.setSupportedProtocol(SAVE_VAULT, true);
+    }
+
+    function testSaveInvestCCIP_sender_setSupportedProtocolRevertsForEmptyName() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+
+        vm.expectRevert(SaveInvestCCIPSender.SaveInvestCCIPSender__InvalidProtocolNameLength.selector);
+        sender.setSupportedProtocol("", true);
+    }
+
+    function testSaveInvestCCIP_sender_setSupportedProtocolRevertsForNameLongerThan32() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+
+        vm.expectRevert(SaveInvestCCIPSender.SaveInvestCCIPSender__InvalidProtocolNameLength.selector);
+        sender.setSupportedProtocol(TOO_LONG_PROTOCOL_NAME, true);
+    }
+
+    function testSaveInvestCCIP_sender_setSupportedProtocolUpdatesStateForTrueAndFalse() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+        string memory protocol = "PROTOCOL__IF_VAULT";
+
+        assertFalse(sender.supportedProtocols(protocol), "should start disabled");
+
+        sender.setSupportedProtocol(protocol, true);
+        assertTrue(sender.supportedProtocols(protocol), "should be enabled");
+
+        sender.setSupportedProtocol(protocol, false);
+        assertFalse(sender.supportedProtocols(protocol), "should be disabled");
+    }
+
     function testSaveInvestCCIP_sender_setMaxGasLimitUpdatesValue() public {
         _createAndSelectPinnedFork("eth_mainnet");
         (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
@@ -92,6 +132,14 @@ contract SaveInvestCCIPSenderForkTest is Test {
 
         vm.expectRevert();
         sender.sendMessage(SAVE_VAULT, 0, GAS_LIMIT);
+    }
+
+    function testSaveInvestCCIP_sender_sendMessageRevertsWhenProtocolIsNotSupported() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+
+        vm.expectRevert(SaveInvestCCIPSender.SaveInvestCCIPSender__UnsupportedProtocol.selector);
+        sender.sendMessage("PROTOCOL__IF_VAULT", SEND_AMOUNT, GAS_LIMIT);
     }
 
     function testSaveInvestCCIP_sender_sendMessageRevertsWhenAmountIsBelowMinimumDeposit() public {
@@ -310,6 +358,7 @@ contract SaveInvestCCIPSenderForkTest is Test {
 
         sender = SaveInvestCCIPSender(UnsafeUpgrades.deployUUPSProxy(implementation, initData));
         sender.setMaxGasLimit(DEFAULT_MAX_GAS_LIMIT);
+        sender.setSupportedProtocol(SAVE_VAULT, true);
 
         vm.makePersistent(address(router));
         vm.makePersistent(address(link));

@@ -93,6 +93,7 @@ contract SaveInvestCcipCrossChainForkTest is Test {
         sourceToken = ISFUSDCCcipTestnet(ETH_SEPOLIA_SFUSDC);
         sender = _deploySenderProxy(address(this), destinationNetwork.chainSelector, address(receiver));
         sender.setMaxGasLimit(MAX_GAS_LIMIT);
+        sender.setSupportedProtocol(SAVE_VAULT, true);
 
         vm.selectFork(destinationFork);
         receiver.toggleAllowedSender(sourceNetwork.chainSelector, address(sender));
