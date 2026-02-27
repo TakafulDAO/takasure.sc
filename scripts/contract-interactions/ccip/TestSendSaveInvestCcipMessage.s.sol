@@ -23,7 +23,7 @@ contract TestSendSaveInvestCcipMessage is Script, DeployConstants, GetContractAd
     error TestSendSaveInvestCcipMessage__InvalidAmount(uint256 amount);
     uint256 private constant TEST_AMOUNT = 200e6;
     uint256 private constant MIN_AMOUNT = 100e6;
-    uint256 private constant MAX_GAS_LIMIT = 600_000;
+    uint256 private constant MAX_GAS_LIMIT = 1_200_000;
     string private constant DEFAULT_PROTOCOL_NAME = "PROTOCOL__SF_VAULT";
     bytes32 private constant EMPTY_TX_HASH = bytes32(0);
 
@@ -76,7 +76,11 @@ contract TestSendSaveInvestCcipMessage is Script, DeployConstants, GetContractAd
         }
     }
 
-    function _latestTwoTokenCallTxHashes(uint256 chainId) internal view returns (bytes32 mintTxHash_, bytes32 approveTxHash_) {
+    function _latestTwoTokenCallTxHashes(uint256 chainId)
+        internal
+        view
+        returns (bytes32 mintTxHash_, bytes32 approveTxHash_)
+    {
         try vm.getBroadcasts("SFUSDCCcipTestnet", uint64(chainId), VmSafe.BroadcastTxType.Call) returns (
             VmSafe.BroadcastTxSummary[] memory summaries
         ) {

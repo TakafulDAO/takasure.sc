@@ -49,8 +49,9 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     int24 public feeSwapV4PoolTickSpacing;
     address public feeSwapV4PoolHooks;
 
+    uint256 public maxGasLimit;
+
     uint256 public constant MIN_DEPOSIT = 100e6; // 100 USDC (6 decimals)
-    uint256 public constant MAX_GAS_LIMIT = 600_000; // Receiver decode/validation + Vault.deposit path + margin
     uint256 public constant LINK_TOKEN_DECIMALS_FACTOR = 1e18; // LINK uses 18 decimals
     uint256 public constant USDC_TOKEN_DECIMALS_FACTOR = 1e6; // USDC uses 6 decimals
     IPermit2AllowanceTransfer private constant PERMIT2 =
@@ -91,6 +92,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     //////////////////////////////////////////////////////////////*/
 
     event OnReceiverContractSet(address oldReceiverContract, address newReceiverContract);
+    event OnMaxGasLimitSet(uint256 oldMaxGasLimit, uint256 newMaxGasLimit);
     event OnUserPaysCCIPFeeToggled(bool enabled);
     event OnFeePaymentInfraSet(address universalRouter, address linkUsdPriceFeed, address usdcUsdPriceFeed);
     event OnFeeSwapV4PoolConfigSet(uint24 fee, int24 tickSpacing, address hooks);
@@ -101,6 +103,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     );
 
     error SaveInvestCCIPSender__AddressZeroNotAllowed();
+    error SaveInvestCCIPSender__GasLimitOutOfRange();
     error SaveInvestCCIPSender__ZeroTransferNotAllowed();
     error SaveInvestCCIPSender__AmountBelowMinimum(uint256 amount, uint256 minimum);
     error SaveInvestCCIPSender__GasLimitTooHigh(uint256 gasLimit, uint256 maxGasLimit);
@@ -173,6 +176,15 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
                                 SETTINGS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Set the maximum gas limit for destination execution.
+    function setMaxGasLimit(uint256 _maxGasLimit) external onlyOwner {
+        require(_maxGasLimit >= 21_000 && _maxGasLimit <= 32_000_000, SaveInvestCCIPSender__GasLimitOutOfRange());
+        uint256 oldMaxGasLimit = maxGasLimit;
+        maxGasLimit = _maxGasLimit;
+
+        emit OnMaxGasLimitSet(oldMaxGasLimit, maxGasLimit);
+    }
+
     /**
      * @notice Set the address of the receiver contract.
      * @dev Destination must be the CCIP receiver; that receiver routes to vaults by protocol name.
@@ -244,7 +256,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
      * @dev Caps user-provided gasLimit to reduce LINK-fee griefing via oversized destination execution limits.
      * @param protocolName The protocol name to resolve in destination chain AddressManager.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
-     * @param gasLimit gas allowed by the user for destination execution, capped by `MAX_GAS_LIMIT`.
+     * @param gasLimit gas allowed by the user for destination execution, capped by `maxGasLimit`.
      * @return messageId The ID of the message that was sent.
      * @custom:invariant On success, message always encodes protocol name + `deposit(uint256,address)` call data.
      * @custom:invariant On success, both LINK and underlying router allowances are reset to zero at the end of execution.
@@ -280,7 +292,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
      * @dev Returns both the LINK fee quoted by the CCIP router and the USDC equivalent based on Chainlink USD feeds.
      * @param protocolName The protocol name to resolve in destination chain AddressManager.
      * @param amountToTransfer token amount to transfer to the receiver contract in the destination chain.
-     * @param gasLimit gas allowed by the caller for destination execution, capped by `MAX_GAS_LIMIT`.
+     * @param gasLimit gas allowed by the caller for destination execution, capped by `maxGasLimit`.
      * @return linkAmount LINK fee quoted by the CCIP router.
      * @return usdcAmount USDC amount required to reimburse `linkAmount` at current feed prices.
      */
@@ -482,12 +494,12 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         });
     }
 
-    function _validateSendMessageInputs(uint256 amountToTransfer, uint256 gasLimit) internal pure {
+    function _validateSendMessageInputs(uint256 amountToTransfer, uint256 gasLimit) internal view {
         require(amountToTransfer > 0, SaveInvestCCIPSender__ZeroTransferNotAllowed());
         require(
             amountToTransfer >= MIN_DEPOSIT, SaveInvestCCIPSender__AmountBelowMinimum(amountToTransfer, MIN_DEPOSIT)
         );
-        require(gasLimit <= MAX_GAS_LIMIT, SaveInvestCCIPSender__GasLimitTooHigh(gasLimit, MAX_GAS_LIMIT));
+        require(gasLimit <= maxGasLimit, SaveInvestCCIPSender__GasLimitTooHigh(gasLimit, maxGasLimit));
     }
 
     function _quoteUsdcForLinkAmount(uint256 _linkAmount) internal view returns (uint256 usdcAmount_) {

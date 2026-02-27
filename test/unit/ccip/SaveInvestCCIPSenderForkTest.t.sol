@@ -10,8 +10,9 @@ import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator
 contract SaveInvestCCIPSenderForkTest is Test {
     uint256 private constant SAFE_BLOCK_LAG = 128;
     uint64 private constant DEST_CHAIN_SELECTOR = 4_949_039_107_694_359_620; // Arbitrum One
-    uint256 private constant GAS_LIMIT = 300_000;
+    uint256 private constant GAS_LIMIT = 1_200_000;
     uint256 private constant SEND_AMOUNT = 125e6; // 125 USDC (6 decimals)
+    uint256 private constant DEFAULT_MAX_GAS_LIMIT = 1_200_000;
     uint256 private constant LINK_FEE = 1e18; // 1 LINK
     int256 private constant LINK_USD_PRICE = 20e8; // $20, 8 decimals
     int256 private constant USDC_USD_PRICE = 1e8; // $1, 8 decimals
@@ -68,6 +69,23 @@ contract SaveInvestCCIPSenderForkTest is Test {
         sender.setReceiverContract(address(0));
     }
 
+    function testSaveInvestCCIP_sender_setMaxGasLimitUpdatesValue() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+
+        uint256 newMaxGasLimit = 2_000_000;
+        sender.setMaxGasLimit(newMaxGasLimit);
+        assertEq(sender.maxGasLimit(), newMaxGasLimit, "maxGasLimit should be updated");
+    }
+
+    function testSaveInvestCCIP_sender_setMaxGasLimitRevertsWhenOutOfRange() public {
+        _createAndSelectPinnedFork("eth_mainnet");
+        (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
+
+        vm.expectRevert(SaveInvestCCIPSender.SaveInvestCCIPSender__GasLimitOutOfRange.selector);
+        sender.setMaxGasLimit(20_000);
+    }
+
     function testSaveInvestCCIP_sender_sendMessageRevertsForZeroAmount() public {
         _createAndSelectPinnedFork("eth_mainnet");
         (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
@@ -88,13 +106,13 @@ contract SaveInvestCCIPSenderForkTest is Test {
         _createAndSelectPinnedFork("eth_mainnet");
         (SaveInvestCCIPSender sender,,,) = _deploySenderFixture();
 
-        uint256 gasLimitTooHigh = sender.MAX_GAS_LIMIT() + 1;
+        uint256 gasLimitTooHigh = sender.maxGasLimit() + 1;
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 SaveInvestCCIPSender.SaveInvestCCIPSender__GasLimitTooHigh.selector,
                 gasLimitTooHigh,
-                sender.MAX_GAS_LIMIT()
+                sender.maxGasLimit()
             )
         );
         sender.sendMessage(SAVE_VAULT, SEND_AMOUNT, gasLimitTooHigh);
@@ -291,6 +309,7 @@ contract SaveInvestCCIPSenderForkTest is Test {
         );
 
         sender = SaveInvestCCIPSender(UnsafeUpgrades.deployUUPSProxy(implementation, initData));
+        sender.setMaxGasLimit(DEFAULT_MAX_GAS_LIMIT);
 
         vm.makePersistent(address(router));
         vm.makePersistent(address(link));
