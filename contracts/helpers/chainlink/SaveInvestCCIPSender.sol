@@ -28,6 +28,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/SaveInvestCCIPSenderV1.sol:SaveInvestCCIPSenderV1
 contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -140,6 +141,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
                              INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }

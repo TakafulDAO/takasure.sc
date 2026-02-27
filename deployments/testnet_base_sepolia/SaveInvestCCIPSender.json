@@ -8,7 +8,46 @@
     },
     {
       "type": "function",
-      "name": "MAX_GAS_LIMIT",
+      "name": "BPS_DENOMINATOR",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "FEE_SWAP_DEADLINE_WINDOW",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "FEE_SWAP_MIN_OUT_BPS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "LINK_TOKEN_DECIMALS_FACTOR",
       "inputs": [],
       "outputs": [
         {
@@ -47,6 +86,19 @@
     },
     {
       "type": "function",
+      "name": "USDC_TOKEN_DECIMALS_FACTOR",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
       "name": "acceptOwnership",
       "inputs": [],
       "outputs": [],
@@ -61,6 +113,45 @@
           "name": "",
           "type": "uint64",
           "internalType": "uint64"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "feeSwapV4PoolFee",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint24",
+          "internalType": "uint24"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "feeSwapV4PoolHooks",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "feeSwapV4PoolTickSpacing",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "int24",
+          "internalType": "int24"
         }
       ],
       "stateMutability": "view"
@@ -105,6 +196,32 @@
     },
     {
       "type": "function",
+      "name": "isUserPayingCCIPFee",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "maxGasLimit",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
       "name": "owner",
       "inputs": [],
       "outputs": [
@@ -125,6 +242,40 @@
           "name": "",
           "type": "address",
           "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "previewCCIPFee",
+      "inputs": [
+        {
+          "name": "protocolName",
+          "type": "string",
+          "internalType": "string"
+        },
+        {
+          "name": "amountToTransfer",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "gasLimit",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "linkAmount",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "usdcAmount",
+          "type": "uint256",
+          "internalType": "uint256"
         }
       ],
       "stateMutability": "view"
@@ -193,6 +344,65 @@
     },
     {
       "type": "function",
+      "name": "setFeePaymentInfrastructure",
+      "inputs": [
+        {
+          "name": "_universalRouter",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_linkUsdPriceFeed",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_usdcUsdPriceFeed",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "setFeeSwapV4PoolConfig",
+      "inputs": [
+        {
+          "name": "_fee",
+          "type": "uint24",
+          "internalType": "uint24"
+        },
+        {
+          "name": "_tickSpacing",
+          "type": "int24",
+          "internalType": "int24"
+        },
+        {
+          "name": "_hooks",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "setMaxGasLimit",
+      "inputs": [
+        {
+          "name": "_maxGasLimit",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
       "name": "setReceiverContract",
       "inputs": [
         {
@@ -201,6 +411,63 @@
           "internalType": "address"
         }
       ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "setSupportedProtocol",
+      "inputs": [
+        {
+          "name": "protocolName",
+          "type": "string",
+          "internalType": "string"
+        },
+        {
+          "name": "isSupported",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "supportedProtocols",
+      "inputs": [
+        {
+          "name": "protocolName",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "swapAllCollectedUsdcToLink",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "linkAmountOut",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "toggleUserPaysCCIPFee",
+      "inputs": [],
       "outputs": [],
       "stateMutability": "nonpayable"
     },
@@ -263,6 +530,119 @@
     },
     {
       "type": "event",
+      "name": "OnCCIPFeeCollectedInUnderlying",
+      "inputs": [
+        {
+          "name": "user",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "linkFeeAmount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "usdcFeeAmount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "OnCollectedUsdcSwappedToLink",
+      "inputs": [
+        {
+          "name": "usdcAmountIn",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "linkAmountOut",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "OnFeePaymentInfraSet",
+      "inputs": [
+        {
+          "name": "universalRouter",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "linkUsdPriceFeed",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "usdcUsdPriceFeed",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "OnFeeSwapV4PoolConfigSet",
+      "inputs": [
+        {
+          "name": "fee",
+          "type": "uint24",
+          "indexed": false,
+          "internalType": "uint24"
+        },
+        {
+          "name": "tickSpacing",
+          "type": "int24",
+          "indexed": false,
+          "internalType": "int24"
+        },
+        {
+          "name": "hooks",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "OnMaxGasLimitSet",
+      "inputs": [
+        {
+          "name": "oldMaxGasLimit",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "newMaxGasLimit",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
       "name": "OnReceiverContractSet",
       "inputs": [
         {
@@ -276,6 +656,25 @@
           "type": "address",
           "indexed": false,
           "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "OnSupportedProtocolSet",
+      "inputs": [
+        {
+          "name": "protocolName",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        },
+        {
+          "name": "isSupported",
+          "type": "bool",
+          "indexed": false,
+          "internalType": "bool"
         }
       ],
       "anonymous": false
@@ -307,6 +706,19 @@
           "type": "address",
           "indexed": false,
           "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "OnUserPaysCCIPFeeToggled",
+      "inputs": [
+        {
+          "name": "enabled",
+          "type": "bool",
+          "indexed": false,
+          "internalType": "bool"
         }
       ],
       "anonymous": false
@@ -460,6 +872,43 @@
     },
     {
       "type": "error",
+      "name": "SaveInvestCCIPSender__AmountTooLargeForV4",
+      "inputs": [
+        {
+          "name": "amount",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "SaveInvestCCIPSender__CollectedUsdcNotFullySwapped",
+      "inputs": [
+        {
+          "name": "remainingUsdc",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "SaveInvestCCIPSender__FeePaymentInfraNotConfigured",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "SaveInvestCCIPSender__FeeSwapV4PoolNotConfigured",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "SaveInvestCCIPSender__GasLimitOutOfRange",
+      "inputs": []
+    },
+    {
+      "type": "error",
       "name": "SaveInvestCCIPSender__GasLimitTooHigh",
       "inputs": [
         {
@@ -473,6 +922,32 @@
           "internalType": "uint256"
         }
       ]
+    },
+    {
+      "type": "error",
+      "name": "SaveInvestCCIPSender__InvalidFeeSwapV4PoolConfig",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "SaveInvestCCIPSender__InvalidPriceFeedAnswer",
+      "inputs": [
+        {
+          "name": "feed",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "answer",
+          "type": "int256",
+          "internalType": "int256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "SaveInvestCCIPSender__InvalidProtocolNameLength",
+      "inputs": []
     },
     {
       "type": "error",
@@ -492,7 +967,28 @@
     },
     {
       "type": "error",
+      "name": "SaveInvestCCIPSender__NothingToSwap",
+      "inputs": []
+    },
+    {
+      "type": "error",
       "name": "SaveInvestCCIPSender__NothingToWithdraw",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "SaveInvestCCIPSender__PriceFeedRoundIncomplete",
+      "inputs": [
+        {
+          "name": "feed",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "SaveInvestCCIPSender__UnsupportedProtocol",
       "inputs": []
     },
     {
