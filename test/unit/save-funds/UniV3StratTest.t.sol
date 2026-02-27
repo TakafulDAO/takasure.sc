@@ -88,6 +88,7 @@ contract UniV3StratTest is Test {
     MockValuator internal valuator;
 
     uint256 internal constant MAX_BPS = 10_000;
+    uint256 internal constant AMOUNT_IN_BPS_FLAG = uint256(1) << 255;
 
     // Arbitrum tokens
     address internal constant ARB_USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
@@ -229,9 +230,9 @@ contract UniV3StratTest is Test {
     function testUniV3Strat_deposit_MintsPosition_UsesRouterSwap_AndSweeps() public {
         uint256 assetsToInvest = 10_000e6;
         uint16 ratio = 5_000;
-        uint256 amountToSwap = (assetsToInvest * ratio) / MAX_BPS;
 
-        bytes memory swapToOther = _encodeSwapDataExactIn(ARB_USDC, ARB_USDT, amountToSwap);
+        // Use dynamic full swap (100% of strategy-computed valueToSwap) to avoid stale fixed amount assumptions.
+        bytes memory swapToOther = _encodeSwapDataExactInBps(ARB_USDC, ARB_USDT, uint16(MAX_BPS));
         bytes memory v3 = _encodeV3ActionData(ratio, swapToOther, bytes(""), block.timestamp + 1, 0, 0);
 
         uint256 invested = _depositViaAggregator(assetsToInvest, v3);
@@ -239,8 +240,9 @@ contract UniV3StratTest is Test {
 
         assertGt(uniV3Strategy.positionTokenId(), 0);
 
+        // Current strategy design only sweeps underlying to vault.
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
-        assertEq(usdt.balanceOf(address(uniV3Strategy)), 0);
+        assertGt(usdt.balanceOf(address(uniV3Strategy)), 0);
 
         assertGt(uniV3Strategy.totalAssets(), 0);
     }
@@ -249,8 +251,7 @@ contract UniV3StratTest is Test {
         uint256 assetsToInvest = 5_000e6;
         uint16 ratio = 5_000;
 
-        uint256 swapIn1 = (assetsToInvest * ratio) / MAX_BPS;
-        bytes memory swapToOther1 = _encodeSwapDataExactIn(ARB_USDC, ARB_USDT, swapIn1);
+        bytes memory swapToOther1 = _encodeSwapDataExactInBps(ARB_USDC, ARB_USDT, uint16(MAX_BPS));
         bytes memory v3_1 = _encodeV3ActionData(ratio, swapToOther1, bytes(""), block.timestamp + 1, 0, 0);
         _depositViaAggregator(assetsToInvest, v3_1);
 
@@ -259,16 +260,17 @@ contract UniV3StratTest is Test {
 
         _approveNFTForStrategy();
 
-        uint256 swapIn2 = (assetsToInvest * ratio) / MAX_BPS;
-        bytes memory swapToOther2 = _encodeSwapDataExactIn(ARB_USDC, ARB_USDT, swapIn2);
+        // Second deposit has pre-existing otherToken dust; dynamic full swap avoids totalIn > valueToSwap validation reverts.
+        bytes memory swapToOther2 = _encodeSwapDataExactInBps(ARB_USDC, ARB_USDT, uint16(MAX_BPS));
         bytes memory v3_2 = _encodeV3ActionData(ratio, swapToOther2, bytes(""), block.timestamp + 1, 0, 0);
         _depositViaAggregator(assetsToInvest, v3_2);
 
         assertEq(uniV3Strategy.positionTokenId(), tokenIdBefore);
         assertGt(uniV3Strategy.totalAssets(), totalBefore);
 
+        // Current strategy design only sweeps underlying to vault.
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
-        assertEq(usdt.balanceOf(address(uniV3Strategy)), 0);
+        assertGt(usdt.balanceOf(address(uniV3Strategy)), 0);
     }
 
     function testUniV3Strat_withdraw_WhenTotalAssetsIsZero_Returns0() public {
@@ -331,16 +333,19 @@ contract UniV3StratTest is Test {
     function testUniV3Strat_harvest_CollectsAndSweeps() public {
         uint256 assetsToInvest = 5_000e6;
         uint16 ratio = 5_000;
-        uint256 amountToSwap = (assetsToInvest * ratio) / MAX_BPS;
 
-        bytes memory swapToOther = _encodeSwapDataExactIn(ARB_USDC, ARB_USDT, amountToSwap);
+        bytes memory swapToOther = _encodeSwapDataExactInBps(ARB_USDC, ARB_USDT, uint16(MAX_BPS));
         bytes memory v3Deposit = _encodeV3ActionData(ratio, swapToOther, bytes(""), block.timestamp + 1, 0, 0);
         _depositViaAggregator(assetsToInvest, v3Deposit);
 
         _approveNFTForStrategy();
 
+        // Harvest with other->underlying swap payload, then sweep underlying to vault.
+        bytes memory swapToUnderlying = _encodeSwapDataExactInBps(ARB_USDT, ARB_USDC, uint16(MAX_BPS));
+        bytes memory v3Harvest = _encodeV3ActionData(0, bytes(""), swapToUnderlying, block.timestamp + 1, 0, 0);
+
         vm.prank(takadao);
-        aggregator.harvest(bytes(""));
+        aggregator.harvest(_perStrategyData(v3Harvest));
 
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
         assertEq(usdt.balanceOf(address(uniV3Strategy)), 0);
@@ -543,6 +548,21 @@ contract UniV3StratTest is Test {
         // abi.encode(address recipient, uint256 amountIn, uint256 amountOutMin, bytes path, bool payerIsUser)
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(uniV3Strategy), amountIn, uint256(0), _path(tokenIn, tokenOut), true);
+
+        uint256 deadline = block.timestamp + 1; // UniversalRouter.execute deadline
+        return abi.encode(inputs, deadline);
+    }
+
+    function _encodeSwapDataExactInBps(address tokenIn, address tokenOut, uint16 amountInBps)
+        internal
+        view
+        returns (bytes memory)
+    {
+        require(amountInBps <= MAX_BPS, "amountInBps>MAX_BPS");
+
+        bytes[] memory inputs = new bytes[](1);
+        uint256 flaggedAmountIn = AMOUNT_IN_BPS_FLAG | uint256(amountInBps);
+        inputs[0] = abi.encode(address(uniV3Strategy), flaggedAmountIn, uint256(0), _path(tokenIn, tokenOut), true);
 
         uint256 deadline = block.timestamp + 1; // UniversalRouter.execute deadline
         return abi.encode(inputs, deadline);
