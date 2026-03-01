@@ -3,13 +3,13 @@ Builds calldata for:
   SFStrategyAggregator.setDefaultWithdrawPayload(strategy, payload)
 
 Example:
-  node scripts/save-funds/buildDefaultWithdrawPayload.js \
+  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \
     --recipient 0xStrategy \
     --tokenIn 0xUSDT --tokenOut 0xUSDC --fee 500 \
     --bps 10000
 
 Example (raw payload):
-  node scripts/save-funds/buildDefaultWithdrawPayload.js \
+  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \
     --strategy 0xStrategy \
     --payload 0xdeadbeef
 
@@ -70,25 +70,25 @@ async function main() {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildDefaultWithdrawPayload.js --recipient <strategy> --tokenIn <USDT> --tokenOut <USDC> --fee <poolFee> --bps <0..10000> [--chain <arb-one|arb-sepolia>]",
-                "  node scripts/save-funds/buildDefaultWithdrawPayload.js --strategy <strategy|uniV3> --payload <0x...> [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js --recipient <strategy> --tokenIn <USDT> --tokenOut <USDC> --fee <poolFee> --bps <0..10000> [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js --strategy <strategy|uniV3> --payload <0x...> [--chain <arb-one|arb-sepolia>]",
                 "",
                 "",
                 "Examples:",
-                "  node scripts/save-funds/buildDefaultWithdrawPayload.js \\",
+                "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \\",
                 "    --recipient <STRATEGY_ADDRESS> \\",
                 "    --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> \\",
                 "    --bps 10000",
-                "  node scripts/save-funds/buildDefaultWithdrawPayload.js \\",
+                "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \\",
                 "    --recipient <STRATEGY_ADDRESS> \\",
                 "    --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> \\",
                 "    --bps 5000",
-                "  node scripts/save-funds/buildDefaultWithdrawPayload.js \\",
+                "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \\",
                 "    --recipient <STRATEGY_ADDRESS> \\",
                 "    --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> \\",
                 "    --bps 10000 --deadline 1700000000 --pmDeadline 1700000000 \\",
                 "    --minUnderlying 1000 --minOther 0",
-                "  node scripts/save-funds/buildDefaultWithdrawPayload.js \\",
+                "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \\",
                 "    --recipient <STRATEGY_ADDRESS_USED_IN_SWAP_INPUT> \\",
                 "    --strategy <AGGREGATOR_STRATEGY_ARG> \\",
                 "    --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> \\",
@@ -293,26 +293,26 @@ main().catch((err) => {
 Example commands:
 
 1) Default withdraw payload (swap 100% otherToken -> underlying)
-   node scripts/save-funds/buildDefaultWithdrawPayload.js ^
+   node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js ^
      --recipient <STRATEGY_ADDRESS> ^
      --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> ^
      --bps 10000
 
 2) Swap 50% of the amount (BPS sentinel)
-   node scripts/save-funds/buildDefaultWithdrawPayload.js ^
+   node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js ^
      --recipient <STRATEGY_ADDRESS> ^
      --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> ^
      --bps 5000
 
 3) Set explicit deadlines and min-out constraints
-   node scripts/save-funds/buildDefaultWithdrawPayload.js ^
+   node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js ^
      --recipient <STRATEGY_ADDRESS> ^
      --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> ^
      --bps 10000 --deadline 1700000000 --pmDeadline 1700000000 ^
      --minUnderlying 1000 --minOther 0
 
 4) Build calldata for a different strategy address
-   node scripts/save-funds/buildDefaultWithdrawPayload.js ^
+   node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js ^
      --recipient <STRATEGY_ADDRESS_USED_IN_SWAP_INPUT> ^
      --strategy <AGGREGATOR_STRATEGY_ARG> ^
      --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> ^

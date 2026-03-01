@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {SaveFundsAutomationRunner} from "scripts/save-funds-interaction/SaveFundsAutomationRunner.sol";
+import {SaveFundsAutomationRunner} from "scripts/save-funds/interactions/SaveFundsAutomationRunner.sol";
 
 contract DeploySaveFundsAutomationRunner is Script {
     function run() external returns (address saveFundsAutomationRunner) {

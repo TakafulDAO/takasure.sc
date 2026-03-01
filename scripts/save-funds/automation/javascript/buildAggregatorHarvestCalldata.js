@@ -6,22 +6,22 @@ You can provide:
   - --strategies with human-readable UniV3 action data (payload applied to all).
 
 Example (bundle, empty payloads):
-  node scripts/save-funds/buildAggregatorHarvestCalldata.js \
+  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \
     --strategies 0xStrat1,0xStrat2
 
 Example (bundle, explicit payloads):
-  node scripts/save-funds/buildAggregatorHarvestCalldata.js \
+  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \
     --strategies 0xStrat1,0xStrat2 \
     --payloads 0xdeadbeef,0x
 
 Example (human-readable UniV3 action data):
-  node scripts/save-funds/buildAggregatorHarvestCalldata.js \
+  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \
     --strategies 0xStrat1 \
     --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 10000 \
     --pmDeadline 0
 
 Example (raw data / harvest all active):
-  node scripts/save-funds/buildAggregatorHarvestCalldata.js --data 0x
+  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js --data 0x
 
 Output:
   data: 0x...
@@ -162,25 +162,25 @@ async function main() {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --strategies <a,b> [--payloads <p1,p2>] [--chain <arb-one|arb-sepolia>]",
-                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --strategies <addr|uniV3> --otherRatioBps <bps> \\",
+                "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js --strategies <a,b> [--payloads <p1,p2>] [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js --strategies <addr|uniV3> --otherRatioBps <bps> \\",
                 "    --swapToOtherTokenIn <addr> --swapToOtherTokenOut <addr> --swapToOtherFee <fee> --swapToOtherBps <bps> \\",
                 "    --swapToUnderlyingTokenIn <addr> --swapToUnderlyingTokenOut <addr> --swapToUnderlyingFee <fee> --swapToUnderlyingBps <bps> \\",
                 "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
                 "  (Or provide raw: --swapToOtherData <0x> --swapToUnderlyingData <0x>)",
-                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --data <0x...>",
+                "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js --data <0x...>",
                 "",
                 "Examples:",
-                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \\",
                 "    --strategies 0xStrat1,0xStrat2",
-                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \\",
                 "    --strategies 0xStrat1,0xStrat2 \\",
                 "    --payloads 0xdeadbeef,0x",
-                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \\",
                 "    --strategies uniV3 --chain arb-one \\",
                 "    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 10000 \\",
                 "    --pmDeadline 0",
-                "  node scripts/save-funds/buildAggregatorHarvestCalldata.js --data 0x",
+                "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js --data 0x",
                 "",
                 "Flags",
                 "  --chain <arb-one|arb-sepolia>      Optional chain shortcut for token/strategy defaults.",

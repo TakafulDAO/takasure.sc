@@ -172,7 +172,7 @@ deploy-simulations:
 	@forge script scripts/simulations/save-fund-sims/DeploySFSystemArbVNet.s.sol:DeploySFSystemArbVNet $(NETWORK_ARGS)
 
 deploy-chainlink-upkeep:
-	@forge script scripts/save-funds-interaction/DeploySaveFundsAutomationRunner.s.sol:DeploySaveFundsAutomationRunner $(NETWORK_ARGS)
+	@forge script scripts/save-funds/interactions/DeploySaveFundsAutomationRunner.s.sol:DeploySaveFundsAutomationRunner $(NETWORK_ARGS)
 
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 

@@ -11,8 +11,8 @@ Notes:
   - The estimate includes current strategy token balances plus incoming --assets (same flow as strategy.deposit()).
 
 Examples:
-  node scripts/save-funds/estimateVaultInvestParams.js --assets 300000000
-  node scripts/save-funds/estimateVaultInvestParams.js --assets full --chain arb-one --strategies uniV3
+  node scripts/save-funds/automation/javascript/estimateVaultInvestParams.js --assets 300000000
+  node scripts/save-funds/automation/javascript/estimateVaultInvestParams.js --assets full --chain arb-one --strategies uniV3
 */
 require("dotenv").config()
 const { BigNumber, Contract, providers, utils } = require("ethers")
@@ -251,7 +251,7 @@ async function main() {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/estimateVaultInvestParams.js --assets <uint|full|max|all> [--strategies <addr|uniV3>] [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/automation/javascript/estimateVaultInvestParams.js --assets <uint|full|max|all> [--strategies <addr|uniV3>] [--chain <arb-one|arb-sepolia>]",
                 "",
                 "Flags:",
                 "  --assets <uint|full|max|all>   Incoming underlying amount to estimate.",

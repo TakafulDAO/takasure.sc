@@ -500,8 +500,8 @@ main().catch((e) => {
 })
 
 /*
-  node scripts/save-funds-interaction/ops_runner.js --invest 0 --noRebalance --noHarvest --skipApproval
-  node scripts/save-funds-interaction/ops_runner.js --invest 2000
-  node scripts/save-funds-interaction/ops_runner.js --invest 2000 --force
-  node scripts/save-funds-interaction/ops_runner.js --invest 2000 --staticGas 25000000
+  node scripts/save-funds/interactions/ops_runner.js --invest 0 --noRebalance --noHarvest --skipApproval
+  node scripts/save-funds/interactions/ops_runner.js --invest 2000
+  node scripts/save-funds/interactions/ops_runner.js --invest 2000 --force
+  node scripts/save-funds/interactions/ops_runner.js --invest 2000 --staticGas 25000000
 */

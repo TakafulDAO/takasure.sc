@@ -2,13 +2,13 @@
 Builds calldata for SFVault.investIntoStrategy(assets, strategies, payloads).
 
 Example:
-  node scripts/save-funds/buildVaultInvestCalldata.js \
+  node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \
     --assets 1000000 \
     --strategies 0xStrat1,0xStrat2 \
     --payloads 0xdeadbeef,0x
 
 Example (human-readable UniV3 action data, same payload for all strategies):
-  node scripts/save-funds/buildVaultInvestCalldata.js \
+  node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \
     --assets 1000000 \
     --strategies 0xStrat1 \
     --otherRatioBps 5000 \
@@ -580,25 +580,25 @@ async function main() {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildVaultInvestCalldata.js --assets <uint|full|max|all> [--strategies <addr1,addr2>] [--payloads <0x...,0x...>] [--chain <arb-one|arb-sepolia>]",
-                "  node scripts/save-funds/buildVaultInvestCalldata.js --assets <uint|full|max|all> [--strategies <addr|uniV3>] --otherRatioBps <bps|auto> \\",
+                "  node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js --assets <uint|full|max|all> [--strategies <addr1,addr2>] [--payloads <0x...,0x...>] [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js --assets <uint|full|max|all> [--strategies <addr|uniV3>] --otherRatioBps <bps|auto> \\",
                 "    --swapToOtherTokenIn <addr> --swapToOtherTokenOut <addr> --swapToOtherFee <fee> --swapToOtherBps <bps> \\",
                 "    --swapToUnderlyingTokenIn <addr> --swapToUnderlyingTokenOut <addr> --swapToUnderlyingFee <fee> --swapToUnderlyingBps <bps> \\",
                 "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
                 "",
                 "Examples:",
-                "  node scripts/save-funds/buildVaultInvestCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \\",
                 "    --assets 1000000 \\",
                 "    --strategies 0xStrat1,0xStrat2 \\",
                 "    --payloads 0xdeadbeef,0x",
-                "  node scripts/save-funds/buildVaultInvestCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \\",
                 "    --assets 1000000 \\",
                 "    --strategies uniV3 --chain arb-one \\",
                 "    --otherRatioBps 5000 \\",
                 "    --swapToOtherBps 5000 \\",
                 "    --swapToUnderlyingBps 5000 \\",
                 "    --pmDeadline 0",
-                "  node scripts/save-funds/buildVaultInvestCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \\",
                 "    --assets full",
                 "",
                 "Flags",
@@ -832,7 +832,7 @@ main().catch((err) => {
 })
 
 /*
-node scripts/save-funds/buildVaultInvestCalldata.js \
+node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \
   --chain arb-one \
   --assets 300000000 \
   --strategies uniV3 \
@@ -849,7 +849,7 @@ node scripts/save-funds/buildVaultInvestCalldata.js \
 
 ===========================================================================
 
-node scripts/save-funds/buildVaultInvestCalldata.js \
+node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \
   --assets full \
   --otherRatioBps auto \
   --swapToOtherBps 10000 \
@@ -858,7 +858,7 @@ node scripts/save-funds/buildVaultInvestCalldata.js \
   --simulateTenderly \
   --sendToSafe
 
-  node scripts/save-funds/buildVaultInvestCalldata.js \
+  node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \
   --chain arb-one \
   --assets 300000000 \
   --strategies uniV3 \

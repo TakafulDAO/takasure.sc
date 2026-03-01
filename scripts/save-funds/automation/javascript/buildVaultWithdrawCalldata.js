@@ -2,13 +2,13 @@
 Builds calldata for SFVault.withdrawFromStrategy(assets, strategies, payloads).
 
 Example:
-  node scripts/save-funds/buildVaultWithdrawCalldata.js \
+  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js \
     --assets 1000000 \
     --strategies 0xStrat1 \
     --payloads 0xdeadbeef
 
 Example (human-readable UniV3 action data, same payload for all strategies):
-  node scripts/save-funds/buildVaultWithdrawCalldata.js \
+  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js \
     --assets 1000000 \
     --strategies 0xStrat1 \
     --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 10000 \
@@ -167,18 +167,18 @@ async function main() {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildVaultWithdrawCalldata.js --assets <uint> --strategies <addr1,addr2> [--payloads <0x...,0x...>] [--chain <arb-one|arb-sepolia>]",
-                "  node scripts/save-funds/buildVaultWithdrawCalldata.js --assets <uint> --strategies <addr|uniV3> --otherRatioBps <bps> \\",
+                "  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js --assets <uint> --strategies <addr1,addr2> [--payloads <0x...,0x...>] [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js --assets <uint> --strategies <addr|uniV3> --otherRatioBps <bps> \\",
                 "    --swapToOtherTokenIn <addr> --swapToOtherTokenOut <addr> --swapToOtherFee <fee> --swapToOtherBps <bps> \\",
                 "    --swapToUnderlyingTokenIn <addr> --swapToUnderlyingTokenOut <addr> --swapToUnderlyingFee <fee> --swapToUnderlyingBps <bps> \\",
                 "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
                 "",
                 "Examples:",
-                "  node scripts/save-funds/buildVaultWithdrawCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js \\",
                 "    --assets 1000000 \\",
                 "    --strategies 0xStrat1 \\",
                 "    --payloads 0xdeadbeef",
-                "  node scripts/save-funds/buildVaultWithdrawCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js \\",
                 "    --assets 1000000 \\",
                 "    --strategies uniV3 --chain arb-one \\",
                 "    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 10000 \\",

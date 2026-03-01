@@ -3,7 +3,7 @@ Builds calldata for SFStrategyAggregator.setConfig(newConfig),
 where newConfig = abi.encode(address[] strategies, uint16[] weightsBps, bool[] actives).
 
 Example:
-  node scripts/save-funds/buildAggregatorSetConfigCalldata.js \
+  node scripts/save-funds/automation/javascript/buildAggregatorSetConfigCalldata.js \
     --strategies 0xStrat1,0xStrat2 \
     --weights 7000,3000 \
     --actives true,true
@@ -70,10 +70,10 @@ async function main() {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildAggregatorSetConfigCalldata.js --strategies <a,b> --weights <w1,w2> --actives <t1,t2> [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/automation/javascript/buildAggregatorSetConfigCalldata.js --strategies <a,b> --weights <w1,w2> --actives <t1,t2> [--chain <arb-one|arb-sepolia>]",
                 "",
                 "Examples:",
-                "  node scripts/save-funds/buildAggregatorSetConfigCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildAggregatorSetConfigCalldata.js \\",
                 "    --strategies 0xStrat1,0xStrat2 \\",
                 "    --weights 7000,3000 \\",
                 "    --actives true,true",
