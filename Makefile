@@ -174,6 +174,9 @@ deploy-simulations:
 deploy-chainlink-upkeep:
 	@forge script scripts/save-funds/interactions/DeploySaveFundsAutomationRunner.s.sol:DeploySaveFundsAutomationRunner $(NETWORK_ARGS)
 
+deploy-chainlink-invest-upkeep:
+	@forge script deploy/ccipAutomation/DeploySaveFundsInvestAutomationRunner.s.sol:DeploySaveFundsInvestAutomationRunner $(NETWORK_ARGS)
+
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)
