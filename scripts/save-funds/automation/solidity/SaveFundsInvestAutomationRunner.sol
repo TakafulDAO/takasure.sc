@@ -15,11 +15,14 @@
 
 pragma solidity 0.8.28;
 
-import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {
+    Ownable2StepUpgradeable,
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
@@ -34,19 +37,19 @@ import {
     ISFAggregatorAutomationView
 } from "scripts/save-funds/automation/solidity/interfaces/ISFAggregatorAutomationView.sol";
 
-contract SaveFundsInvestAutomationRunner is Ownable2Step, Pausable {
+contract SaveFundsInvestAutomationRunner is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgradeable {
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
     uint256 internal constant DAILY_INTERVAL = 24 hours;
 
-    IAddressManager public immutable addressManager;
-    ISFVaultAutomation public immutable vault;
-    address public immutable aggregator;
-    address public immutable uniStrategy;
-    IUniswapV3Pool public immutable pool;
-    address public immutable underlyingToken;
-    address public immutable otherToken;
-    bool public immutable otherIsToken0;
+    IAddressManager public addressManager;
+    ISFVaultAutomation public vault;
+    address public aggregator;
+    address public uniStrategy;
+    IUniswapV3Pool public pool;
+    address public underlyingToken;
+    address public otherToken;
+    bool public otherIsToken0;
 
     uint256 public interval;
     uint256 public lastRun;
@@ -79,18 +82,35 @@ contract SaveFundsInvestAutomationRunner is Ownable2Step, Pausable {
     error SaveFundsInvestAutomationRunner__BadPoolConfig();
     error SaveFundsInvestAutomationRunner__BadStrategyConfig();
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
+     * @notice Initializes the runner.
+     * @param _vault SFVault address.
+     * @param _aggregator SFStrategyAggregator address.
+     * @param _uniStrategy SFUniswapV3Strategy address.
+     * @param _addressManager AddressManager address.
      * @param _intervalSeconds Upkeep interval in seconds (0 for default 24h).
      * @param _minIdleAssets Minimum idle assets required to attempt investment.
+     * @param _owner Initial owner for access control.
      */
-    constructor(
+    function initialize(
         address _vault,
         address _aggregator,
         address _uniStrategy,
         address _addressManager,
         uint256 _intervalSeconds,
-        uint256 _minIdleAssets
-    ) Ownable(msg.sender) {
+        uint256 _minIdleAssets,
+        address _owner
+    ) external initializer {
+        __UUPSUpgradeable_init();
+        __Ownable2Step_init();
+        __Ownable_init(_owner);
+        __Pausable_init();
+
         require(
             _vault != address(0) && _aggregator != address(0) && _uniStrategy != address(0)
                 && _addressManager != address(0),
@@ -583,4 +603,10 @@ contract SaveFundsInvestAutomationRunner is Ownable2Step, Pausable {
             return false;
         }
     }
+
+    /**
+     * @notice Authorizes contract upgrades.
+     * @dev Required by UUPS; restricted to owner.
+     */
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 }
