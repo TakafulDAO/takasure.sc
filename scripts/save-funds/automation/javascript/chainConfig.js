@@ -1,6 +1,8 @@
 const fs = require("fs")
 const path = require("path")
 
+const DEPLOYMENTS_ROOT = path.resolve(__dirname, "..", "..", "..", "..", "deployments")
+
 const CHAINS = {
     "arb-one": {
         deploymentsDir: "mainnet_arbitrum_one",
@@ -31,14 +33,7 @@ function getChainConfig(chainArg) {
 }
 
 function loadDeploymentAddress(chainCfg, contractName) {
-    const filePath = path.join(
-        __dirname,
-        "..",
-        "..",
-        "deployments",
-        chainCfg.deploymentsDir,
-        `${contractName}.json`,
-    )
+    const filePath = path.join(DEPLOYMENTS_ROOT, chainCfg.deploymentsDir, `${contractName}.json`)
     try {
         const raw = fs.readFileSync(filePath, "utf8")
         const json = JSON.parse(raw)
