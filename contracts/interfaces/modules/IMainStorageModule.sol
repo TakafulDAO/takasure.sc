@@ -22,7 +22,6 @@ interface IMainStorageModule {
     function setBytes32Value2D(string calldata key1, string calldata key2, bytes32 value) external;
     function getAssociationMember(address memberAddress) external view returns (AssociationMember memory);
     function getBenefitMember(address benefit, address memberAddress) external view returns (BenefitMember memory);
-
     function getUintValue(string calldata key) external view returns (uint256);
     function getIntValue(string calldata key) external view returns (int256);
     function getAddressValue(string calldata key) external view returns (address);
