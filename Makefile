@@ -177,6 +177,12 @@ deploy-chainlink-upkeep:
 deploy-chainlink-invest-upkeep:
 	@forge script deploy/ccipAutomation/DeploySaveFundsInvestAutomationRunner.s.sol:DeploySaveFundsInvestAutomationRunner $(NETWORK_ARGS)
 
+prepare-chainlink-invest-upkeep-upgrade:
+	@forge script deploy/ccipAutomation/PrepareSaveFundsInvestAutomationRunnerUpgrade.s.sol:PrepareSaveFundsInvestAutomationRunnerUpgrade $(NETWORK_ARGS)
+
+upgrade-chainlink-invest-upkeep:
+	@forge script deploy/ccipAutomation/UpgradeSaveFundsInvestAutomationRunner.s.sol:UpgradeSaveFundsInvestAutomationRunner $(NETWORK_ARGS)
+
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)

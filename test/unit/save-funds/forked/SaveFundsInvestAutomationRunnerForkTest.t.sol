@@ -13,6 +13,7 @@ import {
 } from "scripts/save-funds/automation/solidity/SaveFundsInvestAutomationRunner.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract SaveFundsInvestAutomationRunnerForkTest is Test {
     uint256 internal constant FORK_BLOCK = 430826360;
@@ -59,9 +60,15 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         vm.prank(operator);
         vault.setTVLCap(0);
 
-        runner = new SaveFundsInvestAutomationRunner(
-            address(vault), address(aggregator), address(uniV3), address(addrMgr), 24 hours, 1
+        address runnerImplementation = address(new SaveFundsInvestAutomationRunner());
+        address runnerProxy = UnsafeUpgrades.deployUUPSProxy(
+            runnerImplementation,
+            abi.encodeCall(
+                SaveFundsInvestAutomationRunner.initialize,
+                (address(vault), address(aggregator), address(uniV3), address(addrMgr), 24 hours, 1, address(this))
+            )
         );
+        runner = SaveFundsInvestAutomationRunner(runnerProxy);
 
         if (runner.strictUniOnlyAllocation()) runner.toggleStrictUniOnlyAllocation();
     }
