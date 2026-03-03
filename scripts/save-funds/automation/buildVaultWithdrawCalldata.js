@@ -2,13 +2,13 @@
 Builds calldata for SFVault.withdrawFromStrategy(assets, strategies, payloads).
 
 Example:
-  node scripts/save-funds/buildVaultWithdrawCalldata.js \
+  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js \
     --assets 1000000 \
     --strategies 0xStrat1 \
     --payloads 0xdeadbeef
 
 Example (human-readable UniV3 action data, same payload for all strategies):
-  node scripts/save-funds/buildVaultWithdrawCalldata.js \
+  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js \
     --assets 1000000 \
     --strategies 0xStrat1 \
     --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 10000 \
@@ -18,6 +18,12 @@ Output:
   withdrawCalldata: 0x...
 */
 const { BigNumber, utils } = require("ethers")
+const {
+    getChainConfig,
+    getTokenAddresses,
+    loadDeploymentAddress,
+    resolveStrategies,
+} = require("./chainConfig")
 
 function getArg(name, fallback) {
     const idx = process.argv.indexOf(`--${name}`)
@@ -46,7 +52,13 @@ function parseUint(value, label) {
 }
 
 function parseBps(value, label) {
-    const v = BigNumber.from(value)
+    let v
+    try {
+        v = BigNumber.from(value)
+    } catch (e) {
+        console.error(`Invalid ${label}: ${value}`)
+        process.exit(1)
+    }
     if (v.lt(0) || v.gt(10000)) {
         console.error(`${label} must be between 0 and 10000`)
         process.exit(1)
@@ -80,16 +92,29 @@ function hasSwapBuilderArgs(prefix) {
     )
 }
 
+function getTokenDefaults(prefix, chainCfg) {
+    if (!chainCfg) return {}
+    const tokens = getTokenAddresses(chainCfg)
+    if (prefix === "swapToOther") {
+        return { tokenIn: tokens.underlying, tokenOut: tokens.other }
+    }
+    if (prefix === "swapToUnderlying") {
+        return { tokenIn: tokens.other, tokenOut: tokens.underlying }
+    }
+    return {}
+}
+
 function encodePath(tokenIn, fee, tokenOut) {
     return utils.solidityPack(["address", "uint24", "address"], [tokenIn, fee, tokenOut])
 }
 
-function buildSwapData(prefix, defaultRecipient) {
+function buildSwapData(prefix, defaultRecipient, chainCfg) {
     const dataRaw = getArg(`${prefix}Data`)
     if (dataRaw) return dataRaw
 
-    const tokenIn = getArg(`${prefix}TokenIn`)
-    const tokenOut = getArg(`${prefix}TokenOut`)
+    const defaults = getTokenDefaults(prefix, chainCfg)
+    const tokenIn = getArg(`${prefix}TokenIn`, defaults.tokenIn)
+    const tokenOut = getArg(`${prefix}TokenOut`, defaults.tokenOut)
     const fee = getArg(`${prefix}Fee`)
     const bps = getArg(`${prefix}Bps`)
     const amountInRaw = getArg(`${prefix}AmountIn`)
@@ -137,36 +162,43 @@ function buildSwapData(prefix, defaultRecipient) {
     return utils.defaultAbiCoder.encode(["bytes[]", "uint256"], [[input], deadline])
 }
 
-function main() {
+async function main() {
     if (process.argv.includes("--help")) {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/buildVaultWithdrawCalldata.js --assets <uint> --strategies <addr1,addr2> [--payloads <0x...,0x...>]",
-                "  node scripts/save-funds/buildVaultWithdrawCalldata.js --assets <uint> --strategies <addr> --otherRatioBps <bps> \\",
+                "  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js --assets <uint> --strategies <addr1,addr2> [--payloads <0x...,0x...>] [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js --assets <uint> --strategies <addr|uniV3> --otherRatioBps <bps> \\",
                 "    --swapToOtherTokenIn <addr> --swapToOtherTokenOut <addr> --swapToOtherFee <fee> --swapToOtherBps <bps> \\",
                 "    --swapToUnderlyingTokenIn <addr> --swapToUnderlyingTokenOut <addr> --swapToUnderlyingFee <fee> --swapToUnderlyingBps <bps> \\",
                 "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
                 "",
                 "Examples:",
-                "  node scripts/save-funds/buildVaultWithdrawCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js \\",
                 "    --assets 1000000 \\",
                 "    --strategies 0xStrat1 \\",
                 "    --payloads 0xdeadbeef",
-                "  node scripts/save-funds/buildVaultWithdrawCalldata.js \\",
+                "  node scripts/save-funds/automation/javascript/buildVaultWithdrawCalldata.js \\",
                 "    --assets 1000000 \\",
-                "    --strategies 0xStrat1 \\",
+                "    --strategies uniV3 --chain arb-one \\",
                 "    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 10000 \\",
                 "    --pmDeadline 0",
                 "",
                 "Flags",
                 "  --assets <uint>                  Amount of underlying to withdraw.",
+                "  --chain <arb-one|arb-sepolia>    Optional chain shortcut for token/strategy defaults.",
+                "  --sendToSafe                    Propose tx to the Arbitrum One Safe (requires --chain arb-one).",
+                "  --sendTx                        Send tx onchain for Arbitrum Sepolia (requires --chain arb-sepolia).",
+                "  --simulateTenderly              Simulate on Tenderly before sending (arb-one only).",
+                "  --tenderlyGas <uint>            Gas limit override for Tenderly simulation.",
+                "  --tenderlyBlock <uint|latest>   Block number for Tenderly simulation.",
+                "  --tenderlySimulationType <str>  Optional Tenderly simulation type.",
                 "  --minOther <uint>                Min other token out for PM actions.",
                 "  --minUnderlying <uint>           Min underlying out for PM actions.",
                 "  --otherRatioBps <bps>            Target otherToken ratio (0..10000).",
                 "  --payloads <p1,p2>               Per-strategy payloads (hex). Length must match strategies.",
                 "  --pmDeadline <uint>              PM deadline (0 = sentinel).",
-                "  --strategies <a,b>               Strategy addresses for the bundle.",
+                "  --strategies <a,b>               Strategy addresses (or uniV3 when --chain is set).",
                 "  --swapToOtherAmountIn <uint>     Swap input amount for otherToken path (absolute).",
                 "  --swapToOtherAmountOutMin <uint> Swap min out for otherToken path.",
                 "  --swapToOtherBps <bps>           Swap input amount as BPS sentinel (0..10000).",
@@ -190,11 +222,38 @@ function main() {
         process.exit(0)
     }
 
+    const wantsSendToSafe = process.argv.includes("--sendToSafe")
+    const wantsSendTx = process.argv.includes("--sendTx")
+    const wantsSimTenderly = process.argv.includes("--simulateTenderly")
+    if (wantsSendToSafe && wantsSendTx) {
+        console.error("Use only one of --sendToSafe or --sendTx")
+        process.exit(1)
+    }
+    const chainArg = getArg(
+        "chain",
+        wantsSendToSafe ? "arb-one" : wantsSendTx ? "arb-sepolia" : undefined,
+    )
+    const chainCfg = getChainConfig(chainArg)
+    if (wantsSendToSafe && (!chainCfg || chainCfg.name !== "arb-one")) {
+        console.error("--sendToSafe is only supported for --chain arb-one")
+        process.exit(1)
+    }
+    if (wantsSendTx && (!chainCfg || chainCfg.name !== "arb-sepolia")) {
+        console.error("--sendTx is only supported for --chain arb-sepolia")
+        process.exit(1)
+    }
+    if (wantsSimTenderly && (!chainCfg || chainCfg.name !== "arb-one")) {
+        console.error("--simulateTenderly is only supported for --chain arb-one")
+        process.exit(1)
+    }
+
     const assets = parseUint(requireArg("assets"), "assets")
-    const strategies = parseList(requireArg("strategies"), "strategies")
+    const strategiesInput = parseList(requireArg("strategies"), "strategies")
+    const strategies = resolveStrategies(strategiesInput, chainCfg)
     const payloads = parseList(getArg("payloads"), "payloads")
-    const wantsSwapBuild =
-        hasSwapBuilderArgs("swapToOther") || hasSwapBuilderArgs("swapToUnderlying")
+    const wantsSwapToOtherBuild = hasSwapBuilderArgs("swapToOther")
+    const wantsSwapToUnderlyingBuild = hasSwapBuilderArgs("swapToUnderlying")
+    const wantsSwapBuild = wantsSwapToOtherBuild || wantsSwapToUnderlyingBuild
     const wantsActionData = Boolean(
         getArg("otherRatioBps") ||
             getArg("swapToOtherData") ||
@@ -226,11 +285,21 @@ function main() {
             const minOther = parseUint(getArg("minOther", "0"), "minOther")
 
             const singleStrategy = strategies.length === 1 ? strategies[0] : ""
-            if (swapToOtherData === "0x") {
-                swapToOtherData = buildSwapData("swapToOther", singleStrategy)
+            if (swapToOtherData === "0x" && wantsSwapToOtherBuild) {
+                swapToOtherData = buildSwapData("swapToOther", singleStrategy, chainCfg)
             }
-            if (swapToUnderlyingData === "0x") {
-                swapToUnderlyingData = buildSwapData("swapToUnderlying", singleStrategy)
+            if (swapToUnderlyingData === "0x" && wantsSwapToUnderlyingBuild) {
+                swapToUnderlyingData = buildSwapData("swapToUnderlying", singleStrategy, chainCfg)
+            }
+            if (otherRatioBps.gt(0) && swapToOtherData === "0x" && !wantsSwapToOtherBuild) {
+                console.error(
+                    "warning: swapToOtherData not provided; strategy may revert if it needs underlying -> otherToken swaps",
+                )
+            }
+            if (otherRatioBps.gt(0) && swapToUnderlyingData === "0x" && !wantsSwapToUnderlyingBuild) {
+                console.error(
+                    "warning: swapToUnderlyingData not provided; strategy may revert if it needs otherToken -> underlying swaps",
+                )
             }
 
             const payload = utils.defaultAbiCoder.encode(
@@ -263,6 +332,54 @@ function main() {
     ])
 
     console.log("withdrawCalldata:", calldata)
+
+    if (wantsSimTenderly) {
+        const { SAFE_ADDRESS } = require("./safeSubmit")
+        const { simulateTenderly } = require("./tenderlySimulate")
+        const target = loadDeploymentAddress(chainCfg, "SFVault")
+        const sim = await simulateTenderly({
+            chainCfg,
+            from: SAFE_ADDRESS,
+            to: target,
+            data: calldata,
+            value: "0",
+            gas: getArg("tenderlyGas"),
+            blockNumber: getArg("tenderlyBlock"),
+            simulationType: getArg("tenderlySimulationType"),
+        })
+        if (sim.simulationId) console.log("tenderlySimulationId:", sim.simulationId)
+        if (sim.publicUrl) console.log("tenderlyPublicUrl:", sim.publicUrl)
+        if (sim.dashboardUrl) {
+            console.log("tenderlyDashboardUrl:")
+            console.log(sim.dashboardUrl)
+        }
+        if (sim.status !== true) {
+            console.error("Tenderly simulation did not return success status")
+            process.exit(1)
+        }
+        console.log("tenderlyStatus: ok")
+    }
+
+    if (wantsSendToSafe) {
+        const { SAFE_ADDRESS, sendToSafe } = require("./safeSubmit")
+        const target = loadDeploymentAddress(chainCfg, "SFVault")
+        const result = await sendToSafe({ to: target, data: calldata, value: "0" })
+        console.log("safeAddress:", SAFE_ADDRESS)
+        console.log("safeTxHash:", result.safeTxHash)
+        console.log("txServiceUrl:", result.txServiceUrl)
+    }
+
+    if (wantsSendTx) {
+        const { sendOnchain } = require("./sendOnchain")
+        const target = loadDeploymentAddress(chainCfg, "SFVault")
+        const result = await sendOnchain({ to: target, data: calldata, value: "0", chainCfg })
+        console.log("txHash:", result.hash)
+        console.log("blockNumber:", result.blockNumber)
+        console.log("gasUsed:", result.gasUsed)
+    }
 }
 
-main()
+main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+})

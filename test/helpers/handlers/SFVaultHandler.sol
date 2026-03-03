@@ -138,11 +138,12 @@ contract SFVaultHandler is Test {
 
         uint256 amount = bound(amtIn, 1, balShares);
 
-        vm.startPrank(from);
-        (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.transfer.selector, to, amount));
-        vm.stopPrank();
+        vm.prank(from);
+        vault.transfer(to, amount);
+        // (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.transfer.selector, to, amount));
 
-        if (ok) transferSucceeded = true;
+        // if (ok) transferSucceeded = true;
+        transferSucceeded = true;
     }
 
     function tryTransferFrom(uint256 ownerSeed, uint256 toSeed, uint256 amtIn) external {
@@ -158,11 +159,13 @@ contract SFVaultHandler is Test {
         // Ensure allowance isn't the reason for failure; we want to hit _update.
         vm.startPrank(owner);
         vault.approve(owner, type(uint256).max);
+        vault.transferFrom(owner, to, amount);
 
-        (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.transferFrom.selector, owner, to, amount));
+        // (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.transferFrom.selector, owner, to, amount));
         vm.stopPrank();
 
-        if (ok) transferSucceeded = true;
+        // if (ok) transferSucceeded = true;
+        transferSucceeded = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -177,16 +180,20 @@ contract SFVaultHandler is Test {
         uint16 hurdle = uint16(bound(uint256(hurdleIn), 0, 10000));
 
         vm.prank(operator);
-        (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.setFeeConfig.selector, mgmt, perf, hurdle));
-        ok;
+        vault.setFeeConfig(mgmt, perf, hurdle);
+
+        // (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.setFeeConfig.selector, mgmt, perf, hurdle));
+        // ok;
     }
 
     function opSetTVLCap(uint256 capIn) external {
         // Allow 0 (uncapped) to hit that branch, but keep caps realistic otherwise.
         uint256 cap = bound(capIn, 0, MAX_ASSETS_ACTION);
         vm.prank(operator);
-        (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.setTVLCap.selector, cap));
-        ok;
+        vault.setTVLCap(cap);
+
+        // (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.setTVLCap.selector, cap));
+        // ok;
     }
 
     function opTakeFees(uint32 forwardSeconds) external {
@@ -194,19 +201,23 @@ contract SFVaultHandler is Test {
         vm.warp(block.timestamp + dt);
 
         vm.prank(operator);
-        (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.takeFees.selector));
-        ok; // can revert on InsufficientUSDCForFees; that's fine
+        vault.takeFees();
+
+        // (bool ok,) = address(vault).call(abi.encodeWithSelector(vault.takeFees.selector));
+        // ok; // can revert on InsufficientUSDCForFees; that's fine
     }
 
     function opTakeFeesTwiceSameTimestamp() external {
         vm.prank(operator);
-        (bool ok1,) = address(vault).call(abi.encodeWithSelector(vault.takeFees.selector));
-        ok1;
+        vault.takeFees();
+        // (bool ok1,) = address(vault).call(abi.encodeWithSelector(vault.takeFees.selector));
+        // ok1;
 
         // no warp -> elapsed == 0 path
         vm.prank(operator);
-        (bool ok2,) = address(vault).call(abi.encodeWithSelector(vault.takeFees.selector));
-        ok2;
+        vault.takeFees();
+        // (bool ok2,) = address(vault).call(abi.encodeWithSelector(vault.takeFees.selector));
+        // ok2;
     }
 
     function donateToVault(uint256 amountIn) external {
