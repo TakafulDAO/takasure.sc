@@ -8,7 +8,7 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ISubscriptionModule} from "contracts/interfaces/ISubscriptionModule.sol";
+import {ISubscriptionModule} from "contracts/interfaces/modules/ISubscriptionModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";

@@ -12,6 +12,7 @@ import {IMainStorageModule} from "contracts/interfaces/modules/IMainStorageModul
 import {IReferralRewardsModule} from "contracts/interfaces/modules/IReferralRewardsModule.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
 import {IRevenueModule} from "contracts/interfaces/modules/IRevenueModule.sol";
+import {ISubscriptionModule} from "contracts/interfaces/modules/ISubscriptionModule.sol";
 
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -35,6 +36,7 @@ pragma solidity 0.8.28;
 
 contract SubscriptionModule is
     ModuleImplementation,
+    ISubscriptionModule,
     Initializable,
     UUPSUpgradeable,
     ReentrancyGuardTransientUpgradeable
@@ -115,6 +117,15 @@ contract SubscriptionModule is
     /*//////////////////////////////////////////////////////////////
                          SUBSCRIPTION PAYMENTS
     //////////////////////////////////////////////////////////////*/
+
+    function joinFromReferralGateway(
+        address userWallet,
+        address parentWallet,
+        uint256 contributionBeforeFee,
+        uint256 membershipDuration
+    ) external {
+        // TODO: to impleent on benefit PR
+    }
 
     /**
      * @notice Allow new members to join the association.
@@ -305,7 +316,6 @@ contract SubscriptionModule is
             childs: new address[](0) // Clean childs array
         });
 
-        // TODO: ReferralRewardsModule to be written
         IReferralRewardsModule referralRewardsModule =
             IReferralRewardsModule(addressManager.getProtocolAddressByName("MODULE__REFERRAL_REWARDS").addr);
 
@@ -332,9 +342,31 @@ contract SubscriptionModule is
         });
 
         // Update the member mapping
-
         if (isRejoin) mainStorageModule.updateAssociationMember(member);
         else mainStorageModule.createAssociationMember(member);
+
+        if (_params.parentWallet != address(0)) _addChildToParent(_params.userWallet, _params.parentWallet);
+    }
+
+    function _addChildToParent(address _childAddress, address _parentAddress) internal {
+        // Add the member as a child to the parent
+        (IMainStorageModule mainStorageModule, AssociationMember memory parent) =
+            _fetchMemberFromStorageModule(_parentAddress);
+
+        // Take current childs and create a new array with one more slot
+        address[] memory childs = parent.childs;
+        uint256 childsLength = childs.length;
+        address[] memory newChilds = new address[](childsLength + 1);
+
+        // Copy old childs to new array
+        for (uint256 i = 0; i < childsLength; ++i) {
+            newChilds[i] = childs[i];
+        }
+
+        // Add the new child at the end and update the parent's childs array
+        newChilds[childsLength] = _childAddress;
+        parent.childs = newChilds;
+        mainStorageModule.updateAssociationMember(parent);
     }
 
     /**
@@ -399,7 +431,7 @@ contract SubscriptionModule is
 
         // Check if it has any benefit membership and any child
         require(_member.benefits.length == 0, SubscriptionModule__IsBenefitMember());
-        require(_member.childs.length == 0, SubscriptionModule__HasReferrals()); // todo: ask this to the rewards module
+        require(_member.childs.length == 0, SubscriptionModule__HasReferrals());
 
         uint256 contributionAmountAfterFee =
             _member.planPrice - ((_member.planPrice * ModuleConstants.ASSOCIATION_SUBSCRIPTION_FEE) / 100);

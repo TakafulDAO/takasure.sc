@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IKYCModule} from "contracts/interfaces/modules/IKYCModule.sol";
+import {IMainStorageModule} from "contracts/interfaces/modules/IMainStorageModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
@@ -14,7 +15,7 @@ import {ModuleErrors} from "contracts/helpers/libraries/errors/ModuleErrors.sol"
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
-contract MainStorageModule is ModuleImplementation, Initializable, UUPSUpgradeable {
+contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initializable, UUPSUpgradeable {
     // Association members related
     mapping(address member => AssociationMember) private members;
     // Benefit members related
@@ -147,7 +148,7 @@ contract MainStorageModule is ModuleImplementation, Initializable, UUPSUpgradeab
     }
 
     // TODO: Implement this when the benefit module is ready
-    function createBenefitMember() external view {
+    function createBenefitMember(address benefit, BenefitMember memory member) external view {
         // The module must be enabled
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
