@@ -46,7 +46,7 @@ contract SaveFundsInvestAutomationRunner is
 {
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
-    uint256 internal constant DAILY_INTERVAL = 24 hours;
+    uint256 internal constant DAILY_INTERVAL = 12 hours;
 
     IAddressManager public addressManager;
     ISFVaultAutomation public vault;
