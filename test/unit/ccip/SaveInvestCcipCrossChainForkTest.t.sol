@@ -8,8 +8,8 @@ import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import {CCIPLocalSimulatorFork, Register} from "@chainlink/local/src/ccip/CCIPLocalSimulatorFork.sol";
 
-import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/SaveInvestCCIPSender.sol";
-import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/SaveInvestCCIPReceiver.sol";
+import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/ccip/SaveInvestCCIPSender.sol";
+import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/ccip/SaveInvestCCIPReceiver.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 
@@ -87,7 +87,8 @@ contract SaveInvestCcipCrossChainForkTest is Test {
         }
         require(sfVault.maxDeposit(unregisteredUser) == 0, "failed to find unregistered user");
 
-        receiver = new SaveInvestCCIPReceiver(addressManager, destinationNetwork.routerAddress, address(destinationToken));
+        receiver =
+            new SaveInvestCCIPReceiver(addressManager, destinationNetwork.routerAddress, address(destinationToken));
 
         vm.selectFork(sourceFork);
         sourceToken = ISFUSDCCcipTestnet(ETH_SEPOLIA_SFUSDC);
@@ -122,9 +123,7 @@ contract SaveInvestCcipCrossChainForkTest is Test {
         ccipLocalSimulatorFork.switchChainAndRouteMessage(destinationFork);
 
         vm.selectFork(destinationFork);
-        assertEq(
-            sfVault.userTotalDeposited(user) - depositedBefore, SEND_AMOUNT, "vault deposited amount mismatch"
-        );
+        assertEq(sfVault.userTotalDeposited(user) - depositedBefore, SEND_AMOUNT, "vault deposited amount mismatch");
         assertEq(receiver.getFailedMessageIdsByUser(user).length, failedBefore, "happy path should not fail");
     }
 

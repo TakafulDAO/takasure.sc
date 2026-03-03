@@ -7,7 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Client} from "ccip/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {CCIPReceiver} from "ccip/contracts/src/v0.8/ccip/applications/CCIPReceiver.sol";
 
-import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/SaveInvestCCIPReceiver.sol";
+import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/ccip/SaveInvestCCIPReceiver.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ProtocolAddress, ProtocolAddressType} from "contracts/types/Managers.sol";
 import {GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";

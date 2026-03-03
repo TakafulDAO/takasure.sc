@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/SaveInvestCCIPSender.sol";
+import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/ccip/SaveInvestCCIPSender.sol";
 import {CCIPTestERC20, CCIPTestRouter} from "test/mocks/CCIPTestMocks.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";

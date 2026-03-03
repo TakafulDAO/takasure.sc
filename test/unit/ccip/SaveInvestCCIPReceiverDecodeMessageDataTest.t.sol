@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/SaveInvestCCIPReceiver.sol";
+import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/ccip/SaveInvestCCIPReceiver.sol";
 import {SaveInvestCCIPReceiverHarness} from "test/helpers/harness/SaveInvestCCIPReceiverHarness.t.sol";
 
 contract SaveInvestCCIPReceiverDecodeMessageDataTest is Test {

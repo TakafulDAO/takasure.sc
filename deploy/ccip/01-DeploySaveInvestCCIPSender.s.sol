@@ -6,7 +6,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
-import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/SaveInvestCCIPSender.sol";
+import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/ccip/SaveInvestCCIPSender.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";
 import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
