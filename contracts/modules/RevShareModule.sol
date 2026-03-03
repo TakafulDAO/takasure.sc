@@ -9,6 +9,7 @@
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IRevShareNFT} from "contracts/interfaces/IRevShareNFT.sol";
+import {IRevShareModule} from "contracts/interfaces/modules/IRevShareModule.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {
@@ -26,7 +27,13 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 pragma solidity 0.8.28;
 
-contract RevShareModule is ModuleImplementation, Initializable, UUPSUpgradeable, ReentrancyGuardTransientUpgradeable {
+contract RevShareModule is
+    ModuleImplementation,
+    IRevShareModule,
+    Initializable,
+    UUPSUpgradeable,
+    ReentrancyGuardTransientUpgradeable
+{
     using SafeERC20 for IERC20;
 
     bool public emergencyMode;

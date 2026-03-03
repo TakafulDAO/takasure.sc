@@ -29,6 +29,8 @@ build-certora:; forge build --contracts ./certora/
 
 test :; forge test 
 
+sim-test :; forge test --mc SaveFundInvariantTest --jobs 1
+
 coverage-report :; forge coverage --ir-minimum --report debug > coverage-report.txt
 
 snapshot :; forge snapshot
@@ -37,7 +39,8 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 
 # Simulations
 simulate-rev-share-distribution:
-	@forge script scripts/simulations/RevShareMonthSimToCsv.s.sol:RevShareMonthSimToCsv -vvv
+	@forge clean
+	@forge script scripts/simulations/rev-share-sims/RevShareMonthSimToCsv.s.sol:RevShareMonthSimToCsv -vvv
 	
 # Protocol deployments
 protocol-deploy-referral:
@@ -53,12 +56,12 @@ protocol-deploy-address-manager:
 protocol-deploy-sf-vault:
 	@forge clean
 	@forge script deploy/saveFunds/DeploySFVault.s.sol:DeploySFVault $(NETWORK_ARGS)
-	@cp contracts/saveFunds/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
+	@cp contracts/saveFunds/protocol/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
 	
 protocol-deploy-sf-strat-aggregator:
 	@forge clean
 	@forge script deploy/saveFunds/DeploySFStrategyAggregator.s.sol:DeploySFStrategyAggregator $(NETWORK_ARGS)
-	@cp contracts/saveFunds/SFStrategyAggregator.sol contracts/version_previous_contracts/SFStrategyAggregatorV1.sol
+	@cp contracts/saveFunds/protocol/SFStrategyAggregator.sol contracts/version_previous_contracts/SFStrategyAggregatorV1.sol
 
 protocol-deploy-uni-v3-math:
 	@forge clean
@@ -67,7 +70,7 @@ protocol-deploy-uni-v3-math:
 protocol-deploy-sf-uni-v3-strat:
 	@forge clean
 	@forge script deploy/saveFunds/DeploySFUniV3Strat.s.sol:DeploySFUniV3Strat $(NETWORK_ARGS)
-	@cp contracts/saveFunds/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
+	@cp contracts/saveFunds/protocol/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
 
 protocol-deploy-sf:
 	@forge clean
@@ -110,11 +113,26 @@ protocol-prepare-upgrade-referral:
 	@forge script deploy/protocol/upgrades/02-PrepareReferralUpgrade.s.sol:PrepareReferralUpgrade $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
+protocol-upgrade-sf-vault:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/UpgradeSFVault.s.sol:UpgradeSFVault $(NETWORK_ARGS)
+	@cp contracts/saveFunds/protocol/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
+
+protocol-upgrade-sf-aggregator:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/UpgradeSFStrategyAggregator.s.sol:UpgradeSFStrategyAggregator $(NETWORK_ARGS)
+	@cp contracts/saveFunds/protocol/SFStrategyAggregator.sol contracts/version_previous_contracts/SFStrategyAggregatorV1.sol
+
+protocol-upgrade-sf-uni-v3-strat:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/UpgradeUniV3Strategy.s.sol:UpgradeUniV3Strategy $(NETWORK_ARGS)
+	@cp contracts/saveFunds/protocol/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
+
 # Token deployments
 tokens-deploy-nft:
 	@forge clean
 	@forge script deploy/tokens/nft/DeployRevShareNft.s.sol:DeployRevShareNft $(NETWORK_ARGS)
-	@cp contracts/tokens/nft/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
+	@cp contracts/tokens/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
 
 # Token upgrades
 tokens-upgrade-nft:
@@ -198,10 +216,29 @@ addr-mgr-add-addresses:
 	@forge script scripts/contract-interactions/managers/AddAddresses.s.sol:AddAddresses $(NETWORK_ARGS)
 
 config-strat:
-	@forge script scripts/contract-interactions/ConfigStrat.s.sol:ConfigStrat $(NETWORK_ARGS)
+	@forge script scripts/contract-interactions/saveFunds/ConfigStrat.s.sol:ConfigStrat $(NETWORK_ARGS)
 
 invest-into-strat:
 	@forge script scripts/contract-interactions/saveFunds/InvestIntoStrategy.s.sol:InvestIntoStrategy $(NETWORK_ARGS)
+
+deploy-simulations:
+	@forge clean
+	@forge script scripts/simulations/save-fund-sims/DeploySFSystemArbVNet.s.sol:DeploySFSystemArbVNet $(NETWORK_ARGS)
+
+deploy-chainlink-upkeep:
+	@forge script scripts/save-funds/interactions/DeploySaveFundsAutomationRunner.s.sol:DeploySaveFundsAutomationRunner $(NETWORK_ARGS)
+
+deploy-chainlink-invest-upkeep:
+	@forge clean
+	@forge script deploy/ccipAutomation/DeploySaveFundsInvestAutomationRunner.s.sol:DeploySaveFundsInvestAutomationRunner $(NETWORK_ARGS)
+
+prepare-chainlink-invest-upkeep-upgrade:
+	@forge clean
+	@forge script deploy/ccipAutomation/PrepareSaveFundsInvestAutomationRunnerUpgrade.s.sol:PrepareSaveFundsInvestAutomationRunnerUpgrade $(NETWORK_ARGS)
+
+upgrade-chainlink-invest-upkeep:
+	@forge clean
+	@forge script deploy/ccipAutomation/UpgradeSaveFundsInvestAutomationRunner.s.sol:UpgradeSaveFundsInvestAutomationRunner $(NETWORK_ARGS)
 
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
