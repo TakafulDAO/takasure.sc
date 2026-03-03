@@ -10,13 +10,17 @@ import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggre
 import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
 import {
     SaveFundsInvestAutomationRunner
-} from "scripts/save-funds/automation/solidity/SaveFundsInvestAutomationRunner.sol";
+} from "contracts/helpers/chainlink/automation/SaveFundsInvestAutomationRunner.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {TickMathV3} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract SaveFundsInvestAutomationRunnerForkTest is Test {
     uint256 internal constant FORK_BLOCK = 430826360;
+    uint256 internal constant MAX_BPS = 10_000;
     bytes32 internal constant ON_INVEST_SIG = keccak256("OnInvestIntoStrategy(uint256,uint256,bytes32)");
     bytes32 internal constant ON_UPKEEP_ATTEMPT_SIG = keccak256("OnUpkeepAttempt(uint256,uint256,uint16,bytes32)");
     bytes32 internal constant ON_INVEST_SUCCEEDED_SIG = keccak256("OnInvestSucceeded(uint256,uint256,uint256,uint16)");
@@ -200,6 +204,33 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertEq(runner.lastRun(), block.timestamp, "lastRun not updated");
     }
 
+    function testRunnerFork_previewInvestBundle_AutoRatioMatchesSpotSlot0() public view {
+        uint256 assetsIncoming = 1_000e6;
+
+        (uint16 otherRatioBps,, bytes[] memory payloads,) = runner.previewInvestBundle(assetsIncoming);
+
+        IUniswapV3Pool poolAddress = uniV3.pool();
+        (uint160 sqrtPriceX96,,,,,,) = poolAddress.slot0();
+
+        uint16 expectedRatioBps = _computeOtherRatioBPS(sqrtPriceX96, uniV3.tickLower(), uniV3.tickUpper());
+        if (expectedRatioBps == 0) {
+            uint256 underlyingBal = IERC20(address(vault.asset())).balanceOf(address(uniV3)) + assetsIncoming;
+            uint256 otherBal = IERC20(address(uniV3.otherToken())).balanceOf(address(uniV3));
+            uint256 otherValueInUnderlying = _quoteOtherAsUnderlyingAtSqrtPrice(otherBal, sqrtPriceX96);
+            uint256 totalValueInUnderlying = underlyingBal + otherValueInUnderlying;
+            if (totalValueInUnderlying > 0) {
+                uint256 currentOtherRatioBps = Math.mulDiv(otherValueInUnderlying, MAX_BPS, totalValueInUnderlying);
+                if (currentOtherRatioBps >= 1) expectedRatioBps = 1;
+            }
+        }
+
+        assertEq(otherRatioBps, expectedRatioBps, "auto ratio should be spot-based");
+
+        (uint16 encodedOtherRatioBps,,,,,) =
+            abi.decode(payloads[0], (uint16, bytes, bytes, uint256, uint256, uint256));
+        assertEq(encodedOtherRatioBps, otherRatioBps, "payload ratio mismatch");
+    }
+
     function _getAddr(string memory contractName) internal view returns (address) {
         return addrGetter.getAddress(block.chainid, contractName);
     }
@@ -254,6 +285,40 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         asset.approve(address(vault), type(uint256).max);
         vault.deposit(toDeposit, user);
         vm.stopPrank();
+    }
+
+    function _computeOtherRatioBPS(uint160 sqrtPriceX96, int24 tickLower, int24 tickUpper) internal view returns (uint16) {
+        uint160 sa = TickMathV3.getSqrtRatioAtTick(tickLower);
+        uint160 sb = TickMathV3.getSqrtRatioAtTick(tickUpper);
+        if (sa > sb) (sa, sb) = (sb, sa);
+
+        bool otherIsToken0 = runner.otherIsToken0();
+        if (sqrtPriceX96 <= sa) return otherIsToken0 ? uint16(MAX_BPS) : uint16(0);
+        if (sqrtPriceX96 >= sb) return otherIsToken0 ? uint16(0) : uint16(MAX_BPS);
+
+        uint256 token0ValueInToken1 = Math.mulDiv(uint256(sb - sqrtPriceX96), uint256(sqrtPriceX96), uint256(sb));
+        uint256 token1ValueInToken1 = uint256(sqrtPriceX96 - sa);
+        uint256 totalValueInToken1 = token0ValueInToken1 + token1ValueInToken1;
+        if (totalValueInToken1 == 0) return 0;
+
+        uint256 otherValueInToken1 = otherIsToken0 ? token0ValueInToken1 : token1ValueInToken1;
+        return uint16(Math.mulDiv(otherValueInToken1, MAX_BPS, totalValueInToken1));
+    }
+
+    function _quoteOtherAsUnderlyingAtSqrtPrice(uint256 amountOther, uint160 sqrtPriceX96) internal view returns (uint256) {
+        if (amountOther == 0) return 0;
+
+        uint256 priceX192 = uint256(sqrtPriceX96) * uint256(sqrtPriceX96);
+        uint256 q192 = 1 << 192;
+
+        address token0 = uniV3.pool().token0();
+        address token1 = uniV3.pool().token1();
+        address underlying = address(vault.asset());
+        address other = address(uniV3.otherToken());
+
+        if (other == token0 && underlying == token1) return Math.mulDiv(amountOther, priceX192, q192);
+        if (other == token1 && underlying == token0) return Math.mulDiv(amountOther, q192, priceX192);
+        return 0;
     }
 }
 

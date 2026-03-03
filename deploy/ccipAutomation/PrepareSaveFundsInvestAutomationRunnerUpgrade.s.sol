@@ -6,7 +6,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {Options} from "openzeppelin-foundry-upgrades/Defender.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {SaveFundsInvestAutomationRunner} from
-    "scripts/save-funds/automation/solidity/SaveFundsInvestAutomationRunner.sol";
+    "contracts/helpers/chainlink/automation/SaveFundsInvestAutomationRunner.sol";
 
 contract PrepareSaveFundsInvestAutomationRunnerUpgrade is Script {
     function run() external returns (address newImplementation) {

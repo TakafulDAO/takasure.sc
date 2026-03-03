@@ -5,7 +5,7 @@ This folder contains Solidity-based automation for Save Funds.
 ## SaveFundsInvestAutomationRunner
 
 Contract:
-- `scripts/save-funds/automation/solidity/SaveFundsInvestAutomationRunner.sol`
+- `contracts/helpers/chainlink/automation/SaveFundsInvestAutomationRunner.sol`
 
 ### What it does
 
@@ -63,9 +63,12 @@ Set environment variables first:
 ```bash
 source .env
 RPC_URL=$ARBITRUM_MAINNET_RPC_URL
-RUNNER=<deployed-runner-address>
+RUNNER=0x27fD7B2aefC55065Eb9192F28887E5db391406f8
 ADDRESS_MANAGER=0x0353e6d4bb44e81b4350baeefe6499e7cca64178
 ```
+
+Deploy note:
+- `DeploySaveFundsInvestAutomationRunner.s.sol` uses the broadcast signer as owner by default.
 
 ### 1) Grant KEEPER role to runner in the multisig
 
@@ -90,7 +93,7 @@ cast call $ADDRESS_MANAGER "hasRole(bytes32,address)(bool)" $KEEPER_ROLE $RUNNER
 ### 2) Configure runner parameters (owner only)
 
 ```bash
-cast send $RUNNER "setLastRun(uint256)" <timestamp> --rpc-url $RPC_URL --trezor -vvvv
+cast send $RUNNER "setLastRun(uint256)" 1772493490 --rpc-url $RPC_URL --trezor -vvvv
 cast send $RUNNER "toggleTestMode()" --rpc-url $RPC_URL --trezor -vvvv
 cast send $RUNNER "setInterval(uint256)" 3600 --rpc-url $RPC_URL --trezor -vvvv
 ```

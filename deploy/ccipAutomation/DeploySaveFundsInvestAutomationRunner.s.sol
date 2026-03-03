@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {SaveFundsInvestAutomationRunner} from
-    "scripts/save-funds/automation/solidity/SaveFundsInvestAutomationRunner.sol";
+    "contracts/helpers/chainlink/automation/SaveFundsInvestAutomationRunner.sol";
 
 contract DeploySaveFundsInvestAutomationRunner is Script, GetContractAddress {
     uint256 internal constant INTERVAL_SECONDS = 24 hours;
@@ -18,12 +18,15 @@ contract DeploySaveFundsInvestAutomationRunner is Script, GetContractAddress {
         address addressManager = _getContractAddress(block.chainid, "AddressManager");
 
         vm.startBroadcast();
+        (, address owner,) = vm.readCallers();
+        console2.log("SaveFundsInvestAutomationRunner owner to initialize:");
+        console2.logAddress(owner);
 
         proxy = Upgrades.deployUUPSProxy(
             "SaveFundsInvestAutomationRunner.sol",
             abi.encodeCall(
                 SaveFundsInvestAutomationRunner.initialize,
-                (vault, aggregator, uniV3Strategy, addressManager, INTERVAL_SECONDS, MIN_IDLE_ASSETS, msg.sender)
+                (vault, aggregator, uniV3Strategy, addressManager, INTERVAL_SECONDS, MIN_IDLE_ASSETS, owner)
             )
         );
 
@@ -34,6 +37,8 @@ contract DeploySaveFundsInvestAutomationRunner is Script, GetContractAddress {
         console2.logAddress(proxy);
         console2.log("SaveFundsInvestAutomationRunner implementation deployed at:");
         console2.logAddress(implementation);
+        console2.log("SaveFundsInvestAutomationRunner owner:");
+        console2.logAddress(owner);
         console2.log("intervalSeconds:", INTERVAL_SECONDS);
         console2.log("minIdleAssets:", MIN_IDLE_ASSETS);
 

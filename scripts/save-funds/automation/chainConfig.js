@@ -1,7 +1,7 @@
 const fs = require("fs")
 const path = require("path")
 
-const DEPLOYMENTS_ROOT = path.resolve(__dirname, "..", "..", "..", "..", "deployments")
+const DEPLOYMENTS_ROOT = path.resolve(__dirname, "..", "..", "..", "deployments")
 
 const CHAINS = {
     "arb-one": {

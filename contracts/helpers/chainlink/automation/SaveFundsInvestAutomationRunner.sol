@@ -29,15 +29,21 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TickMathV3} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
-import {ISFVaultAutomation} from "scripts/save-funds/automation/solidity/interfaces/ISFVaultAutomation.sol";
+import {ISFVaultAutomation} from "contracts/helpers/chainlink/automation/interfaces/ISFVaultAutomation.sol";
 import {
     ISFUniV3StrategyAutomationView
-} from "scripts/save-funds/automation/solidity/interfaces/ISFUniV3StrategyAutomationView.sol";
+} from "contracts/helpers/chainlink/automation/interfaces/ISFUniV3StrategyAutomationView.sol";
 import {
     ISFAggregatorAutomationView
-} from "scripts/save-funds/automation/solidity/interfaces/ISFAggregatorAutomationView.sol";
+} from "contracts/helpers/chainlink/automation/interfaces/ISFAggregatorAutomationView.sol";
 
-contract SaveFundsInvestAutomationRunner is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgradeable {
+/// @custom:oz-upgrades-from contracts/version_previous_contracts/SaveFundsInvestAutomationRunnerV1.sol:SaveFundsInvestAutomationRunnerV1
+contract SaveFundsInvestAutomationRunner is
+    Initializable,
+    UUPSUpgradeable,
+    Ownable2StepUpgradeable,
+    PausableUpgradeable
+{
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
     uint256 internal constant DAILY_INTERVAL = 24 hours;
@@ -449,25 +455,32 @@ contract SaveFundsInvestAutomationRunner is Initializable, UUPSUpgradeable, Owna
 
     /**
      * @notice Resolves auto `otherRatioBPS` from live pool/strategy state.
-     * @dev Uses spot/TWAP valuation path from strategy config.
-     *      Applies 1 bps cleanup nudge when computed ratio is 0 but other-token value is non-trivial.
+     * @dev Uses spot `slot0` price as primary path and falls back to strategy TWAP/spot valuation
+     *      helper only if spot read is unexpectedly zero. Applies 1 bps cleanup nudge when
+     *      computed ratio is 0 but other-token value is non-trivial.
      * @param _assetsIncoming Incoming underlying amount considered in ratio adjustment.
      * @return ratioBPS Final ratio in BPS.
      */
     function _resolveAutoOtherRatioBPS(uint256 _assetsIncoming) internal view returns (uint16) {
-        uint32 _window = ISFUniV3StrategyAutomationView(uniStrategy).twapWindow();
-        uint160 _sqrtPriceX96 = _valuationSqrtPriceX96(_window);
+        (uint160 _spotSqrtPriceX96,,,,,,) = pool.slot0();
+        uint160 _ratioSqrtPriceX96 = _spotSqrtPriceX96;
+        if (_ratioSqrtPriceX96 == 0) {
+            uint32 _window = ISFUniV3StrategyAutomationView(uniStrategy).twapWindow();
+            _ratioSqrtPriceX96 = _valuationSqrtPriceX96(_window);
+        }
+
         int24 _tickLower = ISFUniV3StrategyAutomationView(uniStrategy).tickLower();
         int24 _tickUpper = ISFUniV3StrategyAutomationView(uniStrategy).tickUpper();
 
-        uint16 _ratioBPS = _computeOtherRatioBPS(_sqrtPriceX96, _tickLower, _tickUpper);
+        uint16 _ratioBPS = _computeOtherRatioBPS(_ratioSqrtPriceX96, _tickLower, _tickUpper);
 
         // If LP-optimal ratio is 0 but strategy already has meaningful otherToken value,
         // force 1 bps so strategy can perform cleanup toward underlying when needed.
         if (_ratioBPS == 0) {
+            uint160 _cleanupSqrtPriceX96 = _spotSqrtPriceX96 == 0 ? _ratioSqrtPriceX96 : _spotSqrtPriceX96;
             uint256 _underlyingBal = IERC20(underlyingToken).balanceOf(uniStrategy) + _assetsIncoming;
             uint256 _otherBal = IERC20(otherToken).balanceOf(uniStrategy);
-            uint256 _otherValueInUnderlying = _quoteOtherAsUnderlyingAtSqrtPrice(_otherBal, _sqrtPriceX96);
+            uint256 _otherValueInUnderlying = _quoteOtherAsUnderlyingAtSqrtPrice(_otherBal, _cleanupSqrtPriceX96);
 
             uint256 _totalValueInUnderlying = _underlyingBal + _otherValueInUnderlying;
             if (_totalValueInUnderlying > 0) {
