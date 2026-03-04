@@ -7,7 +7,7 @@ import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/ccip/SaveInves
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 
 contract SaveInvestCCIPReceiverHarness is SaveInvestCCIPReceiver {
-    constructor() SaveInvestCCIPReceiver(IAddressManager(address(1)), address(2), address(3)) {}
+    constructor() SaveInvestCCIPReceiver(IAddressManager(address(1)), address(2), address(3), address(4)) {}
 
     function exposed__decodeMessageData(bytes memory data)
         external
