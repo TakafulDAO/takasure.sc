@@ -153,11 +153,11 @@ abstract contract DeployConstants {
 
     // Todo: Change for deterministic deployments
     SenderOwner public senderOwner = SenderOwner({
-        avaxMainnetSenderOwner: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
-        baseMainnetSenderOwner: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
-        ethMainnetSenderOwner: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
-        opMainnetSenderOwner: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
-        polMainnetSenderOwner: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
+        avaxMainnetSenderOwner: 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F,
+        baseMainnetSenderOwner: 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F,
+        ethMainnetSenderOwner: 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F,
+        opMainnetSenderOwner: 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F,
+        polMainnetSenderOwner: 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F,
         avaxFujiSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
         baseSepoliaSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
         ethSepoliaSenderOwner: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
@@ -190,7 +190,7 @@ abstract contract DeployConstants {
 
     FeeClaimAddress public feeClaimAddress = FeeClaimAddress({
         local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Avil's account 0
-        mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
+        mainnet: 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F,
         arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
         eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
     });
@@ -205,7 +205,7 @@ abstract contract DeployConstants {
 
     DaoMultisig public daoMultisig = DaoMultisig({
         local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-        mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
+        mainnet: 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F,
         arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
         eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
     });
@@ -221,7 +221,7 @@ abstract contract DeployConstants {
 
     TakadaoOperator public takadaoOperator = TakadaoOperator({
         local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-        mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0,
+        mainnet: 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F,
         arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
         eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
     });
@@ -251,7 +251,7 @@ abstract contract DeployConstants {
 
     PauseGuardian public pauseGuardian = PauseGuardian({
         local: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, // Anvil's account 0
-        mainnet: 0xeB82E0b6C73F0837317371Db1Ab537e4f365B2e0, // TODO
+        mainnet: 0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F,
         arb_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1,
         eth_sepolia: 0x3904F59DF9199e0d6dC3800af9f6794c9D037eb1
     });
