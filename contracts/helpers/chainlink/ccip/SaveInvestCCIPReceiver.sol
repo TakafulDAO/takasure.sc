@@ -99,13 +99,15 @@ contract SaveInvestCCIPReceiver is CCIPReceiver, Ownable2Step {
      * @param _addressManager Address resolver for protocol contracts.
      * @param _router CCIP router address authorized to call `ccipReceive`.
      * @param _underlying The underlying token used for inbound bridged amounts.
+     * @param _owner Owner for sender allowlisting and failure management actions.
      */
-    constructor(IAddressManager _addressManager, address _router, address _underlying)
+    constructor(IAddressManager _addressManager, address _router, address _underlying, address _owner)
         CCIPReceiver(_router)
-        Ownable(msg.sender)
+        Ownable(_owner)
     {
         require(
-            address(_addressManager) != address(0) && _router != address(0) && _underlying != address(0),
+            address(_addressManager) != address(0) && _router != address(0) && _underlying != address(0)
+                && _owner != address(0),
             SaveInvestCCIPReceiver__NotZeroAddress()
         );
         underlying = IERC20(_underlying);

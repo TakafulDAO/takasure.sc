@@ -87,8 +87,9 @@ contract SaveInvestCcipCrossChainForkTest is Test {
         }
         require(sfVault.maxDeposit(unregisteredUser) == 0, "failed to find unregistered user");
 
-        receiver =
-            new SaveInvestCCIPReceiver(addressManager, destinationNetwork.routerAddress, address(destinationToken));
+        receiver = new SaveInvestCCIPReceiver(
+            addressManager, destinationNetwork.routerAddress, address(destinationToken), address(this)
+        );
 
         vm.selectFork(sourceFork);
         sourceToken = ISFUSDCCcipTestnet(ETH_SEPOLIA_SFUSDC);

@@ -24,11 +24,19 @@ contract DeploySaveInvestCCIPReceiver is Script, DeployConstants, GetContractAdd
         else usdcAddress = config.usdc;
 
         vm.startBroadcast();
+        (, address owner,) = vm.readCallers();
+        console2.log("SaveInvestCCIPReceiver owner to initialize:");
+        console2.logAddress(owner);
 
         // Deploy SaveInvestCCIPReceiver contract
-        SaveInvestCCIPReceiver receiver = new SaveInvestCCIPReceiver(addressManager, config.router, usdcAddress);
+        SaveInvestCCIPReceiver receiver = new SaveInvestCCIPReceiver(addressManager, config.router, usdcAddress, owner);
 
         vm.stopBroadcast();
+
+        console2.log("SaveInvestCCIPReceiver deployed at:");
+        console2.logAddress(address(receiver));
+        console2.log("SaveInvestCCIPReceiver owner:");
+        console2.logAddress(owner);
 
         return (receiver);
     }

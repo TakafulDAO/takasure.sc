@@ -43,7 +43,7 @@ contract SaveInvestCCIPReceiverForkTest is Test, GetContractAddress {
         sfVault = new CCIPTestVault(IERC20(address(usdc)));
         ifVault = new CCIPTestVault(IERC20(address(usdc)));
 
-        receiver = new SaveInvestCCIPReceiver(addressManager, router, address(usdc));
+        receiver = new SaveInvestCCIPReceiver(addressManager, router, address(usdc), address(this));
         receiver.toggleAllowedSender(SOURCE_CHAIN_SELECTOR, allowedSender);
 
         _mockProtocolAddress("PROTOCOL__SF_VAULT", address(sfVault));
