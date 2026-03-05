@@ -24,6 +24,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 contract SFSaveFundsProcessForkedTest is Test {
     using SafeERC20 for IERC20;
 
+    uint256 internal constant FORK_BLOCK = 430826360;
+
     // Shared constants and sentinel flag used by the strategy's swap encoding.
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
@@ -58,7 +60,7 @@ contract SFSaveFundsProcessForkedTest is Test {
 
     function setUp() public {
         // Fork Arbitrum One to use live deployed contracts and real pool state.
-        uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"));
+        uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"), FORK_BLOCK);
         vm.selectFork(forkId);
 
         // Resolve deployment addresses via the helper script.

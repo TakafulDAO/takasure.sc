@@ -40,4 +40,9 @@ jobs:
           ARBITRUM_TESTNET_SEPOLIA_RPC_URL: ${{ secrets.ARBITRUM_TESTNET_SEPOLIA_RPC_URL}}
           ETHEREUM_TESTNET_SEPOLIA_RPC_URL: ${{ secrets.ETHEREUM_TESTNET_SEPOLIA_RPC_URL}}
         run: |
-          forge test --skip UniV3StratFuzzTest.t.sol SaveFundInvariantTest.t.sol E2ETest.t.sol UniV3StratTest.t.sol
+          forge test \
+            --skip UniV3StratFuzzTest.t.sol SaveFundInvariantTest.t.sol E2ETest.t.sol UniV3StratTest.t.sol \
+            --jobs 1 \
+            --fork-retries 15 \
+            --fork-retry-backoff 1500 \
+            --compute-units-per-second 120
