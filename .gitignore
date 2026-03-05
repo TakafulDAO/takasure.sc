@@ -43,4 +43,4 @@ deployments/localhost/
 # previous deployments
 contracts/version_previous_contracts
 
-scripts/save-funds-interaction/users_out
+scripts/save-funds-interaction/users_out/
