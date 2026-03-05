@@ -59,7 +59,7 @@ contract SFStrategyAggregatorFuzzTest is Test {
         addrMgr.addProtocolAddress("HELPER__SF_VALUATOR", address(valuator), ProtocolAddressType.Admin);
 
         // Ensure PAUSE_GUARDIAN exists and is held by `pauser`
-        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
+        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN, true);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
 

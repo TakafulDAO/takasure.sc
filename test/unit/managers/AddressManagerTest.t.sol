@@ -8,6 +8,7 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {IsModule, IsNotModule} from "test/mocks/ModuleMocks.sol";
 import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/Managers.sol";
+import {ModuleState} from "contracts/types/States.sol";
 
 contract AddressManagerTest is Test {
     DeployManagers managerDeployer;
@@ -24,7 +25,7 @@ contract AddressManagerTest is Test {
     event OnNewProtocolAddress(string indexed name, address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressDeleted(bytes32 indexed nameHash, address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
-    event OnRoleCreated(bytes32 indexed role);
+    event OnRoleCreated(bytes32 indexed role, bool multiHolder);
     event OnRoleRemoved(bytes32 indexed role);
     event OnProposedRoleHolder(bytes32 indexed role, address indexed proposedHolder);
     event OnNewRoleHolder(bytes32 indexed role, address indexed newHolder);
@@ -114,9 +115,9 @@ contract AddressManagerTest is Test {
 
     function testCreateNewRoleRevertsIfRoleAlreadyExists() public {
         vm.startPrank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         vm.expectRevert(AddressManager.AddressManager__RoleAlreadyExists.selector);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         vm.stopPrank();
     }
 
@@ -143,7 +144,7 @@ contract AddressManagerTest is Test {
 
     function testAcceptRoleRevertsIfNoneProposedHolder() public {
         vm.prank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
 
         address proposedHolder = makeAddr("proposedHolder");
 
@@ -156,7 +157,7 @@ contract AddressManagerTest is Test {
         address proposedHolder = makeAddr("proposedHolder");
 
         vm.startPrank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         addressManager.proposeRoleHolder(keccak256("TestRole"), proposedHolder);
         vm.stopPrank();
 
@@ -171,7 +172,7 @@ contract AddressManagerTest is Test {
         address proposedHolder = makeAddr("proposedHolder");
 
         vm.startPrank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         addressManager.proposeRoleHolder(keccak256("TestRole"), proposedHolder);
         vm.stopPrank();
 
@@ -196,7 +197,7 @@ contract AddressManagerTest is Test {
         address roleHolder = makeAddr("roleHolder");
 
         vm.startPrank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         addressManager.proposeRoleHolder(keccak256("TestRole"), roleHolder);
         vm.stopPrank();
 
@@ -393,6 +394,40 @@ contract AddressManagerTest is Test {
         assert(newAddressModuleState);
     }
 
+    function testAddUpdateDeleteModuleBranchesHitModuleManager() public {
+        MockModuleManager mm = new MockModuleManager();
+
+        // setUp() already registered PROTOCOL__MODULE_MANAGER, so we UPDATE it to our mock
+        addressManager.updateProtocolAddress("PROTOCOL__MODULE_MANAGER", address(mm));
+
+        address oldModule = address(0x1111);
+        address newModule = address(0x2222);
+
+        // add module => calls addModule(oldModule)
+        addressManager.addProtocolAddress("MODULE__A", oldModule, ProtocolAddressType.Module);
+        assertEq(mm.lastAdded(), oldModule);
+
+        // update module => calls addModule(new) and deprecates old
+        addressManager.updateProtocolAddress("MODULE__A", newModule);
+        assertEq(mm.lastAdded(), newModule);
+        assertEq(mm.lastDeprecated(), oldModule);
+        assertEq(uint256(mm.lastState()), uint256(ModuleState.Deprecated));
+
+        // delete module => deprecates current (newModule)
+        addressManager.deleteProtocolAddress(newModule);
+        assertEq(mm.lastDeprecated(), newModule);
+        assertEq(uint256(mm.lastState()), uint256(ModuleState.Deprecated));
+    }
+
+    function testAddModuleWithoutModuleManagerReverts() public {
+        address mmAddr = addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr;
+        addressManager.deleteProtocolAddress(mmAddr);
+
+        // Now adding a module must revert when trying to resolve the module manager by name
+        vm.expectRevert(AddressManager.AddressManager__AddressDoesNotExist.selector);
+        addressManager.addProtocolAddress("MODULE__NO_MM", address(0x1234), ProtocolAddressType.Module);
+    }
+
     /*//////////////////////////////////////////////////////////////
                               CREATE ROLES
     //////////////////////////////////////////////////////////////*/
@@ -405,8 +440,8 @@ contract AddressManagerTest is Test {
 
         vm.prank(addressManagerOwner);
         vm.expectEmit(true, false, false, true, address(addressManager));
-        emit OnRoleCreated(keccak256("TestRole"));
-        bool roleCreated = addressManager.createNewRole(keccak256("TestRole"));
+        emit OnRoleCreated(keccak256("TestRole"), false);
+        bool roleCreated = addressManager.createNewRole(keccak256("TestRole"), false);
 
         bool isValidRole = addressManager.isValidRole(keccak256("TestRole"));
 
@@ -417,9 +452,16 @@ contract AddressManagerTest is Test {
         assert(roles[0] == keccak256("TestRole"));
     }
 
+    function testCreateNewRoleSetsMultiHolderPolicyFlag() public {
+        bytes32 ROLE = keccak256("ROLE_MULTI");
+        addressManager.createNewRole(ROLE, true);
+
+        assertTrue(addressManager.isMultiHolderRole(ROLE));
+    }
+
     modifier addRole() {
         vm.prank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
         _;
     }
 
@@ -472,7 +514,7 @@ contract AddressManagerTest is Test {
 
     modifier newRoleAndProposedRoleHolder() {
         vm.prank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
 
         address proposedHolder = makeAddr("proposedHolder");
         vm.prank(addressManagerOwner);
@@ -512,6 +554,17 @@ contract AddressManagerTest is Test {
         assertEq(proposedHolderData.proposalTime, block.timestamp);
     }
 
+    function testProposeRoleHolderAddressZeroThenAcceptRevertsNoProposedHolder() public {
+        bytes32 ROLE = keccak256("ROLE_CLEAR_PROPOSAL");
+        addressManager.createNewRole(ROLE, false);
+
+        // doc says: propose to address(0) clears proposal
+        addressManager.proposeRoleHolder(ROLE, address(0));
+
+        vm.expectRevert(AddressManager.AddressManager__NoProposedHolder.selector);
+        addressManager.acceptProposedRole(ROLE);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           ACCEPT PROPOSED ROLE
     //////////////////////////////////////////////////////////////*/
@@ -541,9 +594,102 @@ contract AddressManagerTest is Test {
         assertEq(roles[0], keccak256("TestRole"));
     }
 
+    function testAcceptProposedRoleMultiHolderDoesNotRevokeExistingHolder() public {
+        bytes32 ROLE = keccak256("ROLE_MULTI_2");
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        addressManager.createNewRole(ROLE, true);
+
+        // alice accepts
+        addressManager.proposeRoleHolder(ROLE, alice);
+        vm.prank(alice);
+        addressManager.acceptProposedRole(ROLE);
+
+        assertTrue(addressManager.hasRole(ROLE, alice));
+        assertTrue(_contains(addressManager.getRolesByAddress(alice), ROLE));
+
+        // bob accepts; for multi-holder roles alice must KEEP role too
+        addressManager.proposeRoleHolder(ROLE, bob);
+        vm.prank(bob);
+        addressManager.acceptProposedRole(ROLE);
+
+        assertTrue(addressManager.hasRole(ROLE, alice));
+        assertTrue(addressManager.hasRole(ROLE, bob));
+
+        assertTrue(_contains(addressManager.getRolesByAddress(alice), ROLE));
+        assertTrue(_contains(addressManager.getRolesByAddress(bob), ROLE));
+    }
+
+    function testAcceptProposedRoleSingleHolderRevokesPreviousHolderBranch() public {
+        bytes32 ROLE = keccak256("ROLE_SINGLE");
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        addressManager.createNewRole(ROLE, false);
+
+        addressManager.proposeRoleHolder(ROLE, alice);
+        vm.prank(alice);
+        addressManager.acceptProposedRole(ROLE);
+
+        assertTrue(addressManager.hasRole(ROLE, alice));
+        assertEq(addressManager.currentRoleHolders(ROLE), alice);
+
+        // second accept should revoke alice (branch: currentHolder != 0)
+        addressManager.proposeRoleHolder(ROLE, bob);
+        vm.prank(bob);
+        addressManager.acceptProposedRole(ROLE);
+
+        assertFalse(addressManager.hasRole(ROLE, alice));
+        assertTrue(addressManager.hasRole(ROLE, bob));
+        assertEq(addressManager.currentRoleHolders(ROLE), bob);
+
+        assertFalse(_contains(addressManager.getRolesByAddress(alice), ROLE));
+        assertTrue(_contains(addressManager.getRolesByAddress(bob), ROLE));
+    }
+
+    function testAcceptProposedRoleDeadlineBoundarySucceeds() public {
+        bytes32 ROLE = keccak256("ROLE_DEADLINE_OK");
+        address alice = address(0xA11CE);
+
+        addressManager.createNewRole(ROLE, false);
+
+        // shorten delay so test is tight
+        addressManager.setRoleAcceptanceDelay(1 hours);
+
+        addressManager.proposeRoleHolder(ROLE, alice);
+
+        // grab proposal data to warp exactly to deadline
+        ProposedRoleHolder memory holder = addressManager.getProposedRoleHolder(ROLE);
+        assertEq(holder.proposedHolder, alice);
+
+        vm.warp(holder.proposalTime + addressManager.roleAcceptanceDelay()); // exactly boundary
+        vm.prank(alice);
+        addressManager.acceptProposedRole(ROLE);
+
+        assertTrue(addressManager.hasRole(ROLE, alice));
+    }
+
+    function testAcceptProposedRoleRevertIfTooLate() public {
+        bytes32 ROLE = keccak256("ROLE_TOO_LATE");
+        address alice = address(0xA11CE);
+
+        addressManager.createNewRole(ROLE, false);
+        addressManager.setRoleAcceptanceDelay(1 hours);
+
+        addressManager.proposeRoleHolder(ROLE, alice);
+
+        ProposedRoleHolder memory holder = addressManager.getProposedRoleHolder(ROLE);
+        vm.warp(holder.proposalTime + addressManager.roleAcceptanceDelay() + 1);
+
+        vm.prank(alice);
+        vm.expectRevert(AddressManager.AddressManager__TooLateToAccept.selector);
+        addressManager.acceptProposedRole(ROLE);
+    }
+
     modifier acceptRole() {
         vm.prank(addressManagerOwner);
-        addressManager.createNewRole(keccak256("TestRole"));
+        addressManager.createNewRole(keccak256("TestRole"), false);
 
         address proposedHolder = makeAddr("proposedHolder");
         vm.prank(addressManagerOwner);
@@ -576,6 +722,32 @@ contract AddressManagerTest is Test {
         assertEq(roles.length, 0);
     }
 
+    function testRevokeRoleHolderMultiHolderRemovesOnlyOneHolder() public {
+        bytes32 ROLE = keccak256("ROLE_MULTI_3");
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        addressManager.createNewRole(ROLE, true);
+
+        addressManager.proposeRoleHolder(ROLE, alice);
+        vm.prank(alice);
+        addressManager.acceptProposedRole(ROLE);
+
+        addressManager.proposeRoleHolder(ROLE, bob);
+        vm.prank(bob);
+        addressManager.acceptProposedRole(ROLE);
+
+        // revoke alice only
+        addressManager.revokeRoleHolder(ROLE, alice);
+
+        assertFalse(addressManager.hasRole(ROLE, alice));
+        assertTrue(addressManager.hasRole(ROLE, bob));
+
+        // rolesByAddress for alice should NOT contain ROLE anymore
+        assertFalse(_contains(addressManager.getRolesByAddress(alice), ROLE));
+        assertTrue(_contains(addressManager.getRolesByAddress(bob), ROLE));
+    }
+
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL CHECKS
     //////////////////////////////////////////////////////////////*/
@@ -603,5 +775,27 @@ contract AddressManagerTest is Test {
 
         vm.prank(addressManagerOwner);
         addressManager.upgradeToAndCall(newImpl, "");
+    }
+
+    function _contains(bytes32[] memory arr, bytes32 x) internal pure returns (bool) {
+        for (uint256 i; i < arr.length; ++i) {
+            if (arr[i] == x) return true;
+        }
+        return false;
+    }
+}
+
+contract MockModuleManager {
+    address public lastAdded;
+    address public lastDeprecated;
+    ModuleState public lastState;
+
+    function addModule(address module) external {
+        lastAdded = module;
+    }
+
+    function changeModuleState(address module, ModuleState state) external {
+        lastDeprecated = module;
+        lastState = state;
     }
 }

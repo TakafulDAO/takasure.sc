@@ -9,7 +9,7 @@ interface IAddressManager {
     function addProtocolAddress(string memory name, address addr, ProtocolAddressType addressType) external;
     function deleteProtocolAddress(address addr) external;
     function updateProtocolAddress(string memory name, address newAddr) external;
-    function createNewRole(bytes32 newRole) external returns (bool success);
+    function createNewRole(bytes32 newRole, bool multiHolder) external returns (bool success);
     function removeRole(bytes32 roleToRemove) external returns (bool success);
     function proposeRoleHolder(bytes32 role, address proposedRoleHolder) external;
     function acceptProposedRole(bytes32 role) external returns (bool success);

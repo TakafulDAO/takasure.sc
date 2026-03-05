@@ -105,7 +105,7 @@ contract UniV3StratFuzzTest is Test {
 
         // Pause guardian role for pause/unpause coverage
         vm.startPrank(addrMgr.owner());
-        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN);
+        addrMgr.createNewRole(Roles.PAUSE_GUARDIAN, true);
         addrMgr.proposeRoleHolder(Roles.PAUSE_GUARDIAN, pauser);
         vm.stopPrank();
 
@@ -143,6 +143,8 @@ contract UniV3StratFuzzTest is Test {
 
     function testUniV3Strat_setMaxTVL_OnlyOperator(address caller, uint256 newMax) public {
         vm.assume(caller != takadao);
+        vm.assume(caller != address(0));
+        vm.deal(caller, 1 ether);
 
         vm.prank(caller);
         vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);
@@ -151,6 +153,8 @@ contract UniV3StratFuzzTest is Test {
 
     function testUniV3Strat_setTwapWindow_OnlyOperator(address caller, uint32 newWindow) public {
         vm.assume(caller != takadao);
+        vm.assume(caller != address(0));
+        vm.deal(caller, 1 ether);
 
         vm.prank(caller);
         vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);
@@ -159,6 +163,8 @@ contract UniV3StratFuzzTest is Test {
 
     function testUniV3Strat_pause_unpause_OnlyPauseGuardian(address caller) public {
         vm.assume(caller != pauser);
+        vm.assume(caller != address(0));
+        vm.deal(caller, 1 ether);
 
         vm.prank(caller);
         vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);
@@ -179,6 +185,8 @@ contract UniV3StratFuzzTest is Test {
 
     function testUniV3Strat_deposit_RevertsIfCallerNotAuthorized(address caller) public {
         vm.assume(caller != address(aggregator) && caller != address(vault));
+        vm.assume(caller != address(0));
+        vm.deal(caller, 1 ether);
 
         vm.prank(caller);
         vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);
@@ -187,6 +195,8 @@ contract UniV3StratFuzzTest is Test {
 
     function testUniV3Strat_harvest_OnlyKeeperOrOperator(address caller) public {
         vm.assume(caller != takadao);
+        vm.assume(caller != address(0));
+        vm.deal(caller, 1 ether);
 
         vm.prank(caller);
         vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NotAuthorizedCaller.selector);

@@ -13,6 +13,7 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISFVault} from "contracts/interfaces/saveFunds/ISFVault.sol";
+import {ISFAndIFCircuitBreaker} from "contracts/interfaces/ISFAndIFCircuitBreaker.sol";
 import {ISFTwapValuator} from "contracts/interfaces/saveFunds/ISFTwapValuator.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -29,7 +30,9 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {FeeType} from "contracts/types/Cash.sol";
+import {ProtocolAddress} from "contracts/types/Managers.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {WithdrawalRequest, RequestKind} from "contracts/types/CircuitBreakerTypes.sol";
 
 pragma solidity 0.8.28;
 
@@ -452,8 +455,8 @@ contract SFVault is
     }
 
     /**
-     * @notice Withdraw `assets` of underlying from the vault, pulling from the strategy if idle liquidity is insufficient.
-     * @dev Overrides ERC4626 withdraw to ensure underlying liquidity is available before burning shares.
+     * @notice Withdraw `assets` of underlying from the vault.
+     * @dev Runs circuit breaker checks first, then ensures liquidity by pulling from the strategy if needed.
      */
     function withdraw(uint256 assets, address receiver, address owner)
         public
@@ -462,13 +465,19 @@ contract SFVault is
         nonReentrant
         returns (uint256 shares)
     {
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        if (address(circuitBreaker) != address(0)) {
+            (bool proceed,) = circuitBreaker.hookWithdraw(owner, receiver, assets);
+            if (!proceed) return 0;
+        }
+
         _ensureLiquidity(assets);
         return super.withdraw(assets, receiver, owner);
     }
 
     /**
-     * @notice Redeem `shares` for underlying, pulling from the strategy if idle liquidity is insufficient.
-     * @dev Overrides ERC4626 redeem to ensure underlying liquidity is available before burning shares.
+     * @notice Redeem `shares` for underlying.
+     * @dev Runs circuit breaker checks first, then ensures liquidity by pulling from the strategy if needed.
      */
     function redeem(uint256 shares, address receiver, address owner)
         public
@@ -477,6 +486,12 @@ contract SFVault is
         nonReentrant
         returns (uint256 assets)
     {
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        if (address(circuitBreaker) != address(0)) {
+            (bool proceed,) = circuitBreaker.hookRedeem(owner, receiver, shares);
+            if (!proceed) return 0;
+        }
+
         assets = previewRedeem(shares);
         _ensureLiquidity(assets);
         return super.redeem(shares, receiver, owner);
@@ -541,6 +556,45 @@ contract SFVault is
         withdrawnAssets = strat.withdraw(assets, address(this), data);
 
         emit OnWithdrawFromStrategy(assets, withdrawnAssets, keccak256(data));
+    }
+
+    function executeApprovedCircuitBreakersWithdrawals(uint256 requestId)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 assetsOut)
+    {
+        _onlyRole(Roles.OPERATOR);
+        ISFAndIFCircuitBreaker circuitBreaker = _circuitBreaker();
+        require(address(circuitBreaker) != address(0), SFVault__NotAddressZero());
+
+        WithdrawalRequest memory request = circuitBreaker.getWithdrawalRequest(requestId);
+
+        // Must belong to this vault
+        require(request.vault == address(this), SFVault__NotAuthorizedCaller());
+
+        // Must be executable
+        require(circuitBreaker.isRequestExecutable(requestId), SFVault__NotAuthorizedCaller());
+
+        uint256 sharesToBurn;
+
+        if (request.kind == RequestKind.Withdraw) {
+            assetsOut = request.assetsRequested;
+            sharesToBurn = previewWithdraw(assetsOut);
+        } else {
+            sharesToBurn = request.sharesRequested;
+            assetsOut = previewRedeem(sharesToBurn);
+        }
+
+        bool proceed = circuitBreaker.hookExecuteApproved(requestId, assetsOut);
+        if (!proceed) return 0;
+
+        _burn(request.owner, sharesToBurn);
+        IERC20(asset()).safeTransfer(request.receiver, assetsOut);
+
+        emit Withdraw(_msgSender(), request.receiver, request.owner, assetsOut, sharesToBurn);
+
+        return assetsOut;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -879,8 +933,15 @@ contract SFVault is
         userTotalWithdrawn[owner] += assets;
     }
 
-    function _onlyRole(bytes32 _role) internal view {
-        require(addressManager.hasRole(_role, msg.sender), SFVault__NotAuthorizedCaller());
+    function _circuitBreaker() internal view returns (ISFAndIFCircuitBreaker) {
+        // Dont fail if circuit breaker is not set yet
+        try addressManager.getProtocolAddressByName("PROTOCOL__CIRCUIT_BREAKER") returns (
+            ProtocolAddress memory protocolAddr
+        ) {
+            return ISFAndIFCircuitBreaker(protocolAddr.addr);
+        } catch {
+            return ISFAndIFCircuitBreaker(address(0));
+        }
     }
 
     function _onlyKeeperOrOperator() internal view {
@@ -888,6 +949,10 @@ contract SFVault is
             addressManager.hasRole(Roles.KEEPER, msg.sender) || addressManager.hasRole(Roles.OPERATOR, msg.sender),
             SFVault__NotAuthorizedCaller()
         );
+    }
+
+    function _onlyRole(bytes32 _role) internal view {
+        require(addressManager.hasRole(_role, msg.sender), SFVault__NotAuthorizedCaller());
     }
 
     /// @dev required by the OZ UUPS module.
