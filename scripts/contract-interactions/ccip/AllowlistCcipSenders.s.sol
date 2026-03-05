@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
-import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/SaveInvestCCIPReceiver.sol";
+import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/ccip/SaveInvestCCIPReceiver.sol";
 
 contract AllowlistCcipSenders is Script, DeployConstants, GetContractAddress {
     struct SourceConfig {

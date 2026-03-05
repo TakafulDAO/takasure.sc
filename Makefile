@@ -235,7 +235,7 @@ NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KE
 ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)
 	NETWORK_ARGS := --rpc-url $(ARBITRUM_MAINNET_RPC_URL) --trezor --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network avax_mainnet,$(ARGS)),--network avax_mainnet)
-	NETWORK_ARGS := --rpc-url $(AVAX_MAINNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+	NETWORK_ARGS := --rpc-url $(AVALANCHE_MAINNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network base_mainnet,$(ARGS)),--network base_mainnet)
 	NETWORK_ARGS := --rpc-url $(BASE_MAINNET_RPC_URL) --account $(CCIP_ACCOUNT) --sender $(CCIP_DEPLOYER_ADDRESS) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 else ifeq ($(findstring --network eth_mainnet,$(ARGS)),--network eth_mainnet)	
