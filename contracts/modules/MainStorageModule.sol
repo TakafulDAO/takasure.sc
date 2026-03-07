@@ -164,6 +164,27 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
         emit OnAssociationMemberUpdated(member.memberId, member.wallet, member.couponAmountRedeemed);
     }
 
+    function activateAssociationMemberByKyc(address memberWallet)
+        external
+        onlyContract("MODULE__KYC", address(addressManager))
+    {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
+        );
+        AddressAndStates._notZeroAddress(memberWallet);
+
+        AssociationMember memory member = members[memberWallet];
+
+        require(member.wallet == memberWallet, ModuleErrors.Module__InvalidAddress());
+        require(!member.isRefunded && member.memberState == AssociationMemberState.Inactive, ModuleErrors.Module__WrongMemberState());
+
+        member.memberState = AssociationMemberState.Active;
+        members[memberWallet] = member;
+
+        emit OnAssociationMemberUpdated(member.memberId, member.wallet, member.couponAmountRedeemed);
+    }
+
     // TODO: Implement this when the benefit module is ready
     function createBenefitMember(address benefit, BenefitMember memory member) external view {
         // The module must be enabled
