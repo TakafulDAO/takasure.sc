@@ -147,6 +147,23 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
         emit OnAssociationMemberUpdated(member.memberId, member.wallet, member.couponAmountRedeemed);
     }
 
+    function markAssociationMemberRefunded(AssociationMember memory member)
+        external
+        onlyContract("MODULE__SUBSCRIPTION", address(addressManager))
+    {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
+        );
+        _associationMemberRefundProfileChecks(member);
+
+        // Ensure the memberId is preserved
+        member.memberId = members[member.wallet].memberId;
+        members[member.wallet] = member;
+
+        emit OnAssociationMemberUpdated(member.memberId, member.wallet, member.couponAmountRedeemed);
+    }
+
     // TODO: Implement this when the benefit module is ready
     function createBenefitMember(address benefit, BenefitMember memory member) external view {
         // The module must be enabled
@@ -323,6 +340,18 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
 
         // The membership start time can not be in the future
         require(_member.associateStartTime <= block.timestamp, ModuleErrors.Module__InvalidDate());
+    }
+
+    function _associationMemberRefundProfileChecks(AssociationMember memory _member) internal view {
+        require(members[_member.wallet].wallet != address(0), ModuleErrors.Module__InvalidAddress());
+        require(_member.wallet != address(0) && _member.wallet != _member.parent, ModuleErrors.Module__InvalidAddress());
+
+        // Refund path is expected to persist a refunded member profile
+        require(
+            (_member.memberState == AssociationMemberState.Inactive || _member.memberState == AssociationMemberState.Canceled)
+                && _member.isRefunded,
+            ModuleErrors.Module__WrongMemberState()
+        );
     }
 
     /**

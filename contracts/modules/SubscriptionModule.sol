@@ -466,7 +466,7 @@ contract SubscriptionModule is
         });
 
         // Update the user as refunded
-        mainStorageModule.updateAssociationMember(_member);
+        mainStorageModule.markAssociationMemberRefunded(_member);
         emit TakasureEvents.OnRefund(_member.memberId, _memberWallet, amountToRefund);
     }
 
