@@ -135,7 +135,8 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
         );
         require(
             addressManager.hasName("MODULE__SUBSCRIPTION", msg.sender)
-                || addressManager.hasName("MODULE__MANAGE_SUBSCRIPTION", msg.sender),
+                || addressManager.hasName("MODULE__SUBSCRIPTION_MANAGEMENT", msg.sender)
+                || addressManager.hasType(ProtocolAddressType.Benefit, msg.sender),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _associationMemberProfileChecks(member, true);
@@ -177,7 +178,10 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
         AssociationMember memory member = members[memberWallet];
 
         require(member.wallet == memberWallet, ModuleErrors.Module__InvalidAddress());
-        require(!member.isRefunded && member.memberState == AssociationMemberState.Inactive, ModuleErrors.Module__WrongMemberState());
+        require(
+            !member.isRefunded && member.memberState == AssociationMemberState.Inactive,
+            ModuleErrors.Module__WrongMemberState()
+        );
 
         member.memberState = AssociationMemberState.Active;
         members[memberWallet] = member;
@@ -374,8 +378,8 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
 
         // Refund path is expected to persist a refunded member profile
         require(
-            (_member.memberState == AssociationMemberState.Inactive || _member.memberState == AssociationMemberState.Canceled)
-                && _member.isRefunded,
+            (_member.memberState == AssociationMemberState.Inactive
+                    || _member.memberState == AssociationMemberState.Canceled) && _member.isRefunded,
             ModuleErrors.Module__WrongMemberState()
         );
     }

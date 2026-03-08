@@ -116,19 +116,19 @@ contract BenefitModule is ModuleImplementation, Initializable, ReentrancyGuardTr
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
         // Check if the coupon amount is valid
         require(_couponAmount <= _contributionBeforeFee, ModuleErrors.Module__InvalidCoupon());
 
         // Check if the member must be KYCed
-        IKYCModule kycModule = IKYCModule(addressManager.getProtocolAddressByName("KYC_MODULE").addr);
+        IKYCModule kycModule = IKYCModule(addressManager.getProtocolAddressByName("MODULE__KYC").addr);
 
         require(kycModule.isKYCed(_memberWallet), ModuleErrors.Module__AddressNotKYCed());
 
         IMainStorageModule protocolStorageModule =
-            IMainStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+            IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
 
         // The member can not be part of the corresponding benefit
         member_ = protocolStorageModule.getAssociationMember(_memberWallet);

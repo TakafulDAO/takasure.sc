@@ -80,7 +80,7 @@ contract ReferralRewardsModule is
     function switchReferralRewards() external onlyRole(Roles.OPERATOR, address(addressManager)) {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
         referralRewardsEnabled = !referralRewardsEnabled;
@@ -90,7 +90,7 @@ contract ReferralRewardsModule is
     function switchReferralDiscount() external onlyRole(Roles.OPERATOR, address(addressManager)) {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
         if (!referralDiscountEnabled) {
