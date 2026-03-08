@@ -115,13 +115,13 @@ contract ReferralRewardsModule is
     {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
         if (referralRewardsEnabled) {
             toReferralReserveAmount_ = (contribution * ModuleConstants.REFERRAL_RESERVE) / 100;
 
-            IKYCModule kycModule = IKYCModule(addressManager.getProtocolAddressByName("KYC_MODULE").addr);
+            IKYCModule kycModule = IKYCModule(addressManager.getProtocolAddressByName("MODULE__KYC").addr);
 
             if (parent != address(0) && kycModule.isKYCed(parent)) {
                 if (referralDiscountEnabled) {
@@ -149,7 +149,7 @@ contract ReferralRewardsModule is
     {
         // Module must be enabled
         AddressAndStates._onlyModuleState(
-            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("MODULE_MANAGER").addr
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
 
         address parent = childToParent[child];
@@ -159,7 +159,8 @@ contract ReferralRewardsModule is
             uint256 parentReward = pendingParentRewardsByChild[parent][child];
             // Reset the rewards for this child
             pendingParentRewardsByChild[parent][child] = 0;
-            IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+            IERC20 contributionToken =
+                IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
             try contributionToken.transfer(parent, parentReward) {
                 emit OnParentRewardedStatus(parent, layer, child, parentReward, true);

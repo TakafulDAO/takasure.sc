@@ -141,7 +141,7 @@ contract BenefitModule is ModuleImplementation, Initializable, ReentrancyGuardTr
         }
 
         ITakasureReserve takasureReserve =
-            ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr);
+            ITakasureReserve(addressManager.getProtocolAddressByName("PROTOCOL__TAKASURE_RESERVE").addr);
 
         reserve_ = takasureReserve.getReserveValues();
 
@@ -167,8 +167,9 @@ contract BenefitModule is ModuleImplementation, Initializable, ReentrancyGuardTr
         uint256 _membershipDuration,
         uint256 _couponAmount
     ) internal {
-        ITakasureReserve takasureReserve =
-            ITakasureReserve(addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr);
+        ITakasureReserve takasureReserve = ITakasureReserve(
+            addressManager.getProtocolAddressByName("PROTOCOL__TAKASURE_RESERVE").addr
+        );
 
         BenefitMember memory newBenefitMember = takasureReserve.getMemberFromAddress(_memberWallet);
 
@@ -198,7 +199,7 @@ contract BenefitModule is ModuleImplementation, Initializable, ReentrancyGuardTr
 
         // Calculate the referral rewards
         IReferralRewardsModule referralRewardsModule =
-            IReferralRewardsModule(addressManager.getProtocolAddressByName("REFERRAL_REWARDS_MODULE").addr);
+            IReferralRewardsModule(addressManager.getProtocolAddressByName("MODULE__REFERRAL_REWARDS").addr);
 
         uint256 toReferralReserveAmount;
         (feeAmount, discount, toReferralReserveAmount) = referralRewardsModule.calculateReferralRewards({
@@ -246,7 +247,7 @@ contract BenefitModule is ModuleImplementation, Initializable, ReentrancyGuardTr
 
     function _setBenefitInAssociation(AssociationMember memory _member) internal {
         IMainStorageModule protocolStorageModule =
-            IMainStorageModule(addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr);
+            IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
         address[] memory newBenefits = new address[](_member.benefits.length + 1);
         uint256 currentBenefitsLength = _member.benefits.length;
 
@@ -318,7 +319,7 @@ contract BenefitModule is ModuleImplementation, Initializable, ReentrancyGuardTr
         address _referralRewardsModule
     ) internal {
         // First call the subscription module to transfer the subscription amount to the reserves
-        uint256 subscription = ISubscriptionModule(addressManager.getProtocolAddressByName("SUBSCRIPTION_MODULE").addr)
+        uint256 subscription = ISubscriptionModule(addressManager.getProtocolAddressByName("MODULE__SUBSCRIPTION").addr)
             .transferSubscriptionToReserve(_memberWallet);
 
         uint256 _amountToTransferFromMember;
@@ -329,25 +330,25 @@ contract BenefitModule is ModuleImplementation, Initializable, ReentrancyGuardTr
             _amountToTransferFromMember = contributionAfterFee - subscription - discount;
         }
 
-        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
+        IERC20 contributionToken = IERC20(addressManager.getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN").addr);
 
         // Transfer to reserve
         if (_amountToTransferFromMember > 0) {
             contributionToken.safeTransferFrom(
                 _memberWallet,
-                addressManager.getProtocolAddressByName("TAKASURE_RESERVE").addr,
+                addressManager.getProtocolAddressByName("PROTOCOL__TAKASURE_RESERVE").addr,
                 _amountToTransferFromMember
             );
 
             // Transfer the service fee to the fee claim address
-            address feeClaimAddress = addressManager.getProtocolAddressByName("FEE_CLAIM_ADDRESS").addr;
+            address feeClaimAddress = addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIMER").addr;
 
             contributionToken.safeTransferFrom(_memberWallet, feeClaimAddress, feeAmount);
         }
 
         // Transfer the coupon amount to this contract
         if (_couponAmount > 0) {
-            address couponPool = addressManager.getProtocolAddressByName("COUPON_POOL").addr;
+            address couponPool = addressManager.getProtocolAddressByName("ADMIN__COUPON_POOL").addr;
             contributionToken.safeTransferFrom(couponPool, address(this), _couponAmount);
         }
 

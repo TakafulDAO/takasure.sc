@@ -259,7 +259,7 @@ contract SubscriptionModule is
         uint256 userDiscount = member.discount;
 
         if (userDiscount > 0) {
-            address feeClaimer = addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIMER ").addr;
+            address feeClaimer = addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIMER").addr;
             contributionToken.safeTransferFrom(feeClaimer, address(this), userDiscount);
         }
 
@@ -406,7 +406,7 @@ contract SubscriptionModule is
 
     function _transferFee(IERC20 _contributionToken, address _fromAddress, uint256 _fee) internal {
         _contributionToken.safeTransferFrom(
-            _fromAddress, addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIMER ").addr, _fee
+            _fromAddress, addressManager.getProtocolAddressByName("ADMIN__FEE_CLAIMER").addr, _fee
         );
     }
 

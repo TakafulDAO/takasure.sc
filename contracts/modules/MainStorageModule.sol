@@ -205,7 +205,7 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
         );
         require(
             addressManager.hasType(ProtocolAddressType.Benefit, msg.sender)
-                || addressManager.hasName("MODULE__MANAGE_SUBSCRIPTION", msg.sender),
+                || addressManager.hasName("MODULE__SUBSCRIPTION_MANAGEMENT", msg.sender),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
