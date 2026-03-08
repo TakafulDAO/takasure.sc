@@ -345,12 +345,17 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
 
         require(_member.wallet != address(0) && _member.wallet != _member.parent, ModuleErrors.Module__InvalidAddress());
 
-        // The user state must be inactive or canceled and not refunded
-        require(
-            (_member.memberState == AssociationMemberState.Inactive
-                    || _member.memberState == AssociationMemberState.Canceled) && !_member.isRefunded,
-            ModuleErrors.Module__WrongMemberState()
-        );
+        // Generic updates can touch any non-refunded member state.
+        // Refunded profiles are handled by markAssociationMemberRefunded().
+        if (isRejoin) {
+            require(!_member.isRefunded, ModuleErrors.Module__WrongMemberState());
+        } else {
+            // New member creation must start inactive and non-refunded.
+            require(
+                _member.memberState == AssociationMemberState.Inactive && !_member.isRefunded,
+                ModuleErrors.Module__WrongMemberState()
+            );
+        }
 
         // If a parent wallet is provided, it must be KYCed
         if (_member.parent != address(0)) {
