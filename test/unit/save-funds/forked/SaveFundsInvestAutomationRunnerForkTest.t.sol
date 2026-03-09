@@ -26,6 +26,8 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
     bytes32 internal constant ON_UPKEEP_ATTEMPT_SIG = keccak256("OnUpkeepAttempt(uint256,uint256,uint16,bytes32)");
     bytes32 internal constant ON_INVEST_SUCCEEDED_SIG = keccak256("OnInvestSucceeded(uint256,uint256,uint256,uint16)");
     bytes32 internal constant ON_INVEST_FAILED_SIG = keccak256("OnInvestFailed(uint256,bytes)");
+    bytes32 internal constant ON_UPKEEP_SKIPPED_PAUSED_SIG = keccak256("OnUpkeepSkippedPaused(uint256)");
+    bytes32 internal constant ON_UPKEEP_SKIPPED_LOW_IDLE_SIG = keccak256("OnUpkeepSkippedLowIdle(uint256,uint256,uint256)");
 
     AddressGetter internal addrGetter;
     AddressManager internal addrMgr;
@@ -120,6 +122,27 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertEq(runner.interval(), 1 hours);
     }
 
+    function testRunnerFork_setRebalanceCheckInterval_BelowDaily_RevertsWhenTestModeDisabled() public {
+        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__TooSmall.selector);
+        runner.setRebalanceCheckInterval(1 hours);
+    }
+
+    function testRunnerFork_setRebalanceCheckInterval_BelowDaily_AllowsWhenTestModeEnabled() public {
+        if (!runner.testMode()) runner.toggleTestMode();
+        runner.setRebalanceCheckInterval(1 hours);
+        assertEq(runner.rebalanceCheckInterval(), 1 hours);
+    }
+
+    function testRunnerFork_setManualOtherRatioBPS_RevertsAboveMax() public {
+        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__OutOfRange.selector);
+        runner.setManualOtherRatioBPS(uint16(MAX_BPS + 1));
+    }
+
+    function testRunnerFork_setSwapBPS_RevertsAboveMax() public {
+        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__OutOfRange.selector);
+        runner.setSwapBPS(uint16(MAX_BPS + 1), 0);
+    }
+
     function testRunnerFork_checkUpkeep_TrueAfterDepositAndInterval() public {
         _registerAndDeposit(makeAddr("member1"), 1_000e6);
         vm.warp(block.timestamp + runner.interval() + 1);
@@ -130,6 +153,40 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertTrue(upkeepNeeded);
         assertTrue(investNeeded);
         assertEq(idleFromData, vault.idleAssets());
+    }
+
+    function testRunnerFork_checkUpkeep_FalseWhenRunnerPaused() public {
+        runner.pause();
+
+        (bool upkeepNeeded, bytes memory performData) = runner.checkUpkeep("");
+        uint256 lastRunBefore = runner.lastRun();
+
+        runner.performUpkeep("");
+
+        assertFalse(upkeepNeeded);
+        assertEq(performData.length, 0);
+        assertEq(runner.lastRun(), lastRunBefore);
+
+        runner.unpause();
+        assertFalse(runner.paused());
+    }
+
+    function testRunnerFork_checkUpkeep_TrueForRebalanceOnly() public {
+        _enableRebalance();
+        runner.setInterval(10 days);
+        runner.setLastRun(block.timestamp);
+
+        (int24 outLower, int24 outUpper) = _outOfRangeTicksAboveCurrent();
+        _setStrategyRange(outLower, outUpper, 5_000);
+
+        (bool upkeepNeeded, bytes memory performData) = runner.checkUpkeep("");
+        (uint256 idleFromData, bool investNeeded, bool rebalanceCheckNeeded) =
+            abi.decode(performData, (uint256, bool, bool));
+
+        assertTrue(upkeepNeeded);
+        assertEq(idleFromData, 0);
+        assertFalse(investNeeded);
+        assertTrue(rebalanceCheckNeeded);
     }
 
     function testRunnerFork_performUpkeep_AttemptsInvestmentAndUpdatesLastRun() public {
@@ -174,19 +231,13 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
 
         assertTrue(foundAttempt, "runner attempt event not emitted");
         assertEq(idleFromAttempt, idleBefore, "attempt idle mismatch");
-        assertTrue(foundRunnerSuccess || foundRunnerFailed, "runner terminal event missing");
-        assertTrue(!(foundRunnerSuccess && foundRunnerFailed), "runner emitted both success and failed");
+        assertTrue(foundRunnerSuccess, "runner success event not emitted");
+        assertFalse(foundRunnerFailed, "runner failed event should not exist on happy path");
         assertEq(runner.lastRun(), block.timestamp, "lastRun not updated");
-
-        if (foundRunnerSuccess) {
-            assertTrue(foundVaultInvestEvent, "vault invest event missing on runner success");
-            assertEq(requestedAssetsFromVault, idleBefore, "requested assets mismatch");
-            assertGt(investedAssetsFromVault, 0, "vault invested assets is zero");
-            assertLe(vault.idleAssets(), idleBefore, "idle did not decrease");
-        } else {
-            // On failed path, vault invest should not complete and emit.
-            assertFalse(foundVaultInvestEvent, "vault invest event should not exist on runner failure");
-        }
+        assertTrue(foundVaultInvestEvent, "vault invest event missing on runner success");
+        assertEq(requestedAssetsFromVault, idleBefore, "requested assets mismatch");
+        assertGt(investedAssetsFromVault, 0, "vault invested assets is zero");
+        assertLe(vault.idleAssets(), idleBefore, "idle did not decrease");
     }
 
     function testRunnerFork_performUpkeep_EmitsFailedWhenRunnerIsNotKeeper() public {
@@ -207,6 +258,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         bool foundRunnerFailed;
         bool foundVaultInvestEvent;
         uint256 idleFromAttempt;
+        bytes memory failureReason;
 
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].emitter == address(runner) && logs[i].topics.length > 0) {
@@ -217,6 +269,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
                     foundRunnerSuccess = true;
                 } else if (logs[i].topics[0] == ON_INVEST_FAILED_SIG) {
                     foundRunnerFailed = true;
+                    (, failureReason) = abi.decode(logs[i].data, (uint256, bytes));
                 }
             }
 
@@ -231,6 +284,69 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertFalse(foundRunnerSuccess, "runner success event should not exist");
         assertFalse(foundVaultInvestEvent, "vault invest event should not exist");
         assertEq(runner.lastRun(), block.timestamp, "lastRun not updated");
+        assertEq(
+            _errorSelector(failureReason), SFVault.SFVault__NotAuthorizedCaller.selector, "unexpected failure reason"
+        );
+    }
+
+    function testRunnerFork_performUpkeep_SkipsWhenDependencyPausedAndUpdatesTimestamps() public {
+        _enableRebalance();
+        _grantKeeperRoleToRunner();
+        _registerAndDeposit(makeAddr("memberPaused"), 1_000e6);
+
+        (int24 outLower, int24 outUpper) = _outOfRangeTicksAboveCurrent();
+        _setStrategyRange(outLower, outUpper, 5_000);
+
+        vm.prank(pauseGuardian);
+        uniV3.pause();
+
+        vm.warp(block.timestamp + runner.interval() + 1);
+
+        vm.recordLogs();
+        runner.performUpkeep("");
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        bool foundSkippedPaused;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter == address(runner) && logs[i].topics.length > 0) {
+                if (logs[i].topics[0] == ON_UPKEEP_SKIPPED_PAUSED_SIG) {
+                    foundSkippedPaused = true;
+                }
+            }
+        }
+
+        assertTrue(foundSkippedPaused, "runner paused-skip event missing");
+        assertEq(runner.lastRun(), block.timestamp, "lastRun not updated on paused dependency");
+        assertEq(runner.lastRebalanceCheck(), block.timestamp, "lastRebalanceCheck not updated on paused dependency");
+        assertEq(uniV3.tickLower(), outLower, "range should remain unchanged");
+        assertEq(uniV3.tickUpper(), outUpper, "range should remain unchanged");
+    }
+
+    function testRunnerFork_performUpkeep_SkipsLowIdleAndKeepsLastRun() public {
+        _grantKeeperRoleToRunner();
+        if (runner.skipIfPaused()) runner.toggleSkipIfPaused();
+        _registerAndDeposit(makeAddr("memberLowIdle"), 1_000e6);
+
+        uint256 idleBefore = vault.idleAssets();
+        runner.setMinIdleAssets(idleBefore + 1);
+        vm.warp(block.timestamp + runner.interval() + 1);
+
+        vm.recordLogs();
+        runner.performUpkeep("");
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        bool foundLowIdle;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter == address(runner) && logs[i].topics.length > 0) {
+                if (logs[i].topics[0] == ON_UPKEEP_SKIPPED_LOW_IDLE_SIG) {
+                    foundLowIdle = true;
+                }
+            }
+        }
+
+        assertTrue(foundLowIdle, "runner low-idle event missing");
+        assertEq(runner.lastRun(), 0, "lastRun should not advance on low idle");
+        assertEq(vault.idleAssets(), idleBefore, "idle should remain untouched");
     }
 
     function testRunnerFork_previewInvestBundle_AutoRatioMatchesSpotSlot0() public view {
@@ -255,9 +371,34 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
 
         assertEq(otherRatioBps, expectedRatioBps, "auto ratio should be spot-based");
 
-        (uint16 encodedOtherRatioBps,,,,,) =
-            abi.decode(payloads[0], (uint16, bytes, bytes, uint256, uint256, uint256));
+        (uint16 encodedOtherRatioBps,,,,,) = abi.decode(payloads[0], (uint16, bytes, bytes, uint256, uint256, uint256));
         assertEq(encodedOtherRatioBps, otherRatioBps, "payload ratio mismatch");
+    }
+
+    function testRunnerFork_previewInvestBundle_ManualRatioZeroSwapAndDeadline() public {
+        runner.setUseAutoOtherRatio();
+        runner.setManualOtherRatioBPS(4_321);
+        runner.setSwapBPS(0, 0);
+        runner.setPositionMins(11, 22);
+        runner.setDeadlineBuffer(600);
+
+        (uint16 otherRatioBps,, bytes[] memory payloads,) = runner.previewInvestBundle(1_000e6);
+        (
+            uint16 encodedOtherRatioBps,
+            bytes memory swapToOtherData,
+            bytes memory swapToUnderlyingData,
+            uint256 pmDeadline,
+            uint256 minUnderlying,
+            uint256 minOther
+        ) = abi.decode(payloads[0], (uint16, bytes, bytes, uint256, uint256, uint256));
+
+        assertEq(otherRatioBps, 4_321);
+        assertEq(encodedOtherRatioBps, 4_321);
+        assertEq(swapToOtherData.length, 0);
+        assertEq(swapToUnderlyingData.length, 0);
+        assertEq(pmDeadline, block.timestamp + 600);
+        assertEq(minUnderlying, 11);
+        assertEq(minOther, 22);
     }
 
     function testRunnerFork_setLastSuccessfulRebalance() public {
@@ -331,6 +472,201 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertEq(runner.lastSuccessfulRebalance(), block.timestamp, "cooldown-based rebalance not recorded");
     }
 
+    function testRunnerFork_performUpkeep_DoesNotRebalanceWhenCooldownNotElapsed() public {
+        _enableRebalance();
+        _grantKeeperRoleToRunner();
+
+        runner.setInterval(10 days);
+        runner.setLastRun(block.timestamp);
+        uint256 cooldownSeed = block.timestamp - 1 days;
+        runner.setLastSuccessfulRebalance(cooldownSeed);
+
+        (int24 outLower1, int24 outUpper1) = _outOfRangeTicksAboveCurrent();
+        _setStrategyRange(outLower1, outUpper1, 5_000);
+
+        runner.performUpkeep("");
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
+        runner.performUpkeep("");
+
+        (int24 inLower, int24 inUpper) = _inRangeTicksAroundCurrent();
+        _setStrategyRange(inLower, inUpper, 5_000);
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
+        runner.performUpkeep("");
+
+        (int24 outLower2, int24 outUpper2) = _outOfRangeTicksBelowCurrent();
+        _setStrategyRange(outLower2, outUpper2, 5_000);
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
+        runner.performUpkeep("");
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
+        runner.performUpkeep("");
+
+        assertEq(uniV3.tickLower(), outLower2, "range should not change while cooldown is active");
+        assertEq(uniV3.tickUpper(), outUpper2, "range should not change while cooldown is active");
+        assertEq(runner.lastSuccessfulRebalance(), cooldownSeed, "cooldown timestamp should remain unchanged");
+    }
+
+    function testRunnerFork_harness_SpacingMathAndRatioBoundaries() public {
+        SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+        MockPoolForRunnerHarness poolMock = new MockPoolForRunnerHarness();
+
+        harness.setHarnessConfig(address(poolMock), address(0), address(1), address(2), true);
+        assertEq(harness.exposedFloorToSpacing(-3, 2), -4);
+        assertEq(harness.exposedCeilToSpacing(3, 2), 4);
+
+        int24 tickLower = -10;
+        int24 tickUpper = 10;
+        uint160 lowerSqrtPrice = TickMathV3.getSqrtRatioAtTick(tickLower);
+        uint160 upperSqrtPrice = TickMathV3.getSqrtRatioAtTick(tickUpper);
+        uint160 midSqrtPrice = TickMathV3.getSqrtRatioAtTick(0);
+
+        assertEq(harness.exposedComputeOtherRatioBPS(lowerSqrtPrice, tickLower, tickUpper), 10_000);
+        assertEq(harness.exposedComputeOtherRatioBPS(upperSqrtPrice, tickLower, tickUpper), 0);
+
+        uint16 inRangeRatio = harness.exposedComputeOtherRatioBPS(midSqrtPrice, tickLower, tickUpper);
+        assertGt(inRangeRatio, 0);
+        assertLt(inRangeRatio, 10_000);
+
+        harness.setHarnessConfig(address(poolMock), address(0), address(1), address(2), false);
+        assertEq(harness.exposedComputeOtherRatioBPS(lowerSqrtPrice, tickLower, tickUpper), 0);
+        assertEq(harness.exposedComputeOtherRatioBPS(upperSqrtPrice, tickLower, tickUpper), 10_000);
+    }
+
+    function testRunnerFork_harness_QuoteAndPausedHelpers() public {
+        SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+        MockPoolForRunnerHarness poolMock = new MockPoolForRunnerHarness();
+        MockPausedTarget pausedTarget = new MockPausedTarget();
+        MockMalformedPausedTarget malformedTarget = new MockMalformedPausedTarget();
+        uint160 sqrtPriceX96 = 1 << 96;
+
+        poolMock.setTokens(address(11), address(12));
+        harness.setHarnessConfig(address(poolMock), address(0), address(12), address(11), true);
+        assertEq(harness.exposedQuoteOtherAsUnderlyingAtSqrtPrice(5, sqrtPriceX96), 5);
+        assertEq(harness.exposedQuoteOtherAsUnderlyingAtSqrtPrice(0, sqrtPriceX96), 0);
+
+        poolMock.setTokens(address(21), address(22));
+        harness.setHarnessConfig(address(poolMock), address(0), address(21), address(22), false);
+        assertEq(harness.exposedQuoteOtherAsUnderlyingAtSqrtPrice(7, sqrtPriceX96), 7);
+
+        harness.setHarnessConfig(address(poolMock), address(0), address(31), address(31), false);
+        assertEq(harness.exposedQuoteOtherAsUnderlyingAtSqrtPrice(9, sqrtPriceX96), 9);
+
+        poolMock.setTokens(address(41), address(42));
+        harness.setHarnessConfig(address(poolMock), address(0), address(43), address(44), false);
+        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__BadPoolConfig.selector);
+        harness.exposedQuoteOtherAsUnderlyingAtSqrtPrice(1, sqrtPriceX96);
+
+        pausedTarget.setPaused(true);
+        assertTrue(harness.exposedIsPaused(address(pausedTarget)));
+        pausedTarget.setPaused(false);
+        assertFalse(harness.exposedIsPaused(address(pausedTarget)));
+        assertFalse(harness.exposedIsPaused(address(malformedTarget)));
+        assertFalse(harness.exposedIsPaused(address(0x1234)));
+    }
+
+    function testRunnerFork_harness_RebalanceSampleAndTriggerLogic() public {
+        SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+        harness.exposedInitializeRebalanceState();
+
+        assertEq(harness.exposedRebalanceSampleCount(), 0);
+        assertEq(harness.exposedRebalanceSampleHead(), 0);
+        assertEq(harness.exposedConsecutiveOutOfRangeObserved(), 0);
+        assertEq(harness.exposedRollingOutOfRangeObserved(block.timestamp - 1 days), 0);
+        assertFalse(harness.exposedHasRecentOutOfRangeSample(block.timestamp));
+
+        vm.warp(100);
+        harness.exposedRecordRebalanceSample(false);
+        assertEq(harness.exposedConsecutiveOutOfRangeObserved(), 0);
+
+        vm.warp(200);
+        harness.exposedRecordRebalanceSample(true);
+        vm.warp(300);
+        harness.exposedRecordRebalanceSample(true);
+
+        assertEq(harness.exposedConsecutiveOutOfRangeObserved(), 100);
+        assertEq(harness.exposedRollingOutOfRangeObserved(250), 50);
+        assertTrue(harness.exposedHasRecentOutOfRangeSample(250));
+
+        vm.warp(10 days);
+        harness.setHarnessTiming(0, 0, 0, 0, 0, true);
+        assertTrue(harness.exposedShouldTriggerRebalance(24 hours, 0));
+        assertFalse(harness.exposedShouldTriggerRebalance(0, 23 hours));
+        assertTrue(harness.exposedShouldTriggerRebalance(0, 24 hours));
+
+        harness.setHarnessTiming(0, 0, 0, 0, block.timestamp - 1 days, true);
+        assertFalse(harness.exposedShouldTriggerRebalance(0, 24 hours));
+
+        harness.setHarnessTiming(0, 0, 0, 0, block.timestamp - 8 days, true);
+        assertTrue(harness.exposedShouldTriggerRebalance(0, 24 hours));
+
+        for (uint256 i; i < 17; ++i) {
+            vm.warp(block.timestamp + 1);
+            harness.exposedRecordRebalanceSample(true);
+        }
+
+        assertEq(harness.exposedRebalanceSampleCount(), 16);
+        assertEq(harness.exposedSampleIndexFromNewest(0), (uint256(harness.exposedRebalanceSampleHead()) + 15) % 16);
+
+        harness.exposedClearRebalanceSamples();
+        assertEq(harness.exposedRebalanceSampleCount(), 0);
+        assertEq(harness.exposedRebalanceSampleHead(), 0);
+    }
+
+    function testRunnerFork_harness_ValuationMonitoringAndRebalanceChecks() public {
+        SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+        MockPoolForRunnerHarness poolMock = new MockPoolForRunnerHarness();
+        MockStrategyAutomationView strategyMock = new MockStrategyAutomationView();
+
+        poolMock.setTokens(address(51), address(52));
+        poolMock.setFee(100);
+        poolMock.setTickSpacing(1);
+        strategyMock.setTwapWindow(30);
+        harness.setHarnessConfig(address(poolMock), address(strategyMock), address(52), address(51), true);
+
+        poolMock.setSlot0(1 << 96, 7);
+        strategyMock.setTicks(0, 10);
+        assertEq(harness.exposedValuationSqrtPriceX96(0), uint160(1 << 96));
+        assertEq(harness.exposedCurrentMonitoringTick(), 7);
+        (bool outOfRangeSpot, int24 currentTickSpot,,) = harness.exposedCurrentRangeStatus();
+        assertFalse(outOfRangeSpot);
+        assertEq(currentTickSpot, 7);
+
+        poolMock.setSlot0(0, 7);
+        poolMock.setObserve(0, 300, false);
+        assertEq(harness.exposedValuationSqrtPriceX96(30), TickMathV3.getSqrtRatioAtTick(10));
+        assertEq(harness.exposedCurrentMonitoringTick(), 10);
+
+        poolMock.setObserve(0, -31, false);
+        assertEq(harness.exposedValuationSqrtPriceX96(30), TickMathV3.getSqrtRatioAtTick(-2));
+
+        poolMock.setSlot0(1 << 96, 11);
+        poolMock.setObserve(0, 0, true);
+        assertEq(harness.exposedValuationSqrtPriceX96(30), uint160(1 << 96));
+
+        poolMock.setSlot0(0, 13);
+        assertEq(harness.exposedCurrentMonitoringTick(), 13);
+
+        harness.setHarnessTiming(0, 0, 12 hours, block.timestamp, 0, false);
+        assertFalse(harness.exposedShouldCheckRebalance());
+
+        harness.setHarnessTiming(0, 0, 12 hours, block.timestamp, 0, true);
+        assertFalse(harness.exposedShouldCheckRebalance());
+
+        harness.setHarnessTiming(0, 0, 12 hours, block.timestamp - 13 hours, 0, true);
+        strategyMock.setTicks(20, 30);
+        assertTrue(harness.exposedShouldCheckRebalance());
+
+        strategyMock.setTicks(0, 20);
+        assertFalse(harness.exposedShouldCheckRebalance());
+
+        vm.warp(block.timestamp + 1);
+        harness.exposedRecordRebalanceSample(true);
+        assertTrue(harness.exposedShouldCheckRebalance());
+    }
+
     function _getAddr(string memory contractName) internal view returns (address) {
         return addrGetter.getAddress(block.chainid, contractName);
     }
@@ -391,7 +727,11 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         vm.stopPrank();
     }
 
-    function _computeOtherRatioBPS(uint160 sqrtPriceX96, int24 tickLower, int24 tickUpper) internal view returns (uint16) {
+    function _computeOtherRatioBPS(uint160 sqrtPriceX96, int24 tickLower, int24 tickUpper)
+        internal
+        view
+        returns (uint16)
+    {
         uint160 sa = TickMathV3.getSqrtRatioAtTick(tickLower);
         uint160 sb = TickMathV3.getSqrtRatioAtTick(tickUpper);
         if (sa > sb) (sa, sb) = (sb, sa);
@@ -409,7 +749,11 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         return uint16(Math.mulDiv(otherValueInToken1, MAX_BPS, totalValueInToken1));
     }
 
-    function _quoteOtherAsUnderlyingAtSqrtPrice(uint256 amountOther, uint160 sqrtPriceX96) internal view returns (uint256) {
+    function _quoteOtherAsUnderlyingAtSqrtPrice(uint256 amountOther, uint160 sqrtPriceX96)
+        internal
+        view
+        returns (uint256)
+    {
         if (amountOther == 0) return 0;
 
         uint256 priceX192 = uint256(sqrtPriceX96) * uint256(sqrtPriceX96);
@@ -422,7 +766,14 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
 
         if (other == token0 && underlying == token1) return Math.mulDiv(amountOther, priceX192, q192);
         if (other == token1 && underlying == token0) return Math.mulDiv(amountOther, q192, priceX192);
-        return 0;
+        revert("bad pool config");
+    }
+
+    function _errorSelector(bytes memory revertData) internal pure returns (bytes4 selector) {
+        require(revertData.length >= 4, "revert data too short");
+        assembly {
+            selector := mload(add(revertData, 32))
+        }
     }
 
     function _setStrategyRange(int24 newTickLower, int24 newTickUpper, uint16 otherRatioBps) internal {
@@ -515,5 +866,217 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
 contract AddressGetter is GetContractAddress {
     function getAddress(uint256 chainId, string memory contractName) external view returns (address) {
         return _getContractAddress(chainId, contractName);
+    }
+}
+
+contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunner {
+    function setHarnessConfig(address _pool, address _uniStrategy, address _underlyingToken, address _otherToken, bool _otherIsToken0)
+        external
+    {
+        pool = IUniswapV3Pool(_pool);
+        uniStrategy = _uniStrategy;
+        underlyingToken = _underlyingToken;
+        otherToken = _otherToken;
+        otherIsToken0 = _otherIsToken0;
+    }
+
+    function setHarnessTiming(
+        uint256 _interval,
+        uint256 _lastRun,
+        uint256 _rebalanceCheckInterval,
+        uint256 _lastRebalanceCheck,
+        uint256 _lastSuccessfulRebalance,
+        bool _rebalanceEnabled
+    ) external {
+        interval = _interval;
+        lastRun = _lastRun;
+        rebalanceCheckInterval = _rebalanceCheckInterval;
+        lastRebalanceCheck = _lastRebalanceCheck;
+        lastSuccessfulRebalance = _lastSuccessfulRebalance;
+        rebalanceEnabled = _rebalanceEnabled;
+    }
+
+    function exposedInitializeRebalanceState() external {
+        _initializeRebalanceState();
+    }
+
+    function exposedFloorToSpacing(int24 tick, int24 spacing) external pure returns (int24) {
+        return _floorToSpacing(tick, spacing);
+    }
+
+    function exposedCeilToSpacing(int24 tick, int24 spacing) external pure returns (int24) {
+        return _ceilToSpacing(tick, spacing);
+    }
+
+    function exposedComputeOtherRatioBPS(uint160 sqrtPriceX96, int24 tickLower, int24 tickUpper)
+        external
+        view
+        returns (uint16)
+    {
+        return _computeOtherRatioBPS(sqrtPriceX96, tickLower, tickUpper);
+    }
+
+    function exposedQuoteOtherAsUnderlyingAtSqrtPrice(uint256 amountOther, uint160 sqrtPriceX96)
+        external
+        view
+        returns (uint256)
+    {
+        return _quoteOtherAsUnderlyingAtSqrtPrice(amountOther, sqrtPriceX96);
+    }
+
+    function exposedIsPaused(address target) external view returns (bool) {
+        return _isPaused(target);
+    }
+
+    function exposedRecordRebalanceSample(bool outOfRange) external {
+        _recordRebalanceSample(outOfRange);
+    }
+
+    function exposedClearRebalanceSamples() external {
+        _clearRebalanceSamples();
+    }
+
+    function exposedConsecutiveOutOfRangeObserved() external view returns (uint256) {
+        return _consecutiveOutOfRangeObserved();
+    }
+
+    function exposedRollingOutOfRangeObserved(uint256 windowStart) external view returns (uint256) {
+        return _rollingOutOfRangeObserved(windowStart);
+    }
+
+    function exposedHasRecentOutOfRangeSample(uint256 windowStart) external view returns (bool) {
+        return _hasRecentOutOfRangeSample(windowStart);
+    }
+
+    function exposedShouldTriggerRebalance(uint256 consecutiveObserved, uint256 rollingObserved)
+        external
+        view
+        returns (bool)
+    {
+        return _shouldTriggerRebalance(consecutiveObserved, rollingObserved);
+    }
+
+    function exposedSampleIndexFromNewest(uint256 offset) external view returns (uint256) {
+        return _sampleIndexFromNewest(offset);
+    }
+
+    function exposedRebalanceSampleCount() external view returns (uint8) {
+        return rebalanceSampleCount;
+    }
+
+    function exposedRebalanceSampleHead() external view returns (uint8) {
+        return rebalanceSampleHead;
+    }
+
+    function exposedValuationSqrtPriceX96(uint32 window) external view returns (uint160) {
+        return _valuationSqrtPriceX96(window);
+    }
+
+    function exposedCurrentMonitoringTick() external view returns (int24) {
+        return _currentMonitoringTick();
+    }
+
+    function exposedCurrentRangeStatus()
+        external
+        view
+        returns (bool outOfRange_, int24 currentTick_, int24 tickLower_, int24 tickUpper_)
+    {
+        return _currentRangeStatus();
+    }
+
+    function exposedShouldCheckRebalance() external view returns (bool) {
+        return _shouldCheckRebalance();
+    }
+}
+
+contract MockPoolForRunnerHarness {
+    address public token0;
+    address public token1;
+    uint24 public fee;
+    int24 public tickSpacing;
+    uint160 public sqrtPriceX96;
+    int24 public tick;
+    bool public revertObserve;
+    int56 public tickCumulativeOld;
+    int56 public tickCumulativeNew;
+
+    function setTokens(address _token0, address _token1) external {
+        token0 = _token0;
+        token1 = _token1;
+    }
+
+    function setFee(uint24 _fee) external {
+        fee = _fee;
+    }
+
+    function setTickSpacing(int24 _tickSpacing) external {
+        tickSpacing = _tickSpacing;
+    }
+
+    function setSlot0(uint160 _sqrtPriceX96, int24 _tick) external {
+        sqrtPriceX96 = _sqrtPriceX96;
+        tick = _tick;
+    }
+
+    function setObserve(int56 _tickCumulativeOld, int56 _tickCumulativeNew, bool _revertObserve) external {
+        tickCumulativeOld = _tickCumulativeOld;
+        tickCumulativeNew = _tickCumulativeNew;
+        revertObserve = _revertObserve;
+    }
+
+    function slot0()
+        external
+        view
+        returns (uint160, int24, uint16, uint16, uint16, uint8, bool)
+    {
+        return (sqrtPriceX96, tick, 0, 0, 0, 0, true);
+    }
+
+    function observe(uint32[] calldata)
+        external
+        view
+        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
+    {
+        require(!revertObserve, "observe revert");
+
+        tickCumulatives = new int56[](2);
+        tickCumulatives[0] = tickCumulativeOld;
+        tickCumulatives[1] = tickCumulativeNew;
+        secondsPerLiquidityCumulativeX128s = new uint160[](2);
+    }
+}
+
+contract MockStrategyAutomationView {
+    address public pool;
+    address public asset;
+    address public otherToken;
+    int24 public tickLower;
+    int24 public tickUpper;
+    uint32 public twapWindow;
+
+    function setTicks(int24 _tickLower, int24 _tickUpper) external {
+        tickLower = _tickLower;
+        tickUpper = _tickUpper;
+    }
+
+    function setTwapWindow(uint32 _twapWindow) external {
+        twapWindow = _twapWindow;
+    }
+}
+
+contract MockPausedTarget {
+    bool public paused;
+
+    function setPaused(bool _paused) external {
+        paused = _paused;
+    }
+}
+
+contract MockMalformedPausedTarget {
+    fallback() external {
+        assembly {
+            mstore(0, 0x01)
+            return(0, 1)
+        }
     }
 }
