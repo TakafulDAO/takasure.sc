@@ -22,6 +22,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
     uint256 internal constant FORK_BLOCK = 430826360;
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
+    uint256 internal constant ARBITRUM_ONE_LAST_SUCCESSFUL_REBALANCE = 1_772_707_785;
     bytes32 internal constant ON_INVEST_SIG = keccak256("OnInvestIntoStrategy(uint256,uint256,bytes32)");
     bytes32 internal constant ON_UPKEEP_ATTEMPT_SIG = keccak256("OnUpkeepAttempt(uint256,uint256,uint16,bytes32)");
     bytes32 internal constant ON_INVEST_SUCCEEDED_SIG = keccak256("OnInvestSucceeded(uint256,uint256,uint256,uint16)");
@@ -106,8 +107,8 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         upgradeRunner.initializeV2();
 
         assertEq(upgradeRunner.rebalanceCheckInterval(), 12 hours);
-        assertEq(upgradeRunner.lastRebalanceCheck(), 0);
-        assertEq(upgradeRunner.lastSuccessfulRebalance(), 0);
+        assertEq(upgradeRunner.lastRebalanceCheck(), block.timestamp - 12 hours);
+        assertEq(upgradeRunner.lastSuccessfulRebalance(), ARBITRUM_ONE_LAST_SUCCESSFUL_REBALANCE);
         assertTrue(upgradeRunner.rebalanceEnabled());
     }
 
@@ -417,12 +418,6 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         (int24 outLower, int24 outUpper) = _outOfRangeTicksAboveCurrent();
         _setStrategyRange(outLower, outUpper, 5_000);
 
-        runner.performUpkeep("");
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        runner.performUpkeep("");
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
         int24 preRebalanceTick = _currentPoolTick();
         (int24 expectedLower, int24 expectedUpper) = _expectedRunnerTicks(preRebalanceTick);
 
@@ -441,9 +436,13 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         runner.setLastRun(block.timestamp);
         runner.setLastSuccessfulRebalance(block.timestamp - 8 days);
 
+        (int24 inLower0, int24 inUpper0) = _inRangeTicksAroundCurrent();
+        _setStrategyRange(inLower0, inUpper0, 5_000);
+        runner.performUpkeep("");
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
         (int24 outLower1, int24 outUpper1) = _outOfRangeTicksAboveCurrent();
         _setStrategyRange(outLower1, outUpper1, 5_000);
-
         runner.performUpkeep("");
 
         vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
@@ -481,6 +480,11 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         uint256 cooldownSeed = block.timestamp - 1 days;
         runner.setLastSuccessfulRebalance(cooldownSeed);
 
+        (int24 inLower0, int24 inUpper0) = _inRangeTicksAroundCurrent();
+        _setStrategyRange(inLower0, inUpper0, 5_000);
+        runner.performUpkeep("");
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
         (int24 outLower1, int24 outUpper1) = _outOfRangeTicksAboveCurrent();
         _setStrategyRange(outLower1, outUpper1, 5_000);
 
@@ -571,11 +575,13 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
         harness.exposedInitializeRebalanceState();
 
-        assertEq(harness.exposedRebalanceSampleCount(), 0);
-        assertEq(harness.exposedRebalanceSampleHead(), 0);
+        assertEq(harness.exposedRebalanceSampleCount(), 1);
+        assertEq(harness.exposedRebalanceSampleHead(), 1);
+        assertEq(harness.exposedRebalanceSampleTimestamp(0), block.timestamp - 24 hours);
+        assertTrue(harness.exposedRebalanceSampleOutOfRange(0));
         assertEq(harness.exposedConsecutiveOutOfRangeObserved(), 0);
         assertEq(harness.exposedRollingOutOfRangeObserved(block.timestamp - 1 days), 0);
-        assertFalse(harness.exposedHasRecentOutOfRangeSample(block.timestamp));
+        assertTrue(harness.exposedHasRecentOutOfRangeSample(block.timestamp - 2 days));
 
         vm.warp(100);
         harness.exposedRecordRebalanceSample(false);
@@ -966,6 +972,14 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
 
     function exposedRebalanceSampleHead() external view returns (uint8) {
         return rebalanceSampleHead;
+    }
+
+    function exposedRebalanceSampleTimestamp(uint256 index) external view returns (uint256) {
+        return rebalanceSampleTimestamps[index];
+    }
+
+    function exposedRebalanceSampleOutOfRange(uint256 index) external view returns (bool) {
+        return rebalanceSampleOutOfRange[index];
     }
 
     function exposedValuationSqrtPriceX96(uint32 window) external view returns (uint160) {

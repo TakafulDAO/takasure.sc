@@ -1075,23 +1075,31 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Resets rebalance-specific runtime state to the default values for this version.
-     * @dev The fixed-size sample arrays are explicitly zeroed so future upgrades do not inherit
-     *      stale values when this initializer is invoked on a reused proxy.
+     * @notice Seeds rebalance-specific runtime state for the upgraded runner.
+     * @dev The state is initialized so the first upkeep after an upgrade can immediately
+     *      rebalance if the live position is still out of range:
+     *      - the rebalance check window is already open
+     *      - one synthetic out-of-range sample is seeded 24 hours in the past
+     *      - Arbitrum One keeps the historical last successful rebalance anchor
+     *      The fixed-size sample arrays are explicitly zeroed first so reused proxies do not
+     *      inherit stale buffered history.
      */
     function _initializeRebalanceState() internal {
         rebalanceCheckInterval = DAILY_INTERVAL;
-        lastRebalanceCheck = 0;
-        lastSuccessfulRebalance = 0;
+        lastRebalanceCheck = block.timestamp - DAILY_INTERVAL;
+        lastSuccessfulRebalance = 1_772_707_785;
         rebalanceEnabled = true;
-        rebalanceSampleCount = 0;
-        rebalanceSampleHead = 0;
+        rebalanceSampleCount = 1;
+        rebalanceSampleHead = 1;
 
         // Reset the entire ring buffer so a newly upgraded proxy starts sampling from scratch.
         for (uint256 i; i < REBALANCE_SAMPLE_CAP; ++i) {
             rebalanceSampleTimestamps[i] = 0;
             rebalanceSampleOutOfRange[i] = false;
         }
+
+        rebalanceSampleTimestamps[0] = uint40(block.timestamp - REBALANCE_CONSECUTIVE_TRIGGER);
+        rebalanceSampleOutOfRange[0] = true;
     }
 
     function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
