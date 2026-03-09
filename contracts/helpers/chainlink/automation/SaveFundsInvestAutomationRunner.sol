@@ -27,6 +27,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {ISFStrategyMaintenance} from "contracts/interfaces/saveFunds/ISFStrategyMaintenance.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TickMathV3} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
 import {ISFVaultAutomation} from "contracts/helpers/chainlink/automation/interfaces/ISFVaultAutomation.sol";
@@ -47,6 +48,11 @@ contract SaveFundsInvestAutomationRunner is
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
     uint256 internal constant DAILY_INTERVAL = 12 hours;
+    uint256 internal constant REBALANCE_CONSECUTIVE_TRIGGER = 24 hours;
+    uint256 internal constant REBALANCE_ROLLING_TRIGGER = 24 hours;
+    uint256 internal constant REBALANCE_WINDOW = 3 days;
+    uint256 internal constant REBALANCE_COOLDOWN = 7 days;
+    uint8 internal constant REBALANCE_SAMPLE_CAP = 16;
 
     IAddressManager public addressManager;
     ISFVaultAutomation public vault;
@@ -74,12 +80,40 @@ contract SaveFundsInvestAutomationRunner is
     uint256 public minUnderlying;
     uint256 public minOther;
 
+    uint256 public rebalanceCheckInterval;
+    uint256 public lastRebalanceCheck;
+    uint256 public lastSuccessfulRebalance;
+    bool public rebalanceEnabled;
+    uint8 internal rebalanceSampleCount;
+    uint8 internal rebalanceSampleHead;
+    uint40[REBALANCE_SAMPLE_CAP] internal rebalanceSampleTimestamps;
+    bool[REBALANCE_SAMPLE_CAP] internal rebalanceSampleOutOfRange;
+
     event OnUpkeepSkippedPaused(uint256 ts);
     event OnUpkeepSkippedLowIdle(uint256 ts, uint256 idleAssets, uint256 minIdleAssets);
     event OnUpkeepSkippedAllocation(uint256 ts);
     event OnUpkeepAttempt(uint256 ts, uint256 idleAssets, uint16 otherRatioBPS, bytes32 bundleHash);
     event OnInvestSucceeded(uint256 ts, uint256 requestedAssets, uint256 investedAssets, uint16 otherRatioBPS);
     event OnInvestFailed(uint256 ts, bytes reason);
+    event OnRebalanceObserved(
+        uint256 ts,
+        int24 currentTick,
+        int24 tickLower,
+        int24 tickUpper,
+        bool outOfRange,
+        uint256 consecutiveObserved,
+        uint256 rollingObserved,
+        bool rebalanceNeeded
+    );
+    event OnRebalanceAttempt(
+        uint256 ts, int24 currentTick, int24 newTickLower, int24 newTickUpper, uint16 otherRatioBPS, bytes32 bundleHash
+    );
+    event OnRebalanceSucceeded(
+        uint256 ts, int24 currentTick, int24 newTickLower, int24 newTickUpper, uint16 otherRatioBPS
+    );
+    event OnRebalanceFailed(
+        uint256 ts, int24 currentTick, int24 newTickLower, int24 newTickUpper, uint16 otherRatioBPS, bytes reason
+    );
     event OnConfigUpdated();
 
     error SaveFundsInvestAutomationRunner__NotAddressZero();
@@ -171,6 +205,17 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
+     * @notice Initializes rebalance-specific state added after the original deployment.
+     * @dev Runs once on upgrade for the live proxy, and should also be called after `initialize`
+     *      for fresh deployments of this implementation.
+     */
+    /// @custom:oz-upgrades-validate-as-initializer
+    function initializeV2() external reinitializer(2) onlyOwner {
+        _initializeRebalanceState();
+        emit OnConfigUpdated();
+    }
+
+    /**
      * @notice Accepts the proposed `KEEPER` role in AddressManager.
      * @dev Callable by anyone; success depends on AddressManager proposal state.
      */
@@ -189,6 +234,16 @@ contract SaveFundsInvestAutomationRunner is
             SaveFundsInvestAutomationRunner__TooSmall()
         );
         interval = newIntervalSeconds;
+        emit OnConfigUpdated();
+    }
+
+    /// @notice Sets the cadence used to observe out-of-range conditions for rebalance.
+    function setRebalanceCheckInterval(uint256 newIntervalSeconds) external onlyOwner {
+        require(
+            newIntervalSeconds >= DAILY_INTERVAL || (testMode && newIntervalSeconds > 0),
+            SaveFundsInvestAutomationRunner__TooSmall()
+        );
+        rebalanceCheckInterval = newIntervalSeconds;
         emit OnConfigUpdated();
     }
 
@@ -232,6 +287,12 @@ contract SaveFundsInvestAutomationRunner is
     /// @notice Toggles strict allocation mode that requires Uni strategy to be the only active allocation.
     function toggleStrictUniOnlyAllocation() external onlyOwner whenNotPaused {
         strictUniOnlyAllocation = !strictUniOnlyAllocation;
+        emit OnConfigUpdated();
+    }
+
+    /// @notice Toggles the rebalance branch of the upkeep.
+    function toggleRebalanceEnabled() external onlyOwner whenNotPaused {
+        rebalanceEnabled = !rebalanceEnabled;
         emit OnConfigUpdated();
     }
 
@@ -295,6 +356,12 @@ contract SaveFundsInvestAutomationRunner is
         emit OnConfigUpdated();
     }
 
+    /// @notice Seeds the timestamp used by the 7-day rebalance cooldown rule.
+    function setLastSuccessfulRebalance(uint256 ts) external onlyOwner {
+        lastSuccessfulRebalance = ts;
+        emit OnConfigUpdated();
+    }
+
     /**
      * @notice Chainlink Automation fallback function.
      * @dev It does not revert if paused.
@@ -305,7 +372,6 @@ contract SaveFundsInvestAutomationRunner is
      */
     function checkUpkeep(bytes calldata) external view returns (bool upkeepNeeded, bytes memory performData) {
         if (paused()) return (false, bytes(""));
-        if (block.timestamp < lastRun + interval) return (false, bytes(""));
 
         if (skipIfPaused) {
             if (_isPaused(address(vault)) || _isPaused(aggregator) || _isPaused(uniStrategy)) {
@@ -313,18 +379,27 @@ contract SaveFundsInvestAutomationRunner is
             }
         }
 
-        if (strictUniOnlyAllocation && !_isUniOnlyAllocation()) return (false, bytes(""));
-
         uint256 idle;
-        try vault.idleAssets() returns (uint256 assets) {
-            idle = assets;
-        } catch {
-            return (false, bytes(""));
+        bool investWindowOpen = _isInvestWindowOpen();
+        bool investNeeded;
+
+        if (investWindowOpen) {
+            if (strictUniOnlyAllocation && !_isUniOnlyAllocation()) {
+                investNeeded = false;
+            } else {
+                try vault.idleAssets() returns (uint256 assets) {
+                    idle = assets;
+                    investNeeded = idle != 0 && idle >= minIdleAssets;
+                } catch {
+                    investNeeded = false;
+                }
+            }
         }
 
-        if (idle == 0 || idle < minIdleAssets) return (false, bytes(""));
+        bool rebalanceCheckNeeded = _shouldCheckRebalance();
+        if (!investNeeded && !rebalanceCheckNeeded) return (false, bytes(""));
 
-        performData = abi.encode(idle);
+        performData = abi.encode(idle, investNeeded, rebalanceCheckNeeded);
         return (true, performData);
     }
 
@@ -335,15 +410,23 @@ contract SaveFundsInvestAutomationRunner is
      */
     function performUpkeep(bytes calldata) external {
         if (paused()) return;
-        if (block.timestamp < lastRun + interval) return;
+
+        bool investWindowOpen = _isInvestWindowOpen();
+        bool rebalanceCheckNeeded = _shouldCheckRebalance();
+        if (!investWindowOpen && !rebalanceCheckNeeded) return;
 
         if (skipIfPaused) {
             if (_isPaused(address(vault)) || _isPaused(aggregator) || _isPaused(uniStrategy)) {
-                lastRun = block.timestamp;
+                if (rebalanceCheckNeeded) lastRebalanceCheck = block.timestamp;
+                if (investWindowOpen) lastRun = block.timestamp;
                 emit OnUpkeepSkippedPaused(block.timestamp);
                 return;
             }
         }
+
+        if (rebalanceCheckNeeded && _observeAndMaybeRebalance()) return;
+
+        if (!investWindowOpen) return;
 
         if (strictUniOnlyAllocation && !_isUniOnlyAllocation()) {
             lastRun = block.timestamp;
@@ -366,16 +449,9 @@ contract SaveFundsInvestAutomationRunner is
         lastRun = block.timestamp;
 
         uint16 otherRatioBPS_ = useAutoOtherRatio ? _resolveAutoOtherRatioBPS(idle) : manualOtherRatioBPS;
-
         bytes memory uniPayload = _buildUniV3Payload(otherRatioBPS_);
-
-        address[] memory strategies = new address[](1);
-        strategies[0] = uniStrategy;
-
-        bytes[] memory payloads = new bytes[](1);
-        payloads[0] = uniPayload;
-
-        bytes memory bundle = abi.encode(strategies, payloads);
+        (address[] memory strategies, bytes[] memory payloads, bytes memory bundle) =
+            _buildSingleStrategyBundle(uniPayload);
         emit OnUpkeepAttempt(block.timestamp, idle, otherRatioBPS_, keccak256(bundle));
 
         try vault.investIntoStrategy(idle, strategies, payloads) returns (uint256 investedAssets) {
@@ -401,14 +477,7 @@ contract SaveFundsInvestAutomationRunner is
     {
         otherRatioBPS_ = useAutoOtherRatio ? _resolveAutoOtherRatioBPS(assetsIncoming) : manualOtherRatioBPS;
         bytes memory uniPayload = _buildUniV3Payload(otherRatioBPS_);
-
-        strategies = new address[](1);
-        strategies[0] = uniStrategy;
-
-        payloads = new bytes[](1);
-        payloads[0] = uniPayload;
-
-        bundle = abi.encode(strategies, payloads);
+        (strategies, payloads, bundle) = _buildSingleStrategyBundle(uniPayload);
     }
 
     /**
@@ -425,6 +494,20 @@ contract SaveFundsInvestAutomationRunner is
         uint256 _pmDeadline = deadlineBuffer == 0 ? 0 : block.timestamp + deadlineBuffer;
 
         return abi.encode(_otherRatioBPS, _swapToOtherData, _swapToUnderlyingData, _pmDeadline, minUnderlying, minOther);
+    }
+
+    function _buildSingleStrategyBundle(bytes memory _payload)
+        internal
+        view
+        returns (address[] memory strategies, bytes[] memory payloads, bytes memory bundle)
+    {
+        strategies = new address[](1);
+        strategies[0] = uniStrategy;
+
+        payloads = new bytes[](1);
+        payloads[0] = _payload;
+
+        bundle = abi.encode(strategies, payloads);
     }
 
     /**
@@ -462,15 +545,21 @@ contract SaveFundsInvestAutomationRunner is
      * @return ratioBPS Final ratio in BPS.
      */
     function _resolveAutoOtherRatioBPS(uint256 _assetsIncoming) internal view returns (uint16) {
+        (int24 _tickLower, int24 _tickUpper) = _currentStrategyTicks();
+        return _resolveAutoOtherRatioBPSForRange(_assetsIncoming, _tickLower, _tickUpper);
+    }
+
+    function _resolveAutoOtherRatioBPSForRange(uint256 _assetsIncoming, int24 _tickLower, int24 _tickUpper)
+        internal
+        view
+        returns (uint16)
+    {
         (uint160 _spotSqrtPriceX96,,,,,,) = pool.slot0();
         uint160 _ratioSqrtPriceX96 = _spotSqrtPriceX96;
         if (_ratioSqrtPriceX96 == 0) {
             uint32 _window = ISFUniV3StrategyAutomationView(uniStrategy).twapWindow();
             _ratioSqrtPriceX96 = _valuationSqrtPriceX96(_window);
         }
-
-        int24 _tickLower = ISFUniV3StrategyAutomationView(uniStrategy).tickLower();
-        int24 _tickUpper = ISFUniV3StrategyAutomationView(uniStrategy).tickUpper();
 
         uint16 _ratioBPS = _computeOtherRatioBPS(_ratioSqrtPriceX96, _tickLower, _tickUpper);
 
@@ -490,6 +579,202 @@ contract SaveFundsInvestAutomationRunner is
         }
 
         return _ratioBPS;
+    }
+
+    function _observeAndMaybeRebalance() internal returns (bool rebalanceFailed_) {
+        lastRebalanceCheck = block.timestamp;
+
+        (bool _outOfRange, int24 _currentTick, int24 _tickLower, int24 _tickUpper) = _currentRangeStatus();
+        _recordRebalanceSample(_outOfRange);
+
+        uint256 _consecutiveObserved = _consecutiveOutOfRangeObserved();
+        uint256 _rollingObserved = _rollingOutOfRangeObserved(block.timestamp - REBALANCE_WINDOW);
+        bool _rebalanceNeeded = _outOfRange && _shouldTriggerRebalance(_consecutiveObserved, _rollingObserved);
+
+        emit OnRebalanceObserved(
+            block.timestamp,
+            _currentTick,
+            _tickLower,
+            _tickUpper,
+            _outOfRange,
+            _consecutiveObserved,
+            _rollingObserved,
+            _rebalanceNeeded
+        );
+
+        if (!_rebalanceNeeded) return false;
+
+        (int24 _newTickLower, int24 _newTickUpper) = _computeRebalanceTicks(_currentTick);
+        uint16 _otherRatioBPS = _resolveAutoOtherRatioBPSForRange(0, _newTickLower, _newTickUpper);
+        bytes memory _rebalancePayload = abi.encode(_newTickLower, _newTickUpper, _buildUniV3Payload(_otherRatioBPS));
+        (,, bytes memory _bundle) = _buildSingleStrategyBundle(_rebalancePayload);
+
+        emit OnRebalanceAttempt(
+            block.timestamp, _currentTick, _newTickLower, _newTickUpper, _otherRatioBPS, keccak256(_bundle)
+        );
+
+        try ISFStrategyMaintenance(aggregator).rebalance(_bundle) {
+            lastSuccessfulRebalance = block.timestamp;
+            _clearRebalanceSamples();
+            emit OnRebalanceSucceeded(block.timestamp, _currentTick, _newTickLower, _newTickUpper, _otherRatioBPS);
+        } catch (bytes memory reason) {
+            rebalanceFailed_ = true;
+            emit OnRebalanceFailed(block.timestamp, _currentTick, _newTickLower, _newTickUpper, _otherRatioBPS, reason);
+        }
+    }
+
+    function _shouldCheckRebalance() internal view returns (bool) {
+        if (!rebalanceEnabled) return false;
+        if (block.timestamp < lastRebalanceCheck + rebalanceCheckInterval) return false;
+
+        (bool _outOfRange,,,) = _currentRangeStatus();
+        if (_outOfRange) return true;
+
+        return _hasRecentOutOfRangeSample(block.timestamp - REBALANCE_WINDOW);
+    }
+
+    function _shouldTriggerRebalance(uint256 _consecutiveObserved, uint256 _rollingObserved)
+        internal
+        view
+        returns (bool)
+    {
+        if (_consecutiveObserved >= REBALANCE_CONSECUTIVE_TRIGGER) return true;
+        if (_rollingObserved < REBALANCE_ROLLING_TRIGGER) return false;
+        if (lastSuccessfulRebalance == 0) return true;
+        return block.timestamp >= lastSuccessfulRebalance + REBALANCE_COOLDOWN;
+    }
+
+    function _currentRangeStatus()
+        internal
+        view
+        returns (bool outOfRange_, int24 currentTick_, int24 tickLower_, int24 tickUpper_)
+    {
+        (tickLower_, tickUpper_) = _currentStrategyTicks();
+        currentTick_ = _currentMonitoringTick();
+        outOfRange_ = currentTick_ < tickLower_ || currentTick_ > tickUpper_;
+    }
+
+    function _currentStrategyTicks() internal view returns (int24 tickLower_, int24 tickUpper_) {
+        tickLower_ = ISFUniV3StrategyAutomationView(uniStrategy).tickLower();
+        tickUpper_ = ISFUniV3StrategyAutomationView(uniStrategy).tickUpper();
+    }
+
+    function _currentMonitoringTick() internal view returns (int24 tick_) {
+        (uint160 _spotSqrtPriceX96, int24 _spotTick,,,,,) = pool.slot0();
+        tick_ = _spotTick;
+
+        if (_spotSqrtPriceX96 != 0) return tick_;
+
+        uint32 _window = ISFUniV3StrategyAutomationView(uniStrategy).twapWindow();
+        uint160 _fallbackSqrtPriceX96 = _valuationSqrtPriceX96(_window);
+        if (_fallbackSqrtPriceX96 != 0) {
+            tick_ = TickMathV3.getTickAtSqrtRatio(_fallbackSqrtPriceX96);
+        }
+    }
+
+    function _computeRebalanceTicks(int24 _currentTick)
+        internal
+        view
+        returns (int24 newTickLower_, int24 newTickUpper_)
+    {
+        int24 _spacing = pool.tickSpacing();
+        newTickLower_ = _floorToSpacing(_toInt24(int256(_currentTick) - 2), _spacing);
+        newTickUpper_ = _ceilToSpacing(_toInt24(int256(_currentTick) + 3), _spacing);
+    }
+
+    function _recordRebalanceSample(bool _outOfRange) internal {
+        rebalanceSampleTimestamps[rebalanceSampleHead] = uint40(block.timestamp);
+        rebalanceSampleOutOfRange[rebalanceSampleHead] = _outOfRange;
+
+        rebalanceSampleHead = uint8((uint256(rebalanceSampleHead) + 1) % REBALANCE_SAMPLE_CAP);
+        if (rebalanceSampleCount < REBALANCE_SAMPLE_CAP) ++rebalanceSampleCount;
+    }
+
+    function _clearRebalanceSamples() internal {
+        rebalanceSampleCount = 0;
+        rebalanceSampleHead = 0;
+    }
+
+    function _consecutiveOutOfRangeObserved() internal view returns (uint256 duration_) {
+        if (rebalanceSampleCount == 0) return 0;
+
+        uint256 _latestIndex = _sampleIndexFromNewest(0);
+        if (!rebalanceSampleOutOfRange[_latestIndex]) return 0;
+
+        uint256 _latestTs = uint256(rebalanceSampleTimestamps[_latestIndex]);
+        uint256 _earliestTs = _latestTs;
+
+        for (uint256 offset = 1; offset < rebalanceSampleCount; ++offset) {
+            uint256 _idx = _sampleIndexFromNewest(offset);
+            if (!rebalanceSampleOutOfRange[_idx]) break;
+            _earliestTs = uint256(rebalanceSampleTimestamps[_idx]);
+        }
+
+        return _latestTs - _earliestTs;
+    }
+
+    function _rollingOutOfRangeObserved(uint256 _windowStart) internal view returns (uint256 duration_) {
+        if (rebalanceSampleCount < 2) return 0;
+
+        uint256 _previousTs;
+        bool _previousOut;
+
+        for (uint256 i; i < rebalanceSampleCount; ++i) {
+            uint256 _idx = _sampleIndexFromOldest(i);
+            uint256 _ts = uint256(rebalanceSampleTimestamps[_idx]);
+            bool _out = rebalanceSampleOutOfRange[_idx];
+
+            if (i != 0 && _previousOut && _out && _ts > _windowStart) {
+                uint256 _intervalStart = _previousTs > _windowStart ? _previousTs : _windowStart;
+                if (_ts > _intervalStart) duration_ += _ts - _intervalStart;
+            }
+
+            _previousTs = _ts;
+            _previousOut = _out;
+        }
+    }
+
+    function _hasRecentOutOfRangeSample(uint256 _windowStart) internal view returns (bool) {
+        for (uint256 i; i < rebalanceSampleCount; ++i) {
+            uint256 _idx = _sampleIndexFromOldest(i);
+            if (rebalanceSampleOutOfRange[_idx] && uint256(rebalanceSampleTimestamps[_idx]) >= _windowStart) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function _sampleIndexFromNewest(uint256 _offset) internal view returns (uint256 idx_) {
+        uint256 _head = rebalanceSampleHead;
+        idx_ = (_head + REBALANCE_SAMPLE_CAP - 1 - _offset) % REBALANCE_SAMPLE_CAP;
+    }
+
+    function _sampleIndexFromOldest(uint256 _offset) internal view returns (uint256 idx_) {
+        uint256 _oldest = rebalanceSampleCount == REBALANCE_SAMPLE_CAP ? rebalanceSampleHead : 0;
+        idx_ = (_oldest + _offset) % REBALANCE_SAMPLE_CAP;
+    }
+
+    function _isInvestWindowOpen() internal view returns (bool) {
+        return block.timestamp >= lastRun + interval;
+    }
+
+    function _floorToSpacing(int24 _tick, int24 _spacing) internal pure returns (int24) {
+        int24 q = _tick / _spacing;
+        int24 r = _tick % _spacing;
+        if (_tick < 0 && r != 0) q -= 1;
+        return _toInt24(int256(q) * int256(_spacing));
+    }
+
+    function _ceilToSpacing(int24 _tick, int24 _spacing) internal pure returns (int24) {
+        int24 q = _tick / _spacing;
+        int24 r = _tick % _spacing;
+        if (_tick > 0 && r != 0) q += 1;
+        return _toInt24(int256(q) * int256(_spacing));
+    }
+
+    function _toInt24(int256 _x) internal pure returns (int24) {
+        require(_x >= type(int24).min && _x <= type(int24).max, SaveFundsInvestAutomationRunner__OutOfRange());
+        return int24(_x);
     }
 
     /**
@@ -622,4 +907,18 @@ contract SaveFundsInvestAutomationRunner is
      * @dev Required by UUPS; restricted to owner.
      */
     function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    function _initializeRebalanceState() internal {
+        rebalanceCheckInterval = DAILY_INTERVAL;
+        lastRebalanceCheck = 0;
+        lastSuccessfulRebalance = 0;
+        rebalanceEnabled = true;
+        rebalanceSampleCount = 0;
+        rebalanceSampleHead = 0;
+
+        for (uint256 i; i < REBALANCE_SAMPLE_CAP; ++i) {
+            rebalanceSampleTimestamps[i] = 0;
+            rebalanceSampleOutOfRange[i] = false;
+        }
+    }
 }
