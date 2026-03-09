@@ -745,7 +745,7 @@ contract SaveFundsInvestAutomationRunner is
     {
         (tickLower_, tickUpper_) = _currentStrategyTicks();
         currentTick_ = _currentMonitoringTick();
-        outOfRange_ = currentTick_ < tickLower_ || currentTick_ > tickUpper_;
+        outOfRange_ = currentTick_ < tickLower_ || currentTick_ >= tickUpper_;
     }
 
     /**
