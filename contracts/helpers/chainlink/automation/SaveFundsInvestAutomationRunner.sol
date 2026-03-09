@@ -3,14 +3,14 @@
 /**
  * @notice Chainlink-compatible upkeep runner that invests all idle SFVault assets
  *         through SFStrategyAggregator using a UniV3-targeted payload.
- * @dev This mirrors buildVaultInvestCalldata.js behavior on-chain:
+ * @dev Rules for investment attempts:
  *      - full vault idle assets (`SFVault.idleAssets()`)
  *      - auto `otherRatioBPS` from current price + [tickLower, tickUpper]
  *      - Universal Router swap payloads with amountIn BPS sentinel
- *
- *      Important: the aggregator still allocates by configured target weights.
- *      This runner has `strictUniOnlyAllocation` enabled by default to avoid
- *      accidental routing into non-Uni strategies.
+ * @dev Rules for rebalance attempts:
+ *     - Observe the strategy's monitoring tick against its current range on a configurable cadence.
+ *     - Trigger a rebalance when the position has been continuously out of range for at least 24 hours, or when
+ *       there is at least 24 hours of out-of-range history observed within a rolling 3-day window and the latest
  */
 
 pragma solidity 0.8.28;
@@ -23,6 +23,7 @@ import {
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
@@ -53,6 +54,8 @@ contract SaveFundsInvestAutomationRunner is
     uint256 internal constant REBALANCE_WINDOW = 3 days;
     uint256 internal constant REBALANCE_COOLDOWN = 7 days;
     uint8 internal constant REBALANCE_SAMPLE_CAP = 16;
+    int24 internal constant REBALANCE_TICK_LOWER_OFFSET = -2;
+    int24 internal constant REBALANCE_TICK_UPPER_OFFSET = 3;
 
     IAddressManager public addressManager;
     ISFVaultAutomation public vault;
@@ -89,6 +92,10 @@ contract SaveFundsInvestAutomationRunner is
     uint40[REBALANCE_SAMPLE_CAP] internal rebalanceSampleTimestamps;
     bool[REBALANCE_SAMPLE_CAP] internal rebalanceSampleOutOfRange;
 
+    /*//////////////////////////////////////////////////////////////
+                           EVENTS AND ERRORS
+    //////////////////////////////////////////////////////////////*/
+
     event OnUpkeepSkippedPaused(uint256 ts);
     event OnUpkeepSkippedLowIdle(uint256 ts, uint256 idleAssets, uint256 minIdleAssets);
     event OnUpkeepSkippedAllocation(uint256 ts);
@@ -122,21 +129,15 @@ contract SaveFundsInvestAutomationRunner is
     error SaveFundsInvestAutomationRunner__BadPoolConfig();
     error SaveFundsInvestAutomationRunner__BadStrategyConfig();
 
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    /**
-     * @notice Initializes the runner.
-     * @param _vault SFVault address.
-     * @param _aggregator SFStrategyAggregator address.
-     * @param _uniStrategy SFUniswapV3Strategy address.
-     * @param _addressManager AddressManager address.
-     * @param _intervalSeconds Upkeep interval in seconds (0 for default 24h).
-     * @param _minIdleAssets Minimum idle assets required to attempt investment.
-     * @param _owner Initial owner for access control.
-     */
     function initialize(
         address _vault,
         address _aggregator,
@@ -204,20 +205,20 @@ contract SaveFundsInvestAutomationRunner is
         minOther = 0;
     }
 
-    /**
-     * @notice Initializes rebalance-specific state added after the original deployment.
-     * @dev Runs once on upgrade for the live proxy, and should also be called after `initialize`
-     *      for fresh deployments of this implementation.
-     */
     /// @custom:oz-upgrades-validate-as-initializer
     function initializeV2() external reinitializer(2) onlyOwner {
         _initializeRebalanceState();
         emit OnConfigUpdated();
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                SETTINGS
+    //////////////////////////////////////////////////////////////*/
+
     /**
-     * @notice Accepts the proposed `KEEPER` role in AddressManager.
-     * @dev Callable by anyone; success depends on AddressManager proposal state.
+     * @notice Accepts the proposed `KEEPER` role in the address manager.
+     * @dev Callable by anyone. The call only succeeds when the runner was previously proposed
+     *      as the new holder for `Roles.KEEPER`.
      */
     function acceptKeeperRole() external {
         addressManager.acceptProposedRole(Roles.KEEPER);
@@ -225,7 +226,7 @@ contract SaveFundsInvestAutomationRunner is
 
     /**
      * @notice Sets the execution interval for upkeep runs.
-     * @dev Restricted to owner. Minimum allowed value is 24 hours unless `testMode` is enabled.
+     * @dev Restricted to owner. Minimum allowed value is 12 hours unless `testMode` is enabled.
      * @param newIntervalSeconds New interval in seconds.
      */
     function setInterval(uint256 newIntervalSeconds) external onlyOwner {
@@ -237,7 +238,11 @@ contract SaveFundsInvestAutomationRunner is
         emit OnConfigUpdated();
     }
 
-    /// @notice Sets the cadence used to observe out-of-range conditions for rebalance.
+    /**
+     * @notice Sets the cadence used to observe out-of-range conditions for rebalance.
+     * @dev Uses the same minimum interval guard as invest cadence unless `testMode` is enabled.
+     * @param newIntervalSeconds New rebalance observation interval in seconds.
+     */
     function setRebalanceCheckInterval(uint256 newIntervalSeconds) external onlyOwner {
         require(
             newIntervalSeconds >= DAILY_INTERVAL || (testMode && newIntervalSeconds > 0),
@@ -247,7 +252,10 @@ contract SaveFundsInvestAutomationRunner is
         emit OnConfigUpdated();
     }
 
-    /// @notice Toggles test mode.
+    /**
+     * @notice Toggles test mode.
+     * @dev Test mode allows shorter configured intervals for local and fork testing.
+     */
     function toggleTestMode() external onlyOwner {
         testMode = !testMode;
         emit OnConfigUpdated();
@@ -262,41 +270,46 @@ contract SaveFundsInvestAutomationRunner is
         emit OnConfigUpdated();
     }
 
-    /**
-     * @notice Pauses upkeep execution for this runner.
-     * @dev Restricted to owner.
-     */
     function pause() external onlyOwner whenNotPaused {
         _pause();
     }
 
-    /**
-     * @notice Unpauses upkeep execution for this runner.
-     * @dev Restricted to owner.
-     */
     function unpause() external onlyOwner whenPaused {
         _unpause();
     }
 
-    /// @notice Toggles dependency paused-state checks during upkeep.
+    /**
+     * @notice Toggles dependency paused-state checks during upkeep.
+     * @dev When enabled, the runner skips work if the vault, aggregator, or strategy is paused.
+     */
     function toggleSkipIfPaused() external onlyOwner whenNotPaused {
         skipIfPaused = !skipIfPaused;
         emit OnConfigUpdated();
     }
 
-    /// @notice Toggles strict allocation mode that requires Uni strategy to be the only active allocation.
+    /**
+     * @notice Toggles strict allocation mode that requires Uni strategy to be the only active allocation.
+     * @dev This protects the existing single-strategy bundle builder from being used when the
+     *      aggregator is configured to route capital elsewhere.
+     */
     function toggleStrictUniOnlyAllocation() external onlyOwner whenNotPaused {
         strictUniOnlyAllocation = !strictUniOnlyAllocation;
         emit OnConfigUpdated();
     }
 
-    /// @notice Toggles the rebalance branch of the upkeep.
+    /**
+     * @notice Toggles the rebalance branch of the upkeep.
+     * @dev Invest automation remains available even when rebalance automation is disabled.
+     */
     function toggleRebalanceEnabled() external onlyOwner whenNotPaused {
         rebalanceEnabled = !rebalanceEnabled;
         emit OnConfigUpdated();
     }
 
-    /// @notice Toggles automatic ratio computation for invest payloads.
+    /**
+     * @notice Toggles automatic ratio computation for invest payloads.
+     * @dev When disabled, `manualOtherRatioBPS` is used for both preview and invest execution.
+     */
     function setUseAutoOtherRatio() external onlyOwner whenNotPaused {
         useAutoOtherRatio = !useAutoOtherRatio;
         emit OnConfigUpdated();
@@ -356,19 +369,27 @@ contract SaveFundsInvestAutomationRunner is
         emit OnConfigUpdated();
     }
 
-    /// @notice Seeds the timestamp used by the 7-day rebalance cooldown rule.
+    /**
+     * @notice Seeds the timestamp used by the 7-day rebalance cooldown rule.
+     * @dev Useful when migrating an already-operated strategy into the upgraded runner.
+     * @param ts Timestamp to store as the latest successful rebalance time.
+     */
     function setLastSuccessfulRebalance(uint256 ts) external onlyOwner {
         lastSuccessfulRebalance = ts;
         emit OnConfigUpdated();
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            KEEPER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Chainlink Automation fallback function.
-     * @dev It does not revert if paused.
-     * @dev Returns false when paused, interval not elapsed, dependencies are paused,
-     *      strict allocation check fails, or idle assets are below threshold.
+     * @dev This function is intentionally conservative: it only reports upkeep when either
+     *      an invest attempt or a rebalance observation is currently actionable.
+     *      It does not revert if dependencies are paused or temporarily unavailable.
      * @return upkeepNeeded True when upkeep should be executed.
-     * @return performData ABI-encoded payload for `performUpkeep` (currently idle assets).
+     * @return performData ABI-encoded `(idleAssets, investNeeded, rebalanceCheckNeeded)`.
      */
     function checkUpkeep(bytes calldata) external view returns (bool upkeepNeeded, bytes memory performData) {
         if (paused()) return (false, bytes(""));
@@ -384,6 +405,8 @@ contract SaveFundsInvestAutomationRunner is
         bool investNeeded;
 
         if (investWindowOpen) {
+            // Keep the current invest safety checks in the read path so performUpkeep
+            // only wakes up when the bundle is expected to be usable.
             if (strictUniOnlyAllocation && !_isUniOnlyAllocation()) {
                 investNeeded = false;
             } else {
@@ -396,6 +419,8 @@ contract SaveFundsInvestAutomationRunner is
             }
         }
 
+        // Rebalance checks run independently from invest cadence so the runner can keep
+        // sampling out-of-range history even when no idle capital is available.
         bool rebalanceCheckNeeded = _shouldCheckRebalance();
         if (!investNeeded && !rebalanceCheckNeeded) return (false, bytes(""));
 
@@ -404,9 +429,10 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Chainlink Automation perform function.
-     * @dev Reads full idle assets from vault, builds UniV3 invest payload, and calls vault invest.
-     *      Emits success/failure events and updates `lastRun` on execution path.
+     * @notice Executes the runner's upkeep actions.
+     * @dev Rebalance work is attempted before invest work so any new capital is deployed into
+     *      the fresh tick range instead of the stale one. The input payload is ignored because
+     *      the contract recomputes all safety checks at execution time.
      */
     function performUpkeep(bytes calldata) external {
         if (paused()) return;
@@ -417,6 +443,8 @@ contract SaveFundsInvestAutomationRunner is
 
         if (skipIfPaused) {
             if (_isPaused(address(vault)) || _isPaused(aggregator) || _isPaused(uniStrategy)) {
+                // Advance the relevant clocks to avoid spamming repeated attempts while the
+                // downstream protocol components are intentionally paused.
                 if (rebalanceCheckNeeded) lastRebalanceCheck = block.timestamp;
                 if (investWindowOpen) lastRun = block.timestamp;
                 emit OnUpkeepSkippedPaused(block.timestamp);
@@ -424,6 +452,8 @@ contract SaveFundsInvestAutomationRunner is
             }
         }
 
+        // Rebalance failure short-circuits the upkeep so the runner does not add new capital
+        // into a position it just failed to move.
         if (rebalanceCheckNeeded && _observeAndMaybeRebalance()) return;
 
         if (!investWindowOpen) return;
@@ -446,6 +476,8 @@ contract SaveFundsInvestAutomationRunner is
             return;
         }
 
+        // Preserve the existing invest scheduling semantics: `lastRun` advances exactly on
+        // the path where the runner commits to an invest attempt.
         lastRun = block.timestamp;
 
         uint16 otherRatioBPS_ = useAutoOtherRatio ? _resolveAutoOtherRatioBPS(idle) : manualOtherRatioBPS;
@@ -460,6 +492,10 @@ contract SaveFundsInvestAutomationRunner is
             emit OnInvestFailed(block.timestamp, reason);
         }
     }
+
+    /*//////////////////////////////////////////////////////////////
+                            GETTER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Builds a preview of the strategy bundle currently produced by this runner.
@@ -480,6 +516,10 @@ contract SaveFundsInvestAutomationRunner is
         (strategies, payloads, bundle) = _buildSingleStrategyBundle(uniPayload);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Builds UniV3 action payload expected by the strategy.
      * @dev Encoding matches strategy schema:
@@ -491,11 +531,20 @@ contract SaveFundsInvestAutomationRunner is
         bytes memory _swapToOtherData = _buildSingleHopSwapData(underlyingToken, otherToken, swapToOtherBPS);
         bytes memory _swapToUnderlyingData = _buildSingleHopSwapData(otherToken, underlyingToken, swapToUnderlyingBPS);
 
+        // A zero deadline keeps compatibility with the strategy's own default deadline logic.
         uint256 _pmDeadline = deadlineBuffer == 0 ? 0 : block.timestamp + deadlineBuffer;
 
         return abi.encode(_otherRatioBPS, _swapToOtherData, _swapToUnderlyingData, _pmDeadline, minUnderlying, minOther);
     }
 
+    /**
+     * @notice Wraps a single strategy payload into the aggregator bundle format.
+     * @dev The runner currently targets a single UniV3 strategy, so both arrays have length one.
+     * @param _payload Strategy-specific calldata payload.
+     * @return strategies Strategy array expected by the vault.
+     * @return payloads Payload array expected by the vault.
+     * @return bundle ABI-encoded `(strategies, payloads)` wrapper.
+     */
     function _buildSingleStrategyBundle(bytes memory _payload)
         internal
         view
@@ -525,6 +574,8 @@ contract SaveFundsInvestAutomationRunner is
     {
         if (_bps == 0) return bytes("");
 
+        // The swap path is always a single pool hop because the strategy payload mirrors
+        // the existing manual automation scripts.
         bytes memory _path = abi.encodePacked(_tokenIn, pool.fee(), _tokenOut);
         uint256 _amountIn = AMOUNT_IN_BPS_FLAG | uint256(_bps);
         bytes memory _input = abi.encode(uniStrategy, _amountIn, uint256(0), _path, true);
@@ -549,6 +600,14 @@ contract SaveFundsInvestAutomationRunner is
         return _resolveAutoOtherRatioBPSForRange(_assetsIncoming, _tickLower, _tickUpper);
     }
 
+    /**
+     * @notice Resolves the auto ratio for an arbitrary target range.
+     * @dev Used by invest for the current range and by rebalance for the candidate next range.
+     * @param _assetsIncoming Incoming underlying amount considered in ratio adjustment.
+     * @param _tickLower Lower tick of the target range.
+     * @param _tickUpper Upper tick of the target range.
+     * @return Ratio of the non-underlying token in BPS.
+     */
     function _resolveAutoOtherRatioBPSForRange(uint256 _assetsIncoming, int24 _tickLower, int24 _tickUpper)
         internal
         view
@@ -557,6 +616,8 @@ contract SaveFundsInvestAutomationRunner is
         (uint160 _spotSqrtPriceX96,,,,,,) = pool.slot0();
         uint160 _ratioSqrtPriceX96 = _spotSqrtPriceX96;
         if (_ratioSqrtPriceX96 == 0) {
+            // Spot should be the normal path. TWAP only exists as a defensive fallback when
+            // slot0 returns an unusable zero price.
             uint32 _window = ISFUniV3StrategyAutomationView(uniStrategy).twapWindow();
             _ratioSqrtPriceX96 = _valuationSqrtPriceX96(_window);
         }
@@ -581,9 +642,17 @@ contract SaveFundsInvestAutomationRunner is
         return _ratioBPS;
     }
 
+    /**
+     * @notice Records the latest range observation and executes rebalance when rules are met.
+     * @dev Returns `true` only when a rebalance attempt was made and failed. The caller uses
+     *      that signal to skip the invest branch for the same upkeep.
+     * @return rebalanceFailed_ True when a rebalance attempt reverted.
+     */
     function _observeAndMaybeRebalance() internal returns (bool rebalanceFailed_) {
         lastRebalanceCheck = block.timestamp;
 
+        // Sample the current range state first so both the event and the trigger logic use
+        // exactly the same observation.
         (bool _outOfRange, int24 _currentTick, int24 _tickLower, int24 _tickUpper) = _currentRangeStatus();
         _recordRebalanceSample(_outOfRange);
 
@@ -604,6 +673,8 @@ contract SaveFundsInvestAutomationRunner is
 
         if (!_rebalanceNeeded) return false;
 
+        // Compute the next band from the live monitoring tick, then reuse the invest ratio
+        // math so the rebalance mints into the new band with the same capital-efficiency logic.
         (int24 _newTickLower, int24 _newTickUpper) = _computeRebalanceTicks(_currentTick);
         uint16 _otherRatioBPS = _resolveAutoOtherRatioBPSForRange(0, _newTickLower, _newTickUpper);
         bytes memory _rebalancePayload = abi.encode(_newTickLower, _newTickUpper, _buildUniV3Payload(_otherRatioBPS));
@@ -623,16 +694,30 @@ contract SaveFundsInvestAutomationRunner is
         }
     }
 
+    /**
+     * @notice Determines whether a new rebalance observation should be sampled now.
+     * @dev The runner keeps sampling while the position is currently out of range or when there
+     *      is recent out-of-range history inside the rolling window.
+     * @return True when the rebalance observer should run.
+     */
     function _shouldCheckRebalance() internal view returns (bool) {
         if (!rebalanceEnabled) return false;
         if (block.timestamp < lastRebalanceCheck + rebalanceCheckInterval) return false;
 
+        // Continue sampling after the position comes back in range so the rolling-window rule
+        // can still be evaluated from recent history.
         (bool _outOfRange,,,) = _currentRangeStatus();
         if (_outOfRange) return true;
 
         return _hasRecentOutOfRangeSample(block.timestamp - REBALANCE_WINDOW);
     }
 
+    /**
+     * @notice Evaluates the rebalance trigger rules from sampled out-of-range history.
+     * @param _consecutiveObserved Most recent consecutive out-of-range observed duration.
+     * @param _rollingObserved Total out-of-range observed duration inside the rolling window.
+     * @return True when either the consecutive or rolling-window rule is satisfied.
+     */
     function _shouldTriggerRebalance(uint256 _consecutiveObserved, uint256 _rollingObserved)
         internal
         view
@@ -644,6 +729,15 @@ contract SaveFundsInvestAutomationRunner is
         return block.timestamp >= lastSuccessfulRebalance + REBALANCE_COOLDOWN;
     }
 
+    /**
+     * @notice Returns the current range state for the UniV3 strategy.
+     * @dev Uses the monitoring tick source rather than the raw spot tick directly so the same
+     *      fallback logic is shared everywhere the runner reasons about range status.
+     * @return outOfRange_ True when the current monitoring tick is outside the strategy band.
+     * @return currentTick_ Tick used for the range check.
+     * @return tickLower_ Current strategy lower tick.
+     * @return tickUpper_ Current strategy upper tick.
+     */
     function _currentRangeStatus()
         internal
         view
@@ -654,17 +748,29 @@ contract SaveFundsInvestAutomationRunner is
         outOfRange_ = currentTick_ < tickLower_ || currentTick_ > tickUpper_;
     }
 
+    /**
+     * @notice Reads the current strategy ticks from the UniV3 strategy.
+     * @return tickLower_ Current lower tick.
+     * @return tickUpper_ Current upper tick.
+     */
     function _currentStrategyTicks() internal view returns (int24 tickLower_, int24 tickUpper_) {
         tickLower_ = ISFUniV3StrategyAutomationView(uniStrategy).tickLower();
         tickUpper_ = ISFUniV3StrategyAutomationView(uniStrategy).tickUpper();
     }
 
+    /**
+     * @notice Returns the tick used by the runner for range monitoring decisions.
+     * @dev Prefers the live spot tick. If spot price is unexpectedly unavailable, it derives a
+     *      fallback tick from the strategy valuation price path.
+     * @return tick_ Tick used for monitoring and rebalance band calculation.
+     */
     function _currentMonitoringTick() internal view returns (int24 tick_) {
         (uint160 _spotSqrtPriceX96, int24 _spotTick,,,,,) = pool.slot0();
         tick_ = _spotTick;
 
         if (_spotSqrtPriceX96 != 0) return tick_;
 
+        // Fallback to valuation price only when spot is unusable.
         uint32 _window = ISFUniV3StrategyAutomationView(uniStrategy).twapWindow();
         uint160 _fallbackSqrtPriceX96 = _valuationSqrtPriceX96(_window);
         if (_fallbackSqrtPriceX96 != 0) {
@@ -672,16 +778,28 @@ contract SaveFundsInvestAutomationRunner is
         }
     }
 
+    /**
+     * @notice Computes the next rebalance band from the current monitoring tick.
+     * @dev Applies the `-2 / +3` offsets and then snaps them to pool tick spacing.
+     * @param _currentTick Current monitoring tick.
+     * @return newTickLower_ Lower tick for the next position.
+     * @return newTickUpper_ Upper tick for the next position.
+     */
     function _computeRebalanceTicks(int24 _currentTick)
         internal
         view
         returns (int24 newTickLower_, int24 newTickUpper_)
     {
         int24 _spacing = pool.tickSpacing();
-        newTickLower_ = _floorToSpacing(_toInt24(int256(_currentTick) - 2), _spacing);
-        newTickUpper_ = _ceilToSpacing(_toInt24(int256(_currentTick) + 3), _spacing);
+        newTickLower_ = _floorToSpacing(SafeCast.toInt24(int256(_currentTick) + REBALANCE_TICK_LOWER_OFFSET), _spacing);
+        newTickUpper_ = _ceilToSpacing(SafeCast.toInt24(int256(_currentTick) + REBALANCE_TICK_UPPER_OFFSET), _spacing);
     }
 
+    /**
+     * @notice Stores one rebalance observation in the fixed-size ring buffer.
+     * @dev New samples overwrite the oldest entries once the buffer reaches capacity.
+     * @param _outOfRange Whether the observed strategy state was out of range.
+     */
     function _recordRebalanceSample(bool _outOfRange) internal {
         rebalanceSampleTimestamps[rebalanceSampleHead] = uint40(block.timestamp);
         rebalanceSampleOutOfRange[rebalanceSampleHead] = _outOfRange;
@@ -690,11 +808,21 @@ contract SaveFundsInvestAutomationRunner is
         if (rebalanceSampleCount < REBALANCE_SAMPLE_CAP) ++rebalanceSampleCount;
     }
 
+    /**
+     * @notice Clears the active rebalance sample window after a successful rebalance.
+     * @dev The old array contents are intentionally left in storage; only the active ring-buffer
+     *      head and count are reset.
+     */
     function _clearRebalanceSamples() internal {
         rebalanceSampleCount = 0;
         rebalanceSampleHead = 0;
     }
 
+    /**
+     * @notice Computes the latest consecutive out-of-range observed duration.
+     * @dev The duration is based on sampled observations, not continuous oracle history.
+     * @return duration_ Observed consecutive out-of-range time in seconds.
+     */
     function _consecutiveOutOfRangeObserved() internal view returns (uint256 duration_) {
         if (rebalanceSampleCount == 0) return 0;
 
@@ -704,6 +832,8 @@ contract SaveFundsInvestAutomationRunner is
         uint256 _latestTs = uint256(rebalanceSampleTimestamps[_latestIndex]);
         uint256 _earliestTs = _latestTs;
 
+        // Walk backward until the first in-range sample to measure the most recent contiguous
+        // out-of-range streak.
         for (uint256 offset = 1; offset < rebalanceSampleCount; ++offset) {
             uint256 _idx = _sampleIndexFromNewest(offset);
             if (!rebalanceSampleOutOfRange[_idx]) break;
@@ -713,17 +843,26 @@ contract SaveFundsInvestAutomationRunner is
         return _latestTs - _earliestTs;
     }
 
+    /**
+     * @notice Computes sampled out-of-range time inside a rolling window.
+     * @dev Only intervals bounded by two consecutive out-of-range samples are counted, which
+     *      makes the result conservative relative to continuous observation.
+     * @param _windowStart Start timestamp of the rolling window.
+     * @return duration_ Observed out-of-range duration inside the window.
+     */
     function _rollingOutOfRangeObserved(uint256 _windowStart) internal view returns (uint256 duration_) {
         if (rebalanceSampleCount < 2) return 0;
 
         uint256 _previousTs;
         bool _previousOut;
 
+        // Traverse oldest-to-newest so each pair of adjacent samples contributes at most once.
         for (uint256 i; i < rebalanceSampleCount; ++i) {
             uint256 _idx = _sampleIndexFromOldest(i);
             uint256 _ts = uint256(rebalanceSampleTimestamps[_idx]);
             bool _out = rebalanceSampleOutOfRange[_idx];
 
+            // Count only the overlap of an out-of-range interval with the requested window.
             if (i != 0 && _previousOut && _out && _ts > _windowStart) {
                 uint256 _intervalStart = _previousTs > _windowStart ? _previousTs : _windowStart;
                 if (_ts > _intervalStart) duration_ += _ts - _intervalStart;
@@ -734,6 +873,11 @@ contract SaveFundsInvestAutomationRunner is
         }
     }
 
+    /**
+     * @notice Checks whether the buffer still contains a recent out-of-range observation.
+     * @param _windowStart Earliest timestamp that is considered recent.
+     * @return True when at least one out-of-range sample falls inside the window.
+     */
     function _hasRecentOutOfRangeSample(uint256 _windowStart) internal view returns (bool) {
         for (uint256 i; i < rebalanceSampleCount; ++i) {
             uint256 _idx = _sampleIndexFromOldest(i);
@@ -744,43 +888,66 @@ contract SaveFundsInvestAutomationRunner is
         return false;
     }
 
+    /**
+     * @notice Resolves the storage index of a sample counted back from the newest entry.
+     * @param _offset Number of samples back from the newest entry.
+     * @return idx_ Physical ring-buffer index.
+     */
     function _sampleIndexFromNewest(uint256 _offset) internal view returns (uint256 idx_) {
         uint256 _head = rebalanceSampleHead;
         idx_ = (_head + REBALANCE_SAMPLE_CAP - 1 - _offset) % REBALANCE_SAMPLE_CAP;
     }
 
+    /**
+     * @notice Resolves the storage index of a sample counted forward from the oldest entry.
+     * @param _offset Number of samples forward from the oldest entry.
+     * @return idx_ Physical ring-buffer index.
+     */
     function _sampleIndexFromOldest(uint256 _offset) internal view returns (uint256 idx_) {
         uint256 _oldest = rebalanceSampleCount == REBALANCE_SAMPLE_CAP ? rebalanceSampleHead : 0;
         idx_ = (_oldest + _offset) % REBALANCE_SAMPLE_CAP;
     }
 
+    /**
+     * @notice Returns whether the invest cadence has elapsed.
+     * @return True when invest execution is allowed by the current schedule.
+     */
     function _isInvestWindowOpen() internal view returns (bool) {
         return block.timestamp >= lastRun + interval;
     }
 
+    /**
+     * @notice Rounds a tick down to the nearest valid multiple of pool spacing.
+     * @param _tick Tick to round.
+     * @param _spacing Pool tick spacing.
+     * @return Rounded tick that does not exceed `_tick`.
+     */
     function _floorToSpacing(int24 _tick, int24 _spacing) internal pure returns (int24) {
         int24 q = _tick / _spacing;
         int24 r = _tick % _spacing;
         if (_tick < 0 && r != 0) q -= 1;
-        return _toInt24(int256(q) * int256(_spacing));
+        return SafeCast.toInt24(int256(q) * int256(_spacing));
     }
 
+    /**
+     * @notice Rounds a tick up to the nearest valid multiple of pool spacing.
+     * @param _tick Tick to round.
+     * @param _spacing Pool tick spacing.
+     * @return Rounded tick that is not below `_tick`.
+     */
     function _ceilToSpacing(int24 _tick, int24 _spacing) internal pure returns (int24) {
         int24 q = _tick / _spacing;
         int24 r = _tick % _spacing;
         if (_tick > 0 && r != 0) q += 1;
-        return _toInt24(int256(q) * int256(_spacing));
-    }
-
-    function _toInt24(int256 _x) internal pure returns (int24) {
-        require(_x >= type(int24).min && _x <= type(int24).max, SaveFundsInvestAutomationRunner__OutOfRange());
-        return int24(_x);
+        return SafeCast.toInt24(int256(q) * int256(_spacing));
     }
 
     /**
      * @notice Computes target other-token ratio for the current range/price.
      * @dev Uses unit-liquidity equivalent in-range composition.
      * @param _sqrtPriceX96 Current sqrt price in Q96.
+     * @param _tickLower Lower bound of the target range.
+     * @param _tickUpper Upper bound of the target range.
      * @return Ratio of other-token value in BPS.
      */
     function _computeOtherRatioBPS(uint160 _sqrtPriceX96, int24 _tickLower, int24 _tickUpper)
@@ -792,6 +959,7 @@ contract SaveFundsInvestAutomationRunner is
         uint160 _sb = TickMathV3.getSqrtRatioAtTick(_tickUpper);
         if (_sa > _sb) (_sa, _sb) = (_sb, _sa);
 
+        // Outside the band the optimal composition is fully concentrated in one token.
         if (_sqrtPriceX96 <= _sa) return otherIsToken0 ? uint16(MAX_BPS) : uint16(0);
         if (_sqrtPriceX96 >= _sb) return otherIsToken0 ? uint16(0) : uint16(MAX_BPS);
 
@@ -819,6 +987,7 @@ contract SaveFundsInvestAutomationRunner is
             return sqrtPriceX96_;
         }
 
+        // Query the cumulative ticks over the requested window and derive the mean tick.
         uint32[] memory _secondsAgos = new uint32[](2);
         _secondsAgos[0] = _window;
         _secondsAgos[1] = 0;
@@ -832,6 +1001,7 @@ contract SaveFundsInvestAutomationRunner is
 
             return TickMathV3.getSqrtRatioAtTick(_avgTick);
         } catch {
+            // If observe is unavailable, fall back to the live spot price instead of reverting.
             (sqrtPriceX96_,,,,,,) = pool.slot0();
             return sqrtPriceX96_;
         }
@@ -852,6 +1022,7 @@ contract SaveFundsInvestAutomationRunner is
         if (_amountOther == 0) return 0;
         if (underlyingToken == otherToken) return _amountOther;
 
+        // Convert using the pool price and the known token ordering of the strategy pair.
         uint256 _priceX192 = uint256(_sqrtPriceX96) * uint256(_sqrtPriceX96);
         uint256 _q192 = 1 << 192;
 
@@ -889,6 +1060,7 @@ contract SaveFundsInvestAutomationRunner is
             bool _foundUni;
             uint256 _len = subStrategies.length;
 
+            // Ignore inactive or zero-weight strategies; only the effective allocation matters.
             for (uint256 i; i < _len; ++i) {
                 ISFAggregatorAutomationView.SubStrategyInfo memory _s = subStrategies[i];
                 if (!_s.isActive || _s.targetWeightBPS == 0) continue;
@@ -903,11 +1075,10 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Authorizes contract upgrades.
-     * @dev Required by UUPS; restricted to owner.
+     * @notice Resets rebalance-specific runtime state to the default values for this version.
+     * @dev The fixed-size sample arrays are explicitly zeroed so future upgrades do not inherit
+     *      stale values when this initializer is invoked on a reused proxy.
      */
-    function _authorizeUpgrade(address) internal override onlyOwner {}
-
     function _initializeRebalanceState() internal {
         rebalanceCheckInterval = DAILY_INTERVAL;
         lastRebalanceCheck = 0;
@@ -916,9 +1087,14 @@ contract SaveFundsInvestAutomationRunner is
         rebalanceSampleCount = 0;
         rebalanceSampleHead = 0;
 
+        // Reset the entire ring buffer so a newly upgraded proxy starts sampling from scratch.
         for (uint256 i; i < REBALANCE_SAMPLE_CAP; ++i) {
             rebalanceSampleTimestamps[i] = 0;
             rebalanceSampleOutOfRange[i] = false;
         }
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
+        newImplementation;
     }
 }
