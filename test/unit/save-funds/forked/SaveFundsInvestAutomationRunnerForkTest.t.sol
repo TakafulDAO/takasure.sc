@@ -21,6 +21,7 @@ import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 contract SaveFundsInvestAutomationRunnerForkTest is Test {
     uint256 internal constant FORK_BLOCK = 430826360;
     uint256 internal constant MAX_BPS = 10_000;
+    uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
     bytes32 internal constant ON_INVEST_SIG = keccak256("OnInvestIntoStrategy(uint256,uint256,bytes32)");
     bytes32 internal constant ON_UPKEEP_ATTEMPT_SIG = keccak256("OnUpkeepAttempt(uint256,uint256,uint16,bytes32)");
     bytes32 internal constant ON_INVEST_SUCCEEDED_SIG = keccak256("OnInvestSucceeded(uint256,uint256,uint256,uint16)");
@@ -73,13 +74,39 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
             )
         );
         runner = SaveFundsInvestAutomationRunner(runnerProxy);
+        runner.initializeV2();
 
         if (runner.strictUniOnlyAllocation()) runner.toggleStrictUniOnlyAllocation();
+        if (runner.rebalanceEnabled()) runner.toggleRebalanceEnabled();
     }
 
     function testRunnerFork_acceptKeeperRole() public {
         _grantKeeperRoleToRunner();
         assertTrue(addrMgr.hasRole(Roles.KEEPER, address(runner)));
+    }
+
+    function testRunnerFork_initializeV2_SetsRebalanceDefaults() public {
+        address runnerImplementation = address(new SaveFundsInvestAutomationRunner());
+        address runnerProxy = UnsafeUpgrades.deployUUPSProxy(
+            runnerImplementation,
+            abi.encodeCall(
+                SaveFundsInvestAutomationRunner.initialize,
+                (address(vault), address(aggregator), address(uniV3), address(addrMgr), 24 hours, 1, address(this))
+            )
+        );
+        SaveFundsInvestAutomationRunner upgradeRunner = SaveFundsInvestAutomationRunner(runnerProxy);
+
+        assertEq(upgradeRunner.rebalanceCheckInterval(), 0);
+        assertEq(upgradeRunner.lastRebalanceCheck(), 0);
+        assertEq(upgradeRunner.lastSuccessfulRebalance(), 0);
+        assertFalse(upgradeRunner.rebalanceEnabled());
+
+        upgradeRunner.initializeV2();
+
+        assertEq(upgradeRunner.rebalanceCheckInterval(), 12 hours);
+        assertEq(upgradeRunner.lastRebalanceCheck(), 0);
+        assertEq(upgradeRunner.lastSuccessfulRebalance(), 0);
+        assertTrue(upgradeRunner.rebalanceEnabled());
     }
 
     function testRunnerFork_setInterval_BelowDaily_RevertsWhenTestModeDisabled() public {
@@ -98,9 +125,11 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         vm.warp(block.timestamp + runner.interval() + 1);
 
         (bool upkeepNeeded, bytes memory performData) = runner.checkUpkeep("");
+        (uint256 idleFromData, bool investNeeded,) = abi.decode(performData, (uint256, bool, bool));
 
         assertTrue(upkeepNeeded);
-        assertEq(abi.decode(performData, (uint256)), vault.idleAssets());
+        assertTrue(investNeeded);
+        assertEq(idleFromData, vault.idleAssets());
     }
 
     function testRunnerFork_performUpkeep_AttemptsInvestmentAndUpdatesLastRun() public {
@@ -231,6 +260,77 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertEq(encodedOtherRatioBps, otherRatioBps, "payload ratio mismatch");
     }
 
+    function testRunnerFork_setLastSuccessfulRebalance() public {
+        uint256 seededTs = block.timestamp - 8 days;
+        runner.setLastSuccessfulRebalance(seededTs);
+        assertEq(runner.lastSuccessfulRebalance(), seededTs);
+    }
+
+    function testRunnerFork_performUpkeep_RebalancesAfter24HoursOutOfRange() public {
+        _enableRebalance();
+        _grantKeeperRoleToRunner();
+
+        runner.setInterval(10 days);
+        runner.setLastRun(block.timestamp);
+
+        (int24 outLower, int24 outUpper) = _outOfRangeTicksAboveCurrent();
+        _setStrategyRange(outLower, outUpper, 5_000);
+
+        runner.performUpkeep("");
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
+        runner.performUpkeep("");
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
+        int24 preRebalanceTick = _currentPoolTick();
+        (int24 expectedLower, int24 expectedUpper) = _expectedRunnerTicks(preRebalanceTick);
+
+        runner.performUpkeep("");
+
+        assertEq(uniV3.tickLower(), expectedLower, "runner lower tick mismatch");
+        assertEq(uniV3.tickUpper(), expectedUpper, "runner upper tick mismatch");
+        assertEq(runner.lastSuccessfulRebalance(), block.timestamp, "lastSuccessfulRebalance not updated");
+    }
+
+    function testRunnerFork_performUpkeep_RebalancesAfter24HoursWithin3DaysWhenCooldownElapsed() public {
+        _enableRebalance();
+        _grantKeeperRoleToRunner();
+
+        runner.setInterval(10 days);
+        runner.setLastRun(block.timestamp);
+        runner.setLastSuccessfulRebalance(block.timestamp - 8 days);
+
+        (int24 outLower1, int24 outUpper1) = _outOfRangeTicksAboveCurrent();
+        _setStrategyRange(outLower1, outUpper1, 5_000);
+
+        runner.performUpkeep("");
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
+        runner.performUpkeep("");
+
+        (int24 inLower, int24 inUpper) = _inRangeTicksAroundCurrent();
+        _setStrategyRange(inLower, inUpper, 5_000);
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
+        runner.performUpkeep("");
+
+        (int24 outLower2, int24 outUpper2) = _outOfRangeTicksBelowCurrent();
+        _setStrategyRange(outLower2, outUpper2, 5_000);
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
+        runner.performUpkeep("");
+
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
+        int24 preRebalanceTick = _currentPoolTick();
+        (int24 expectedLower, int24 expectedUpper) = _expectedRunnerTicks(preRebalanceTick);
+
+        runner.performUpkeep("");
+
+        assertEq(uniV3.tickLower(), expectedLower, "runner lower tick mismatch");
+        assertEq(uniV3.tickUpper(), expectedUpper, "runner upper tick mismatch");
+        assertEq(runner.lastSuccessfulRebalance(), block.timestamp, "cooldown-based rebalance not recorded");
+    }
+
     function _getAddr(string memory contractName) internal view returns (address) {
         return addrGetter.getAddress(block.chainid, contractName);
     }
@@ -270,6 +370,10 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         vm.prank(owner);
         addrMgr.proposeRoleHolder(Roles.KEEPER, address(runner));
         runner.acceptKeeperRole();
+    }
+
+    function _enableRebalance() internal {
+        if (!runner.rebalanceEnabled()) runner.toggleRebalanceEnabled();
     }
 
     function _registerAndDeposit(address user, uint256 amount) internal {
@@ -319,6 +423,92 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         if (other == token0 && underlying == token1) return Math.mulDiv(amountOther, priceX192, q192);
         if (other == token1 && underlying == token0) return Math.mulDiv(amountOther, q192, priceX192);
         return 0;
+    }
+
+    function _setStrategyRange(int24 newTickLower, int24 newTickUpper, uint16 otherRatioBps) internal {
+        bytes memory bundle = _buildRebalanceBundle(newTickLower, newTickUpper, otherRatioBps);
+        vm.prank(operator);
+        aggregator.rebalance(bundle);
+    }
+
+    function _buildRebalanceBundle(int24 newTickLower, int24 newTickUpper, uint16 otherRatioBps)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes memory actionData = abi.encode(
+            otherRatioBps,
+            _buildSwapData(address(asset), address(uniV3.otherToken()), 10_000),
+            _buildSwapData(address(uniV3.otherToken()), address(asset), 10_000),
+            uint256(0),
+            uint256(0),
+            uint256(0)
+        );
+        bytes memory payload = abi.encode(newTickLower, newTickUpper, actionData);
+
+        address[] memory strategies = new address[](1);
+        strategies[0] = address(uniV3);
+
+        bytes[] memory payloads = new bytes[](1);
+        payloads[0] = payload;
+
+        return abi.encode(strategies, payloads);
+    }
+
+    function _buildSwapData(address tokenIn, address tokenOut, uint16 bps) internal view returns (bytes memory) {
+        bytes memory path = abi.encodePacked(tokenIn, uniV3.pool().fee(), tokenOut);
+        uint256 amountIn = AMOUNT_IN_BPS_FLAG | uint256(bps);
+        bytes memory input = abi.encode(address(uniV3), amountIn, uint256(0), path, true);
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = input;
+
+        return abi.encode(inputs, uint256(0));
+    }
+
+    function _currentPoolTick() internal view returns (int24 currentTick) {
+        (, currentTick,,,,,) = uniV3.pool().slot0();
+    }
+
+    function _expectedRunnerTicks(int24 currentTick) internal view returns (int24 lower, int24 upper) {
+        int24 spacing = uniV3.pool().tickSpacing();
+        lower = _floorToSpacing(currentTick - 2, spacing);
+        upper = _ceilToSpacing(currentTick + 3, spacing);
+    }
+
+    function _outOfRangeTicksAboveCurrent() internal view returns (int24 lower, int24 upper) {
+        int24 spacing = uniV3.pool().tickSpacing();
+        int24 currentTick = _currentPoolTick();
+        lower = _ceilToSpacing(currentTick + 25, spacing);
+        upper = lower + spacing * 5;
+    }
+
+    function _outOfRangeTicksBelowCurrent() internal view returns (int24 lower, int24 upper) {
+        int24 spacing = uniV3.pool().tickSpacing();
+        int24 currentTick = _currentPoolTick();
+        upper = _floorToSpacing(currentTick - 25, spacing);
+        lower = upper - spacing * 5;
+    }
+
+    function _inRangeTicksAroundCurrent() internal view returns (int24 lower, int24 upper) {
+        int24 spacing = uniV3.pool().tickSpacing();
+        int24 currentTick = _currentPoolTick();
+        lower = _floorToSpacing(currentTick - 2, spacing);
+        upper = _ceilToSpacing(currentTick + 3, spacing);
+    }
+
+    function _floorToSpacing(int24 tick, int24 spacing) internal pure returns (int24) {
+        int24 q = tick / spacing;
+        int24 r = tick % spacing;
+        if (tick < 0 && r != 0) q -= 1;
+        return q * spacing;
+    }
+
+    function _ceilToSpacing(int24 tick, int24 spacing) internal pure returns (int24) {
+        int24 q = tick / spacing;
+        int24 r = tick % spacing;
+        if (tick > 0 && r != 0) q += 1;
+        return q * spacing;
     }
 }
 
