@@ -1,0 +1,140 @@
+@startuml Save Fund (SF) – Invest Into Strategy (Detailed)
+title Save Fund (SF) – Invest Into Strategy (Detailed)
+
+autonumber
+
+participant "Backend Keeper\n(Off-chain bot)" as K
+participant "SFVault" as Vault
+participant "AddressManager" as AM
+participant "USDC\n(Underlying ERC20)" as USDC
+participant "SFStrategyAggregator" as Agg
+participant "Sub-Strategy A\n(e.g., Uniswap V3)" as S1
+participant "Sub-Strategy B\n(another child)" as S2
+database "Subgraph" as SG
+
+== Preconditions ==
+
+ref over Vault, SG
+Users must have deposited first
+(see: Deposit (Detailed) diagram)
+end ref
+
+== Keeper prepares ==
+
+K -> Vault: getIdleAssets() / idleAssets()
+Vault -> USDC: balanceOf(Vault)
+USDC --> Vault: idleAssets
+Vault --> K: idleAssets
+
+K -> Agg: getSubStrategies()\n(or getPositionDetails)
+Agg --> K: strategies + weights + active flags
+
+K -> K: Choose `assets` to invest (<= idleAssets)\nPrepare optional (strategies[], payloads[])\nfor per-child deposit calls
+
+== Invest ==
+
+K -> Vault: investIntoStrategy(assets, strategies[], payloads[])
+activate Vault
+
+note right of Vault
+Guards:
+- whenNotPaused
+- nonReentrant
+- only Keeper or Operator
+Checks:
+- aggregator != 0
+- assets > 0
+- assets <= idleAssets()
+end note
+
+Vault -> AM: hasRole(KEEPER, msg.sender) OR hasRole(OPERATOR, msg.sender)
+AM --> Vault: true/false
+
+alt caller not Keeper/Operator
+  Vault --> K: REVERT SFVault__NotAuthorizedCaller
+  deactivate Vault
+else aggregator not set
+  Vault --> K: REVERT SFVault__StrategyNotSet
+  deactivate Vault
+else assets == 0
+  Vault --> K: REVERT SFVault__ZeroAssets
+  deactivate Vault
+else assets > idleAssets
+  Vault -> USDC: balanceOf(Vault)\n(idleAssets() check)
+  USDC --> Vault: idleAssets
+  Vault --> K: REVERT SFVault__InsufficientIdleAssets
+  deactivate Vault
+else success
+  Vault -> USDC: transfer(Agg, assets)\n(safeTransfer)
+  USDC --> Vault: Transfer OK
+
+  Vault -> Vault: data = abi.encode(strategies[], payloads[])
+  Vault -> Agg: deposit(assets, data)
+  activate Agg
+
+  note right of Agg
+Guards:
+- onlyContract("PROTOCOL__SF_VAULT")
+- whenNotPaused
+- nonReentrant
+
+Allocation:
+- uses ACTIVE sub-strategies with targetWeightBPS > 0
+- computes per-child `toAllocate` from weights
+- if payload missing for a child => uses empty bytes
+- approves child only for its allocation and resets approval to 0 after
+end note
+
+  Agg -> AM: hasName("PROTOCOL__SF_VAULT", msg.sender)
+  AM --> Agg: true/false
+
+  alt msg.sender is not allowlisted vault
+    Agg --> Vault: REVERT SFStrategyAggregator__NotAuthorizedCaller
+    deactivate Agg
+    Vault --> K: Tx revert bubbles up
+    deactivate Vault
+  else no allocatable sub-strategies
+    Agg -> USDC: transfer(Vault, assets)\n(return all)
+    USDC --> Agg: Transfer OK
+    Agg --> Vault: investedAssets = 0
+    deactivate Agg
+  else allocate across children
+    Agg -> Agg: allocatableStrats = active+weighted children
+    Agg -> Agg: (strategies[], payloads[]) = abi.decode(data)
+
+    loop for each allocatable child (example: S1 then S2)
+      group Child allocation
+        Agg -> USDC: forceApprove(child, toAllocate)
+        USDC --> Agg: Approval OK
+
+        Agg -> Agg: childData = payloadFor(child)\n(or empty bytes)
+        Agg -> S1: deposit(toAllocate, childData)
+        S1 --> Agg: childInvested
+
+        Agg -> USDC: forceApprove(child, 0)
+        USDC --> Agg: Approval reset OK
+
+        Agg -> Agg: actualSpent = balanceBefore - balanceAfter
+        Agg -> SG: Emit OnChildDeposit(child, toAllocate, childInvested, actualSpent, childDataHash)
+      end
+    end
+
+    Agg -> USDC: balanceOf(Agg)\n(leftover)
+    USDC --> Agg: leftover
+
+    opt leftover > 0
+      Agg -> USDC: transfer(Vault, leftover)
+      USDC --> Agg: Transfer OK
+    end
+
+    Agg -> SG: Emit OnAggregatorDeposit(vault, assets, investedAssets, leftover, bundleHash)
+    Agg --> Vault: investedAssets
+    deactivate Agg
+  end
+
+  Vault -> SG: Emit OnInvestIntoStrategy(assets, investedAssets, bundleHash)
+  Vault --> K: investedAssets + tx receipt
+  deactivate Vault
+end
+
+@enduml

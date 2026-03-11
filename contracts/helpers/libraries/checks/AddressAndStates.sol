@@ -6,7 +6,8 @@
  * @notice This contract will have simple checks for the addresses and module states
  */
 
-import {ModuleState, ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
+import {ModuleState} from "contracts/types/States.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {IModuleManager} from "contracts/interfaces/managers/IModuleManager.sol";
 
@@ -25,10 +26,7 @@ library AddressAndStates {
         return IAddressManager(addressManager).hasRole(role, msg.sender);
     }
 
-    function _checkType(
-        ProtocolAddressType addressType,
-        address addressManager
-    ) internal view returns (bool) {
+    function _checkType(ProtocolAddressType addressType, address addressManager) internal view returns (bool) {
         return IAddressManager(addressManager).hasType(addressType, msg.sender);
     }
 
@@ -36,14 +34,7 @@ library AddressAndStates {
         require(_address != address(0), TakasureProtocol__ZeroAddress());
     }
 
-    function _onlyModuleState(
-        ModuleState _neededState,
-        address moduleAddress,
-        address moduleManager
-    ) internal view {
-        require(
-            IModuleManager(moduleManager).getModuleState(moduleAddress) == _neededState,
-            Module__WrongModuleState()
-        );
+    function _onlyModuleState(ModuleState _neededState, address moduleAddress, address moduleManager) internal view {
+        require(IModuleManager(moduleManager).getModuleState(moduleAddress) == _neededState, Module__WrongModuleState());
     }
 }

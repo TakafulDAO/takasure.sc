@@ -13,7 +13,7 @@
  *      2. MemberModule: Will run the functions as written here
  */
 
-import {Reserve} from "contracts/types/TakasureTypes.sol";
+import {Reserve} from "contracts/types/Reserve.sol";
 import {CashFlowAlgorithms} from "contracts/helpers/libraries/algorithms/CashFlowAlgorithms.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITakasureReserve} from "contracts/interfaces/ITakasureReserve.sol";
@@ -37,18 +37,12 @@ contract MemberPaymentFlow {
         ITakasureReserve _takasureReserve
     ) internal virtual returns (Reserve memory, uint256) {
         _reserve = CashFlowAlgorithms._updateNewReserveValues(
-            _takasureReserve,
-            _contributionAfterFee,
-            _contributionBeforeFee,
-            _reserve
+            _takasureReserve, _contributionAfterFee, _contributionBeforeFee, _reserve
         );
 
         // Transfer the contribution to the reserves
         _transferContributionToReserve(
-            IERC20(_reserve.contributionToken),
-            _memberWallet,
-            address(_takasureReserve),
-            _contributionAfterFee
+            IERC20(_reserve.contributionToken), _memberWallet, address(_takasureReserve), _contributionAfterFee
         );
 
         uint256 credits_ = _contributionBeforeFee * ModuleConstants.DECIMALS_CONVERSION_FACTOR; // 6 decimals to 18 decimals

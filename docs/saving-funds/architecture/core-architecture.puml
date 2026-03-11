@@ -1,0 +1,46 @@
+@startuml Save Funds – On-chain Architecture
+title Save Funds – On-chain Architecture (Contracts + External Protocols)
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+package "Save Funds (Takadao Contracts)" as SF {
+  component "SFVault\n(ERC4626 vault)\n- deposit/withdraw/redeem\n- investIntoStrategy/withdrawFromStrategy\n- takeFees\n- non-transferable shares" as Vault
+
+  component "SFStrategyAggregator\n- routes capital across sub-strategies\n- harvest / rebalance fan-out" as Agg
+
+  component "SFUniswapV3Strategy\n(child strategy)\n- mints/maintains V3 position NFT\n- optional swaps\n- reports assets" as V3
+
+  component "AddressManager\n- role checks\n- named address registry" as AM
+}
+
+package "External Contracts / Protocols" as EXT {
+  component "USDC\n(Underlying ERC20)" as USDC
+  component "Uniswap V3 Pool" as Pool
+  component "NonfungiblePositionManager\n(Uniswap V3)\n- mint/increase/decrease/collect\n- NFT owner = Vault" as NPM
+  component "Universal Router\n(Uniswap)\n- swaps" as UR
+}
+
+' --- Core wiring ---
+Vault --> AM : role checks + address lookups\n(KEEPER/OPERATOR, feeReceiver, etc.)
+Agg --> AM : auth (vault-only) + role checks
+V3 --> AM : role checks (keeper/operator)
+
+Vault --> USDC : holds idle USDC\ntransfer feeReceiver
+Vault --> Agg  : strategy adapter calls\n(deposit/withdraw)\n+ transfers USDC to Agg
+
+Agg --> USDC : approves/spends USDC\nfor child deposits/withdraws
+Agg --> V3   : ISFStrategy calls\n(deposit/withdraw/harvest/rebalance)
+
+V3 --> NPM : manage V3 position NFT\n(mint/increase/decrease/collect/burn)
+V3 --> UR  : swaps when needed\n(other token -> USDC)
+NPM --> Pool : liquidity lives here\n(price/ticks, fees)
+
+note right of NPM
+Important nuance:
+- NFT is minted to the Vault.
+- Vault must setApprovalForAll(NPM, V3, true)
+  so V3 can manage the position.
+end note
+
+@enduml

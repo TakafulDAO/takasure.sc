@@ -9,7 +9,7 @@ import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {Reserve} from "contracts/types/TakasureTypes.sol";
+import {Reserve} from "contracts/types/Reserve.sol";
 
 contract Getters_TakasureCoreTest is StdCheats, Test {
     DeployManagers managersDeployer;
@@ -19,11 +19,7 @@ contract Getters_TakasureCoreTest is StdCheats, Test {
     function setUp() public {
         managersDeployer = new DeployManagers();
         deployer = new DeployReserve();
-        (
-            HelperConfig.NetworkConfig memory config,
-            AddressManager addressManager,
-
-        ) = managersDeployer.run();
+        (HelperConfig.NetworkConfig memory config, AddressManager addressManager,) = managersDeployer.run();
         takasureReserve = deployer.run(config, addressManager);
     }
 

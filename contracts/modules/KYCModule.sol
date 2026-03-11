@@ -7,35 +7,24 @@
  * @dev Upgradeable contract with UUPS pattern
  */
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
-import {IProtocolStorageModule} from "contracts/interfaces/modules/IProtocolStorageModule.sol";
+import {IMainStorageModule} from "contracts/interfaces/modules/IMainStorageModule.sol";
 
 import {ModuleImplementation} from "contracts/modules/moduleUtils/ModuleImplementation.sol";
-import {
-    UUPSUpgradeable,
-    Initializable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {
     ReentrancyGuardTransientUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {
-    AssociationMember,
-    AssociationMemberState,
-    ModuleState,
-    ProtocolAddress
-} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddress} from "contracts/types/Managers.sol";
+import {AssociationMemberState, ModuleState} from "contracts/types/States.sol";
+import {AssociationMember} from "contracts/types/Members.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
 import {AddressAndStates} from "contracts/helpers/libraries/checks/AddressAndStates.sol";
 
 pragma solidity 0.8.28;
 
-contract KYCModule is
-    ModuleImplementation,
-    Initializable,
-    UUPSUpgradeable,
-    ReentrancyGuardTransientUpgradeable
-{
+contract KYCModule is ModuleImplementation, Initializable, UUPSUpgradeable, ReentrancyGuardTransientUpgradeable {
     mapping(address member => bool) public isKYCed; // To check if a member is KYCed
 
     /*//////////////////////////////////////////////////////////////
@@ -73,24 +62,19 @@ contract KYCModule is
      * @dev It reverts if the member is the zero address
      * @dev It reverts if the member is already KYCed
      */
-    function approveKYC(
-        address memberWallet
-    ) external onlyRole(Roles.KYC_PROVIDER, address(addressManager)) {
+    function approveKYC(address memberWallet) external onlyRole(Roles.KYC_PROVIDER, address(addressManager)) {
         AddressAndStates._onlyModuleState(
             ModuleState.Enabled,
             address(this),
-            IAddressManager(addressManager).getProtocolAddressByName("MODULE_MANAGER").addr
+            IAddressManager(addressManager).getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
         );
         AddressAndStates._notZeroAddress(memberWallet);
 
         require(!isKYCed[memberWallet], KYCModule__MemberAlreadyKYCed());
 
-        IProtocolStorageModule protocolStorageModule = IProtocolStorageModule(
-            addressManager.getProtocolAddressByName("PROTOCOL_STORAGE_MODULE").addr
-        );
-        AssociationMember memory newMember = protocolStorageModule.getAssociationMember(
-            memberWallet
-        );
+        IMainStorageModule mainStorageModule =
+            IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
+        AssociationMember memory newMember = mainStorageModule.getAssociationMember(memberWallet);
 
         // todo: uncomment when contributions are implemented from SubscriptionManagementModule PR
         // require(newMember.planId != 0 && !newMember.isRefunded, KYCModule__ContributionRequired());
@@ -99,7 +83,7 @@ contract KYCModule is
         newMember.memberState = AssociationMemberState.Active; // Active state as the user is already paid the contribution and KYCed
         isKYCed[memberWallet] = true;
 
-        protocolStorageModule.updateAssociationMember(newMember);
+        mainStorageModule.updateAssociationMember(newMember);
 
         emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
     }
@@ -109,7 +93,9 @@ contract KYCModule is
     //////////////////////////////////////////////////////////////*/
 
     ///@dev required by the OZ UUPS module
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(Roles.OPERATOR, address(addressManager)) {}
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(Roles.OPERATOR, address(addressManager))
+    {}
 }

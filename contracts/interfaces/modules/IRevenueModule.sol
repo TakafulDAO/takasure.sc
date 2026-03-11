@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GNU GPLv3
 
-import {RevenueType} from "contracts/types/TakasureTypes.sol";
+import {RevenueType} from "contracts/types/Cash.sol";
 
 pragma solidity 0.8.28;
+
 interface IRevenueModule {
     function depositRevenue(uint256 newRevenue, RevenueType revenueType) external;
 }
