@@ -47,7 +47,7 @@ const TRANCHE_2_START_TS = Math.floor(new Date("2025-09-01T00:00:00Z").getTime()
 const BACKFILL_END_TS = Math.floor(new Date("2025-12-01T00:00:00Z").getTime() / 1000)
 
 // Name used in AddressManager for Takadao revenue receiver
-const REVENUE_RECEIVER_KEY = "REVENUE_RECEIVER"
+const ADMIN_REVENUE_RECEIVER_KEY = "ADMIN__REVENUE_RECEIVER"
 
 const ARBITRUM_MAINNET_RPC_URL = process.env.ARBITRUM_MAINNET_RPC_URL // Arbitrum One RPC URL
 // const RPC_URL = "http://127.0.0.1:8545" // Anvil RPC URL
@@ -284,7 +284,7 @@ async function main() {
         )
     }
 
-    // 7) Fetch REVENUE_RECEIVER from AddressManager
+    // 7) Fetch ADMIN__REVENUE_RECEIVER from AddressManager
     let revenueReceiver = null
 
     if (!ARBITRUM_MAINNET_RPC_URL) {
@@ -306,11 +306,11 @@ async function main() {
             provider,
         )
 
-        const protocolAddress = await addressManager.getProtocolAddressByName(REVENUE_RECEIVER_KEY)
+        const protocolAddress = await addressManager.getProtocolAddressByName(ADMIN_REVENUE_RECEIVER_KEY)
         // Struct: { name: bytes32, addr: address, addressType: uint8 }
         revenueReceiver = (protocolAddress.addr || protocolAddress[1]).toLowerCase()
 
-        console.log(`REVENUE_RECEIVER resolved to: ${revenueReceiver}`)
+        console.log(`ADMIN__REVENUE_RECEIVER resolved to: ${revenueReceiver}`)
 
         // Add Takadao allocation
         allocations.push({

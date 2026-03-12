@@ -35,7 +35,7 @@ contract ForkBackfill_RevShareModuleTest is StdCheats, Test {
     address constant PIONEER_1 = 0x00E9cB8f13D610A0e63840169AdEEB636d6aa02B;
     address constant PIONEER_2 = 0x01Ef776BDb788f927980E0193dF74E425f9E3038;
 
-    address constant REVSHARE_NFT_ARB = 0x931eD799F48AaE6908F8Fe204712972f4a64c941;
+    address constant ARB_REV_SHARE_NFT = 0x931eD799F48AaE6908F8Fe204712972f4a64c941;
 
     uint256 constant FORK_BLOCK_ARB = 409_039_704;
 
@@ -63,10 +63,10 @@ contract ForkBackfill_RevShareModuleTest is StdCheats, Test {
         (,, revShareModule,) = moduleDeployer.run(addrMgr);
 
         usdc = IUSDC(config.contributionToken);
-        nft = RevShareNFT(REVSHARE_NFT_ARB);
+        nft = RevShareNFT(ARB_REV_SHARE_NFT);
 
         vm.startPrank(addrMgr.owner());
-        addrMgr.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
+        addrMgr.addProtocolAddress("PROTOCOL__REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         // Backfill pool funding

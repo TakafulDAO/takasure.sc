@@ -227,7 +227,7 @@ contract RevShareMonthSimToCsv is Script, StdCheats {
 
         HelperConfig.NetworkConfig memory cfg = helper.getConfigByChainId(block.chainid);
         takadao = cfg.takadaoOperator;
-        revenueReceiver = am.getProtocolAddressByName("REVENUE_RECEIVER").addr;
+        revenueReceiver = am.getProtocolAddressByName("ADMIN__REVENUE_RECEIVER").addr;
         usdc = IUSDC(am.getProtocolAddressByName("CONTRIBUTION_TOKEN").addr);
 
         // --- 2) Fresh RevShareNFT proxy and register it ---
@@ -241,7 +241,7 @@ contract RevShareMonthSimToCsv is Script, StdCheats {
         nft = RevShareNFT(nftProxy);
 
         vm.startPrank(am.owner());
-        am.addProtocolAddress("REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
+        am.addProtocolAddress("PROTOCOL__REVSHARE_NFT", address(nft), ProtocolAddressType.Protocol);
         vm.stopPrank();
 
         // --- 3) Set rewards duration to 30 days (operator role required) ---

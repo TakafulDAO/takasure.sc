@@ -12,7 +12,7 @@ import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
 contract Deployments is Script {
     address constant NFT = 0x931eD799F48AaE6908F8Fe204712972f4a64c941;
     address constant USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-    address constant REVENUE_RECEIVER = 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720; // Last account in Anvil
+    address constant ADMIN_REVENUE_RECEIVER = 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720; // Last account in Anvil
 
     function run() external returns (address addressManager, address moduleManager, address revShareModule) {
         vm.startBroadcast(msg.sender);
@@ -32,12 +32,12 @@ contract Deployments is Script {
         AddressManager(addressManager)
             .addProtocolAddress("REVENUE_SHARE_MODULE", revShareModule, ProtocolAddressType.Protocol);
 
-        AddressManager(addressManager).addProtocolAddress("REVSHARE_NFT", NFT, ProtocolAddressType.Protocol);
+        AddressManager(addressManager).addProtocolAddress("PROTOCOL__REVSHARE_NFT", NFT, ProtocolAddressType.Protocol);
 
         AddressManager(addressManager).addProtocolAddress("CONTRIBUTION_TOKEN", USDC, ProtocolAddressType.Protocol);
 
         AddressManager(addressManager)
-            .addProtocolAddress("REVENUE_RECEIVER", REVENUE_RECEIVER, ProtocolAddressType.Protocol);
+            .addProtocolAddress("ADMIN__REVENUE_RECEIVER", ADMIN_REVENUE_RECEIVER, ProtocolAddressType.Admin);
 
         vm.stopBroadcast();
 
