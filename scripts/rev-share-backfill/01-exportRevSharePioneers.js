@@ -376,6 +376,55 @@ async function fetchAllBatchMints(subgraphUrl, blockNumber) {
     return batchMints
 }
 
+async function resolveMintedAtPerToken(subgraphUrl, tokenIds, blockNumber) {
+    const mintedAtPerToken = new Map()
+
+    const singleMintTimestamps = await fetchSingleMintTimestamps(subgraphUrl, tokenIds, blockNumber)
+    for (const [tokenId, mintEvent] of singleMintTimestamps.entries()) {
+        mintedAtPerToken.set(tokenId, mintEvent.holdingSince)
+    }
+
+    const missingTokenIds = tokenIds.filter((tokenId) => !mintedAtPerToken.has(tokenId))
+    if (missingTokenIds.length === 0) {
+        return mintedAtPerToken
+    }
+
+    console.log(
+        `Single mint events resolved mintedAt for ${tokenIds.length - missingTokenIds.length} tokens. Resolving ${missingTokenIds.length} batch-minted tokens...`
+    )
+
+    const batchMintEvents = await fetchAllBatchMints(subgraphUrl, blockNumber)
+    const missingTokenSet = new Set(missingTokenIds)
+
+    for (const batchMintEvent of batchMintEvents) {
+        if (missingTokenSet.size === 0) break
+
+        const initialTokenId = BigInt(batchMintEvent.initialTokenId)
+        const lastTokenId = BigInt(batchMintEvent.lastTokenId)
+        const mintedAt = BigInt(batchMintEvent.blockTimestamp)
+
+        for (const tokenId of Array.from(missingTokenSet)) {
+            const numericTokenId = BigInt(tokenId)
+            if (numericTokenId < initialTokenId || numericTokenId > lastTokenId) continue
+
+            mintedAtPerToken.set(tokenId, mintedAt)
+            missingTokenSet.delete(tokenId)
+        }
+    }
+
+    if (missingTokenSet.size > 0) {
+        throw new Error(
+            `Unable to resolve mintedAt for ${missingTokenSet.size} tokens. Example tokenIds: ${Array.from(
+                missingTokenSet
+            )
+                .slice(0, 10)
+                .join(", ")}`
+        )
+    }
+
+    return mintedAtPerToken
+}
+
 async function resolveHoldingSincePerToken(subgraphUrl, tokenIds, tokenIdToOwner, blockNumber) {
     const holdingSincePerToken = await fetchLatestTransferPerToken(subgraphUrl, tokenIds, blockNumber)
 
@@ -559,25 +608,38 @@ async function main() {
         tokenIdToOwner,
         SNAPSHOT_BLOCK
     )
+    const mintedAtPerToken = await resolveMintedAtPerToken(subgraphUrl, tokenIds, SNAPSHOT_BLOCK)
 
     const rows = Array.from(pioneersMap.entries()).map(([address, pioneer]) => {
         let holdingSince = null
+        const tokens = []
 
         for (const tokenId of pioneer.idsOwned) {
             const tokenData = holdingSincePerToken.get(tokenId)
             if (!tokenData) {
                 throw new Error(`Missing holdingSince for token ${tokenId} owned by ${address}`)
             }
+            const mintedAt = mintedAtPerToken.get(tokenId)
+            if (mintedAt === undefined) {
+                throw new Error(`Missing mintedAt for token ${tokenId} owned by ${address}`)
+            }
 
             if (holdingSince === null || tokenData.holdingSince < holdingSince) {
                 holdingSince = tokenData.holdingSince
             }
+
+            tokens.push({
+                tokenId,
+                mintedAt: mintedAt.toString(),
+                holdingSince: tokenData.holdingSince.toString(),
+            })
         }
 
         return {
             address,
             nftBalance: pioneer.balance.toString(),
             holdingSince: holdingSince !== null ? holdingSince.toString() : null,
+            tokens,
         }
     })
 
@@ -603,6 +665,7 @@ async function main() {
         chainId,
         network: chainName(chainId),
         snapshotBlock: typeof SNAPSHOT_BLOCK === "number" ? SNAPSHOT_BLOCK : null,
+        mintedAtSemantics: "timestamp when the token first entered totalSupply",
         holdingSinceSemantics:
             "minimum latest-acquisition timestamp across the NFTs currently held by each address",
         totalNftsFromMap: totalNftsFromMap.toString(),

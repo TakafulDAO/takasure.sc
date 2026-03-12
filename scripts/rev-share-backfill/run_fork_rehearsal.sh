@@ -27,6 +27,19 @@ ANVIL_PORT="${ANVIL_PORT:-8545}"
 LOCAL_RPC="http://127.0.0.1:${ANVIL_PORT}"
 CHAIN_ID="${CHAIN_ID:-42161}"
 
+case "$CHAIN_ID" in
+  42161)
+    EXPORT_CHAIN_FLAG="arb-one"
+    ;;
+  421614)
+    EXPORT_CHAIN_FLAG="arb-sep"
+    ;;
+  *)
+    echo "ERROR: Unsupported CHAIN_ID=$CHAIN_ID. Expected 42161 or 421614." >&2
+    exit 1
+    ;;
+esac
+
 # Start anvil automatically (1=yes, 0=no)
 START_ANVIL="${START_ANVIL:-1}"
 
@@ -196,7 +209,7 @@ echo "" # Blank line for readability
 echo ">>> Step 1: export pioneers from subgraph"
 echo "" # Blank line for readability
 
-node "$SCRIPT_01"
+node "$SCRIPT_01" --chain "$EXPORT_CHAIN_FLAG"
 
 echo "" # Blank line for readability
 echo ">>> Step 2: build time-weighted backfill allocations"
