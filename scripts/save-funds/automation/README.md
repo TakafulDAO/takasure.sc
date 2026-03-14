@@ -200,6 +200,9 @@ Builds calldata for:
 - `--data <0x>`  
   Raw ABI-encoded rebalance bundle.
 
+- `--otherRatioBps <bps|auto>`  
+  Rebalance supports `auto`, which estimates the LP-target ratio for the target tick range using the live spot price first.
+
 - `--tickLower <int>`  
   New lower tick (builder mode).
 
@@ -231,7 +234,7 @@ node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
   --strategies uniV3 \
   --tickLower <new_lower_tick> \
   --tickUpper <new_upper_tick> \
-  --otherRatioBps 5000 \
+  --otherRatioBps auto \
   --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
   --swapToUnderlyingFee 100 \
@@ -260,8 +263,8 @@ Expected simulation output includes:
 > [!TIP]
 > To maximize deployment after rebalance, choose a range that contains the current tick.
 
-> [!WARNING]
-> `--otherRatioBps 5000` is a practical default, but with asymmetric ranges it may not be exact max-liquidity ratio. Small leftovers can remain.
+> [!TIP]
+> Prefer `--otherRatioBps auto` for rebalance. It uses the same spot-price-first LP-target ratio estimation as the invest builder and is more precise than a fixed `5000` guess for asymmetric ranges.
 
 ### Safe leftovers process (after rebalance)
 
