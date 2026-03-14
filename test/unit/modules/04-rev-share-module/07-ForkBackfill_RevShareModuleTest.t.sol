@@ -13,7 +13,7 @@ import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {RevShareNFT} from "contracts/tokens/RevShareNFT.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-import {ProtocolAddressType} from "contracts/types/TakasureTypes.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 import {IUSDC} from "test/mocks/IUSDCmock.sol";
 
