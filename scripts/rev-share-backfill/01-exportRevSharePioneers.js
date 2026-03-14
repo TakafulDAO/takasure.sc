@@ -91,6 +91,10 @@ function normalizeAddress(address) {
     return String(address).toLowerCase()
 }
 
+function logSection(title) {
+    console.log(`\n=== ${title} ===`)
+}
+
 function chunkArray(values, chunkSize) {
     const chunks = []
 
@@ -532,11 +536,13 @@ async function main() {
     }
 
     console.log("=== Export RevShare NFT pioneers from subgraph ===")
+    console.log("")
 
     const chainId = await resolveChainId(cli.chainId)
     const subgraphUrl = resolveSubgraphUrl(chainId)
     const outputPaths = buildOutputPaths(chainId)
 
+    logSection("Configuration")
     console.log(`Resolved chainId: ${chainId} (${chainName(chainId)})`)
     console.log(
         `Using --chain ${chainFlagName(chainId)} -> ${
@@ -550,11 +556,13 @@ async function main() {
     } else {
         console.log("Using latest block (no snapshot block set).")
     }
+    console.log("")
 
     let allPioneers = []
     let skip = 0
     let globalStats = null
 
+    logSection("Fetch Pioneers")
     while (true) {
         console.log(`Fetching page: first=${PAGE_SIZE}, skip=${skip} ...`)
 
@@ -614,6 +622,8 @@ async function main() {
     }
 
     const tokenIds = Array.from(tokenIdToOwner.keys())
+    console.log("")
+    logSection("Resolve Token Timing")
     console.log(`Resolving holdingSince timestamps for ${tokenIds.length} currently held token(s) ...`)
 
     const holdingSincePerToken = await resolveHoldingSincePerToken(
@@ -664,7 +674,7 @@ async function main() {
         totalNftsFromMap += BigInt(row.nftBalance)
     }
 
-    console.log("=== Summary ===")
+    logSection("Summary")
     console.log(`Pioneers with balance > 0: ${rows.length}`)
     console.log(`Total NFTs from map:      ${totalNftsFromMap.toString()}`)
 
@@ -699,6 +709,8 @@ async function main() {
         pioneers: rows,
     }
 
+    console.log("")
+    logSection("Write Output")
     fs.mkdirSync(path.dirname(outputPaths.json), { recursive: true })
     fs.writeFileSync(outputPaths.json, JSON.stringify(jsonOutput, null, 2), {
         encoding: "utf8",
@@ -715,6 +727,7 @@ async function main() {
     fs.writeFileSync(outputPaths.csv, csvLines.join("\n"), { encoding: "utf8" })
 
     console.log(`CSV written to:  ${outputPaths.csv}`)
+    console.log("")
     console.log("Done.")
 }
 
