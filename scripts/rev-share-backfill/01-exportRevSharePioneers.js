@@ -21,16 +21,6 @@ const TOKEN_BATCH_SIZE = 200
 // `undefined` means latest block.
 const SNAPSHOT_BLOCK = undefined // e.g. 246000000
 
-// Output file paths (relative to repo root)
-const OUT_JSON = path.join(
-    process.cwd(),
-    "scripts/rev-share-backfill/output/pioneers/revshare_pioneers.json",
-)
-const OUT_CSV = path.join(
-    process.cwd(),
-    "scripts/rev-share-backfill/output/pioneers/revshare_pioneers.csv",
-)
-
 /*//////////////////////////////////////////////////////////////
                             GRAPHQL QUERIES
 //////////////////////////////////////////////////////////////*/
@@ -123,14 +113,36 @@ function chainFlagName(chainId) {
     return "unsupported"
 }
 
+function outputScopeName(chainId) {
+    if (chainId === ARBITRUM_ONE_CHAIN_ID) return "mainnet"
+    if (chainId === ARBITRUM_SEPOLIA_CHAIN_ID) return "testnet"
+    throw new Error(`Unsupported chainId for output scope: ${chainId}`)
+}
+
+function buildOutputPaths(chainId) {
+    const outputRoot = path.join(
+        process.cwd(),
+        "scripts/rev-share-backfill/output",
+        outputScopeName(chainId),
+    )
+
+    return {
+        outputRoot,
+        json: path.join(outputRoot, "pioneers", "revshare_pioneers.json"),
+        csv: path.join(outputRoot, "pioneers", "revshare_pioneers.csv"),
+    }
+}
+
 function printHelp() {
     console.log(`RevShare pioneers exporter
 
 Exports current RevShare NFT holders ("pioneers") from the refAndNft subgraph.
 
 Output files:
-- scripts/rev-share-backfill/output/pioneers/revshare_pioneers.json
-- scripts/rev-share-backfill/output/pioneers/revshare_pioneers.csv
+- arb-one -> scripts/rev-share-backfill/output/mainnet/pioneers/revshare_pioneers.json
+- arb-one -> scripts/rev-share-backfill/output/mainnet/pioneers/revshare_pioneers.csv
+- arb-sep -> scripts/rev-share-backfill/output/testnet/pioneers/revshare_pioneers.json
+- arb-sep -> scripts/rev-share-backfill/output/testnet/pioneers/revshare_pioneers.csv
 
 Per pioneer, the script writes:
 - address
@@ -523,6 +535,7 @@ async function main() {
 
     const chainId = await resolveChainId(cli.chainId)
     const subgraphUrl = resolveSubgraphUrl(chainId)
+    const outputPaths = buildOutputPaths(chainId)
 
     console.log(`Resolved chainId: ${chainId} (${chainName(chainId)})`)
     console.log(
@@ -530,6 +543,7 @@ async function main() {
             chainId === ARBITRUM_ONE_CHAIN_ID ? "MAINNET_SUBGRAPH_URL" : "TESTNET_SUBGRAPH_URL"
         }`
     )
+    console.log(`Writing outputs under: ${outputPaths.outputRoot}`)
 
     if (typeof SNAPSHOT_BLOCK === "number") {
         console.log(`Using snapshot block: ${SNAPSHOT_BLOCK}`)
@@ -658,7 +672,13 @@ async function main() {
         console.log(`GlobalNftStat.currentSupply: ${globalStats.currentSupply.toString()}`)
         console.log(`GlobalNftStat.totalUniquePioneers: ${globalStats.totalUniquePioneers.toString()}`)
     } else {
-        console.log("Warning: globalNftStat not found in subgraph response.")
+        throw new Error("globalNftStat not found in subgraph response. Refusing to write pioneer export.")
+    }
+
+    if (totalNftsFromMap !== globalStats.currentSupply) {
+        throw new Error(
+            `Subgraph consistency check failed: totalNftsFromMap=${totalNftsFromMap.toString()} does not match globalNftStat.currentSupply=${globalStats.currentSupply.toString()}. Refusing to write pioneer export.`,
+        )
     }
 
     const jsonOutput = {
@@ -679,12 +699,12 @@ async function main() {
         pioneers: rows,
     }
 
-    fs.mkdirSync(path.dirname(OUT_JSON), { recursive: true })
-    fs.writeFileSync(OUT_JSON, JSON.stringify(jsonOutput, null, 2), {
+    fs.mkdirSync(path.dirname(outputPaths.json), { recursive: true })
+    fs.writeFileSync(outputPaths.json, JSON.stringify(jsonOutput, null, 2), {
         encoding: "utf8",
     })
 
-    console.log(`JSON written to: ${OUT_JSON}`)
+    console.log(`JSON written to: ${outputPaths.json}`)
 
     const csvLines = []
     csvLines.push("address,nftBalance,holdingSince")
@@ -692,9 +712,9 @@ async function main() {
         csvLines.push(`${row.address},${row.nftBalance},${row.holdingSince}`)
     }
 
-    fs.writeFileSync(OUT_CSV, csvLines.join("\n"), { encoding: "utf8" })
+    fs.writeFileSync(outputPaths.csv, csvLines.join("\n"), { encoding: "utf8" })
 
-    console.log(`CSV written to:  ${OUT_CSV}`)
+    console.log(`CSV written to:  ${outputPaths.csv}`)
     console.log("Done.")
 }
 
