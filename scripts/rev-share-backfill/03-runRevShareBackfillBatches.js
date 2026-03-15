@@ -33,6 +33,7 @@ function printHelp() {
 Consumes the allocations from script 02 and then:
 - arb-one: creates one Safe proposal per adminBackfillRevenue batch using sequential Safe nonces
 - arb-sep: sends the adminBackfillRevenue batches onchain using TESTNET_PK
+- --dry-run: builds the exact same batches and report without creating proposals or sending txs
 
 Input file:
 - arb-one -> scripts/rev-share-backfill/output/mainnet/allocations/revshare_backfill_allocations.json
@@ -45,21 +46,25 @@ Output report:
 Environment requirements:
 - arb-one: SAFE_PROPOSER_PK and ARBITRUM_MAINNET_RPC_URL
 - arb-sep: ARBITRUM_TESTNET_SEPOLIA_RPC_URL, TESTNET_PK, TESTNET_DEPLOYER_ADDRESS
+- --dry-run: does not require Safe submission or testnet executor credentials
 - optional: BACKFILL_BATCH_SIZE to control addresses per adminBackfillRevenue call (default 20)
 
 Flags:
 - --chain <arb-one|arb-sep>  Select the input/output directory set and action mode
+- --dry-run                  Build the same batches and report, but do not send anything
 - --help                     Show this help message
 
 Examples:
 - node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-one
 - node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-sep
+- node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-one --dry-run
 `)
 }
 
 function parseArgs(argv) {
     const parsed = {
         chainId: null,
+        dryRun: false,
         showHelp: false,
     }
 
@@ -87,7 +92,14 @@ function parseArgs(argv) {
             continue
         }
 
-        throw new Error(`Unknown argument: ${arg}. Expected --chain arb-one or --chain arb-sep.`)
+        if (arg === "--dry-run") {
+            parsed.dryRun = true
+            continue
+        }
+
+        throw new Error(
+            `Unknown argument: ${arg}. Expected --chain arb-one or --chain arb-sep, with optional --dry-run.`,
+        )
     }
 
     if (!parsed.showHelp && parsed.chainId === null) {
@@ -373,6 +385,49 @@ async function executeOnSepolia(batches, chainCfg, onProgress) {
     }
 }
 
+function buildDryRunResult(batches, chainCfg) {
+    if (chainCfg.actionMode === "safe-proposal") {
+        return {
+            mode: "dry-run",
+            targetActionMode: chainCfg.actionMode,
+            safeAddress: normalizeAddress(SAFE_ADDRESS),
+            proposerAddress: null,
+            txServiceUrl: null,
+            proposals: batches.map((batch) => ({
+                batchIndex: batch.batchIndex,
+                safeTxHash: null,
+                nonce: null,
+                to: batch.to,
+                numAddresses: batch.numAddresses,
+                sumRaw: batch.sumRaw,
+                sumTokens: batch.sumTokens,
+                dryRun: true,
+            })),
+            receipts: [],
+        }
+    }
+
+    return {
+        mode: "dry-run",
+        targetActionMode: chainCfg.actionMode,
+        executorAddress: null,
+        proposals: [],
+        receipts: batches.map((batch) => ({
+            batchIndex: batch.batchIndex,
+            txHash: null,
+            from: null,
+            to: batch.to,
+            nonce: null,
+            blockNumber: null,
+            gasUsed: null,
+            numAddresses: batch.numAddresses,
+            sumRaw: batch.sumRaw,
+            sumTokens: batch.sumTokens,
+            dryRun: true,
+        })),
+    }
+}
+
 /*//////////////////////////////////////////////////////////////
                                 MAIN
 //////////////////////////////////////////////////////////////*/
@@ -395,7 +450,8 @@ async function main() {
 
     logSection("Configuration")
     console.log(`Chain: ${chainCfg.network} (${cli.chainId})`)
-    console.log(`Action mode: ${chainCfg.actionMode}`)
+    console.log(`Target action: ${chainCfg.actionMode}`)
+    console.log(`Dry run: ${cli.dryRun ? "enabled" : "disabled"}`)
     console.log(
         `RevShareModule: ${normalizeAddress(revShareModuleAddress)} (${resolvedModule.source})`,
     )
@@ -451,7 +507,9 @@ async function main() {
         chainId: cli.chainId,
         network: chainCfg.network,
         status: "prepared",
-        actionMode: chainCfg.actionMode,
+        actionMode: cli.dryRun ? "dry-run" : chainCfg.actionMode,
+        targetActionMode: chainCfg.actionMode,
+        dryRun: cli.dryRun,
         batchSize: BATCH_SIZE,
         tokenDecimals,
         revShareModule: normalizeAddress(revShareModuleAddress),
@@ -495,7 +553,29 @@ async function main() {
     }
 
     try {
-        if (cli.chainId === ARBITRUM_ONE_CHAIN_ID) {
+        if (cli.dryRun) {
+            logSection("Dry Run Preview")
+            actionResult = buildDryRunResult(batches, chainCfg)
+
+            if (chainCfg.actionMode === "safe-proposal") {
+                console.log("Dry run only. No Safe proposals were created.")
+                console.log(`Safe address: ${actionResult.safeAddress}`)
+                console.log(`Draft proposals: ${actionResult.proposals.length}`)
+                for (const proposal of actionResult.proposals) {
+                    console.log(
+                        `Batch ${proposal.batchIndex}: would create Safe proposal addresses=${proposal.numAddresses} amount=${proposal.sumTokens}`,
+                    )
+                }
+            } else {
+                console.log("Dry run only. No onchain transactions were sent.")
+                console.log(`Draft transactions: ${actionResult.receipts.length}`)
+                for (const receipt of actionResult.receipts) {
+                    console.log(
+                        `Batch ${receipt.batchIndex}: would send tx to ${receipt.to} addresses=${receipt.numAddresses} amount=${receipt.sumTokens}`,
+                    )
+                }
+            }
+        } else if (cli.chainId === ARBITRUM_ONE_CHAIN_ID) {
             logSection("Create Safe Proposal")
             actionResult = await proposeToSafe(batches, chainCfg.rpcUrl, persistSafeProgress)
             console.log(`Safe address: ${actionResult.safeAddress}`)
@@ -528,6 +608,7 @@ async function main() {
 
     report.status = "completed"
     report.actionMode = actionResult.mode
+    report.targetActionMode = actionResult.targetActionMode || report.targetActionMode
     report.safeAddress = actionResult.safeAddress || report.safeAddress
     report.proposerAddress = actionResult.proposerAddress || report.proposerAddress
     report.safeBaseNonce =
