@@ -7,22 +7,12 @@ const path = require("path")
                                  CONFIG
 //////////////////////////////////////////////////////////////*/
 
-const PIONEERS_FILE = path.join(
-    process.cwd(),
-    "scripts/rev-share-backfill/output/pioneers/revshare_pioneers.json",
-)
-
-const OUT_JSON = path.join(
-    process.cwd(),
-    "scripts/rev-share-backfill/output/allocations/revshare_backfill_allocations.json",
-)
-const OUT_CSV = path.join(
-    process.cwd(),
-    "scripts/rev-share-backfill/output/allocations/revshare_backfill_allocations.csv",
-)
-
 const ARBITRUM_ONE_CHAIN_ID = 42161
 const ARBITRUM_SEPOLIA_CHAIN_ID = 421614
+const CHAIN_FLAG_TO_ID = {
+    "arb-one": ARBITRUM_ONE_CHAIN_ID,
+    "arb-sep": ARBITRUM_SEPOLIA_CHAIN_ID,
+}
 const WAD = 10n ** 18n
 
 // USDC decimals
@@ -35,12 +25,6 @@ const TOTAL_BACKFILL_TOKENS = "100000" // in human units, "100000" means 100,000
 const PIONEERS_SHARE_BPS = 7500n
 const BPS_DENOMINATOR = 10000n
 
-// Historical revenue window to simulate with the same math as RevShareModule.
-// BACKFILL_START_TS is the revenue accrual start date.
-// BACKFILL_END_TS should be the RevShareModule deployment date.
-const BACKFILL_START_TS = Math.floor(new Date("2025-06-01T00:00:00Z").getTime() / 1000)
-const BACKFILL_END_TS = Math.floor(new Date("2025-12-01T00:00:00Z").getTime() / 1000)
-
 const ADMIN_REVENUE_RECEIVER_KEY = "ADMIN__REVENUE_RECEIVER"
 
 function printHelp() {
@@ -49,24 +33,32 @@ function printHelp() {
 Builds the RevShare backfill allocation output using the same accumulator model as RevShareModule.
 
 Input file:
-- scripts/rev-share-backfill/output/pioneers/revshare_pioneers.json
+- arb-one -> scripts/rev-share-backfill/output/mainnet/pioneers/revshare_pioneers.json
+- arb-sep -> scripts/rev-share-backfill/output/testnet/pioneers/revshare_pioneers.json
 
 Output files:
-- scripts/rev-share-backfill/output/allocations/revshare_backfill_allocations.json
-- scripts/rev-share-backfill/output/allocations/revshare_backfill_allocations.csv
+- arb-one -> scripts/rev-share-backfill/output/mainnet/allocations/revshare_backfill_allocations.json
+- arb-one -> scripts/rev-share-backfill/output/mainnet/allocations/revshare_backfill_allocations.csv
+- arb-sep -> scripts/rev-share-backfill/output/testnet/allocations/revshare_backfill_allocations.json
+- arb-sep -> scripts/rev-share-backfill/output/testnet/allocations/revshare_backfill_allocations.csv
 
 Revenue receiver behavior:
 - Default: resolve ADMIN__REVENUE_RECEIVER from AddressManager
 - Test mode: use TESTNET_DEPLOYER_ADDRESS from .env instead
 
+Backfill window:
+- Start: earliest token mintedAt found in the pioneer export JSON
+- End: current time when the script runs
+
 Flags:
+- --chain <arb-one|arb-sep>  Select the input/output directory set
 - --test [true|false]  Use TESTNET_DEPLOYER_ADDRESS for the Takadao allocation row. If the value is omitted, true is assumed.
 - --help               Show this help message
 
 Examples:
-- node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js
-- node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --test
-- node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --test false
+- node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one
+- node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --test
+- node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one --test false
 `)
 }
 
@@ -79,6 +71,7 @@ function parseBooleanFlagValue(flagName, value) {
 
 function parseArgs(argv) {
     const parsed = {
+        chainId: null,
         showHelp: false,
         testMode: false,
     }
@@ -88,6 +81,22 @@ function parseArgs(argv) {
 
         if (arg === "--help") {
             parsed.showHelp = true
+            continue
+        }
+
+        if (arg === "--chain") {
+            const value = argv[i + 1]
+            if (!value) {
+                throw new Error("Missing value for --chain. Expected arb-one or arb-sep.")
+            }
+
+            const chainId = CHAIN_FLAG_TO_ID[value]
+            if (!chainId) {
+                throw new Error(`Invalid --chain value: ${value}. Expected arb-one or arb-sep.`)
+            }
+
+            parsed.chainId = chainId
+            i += 1
             continue
         }
 
@@ -112,6 +121,41 @@ function parseArgs(argv) {
 /*//////////////////////////////////////////////////////////////
                                 HELPERS
 //////////////////////////////////////////////////////////////*/
+
+function chainName(chainId) {
+    if (chainId === ARBITRUM_ONE_CHAIN_ID) return "arbitrum-one"
+    if (chainId === ARBITRUM_SEPOLIA_CHAIN_ID) return "arbitrum-sepolia"
+    return `unsupported-${chainId}`
+}
+
+function outputScopeName(chainId) {
+    if (chainId === ARBITRUM_ONE_CHAIN_ID) return "mainnet"
+    if (chainId === ARBITRUM_SEPOLIA_CHAIN_ID) return "testnet"
+    throw new Error(`Unsupported chainId for output scope: ${chainId}`)
+}
+
+function buildOutputPaths(chainId) {
+    const outputRoot = path.join(
+        process.cwd(),
+        "scripts/rev-share-backfill/output",
+        outputScopeName(chainId),
+    )
+
+    return {
+        outputRoot,
+        pioneersJson: path.join(outputRoot, "pioneers", "revshare_pioneers.json"),
+        allocationsJson: path.join(outputRoot, "allocations", "revshare_backfill_allocations.json"),
+        allocationsCsv: path.join(outputRoot, "allocations", "revshare_backfill_allocations.csv"),
+    }
+}
+
+function resolveChainId(cliChainId) {
+    if (cliChainId === null) {
+        throw new Error("Missing required --chain flag. Expected --chain arb-one or --chain arb-sep.")
+    }
+
+    return cliChainId
+}
 
 function parseAmountToRaw(amountStr, decimals) {
     if (typeof amountStr !== "string") {
@@ -146,6 +190,14 @@ function formatRaw(amountRaw, decimals) {
 
 function normalizeAddress(address) {
     return String(address).toLowerCase()
+}
+
+function formatUnixTimestamp(ts) {
+    return new Date(ts * 1000).toISOString()
+}
+
+function logSection(title) {
+    console.log(`\n=== ${title} ===`)
 }
 
 function chainConfigFromChainId(chainId) {
@@ -186,6 +238,42 @@ function loadAddressManagerDeployment(chainId) {
     return JSON.parse(fs.readFileSync(deploymentPath, "utf8"))
 }
 
+function deriveBackfillWindow(pioneers) {
+    let oldestMintedAt = null
+
+    for (const pioneer of pioneers) {
+        const tokens = Array.isArray(pioneer.tokens) ? pioneer.tokens : null
+        if (!tokens || tokens.length === 0) continue
+
+        for (const token of tokens) {
+            const mintedAt = Number(token.mintedAt)
+            if (!Number.isInteger(mintedAt)) {
+                throw new Error(`Invalid mintedAt while deriving backfill window for token ${token.tokenId}`)
+            }
+
+            if (oldestMintedAt === null || mintedAt < oldestMintedAt) {
+                oldestMintedAt = mintedAt
+            }
+        }
+    }
+
+    if (oldestMintedAt === null) {
+        throw new Error("Unable to derive backfillStartTs from pioneer export. No token mintedAt values found.")
+    }
+
+    const backfillEndTs = Math.floor(Date.now() / 1000)
+    if (!(oldestMintedAt < backfillEndTs)) {
+        throw new Error(
+            `Derived time window is invalid: backfillStartTs=${oldestMintedAt} backfillEndTs=${backfillEndTs}`,
+        )
+    }
+
+    return {
+        backfillStartTs: oldestMintedAt,
+        backfillEndTs,
+    }
+}
+
 function settleAccount(accountState, currentAccumulatorScaled) {
     const paidScaled = accountState.paidAccumulatorScaled
     const deltaScaled = currentAccumulatorScaled - paidScaled
@@ -201,12 +289,12 @@ function settleAccount(accountState, currentAccumulatorScaled) {
     accountState.paidAccumulatorScaled = currentAccumulatorScaled
 }
 
-function buildSimulationInputs(pioneers) {
+function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
     const tokenSnapshots = []
     const accountStates = new Map()
     const supplyDeltaByTs = new Map()
     const balanceIncreaseByTs = new Map()
-    const checkpoints = new Set([BACKFILL_START_TS, BACKFILL_END_TS])
+    const checkpoints = new Set([backfillStartTs, backfillEndTs])
 
     for (const pioneer of pioneers) {
         const address = normalizeAddress(pioneer.address)
@@ -255,16 +343,16 @@ function buildSimulationInputs(pioneers) {
                 holdingSince,
             })
 
-            if (mintedAt <= BACKFILL_START_TS) {
+            if (mintedAt <= backfillStartTs) {
                 // Token already existed at stream start.
-            } else if (mintedAt < BACKFILL_END_TS) {
+            } else if (mintedAt < backfillEndTs) {
                 supplyDeltaByTs.set(mintedAt, (supplyDeltaByTs.get(mintedAt) || 0n) + 1n)
                 checkpoints.add(mintedAt)
             }
 
-            if (holdingSince <= BACKFILL_START_TS) {
+            if (holdingSince <= backfillStartTs) {
                 accountState.balance += 1n
-            } else if (holdingSince < BACKFILL_END_TS) {
+            } else if (holdingSince < backfillEndTs) {
                 let addressDeltas = balanceIncreaseByTs.get(holdingSince)
                 if (!addressDeltas) {
                     addressDeltas = new Map()
@@ -279,7 +367,7 @@ function buildSimulationInputs(pioneers) {
 
     let initialSupply = 0n
     for (const token of tokenSnapshots) {
-        if (token.mintedAt <= BACKFILL_START_TS) {
+        if (token.mintedAt <= backfillStartTs) {
             initialSupply += 1n
         }
     }
@@ -294,9 +382,9 @@ function buildSimulationInputs(pioneers) {
     }
 }
 
-function simulatePioneerAccrual(pioneersBackfillRaw, pioneers) {
-    if (!(BACKFILL_START_TS < BACKFILL_END_TS)) {
-        throw new Error("Time config invalid: require BACKFILL_START_TS < BACKFILL_END_TS")
+function simulatePioneerAccrual(pioneersBackfillRaw, pioneers, backfillStartTs, backfillEndTs) {
+    if (!(backfillStartTs < backfillEndTs)) {
+        throw new Error("Time config invalid: require backfillStartTs < backfillEndTs")
     }
 
     const {
@@ -306,17 +394,18 @@ function simulatePioneerAccrual(pioneersBackfillRaw, pioneers) {
         checkpoints,
         initialSupply,
         tokenSnapshots,
-    } = buildSimulationInputs(pioneers)
+    } = buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs)
 
-    const rewardsDuration = BigInt(BACKFILL_END_TS - BACKFILL_START_TS)
+    const rewardsDuration = BigInt(backfillEndTs - backfillStartTs)
     const rewardRatePioneersScaled = (pioneersBackfillRaw * WAD) / rewardsDuration
 
     let currentSupply = initialSupply
     let currentAccumulatorScaled = 0n
     let lostWhileSupplyZeroRaw = 0n
 
+    logSection("Simulation")
     console.log(`Simulation checkpoints: ${checkpoints.length}`)
-    console.log(`Initial totalSupply at BACKFILL_START_TS: ${currentSupply.toString()}`)
+    console.log(`Initial totalSupply at backfillStartTs: ${currentSupply.toString()}`)
     console.log(`Reward duration (sec): ${rewardsDuration.toString()}`)
     console.log(`rewardRatePioneersScaled: ${rewardRatePioneersScaled.toString()}`)
 
@@ -358,6 +447,24 @@ function simulatePioneerAccrual(pioneersBackfillRaw, pioneers) {
         settleAccount(accountState, currentAccumulatorScaled)
     }
 
+    const pioneerRevenueStats = Array.from(accountStates.entries()).map(([address, accountState]) => ({
+        address,
+        amountRaw: accountState.revenueRaw,
+    }))
+
+    let highestRevenuePioneer = null
+    let lowestRevenuePioneer = null
+
+    for (const pioneerRevenueStat of pioneerRevenueStats) {
+        if (!highestRevenuePioneer || pioneerRevenueStat.amountRaw > highestRevenuePioneer.amountRaw) {
+            highestRevenuePioneer = pioneerRevenueStat
+        }
+
+        if (!lowestRevenuePioneer || pioneerRevenueStat.amountRaw < lowestRevenuePioneer.amountRaw) {
+            lowestRevenuePioneer = pioneerRevenueStat
+        }
+    }
+
     const allocations = Array.from(accountStates.entries())
         .map(([address, accountState]) => ({
             address,
@@ -376,6 +483,9 @@ function simulatePioneerAccrual(pioneersBackfillRaw, pioneers) {
         throw new Error("Pioneer allocations exceeded pioneersBackfillRaw")
     }
 
+    const averagePioneerRevenueRaw =
+        pioneerRevenueStats.length > 0 ? pioneersAllocatedRaw / BigInt(pioneerRevenueStats.length) : 0n
+
     return {
         allocations,
         rewardsDuration,
@@ -385,6 +495,20 @@ function simulatePioneerAccrual(pioneersBackfillRaw, pioneers) {
         lostWhileSupplyZeroRaw,
         totalNfts: BigInt(tokenSnapshots.length),
         checkpointsCount: checkpoints.length,
+        highestRevenuePioneer: highestRevenuePioneer
+            ? {
+                  address: highestRevenuePioneer.address,
+                  amountRaw: highestRevenuePioneer.amountRaw.toString(),
+              }
+            : null,
+        lowestRevenuePioneer: lowestRevenuePioneer
+            ? {
+                  address: lowestRevenuePioneer.address,
+                  amountRaw: lowestRevenuePioneer.amountRaw.toString(),
+              }
+            : null,
+        averagePioneerRevenueRaw: averagePioneerRevenueRaw.toString(),
+        pioneersWithBalanceCount: pioneerRevenueStats.length,
     }
 }
 
@@ -451,29 +575,50 @@ async function main() {
         return
     }
 
-    console.log("=== Build RevShare backfill allocations (RevShareModule math) ===")
+    const chainId = resolveChainId(cli.chainId)
+    const outputPaths = buildOutputPaths(chainId)
 
-    if (!fs.existsSync(PIONEERS_FILE)) {
-        throw new Error(`Pioneers file not found at ${PIONEERS_FILE}. Run 01-exportRevSharePioneers first.`)
+    console.log("=== Build RevShare backfill allocations (RevShareModule math) ===")
+    console.log("")
+    logSection("Configuration")
+    console.log(`Using output scope: ${outputScopeName(chainId)} (${chainName(chainId)})`)
+
+    if (!fs.existsSync(outputPaths.pioneersJson)) {
+        throw new Error(
+            `Pioneers file not found at ${outputPaths.pioneersJson}. Run 01-exportRevSharePioneers.js with the same --chain first.`,
+        )
     }
 
-    const pioneersJson = JSON.parse(fs.readFileSync(PIONEERS_FILE, "utf8"))
+    const pioneersJson = JSON.parse(fs.readFileSync(outputPaths.pioneersJson, "utf8"))
     const pioneers = pioneersJson.pioneers || []
 
     if (pioneers.length === 0) {
         throw new Error("No pioneers found in revshare_pioneers.json")
     }
 
-    const chainId = Number(pioneersJson.chainId)
-    if (!Number.isInteger(chainId)) {
+    const pioneersChainId = Number(pioneersJson.chainId)
+    if (!Number.isInteger(pioneersChainId)) {
         throw new Error("Pioneers file is missing a valid chainId")
+    }
+    if (pioneersChainId !== chainId) {
+        throw new Error(
+            `Pioneers file chainId ${pioneersChainId} does not match --chain ${chainId}. Use the matching output directory.`,
+        )
     }
 
     const chainCfg = chainConfigFromChainId(chainId)
-    console.log(`Loaded ${pioneers.length} pioneers from ${PIONEERS_FILE}`)
+    console.log(`Loaded ${pioneers.length} pioneers from ${outputPaths.pioneersJson}`)
     console.log(`Using chainId ${chainId} (${chainCfg.network})`)
     console.log(`Test mode: ${cli.testMode ? "enabled" : "disabled"}`)
+    console.log("")
 
+    logSection("Backfill Window")
+    const { backfillStartTs, backfillEndTs } = deriveBackfillWindow(pioneers)
+    console.log(`Derived backfillStartTs: ${backfillStartTs} (${formatUnixTimestamp(backfillStartTs)})`)
+    console.log(`Derived backfillEndTs:   ${backfillEndTs} (${formatUnixTimestamp(backfillEndTs)})`)
+    console.log("")
+
+    logSection("Revenue Split")
     const totalBackfillRaw = parseAmountToRaw(TOTAL_BACKFILL_TOKENS, TOKEN_DECIMALS)
     console.log(`TOTAL_BACKFILL: ${TOTAL_BACKFILL_TOKENS} tokens = ${totalBackfillRaw.toString()} raw`)
 
@@ -492,13 +637,15 @@ async function main() {
             TOKEN_DECIMALS
         )} tokens)`
     )
+    console.log("")
 
-    const pioneerSimulation = simulatePioneerAccrual(pioneersBackfillRaw, pioneers)
+    const pioneerSimulation = simulatePioneerAccrual(pioneersBackfillRaw, pioneers, backfillStartTs, backfillEndTs)
     const rewardRateTakadaoScaled = (takadaoShareRaw * WAD) / pioneerSimulation.rewardsDuration
     const takadaoAllocatedRaw =
         (pioneerSimulation.rewardsDuration * rewardRateTakadaoScaled) / WAD
     const takadaoDustRaw = takadaoShareRaw - takadaoAllocatedRaw
 
+    logSection("Allocation Totals")
     console.log(
         `Pioneers allocated raw: ${pioneerSimulation.pioneersAllocatedRaw.toString()} (~${formatRaw(
             pioneerSimulation.pioneersAllocatedRaw,
@@ -523,8 +670,35 @@ async function main() {
             TOKEN_DECIMALS
         )} tokens)`
     )
+    console.log("")
+
+    logSection("Pioneer Revenue Stats")
+    if (pioneerSimulation.highestRevenuePioneer) {
+        console.log(
+            `Highest revenue pioneer: ${pioneerSimulation.highestRevenuePioneer.address} (${formatRaw(
+                BigInt(pioneerSimulation.highestRevenuePioneer.amountRaw),
+                TOKEN_DECIMALS
+            )} USDC)`,
+        )
+    }
+    if (pioneerSimulation.lowestRevenuePioneer) {
+        console.log(
+            `Lowest revenue pioneer:  ${pioneerSimulation.lowestRevenuePioneer.address} (${formatRaw(
+                BigInt(pioneerSimulation.lowestRevenuePioneer.amountRaw),
+                TOKEN_DECIMALS
+            )} USDC)`,
+        )
+    }
+    console.log(
+        `Average pioneer revenue: ${formatRaw(
+            BigInt(pioneerSimulation.averagePioneerRevenueRaw),
+            TOKEN_DECIMALS
+        )} USDC across ${pioneerSimulation.pioneersWithBalanceCount} pioneers`,
+    )
+    console.log("")
 
     const allocations = [...pioneerSimulation.allocations]
+    logSection("Revenue Receiver")
     const revenueReceiver = await resolveRevenueReceiver(chainId, cli.testMode)
     console.log(`ADMIN__REVENUE_RECEIVER resolved to: ${revenueReceiver}`)
     allocations.push({
@@ -541,6 +715,8 @@ async function main() {
 
     const totalModuleDustRaw = totalBackfillRaw - pioneerSimulation.pioneersAllocatedRaw - takadaoAllocatedRaw
 
+    console.log("")
+    logSection("Final Totals")
     console.log(
         `Sum of ALL allocations: ${sumAllAlloc.toString()} raw (~${formatRaw(sumAllAlloc, TOKEN_DECIMALS)} tokens)`
     )
@@ -558,13 +734,15 @@ async function main() {
         tokenDecimals: TOKEN_DECIMALS,
         totalBackfillTokens: TOTAL_BACKFILL_TOKENS,
         totalBackfillRaw: totalBackfillRaw.toString(),
-        backfillStartTs: BACKFILL_START_TS,
-        backfillEndTs: BACKFILL_END_TS,
+        backfillStartTs,
+        backfillEndTs,
+        backfillStartSource: "minimum token.mintedAt from pioneer export",
+        backfillEndSource: "current system time at script execution",
         rewardsDurationSec: pioneerSimulation.rewardsDuration.toString(),
         totalNfts: pioneerSimulation.totalNfts.toString(),
         pioneersCount: pioneers.length,
         calculationModel:
-            "single notifyNewRevenue at BACKFILL_START_TS, claim at BACKFILL_END_TS, with pioneers accrued using RevShareModule per-NFT accumulator checkpoints",
+            "single notifyNewRevenue at derived backfillStartTs, claim at derived backfillEndTs, with pioneers accrued using RevShareModule per-NFT accumulator checkpoints",
         rewardRatePioneersScaled: pioneerSimulation.rewardRatePioneersScaled.toString(),
         rewardRateTakadaoScaled: rewardRateTakadaoScaled.toString(),
         pioneersBackfillRaw: pioneersBackfillRaw.toString(),
@@ -582,18 +760,21 @@ async function main() {
         allocations,
     }
 
-    fs.mkdirSync(path.dirname(OUT_JSON), { recursive: true })
-    fs.writeFileSync(OUT_JSON, JSON.stringify(outputJson, null, 2), "utf8")
-    console.log(`JSON written to: ${OUT_JSON}`)
+    console.log("")
+    logSection("Write Output")
+    fs.mkdirSync(path.dirname(outputPaths.allocationsJson), { recursive: true })
+    fs.writeFileSync(outputPaths.allocationsJson, JSON.stringify(outputJson, null, 2), "utf8")
+    console.log(`JSON written to: ${outputPaths.allocationsJson}`)
 
     const csvLines = ["address,amountRaw"]
     for (const allocation of allocations) {
         csvLines.push(`${allocation.address},${allocation.amountRaw}`)
     }
 
-    fs.writeFileSync(OUT_CSV, csvLines.join("\n"), "utf8")
-    console.log(`CSV written to:  ${OUT_CSV}`)
+    fs.writeFileSync(outputPaths.allocationsCsv, csvLines.join("\n"), "utf8")
+    console.log(`CSV written to:  ${outputPaths.allocationsCsv}`)
 
+    console.log("")
     console.log("Done building backfill allocations.")
 }
 
