@@ -22,7 +22,7 @@ PROTOCOL_TYPE_ADMIN="0"
 PROTOCOL_TYPE_MODULE="2"
 PROTOCOL_TYPE_PROTOCOL="3"
 
-TOTAL_STEPS=11
+TOTAL_STEPS=12
 VERIFY_SAMPLE_SIZE="${BACKFILL_VERIFY_SAMPLE_SIZE:-5}"
 
 step() {
@@ -308,6 +308,7 @@ verify_backfill_sample() {
             --rpc-url "$rpc_url")"
         actual_amount="${actual_amount//$'\r'/}"
         actual_amount="${actual_amount//$'\n'/}"
+        actual_amount="${actual_amount%% *}"
 
         if [[ "$actual_amount" != "$expected_amount" ]]; then
             echo "ERROR: Backfill verification failed for $account. Expected $expected_amount, got $actual_amount." >&2
