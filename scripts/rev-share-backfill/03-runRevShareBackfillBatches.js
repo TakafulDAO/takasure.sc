@@ -43,7 +43,7 @@ Output report:
 - arb-sep -> scripts/rev-share-backfill/output/testnet/execution/revshare_backfill_execution_report.json
 
 Environment requirements:
-- arb-one: SAFE_PROPOSER_PK and mainnet RPC used by scripts/save-funds/automation/safeSubmit.js
+- arb-one: SAFE_PROPOSER_PK and ARBITRUM_MAINNET_RPC_URL
 - arb-sep: ARBITRUM_TESTNET_SEPOLIA_RPC_URL, TESTNET_PK, TESTNET_DEPLOYER_ADDRESS
 - optional: BACKFILL_BATCH_SIZE to control addresses per adminBackfillRevenue call (default 20)
 
@@ -105,7 +105,7 @@ function chainConfigFromChainId(chainId) {
             outputScope: "mainnet",
             automationChainName: "arb-one",
             actionMode: "safe-proposal",
-            rpcUrl: process.env.SAFE_RPC_URL || process.env.ARBITRUM_MAINNET_RPC_URL || "",
+            rpcUrl: process.env.ARBITRUM_MAINNET_RPC_URL || "",
         }
     }
 
@@ -251,7 +251,7 @@ function buildBatches({ allocations, batchSize, tokenDecimals, moduleAddress, mo
     return batches
 }
 
-async function proposeToSafe(batches, onProgress) {
+async function proposeToSafe(batches, rpcUrl, onProgress) {
     // Use the next available Safe nonce as the base and pin one proposal per batch to avoid replacement.
     const baseNonce = await getNextSafeNonce()
     const proposals = []
@@ -269,6 +269,7 @@ async function proposeToSafe(batches, onProgress) {
                 },
             ],
             nonce: baseNonce + batch.batchIndex,
+            rpcUrl,
         })
 
         safeAddress = result.safeAddress
@@ -496,7 +497,7 @@ async function main() {
     try {
         if (cli.chainId === ARBITRUM_ONE_CHAIN_ID) {
             logSection("Create Safe Proposal")
-            actionResult = await proposeToSafe(batches, persistSafeProgress)
+            actionResult = await proposeToSafe(batches, chainCfg.rpcUrl, persistSafeProgress)
             console.log(`Safe address: ${actionResult.safeAddress}`)
             console.log(`Proposer address: ${actionResult.proposerAddress}`)
             console.log(`Base Safe nonce: ${actionResult.baseNonce}`)

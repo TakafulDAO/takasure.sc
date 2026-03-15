@@ -41,10 +41,18 @@ async function sendToSafe({ to, data, value }) {
     })
 }
 
-function resolveSafeSubmissionConfig() {
-    const rpcUrl = process.env.SAFE_RPC_URL || process.env.ARBITRUM_MAINNET_RPC_URL
+function resolveSafeBaseConfig() {
+    return {
+        txServiceUrl: process.env.SAFE_TX_SERVICE_URL || DEFAULT_TX_SERVICE_URL,
+        txServiceApiKey: process.env.SAFE_TX_SERVICE_API_KEY,
+        safeAddress: ethers.utils.getAddress(SAFE_ADDRESS),
+    }
+}
+
+function resolveSafeSubmissionConfig({ rpcUrl } = {}) {
+    const resolvedRpcUrl = rpcUrl || process.env.SAFE_RPC_URL || process.env.ARBITRUM_MAINNET_RPC_URL
     const signerPk = process.env.SAFE_PROPOSER_PK
-    if (!rpcUrl) {
+    if (!resolvedRpcUrl) {
         console.error("Missing SAFE_RPC_URL or ARBITRUM_MAINNET_RPC_URL")
         process.exit(1)
     }
@@ -54,16 +62,14 @@ function resolveSafeSubmissionConfig() {
     }
 
     return {
-        rpcUrl,
+        rpcUrl: resolvedRpcUrl,
         signerPk,
-        txServiceUrl: process.env.SAFE_TX_SERVICE_URL || DEFAULT_TX_SERVICE_URL,
-        txServiceApiKey: process.env.SAFE_TX_SERVICE_API_KEY,
-        safeAddress: ethers.utils.getAddress(SAFE_ADDRESS),
+        ...resolveSafeBaseConfig(),
     }
 }
 
 async function getNextSafeNonce() {
-    const { txServiceUrl, txServiceApiKey, safeAddress } = resolveSafeSubmissionConfig()
+    const { txServiceUrl, txServiceApiKey, safeAddress } = resolveSafeBaseConfig()
     const safeApiKit = new SafeApiKit({
         chainId: ARBITRUM_ONE_CHAIN_ID,
         txServiceUrl,
@@ -74,8 +80,13 @@ async function getNextSafeNonce() {
     return Number(nextNonce)
 }
 
-async function sendTransactionsToSafe({ transactions, nonce }) {
-    const { rpcUrl, signerPk, txServiceUrl, safeAddress } = resolveSafeSubmissionConfig()
+async function sendTransactionsToSafe({ transactions, nonce, rpcUrl }) {
+    const {
+        rpcUrl: resolvedRpcUrl,
+        signerPk,
+        txServiceUrl,
+        safeAddress,
+    } = resolveSafeSubmissionConfig({ rpcUrl })
     if (!Array.isArray(transactions) || transactions.length === 0) {
         throw new Error("transactions must be a non-empty array")
     }
@@ -87,7 +98,7 @@ async function sendTransactionsToSafe({ transactions, nonce }) {
     }))
 
     const safeSdk = await Safe.init({
-        provider: rpcUrl,
+        provider: resolvedRpcUrl,
         signer: signerPk,
         safeAddress,
     })
