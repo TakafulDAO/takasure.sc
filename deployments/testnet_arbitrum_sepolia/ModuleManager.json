@@ -1,12 +1,22 @@
 {
-  "address": "0x",
-  "abi": [
-        { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
+    "address": "0x",
+    "abi": [
+        {
+            "type": "constructor",
+            "inputs": [],
+            "stateMutability": "nonpayable"
+        },
         {
             "type": "function",
             "name": "UPGRADE_INTERFACE_VERSION",
             "inputs": [],
-            "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "string",
+                    "internalType": "string"
+                }
+            ],
             "stateMutability": "view"
         },
         {
@@ -19,7 +29,13 @@
         {
             "type": "function",
             "name": "addModule",
-            "inputs": [{ "name": "newModule", "type": "address", "internalType": "address" }],
+            "inputs": [
+                {
+                    "name": "newModule",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -27,8 +43,16 @@
             "type": "function",
             "name": "changeModuleState",
             "inputs": [
-                { "name": "module", "type": "address", "internalType": "address" },
-                { "name": "newState", "type": "uint8", "internalType": "enum ModuleState" }
+                {
+                    "name": "module",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "newState",
+                    "type": "uint8",
+                    "internalType": "enum ModuleState"
+                }
             ],
             "outputs": [],
             "stateMutability": "nonpayable"
@@ -36,43 +60,91 @@
         {
             "type": "function",
             "name": "getModuleState",
-            "inputs": [{ "name": "module", "type": "address", "internalType": "address" }],
-            "outputs": [{ "name": "", "type": "uint8", "internalType": "enum ModuleState" }],
+            "inputs": [
+                {
+                    "name": "module",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint8",
+                    "internalType": "enum ModuleState"
+                }
+            ],
             "stateMutability": "view"
         },
         {
             "type": "function",
             "name": "initialize",
-            "inputs": [{ "name": "_addressManager", "type": "address", "internalType": "address" }],
+            "inputs": [
+                {
+                    "name": "_addressManager",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
         {
             "type": "function",
             "name": "isActiveModule",
-            "inputs": [{ "name": "module", "type": "address", "internalType": "address" }],
-            "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+            "inputs": [
+                {
+                    "name": "module",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bool",
+                    "internalType": "bool"
+                }
+            ],
             "stateMutability": "view"
         },
         {
             "type": "function",
             "name": "owner",
             "inputs": [],
-            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
             "stateMutability": "view"
         },
         {
             "type": "function",
             "name": "pendingOwner",
             "inputs": [],
-            "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
             "stateMutability": "view"
         },
         {
             "type": "function",
             "name": "proxiableUUID",
             "inputs": [],
-            "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
             "stateMutability": "view"
         },
         {
@@ -85,7 +157,13 @@
         {
             "type": "function",
             "name": "transferOwnership",
-            "inputs": [{ "name": "newOwner", "type": "address", "internalType": "address" }],
+            "inputs": [
+                {
+                    "name": "newOwner",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
             "outputs": [],
             "stateMutability": "nonpayable"
         },
@@ -93,8 +171,16 @@
             "type": "function",
             "name": "upgradeToAndCall",
             "inputs": [
-                { "name": "newImplementation", "type": "address", "internalType": "address" },
-                { "name": "data", "type": "bytes", "internalType": "bytes" }
+                {
+                    "name": "newImplementation",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "data",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                }
             ],
             "outputs": [],
             "stateMutability": "payable"
@@ -103,7 +189,12 @@
             "type": "event",
             "name": "Initialized",
             "inputs": [
-                { "name": "version", "type": "uint64", "indexed": false, "internalType": "uint64" }
+                {
+                    "name": "version",
+                    "type": "uint64",
+                    "indexed": false,
+                    "internalType": "uint64"
+                }
             ],
             "anonymous": false
         },
@@ -199,38 +290,112 @@
         {
             "type": "error",
             "name": "AddressEmptyCode",
-            "inputs": [{ "name": "target", "type": "address", "internalType": "address" }]
+            "inputs": [
+                {
+                    "name": "target",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ]
         },
         {
             "type": "error",
             "name": "ERC1967InvalidImplementation",
-            "inputs": [{ "name": "implementation", "type": "address", "internalType": "address" }]
+            "inputs": [
+                {
+                    "name": "implementation",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ]
         },
-        { "type": "error", "name": "ERC1967NonPayable", "inputs": [] },
-        { "type": "error", "name": "FailedCall", "inputs": [] },
-        { "type": "error", "name": "InvalidInitialization", "inputs": [] },
-        { "type": "error", "name": "ModuleManager__AddressZeroNotAllowed", "inputs": [] },
-        { "type": "error", "name": "ModuleManager__AlreadyModule", "inputs": [] },
-        { "type": "error", "name": "ModuleManager__InvalidCaller", "inputs": [] },
-        { "type": "error", "name": "ModuleManager__NotModule", "inputs": [] },
-        { "type": "error", "name": "ModuleManager__WrongState", "inputs": [] },
-        { "type": "error", "name": "NotInitializing", "inputs": [] },
+        {
+            "type": "error",
+            "name": "ERC1967NonPayable",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "FailedCall",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "InvalidInitialization",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "ModuleManager__AddressZeroNotAllowed",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "ModuleManager__AlreadyModule",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "ModuleManager__InvalidCaller",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "ModuleManager__NotModule",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "ModuleManager__WrongState",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "NotInitializing",
+            "inputs": []
+        },
         {
             "type": "error",
             "name": "OwnableInvalidOwner",
-            "inputs": [{ "name": "owner", "type": "address", "internalType": "address" }]
+            "inputs": [
+                {
+                    "name": "owner",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ]
         },
         {
             "type": "error",
             "name": "OwnableUnauthorizedAccount",
-            "inputs": [{ "name": "account", "type": "address", "internalType": "address" }]
+            "inputs": [
+                {
+                    "name": "account",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ]
         },
-        { "type": "error", "name": "ReentrancyGuardReentrantCall", "inputs": [] },
-        { "type": "error", "name": "UUPSUnauthorizedCallContext", "inputs": [] },
+        {
+            "type": "error",
+            "name": "ReentrancyGuardReentrantCall",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "UUPSUnauthorizedCallContext",
+            "inputs": []
+        },
         {
             "type": "error",
             "name": "UUPSUnsupportedProxiableUUID",
-            "inputs": [{ "name": "slot", "type": "bytes32", "internalType": "bytes32" }]
+            "inputs": [
+                {
+                    "name": "slot",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ]
         }
     ]
 }
