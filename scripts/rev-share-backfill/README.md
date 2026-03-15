@@ -304,12 +304,20 @@ For Arbitrum One, create the transactions in the Safe multisig and execute them 
 For Arbitrum Sepolia, use this rule:
 
 - `PROTOCOL__MODULE_MANAGER`: if missing, add it; if it already exists, update it to the newly deployed `ModuleManager`
-- `MODULE__REVSHARE`: if missing, add it; if it already exists, update it to the newly deployed `RevShareModule`
+- `MODULE__REVSHARE`: if missing, add it after `PROTOCOL__MODULE_MANAGER` is set; if it already exists and you are also replacing `PROTOCOL__MODULE_MANAGER`, delete the old module entry first while the old `ModuleManager` is still active, then add the new `RevShareModule`
 - `PROTOCOL__CONTRIBUTION_TOKEN`: if missing, add it using [USDC.json](C:/Users/maike/Desktop/Takadao/Takasure/Contracts/takasure.sc/deployments/testnet_arbitrum_sepolia/USDC.json); if it already exists, leave it unchanged
 - `PROTOCOL__REVSHARE_NFT`: if missing, add it using [RevShareNft.json](C:/Users/maike/Desktop/Takadao/Takasure/Contracts/takasure.sc/deployments/testnet_arbitrum_sepolia/RevShareNft.json); if it already exists, leave it unchanged
 
 ```bash
 source .env
+
+# If MODULE__REVSHARE already exists and you are replacing PROTOCOL__MODULE_MANAGER too,
+# remove the old module first while the old ModuleManager is still active.
+cast send <ADDRESS_MANAGER> \
+  "deleteProtocolAddress(address)" \
+  <OLD_REVSHARE_MODULE> \
+  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
+  --account $TESTNET_ACCOUNT
 
 # PROTOCOL__MODULE_MANAGER
 # Add if missing, otherwise update to the newly deployed ModuleManager.
@@ -349,19 +357,12 @@ cast send <ADDRESS_MANAGER> \
   --account $TESTNET_ACCOUNT
 
 # MODULE__REVSHARE
-# Add if missing, otherwise update to the newly deployed RevShareModule.
+# Add after PROTOCOL__MODULE_MANAGER points to the ModuleManager that should own this module.
 cast send <ADDRESS_MANAGER> \
   "addProtocolAddress(string,address,uint8)" \
   "MODULE__REVSHARE" \
   <REVSHARE_MODULE> \
   2 \
-  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
-  --account $TESTNET_ACCOUNT
-
-cast send <ADDRESS_MANAGER> \
-  "updateProtocolAddress(string,address)" \
-  "MODULE__REVSHARE" \
-  <REVSHARE_MODULE> \
   --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
   --account $TESTNET_ACCOUNT
 ```

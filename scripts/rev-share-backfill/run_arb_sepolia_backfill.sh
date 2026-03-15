@@ -248,6 +248,155 @@ ensure_protocol_address_if_missing() {
     info "$name already exists at $current_address. Leaving it unchanged."
 }
 
+add_protocol_address() {
+    local address_manager="$1"
+    local name="$2"
+    local expected_address="$3"
+    local address_type="$4"
+
+    info "Adding $name -> $expected_address"
+    cast send "$address_manager" \
+        "addProtocolAddress(string,address,uint8)" \
+        "$name" \
+        "$expected_address" \
+        "$address_type" \
+        --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
+        --account "$TESTNET_ACCOUNT"
+}
+
+delete_protocol_address_if_present() {
+    local address_manager="$1"
+    local name="$2"
+
+    local current_address
+    current_address="$(get_protocol_address "$address_manager" "$name")"
+
+    if [[ -z "$current_address" ]]; then
+        info "$name is not set. Nothing to delete."
+        return
+    fi
+
+    info "Deleting $name -> $current_address"
+    cast send "$address_manager" \
+        "deleteProtocolAddress(address)" \
+        "$current_address" \
+        --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
+        --account "$TESTNET_ACCOUNT"
+}
+
+get_module_state() {
+    local module_manager="$1"
+    local module_address="$2"
+
+    local module_state
+    module_state="$(cast call "$module_manager" \
+        "getModuleState(address)(uint8)" \
+        "$module_address" \
+        --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL")"
+    module_state="${module_state//$'\r'/}"
+    module_state="${module_state//$'\n'/}"
+    module_state="${module_state%% *}"
+
+    printf "%s" "$module_state"
+}
+
+read_previous_module_manager_from_broadcast_history() {
+    local current_module_manager="$1"
+
+    node - "$REPO_ROOT/broadcast/DeployModuleManager.s.sol/$CHAIN_ID" "$current_module_manager" <<'NODE'
+const fs = require("fs")
+const path = require("path")
+
+const [dirPath, currentAddressRaw] = process.argv.slice(2)
+const currentAddress = String(currentAddressRaw || "").toLowerCase()
+
+function readProxyAddress(run) {
+    if (run?.returns?.proxy?.value && /^0x[a-fA-F0-9]{40}$/.test(run.returns.proxy.value)) {
+        return run.returns.proxy.value
+    }
+
+    if (Array.isArray(run?.transactions)) {
+        for (let i = run.transactions.length - 1; i >= 0; i -= 1) {
+            const tx = run.transactions[i]
+            if (typeof tx.contractAddress === "string" && /^0x[a-fA-F0-9]{40}$/.test(tx.contractAddress)) {
+                return tx.contractAddress
+            }
+        }
+    }
+
+    return null
+}
+
+const files = fs.readdirSync(dirPath)
+    .filter((name) => /^run-\d+\.json$/.test(name))
+    .map((name) => {
+        const filePath = path.join(dirPath, name)
+        const run = JSON.parse(fs.readFileSync(filePath, "utf8"))
+        return {
+            name,
+            timestamp: Number(run.timestamp || 0),
+            address: readProxyAddress(run),
+        }
+    })
+    .filter((entry) => entry.address)
+    .sort((a, b) => b.timestamp - a.timestamp)
+
+const currentIndex = files.findIndex((entry) => entry.address.toLowerCase() === currentAddress)
+
+if (currentIndex !== -1) {
+    const previousEntry = files[currentIndex + 1]
+    if (previousEntry) {
+        process.stdout.write(previousEntry.address)
+        process.exit(0)
+    }
+}
+
+for (const entry of files) {
+    if (entry.address.toLowerCase() !== currentAddress) {
+        process.stdout.write(entry.address)
+        process.exit(0)
+    }
+}
+
+process.exit(1)
+NODE
+}
+
+prepare_module_migration() {
+    local address_manager="$1"
+    local current_module_manager="$2"
+    local current_revshare_module="$3"
+    local new_module_manager="$4"
+
+    local current_state
+    current_state="$(get_module_state "$current_module_manager" "$current_revshare_module")"
+
+    if [[ "$current_state" != "0" && "$current_state" != "4" ]]; then
+        return
+    fi
+
+    local previous_module_manager=""
+    previous_module_manager="$(read_previous_module_manager_from_broadcast_history "$current_module_manager" || true)"
+
+    if [[ -n "$previous_module_manager" ]]; then
+        info "Current PROTOCOL__MODULE_MANAGER does not track the current MODULE__REVSHARE. Repointing temporarily to previous ModuleManager $previous_module_manager so the old module can be deprecated cleanly."
+        ensure_protocol_address \
+            "$address_manager" \
+            "PROTOCOL__MODULE_MANAGER" \
+            "$previous_module_manager" \
+            "$PROTOCOL_TYPE_PROTOCOL"
+
+        current_module_manager="$previous_module_manager"
+        current_state="$(get_module_state "$current_module_manager" "$current_revshare_module")"
+    fi
+
+    if [[ "$current_state" == "0" || "$current_state" == "4" ]]; then
+        echo "ERROR: Current MODULE__REVSHARE $current_revshare_module is not active in PROTOCOL__MODULE_MANAGER $current_module_manager (state=$current_state)." >&2
+        echo "Fix the AddressManager/ModuleManager state first, then rerun this script." >&2
+        exit 1
+    fi
+}
+
 read_total_backfill_raw() {
     local allocations_json="$1"
 
@@ -401,11 +550,6 @@ main() {
 
     step 7 "Wire AddressManager entries for the Sepolia flow"
     info "Refreshing the module-related entries and only creating the token/NFT entries if missing."
-    ensure_protocol_address \
-        "$address_manager" \
-        "PROTOCOL__MODULE_MANAGER" \
-        "$module_manager" \
-        "$PROTOCOL_TYPE_PROTOCOL"
     ensure_protocol_address_if_missing \
         "$address_manager" \
         "PROTOCOL__CONTRIBUTION_TOKEN" \
@@ -416,11 +560,49 @@ main() {
         "PROTOCOL__REVSHARE_NFT" \
         "$revshare_nft" \
         "$PROTOCOL_TYPE_PROTOCOL"
+
+    local current_module_manager
+    local current_revshare_module
+    current_module_manager="$(get_protocol_address "$address_manager" "PROTOCOL__MODULE_MANAGER")"
+    current_revshare_module="$(get_protocol_address "$address_manager" "MODULE__REVSHARE")"
+
+    if [[ -n "$current_revshare_module" ]]; then
+        if [[ -z "$current_module_manager" ]]; then
+            echo "ERROR: MODULE__REVSHARE exists but PROTOCOL__MODULE_MANAGER is missing. Fix AddressManager first." >&2
+            exit 1
+        fi
+
+        prepare_module_migration \
+            "$address_manager" \
+            "$current_module_manager" \
+            "$current_revshare_module" \
+            "$module_manager"
+
+        info "Removing the current MODULE__REVSHARE before switching to the newly deployed ModuleManager."
+        delete_protocol_address_if_present "$address_manager" "MODULE__REVSHARE"
+    else
+        info "MODULE__REVSHARE is missing. A fresh add will be used after PROTOCOL__MODULE_MANAGER is set."
+    fi
+
     ensure_protocol_address \
         "$address_manager" \
-        "MODULE__REVSHARE" \
-        "$revshare_module" \
-        "$PROTOCOL_TYPE_MODULE"
+        "PROTOCOL__MODULE_MANAGER" \
+        "$module_manager" \
+        "$PROTOCOL_TYPE_PROTOCOL"
+
+    if [[ -z "$(get_protocol_address "$address_manager" "MODULE__REVSHARE")" ]]; then
+        add_protocol_address \
+            "$address_manager" \
+            "MODULE__REVSHARE" \
+            "$revshare_module" \
+            "$PROTOCOL_TYPE_MODULE"
+    else
+        ensure_protocol_address \
+            "$address_manager" \
+            "MODULE__REVSHARE" \
+            "$revshare_module" \
+            "$PROTOCOL_TYPE_MODULE"
+    fi
 
     step 8 "Point RevShareNFT to AddressManager"
     cast send "$revshare_nft" \
