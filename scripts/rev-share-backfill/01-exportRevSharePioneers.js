@@ -578,7 +578,7 @@ async function main() {
     if (typeof SNAPSHOT_BLOCK === "number") {
         console.log(`Using snapshot block: ${SNAPSHOT_BLOCK}`)
     } else {
-        console.log("Using latest block (no snapshot block set).")
+        console.log("Using latest block.")
     }
     console.log("")
 
