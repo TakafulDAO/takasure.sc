@@ -6,43 +6,44 @@
   "totalBackfillTokens": "100000",
   "totalBackfillRaw": "100000000000",
   "backfillStartTs": 1753673696,
-  "backfillEndTs": 1773533268,
+  "backfillEndTs": 1773617447,
   "backfillStartSource": "minimum token.mintedAt from pioneer export",
   "backfillEndSource": "current system time at script execution",
-  "rewardsDurationSec": "19859572",
+  "rewardsDurationSec": "19943751",
   "totalNfts": "93",
+  "excludedPioneerNfts": "0",
   "pioneersCount": 22,
   "calculationModel": "single notifyNewRevenue at derived backfillStartTs, claim at derived backfillEndTs, with pioneers accrued using RevShareModule per-NFT accumulator checkpoints",
-  "rewardRatePioneersScaled": "3776516432479008107526",
-  "rewardRateTakadaoScaled": "1258838810826336035842",
+  "rewardRatePioneersScaled": "3760576433189523876426",
+  "rewardRateTakadaoScaled": "1253525477729841292142",
   "pioneersBackfillRaw": "75000000000",
-  "pioneersAllocatedRaw": "74999995594",
-  "pioneersDustRaw": "4406",
+  "pioneersAllocatedRaw": "74999995612",
+  "pioneersDustRaw": "4388",
   "pioneersLostWhileSupplyZeroRaw": "0",
   "takadaoShareRaw": "25000000000",
   "takadaoAllocatedRaw": "24999999999",
   "takadaoDustRaw": "1",
-  "totalModuleDustRaw": "4407",
+  "totalModuleDustRaw": "4389",
   "checkpointsCount": 43,
-  "testMode": true,
-  "revenueReceiverSource": "env.TESTNET_DEPLOYER_ADDRESS",
+  "testMode": false,
+  "revenueReceiverSource": "AddressManager",
   "revenueReceiver": "0x3904f59df9199e0d6dc3800af9f6794c9d037eb1",
   "allocations": [
     {
       "address": "0x028f4dba9716fb36c2f4dd8caa8de221a5d5815a",
-      "amountRaw": "3561225956"
+      "amountRaw": "3556406323"
     },
     {
       "address": "0x11d9deaa603081f0481fff5a25ebc8b2ef6318a8",
-      "amountRaw": "147359265"
+      "amountRaw": "150141175"
     },
     {
       "address": "0x2691fa3c636c667870c740bdaf09866034018a0e",
-      "amountRaw": "7095004309"
+      "amountRaw": "7085480894"
     },
     {
       "address": "0x2a65f737b3ab50b9239d60084d48a377f58447b6",
-      "amountRaw": "2202552661"
+      "amountRaw": "2200063857"
     },
     {
       "address": "0x3904f59df9199e0d6dc3800af9f6794c9d037eb1",
@@ -50,75 +51,75 @@
     },
     {
       "address": "0x4eb54bfc0d280a164fcada8ade3477c8b93b1dee",
-      "amountRaw": "1339637303"
+      "amountRaw": "1337386822"
     },
     {
       "address": "0x55296ae1c0114a4c20e333571b1dbd40939c80a3",
-      "amountRaw": "147354879"
+      "amountRaw": "150136808"
     },
     {
       "address": "0x5953c8d34379c5d979bb2652408f978f0e914a6a",
-      "amountRaw": "2963991510"
+      "amountRaw": "2971904360"
     },
     {
       "address": "0x59be6a62c05377183c0ccbbaeade523a76b1a793",
-      "amountRaw": "2279537554"
+      "amountRaw": "2276723810"
     },
     {
       "address": "0x5ab2d59849a91484ab35312121e8a47a494d1622",
-      "amountRaw": "5527236011"
+      "amountRaw": "5517522090"
     },
     {
       "address": "0x5c778b8047d0282c3ea140a741f1fd9e5e7afcac",
-      "amountRaw": "937304360"
+      "amountRaw": "936752054"
     },
     {
       "address": "0x81379aadfa9de591fa5469b954a6edc6787df494",
-      "amountRaw": "2814212518"
+      "amountRaw": "2809142006"
     },
     {
       "address": "0x8325d4a009a72fdf92a6e741b235fc701bf4136f",
-      "amountRaw": "2618390864"
+      "amountRaw": "2614146880"
     },
     {
       "address": "0x8e927b26d6698775b79557df00539d4b74911021",
-      "amountRaw": "5431477847"
+      "amountRaw": "5445995318"
     },
     {
       "address": "0xa8ea8d99319b14c8f5851f8f8dc96506aff18f35",
-      "amountRaw": "2862606310"
+      "amountRaw": "2857331537"
     },
     {
       "address": "0xbd39dc758bb75fdd27155606e9615ce35614765a",
-      "amountRaw": "3555886365"
+      "amountRaw": "3551089269"
     },
     {
       "address": "0xcc99044cc3ff41cdbfadee51d552185e71087c07",
-      "amountRaw": "1185042242"
+      "amountRaw": "1183444279"
     },
     {
       "address": "0xcdfab1d15f56f57bb6e990ec65b29af32ab55ff5",
-      "amountRaw": "3979389747"
+      "amountRaw": "3972805119"
     },
     {
       "address": "0xe1c3fa2b282fcee35b38a40ba8aaab938d32d9b1",
-      "amountRaw": "16172486593"
+      "amountRaw": "16209745946"
     },
     {
       "address": "0xe453656fd35d4c957388022c181d736d33faddd7",
-      "amountRaw": "1185658773"
+      "amountRaw": "1184058207"
     },
     {
       "address": "0xee5e3173aba50a2eec7e46c72a8db711e804b522",
-      "amountRaw": "4079024183"
+      "amountRaw": "4072019014"
     },
     {
       "address": "0xfcd0b0444ee3cd937b7b56a50e80a27dc6f01a46",
-      "amountRaw": "1356685949"
+      "amountRaw": "1364575172"
     },
     {
       "address": "0xfd008c8704bb4c3361fcf95697e3107622e7485a",
-      "amountRaw": "3557930395"
+      "amountRaw": "3553124672"
     }
   ]
 }
