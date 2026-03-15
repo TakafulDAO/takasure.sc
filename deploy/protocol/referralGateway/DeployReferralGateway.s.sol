@@ -2,15 +2,12 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2, stdJson} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {ReferralGateway} from "contracts/referrals/ReferralGateway.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {DeployConstants} from "deploy/utils/DeployConstants.s.sol";
 
-contract DeployReferralGateway is Script, DeployConstants {
-    using stdJson for string;
-
+contract DeployReferralGateway is Script {
     function run() external returns (address proxy) {
         uint256 chainId = block.chainid;
         HelperConfig helperConfig = new HelperConfig();
@@ -18,7 +15,7 @@ contract DeployReferralGateway is Script, DeployConstants {
 
         vm.startBroadcast();
 
-        // Deploy TakasurePool
+        // Deploy ReferralGateway
         proxy = Upgrades.deployUUPSProxy(
             "ReferralGateway.sol",
             abi.encodeCall(

@@ -92,6 +92,16 @@ protocol-deploy-address-manager:
 	@forge script deploy/protocol/managers/DeployAddressManager.s.sol:DeployAddressManager $(NETWORK_ARGS)
 	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
 
+protocol-deploy-module-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/DeployModuleManager.s.sol:DeployModuleManager $(NETWORK_ARGS)
+	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV1.sol
+
+protocol-deploy-module-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/DeployModuleManager.s.sol:DeployModuleManager $(NETWORK_ARGS)
+	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV1.sol
+
 # Save funds
 protocol-deploy-sf-vault:
 	@forge clean
@@ -214,7 +224,7 @@ protocol-upgrade-sf-uni-v3-strat:
 # Tokens
 tokens-upgrade-nft:
 	@forge clean
-	@forge script deploy/tokens/nft/UpgradeRevShareNFT.s.sol:UpgradeRevShareNFT $(NETWORK_ARGS)
+	@forge script deploy/tokens/nft/UpgradeRevShareNft.s.sol:UpgradeRevShareNFT $(NETWORK_ARGS)
 	@cp contracts/tokens/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
 
 # ccip

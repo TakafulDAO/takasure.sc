@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
+import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {RevShareModule} from "contracts/modules/RevShareModule.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
@@ -13,7 +13,7 @@ contract DeployRevShareModule is Script, GetContractAddress {
         vm.startBroadcast();
         revShareModule = Upgrades.deployUUPSProxy(
             "RevShareModule.sol",
-            abi.encodeCall(RevShareModule.initialize, (addressManagerAddress, "REVENUE_SHARE_MODULE"))
+            abi.encodeCall(RevShareModule.initialize, (addressManagerAddress, "MODULE__REVSHARE"))
         );
 
         vm.stopBroadcast();

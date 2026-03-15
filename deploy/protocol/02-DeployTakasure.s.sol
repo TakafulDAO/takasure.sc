@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
@@ -24,7 +24,7 @@ contract DeployTakasure is Script {
 
         vm.startBroadcast();
 
-        // Deploy TakasurePool
+        // Deploy TakasureReserve
         proxy = Upgrades.deployUUPSProxy(
             "TakasureReserve.sol",
             abi.encodeCall(TakasureReserve.initialize, (config.contributionToken))
