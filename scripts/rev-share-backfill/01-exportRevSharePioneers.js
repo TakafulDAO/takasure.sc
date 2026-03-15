@@ -45,12 +45,13 @@ const TRANSFERS_QUERY = `
       first: $first
       skip: $skip
       where: { tokenId_in: $tokenIds }
-      orderBy: blockTimestamp
+      orderBy: blockNumber
       orderDirection: desc
       block: $block
     ) {
       tokenId
       to
+      blockNumber
       blockTimestamp
     }
   }
