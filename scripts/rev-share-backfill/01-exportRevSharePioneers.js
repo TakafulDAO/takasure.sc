@@ -224,13 +224,15 @@ function resolveSubgraphUrl(chainId) {
     }
 
     throw new Error(
-        `Unsupported chain id ${chainId}. Expected Arbitrum One (${ARBITRUM_ONE_CHAIN_ID}) or Arbitrum Sepolia (${ARBITRUM_SEPOLIA_CHAIN_ID}).`
+        `Unsupported chain id ${chainId}. Expected Arbitrum One (${ARBITRUM_ONE_CHAIN_ID}) or Arbitrum Sepolia (${ARBITRUM_SEPOLIA_CHAIN_ID}).`,
     )
 }
 
 async function resolveChainId(cliChainId) {
     if (cliChainId === null) {
-        throw new Error("Missing required --chain flag. Expected --chain arb-one or --chain arb-sep.")
+        throw new Error(
+            "Missing required --chain flag. Expected --chain arb-one or --chain arb-sep.",
+        )
     }
 
     return cliChainId
@@ -318,7 +320,13 @@ async function fetchLatestTransferPerToken(subgraphUrl, tokenIds, blockNumber) {
         let skip = 0
 
         while (unresolved.size > 0) {
-            const data = await fetchTransfersPage(subgraphUrl, tokenIdChunk, PAGE_SIZE, skip, blockNumber)
+            const data = await fetchTransfersPage(
+                subgraphUrl,
+                tokenIdChunk,
+                PAGE_SIZE,
+                skip,
+                blockNumber,
+            )
             const transfers = data.transfers || []
 
             for (const transfer of transfers) {
@@ -351,7 +359,13 @@ async function fetchSingleMintTimestamps(subgraphUrl, tokenIds, blockNumber) {
         let skip = 0
 
         while (true) {
-            const data = await fetchSingleMintsPage(subgraphUrl, tokenIdChunk, PAGE_SIZE, skip, blockNumber)
+            const data = await fetchSingleMintsPage(
+                subgraphUrl,
+                tokenIdChunk,
+                PAGE_SIZE,
+                skip,
+                blockNumber,
+            )
             const mintEvents = data.onRevShareNFTMinteds || []
 
             for (const mintEvent of mintEvents) {
@@ -405,8 +419,9 @@ async function resolveMintedAtPerToken(subgraphUrl, tokenIds, blockNumber) {
         return mintedAtPerToken
     }
 
+    // Some tokens were created through batch mint events, so resolve them by walking the minted token ranges.
     console.log(
-        `Single mint events resolved mintedAt for ${tokenIds.length - missingTokenIds.length} tokens. Resolving ${missingTokenIds.length} batch-minted tokens...`
+        `Single mint events resolved mintedAt for ${tokenIds.length - missingTokenIds.length} tokens. Resolving ${missingTokenIds.length} batch-minted tokens...`,
     )
 
     const batchMintEvents = await fetchAllBatchMints(subgraphUrl, blockNumber)
@@ -431,10 +446,10 @@ async function resolveMintedAtPerToken(subgraphUrl, tokenIds, blockNumber) {
     if (missingTokenSet.size > 0) {
         throw new Error(
             `Unable to resolve mintedAt for ${missingTokenSet.size} tokens. Example tokenIds: ${Array.from(
-                missingTokenSet
+                missingTokenSet,
             )
                 .slice(0, 10)
-                .join(", ")}`
+                .join(", ")}`,
         )
     }
 
@@ -442,7 +457,11 @@ async function resolveMintedAtPerToken(subgraphUrl, tokenIds, blockNumber) {
 }
 
 async function resolveHoldingSincePerToken(subgraphUrl, tokenIds, tokenIdToOwner, blockNumber) {
-    const holdingSincePerToken = await fetchLatestTransferPerToken(subgraphUrl, tokenIds, blockNumber)
+    const holdingSincePerToken = await fetchLatestTransferPerToken(
+        subgraphUrl,
+        tokenIds,
+        blockNumber,
+    )
 
     const ownerMismatches = []
     for (const [tokenId, entry] of holdingSincePerToken.entries()) {
@@ -455,7 +474,7 @@ async function resolveHoldingSincePerToken(subgraphUrl, tokenIds, tokenIdToOwner
     if (ownerMismatches.length > 0) {
         throw new Error(
             "Latest transfer owner mismatch for current holders: " +
-                JSON.stringify(ownerMismatches.slice(0, 5), null, 2)
+                JSON.stringify(ownerMismatches.slice(0, 5), null, 2),
         )
     }
 
@@ -466,10 +485,14 @@ async function resolveHoldingSincePerToken(subgraphUrl, tokenIds, tokenIdToOwner
     }
 
     console.log(
-        `Latest Transfer timestamps were missing for ${missingTokenIds.length} tokens. Falling back to mint events...`
+        `Latest Transfer timestamps were missing for ${missingTokenIds.length} tokens. Falling back to mint events...`,
     )
 
-    const singleMintTimestamps = await fetchSingleMintTimestamps(subgraphUrl, missingTokenIds, blockNumber)
+    const singleMintTimestamps = await fetchSingleMintTimestamps(
+        subgraphUrl,
+        missingTokenIds,
+        blockNumber,
+    )
     for (const tokenId of missingTokenIds) {
         const singleMint = singleMintTimestamps.get(tokenId)
         if (!singleMint) continue
@@ -486,7 +509,7 @@ async function resolveHoldingSincePerToken(subgraphUrl, tokenIds, tokenIdToOwner
     }
 
     console.log(
-        `Single mint events resolved some tokens, ${missingTokenIds.length} still missing. Falling back to batch mint events...`
+        `Single mint events resolved some tokens, ${missingTokenIds.length} still missing. Falling back to batch mint events...`,
     )
 
     const batchMintEvents = await fetchAllBatchMints(subgraphUrl, blockNumber)
@@ -518,10 +541,10 @@ async function resolveHoldingSincePerToken(subgraphUrl, tokenIds, tokenIdToOwner
     if (missingTokenSet.size > 0) {
         throw new Error(
             `Unable to resolve holdingSince for ${missingTokenSet.size} tokens. Example tokenIds: ${Array.from(
-                missingTokenSet
+                missingTokenSet,
             )
                 .slice(0, 10)
-                .join(", ")}`
+                .join(", ")}`,
         )
     }
 
@@ -547,7 +570,7 @@ async function main() {
     console.log(
         `Using --chain ${chainFlagName(chainId)} -> ${
             chainId === ARBITRUM_ONE_CHAIN_ID ? "MAINNET_SUBGRAPH_URL" : "TESTNET_SUBGRAPH_URL"
-        }`
+        }`,
     )
     console.log(`Writing outputs under: ${outputPaths.outputRoot}`)
 
@@ -595,6 +618,7 @@ async function main() {
             ? pioneerRow.idsOwned.map((tokenId) => String(tokenId))
             : []
 
+        // Merge paginated rows first so each address has one canonical balance and token list before validation.
         const current = pioneersMap.get(address) || {
             balance: 0n,
             idsOwned: [],
@@ -608,11 +632,13 @@ async function main() {
 
     const tokenIdToOwner = new Map()
     for (const [address, pioneer] of pioneersMap.entries()) {
-        pioneer.idsOwned = Array.from(new Set(pioneer.idsOwned)).sort((a, b) => Number(a) - Number(b))
+        pioneer.idsOwned = Array.from(new Set(pioneer.idsOwned)).sort(
+            (a, b) => Number(a) - Number(b),
+        )
 
         if (pioneer.idsOwned.length !== Number(pioneer.balance)) {
             throw new Error(
-                `idsOwned length mismatch for ${address}. balance=${pioneer.balance.toString()} idsOwned=${pioneer.idsOwned.length}`
+                `idsOwned length mismatch for ${address}. balance=${pioneer.balance.toString()} idsOwned=${pioneer.idsOwned.length}`,
             )
         }
 
@@ -624,13 +650,15 @@ async function main() {
     const tokenIds = Array.from(tokenIdToOwner.keys())
     console.log("")
     logSection("Resolve Token Timing")
-    console.log(`Resolving holdingSince timestamps for ${tokenIds.length} currently held token(s) ...`)
+    console.log(
+        `Resolving holdingSince timestamps for ${tokenIds.length} currently held token(s) ...`,
+    )
 
     const holdingSincePerToken = await resolveHoldingSincePerToken(
         subgraphUrl,
         tokenIds,
         tokenIdToOwner,
-        SNAPSHOT_BLOCK
+        SNAPSHOT_BLOCK,
     )
     const mintedAtPerToken = await resolveMintedAtPerToken(subgraphUrl, tokenIds, SNAPSHOT_BLOCK)
 
@@ -680,9 +708,13 @@ async function main() {
 
     if (globalStats) {
         console.log(`GlobalNftStat.currentSupply: ${globalStats.currentSupply.toString()}`)
-        console.log(`GlobalNftStat.totalUniquePioneers: ${globalStats.totalUniquePioneers.toString()}`)
+        console.log(
+            `GlobalNftStat.totalUniquePioneers: ${globalStats.totalUniquePioneers.toString()}`,
+        )
     } else {
-        throw new Error("globalNftStat not found in subgraph response. Refusing to write pioneer export.")
+        throw new Error(
+            "globalNftStat not found in subgraph response. Refusing to write pioneer export.",
+        )
     }
 
     if (totalNftsFromMap !== globalStats.currentSupply) {
