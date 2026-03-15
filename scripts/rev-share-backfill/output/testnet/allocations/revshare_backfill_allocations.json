@@ -1,0 +1,124 @@
+{
+  "chainId": 421614,
+  "network": "arbitrum-sepolia",
+  "snapshotBlock": null,
+  "tokenDecimals": 6,
+  "totalBackfillTokens": "100000",
+  "totalBackfillRaw": "100000000000",
+  "backfillStartTs": 1753673696,
+  "backfillEndTs": 1773533268,
+  "backfillStartSource": "minimum token.mintedAt from pioneer export",
+  "backfillEndSource": "current system time at script execution",
+  "rewardsDurationSec": "19859572",
+  "totalNfts": "93",
+  "pioneersCount": 22,
+  "calculationModel": "single notifyNewRevenue at derived backfillStartTs, claim at derived backfillEndTs, with pioneers accrued using RevShareModule per-NFT accumulator checkpoints",
+  "rewardRatePioneersScaled": "3776516432479008107526",
+  "rewardRateTakadaoScaled": "1258838810826336035842",
+  "pioneersBackfillRaw": "75000000000",
+  "pioneersAllocatedRaw": "74999995594",
+  "pioneersDustRaw": "4406",
+  "pioneersLostWhileSupplyZeroRaw": "0",
+  "takadaoShareRaw": "25000000000",
+  "takadaoAllocatedRaw": "24999999999",
+  "takadaoDustRaw": "1",
+  "totalModuleDustRaw": "4407",
+  "checkpointsCount": 43,
+  "testMode": true,
+  "revenueReceiverSource": "env.TESTNET_DEPLOYER_ADDRESS",
+  "revenueReceiver": "0x3904f59df9199e0d6dc3800af9f6794c9d037eb1",
+  "allocations": [
+    {
+      "address": "0x028f4dba9716fb36c2f4dd8caa8de221a5d5815a",
+      "amountRaw": "3561225956"
+    },
+    {
+      "address": "0x11d9deaa603081f0481fff5a25ebc8b2ef6318a8",
+      "amountRaw": "147359265"
+    },
+    {
+      "address": "0x2691fa3c636c667870c740bdaf09866034018a0e",
+      "amountRaw": "7095004309"
+    },
+    {
+      "address": "0x2a65f737b3ab50b9239d60084d48a377f58447b6",
+      "amountRaw": "2202552661"
+    },
+    {
+      "address": "0x3904f59df9199e0d6dc3800af9f6794c9d037eb1",
+      "amountRaw": "24999999999"
+    },
+    {
+      "address": "0x4eb54bfc0d280a164fcada8ade3477c8b93b1dee",
+      "amountRaw": "1339637303"
+    },
+    {
+      "address": "0x55296ae1c0114a4c20e333571b1dbd40939c80a3",
+      "amountRaw": "147354879"
+    },
+    {
+      "address": "0x5953c8d34379c5d979bb2652408f978f0e914a6a",
+      "amountRaw": "2963991510"
+    },
+    {
+      "address": "0x59be6a62c05377183c0ccbbaeade523a76b1a793",
+      "amountRaw": "2279537554"
+    },
+    {
+      "address": "0x5ab2d59849a91484ab35312121e8a47a494d1622",
+      "amountRaw": "5527236011"
+    },
+    {
+      "address": "0x5c778b8047d0282c3ea140a741f1fd9e5e7afcac",
+      "amountRaw": "937304360"
+    },
+    {
+      "address": "0x81379aadfa9de591fa5469b954a6edc6787df494",
+      "amountRaw": "2814212518"
+    },
+    {
+      "address": "0x8325d4a009a72fdf92a6e741b235fc701bf4136f",
+      "amountRaw": "2618390864"
+    },
+    {
+      "address": "0x8e927b26d6698775b79557df00539d4b74911021",
+      "amountRaw": "5431477847"
+    },
+    {
+      "address": "0xa8ea8d99319b14c8f5851f8f8dc96506aff18f35",
+      "amountRaw": "2862606310"
+    },
+    {
+      "address": "0xbd39dc758bb75fdd27155606e9615ce35614765a",
+      "amountRaw": "3555886365"
+    },
+    {
+      "address": "0xcc99044cc3ff41cdbfadee51d552185e71087c07",
+      "amountRaw": "1185042242"
+    },
+    {
+      "address": "0xcdfab1d15f56f57bb6e990ec65b29af32ab55ff5",
+      "amountRaw": "3979389747"
+    },
+    {
+      "address": "0xe1c3fa2b282fcee35b38a40ba8aaab938d32d9b1",
+      "amountRaw": "16172486593"
+    },
+    {
+      "address": "0xe453656fd35d4c957388022c181d736d33faddd7",
+      "amountRaw": "1185658773"
+    },
+    {
+      "address": "0xee5e3173aba50a2eec7e46c72a8db711e804b522",
+      "amountRaw": "4079024183"
+    },
+    {
+      "address": "0xfcd0b0444ee3cd937b7b56a50e80a27dc6f01a46",
+      "amountRaw": "1356685949"
+    },
+    {
+      "address": "0xfd008c8704bb4c3361fcf95697e3107622e7485a",
+      "amountRaw": "3557930395"
+    }
+  ]
+}
