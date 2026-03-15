@@ -97,11 +97,6 @@ protocol-deploy-module-manager:
 	@forge script deploy/protocol/managers/DeployModuleManager.s.sol:DeployModuleManager $(NETWORK_ARGS)
 	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV1.sol
 
-protocol-deploy-module-manager:
-	@forge clean
-	@forge script deploy/protocol/managers/DeployModuleManager.s.sol:DeployModuleManager $(NETWORK_ARGS)
-	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV1.sol
-
 # Save funds
 protocol-deploy-sf-vault:
 	@forge clean
