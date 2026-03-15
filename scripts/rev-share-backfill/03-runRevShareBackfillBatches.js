@@ -28,7 +28,7 @@ const BATCH_SIZE = parseInt(process.env.BACKFILL_BATCH_SIZE || "20", 10)
 //////////////////////////////////////////////////////////////*/
 
 function printHelp() {
-    console.log(`RevShare backfill action builder
+    console.log(`RevShare backfill batch runner
 
 Consumes the allocations from script 02 and then:
 - arb-one: creates one Safe proposal per adminBackfillRevenue batch using sequential Safe nonces
@@ -39,8 +39,8 @@ Input file:
 - arb-sep -> scripts/rev-share-backfill/output/testnet/allocations/revshare_backfill_allocations.json
 
 Output report:
-- arb-one -> scripts/rev-share-backfill/output/mainnet/safe/revshare_backfill_safe_batch.json
-- arb-sep -> scripts/rev-share-backfill/output/testnet/safe/revshare_backfill_safe_batch.json
+- arb-one -> scripts/rev-share-backfill/output/mainnet/execution/revshare_backfill_execution_report.json
+- arb-sep -> scripts/rev-share-backfill/output/testnet/execution/revshare_backfill_execution_report.json
 
 Environment requirements:
 - arb-one: SAFE_PROPOSER_PK and mainnet RPC used by scripts/save-funds/automation/safeSubmit.js
@@ -52,8 +52,8 @@ Flags:
 - --help                     Show this help message
 
 Examples:
-- node scripts/rev-share-backfill/03-buildRevShareSafeBatchJson.js --chain arb-one
-- node scripts/rev-share-backfill/03-buildRevShareSafeBatchJson.js --chain arb-sep
+- node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-one
+- node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-sep
 `)
 }
 
@@ -135,7 +135,11 @@ function buildOutputPaths(chainId) {
 
     return {
         allocationsJson: path.join(outputRoot, "allocations", "revshare_backfill_allocations.json"),
-        reportJson: path.join(outputRoot, "safe", "revshare_backfill_safe_batch.json"),
+        reportJson: path.join(
+            outputRoot,
+            "execution",
+            "revshare_backfill_execution_report.json",
+        ),
     }
 }
 
@@ -386,7 +390,7 @@ async function main() {
     const resolvedModule = await resolveRevShareModuleAddress(chainCfg, revShareModuleDeployment)
     const revShareModuleAddress = resolvedModule.address
 
-    console.log("=== Build RevShare backfill execution payloads ===")
+    console.log("=== Run RevShare backfill batches ===")
 
     logSection("Configuration")
     console.log(`Chain: ${chainCfg.network} (${cli.chainId})`)
