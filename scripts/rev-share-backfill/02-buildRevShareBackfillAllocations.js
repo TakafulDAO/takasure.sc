@@ -298,16 +298,18 @@ function settleAccount(accountState, currentAccumulatorScaled) {
     accountState.paidAccumulatorScaled = currentAccumulatorScaled
 }
 
-function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
+function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs, excludedPioneerAddress) {
     // Turn token-level snapshots into the same inputs the module cares about: supply changes and balance changes over time.
     const tokenSnapshots = []
     const accountStates = new Map()
     const supplyDeltaByTs = new Map()
     const balanceIncreaseByTs = new Map()
     const checkpoints = new Set([backfillStartTs, backfillEndTs])
+    let excludedPioneerNfts = 0n
 
     for (const pioneer of pioneers) {
         const address = normalizeAddress(pioneer.address)
+        const isExcludedPioneer = excludedPioneerAddress && address === excludedPioneerAddress
         const tokens = Array.isArray(pioneer.tokens) ? pioneer.tokens : null
 
         if (!tokens || tokens.length === 0) {
@@ -322,14 +324,17 @@ function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
             )
         }
 
-        let accountState = accountStates.get(address)
-        if (!accountState) {
-            accountState = {
-                balance: 0n,
-                revenueRaw: 0n,
-                paidAccumulatorScaled: 0n,
+        let accountState = null
+        if (!isExcludedPioneer) {
+            accountState = accountStates.get(address)
+            if (!accountState) {
+                accountState = {
+                    balance: 0n,
+                    revenueRaw: 0n,
+                    paidAccumulatorScaled: 0n,
+                }
+                accountStates.set(address, accountState)
             }
-            accountStates.set(address, accountState)
         }
 
         for (const token of tokens) {
@@ -353,6 +358,10 @@ function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
                 holdingSince,
             })
 
+            if (isExcludedPioneer) {
+                excludedPioneerNfts += 1n
+            }
+
             if (mintedAt <= backfillStartTs) {
                 // Token already existed at stream start.
             } else if (mintedAt < backfillEndTs) {
@@ -362,17 +371,21 @@ function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
             }
 
             if (holdingSince <= backfillStartTs) {
-                accountState.balance += 1n
+                if (accountState) {
+                    accountState.balance += 1n
+                }
             } else if (holdingSince < backfillEndTs) {
                 // holdingSince changes the account balance used for settlement from that timestamp onward.
-                let addressDeltas = balanceIncreaseByTs.get(holdingSince)
-                if (!addressDeltas) {
-                    addressDeltas = new Map()
-                    balanceIncreaseByTs.set(holdingSince, addressDeltas)
-                }
+                if (accountState) {
+                    let addressDeltas = balanceIncreaseByTs.get(holdingSince)
+                    if (!addressDeltas) {
+                        addressDeltas = new Map()
+                        balanceIncreaseByTs.set(holdingSince, addressDeltas)
+                    }
 
-                addressDeltas.set(address, (addressDeltas.get(address) || 0n) + 1n)
-                checkpoints.add(holdingSince)
+                    addressDeltas.set(address, (addressDeltas.get(address) || 0n) + 1n)
+                    checkpoints.add(holdingSince)
+                }
             }
         }
     }
@@ -391,10 +404,17 @@ function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
         balanceIncreaseByTs,
         checkpoints: Array.from(checkpoints).sort((a, b) => a - b),
         initialSupply,
+        excludedPioneerNfts,
     }
 }
 
-function simulatePioneerAccrual(pioneersBackfillRaw, pioneers, backfillStartTs, backfillEndTs) {
+function simulatePioneerAccrual(
+    pioneersBackfillRaw,
+    pioneers,
+    backfillStartTs,
+    backfillEndTs,
+    excludedPioneerAddress,
+) {
     if (!(backfillStartTs < backfillEndTs)) {
         throw new Error("Time config invalid: require backfillStartTs < backfillEndTs")
     }
@@ -407,7 +427,8 @@ function simulatePioneerAccrual(pioneersBackfillRaw, pioneers, backfillStartTs, 
         checkpoints,
         initialSupply,
         tokenSnapshots,
-    } = buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs)
+        excludedPioneerNfts,
+    } = buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs, excludedPioneerAddress)
 
     const rewardsDuration = BigInt(backfillEndTs - backfillStartTs)
     const rewardRatePioneersScaled = (pioneersBackfillRaw * WAD) / rewardsDuration
@@ -518,6 +539,7 @@ function simulatePioneerAccrual(pioneersBackfillRaw, pioneers, backfillStartTs, 
         pioneersDustRaw,
         lostWhileSupplyZeroRaw,
         totalNfts: BigInt(tokenSnapshots.length),
+        excludedPioneerNfts,
         checkpointsCount: checkpoints.length,
         highestRevenuePioneer: highestRevenuePioneer
             ? {
@@ -648,6 +670,20 @@ async function main() {
     console.log(`Test mode: ${cli.testMode ? "enabled" : "disabled"}`)
     console.log("")
 
+    logSection("Revenue Receiver")
+    const revenueReceiver = await resolveRevenueReceiver(chainId, cli.testMode)
+    console.log(`ADMIN__REVENUE_RECEIVER resolved to: ${revenueReceiver}`)
+
+    const revenueReceiverPioneer = pioneers.find(
+        (pioneer) => normalizeAddress(pioneer.address) === revenueReceiver,
+    )
+    if (revenueReceiverPioneer) {
+        console.log(
+            `Revenue receiver currently holds ${revenueReceiverPioneer.nftBalance} NFT(s) and will be excluded from pioneer accrual to mirror RevShareModule behavior.`,
+        )
+    }
+    console.log("")
+
     logSection("Backfill Window")
     const { backfillStartTs, backfillEndTs } = deriveBackfillWindow(pioneers)
     console.log(
@@ -684,6 +720,7 @@ async function main() {
         pioneers,
         backfillStartTs,
         backfillEndTs,
+        revenueReceiver,
     )
     // Takadao accrues as one global bucket over the same duration, without any supply-dependent splitting.
     const rewardRateTakadaoScaled = (takadaoShareRaw * WAD) / pioneerSimulation.rewardsDuration
@@ -743,9 +780,6 @@ async function main() {
     console.log("")
 
     const allocations = [...pioneerSimulation.allocations]
-    logSection("Revenue Receiver")
-    const revenueReceiver = await resolveRevenueReceiver(chainId, cli.testMode)
-    console.log(`ADMIN__REVENUE_RECEIVER resolved to: ${revenueReceiver}`)
     allocations.push({
         address: revenueReceiver,
         amountRaw: takadaoAllocatedRaw.toString(),
@@ -786,6 +820,7 @@ async function main() {
         backfillEndSource: "current system time at script execution",
         rewardsDurationSec: pioneerSimulation.rewardsDuration.toString(),
         totalNfts: pioneerSimulation.totalNfts.toString(),
+        excludedPioneerNfts: pioneerSimulation.excludedPioneerNfts.toString(),
         pioneersCount: pioneers.length,
         calculationModel:
             "single notifyNewRevenue at derived backfillStartTs, claim at derived backfillEndTs, with pioneers accrued using RevShareModule per-NFT accumulator checkpoints",
