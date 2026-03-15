@@ -364,6 +364,7 @@ async function executeOnSepolia(batches, chainCfg, onProgress) {
             nonce: receipt.nonce,
             blockNumber: receipt.blockNumber,
             gasUsed: receipt.gasUsed,
+            gasLimit: receipt.gasLimit || null,
             numAddresses: batch.numAddresses,
             sumRaw: batch.sumRaw,
             sumTokens: batch.sumTokens,
@@ -595,7 +596,7 @@ async function main() {
             console.log(`Transactions sent: ${actionResult.receipts.length}`)
             for (const receipt of actionResult.receipts) {
                 console.log(
-                    `Batch ${receipt.batchIndex}: txHash=${receipt.txHash} block=${receipt.blockNumber} gasUsed=${receipt.gasUsed}`,
+                    `Batch ${receipt.batchIndex}: txHash=${receipt.txHash} block=${receipt.blockNumber} gasUsed=${receipt.gasUsed}${receipt.gasLimit ? ` gasLimit=${receipt.gasLimit}` : ""}`,
                 )
             }
         }
