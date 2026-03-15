@@ -56,10 +56,6 @@ build-backfill-execution-report:
 	@$(MAKE) build-revshare-allocations ARGS="$(ARGS)"
 	@node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js $(ARGS)
 
-build-backfill-anvil:
-	@forge clean
-	@scripts/rev-share-backfill/run_fork_rehearsal.sh
-
 # Protocol deployments
 protocol-deploy-referral:
 	@forge clean
