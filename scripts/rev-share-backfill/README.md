@@ -407,13 +407,25 @@ node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-one
 
 ### If you are rehearsing on Arbitrum Sepolia
 
-This is the most convenient path for a live rehearsal:
+Run:
 
-1. `node scripts/rev-share-backfill/01-exportRevSharePioneers.js --chain arb-sep`
-2. `node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep`
-3. Deploy and wire `ModuleManager` and `RevShareModule` on Sepolia
-4. Fund the module
-5. `node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-sep`
+```bash
+bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh
+```
+
+The script loads `.env` and runs the full Sepolia backfill flow end to end.
+
+To reuse the current Sepolia `ModuleManager` and `RevShareModule` from the deployment JSON files and skip the deployment-address writes into `AddressManager`:
+
+```bash
+bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh --skip-deploy
+```
+
+To do a read-only review run that refreshes the local export/allocation outputs, reuses the current Sepolia deployment JSON addresses, verifies the `AddressManager` entries, and skips all state-changing onchain calls:
+
+```bash
+bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh --review-only
+```
 
 ## Contract Calls Used In This Flow
 
