@@ -43,16 +43,18 @@ simulate-rev-share-distribution:
 	@forge script scripts/simulations/rev-share-sims/RevShareMonthSimToCsv.s.sol:RevShareMonthSimToCsv -vvv
 
 # Backfill Scripts
-get-revshare-pioneers :; node scripts/rev-share-backfill/01-exportRevSharePioneers.js
+get-revshare-pioneers :; node scripts/rev-share-backfill/01-exportRevSharePioneers.js $(ARGS)
 
 build-revshare-allocations:
-	@make get-revshare-pioneers
-	@node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js
+	@$(MAKE) get-revshare-pioneers ARGS="$(ARGS)"
+	@node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js $(ARGS)
 
-build-backfill-safe-tx-and-metadata:
-	@make build-revshare-allocations
-	@node scripts/rev-share-backfill/03-buildRevShareSafeBatchJson.js
-	@node scripts/rev-share-backfill/04-buildRevShareBackfillCalldata.js
+run-revshare-backfill-batches:
+	@node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js $(ARGS)
+
+build-backfill-execution-report:
+	@$(MAKE) build-revshare-allocations ARGS="$(ARGS)"
+	@node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js $(ARGS)
 
 build-backfill-anvil:
 	@forge clean
