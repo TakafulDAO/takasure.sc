@@ -1,3 +1,7 @@
+###########################################################################
+# =========================== REPO MANAGEMENT =========================== #
+###########################################################################
+
 -include .env
 
 .PHONY: all test clean deploy fund help install snapshot anvil 
@@ -25,6 +29,10 @@ update:; forge update
 
 build:; forge build
 
+#################################################################
+# =========================== TESTS =========================== #
+#################################################################
+
 build-certora:; forge build --contracts ./certora/
 
 test :; forge test 
@@ -37,10 +45,17 @@ snapshot :; forge snapshot
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
-# Simulations
+#######################################################################
+# =========================== SIMULATIONS =========================== #
+#######################################################################
+
 simulate-rev-share-distribution:
 	@forge clean
 	@forge script scripts/simulations/rev-share-sims/RevShareMonthSimToCsv.s.sol:RevShareMonthSimToCsv -vvv
+
+######################################################################
+# =========================== MIGRATIONS =========================== #
+######################################################################
 
 # Backfill Scripts
 get-revshare-pioneers :; node scripts/rev-share-backfill/01-exportRevSharePioneers.js $(ARGS)
@@ -56,17 +71,28 @@ build-backfill-execution-report:
 	@$(MAKE) build-revshare-allocations ARGS="$(ARGS)"
 	@node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js $(ARGS)
 
-# Protocol deployments
+# ccip testnet migration
+protocol-migrate-sf-ccip-usdc-arb-sepolia:
+	@forge clean
+	@forge script deploy/saveFunds/03-MigrateSFToCcipUSDCArbSepolia.s.sol:MigrateSFToCcipUSDCArbSepolia $(NETWORK_ARGS)
+
+#######################################################################
+# =========================== DEPLOYMENTS =========================== #
+#######################################################################
+
+# Referral gateway
 protocol-deploy-referral:
 	@forge clean
-	@forge script deploy/protocol/00-DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
+	@forge script deploy/protocol/referralGateway/DeployReferralGateway.s.sol:DeployReferralGateway $(NETWORK_ARGS)
 	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
+# Managers
 protocol-deploy-address-manager:
 	@forge clean
 	@forge script deploy/protocol/managers/DeployAddressManager.s.sol:DeployAddressManager $(NETWORK_ARGS)
 	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
 
+# Save funds
 protocol-deploy-sf-vault:
 	@forge clean
 	@forge script deploy/saveFunds/DeploySFVault.s.sol:DeploySFVault $(NETWORK_ARGS)
@@ -90,14 +116,86 @@ protocol-deploy-sf:
 	@forge clean
 	@forge script deploy/saveFunds/DeploySF.s.sol:DeploySF $(NETWORK_ARGS)
 
-protocol-migrate-sf-ccip-usdc-arb-sepolia:
+# ccip
+ccip-deploy-receiver:
+	@forge script deploy/ccip/DeploySaveInvestCCIPReceiver.s.sol:DeploySaveInvestCCIPReceiver $(NETWORK_ARGS)
+
+ccip-deploy-sender:
 	@forge clean
-	@forge script deploy/saveFunds/03-MigrateSFToCcipUSDCArbSepolia.s.sol:MigrateSFToCcipUSDCArbSepolia $(NETWORK_ARGS)
+	@forge script deploy/ccip/DeploySaveInvestCCIPSender.s.sol:DeploySaveInvestCCIPSender $(NETWORK_ARGS)
 
 protocol-deploy-uniswap-pool-sepolia:
 	@forge script deploy/saveFunds/DeploySFUniV3PoolSepolia.s.sol:DeploySFUniV3PoolSepolia $(NETWORK_ARGS)
 
-# Protocol upgrades
+# ccip testnet prep
+ccip-deploy-sf-usdc-testnet:
+	@forge script deploy/ccip/testnetPool/00-DeploySFUSDCCcipTestnet.s.sol:DeploySFUSDCCcipTestnet $(NETWORK_ARGS)
+
+ccip-deploy-sf-usdc-arb-sepolia-testnet:
+	@forge script deploy/ccip/testnetPool/00-DeploySFUSDCCcipTestnetArbSepolia.s.sol:DeploySFUSDCCcipTestnetArbSepolia $(NETWORK_ARGS)
+
+ccip-deploy-source-pool-testnet:
+	@forge script deploy/ccip/testnetPool/01-DeployBurnMintTokenPoolSourceTestnet.s.sol:DeployBurnMintTokenPoolSourceTestnet $(NETWORK_ARGS)
+
+ccip-deploy-dest-pool-testnet:
+	@forge script deploy/ccip/testnetPool/01-DeployBurnMintTokenPoolArbSepoliaTestnet.s.sol:DeployBurnMintTokenPoolArbSepoliaTestnet $(NETWORK_ARGS)
+
+ccip-deploy-dest-pool-testnet-legacy:
+	@forge script deploy/ccip/testnetPool/01-DeploySFUSDCMintUSDCOnlyPoolArbSepolia.s.sol:DeploySFUSDCMintUSDCOnlyPoolArbSepolia $(NETWORK_ARGS)
+
+# Modules
+modules-deploy-revshare:
+	@forge clean
+	@forge script deploy/protocol/modules/deploys/DeployRevShareModule.s.sol:DeployRevShareModule $(NETWORK_ARGS)
+	@cp contracts/modules/RevShareModule.sol contracts/version_previous_contracts/RevShareModuleV1.sol
+
+# Tokens
+tokens-deploy-nft:
+	@forge clean
+	@forge script deploy/tokens/nft/DeployRevShareNft.s.sol:DeployRevShareNft $(NETWORK_ARGS)
+	@cp contracts/tokens/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
+
+# Simulations
+deploy-simulations:
+	@forge clean
+	@forge script scripts/simulations/save-fund-sims/DeploySFSystemArbVNet.s.sol:DeploySFSystemArbVNet $(NETWORK_ARGS)
+
+# Automations
+deploy-chainlink-upkeep:
+	@forge script scripts/save-funds/interactions/DeploySaveFundsAutomationRunner.s.sol:DeploySaveFundsAutomationRunner $(NETWORK_ARGS)
+
+deploy-chainlink-invest-upkeep:
+	@forge clean
+	@forge script deploy/ccipAutomation/DeploySaveFundsInvestAutomationRunner.s.sol:DeploySaveFundsInvestAutomationRunner $(NETWORK_ARGS)
+
+####################################################################
+# =========================== UPGRADES =========================== #
+####################################################################
+
+# Referral gateway
+protocol-upgrade-referral:
+	@forge clean
+	@forge script deploy/protocol/referralGateway/UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
+
+# Managers
+managers-upgrade-address-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/UpgradeAddressManager.s.sol:UpgradeAddressManager $(NETWORK_ARGS)
+	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
+
+managers-upgrade-module-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/UpgradeModuleManager.s.sol:UpgradeModuleManager $(NETWORK_ARGS)
+	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV1.sol
+
+# Modules upgrades
+modules-upgrade-revshare:
+	@forge clean
+	@forge script deploy/protocol/modules/upgrades/UpgradeRevShareModule.s.sol:UpgradeRevShareModule $(NETWORK_ARGS)
+	@cp contracts/modules/RevShareModule.sol contracts/version_previous_contracts/RevShareModuleV1.sol
+
+# Save funds
 protocol-upgrade-sf-vault:
 	@forge clean
 	@forge script deploy/saveFunds/04-UpgradeSFVault.s.sol:UpgradeSFVault $(NETWORK_ARGS)
@@ -113,101 +211,68 @@ protocol-upgrade-sf-uni-v3-strat:
 	@forge script deploy/saveFunds/06-UpgradeSFUniswapV3Strategy.s.sol:UpgradeSFUniswapV3Strategy $(NETWORK_ARGS)
 	@cp contracts/saveFunds/protocol/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
 
-protocol-upgrade-referral:
-	@forge clean
-	@forge script deploy/protocol/upgrades/00-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)
-	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
-
-protocol-check-upgrade-referral:
-	@forge clean
-	@forge script deploy/protocol/upgrades/01-CheckReferralUpgrade.s.sol:CheckReferralUpgrade $(NETWORK_ARGS)
-
-protocol-prepare-upgrade-referral:
-	@forge clean
-	@forge script deploy/protocol/upgrades/02-PrepareReferralUpgrade.s.sol:PrepareReferralUpgrade $(NETWORK_ARGS)
-	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
-
-# Managers deployments
-managers-deploy:
-	@forge clean
-	@forge script deploy/protocol/managers/DeployManagers.s.sol:DeployManagers $(NETWORK_ARGS)
-	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
-	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV1.sol
-
-# Managers upgrades
-managers-upgrade-address-manager:
-	@forge clean
-	@forge script deploy/protocol/managers/UpgradeAddressManager.s.sol:UpgradeAddressManager $(NETWORK_ARGS)
-	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
-
-managers-upgrade-module-manager:
-	@forge clean
-	@forge script deploy/protocol/managers/UpgradeModuleManager.s.sol:UpgradeModuleManager $(NETWORK_ARGS)
-	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV
-
-# Modules deployments
-modules-deploy-revshare:
-	@forge clean
-	@forge script deploy/protocol/modules/DeployRevShareModule.s.sol:DeployRevShareModule $(NETWORK_ARGS)
-	@cp contracts/modules/RevShareModule.sol contracts/version_previous_contracts/RevShareModuleV1.sol
-
-# Modules upgrades
-modules-upgrade-revshare:
-	@forge clean
-	@forge script deploy/protocol/modules/UpgradeRevShareModule.s.sol:UpgradeRevShareModule $(NETWORK_ARGS)
-	@cp contracts/modules/RevShareModule.sol contracts/version_previous_contracts/RevShareModuleV1.sol
-
-protocol-upgrade-sf-aggregator:
-	@forge clean
-	@forge script deploy/saveFunds/upgrades/UpgradeSFStrategyAggregator.s.sol:UpgradeSFStrategyAggregator $(NETWORK_ARGS)
-	@cp contracts/saveFunds/protocol/SFStrategyAggregator.sol contracts/version_previous_contracts/SFStrategyAggregatorV1.sol
-
-# Token deployments
-tokens-deploy-nft:
-	@forge clean
-	@forge script deploy/tokens/nft/DeployRevShareNft.s.sol:DeployRevShareNft $(NETWORK_ARGS)
-	@cp contracts/tokens/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
-
-# Token upgrades
+# Tokens
 tokens-upgrade-nft:
 	@forge clean
 	@forge script deploy/tokens/nft/UpgradeRevShareNFT.s.sol:UpgradeRevShareNFT $(NETWORK_ARGS)
 	@cp contracts/tokens/RevShareNFT.sol contracts/version_previous_contracts/RevShareNFTV1.sol
 
-# CCIP deployments
-ccip-deploy-receiver:
-	@forge script deploy/ccip/00-DeploySaveInvestCCIPReceiver.s.sol:DeploySaveInvestCCIPReceiver $(NETWORK_ARGS)
-
-ccip-deploy-sender:
-	@forge clean
-	@forge script deploy/ccip/01-DeploySaveInvestCCIPSender.s.sol:DeploySaveInvestCCIPSender $(NETWORK_ARGS)
-
-# CCIP upgrades
+# ccip
 ccip-upgrade-sender:
 	@forge clean
-	@forge script deploy/ccip/02-UpgrapdeSaveInvestCCIPSender.s.sol:UpgrapdeSaveInvestCCIPSender $(NETWORK_ARGS)
+	@forge script deploy/ccip/UpgradeSaveInvestCCIPSender.s.sol:UpgradeSaveInvestCCIPSender $(NETWORK_ARGS)
 
-# CCIP testnet prep
-ccip-deploy-sf-usdc-testnet:
-	@forge script deploy/ccip/testnetPool/00-DeploySFUSDCCcipTestnet.s.sol:DeploySFUSDCCcipTestnet $(NETWORK_ARGS)
+# Automations
+upgrade-chainlink-invest-upkeep:
+	@forge clean
+	@forge script deploy/ccipAutomation/UpgradeSaveFundsInvestAutomationRunner.s.sol:UpgradeSaveFundsInvestAutomationRunner $(NETWORK_ARGS)
 
-ccip-deploy-sf-usdc-arb-sepolia-testnet:
-	@forge script deploy/ccip/testnetPool/00-DeploySFUSDCCcipTestnetArbSepolia.s.sol:DeploySFUSDCCcipTestnetArbSepolia $(NETWORK_ARGS)
+##########################################################################
+# =========================== UPGRADES PREPS =========================== #
+##########################################################################
 
-ccip-deploy-source-pool-testnet:
-	@forge script deploy/ccip/testnetPool/01-DeployBurnMintTokenPoolSourceTestnet.s.sol:DeployBurnMintTokenPoolSourceTestnet $(NETWORK_ARGS)
+# Referral gateway
+protocol-prepare-upgrade-referral:
+	@forge clean
+	@forge script deploy/protocol/referralGateway/PrepareReferralUpgrade.s.sol:PrepareReferralUpgrade $(NETWORK_ARGS)
+	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
+
+# Managers
+protocol-prepare-upgrade-module-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/PrepareModuleManagerUpgrade.s.sol:PrepareModuleManagerUpgrade $(NETWORK_ARGS)
+	@cp contracts/managers/ModuleManager.sol contracts/version_previous_contracts/ModuleManagerV1.sol
+
+protocol-prepare-upgrade-address-manager:
+	@forge clean
+	@forge script deploy/protocol/managers/PrepareAddressManagerUpgrade.s.sol:PrepareAddressManagerUpgrade $(NETWORK_ARGS)
+	@cp contracts/managers/AddressManager.sol contracts/version_previous_contracts/AddressManagerV1.sol
+
+# Modules
+protocol-prepare-upgrade-revshare:
+	@forge clean
+	@forge script deploy/protocol/modules/preps/PrepareRevShareModuleUpgrade.s.sol:PrepareRevShareModuleUpgrade $(NETWORK_ARGS)
+	@cp contracts/modules/RevShareModule.sol contracts/version_previous_contracts/RevShareModuleV1.sol
+
+# ccip
+protocol-prepare-upgrade-ccip-sender:
+	@forge clean
+	@forge script deploy/ccip/PrepareSaveInvestCCIPSenderUpgrade.s.sol:PrepareSaveInvestCCIPSenderUpgrade $(NETWORK_ARGS)
+
+# Automations
+prepare-chainlink-invest-upkeep-upgrade:
+	@forge clean
+	@forge script deploy/ccipAutomation/PrepareSaveFundsInvestAutomationRunnerUpgrade.s.sol:PrepareSaveFundsInvestAutomationRunnerUpgrade $(NETWORK_ARGS)
+
+########################################################################
+# =========================== INTERACTIONS =========================== #
+########################################################################
 
 ccip-source-pool-grant-roles-testnet:
 	@forge script deploy/ccip/testnetPool/02-GrantSourcePoolMintBurnRoles.s.sol:GrantSourcePoolMintBurnRoles $(NETWORK_ARGS)
 
 ccip-register-source-pool-testnet:
 	@forge script deploy/ccip/testnetPool/03-RegisterAndSetPoolSelfServe.s.sol:RegisterAndSetPoolSelfServe $(NETWORK_ARGS)
-
-ccip-deploy-dest-pool-testnet:
-	@forge script deploy/ccip/testnetPool/01-DeployBurnMintTokenPoolArbSepoliaTestnet.s.sol:DeployBurnMintTokenPoolArbSepoliaTestnet $(NETWORK_ARGS)
-
-ccip-deploy-dest-pool-testnet-legacy:
-	@forge script deploy/ccip/testnetPool/01-DeploySFUSDCMintUSDCOnlyPoolArbSepolia.s.sol:DeploySFUSDCMintUSDCOnlyPoolArbSepolia $(NETWORK_ARGS)
 
 ccip-configure-pool-lane-testnet:
 	@forge script deploy/ccip/testnetPool/05-ConfigureCcipPoolLanes.s.sol:ConfigureCcipPoolLanes $(NETWORK_ARGS)
@@ -217,25 +282,6 @@ ccip-allowlist-senders:
 
 ccip-test-send-message:
 	@forge script scripts/contract-interactions/ccip/TestSendSaveInvestCcipMessage.s.sol:TestSendSaveInvestCcipMessage $(NETWORK_ARGS)
-
-# Defender
-defender-validate-upgrade:
-	@forge clean
-	@forge script deploy/defender/00-DefenderValidateUpgrade.s.sol:DefenderValidateUpgrade 
-
-defender-prepare-referral-upgrade:
-	@forge clean
-	@forge script deploy/defender/DefenderPrepareReferralUpgrade.s.sol:DefenderPrepareReferralUpgrade $(NETWORK_ARGS)
-	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
-
-defender-prepare-ccip-sender-upgrade:
-	@forge clean
-	@forge script deploy/defender/DefenderPrepareCcipSenderUpgrade.s.sol:DefenderPrepareCcipSenderUpgrade $(NETWORK_ARGS)
-
-defender-upgrade-referral:
-	@forge clean
-	@forge script deploy/defender/02-DefenderUpgradeReferralGateway.s.sol:DefenderUpgradeReferralGateway $(NETWORK_ARGS)
-	@cp contracts/referrals/ReferralGateway.sol contracts/version_previous_contracts/ReferralGatewayV1.sol
 
 # Interactions with USDC
 mock-approve-spender:
@@ -255,24 +301,9 @@ config-strat:
 invest-into-strat:
 	@forge script scripts/contract-interactions/saveFunds/InvestIntoStrategy.s.sol:InvestIntoStrategy $(NETWORK_ARGS)
 
-deploy-simulations:
-	@forge clean
-	@forge script scripts/simulations/save-fund-sims/DeploySFSystemArbVNet.s.sol:DeploySFSystemArbVNet $(NETWORK_ARGS)
-
-deploy-chainlink-upkeep:
-	@forge script scripts/save-funds/interactions/DeploySaveFundsAutomationRunner.s.sol:DeploySaveFundsAutomationRunner $(NETWORK_ARGS)
-
-deploy-chainlink-invest-upkeep:
-	@forge clean
-	@forge script deploy/ccipAutomation/DeploySaveFundsInvestAutomationRunner.s.sol:DeploySaveFundsInvestAutomationRunner $(NETWORK_ARGS)
-
-prepare-chainlink-invest-upkeep-upgrade:
-	@forge clean
-	@forge script deploy/ccipAutomation/PrepareSaveFundsInvestAutomationRunnerUpgrade.s.sol:PrepareSaveFundsInvestAutomationRunnerUpgrade $(NETWORK_ARGS)
-
-upgrade-chainlink-invest-upkeep:
-	@forge clean
-	@forge script deploy/ccipAutomation/UpgradeSaveFundsInvestAutomationRunner.s.sol:UpgradeSaveFundsInvestAutomationRunner $(NETWORK_ARGS)
+####################################################################
+# =========================== NETWORKS =========================== #
+####################################################################
 
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
