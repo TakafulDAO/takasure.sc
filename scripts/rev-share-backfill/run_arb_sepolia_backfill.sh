@@ -519,7 +519,7 @@ main() {
     node scripts/rev-share-backfill/01-exportRevSharePioneers.js --chain "$CHAIN_FLAG"
 
     step 2 "Deploy ModuleManager on Arbitrum Sepolia"
-    make protocol-deploy-module-manager ARGS="$NETWORK_ARGS"
+    make protocol-deploy-module-manager ARGS="$NETWORK_ARGS" VERBOSITY_ARGS=""
 
     module_manager="$(read_broadcast_address "$REPO_ROOT/broadcast/DeployModuleManager.s.sol/$CHAIN_ID/run-latest.json")"
     update_deployment_json_address "$MODULE_MANAGER_JSON" "$module_manager"
@@ -527,7 +527,7 @@ main() {
     info "Updated $MODULE_MANAGER_JSON"
 
     step 3 "Deploy RevShareModule on Arbitrum Sepolia"
-    make modules-deploy-revshare ARGS="$NETWORK_ARGS"
+    make modules-deploy-revshare ARGS="$NETWORK_ARGS" VERBOSITY_ARGS=""
 
     revshare_module="$(read_broadcast_address "$REPO_ROOT/broadcast/DeployRevShareModule.s.sol/$CHAIN_ID/run-latest.json")"
     update_deployment_json_address "$REVSHARE_MODULE_JSON" "$revshare_module"
