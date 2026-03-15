@@ -72,6 +72,9 @@ build-backfill-execution-report:
 	@$(MAKE) build-revshare-allocations ARGS="$(ARGS)"
 	@node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js $(ARGS)
 
+testnet-backfill:
+	@bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh
+
 # ccip testnet migration
 protocol-migrate-sf-ccip-usdc-arb-sepolia:
 	@forge clean
