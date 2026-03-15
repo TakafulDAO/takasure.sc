@@ -8,6 +8,7 @@ ENV_FILE="$REPO_ROOT/.env"
 
 CHAIN_ID="421614"
 CHAIN_FLAG="arb-sep"
+NETWORK_ARGS="--network arb_sepolia"
 DEPLOYMENTS_DIR="$REPO_ROOT/deployments/testnet_arbitrum_sepolia"
 OUTPUT_DIR="$REPO_ROOT/scripts/rev-share-backfill/output/testnet"
 
@@ -22,8 +23,7 @@ PROTOCOL_TYPE_MODULE="2"
 PROTOCOL_TYPE_PROTOCOL="3"
 
 TOTAL_STEPS=11
-SKIP_DEPLOY=0
-REVIEW_ONLY=0
+VERIFY_SAMPLE_SIZE="${BACKFILL_VERIFY_SAMPLE_SIZE:-5}"
 
 step() {
     local number="$1"
@@ -39,31 +39,22 @@ info() {
 }
 
 parse_args() {
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --skip-deploy)
-                SKIP_DEPLOY=1
-                shift
-                ;;
-            --review-only)
-                REVIEW_ONLY=1
-                SKIP_DEPLOY=1
-                shift
-                ;;
-            --help)
-                echo "Usage: bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh [--skip-deploy] [--review-only]"
-                echo ""
-                echo "--skip-deploy  Reuse ModuleManager and RevShareModule from the Sepolia deployment JSON files"
-                echo "--review-only  Read-only check run: reuse current deployments and skip state-changing onchain steps"
-                exit 0
-                ;;
-            *)
-                echo "ERROR: Unknown argument: $1" >&2
-                echo "Try: bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh --help" >&2
-                exit 1
-                ;;
-        esac
-    done
+    if [[ $# -eq 0 ]]; then
+        return
+    fi
+
+    if [[ $# -eq 1 && "$1" == "--help" ]]; then
+        echo "Usage: bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh"
+        echo ""
+        echo "Runs the full repeatable Arbitrum Sepolia rev-share backfill flow."
+        echo "Each run redeploys ModuleManager and RevShareModule, rewrites their Sepolia deployment JSON files,"
+        echo "updates the module-related AddressManager entries, and only creates the token/NFT entries if missing."
+        exit 0
+    fi
+
+    echo "ERROR: Unknown argument(s): $*" >&2
+    echo "Try: bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh --help" >&2
+    exit 1
 }
 
 require_command() {
@@ -228,25 +219,33 @@ ensure_protocol_address() {
         --account "$TESTNET_ACCOUNT"
 }
 
-assert_protocol_address() {
+ensure_protocol_address_if_missing() {
     local address_manager="$1"
     local name="$2"
     local expected_address="$3"
+    local address_type="$4"
 
     local current_address
     current_address="$(get_protocol_address "$address_manager" "$name")"
 
     if [[ -z "$current_address" ]]; then
-        echo "ERROR: $name is missing in AddressManager." >&2
-        exit 1
+        info "$name is missing in AddressManager. Adding it."
+        cast send "$address_manager" \
+            "addProtocolAddress(string,address,uint8)" \
+            "$name" \
+            "$expected_address" \
+            "$address_type" \
+            --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
+            --account "$TESTNET_ACCOUNT"
+        return
     fi
 
-    if [[ "${current_address,,}" != "${expected_address,,}" ]]; then
-        echo "ERROR: $name points to $current_address, expected $expected_address." >&2
-        exit 1
+    if [[ "${current_address,,}" == "${expected_address,,}" ]]; then
+        info "$name already exists at $current_address"
+        return
     fi
 
-    info "$name verified at $current_address"
+    info "$name already exists at $current_address. Leaving it unchanged."
 }
 
 read_total_backfill_raw() {
@@ -264,10 +263,74 @@ process.stdout.write(String(json.totalBackfillRaw))
 NODE
 }
 
+read_verification_sample() {
+    local allocations_json="$1"
+    local sample_size="$2"
+
+    node - "$allocations_json" "$sample_size" <<'NODE'
+const fs = require("fs")
+
+const [filePath, sampleSizeRaw] = process.argv.slice(2)
+const sampleSize = Number(sampleSizeRaw)
+const json = JSON.parse(fs.readFileSync(filePath, "utf8"))
+const allocations = Array.isArray(json.allocations) ? json.allocations : []
+const revenueReceiver = String(json.revenueReceiver || "").toLowerCase()
+
+if (!Number.isInteger(sampleSize) || sampleSize <= 0) {
+    throw new Error(`Invalid sample size: ${sampleSizeRaw}`)
+}
+
+const pioneerAllocations = allocations.filter(
+    (allocation) => String(allocation.address || "").toLowerCase() !== revenueReceiver,
+)
+
+for (const allocation of pioneerAllocations.slice(0, sampleSize)) {
+    process.stdout.write(`${allocation.address},${allocation.amountRaw}\n`)
+}
+NODE
+}
+
+verify_backfill_sample() {
+    local allocations_json="$1"
+    local revshare_module="$2"
+    local rpc_url="$3"
+    local sample_size="$4"
+
+    local verified_count=0
+
+    while IFS=, read -r account expected_amount; do
+        [[ -z "${account:-}" ]] && continue
+
+        local actual_amount
+        actual_amount="$(cast call "$revshare_module" \
+            "revenuePerAccount(address)(uint256)" \
+            "$account" \
+            --rpc-url "$rpc_url")"
+        actual_amount="${actual_amount//$'\r'/}"
+        actual_amount="${actual_amount//$'\n'/}"
+
+        if [[ "$actual_amount" != "$expected_amount" ]]; then
+            echo "ERROR: Backfill verification failed for $account. Expected $expected_amount, got $actual_amount." >&2
+            exit 1
+        fi
+
+        info "Verified $account -> $actual_amount raw"
+        verified_count=$((verified_count + 1))
+    done < <(read_verification_sample "$allocations_json" "$sample_size")
+
+    if [[ "$verified_count" -eq 0 ]]; then
+        echo "ERROR: No pioneer allocations found to verify in $allocations_json" >&2
+        exit 1
+    fi
+
+    info "Verified $verified_count pioneer allocation(s) against revenuePerAccount(address)."
+}
+
 main() {
     parse_args "$@"
 
     require_command node
+    require_command make
     require_command forge
     require_command cast
     require_command bash
@@ -278,11 +341,8 @@ main() {
     require_env TESTNET_SUBGRAPH_URL
     require_env ARBITRUM_TESTNET_SEPOLIA_RPC_URL
     require_env TESTNET_DEPLOYER_ADDRESS
-
-    if [[ "$REVIEW_ONLY" != "1" ]]; then
-        require_env TESTNET_ACCOUNT
-        require_env TESTNET_PK
-    fi
+    require_env TESTNET_ACCOUNT
+    require_env TESTNET_PK
 
     require_file "$ADDRESS_MANAGER_JSON"
     require_file "$MODULE_MANAGER_JSON"
@@ -298,188 +358,113 @@ main() {
     local module_manager
     local revshare_module
     local total_backfill_raw
+    local allocations_json
 
     address_manager="$(json_address "$ADDRESS_MANAGER_JSON")"
     revshare_nft="$(json_address "$REVSHARE_NFT_JSON")"
     contribution_token="$(json_address "$USDC_JSON")"
-
-    if [[ "$REVIEW_ONLY" == "1" ]]; then
-        info "Review-only mode enabled."
-        info "This reuses the current Sepolia ModuleManager and RevShareModule deployment JSON addresses."
-        info "No state-changing onchain calls will be sent."
-        info "The script will refresh local outputs and verify the configured addresses it can read."
-    elif [[ "$SKIP_DEPLOY" == "1" ]]; then
-        info "Skip deploy mode enabled."
-        info "This reuses the current Sepolia ModuleManager and RevShareModule deployment JSON addresses."
-        info "It also skips the deployment-address writes into AddressManager."
-        info "Funding and backfill execution still run later in the flow."
-    fi
+    allocations_json="$OUTPUT_DIR/allocations/revshare_backfill_allocations.json"
 
     step 1 "Export current pioneers from the Sepolia subgraph"
     node scripts/rev-share-backfill/01-exportRevSharePioneers.js --chain "$CHAIN_FLAG"
 
     step 2 "Deploy ModuleManager on Arbitrum Sepolia"
-    if [[ "$SKIP_DEPLOY" == "1" ]]; then
-        module_manager="$(json_address "$MODULE_MANAGER_JSON")"
-        info "Skipping deployment. Reusing ModuleManager at $module_manager"
-    else
-        forge script deploy/protocol/managers/DeployModuleManager.s.sol:DeployModuleManager \
-            --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
-            --account "$TESTNET_ACCOUNT" \
-            --sender "$TESTNET_DEPLOYER_ADDRESS" \
-            --broadcast \
-            -vvvv
+    make protocol-deploy-module-manager ARGS="$NETWORK_ARGS"
 
-        module_manager="$(read_broadcast_address "$REPO_ROOT/broadcast/DeployModuleManager.s.sol/$CHAIN_ID/run-latest.json")"
-        update_deployment_json_address "$MODULE_MANAGER_JSON" "$module_manager"
-        info "ModuleManager deployed at $module_manager"
-        info "Updated $MODULE_MANAGER_JSON"
-    fi
+    module_manager="$(read_broadcast_address "$REPO_ROOT/broadcast/DeployModuleManager.s.sol/$CHAIN_ID/run-latest.json")"
+    update_deployment_json_address "$MODULE_MANAGER_JSON" "$module_manager"
+    info "ModuleManager deployed at $module_manager"
+    info "Updated $MODULE_MANAGER_JSON"
 
     step 3 "Deploy RevShareModule on Arbitrum Sepolia"
-    if [[ "$SKIP_DEPLOY" == "1" ]]; then
-        revshare_module="$(json_address "$REVSHARE_MODULE_JSON")"
-        info "Skipping deployment. Reusing RevShareModule at $revshare_module"
-    else
-        forge script deploy/protocol/modules/deploys/DeployRevShareModule.s.sol:DeployRevShareModule \
-            --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
-            --account "$TESTNET_ACCOUNT" \
-            --sender "$TESTNET_DEPLOYER_ADDRESS" \
-            --broadcast \
-            -vvvv
+    make modules-deploy-revshare ARGS="$NETWORK_ARGS"
 
-        revshare_module="$(read_broadcast_address "$REPO_ROOT/broadcast/DeployRevShareModule.s.sol/$CHAIN_ID/run-latest.json")"
-        update_deployment_json_address "$REVSHARE_MODULE_JSON" "$revshare_module"
-        info "RevShareModule deployed at $revshare_module"
-        info "Updated $REVSHARE_MODULE_JSON"
-    fi
+    revshare_module="$(read_broadcast_address "$REPO_ROOT/broadcast/DeployRevShareModule.s.sol/$CHAIN_ID/run-latest.json")"
+    update_deployment_json_address "$REVSHARE_MODULE_JSON" "$revshare_module"
+    info "RevShareModule deployed at $revshare_module"
+    info "Updated $REVSHARE_MODULE_JSON"
 
     step 4 "Ensure ADMIN__REVENUE_RECEIVER is configured in AddressManager"
-    if [[ "$REVIEW_ONLY" == "1" ]]; then
-        assert_protocol_address \
-            "$address_manager" \
-            "ADMIN__REVENUE_RECEIVER" \
-            "$TESTNET_DEPLOYER_ADDRESS"
-    else
-        ensure_protocol_address \
-            "$address_manager" \
-            "ADMIN__REVENUE_RECEIVER" \
-            "$TESTNET_DEPLOYER_ADDRESS" \
-            "$PROTOCOL_TYPE_ADMIN"
-    fi
+    ensure_protocol_address \
+        "$address_manager" \
+        "ADMIN__REVENUE_RECEIVER" \
+        "$TESTNET_DEPLOYER_ADDRESS" \
+        "$PROTOCOL_TYPE_ADMIN"
 
     step 5 "Build the RevShare backfill allocations"
     node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain "$CHAIN_FLAG"
 
     step 6 "Review the calculated backfill total"
-    total_backfill_raw="$(read_total_backfill_raw "$OUTPUT_DIR/allocations/revshare_backfill_allocations.json")"
+    total_backfill_raw="$(read_total_backfill_raw "$allocations_json")"
     info "totalBackfillRaw = $total_backfill_raw"
 
     step 7 "Wire AddressManager entries for the Sepolia flow"
-    if [[ "$REVIEW_ONLY" == "1" ]]; then
-        info "Review-only mode: verifying the reused deployment-address wiring."
-        assert_protocol_address \
-            "$address_manager" \
-            "PROTOCOL__MODULE_MANAGER" \
-            "$module_manager"
-        assert_protocol_address \
-            "$address_manager" \
-            "PROTOCOL__CONTRIBUTION_TOKEN" \
-            "$contribution_token"
-        assert_protocol_address \
-            "$address_manager" \
-            "PROTOCOL__REVSHARE_NFT" \
-            "$revshare_nft"
-        assert_protocol_address \
-            "$address_manager" \
-            "MODULE__REVSHARE" \
-            "$revshare_module"
-    elif [[ "$SKIP_DEPLOY" == "1" ]]; then
-        info "Skipping deployment-address wiring because --skip-deploy is enabled."
-        info "Expected reused addresses:"
-        info "PROTOCOL__MODULE_MANAGER -> $module_manager"
-        info "PROTOCOL__CONTRIBUTION_TOKEN -> $contribution_token"
-        info "PROTOCOL__REVSHARE_NFT -> $revshare_nft"
-        info "MODULE__REVSHARE -> $revshare_module"
-    else
-        info "Checking PROTOCOL__CONTRIBUTION_TOKEN and PROTOCOL__REVSHARE_NFT before writing them."
-        ensure_protocol_address \
-            "$address_manager" \
-            "PROTOCOL__MODULE_MANAGER" \
-            "$module_manager" \
-            "$PROTOCOL_TYPE_PROTOCOL"
-        ensure_protocol_address \
-            "$address_manager" \
-            "PROTOCOL__CONTRIBUTION_TOKEN" \
-            "$contribution_token" \
-            "$PROTOCOL_TYPE_PROTOCOL"
-        ensure_protocol_address \
-            "$address_manager" \
-            "PROTOCOL__REVSHARE_NFT" \
-            "$revshare_nft" \
-            "$PROTOCOL_TYPE_PROTOCOL"
-        ensure_protocol_address \
-            "$address_manager" \
-            "MODULE__REVSHARE" \
-            "$revshare_module" \
-            "$PROTOCOL_TYPE_MODULE"
-    fi
+    info "Refreshing the module-related entries and only creating the token/NFT entries if missing."
+    ensure_protocol_address \
+        "$address_manager" \
+        "PROTOCOL__MODULE_MANAGER" \
+        "$module_manager" \
+        "$PROTOCOL_TYPE_PROTOCOL"
+    ensure_protocol_address_if_missing \
+        "$address_manager" \
+        "PROTOCOL__CONTRIBUTION_TOKEN" \
+        "$contribution_token" \
+        "$PROTOCOL_TYPE_PROTOCOL"
+    ensure_protocol_address_if_missing \
+        "$address_manager" \
+        "PROTOCOL__REVSHARE_NFT" \
+        "$revshare_nft" \
+        "$PROTOCOL_TYPE_PROTOCOL"
+    ensure_protocol_address \
+        "$address_manager" \
+        "MODULE__REVSHARE" \
+        "$revshare_module" \
+        "$PROTOCOL_TYPE_MODULE"
 
     step 8 "Point RevShareNFT to AddressManager"
-    if [[ "$REVIEW_ONLY" == "1" ]]; then
-        info "Review-only mode: skipping RevShareNFT.setAddressManager(address)."
-        info "This script does not verify that value because RevShareNFT has no public getter for it."
-    else
-        cast send "$revshare_nft" \
-            "setAddressManager(address)" \
-            "$address_manager" \
-            --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
-            --account "$TESTNET_ACCOUNT"
-    fi
+    cast send "$revshare_nft" \
+        "setAddressManager(address)" \
+        "$address_manager" \
+        --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
+        --account "$TESTNET_ACCOUNT"
 
     step 9 "Mint Sepolia USDC-like tokens and fund RevShareModule"
-    if [[ "$REVIEW_ONLY" == "1" ]]; then
-        info "Review-only mode: skipping mint, approve, and depositNoStream."
-        info "Computed totalBackfillRaw remains $total_backfill_raw"
-    else
-        cast send "$contribution_token" \
-            "mintUSDC(address,uint256)" \
-            "$TESTNET_DEPLOYER_ADDRESS" \
-            "$total_backfill_raw" \
-            --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
-            --account "$TESTNET_ACCOUNT"
+    cast send "$contribution_token" \
+        "mintUSDC(address,uint256)" \
+        "$TESTNET_DEPLOYER_ADDRESS" \
+        "$total_backfill_raw" \
+        --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
+        --account "$TESTNET_ACCOUNT"
 
-        cast send "$contribution_token" \
-            "approve(address,uint256)" \
-            "$revshare_module" \
-            "$total_backfill_raw" \
-            --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
-            --account "$TESTNET_ACCOUNT"
+    cast send "$contribution_token" \
+        "approve(address,uint256)" \
+        "$revshare_module" \
+        "$total_backfill_raw" \
+        --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
+        --account "$TESTNET_ACCOUNT"
 
-        cast send "$revshare_module" \
-            "depositNoStream(uint256)" \
-            "$total_backfill_raw" \
-            --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
-            --account "$TESTNET_ACCOUNT"
-    fi
+    cast send "$revshare_module" \
+        "depositNoStream(uint256)" \
+        "$total_backfill_raw" \
+        --rpc-url "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
+        --account "$TESTNET_ACCOUNT"
 
     step 10 "Execute the backfill batches on Sepolia"
-    if [[ "$REVIEW_ONLY" == "1" ]]; then
-        info "Review-only mode: skipping onchain backfill execution."
-        info "You can inspect the prepared allocations at $OUTPUT_DIR/allocations/revshare_backfill_allocations.json"
-    else
-        node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain "$CHAIN_FLAG"
-    fi
+    node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain "$CHAIN_FLAG"
 
-    step 11 "Done"
+    step 11 "Verify sample backfilled balances onchain"
+    info "Checking the first $VERIFY_SAMPLE_SIZE pioneer allocation(s) from $allocations_json"
+    verify_backfill_sample \
+        "$allocations_json" \
+        "$revshare_module" \
+        "$ARBITRUM_TESTNET_SEPOLIA_RPC_URL" \
+        "$VERIFY_SAMPLE_SIZE"
+
+    step 12 "Done"
     info "Pioneers snapshot: $OUTPUT_DIR/pioneers/revshare_pioneers.json"
     info "Allocations output: $OUTPUT_DIR/allocations/revshare_backfill_allocations.json"
     info "Execution report: $OUTPUT_DIR/execution/revshare_backfill_execution_report.json"
-    if [[ "$REVIEW_ONLY" == "1" ]]; then
-        info "Sepolia rev-share review flow completed."
-    else
-        info "Sepolia rev-share backfill flow completed."
-    fi
+    info "Sepolia rev-share backfill flow completed."
 }
 
 main "$@"

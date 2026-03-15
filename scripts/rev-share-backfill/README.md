@@ -100,10 +100,12 @@ Set the values needed in the `.env` for each chain:
 - `TESTNET_PK`
 - `TESTNET_DEPLOYER_ADDRESS`
 - `BACKFILL_BATCH_SIZE`
+- `BACKFILL_VERIFY_SAMPLE_SIZE`
 
 Notes:
 
 - `BACKFILL_BATCH_SIZE` defaults to `20`.
+- `BACKFILL_VERIFY_SAMPLE_SIZE` defaults to `5` and is only used by the Sepolia wrapper script.
 
 ## Script Overview
 
@@ -298,9 +300,19 @@ Update the deployed proxy address into:
 7. Add the required `AddressManager` entries.
 
 For Arbitrum One, create the transactions in the Safe multisig and execute them once approved.
+
+For Arbitrum Sepolia, use this rule:
+
+- `PROTOCOL__MODULE_MANAGER`: if missing, add it; if it already exists, update it to the newly deployed `ModuleManager`
+- `MODULE__REVSHARE`: if missing, add it; if it already exists, update it to the newly deployed `RevShareModule`
+- `PROTOCOL__CONTRIBUTION_TOKEN`: if missing, add it using [USDC.json](C:/Users/maike/Desktop/Takadao/Takasure/Contracts/takasure.sc/deployments/testnet_arbitrum_sepolia/USDC.json); if it already exists, leave it unchanged
+- `PROTOCOL__REVSHARE_NFT`: if missing, add it using [RevShareNft.json](C:/Users/maike/Desktop/Takadao/Takasure/Contracts/takasure.sc/deployments/testnet_arbitrum_sepolia/RevShareNft.json); if it already exists, leave it unchanged
+
 ```bash
 source .env
 
+# PROTOCOL__MODULE_MANAGER
+# Add if missing, otherwise update to the newly deployed ModuleManager.
 cast send <ADDRESS_MANAGER> \
   "addProtocolAddress(string,address,uint8)" \
   "PROTOCOL__MODULE_MANAGER" \
@@ -310,6 +322,15 @@ cast send <ADDRESS_MANAGER> \
   --account $TESTNET_ACCOUNT
 
 cast send <ADDRESS_MANAGER> \
+  "updateProtocolAddress(string,address)" \
+  "PROTOCOL__MODULE_MANAGER" \
+  <MODULE_MANAGER> \
+  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
+  --account $TESTNET_ACCOUNT
+
+# PROTOCOL__CONTRIBUTION_TOKEN
+# Add if missing using deployments/testnet_arbitrum_sepolia/USDC.json, otherwise leave unchanged.
+cast send <ADDRESS_MANAGER> \
   "addProtocolAddress(string,address,uint8)" \
   "PROTOCOL__CONTRIBUTION_TOKEN" \
   <CONTRIBUTION_TOKEN> \
@@ -317,6 +338,8 @@ cast send <ADDRESS_MANAGER> \
   --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
   --account $TESTNET_ACCOUNT
 
+# PROTOCOL__REVSHARE_NFT
+# Add if missing using deployments/testnet_arbitrum_sepolia/RevShareNft.json, otherwise leave unchanged.
 cast send <ADDRESS_MANAGER> \
   "addProtocolAddress(string,address,uint8)" \
   "PROTOCOL__REVSHARE_NFT" \
@@ -325,11 +348,20 @@ cast send <ADDRESS_MANAGER> \
   --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
   --account $TESTNET_ACCOUNT
 
+# MODULE__REVSHARE
+# Add if missing, otherwise update to the newly deployed RevShareModule.
 cast send <ADDRESS_MANAGER> \
   "addProtocolAddress(string,address,uint8)" \
   "MODULE__REVSHARE" \
   <REVSHARE_MODULE> \
   2 \
+  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
+  --account $TESTNET_ACCOUNT
+
+cast send <ADDRESS_MANAGER> \
+  "updateProtocolAddress(string,address)" \
+  "MODULE__REVSHARE" \
+  <REVSHARE_MODULE> \
   --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
   --account $TESTNET_ACCOUNT
 ```
@@ -405,6 +437,39 @@ node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-sep
 node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-one --dry-run
 ```
 
+11. Verify a sample of backfilled accounts onchain before allowing claims or moving on to `notifyNewRevenue(...)`.
+
+Read the expected `amountRaw` values from:
+
+- `scripts/rev-share-backfill/output/<chain>/allocations/revshare_backfill_allocations.json`
+
+For each sampled address, compare the JSON `amountRaw` against `revenuePerAccount(address)` on `RevShareModule`.
+
+Manual `cast` command:
+
+```bash
+cast call <REVSHARE_MODULE> \
+  "revenuePerAccount(address)(uint256)" \
+  <ACCOUNT> \
+  --rpc-url <RPC_URL>
+```
+
+What to check:
+
+- `<ACCOUNT>` must exist in the matching `revshare_backfill_allocations.json`
+- the returned value must equal that address's `amountRaw`
+- do this before claims change `revenuePerAccount(address)`
+
+Example:
+
+```bash
+# Compare against scripts/rev-share-backfill/output/mainnet/allocations/revshare_backfill_allocations.json
+cast call <REVSHARE_MODULE> \
+  "revenuePerAccount(address)(uint256)" \
+  0x1234...abcd \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL
+```
+
 ### If you are rehearsing on Arbitrum Sepolia
 
 Run:
@@ -413,19 +478,7 @@ Run:
 bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh
 ```
 
-The script loads `.env` and runs the full Sepolia backfill flow end to end.
-
-To reuse the current Sepolia `ModuleManager` and `RevShareModule` from the deployment JSON files and skip the deployment-address writes into `AddressManager`:
-
-```bash
-bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh --skip-deploy
-```
-
-To do a read-only review run that refreshes the local export/allocation outputs, reuses the current Sepolia deployment JSON addresses, verifies the `AddressManager` entries, and skips all state-changing onchain calls:
-
-```bash
-bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh --review-only
-```
+The script loads `.env`, redeploys `ModuleManager` and `RevShareModule`, rewrites their Sepolia deployment JSON files, updates the module-related `AddressManager` entries to the new deployments, only creates the Sepolia contribution-token / RevShare-NFT entries if they are missing, and finally verifies the first `BACKFILL_VERIFY_SAMPLE_SIZE` pioneer allocations onchain against `revenuePerAccount(address)`.
 
 ## Contract Calls Used In This Flow
 
