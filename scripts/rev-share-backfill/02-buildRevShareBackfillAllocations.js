@@ -118,6 +118,7 @@ function parseArgs(argv) {
 
     return parsed
 }
+
 /*//////////////////////////////////////////////////////////////
                                 HELPERS
 //////////////////////////////////////////////////////////////*/
@@ -151,7 +152,9 @@ function buildOutputPaths(chainId) {
 
 function resolveChainId(cliChainId) {
     if (cliChainId === null) {
-        throw new Error("Missing required --chain flag. Expected --chain arb-one or --chain arb-sep.")
+        throw new Error(
+            "Missing required --chain flag. Expected --chain arb-one or --chain arb-sep.",
+        )
     }
 
     return cliChainId
@@ -218,7 +221,7 @@ function chainConfigFromChainId(chainId) {
     }
 
     throw new Error(
-        `Unsupported chainId ${chainId}. Expected ${ARBITRUM_ONE_CHAIN_ID} or ${ARBITRUM_SEPOLIA_CHAIN_ID}.`
+        `Unsupported chainId ${chainId}. Expected ${ARBITRUM_ONE_CHAIN_ID} or ${ARBITRUM_SEPOLIA_CHAIN_ID}.`,
     )
 }
 
@@ -248,7 +251,9 @@ function deriveBackfillWindow(pioneers) {
         for (const token of tokens) {
             const mintedAt = Number(token.mintedAt)
             if (!Number.isInteger(mintedAt)) {
-                throw new Error(`Invalid mintedAt while deriving backfill window for token ${token.tokenId}`)
+                throw new Error(
+                    `Invalid mintedAt while deriving backfill window for token ${token.tokenId}`,
+                )
             }
 
             if (oldestMintedAt === null || mintedAt < oldestMintedAt) {
@@ -258,9 +263,12 @@ function deriveBackfillWindow(pioneers) {
     }
 
     if (oldestMintedAt === null) {
-        throw new Error("Unable to derive backfillStartTs from pioneer export. No token mintedAt values found.")
+        throw new Error(
+            "Unable to derive backfillStartTs from pioneer export. No token mintedAt values found.",
+        )
     }
 
+    // Backfill starts when the oldest currently-held token first entered supply and ends at execution time.
     const backfillEndTs = Math.floor(Date.now() / 1000)
     if (!(oldestMintedAt < backfillEndTs)) {
         throw new Error(
@@ -282,6 +290,7 @@ function settleAccount(accountState, currentAccumulatorScaled) {
         throw new Error("Accumulator moved backwards while settling account")
     }
 
+    // Mirror RevShareModule's lazy accounting: settle pending revenue before mutating balance checkpoints.
     if (accountState.balance > 0n && deltaScaled > 0n) {
         accountState.revenueRaw += (accountState.balance * deltaScaled) / WAD
     }
@@ -290,6 +299,7 @@ function settleAccount(accountState, currentAccumulatorScaled) {
 }
 
 function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
+    // Turn token-level snapshots into the same inputs the module cares about: supply changes and balance changes over time.
     const tokenSnapshots = []
     const accountStates = new Map()
     const supplyDeltaByTs = new Map()
@@ -302,13 +312,13 @@ function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
 
         if (!tokens || tokens.length === 0) {
             throw new Error(
-                `Pioneer ${address} is missing token snapshots. Re-run 01-exportRevSharePioneers.js before script 02.`
+                `Pioneer ${address} is missing token snapshots. Re-run 01-exportRevSharePioneers.js before script 02.`,
             )
         }
 
         if (tokens.length !== Number(BigInt(pioneer.nftBalance))) {
             throw new Error(
-                `Token snapshot count mismatch for ${address}. nftBalance=${pioneer.nftBalance} tokens=${tokens.length}`
+                `Token snapshot count mismatch for ${address}. nftBalance=${pioneer.nftBalance} tokens=${tokens.length}`,
             )
         }
 
@@ -332,7 +342,7 @@ function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
             }
             if (mintedAt > holdingSince) {
                 throw new Error(
-                    `Invalid token timing for token ${tokenId}: mintedAt ${mintedAt} > holdingSince ${holdingSince}`
+                    `Invalid token timing for token ${tokenId}: mintedAt ${mintedAt} > holdingSince ${holdingSince}`,
                 )
             }
 
@@ -346,6 +356,7 @@ function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
             if (mintedAt <= backfillStartTs) {
                 // Token already existed at stream start.
             } else if (mintedAt < backfillEndTs) {
+                // mintedAt changes totalSupply, even if the final holder did not own the token yet.
                 supplyDeltaByTs.set(mintedAt, (supplyDeltaByTs.get(mintedAt) || 0n) + 1n)
                 checkpoints.add(mintedAt)
             }
@@ -353,6 +364,7 @@ function buildSimulationInputs(pioneers, backfillStartTs, backfillEndTs) {
             if (holdingSince <= backfillStartTs) {
                 accountState.balance += 1n
             } else if (holdingSince < backfillEndTs) {
+                // holdingSince changes the account balance used for settlement from that timestamp onward.
                 let addressDeltas = balanceIncreaseByTs.get(holdingSince)
                 if (!addressDeltas) {
                     addressDeltas = new Map()
@@ -387,6 +399,7 @@ function simulatePioneerAccrual(pioneersBackfillRaw, pioneers, backfillStartTs, 
         throw new Error("Time config invalid: require backfillStartTs < backfillEndTs")
     }
 
+    // Replay one synthetic RevShareModule stream across every timestamp where supply or balances can change.
     const {
         accountStates,
         supplyDeltaByTs,
@@ -422,6 +435,7 @@ function simulatePioneerAccrual(pioneersBackfillRaw, pioneers, backfillStartTs, 
             if (currentSupply > 0n) {
                 currentAccumulatorScaled += (elapsed * rewardRatePioneersScaled) / currentSupply
             } else {
+                // This matches the module: pioneer-side revenue emitted while supply is zero is lost as dust.
                 lostWhileSupplyZeroRaw += (elapsed * rewardRatePioneersScaled) / WAD
             }
         }
@@ -447,20 +461,28 @@ function simulatePioneerAccrual(pioneersBackfillRaw, pioneers, backfillStartTs, 
         settleAccount(accountState, currentAccumulatorScaled)
     }
 
-    const pioneerRevenueStats = Array.from(accountStates.entries()).map(([address, accountState]) => ({
-        address,
-        amountRaw: accountState.revenueRaw,
-    }))
+    const pioneerRevenueStats = Array.from(accountStates.entries()).map(
+        ([address, accountState]) => ({
+            address,
+            amountRaw: accountState.revenueRaw,
+        }),
+    )
 
     let highestRevenuePioneer = null
     let lowestRevenuePioneer = null
 
     for (const pioneerRevenueStat of pioneerRevenueStats) {
-        if (!highestRevenuePioneer || pioneerRevenueStat.amountRaw > highestRevenuePioneer.amountRaw) {
+        if (
+            !highestRevenuePioneer ||
+            pioneerRevenueStat.amountRaw > highestRevenuePioneer.amountRaw
+        ) {
             highestRevenuePioneer = pioneerRevenueStat
         }
 
-        if (!lowestRevenuePioneer || pioneerRevenueStat.amountRaw < lowestRevenuePioneer.amountRaw) {
+        if (
+            !lowestRevenuePioneer ||
+            pioneerRevenueStat.amountRaw < lowestRevenuePioneer.amountRaw
+        ) {
             lowestRevenuePioneer = pioneerRevenueStat
         }
     }
@@ -484,7 +506,9 @@ function simulatePioneerAccrual(pioneersBackfillRaw, pioneers, backfillStartTs, 
     }
 
     const averagePioneerRevenueRaw =
-        pioneerRevenueStats.length > 0 ? pioneersAllocatedRaw / BigInt(pioneerRevenueStats.length) : 0n
+        pioneerRevenueStats.length > 0
+            ? pioneersAllocatedRaw / BigInt(pioneerRevenueStats.length)
+            : 0n
 
     return {
         allocations,
@@ -517,11 +541,15 @@ async function resolveRevenueReceiver(chainId, testMode) {
         const testRevenueReceiver = process.env.TESTNET_DEPLOYER_ADDRESS || ""
 
         if (!testRevenueReceiver) {
-            throw new Error("TESTNET_DEPLOYER_ADDRESS is required when --test is enabled. Set it in .env and rerun.")
+            throw new Error(
+                "TESTNET_DEPLOYER_ADDRESS is required when --test is enabled. Set it in .env and rerun.",
+            )
         }
 
         if (!ethers.utils.isAddress(testRevenueReceiver)) {
-            throw new Error("TESTNET_DEPLOYER_ADDRESS is not a valid address. Fix it in .env and rerun.")
+            throw new Error(
+                "TESTNET_DEPLOYER_ADDRESS is not a valid address. Fix it in .env and rerun.",
+            )
         }
 
         console.log(`Using TESTNET_DEPLOYER_ADDRESS for --test mode: ${testRevenueReceiver}`)
@@ -542,15 +570,23 @@ async function resolveRevenueReceiver(chainId, testMode) {
     }
 
     if (!addressManagerAddress || addressManagerAddress === "0x") {
-        throw new Error("ADDRESS_MANAGER_ADDRESS is missing or invalid. Set it correctly and rerun the script.")
+        throw new Error(
+            "ADDRESS_MANAGER_ADDRESS is missing or invalid. Set it correctly and rerun the script.",
+        )
     }
 
     console.log(`Connecting to AddressManager at ${addressManagerAddress}`)
     const provider = new ethers.providers.JsonRpcProvider(chainCfg.rpcUrl)
-    const addressManager = new ethers.Contract(addressManagerAddress, addressManagerDeployment.abi, provider)
+    const addressManager = new ethers.Contract(
+        addressManagerAddress,
+        addressManagerDeployment.abi,
+        provider,
+    )
 
     try {
-        const protocolAddress = await addressManager.getProtocolAddressByName(ADMIN_REVENUE_RECEIVER_KEY)
+        const protocolAddress = await addressManager.getProtocolAddressByName(
+            ADMIN_REVENUE_RECEIVER_KEY,
+        )
         const resolvedAddress = protocolAddress.addr || protocolAddress[1]
 
         if (!resolvedAddress || resolvedAddress === ethers.constants.AddressZero) {
@@ -614,13 +650,17 @@ async function main() {
 
     logSection("Backfill Window")
     const { backfillStartTs, backfillEndTs } = deriveBackfillWindow(pioneers)
-    console.log(`Derived backfillStartTs: ${backfillStartTs} (${formatUnixTimestamp(backfillStartTs)})`)
+    console.log(
+        `Derived backfillStartTs: ${backfillStartTs} (${formatUnixTimestamp(backfillStartTs)})`,
+    )
     console.log(`Derived backfillEndTs:   ${backfillEndTs} (${formatUnixTimestamp(backfillEndTs)})`)
     console.log("")
 
     logSection("Revenue Split")
     const totalBackfillRaw = parseAmountToRaw(TOTAL_BACKFILL_TOKENS, TOKEN_DECIMALS)
-    console.log(`TOTAL_BACKFILL: ${TOTAL_BACKFILL_TOKENS} tokens = ${totalBackfillRaw.toString()} raw`)
+    console.log(
+        `TOTAL_BACKFILL: ${TOTAL_BACKFILL_TOKENS} tokens = ${totalBackfillRaw.toString()} raw`,
+    )
 
     const pioneersBackfillRaw = (totalBackfillRaw * PIONEERS_SHARE_BPS) / BPS_DENOMINATOR
     const takadaoShareRaw = totalBackfillRaw - pioneersBackfillRaw
@@ -628,47 +668,52 @@ async function main() {
     console.log(
         `Pioneers share (75%) raw: ${pioneersBackfillRaw.toString()} (~${formatRaw(
             pioneersBackfillRaw,
-            TOKEN_DECIMALS
-        )} tokens)`
+            TOKEN_DECIMALS,
+        )} tokens)`,
     )
     console.log(
         `Takadao share (25%) raw: ${takadaoShareRaw.toString()} (~${formatRaw(
             takadaoShareRaw,
-            TOKEN_DECIMALS
-        )} tokens)`
+            TOKEN_DECIMALS,
+        )} tokens)`,
     )
     console.log("")
 
-    const pioneerSimulation = simulatePioneerAccrual(pioneersBackfillRaw, pioneers, backfillStartTs, backfillEndTs)
+    const pioneerSimulation = simulatePioneerAccrual(
+        pioneersBackfillRaw,
+        pioneers,
+        backfillStartTs,
+        backfillEndTs,
+    )
+    // Takadao accrues as one global bucket over the same duration, without any supply-dependent splitting.
     const rewardRateTakadaoScaled = (takadaoShareRaw * WAD) / pioneerSimulation.rewardsDuration
-    const takadaoAllocatedRaw =
-        (pioneerSimulation.rewardsDuration * rewardRateTakadaoScaled) / WAD
+    const takadaoAllocatedRaw = (pioneerSimulation.rewardsDuration * rewardRateTakadaoScaled) / WAD
     const takadaoDustRaw = takadaoShareRaw - takadaoAllocatedRaw
 
     logSection("Allocation Totals")
     console.log(
         `Pioneers allocated raw: ${pioneerSimulation.pioneersAllocatedRaw.toString()} (~${formatRaw(
             pioneerSimulation.pioneersAllocatedRaw,
-            TOKEN_DECIMALS
-        )} tokens)`
+            TOKEN_DECIMALS,
+        )} tokens)`,
     )
     console.log(
         `Pioneers dust raw:      ${pioneerSimulation.pioneersDustRaw.toString()} (~${formatRaw(
             pioneerSimulation.pioneersDustRaw,
-            TOKEN_DECIMALS
-        )} tokens)`
+            TOKEN_DECIMALS,
+        )} tokens)`,
     )
     console.log(
         `Takadao allocated raw:  ${takadaoAllocatedRaw.toString()} (~${formatRaw(
             takadaoAllocatedRaw,
-            TOKEN_DECIMALS
-        )} tokens)`
+            TOKEN_DECIMALS,
+        )} tokens)`,
     )
     console.log(
         `Takadao dust raw:       ${takadaoDustRaw.toString()} (~${formatRaw(
             takadaoDustRaw,
-            TOKEN_DECIMALS
-        )} tokens)`
+            TOKEN_DECIMALS,
+        )} tokens)`,
     )
     console.log("")
 
@@ -677,7 +722,7 @@ async function main() {
         console.log(
             `Highest revenue pioneer: ${pioneerSimulation.highestRevenuePioneer.address} (${formatRaw(
                 BigInt(pioneerSimulation.highestRevenuePioneer.amountRaw),
-                TOKEN_DECIMALS
+                TOKEN_DECIMALS,
             )} USDC)`,
         )
     }
@@ -685,14 +730,14 @@ async function main() {
         console.log(
             `Lowest revenue pioneer:  ${pioneerSimulation.lowestRevenuePioneer.address} (${formatRaw(
                 BigInt(pioneerSimulation.lowestRevenuePioneer.amountRaw),
-                TOKEN_DECIMALS
+                TOKEN_DECIMALS,
             )} USDC)`,
         )
     }
     console.log(
         `Average pioneer revenue: ${formatRaw(
             BigInt(pioneerSimulation.averagePioneerRevenueRaw),
-            TOKEN_DECIMALS
+            TOKEN_DECIMALS,
         )} USDC across ${pioneerSimulation.pioneersWithBalanceCount} pioneers`,
     )
     console.log("")
@@ -713,18 +758,19 @@ async function main() {
         sumAllAlloc += BigInt(allocation.amountRaw)
     }
 
-    const totalModuleDustRaw = totalBackfillRaw - pioneerSimulation.pioneersAllocatedRaw - takadaoAllocatedRaw
+    const totalModuleDustRaw =
+        totalBackfillRaw - pioneerSimulation.pioneersAllocatedRaw - takadaoAllocatedRaw
 
     console.log("")
     logSection("Final Totals")
     console.log(
-        `Sum of ALL allocations: ${sumAllAlloc.toString()} raw (~${formatRaw(sumAllAlloc, TOKEN_DECIMALS)} tokens)`
+        `Sum of ALL allocations: ${sumAllAlloc.toString()} raw (~${formatRaw(sumAllAlloc, TOKEN_DECIMALS)} tokens)`,
     )
     console.log(
         `Total module-like dust: ${totalModuleDustRaw.toString()} raw (~${formatRaw(
             totalModuleDustRaw,
-            TOKEN_DECIMALS
-        )} tokens)`
+            TOKEN_DECIMALS,
+        )} tokens)`,
     )
 
     const outputJson = {
