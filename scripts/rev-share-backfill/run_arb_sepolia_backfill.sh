@@ -11,6 +11,11 @@ CHAIN_FLAG="arb-sep"
 NETWORK_ARGS="--network arb_sepolia"
 DEPLOYMENTS_DIR="$REPO_ROOT/deployments/testnet_arbitrum_sepolia"
 OUTPUT_DIR="$REPO_ROOT/scripts/rev-share-backfill/output/testnet"
+PIONEERS_SOURCE_CHAIN_FLAG="$CHAIN_FLAG"
+PIONEERS_SOURCE_SCOPE="testnet"
+PIONEERS_SOURCE_LABEL="Arbitrum Sepolia"
+PIONEERS_SOURCE_ENV_VAR="TESTNET_SUBGRAPH_URL"
+PIONEERS_OUTPUT_DIR="$OUTPUT_DIR"
 
 ADDRESS_MANAGER_JSON="$DEPLOYMENTS_DIR/AddressManager.json"
 MODULE_MANAGER_JSON="$DEPLOYMENTS_DIR/ModuleManager.json"
@@ -43,18 +48,55 @@ parse_args() {
         return
     fi
 
-    if [[ $# -eq 1 && "$1" == "--help" ]]; then
-        echo "Usage: bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh"
-        echo ""
-        echo "Runs the full repeatable Arbitrum Sepolia rev-share backfill flow."
-        echo "Each run redeploys ModuleManager and RevShareModule, rewrites their Sepolia deployment JSON files,"
-        echo "updates the module-related AddressManager entries, and only creates the token/NFT entries if missing."
-        exit 0
-    fi
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --help)
+                echo "Usage: bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh [--pioneers-source arb-one|arb-sep]"
+                echo ""
+                echo "Runs the full repeatable Arbitrum Sepolia rev-share backfill flow."
+                echo "Each run redeploys ModuleManager and RevShareModule, rewrites their Sepolia deployment JSON files,"
+                echo "updates the module-related AddressManager entries, and only creates the token/NFT entries if missing."
+                echo ""
+                echo "Flags:"
+                echo "  --pioneers-source <arb-one|arb-sep>  Select whether the pioneer snapshot comes from mainnet or Sepolia."
+                echo "                                      Execution still happens on Arbitrum Sepolia."
+                exit 0
+                ;;
+            --pioneers-source)
+                if [[ $# -lt 2 ]]; then
+                    echo "ERROR: Missing value for --pioneers-source. Expected arb-one or arb-sep." >&2
+                    exit 1
+                fi
 
-    echo "ERROR: Unknown argument(s): $*" >&2
-    echo "Try: bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh --help" >&2
-    exit 1
+                case "$2" in
+                    arb-one)
+                        PIONEERS_SOURCE_CHAIN_FLAG="arb-one"
+                        PIONEERS_SOURCE_SCOPE="mainnet"
+                        PIONEERS_SOURCE_LABEL="Arbitrum One"
+                        PIONEERS_SOURCE_ENV_VAR="MAINNET_SUBGRAPH_URL"
+                        PIONEERS_OUTPUT_DIR="$REPO_ROOT/scripts/rev-share-backfill/output/mainnet"
+                        ;;
+                    arb-sep)
+                        PIONEERS_SOURCE_CHAIN_FLAG="arb-sep"
+                        PIONEERS_SOURCE_SCOPE="testnet"
+                        PIONEERS_SOURCE_LABEL="Arbitrum Sepolia"
+                        PIONEERS_SOURCE_ENV_VAR="TESTNET_SUBGRAPH_URL"
+                        PIONEERS_OUTPUT_DIR="$OUTPUT_DIR"
+                        ;;
+                    *)
+                        echo "ERROR: Invalid value for --pioneers-source: $2. Expected arb-one or arb-sep." >&2
+                        exit 1
+                        ;;
+                esac
+                shift 2
+                ;;
+            *)
+                echo "ERROR: Unknown argument(s): $*" >&2
+                echo "Try: bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh --help" >&2
+                exit 1
+                ;;
+        esac
+    done
 }
 
 require_command() {
@@ -483,7 +525,7 @@ main() {
 
     load_env
 
-    require_env TESTNET_SUBGRAPH_URL
+    require_env "$PIONEERS_SOURCE_ENV_VAR"
     require_env ARBITRUM_TESTNET_SEPOLIA_RPC_URL
     require_env TESTNET_DEPLOYER_ADDRESS
     require_env TESTNET_ACCOUNT
@@ -510,8 +552,8 @@ main() {
     contribution_token="$(json_address "$USDC_JSON")"
     allocations_json="$OUTPUT_DIR/allocations/revshare_backfill_allocations.json"
 
-    step 1 "Export current pioneers from the Sepolia subgraph"
-    node scripts/rev-share-backfill/01-exportRevSharePioneers.js --chain "$CHAIN_FLAG"
+    step 1 "Export current pioneers from the $PIONEERS_SOURCE_LABEL subgraph"
+    node scripts/rev-share-backfill/01-exportRevSharePioneers.js --chain "$PIONEERS_SOURCE_CHAIN_FLAG"
 
     step 2 "Deploy ModuleManager on Arbitrum Sepolia"
     make protocol-deploy-module-manager ARGS="$NETWORK_ARGS" VERBOSITY_ARGS=""
@@ -530,7 +572,10 @@ main() {
     info "Updated $REVSHARE_MODULE_JSON"
 
     step 4 "Build the pioneers-only RevShare backfill allocations"
-    node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain "$CHAIN_FLAG" --test
+    node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js \
+        --chain "$CHAIN_FLAG" \
+        --pioneers-chain "$PIONEERS_SOURCE_CHAIN_FLAG" \
+        --test
 
     step 5 "Review the calculated backfill total"
     total_backfill_raw="$(read_total_backfill_raw "$allocations_json")"
@@ -639,7 +684,7 @@ main() {
         "$VERIFY_SAMPLE_SIZE"
 
     step 12 "Done"
-    info "Pioneers snapshot: $OUTPUT_DIR/pioneers/revshare_pioneers.json"
+    info "Pioneers snapshot: $PIONEERS_OUTPUT_DIR/pioneers/revshare_pioneers.json"
     info "Allocations output: $OUTPUT_DIR/allocations/revshare_backfill_allocations.json"
     info "Execution report: $OUTPUT_DIR/execution/revshare_backfill_execution_report.json"
     info "Sepolia rev-share backfill flow completed."

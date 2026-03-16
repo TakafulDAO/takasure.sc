@@ -205,6 +205,7 @@ Examples:
 ```bash
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --test
+node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --pioneers-chain arb-one --test
 ```
 
 ### 03-runRevShareBackfillBatches.js
@@ -266,6 +267,9 @@ node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain a
 
 # Arbitrum Sepolia rehearsal before ADMIN__REVENUE_RECEIVER is wired
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --test
+
+# Arbitrum Sepolia execution using the mainnet pioneer snapshot
+node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --pioneers-chain arb-one --test
 ```
 
 4. Deploy `ModuleManager`.
@@ -441,6 +445,9 @@ Run:
 
 ```bash
 make testnet-backfill
+
+# Same Sepolia rehearsal, but using the mainnet pioneer snapshot
+make testnet-backfill ARGS="--pioneers-source arb-one"
 ```
 
 The wrapper loads `.env`, redeploys `ModuleManager` and `RevShareModule`,
@@ -449,6 +456,11 @@ rewrites their Sepolia deployment JSON files, updates the module-related
 allocation set with `--test`, funds the module with that pioneers-only total,
 and finally verifies the first `BACKFILL_VERIFY_SAMPLE_SIZE` backfilled
 accounts onchain against `revenuePerAccount(address)`.
+
+When `--pioneers-source arb-one` is used, the execution still happens entirely
+on Arbitrum Sepolia, but the pioneer snapshot is exported from the mainnet
+subgraph first. This is useful for rehearsing the most mainnet-like pioneer
+state without creating Safe proposals or moving mainnet funds.
 
 ## Contract Calls Used In This Flow
 

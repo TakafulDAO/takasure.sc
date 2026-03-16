@@ -31,6 +31,8 @@ Builds the pioneers-only RevShare backfill allocation output using the same
 per-NFT accumulator model as RevShareModule's pioneers stream.
 
 Input file:
+- default: the pioneer export from the same --chain
+- optional override: --pioneers-chain <arb-one|arb-sep>
 - arb-one -> scripts/rev-share-backfill/output/mainnet/pioneers/revshare_pioneers.json
 - arb-sep -> scripts/rev-share-backfill/output/testnet/pioneers/revshare_pioneers.json
 
@@ -56,12 +58,14 @@ Backfill window:
 
 Flags:
 - --chain <arb-one|arb-sep>  Select the input/output directory set
+- --pioneers-chain <arb-one|arb-sep>  Override the pioneer snapshot source while keeping outputs on --chain
 - --test [true|false]  Use TESTNET_DEPLOYER_ADDRESS as the excluded pioneer address. If the value is omitted, true is assumed.
 - --help               Show this help message
 
 Examples:
 - node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one
 - node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --test
+- node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --pioneers-chain arb-one --test
 - node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one --test false
 `)
 }
@@ -76,6 +80,7 @@ function parseBooleanFlagValue(flagName, value) {
 function parseArgs(argv) {
     const parsed = {
         chainId: null,
+        pioneersChainId: null,
         showHelp: false,
         testMode: false,
     }
@@ -100,6 +105,24 @@ function parseArgs(argv) {
             }
 
             parsed.chainId = chainId
+            i += 1
+            continue
+        }
+
+        if (arg === "--pioneers-chain") {
+            const value = argv[i + 1]
+            if (!value) {
+                throw new Error("Missing value for --pioneers-chain. Expected arb-one or arb-sep.")
+            }
+
+            const pioneersChainId = CHAIN_FLAG_TO_ID[value]
+            if (!pioneersChainId) {
+                throw new Error(
+                    `Invalid --pioneers-chain value: ${value}. Expected arb-one or arb-sep.`,
+                )
+            }
+
+            parsed.pioneersChainId = pioneersChainId
             i += 1
             continue
         }
@@ -139,16 +162,22 @@ function outputScopeName(chainId) {
     throw new Error(`Unsupported chainId for output scope: ${chainId}`)
 }
 
-function buildOutputPaths(chainId) {
+function buildOutputPaths(chainId, pioneersChainId = chainId) {
     const outputRoot = path.join(
         process.cwd(),
         "scripts/rev-share-backfill/output",
         outputScopeName(chainId),
     )
+    const pioneersOutputRoot = path.join(
+        process.cwd(),
+        "scripts/rev-share-backfill/output",
+        outputScopeName(pioneersChainId),
+    )
 
     return {
         outputRoot,
-        pioneersJson: path.join(outputRoot, "pioneers", "revshare_pioneers.json"),
+        pioneersOutputRoot,
+        pioneersJson: path.join(pioneersOutputRoot, "pioneers", "revshare_pioneers.json"),
         allocationsJson: path.join(outputRoot, "allocations", "revshare_backfill_allocations.json"),
         allocationsCsv: path.join(outputRoot, "allocations", "revshare_backfill_allocations.csv"),
     }
@@ -162,6 +191,10 @@ function resolveChainId(cliChainId) {
     }
 
     return cliChainId
+}
+
+function resolvePioneersChainId(cliPioneersChainId, executionChainId) {
+    return cliPioneersChainId === null ? executionChainId : cliPioneersChainId
 }
 
 function parseAmountToRaw(amountStr, decimals) {
@@ -640,18 +673,22 @@ async function main() {
     }
 
     const chainId = resolveChainId(cli.chainId)
-    const outputPaths = buildOutputPaths(chainId)
+    const pioneersSourceChainId = resolvePioneersChainId(cli.pioneersChainId, chainId)
+    const outputPaths = buildOutputPaths(chainId, pioneersSourceChainId)
 
     console.log("=== Build RevShare pioneers-only backfill allocations ===")
     console.log("")
     logSection("Configuration")
-    console.log(`Using output scope: ${outputScopeName(chainId)} (${chainName(chainId)})`)
+    console.log(`Using execution/output scope: ${outputScopeName(chainId)} (${chainName(chainId)})`)
+    console.log(
+        `Using pioneers source scope: ${outputScopeName(pioneersSourceChainId)} (${chainName(pioneersSourceChainId)})`,
+    )
     console.log(`Backfill mode: ${BACKFILL_MODE}`)
     console.log(`Configured pioneers backfill: ${PIONEERS_BACKFILL_TOKENS} USDC`)
 
     if (!fs.existsSync(outputPaths.pioneersJson)) {
         throw new Error(
-            `Pioneers file not found at ${outputPaths.pioneersJson}. Run 01-exportRevSharePioneers.js with the same --chain first.`,
+            `Pioneers file not found at ${outputPaths.pioneersJson}. Run 01-exportRevSharePioneers.js with --chain ${pioneersSourceChainId === ARBITRUM_ONE_CHAIN_ID ? "arb-one" : "arb-sep"} first.`,
         )
     }
 
@@ -662,19 +699,20 @@ async function main() {
         throw new Error("No pioneers found in revshare_pioneers.json")
     }
 
-    const pioneersChainId = Number(pioneersJson.chainId)
-    if (!Number.isInteger(pioneersChainId)) {
+    const pioneersSnapshotChainId = Number(pioneersJson.chainId)
+    if (!Number.isInteger(pioneersSnapshotChainId)) {
         throw new Error("Pioneers file is missing a valid chainId")
     }
-    if (pioneersChainId !== chainId) {
+    if (pioneersSnapshotChainId !== pioneersSourceChainId) {
         throw new Error(
-            `Pioneers file chainId ${pioneersChainId} does not match --chain ${chainId}. Use the matching output directory.`,
+            `Pioneers file chainId ${pioneersSnapshotChainId} does not match --pioneers-chain ${pioneersSourceChainId}. Use the matching pioneer export.`,
         )
     }
 
     const chainCfg = chainConfigFromChainId(chainId)
     console.log(`Loaded ${pioneers.length} pioneers from ${outputPaths.pioneersJson}`)
-    console.log(`Using chainId ${chainId} (${chainCfg.network})`)
+    console.log(`Execution chainId ${chainId} (${chainCfg.network})`)
+    console.log(`Pioneers source chainId ${pioneersSourceChainId} (${chainName(pioneersSourceChainId)})`)
     console.log(`Test mode: ${cli.testMode ? "enabled" : "disabled"}`)
     console.log("")
 
@@ -783,6 +821,9 @@ async function main() {
     const outputJson = {
         chainId,
         network: chainCfg.network,
+        pioneersSourceChainId,
+        pioneersSourceNetwork: chainName(pioneersSourceChainId),
+        pioneersSourceFile: outputPaths.pioneersJson,
         snapshotBlock: pioneersJson.snapshotBlock ?? null,
         tokenDecimals: TOKEN_DECIMALS,
         backfillMode: BACKFILL_MODE,
