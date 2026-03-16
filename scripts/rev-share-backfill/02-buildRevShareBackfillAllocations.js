@@ -18,19 +18,17 @@ const WAD = 10n ** 18n
 // USDC decimals
 const TOKEN_DECIMALS = 6
 
-// Todo: Change this to the real amount
-const TOTAL_BACKFILL_TOKENS = "4873.628213" // in human units, "100000" means 100,000 USDC
-
-// Pioneers' share in basis points (75% = 7500 bps)
-const PIONEERS_SHARE_BPS = 7500n
-const BPS_DENOMINATOR = 10000n
+// Historical backfill is pioneers-only because Takadao is already settled off-module.
+const BACKFILL_MODE = "pioneers-only"
+const PIONEERS_BACKFILL_TOKENS = "4873.628213" // workbook 1. Revenue!B73 in human units
 
 const ADMIN_REVENUE_RECEIVER_KEY = "ADMIN__REVENUE_RECEIVER"
 
 function printHelp() {
     console.log(`RevShare backfill allocation builder
 
-Builds the RevShare backfill allocation output using the same accumulator model as RevShareModule.
+Builds the pioneers-only RevShare backfill allocation output using the same
+per-NFT accumulator model as RevShareModule's pioneers stream.
 
 Input file:
 - arb-one -> scripts/rev-share-backfill/output/mainnet/pioneers/revshare_pioneers.json
@@ -42,9 +40,15 @@ Output files:
 - arb-sep -> scripts/rev-share-backfill/output/testnet/allocations/revshare_backfill_allocations.json
 - arb-sep -> scripts/rev-share-backfill/output/testnet/allocations/revshare_backfill_allocations.csv
 
-Revenue receiver behavior:
+Backfill mode:
+- Fixed: ${BACKFILL_MODE}
+- Takadao is assumed to be already settled off-module
+- No Takadao allocation row is emitted by this script
+
+Excluded pioneer behavior:
 - Default: resolve ADMIN__REVENUE_RECEIVER from AddressManager
 - Test mode: use TESTNET_DEPLOYER_ADDRESS from .env instead
+- If that address currently holds NFTs, it is excluded from pioneer accrual to mirror RevShareModule's pioneers stream
 
 Backfill window:
 - Start: earliest token mintedAt found in the pioneer export JSON
@@ -52,7 +56,7 @@ Backfill window:
 
 Flags:
 - --chain <arb-one|arb-sep>  Select the input/output directory set
-- --test [true|false]  Use TESTNET_DEPLOYER_ADDRESS for the Takadao allocation row. If the value is omitted, true is assumed.
+- --test [true|false]  Use TESTNET_DEPLOYER_ADDRESS as the excluded pioneer address. If the value is omitted, true is assumed.
 - --help               Show this help message
 
 Examples:
@@ -558,7 +562,7 @@ function simulatePioneerAccrual(
     }
 }
 
-async function resolveRevenueReceiver(chainId, testMode) {
+async function resolveExcludedPioneerAddress(chainId, testMode) {
     if (testMode) {
         const testRevenueReceiver = process.env.TESTNET_DEPLOYER_ADDRESS || ""
 
@@ -574,7 +578,9 @@ async function resolveRevenueReceiver(chainId, testMode) {
             )
         }
 
-        console.log(`Using TESTNET_DEPLOYER_ADDRESS for --test mode: ${testRevenueReceiver}`)
+        console.log(
+            `Using TESTNET_DEPLOYER_ADDRESS for --test mode as the excluded pioneer address: ${testRevenueReceiver}`,
+        )
         return normalizeAddress(testRevenueReceiver)
     }
 
@@ -636,10 +642,12 @@ async function main() {
     const chainId = resolveChainId(cli.chainId)
     const outputPaths = buildOutputPaths(chainId)
 
-    console.log("=== Build RevShare backfill allocations (RevShareModule math) ===")
+    console.log("=== Build RevShare pioneers-only backfill allocations ===")
     console.log("")
     logSection("Configuration")
     console.log(`Using output scope: ${outputScopeName(chainId)} (${chainName(chainId)})`)
+    console.log(`Backfill mode: ${BACKFILL_MODE}`)
+    console.log(`Configured pioneers backfill: ${PIONEERS_BACKFILL_TOKENS} USDC`)
 
     if (!fs.existsSync(outputPaths.pioneersJson)) {
         throw new Error(
@@ -670,16 +678,18 @@ async function main() {
     console.log(`Test mode: ${cli.testMode ? "enabled" : "disabled"}`)
     console.log("")
 
-    logSection("Revenue Receiver")
-    const revenueReceiver = await resolveRevenueReceiver(chainId, cli.testMode)
-    console.log(`ADMIN__REVENUE_RECEIVER resolved to: ${revenueReceiver}`)
-
-    const revenueReceiverPioneer = pioneers.find(
-        (pioneer) => normalizeAddress(pioneer.address) === revenueReceiver,
+    logSection("Excluded Pioneer Address")
+    const excludedPioneerAddress = await resolveExcludedPioneerAddress(chainId, cli.testMode)
+    console.log(
+        `ADMIN__REVENUE_RECEIVER resolved to: ${excludedPioneerAddress} (used only for pioneer exclusion)`,
     )
-    if (revenueReceiverPioneer) {
+
+    const excludedPioneer = pioneers.find(
+        (pioneer) => normalizeAddress(pioneer.address) === excludedPioneerAddress,
+    )
+    if (excludedPioneer) {
         console.log(
-            `Revenue receiver currently holds ${revenueReceiverPioneer.nftBalance} NFT(s) and will be excluded from pioneer accrual to mirror RevShareModule behavior.`,
+            `Excluded pioneer address currently holds ${excludedPioneer.nftBalance} NFT(s) and will be excluded from pioneer accrual to mirror RevShareModule behavior.`,
         )
     }
     console.log("")
@@ -692,26 +702,10 @@ async function main() {
     console.log(`Derived backfillEndTs:   ${backfillEndTs} (${formatUnixTimestamp(backfillEndTs)})`)
     console.log("")
 
-    logSection("Revenue Split")
-    const totalBackfillRaw = parseAmountToRaw(TOTAL_BACKFILL_TOKENS, TOKEN_DECIMALS)
+    logSection("Backfill Amount")
+    const pioneersBackfillRaw = parseAmountToRaw(PIONEERS_BACKFILL_TOKENS, TOKEN_DECIMALS)
     console.log(
-        `TOTAL_BACKFILL: ${TOTAL_BACKFILL_TOKENS} tokens = ${totalBackfillRaw.toString()} raw`,
-    )
-
-    const pioneersBackfillRaw = (totalBackfillRaw * PIONEERS_SHARE_BPS) / BPS_DENOMINATOR
-    const takadaoShareRaw = totalBackfillRaw - pioneersBackfillRaw
-
-    console.log(
-        `Pioneers share (75%) raw: ${pioneersBackfillRaw.toString()} (~${formatRaw(
-            pioneersBackfillRaw,
-            TOKEN_DECIMALS,
-        )} tokens)`,
-    )
-    console.log(
-        `Takadao share (25%) raw: ${takadaoShareRaw.toString()} (~${formatRaw(
-            takadaoShareRaw,
-            TOKEN_DECIMALS,
-        )} tokens)`,
+        `PIONEERS_BACKFILL: ${PIONEERS_BACKFILL_TOKENS} tokens = ${pioneersBackfillRaw.toString()} raw`,
     )
     console.log("")
 
@@ -720,12 +714,8 @@ async function main() {
         pioneers,
         backfillStartTs,
         backfillEndTs,
-        revenueReceiver,
+        excludedPioneerAddress,
     )
-    // Takadao accrues as one global bucket over the same duration, without any supply-dependent splitting.
-    const rewardRateTakadaoScaled = (takadaoShareRaw * WAD) / pioneerSimulation.rewardsDuration
-    const takadaoAllocatedRaw = (pioneerSimulation.rewardsDuration * rewardRateTakadaoScaled) / WAD
-    const takadaoDustRaw = takadaoShareRaw - takadaoAllocatedRaw
 
     logSection("Allocation Totals")
     console.log(
@@ -737,18 +727,6 @@ async function main() {
     console.log(
         `Pioneers dust raw:      ${pioneerSimulation.pioneersDustRaw.toString()} (~${formatRaw(
             pioneerSimulation.pioneersDustRaw,
-            TOKEN_DECIMALS,
-        )} tokens)`,
-    )
-    console.log(
-        `Takadao allocated raw:  ${takadaoAllocatedRaw.toString()} (~${formatRaw(
-            takadaoAllocatedRaw,
-            TOKEN_DECIMALS,
-        )} tokens)`,
-    )
-    console.log(
-        `Takadao dust raw:       ${takadaoDustRaw.toString()} (~${formatRaw(
-            takadaoDustRaw,
             TOKEN_DECIMALS,
         )} tokens)`,
     )
@@ -779,29 +757,24 @@ async function main() {
     )
     console.log("")
 
-    const allocations = [...pioneerSimulation.allocations]
-    allocations.push({
-        address: revenueReceiver,
-        amountRaw: takadaoAllocatedRaw.toString(),
-    })
-
-    allocations.sort((a, b) => a.address.localeCompare(b.address))
+    const allocations = [...pioneerSimulation.allocations].sort((a, b) =>
+        a.address.localeCompare(b.address),
+    )
 
     let sumAllAlloc = 0n
     for (const allocation of allocations) {
         sumAllAlloc += BigInt(allocation.amountRaw)
     }
 
-    const totalModuleDustRaw =
-        totalBackfillRaw - pioneerSimulation.pioneersAllocatedRaw - takadaoAllocatedRaw
+    const totalModuleDustRaw = pioneersBackfillRaw - pioneerSimulation.pioneersAllocatedRaw
 
     console.log("")
     logSection("Final Totals")
     console.log(
-        `Sum of ALL allocations: ${sumAllAlloc.toString()} raw (~${formatRaw(sumAllAlloc, TOKEN_DECIMALS)} tokens)`,
+        `Sum of pioneer allocations: ${sumAllAlloc.toString()} raw (~${formatRaw(sumAllAlloc, TOKEN_DECIMALS)} tokens)`,
     )
     console.log(
-        `Total module-like dust: ${totalModuleDustRaw.toString()} raw (~${formatRaw(
+        `Total pioneers-only dust: ${totalModuleDustRaw.toString()} raw (~${formatRaw(
             totalModuleDustRaw,
             TOKEN_DECIMALS,
         )} tokens)`,
@@ -812,8 +785,10 @@ async function main() {
         network: chainCfg.network,
         snapshotBlock: pioneersJson.snapshotBlock ?? null,
         tokenDecimals: TOKEN_DECIMALS,
-        totalBackfillTokens: TOTAL_BACKFILL_TOKENS,
-        totalBackfillRaw: totalBackfillRaw.toString(),
+        backfillMode: BACKFILL_MODE,
+        pioneersBackfillTokens: PIONEERS_BACKFILL_TOKENS,
+        totalBackfillTokens: PIONEERS_BACKFILL_TOKENS,
+        totalBackfillRaw: pioneersBackfillRaw.toString(),
         backfillStartTs,
         backfillEndTs,
         backfillStartSource: "minimum token.mintedAt from pioneer export",
@@ -823,21 +798,19 @@ async function main() {
         excludedPioneerNfts: pioneerSimulation.excludedPioneerNfts.toString(),
         pioneersCount: pioneers.length,
         calculationModel:
-            "single notifyNewRevenue at derived backfillStartTs, claim at derived backfillEndTs, with pioneers accrued using RevShareModule per-NFT accumulator checkpoints",
+            "pioneers-only historical backfill using RevShareModule per-NFT accumulator checkpoints; Takadao assumed already settled off-module",
         rewardRatePioneersScaled: pioneerSimulation.rewardRatePioneersScaled.toString(),
-        rewardRateTakadaoScaled: rewardRateTakadaoScaled.toString(),
         pioneersBackfillRaw: pioneersBackfillRaw.toString(),
         pioneersAllocatedRaw: pioneerSimulation.pioneersAllocatedRaw.toString(),
         pioneersDustRaw: pioneerSimulation.pioneersDustRaw.toString(),
         pioneersLostWhileSupplyZeroRaw: pioneerSimulation.lostWhileSupplyZeroRaw.toString(),
-        takadaoShareRaw: takadaoShareRaw.toString(),
-        takadaoAllocatedRaw: takadaoAllocatedRaw.toString(),
-        takadaoDustRaw: takadaoDustRaw.toString(),
         totalModuleDustRaw: totalModuleDustRaw.toString(),
         checkpointsCount: pioneerSimulation.checkpointsCount,
         testMode: cli.testMode,
+        excludedPioneerAddressSource: cli.testMode ? "env.TESTNET_DEPLOYER_ADDRESS" : "AddressManager",
+        excludedPioneerAddress,
         revenueReceiverSource: cli.testMode ? "env.TESTNET_DEPLOYER_ADDRESS" : "AddressManager",
-        revenueReceiver,
+        revenueReceiver: excludedPioneerAddress,
         allocations,
     }
 

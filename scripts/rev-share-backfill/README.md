@@ -1,12 +1,23 @@
 # RevShare Backfill
 
-This folder contains the backfill pipeline used to bootstrap `RevShareModule` from the already deployed `RevShareNFT` holder set.
+This folder contains the one-off pipeline used to bootstrap `RevShareModule`
+from the already deployed `RevShareNFT` holder set.
+
+The historical migration follows the approved business model from the drawio
+and workbook, not the deprecated PRD wording:
+
+- the drawio/workbook is the source of truth for the backfill amount
+- Takadao is treated as already settled off-module
+- the historical backfill funds pioneers only
+- the amount deposited into `RevShareModule` must equal the pioneer allocation total
 
 The flow is:
 
 1. Export the current NFT holders from the subgraph.
-2. Build a one-off synthetic revenue allocation using the same accumulator model as `RevShareModule`.
-3. Execute the backfill in batches through `adminBackfillRevenue(address[], uint256[])`.
+2. Build a pioneers-only synthetic revenue allocation using the same accumulator
+   model as `RevShareModule`'s pioneer side.
+3. Fund `RevShareModule` with that pioneers-only total.
+4. Execute the backfill in batches through `adminBackfillRevenue(address[], uint256[])`.
 
 Outputs are intentionally split by chain:
 
@@ -22,14 +33,13 @@ This avoids mixing Sepolia and Arbitrum One artifacts.
 
 ## Required Onchain Wiring
 
-### AddressManager entries
+### AddressManager entries for the one-off pioneer migration
 
-Before running the live backfill flow, `AddressManager` must contain these entries:
+Before running the live pioneer backfill flow, `AddressManager` must contain these entries:
 
 - `PROTOCOL__MODULE_MANAGER`
 - `PROTOCOL__CONTRIBUTION_TOKEN`
 - `PROTOCOL__REVSHARE_NFT`
-- `ADMIN__REVENUE_RECEIVER`
 - `MODULE__REVSHARE`
 
 Expected calls:
@@ -37,13 +47,23 @@ Expected calls:
 - `addProtocolAddress("PROTOCOL__MODULE_MANAGER", moduleManager, Protocol)`
 - `addProtocolAddress("PROTOCOL__CONTRIBUTION_TOKEN", contributionToken, Protocol)`
 - `addProtocolAddress("PROTOCOL__REVSHARE_NFT", revShareNft, Protocol)`
-- `addProtocolAddress("ADMIN__REVENUE_RECEIVER", revenueReceiver, Admin)`
 - `addProtocolAddress("MODULE__REVSHARE", revShareModule, Module)`
 
-Important note:
+Important notes:
 
 - Adding `MODULE__REVSHARE` as a `Module` also registers it inside `ModuleManager`.
 - `ModuleManager.addModule(...)` sets the module state to `Enabled` immediately.
+- `ADMIN__REVENUE_RECEIVER` is not part of the one-off pioneer allocation output.
+
+### ADMIN__REVENUE_RECEIVER
+
+`ADMIN__REVENUE_RECEIVER` is only needed later for:
+
+- Takadao claim flows
+- future streamed revenue flows such as `notifyNewRevenue(...)`
+- rehearsals where you want to mirror the eventual revenue-receiver exclusion exactly
+
+It is not required to define the historical pioneer backfill amount itself.
 
 ### Roles
 
@@ -60,7 +80,8 @@ For later Takadao claims, the caller also needs `REVENUE_CLAIMER`.
 
 - `RevShareNFT.setAddressManager(addressManager)`
 
-Without this, the NFT will not call `updateRevenue(...)` on mint/transfer, so live accounting will not stay in sync after the module is deployed.
+Without this, the NFT will not call `updateRevenue(...)` on mint/transfer, so
+live accounting will not stay in sync after the module is deployed.
 
 ## Funding Requirement
 
@@ -71,7 +92,17 @@ The backfill execution does not move USDC into the module by itself.
 - `revenuePerAccount`
 - `approvedDeposits`
 
-So the module must be funded with enough USDC to cover the backfill before claims start.
+So the module must be funded with enough USDC to cover the pioneer backfill
+before claims start.
+
+For this migration, the funding amount must equal the pioneer allocation total only.
+
+In practice:
+
+- set `PIONEERS_BACKFILL_TOKENS` in `02-buildRevShareBackfillAllocations.js`
+  from the approved workbook/drawio pioneer bucket
+- build the allocations JSON
+- use `totalBackfillRaw` from that JSON as the exact deposit amount
 
 Recommended funding path:
 
@@ -82,8 +113,9 @@ This keeps the accounting clean and emits an explicit event.
 
 ## Mainnet Reminders
 
-- Set `ADMIN__REVENUE_RECEIVER` in `AddressManager` before running script `02` in normal mode.
-- Set the correct `TOTAL_BACKFILL_TOKENS` in `02-buildRevShareBackfillAllocations.js` before the Arbitrum One run.
+- Confirm the drawio/workbook numbers are the approved source of truth.
+- Set the correct `PIONEERS_BACKFILL_TOKENS` in
+  `02-buildRevShareBackfillAllocations.js` before the Arbitrum One run.
 - Update `deployments/mainnet_arbitrum_one/ModuleManager.json` after deploying `ModuleManager`.
 - Update `deployments/mainnet_arbitrum_one/RevShareModule.json` after deploying `RevShareModule`.
 
@@ -140,8 +172,9 @@ node scripts/rev-share-backfill/01-exportRevSharePioneers.js --chain arb-one
 Purpose:
 
 - Reads the export from script `01`.
-- Rebuilds the allocation using the same accumulator model as `RevShareModule`.
-- Creates the final per-address backfill amounts.
+- Rebuilds the pioneers-only historical allocation using the same accumulator
+  model as `RevShareModule`'s pioneer side.
+- Creates the final per-address pioneer backfill amounts.
 
 Reads:
 
@@ -158,17 +191,19 @@ Writes:
 
 Behavior:
 
-- Uses the earliest exported `token.mintedAt` as the stream start.
-- Uses the current time as the stream end.
-- Uses `ADMIN__REVENUE_RECEIVER` from `AddressManager` in normal mode.
-- Uses `TESTNET_DEPLOYER_ADDRESS` only when `--test` is enabled.
+- Uses the earliest exported `token.mintedAt` as the backfill start.
+- Uses the current time as the backfill end.
+- Treats the configured amount as the pioneers-only total to allocate.
+- Emits no Takadao allocation row.
+- In normal mode, resolves `ADMIN__REVENUE_RECEIVER` only to exclude that
+  address from pioneer accrual if it already holds NFTs.
+- With `--test`, uses `TESTNET_DEPLOYER_ADDRESS` as the exclusion address so
+  Sepolia rehearsal can run before `ADMIN__REVENUE_RECEIVER` is wired.
 
 Examples:
 
 ```bash
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one
-node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep
-# Optional fallback only when ADMIN__REVENUE_RECEIVER is not configured yet:
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --test
 ```
 
@@ -219,58 +254,21 @@ node scripts/rev-share-backfill/01-exportRevSharePioneers.js --chain arb-one
 node scripts/rev-share-backfill/01-exportRevSharePioneers.js --chain arb-sep
 ```
 
-2. Set the correct `TOTAL_BACKFILL_TOKENS` in `scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js`.
+2. Set the correct `PIONEERS_BACKFILL_TOKENS` in
+   `scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js` from the
+   approved workbook/drawio pioneer bucket.
 
-3. Check that `ADMIN__REVENUE_RECEIVER` is already configured in `AddressManager`.
-
-```bash
-cast call <ADDRESS_MANAGER> \
-  "getProtocolAddressByName(string)((bytes32,address,uint8))" \
-  "ADMIN__REVENUE_RECEIVER" \
-  --rpc-url <RPC_URL>
-```
-
-If it is missing, add it first:
-
-For Arbitrum One, create the transaction in the Safe multisig and execute it once approved.
-
-```bash
-source .env
-
-# Arbitrum Sepolia
-cast send <ADDRESS_MANAGER> \
-  "addProtocolAddress(string,address,uint8)" \
-  "ADMIN__REVENUE_RECEIVER" \
-  <REVENUE_RECEIVER> \
-  0 \
-  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
-  --account $TESTNET_ACCOUNT
-```
-
-If it already exists but points to the wrong address, update it:
-
-```bash
-source .env
-
-cast send <ADDRESS_MANAGER> \
-  "updateProtocolAddress(string,address)" \
-  "ADMIN__REVENUE_RECEIVER" \
-  <REVENUE_RECEIVER> \
-  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
-  --account $TESTNET_ACCOUNT
-```
-
-4. Build the backfill allocations and review the JSON and CSV outputs.
+3. Build the pioneers-only backfill allocations and review the JSON and CSV outputs.
 
 ```bash
 # Arbitrum One
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one
 
-# Arbitrum Sepolia
-node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep
+# Arbitrum Sepolia rehearsal before ADMIN__REVENUE_RECEIVER is wired
+node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --test
 ```
 
-5. Deploy `ModuleManager`.
+4. Deploy `ModuleManager`.
 
 ```bash
 # Arbitrum One
@@ -281,9 +279,10 @@ make protocol-deploy-module-manager ARGS="--network arb_sepolia"
 ```
 
 Update the deployed proxy address into:
+
 - `deployments/<chain>/ModuleManager.json`
 
-6. Deploy `RevShareModule`.
+5. Deploy `RevShareModule`.
 
 ```bash
 # Arbitrum One
@@ -297,7 +296,7 @@ Update the deployed proxy address into:
 
 - `deployments/<chain>/RevShareModule.json`
 
-7. Add the required `AddressManager` entries.
+6. Add the required `AddressManager` entries for the pioneer migration.
 
 For Arbitrum One, create the transactions in the Safe multisig and execute them once approved.
 
@@ -305,71 +304,13 @@ For Arbitrum Sepolia, use this rule:
 
 - `PROTOCOL__MODULE_MANAGER`: if missing, add it; if it already exists, update it to the newly deployed `ModuleManager`
 - `MODULE__REVSHARE`: if missing, add it after `PROTOCOL__MODULE_MANAGER` is set; if it already exists and you are also replacing `PROTOCOL__MODULE_MANAGER`, delete the old module entry first while the old `ModuleManager` is still active, then add the new `RevShareModule`
-- `PROTOCOL__CONTRIBUTION_TOKEN`: if missing, add it using [USDC.json](C:/Users/maike/Desktop/Takadao/Takasure/Contracts/takasure.sc/deployments/testnet_arbitrum_sepolia/USDC.json); if it already exists, leave it unchanged
-- `PROTOCOL__REVSHARE_NFT`: if missing, add it using [RevShareNft.json](C:/Users/maike/Desktop/Takadao/Takasure/Contracts/takasure.sc/deployments/testnet_arbitrum_sepolia/RevShareNft.json); if it already exists, leave it unchanged
+- `PROTOCOL__CONTRIBUTION_TOKEN`: if missing, add it using `deployments/testnet_arbitrum_sepolia/USDC.json`; if it already exists, leave it unchanged
+- `PROTOCOL__REVSHARE_NFT`: if missing, add it using `deployments/testnet_arbitrum_sepolia/RevShareNft.json`; if it already exists, leave it unchanged
 
-```bash
-source .env
-
-# If MODULE__REVSHARE already exists and you are replacing PROTOCOL__MODULE_MANAGER too,
-# remove the old module first while the old ModuleManager is still active.
-cast send <ADDRESS_MANAGER> \
-  "deleteProtocolAddress(address)" \
-  <OLD_REVSHARE_MODULE> \
-  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
-  --account $TESTNET_ACCOUNT
-
-# PROTOCOL__MODULE_MANAGER
-# Add if missing, otherwise update to the newly deployed ModuleManager.
-cast send <ADDRESS_MANAGER> \
-  "addProtocolAddress(string,address,uint8)" \
-  "PROTOCOL__MODULE_MANAGER" \
-  <MODULE_MANAGER> \
-  3 \
-  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
-  --account $TESTNET_ACCOUNT
-
-cast send <ADDRESS_MANAGER> \
-  "updateProtocolAddress(string,address)" \
-  "PROTOCOL__MODULE_MANAGER" \
-  <MODULE_MANAGER> \
-  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
-  --account $TESTNET_ACCOUNT
-
-# PROTOCOL__CONTRIBUTION_TOKEN
-# Add if missing using deployments/testnet_arbitrum_sepolia/USDC.json, otherwise leave unchanged.
-cast send <ADDRESS_MANAGER> \
-  "addProtocolAddress(string,address,uint8)" \
-  "PROTOCOL__CONTRIBUTION_TOKEN" \
-  <CONTRIBUTION_TOKEN> \
-  3 \
-  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
-  --account $TESTNET_ACCOUNT
-
-# PROTOCOL__REVSHARE_NFT
-# Add if missing using deployments/testnet_arbitrum_sepolia/RevShareNft.json, otherwise leave unchanged.
-cast send <ADDRESS_MANAGER> \
-  "addProtocolAddress(string,address,uint8)" \
-  "PROTOCOL__REVSHARE_NFT" \
-  <REVSHARE_NFT> \
-  3 \
-  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
-  --account $TESTNET_ACCOUNT
-
-# MODULE__REVSHARE
-# Add after PROTOCOL__MODULE_MANAGER points to the ModuleManager that should own this module.
-cast send <ADDRESS_MANAGER> \
-  "addProtocolAddress(string,address,uint8)" \
-  "MODULE__REVSHARE" \
-  <REVSHARE_MODULE> \
-  2 \
-  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
-  --account $TESTNET_ACCOUNT
-```
-
-8. Ensure `RevShareNFT` points to `AddressManager`.
+7. Ensure `RevShareNFT` points to `AddressManager`.
 
 For Arbitrum One, create the transaction in the Safe multisig and execute it once approved.
+
 ```bash
 source .env
 
@@ -380,9 +321,13 @@ cast send <REVSHARE_NFT> \
   --account $TESTNET_ACCOUNT
 ```
 
-9. Fund `RevShareModule` with USDC before any claims are allowed.
+8. Fund `RevShareModule` with USDC before any claims are allowed.
 
-Use `totalBackfillRaw` from `output/<scope>/allocations/revshare_backfill_allocations.json` as `<TOTAL_BACKFILL_RAW>`.
+Use `totalBackfillRaw` from
+`output/<scope>/allocations/revshare_backfill_allocations.json` as
+`<TOTAL_BACKFILL_RAW>`.
+
+For this historical migration, `<TOTAL_BACKFILL_RAW>` is the pioneers-only funding amount.
 
 For Arbitrum One, create the real-USDC funding transactions in the Safe multisig and execute them once approved.
 
@@ -425,7 +370,7 @@ cast send <REVSHARE_MODULE> \
   --account $ACCOUNT
 ```
 
-10. Run the batch executor.
+9. Run the batch executor.
 
 ```bash
 # Arbitrum One: create Safe proposals, one per batch
@@ -438,13 +383,14 @@ node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-sep
 node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain arb-one --dry-run
 ```
 
-11. Verify a sample of backfilled accounts onchain before allowing claims or moving on to `notifyNewRevenue(...)`.
+10. Verify a sample of backfilled accounts onchain before allowing claims or moving on to future streamed revenue.
 
 Read the expected `amountRaw` values from:
 
 - `scripts/rev-share-backfill/output/<chain>/allocations/revshare_backfill_allocations.json`
 
-For each sampled address, compare the JSON `amountRaw` against `revenuePerAccount(address)` on `RevShareModule`.
+For each sampled address, compare the JSON `amountRaw` against
+`revenuePerAccount(address)` on `RevShareModule`.
 
 Manual `cast` command:
 
@@ -461,14 +407,32 @@ What to check:
 - the returned value must equal that address's `amountRaw`
 - do this before claims change `revenuePerAccount(address)`
 
-Example:
+11. Only after the pioneer migration is done, configure `ADMIN__REVENUE_RECEIVER`
+    if needed for Takadao claims or future streamed revenue flows.
 
 ```bash
-# Compare against scripts/rev-share-backfill/output/mainnet/allocations/revshare_backfill_allocations.json
-cast call <REVSHARE_MODULE> \
-  "revenuePerAccount(address)(uint256)" \
-  0x1234...abcd \
-  --rpc-url $ARBITRUM_MAINNET_RPC_URL
+source .env
+
+cast send <ADDRESS_MANAGER> \
+  "addProtocolAddress(string,address,uint8)" \
+  "ADMIN__REVENUE_RECEIVER" \
+  <REVENUE_RECEIVER> \
+  0 \
+  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
+  --account $TESTNET_ACCOUNT
+```
+
+If it already exists but points to the wrong address, update it:
+
+```bash
+source .env
+
+cast send <ADDRESS_MANAGER> \
+  "updateProtocolAddress(string,address)" \
+  "ADMIN__REVENUE_RECEIVER" \
+  <REVENUE_RECEIVER> \
+  --rpc-url $ARBITRUM_TESTNET_SEPOLIA_RPC_URL \
+  --account $TESTNET_ACCOUNT
 ```
 
 ### If you are rehearsing on Arbitrum Sepolia
@@ -476,26 +440,31 @@ cast call <REVSHARE_MODULE> \
 Run:
 
 ```bash
-bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh
+make testnet-backfill
 ```
 
-The script loads `.env`, redeploys `ModuleManager` and `RevShareModule`, rewrites their Sepolia deployment JSON files, updates the module-related `AddressManager` entries to the new deployments, only creates the Sepolia contribution-token / RevShare-NFT entries if they are missing, and finally verifies the first `BACKFILL_VERIFY_SAMPLE_SIZE` pioneer allocations onchain against `revenuePerAccount(address)`.
+The wrapper loads `.env`, redeploys `ModuleManager` and `RevShareModule`,
+rewrites their Sepolia deployment JSON files, updates the module-related
+`AddressManager` entries to the new deployments, builds the pioneers-only
+allocation set with `--test`, funds the module with that pioneers-only total,
+and finally verifies the first `BACKFILL_VERIFY_SAMPLE_SIZE` backfilled
+accounts onchain against `revenuePerAccount(address)`.
 
 ## Contract Calls Used In This Flow
 
-These are the important onchain calls around the pipeline:
+These are the important onchain calls around the one-off pioneer migration:
 
 - `AddressManager.addProtocolAddress("PROTOCOL__MODULE_MANAGER", ...)`
 - `AddressManager.addProtocolAddress("PROTOCOL__CONTRIBUTION_TOKEN", ...)`
 - `AddressManager.addProtocolAddress("PROTOCOL__REVSHARE_NFT", ...)`
-- `AddressManager.addProtocolAddress("ADMIN__REVENUE_RECEIVER", ...)`
 - `AddressManager.addProtocolAddress("MODULE__REVSHARE", ...)`
 - `RevShareNFT.setAddressManager(addressManager)`
 - `RevShareModule.depositNoStream(totalBackfillRaw)`
 - `RevShareModule.adminBackfillRevenue(address[], uint256[])`
 
-Optional operational calls after go-live:
+Optional operational calls after the migration:
 
+- `AddressManager.addProtocolAddress("ADMIN__REVENUE_RECEIVER", ...)`
 - `RevShareModule.setAvailableDate(...)`
 - `RevShareModule.setRewardsDuration(...)`
 - `RevShareModule.notifyNewRevenue(...)`

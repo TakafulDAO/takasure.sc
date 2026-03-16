@@ -423,17 +423,12 @@ const [filePath, sampleSizeRaw] = process.argv.slice(2)
 const sampleSize = Number(sampleSizeRaw)
 const json = JSON.parse(fs.readFileSync(filePath, "utf8"))
 const allocations = Array.isArray(json.allocations) ? json.allocations : []
-const revenueReceiver = String(json.revenueReceiver || "").toLowerCase()
 
 if (!Number.isInteger(sampleSize) || sampleSize <= 0) {
     throw new Error(`Invalid sample size: ${sampleSizeRaw}`)
 }
 
-const pioneerAllocations = allocations.filter(
-    (allocation) => String(allocation.address || "").toLowerCase() !== revenueReceiver,
-)
-
-for (const allocation of pioneerAllocations.slice(0, sampleSize)) {
+for (const allocation of allocations.slice(0, sampleSize)) {
     process.stdout.write(`${allocation.address},${allocation.amountRaw}\n`)
 }
 NODE
@@ -469,11 +464,11 @@ verify_backfill_sample() {
     done < <(read_verification_sample "$allocations_json" "$sample_size")
 
     if [[ "$verified_count" -eq 0 ]]; then
-        echo "ERROR: No pioneer allocations found to verify in $allocations_json" >&2
+        echo "ERROR: No allocations found to verify in $allocations_json" >&2
         exit 1
     fi
 
-    info "Verified $verified_count pioneer allocation(s) against revenuePerAccount(address)."
+    info "Verified $verified_count allocation(s) against revenuePerAccount(address)."
 }
 
 main() {
@@ -534,21 +529,14 @@ main() {
     info "RevShareModule deployed at $revshare_module"
     info "Updated $REVSHARE_MODULE_JSON"
 
-    step 4 "Ensure ADMIN__REVENUE_RECEIVER is configured in AddressManager"
-    ensure_protocol_address \
-        "$address_manager" \
-        "ADMIN__REVENUE_RECEIVER" \
-        "$TESTNET_DEPLOYER_ADDRESS" \
-        "$PROTOCOL_TYPE_ADMIN"
+    step 4 "Build the pioneers-only RevShare backfill allocations"
+    node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain "$CHAIN_FLAG" --test
 
-    step 5 "Build the RevShare backfill allocations"
-    node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain "$CHAIN_FLAG"
-
-    step 6 "Review the calculated backfill total"
+    step 5 "Review the calculated backfill total"
     total_backfill_raw="$(read_total_backfill_raw "$allocations_json")"
     info "totalBackfillRaw = $total_backfill_raw"
 
-    step 7 "Wire AddressManager entries for the Sepolia flow"
+    step 6 "Wire AddressManager entries for the Sepolia flow"
     info "Refreshing the module-related entries and only creating the token/NFT entries if missing."
     ensure_protocol_address_if_missing \
         "$address_manager" \
@@ -604,6 +592,13 @@ main() {
             "$PROTOCOL_TYPE_MODULE"
     fi
 
+    step 7 "Ensure ADMIN__REVENUE_RECEIVER is configured for future claim or stream rehearsal"
+    ensure_protocol_address \
+        "$address_manager" \
+        "ADMIN__REVENUE_RECEIVER" \
+        "$TESTNET_DEPLOYER_ADDRESS" \
+        "$PROTOCOL_TYPE_ADMIN"
+
     step 8 "Point RevShareNFT to AddressManager"
     cast send "$revshare_nft" \
         "setAddressManager(address)" \
@@ -636,7 +631,7 @@ main() {
     node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js --chain "$CHAIN_FLAG"
 
     step 11 "Verify sample backfilled balances onchain"
-    info "Checking the first $VERIFY_SAMPLE_SIZE pioneer allocation(s) from $allocations_json"
+    info "Checking the first $VERIFY_SAMPLE_SIZE pioneers-only allocation(s) from $allocations_json"
     verify_backfill_sample \
         "$allocations_json" \
         "$revshare_module" \
