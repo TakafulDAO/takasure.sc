@@ -73,7 +73,7 @@ build-backfill-execution-report:
 	@node scripts/rev-share-backfill/03-runRevShareBackfillBatches.js $(ARGS)
 
 testnet-backfill:
-	@bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh
+	@bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh $(ARGS)
 
 # ccip testnet migration
 protocol-migrate-sf-ccip-usdc-arb-sepolia:
