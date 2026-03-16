@@ -19,7 +19,7 @@ const WAD = 10n ** 18n
 const TOKEN_DECIMALS = 6
 
 // Todo: Change this to the real amount
-const TOTAL_BACKFILL_TOKENS = "100000" // in human units, "100000" means 100,000 USDC
+const TOTAL_BACKFILL_TOKENS = "4873.628213" // in human units, "100000" means 100,000 USDC
 
 // Pioneers' share in basis points (75% = 7500 bps)
 const PIONEERS_SHARE_BPS = 7500n
