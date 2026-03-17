@@ -135,7 +135,8 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
         );
         require(
             addressManager.hasName("MODULE__SUBSCRIPTION", msg.sender)
-                || addressManager.hasName("MODULE__MANAGE_SUBSCRIPTION", msg.sender),
+                || addressManager.hasName("MODULE__SUBSCRIPTION_MANAGEMENT", msg.sender)
+                || addressManager.hasType(ProtocolAddressType.Benefit, msg.sender),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
         _associationMemberProfileChecks(member, true);
@@ -143,6 +144,47 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
         // Ensure the memberId is preserved
         member.memberId = members[member.wallet].memberId;
         members[member.wallet] = member;
+
+        emit OnAssociationMemberUpdated(member.memberId, member.wallet, member.couponAmountRedeemed);
+    }
+
+    function markAssociationMemberRefunded(AssociationMember memory member)
+        external
+        onlyContract("MODULE__SUBSCRIPTION", address(addressManager))
+    {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
+        );
+        _associationMemberRefundProfileChecks(member);
+
+        // Ensure the memberId is preserved
+        member.memberId = members[member.wallet].memberId;
+        members[member.wallet] = member;
+
+        emit OnAssociationMemberUpdated(member.memberId, member.wallet, member.couponAmountRedeemed);
+    }
+
+    function activateAssociationMemberByKyc(address memberWallet)
+        external
+        onlyContract("MODULE__KYC", address(addressManager))
+    {
+        // The module must be enabled
+        AddressAndStates._onlyModuleState(
+            ModuleState.Enabled, address(this), addressManager.getProtocolAddressByName("PROTOCOL__MODULE_MANAGER").addr
+        );
+        AddressAndStates._notZeroAddress(memberWallet);
+
+        AssociationMember memory member = members[memberWallet];
+
+        require(member.wallet == memberWallet, ModuleErrors.Module__InvalidAddress());
+        require(
+            !member.isRefunded && member.memberState == AssociationMemberState.Inactive,
+            ModuleErrors.Module__WrongMemberState()
+        );
+
+        member.memberState = AssociationMemberState.Active;
+        members[memberWallet] = member;
 
         emit OnAssociationMemberUpdated(member.memberId, member.wallet, member.couponAmountRedeemed);
     }
@@ -163,7 +205,7 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
         );
         require(
             addressManager.hasType(ProtocolAddressType.Benefit, msg.sender)
-                || addressManager.hasName("MODULE__MANAGE_SUBSCRIPTION", msg.sender),
+                || addressManager.hasName("MODULE__SUBSCRIPTION_MANAGEMENT", msg.sender),
             ModuleErrors.Module__NotAuthorizedCaller()
         );
 
@@ -307,12 +349,17 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
 
         require(_member.wallet != address(0) && _member.wallet != _member.parent, ModuleErrors.Module__InvalidAddress());
 
-        // The user state must be inactive or canceled and not refunded
-        require(
-            (_member.memberState == AssociationMemberState.Inactive
-                    || _member.memberState == AssociationMemberState.Canceled) && !_member.isRefunded,
-            ModuleErrors.Module__WrongMemberState()
-        );
+        // Generic updates can touch any non-refunded member state.
+        // Refunded profiles are handled by markAssociationMemberRefunded().
+        if (isRejoin) {
+            require(!_member.isRefunded, ModuleErrors.Module__WrongMemberState());
+        } else {
+            // New member creation must start inactive and non-refunded.
+            require(
+                _member.memberState == AssociationMemberState.Inactive && !_member.isRefunded,
+                ModuleErrors.Module__WrongMemberState()
+            );
+        }
 
         // If a parent wallet is provided, it must be KYCed
         if (_member.parent != address(0)) {
@@ -323,6 +370,18 @@ contract MainStorageModule is ModuleImplementation, IMainStorageModule, Initiali
 
         // The membership start time can not be in the future
         require(_member.associateStartTime <= block.timestamp, ModuleErrors.Module__InvalidDate());
+    }
+
+    function _associationMemberRefundProfileChecks(AssociationMember memory _member) internal view {
+        require(members[_member.wallet].wallet != address(0), ModuleErrors.Module__InvalidAddress());
+        require(_member.wallet != address(0) && _member.wallet != _member.parent, ModuleErrors.Module__InvalidAddress());
+
+        // Refund path is expected to persist a refunded member profile
+        require(
+            (_member.memberState == AssociationMemberState.Inactive
+                    || _member.memberState == AssociationMemberState.Canceled) && _member.isRefunded,
+            ModuleErrors.Module__WrongMemberState()
+        );
     }
 
     /**

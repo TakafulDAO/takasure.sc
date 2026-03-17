@@ -11,6 +11,8 @@ interface IMainStorageModule {
 
     function createAssociationMember(AssociationMember memory member) external;
     function updateAssociationMember(AssociationMember memory member) external;
+    function markAssociationMemberRefunded(AssociationMember memory member) external;
+    function activateAssociationMemberByKyc(address memberWallet) external;
     function createBenefitMember(address benefit, BenefitMember memory member) external;
     function updateBenefitMember(address benefit, BenefitMember memory member) external;
     function setUintValue(string calldata key, uint256 value) external;

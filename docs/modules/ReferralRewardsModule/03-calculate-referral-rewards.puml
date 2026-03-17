@@ -1,0 +1,66 @@
+@startuml Calculate Referral Rewards
+title SubscriptionModule or BenefitModule calls ReferralRewardsModule.calculateReferralRewards
+autonumber
+
+participant CallingModule
+participant ReferralRewardsModule
+participant AddressManager
+participant ModuleManager
+participant KYCModule
+
+CallingModule -> ReferralRewardsModule: calculateReferralRewards(contribution, couponAmount, child, parent, feeAmount)
+ReferralRewardsModule -> AddressManager: hasType(Module, CallingModule)
+
+alt Authorized module
+  ReferralRewardsModule -> AddressManager: getProtocolAddressByName("PROTOCOL__MODULE_MANAGER")
+  AddressManager --> ReferralRewardsModule: moduleManager
+  ReferralRewardsModule -> ModuleManager: getModuleState(ReferralRewardsModule)
+
+  alt Module enabled
+    alt referralRewardsEnabled == true
+      ReferralRewardsModule -> ReferralRewardsModule: toReferralReserveAmount = contribution * REFERRAL_RESERVE / 100
+
+      alt parent != address(0)
+        ReferralRewardsModule -> AddressManager: getProtocolAddressByName("MODULE__KYC")
+        AddressManager --> ReferralRewardsModule: kycModule
+        ReferralRewardsModule -> KYCModule: isKYCed(parent)
+
+        alt Parent is KYCed
+          alt referralDiscountEnabled == true
+            ReferralRewardsModule -> ReferralRewardsModule: discount = (contribution - couponAmount) * REFERRAL_DISCOUNT_RATIO / 100
+          else Discount disabled
+            ReferralRewardsModule -> ReferralRewardsModule: discount = 0
+          end
+
+          ReferralRewardsModule -> ReferralRewardsModule: childToParent[child] = parent
+
+          loop for each ancestor up to layer 4
+            ReferralRewardsModule -> ReferralRewardsModule: compute layer reward ratio
+            ReferralRewardsModule -> ReferralRewardsModule: pendingParentRewardsByChild[parent][child] = reward
+            ReferralRewardsModule -> ReferralRewardsModule: historicParentRewardsByChild[parent][child] += reward
+          end
+
+          ReferralRewardsModule --> CallingModule: return (feeAmount, discount, toReferralReserveAmount)
+        else Parent not KYCed
+          ReferralRewardsModule -> ReferralRewardsModule: newFeeAmount = feeAmount - toReferralReserveAmount
+          ReferralRewardsModule --> CallingModule: return (newFeeAmount, 0, toReferralReserveAmount)
+        end
+
+      else No parent provided
+        ReferralRewardsModule -> ReferralRewardsModule: newFeeAmount = feeAmount - toReferralReserveAmount
+        ReferralRewardsModule --> CallingModule: return (newFeeAmount, 0, toReferralReserveAmount)
+      end
+
+    else referralRewardsEnabled == false
+      ReferralRewardsModule --> CallingModule: return (0, 0, 0)
+    end
+
+  else Module disabled
+    ReferralRewardsModule --> CallingModule: Revert Module__WrongModuleState()
+  end
+
+else Not authorized
+  ReferralRewardsModule --> CallingModule: Revert Module__NotAuthorizedCaller()
+end
+
+@enduml

@@ -1,0 +1,30 @@
+@startuml Switch Referral Rewards
+title Operator toggles ReferralRewardsModule.switchReferralRewards
+autonumber
+
+actor Operator
+participant ReferralRewardsModule
+participant AddressManager
+participant ModuleManager
+
+Operator -> ReferralRewardsModule: switchReferralRewards()
+ReferralRewardsModule -> AddressManager: hasRole(OPERATOR, Operator)
+
+alt Authorized
+  ReferralRewardsModule -> AddressManager: getProtocolAddressByName("PROTOCOL__MODULE_MANAGER")
+  AddressManager --> ReferralRewardsModule: moduleManager
+  ReferralRewardsModule -> ModuleManager: getModuleState(ReferralRewardsModule)
+
+  alt Module enabled
+    ReferralRewardsModule -> ReferralRewardsModule: referralRewardsEnabled = !referralRewardsEnabled
+    ReferralRewardsModule -> ReferralRewardsModule: emit OnReferralRewardsSwitched(enabled)
+    ReferralRewardsModule --> Operator: return
+  else Module disabled
+    ReferralRewardsModule --> Operator: Revert Module__WrongModuleState()
+  end
+
+else Not authorized
+  ReferralRewardsModule --> Operator: Revert Module__NotAuthorizedCaller()
+end
+
+@enduml
