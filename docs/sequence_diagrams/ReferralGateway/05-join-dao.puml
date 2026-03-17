@@ -1,0 +1,22 @@
+@startuml Join Dao
+autonumber
+
+actor User
+
+User -> ReferralGateway: joinDao(newMember, DAOName)
+
+alt newMember is KYC
+    
+    alt Valid DAO
+        ReferralGateway --> DAO: preJoins
+        ReferralGateway --> DAO: transfer contribution
+
+    else Invalid DAO
+        ReferralGateway --> User: Revert
+    end
+
+else newMember is not KYC
+    ReferralGateway --> User: Revert
+end
+
+@enduml
