@@ -25,7 +25,7 @@ interface IUniswapV3PoolLike {
     function token1() external view returns (address);
 }
 
-contract SaveFundsAutomationRunner is Ownable {
+contract SaveFundsAutomationRunnerSepolia is Ownable {
     IAddressManager immutable addressManager;
 
     // Config

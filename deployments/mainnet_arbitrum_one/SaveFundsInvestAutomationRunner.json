@@ -141,6 +141,13 @@
         },
         {
             "type": "function",
+            "name": "initializeV2",
+            "inputs": [],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
             "name": "interval",
             "inputs": [],
             "outputs": [
@@ -154,7 +161,33 @@
         },
         {
             "type": "function",
+            "name": "lastRebalanceCheck",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "lastRun",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "lastSuccessfulRebalance",
             "inputs": [],
             "outputs": [
                 {
@@ -364,6 +397,32 @@
         },
         {
             "type": "function",
+            "name": "rebalanceCheckInterval",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "rebalanceEnabled",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bool",
+                    "internalType": "bool"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "renounceOwnership",
             "inputs": [],
             "outputs": [],
@@ -398,6 +457,19 @@
         {
             "type": "function",
             "name": "setLastRun",
+            "inputs": [
+                {
+                    "name": "ts",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setLastSuccessfulRebalance",
             "inputs": [
                 {
                     "name": "ts",
@@ -445,6 +517,19 @@
                 },
                 {
                     "name": "minOther_",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setRebalanceCheckInterval",
+            "inputs": [
+                {
+                    "name": "newIntervalSeconds",
                     "type": "uint256",
                     "internalType": "uint256"
                 }
@@ -541,6 +626,13 @@
                 }
             ],
             "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "toggleRebalanceEnabled",
+            "inputs": [],
+            "outputs": [],
+            "stateMutability": "nonpayable"
         },
         {
             "type": "function",
@@ -712,6 +804,184 @@
                     "type": "uint256",
                     "indexed": false,
                     "internalType": "uint256"
+                },
+                {
+                    "name": "otherRatioBPS",
+                    "type": "uint16",
+                    "indexed": false,
+                    "internalType": "uint16"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnRebalanceAttempt",
+            "inputs": [
+                {
+                    "name": "ts",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "currentTick",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "newTickLower",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "newTickUpper",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "otherRatioBPS",
+                    "type": "uint16",
+                    "indexed": false,
+                    "internalType": "uint16"
+                },
+                {
+                    "name": "bundleHash",
+                    "type": "bytes32",
+                    "indexed": false,
+                    "internalType": "bytes32"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnRebalanceFailed",
+            "inputs": [
+                {
+                    "name": "ts",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "currentTick",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "newTickLower",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "newTickUpper",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "otherRatioBPS",
+                    "type": "uint16",
+                    "indexed": false,
+                    "internalType": "uint16"
+                },
+                {
+                    "name": "reason",
+                    "type": "bytes",
+                    "indexed": false,
+                    "internalType": "bytes"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnRebalanceObserved",
+            "inputs": [
+                {
+                    "name": "ts",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "currentTick",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "tickLower",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "tickUpper",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "outOfRange",
+                    "type": "bool",
+                    "indexed": false,
+                    "internalType": "bool"
+                },
+                {
+                    "name": "consecutiveObserved",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "rollingObserved",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "rebalanceNeeded",
+                    "type": "bool",
+                    "indexed": false,
+                    "internalType": "bool"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnRebalanceSucceeded",
+            "inputs": [
+                {
+                    "name": "ts",
+                    "type": "uint256",
+                    "indexed": false,
+                    "internalType": "uint256"
+                },
+                {
+                    "name": "currentTick",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "newTickLower",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
+                },
+                {
+                    "name": "newTickUpper",
+                    "type": "int24",
+                    "indexed": false,
+                    "internalType": "int24"
                 },
                 {
                     "name": "otherRatioBPS",
@@ -952,6 +1222,22 @@
                     "name": "account",
                     "type": "address",
                     "internalType": "address"
+                }
+            ]
+        },
+        {
+            "type": "error",
+            "name": "SafeCastOverflowedIntDowncast",
+            "inputs": [
+                {
+                    "name": "bits",
+                    "type": "uint8",
+                    "internalType": "uint8"
+                },
+                {
+                    "name": "value",
+                    "type": "int256",
+                    "internalType": "int256"
                 }
             ]
         },
