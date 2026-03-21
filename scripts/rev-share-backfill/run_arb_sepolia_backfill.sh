@@ -16,6 +16,7 @@ PIONEERS_SOURCE_SCOPE="testnet"
 PIONEERS_SOURCE_LABEL="Arbitrum Sepolia"
 PIONEERS_SOURCE_ENV_VAR="TESTNET_SUBGRAPH_URL"
 PIONEERS_OUTPUT_DIR="$OUTPUT_DIR"
+START_TS=""
 
 ADDRESS_MANAGER_JSON="$DEPLOYMENTS_DIR/AddressManager.json"
 MODULE_MANAGER_JSON="$DEPLOYMENTS_DIR/ModuleManager.json"
@@ -51,7 +52,7 @@ parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --help)
-                echo "Usage: bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh [--pioneers-source arb-one|arb-sep]"
+                echo "Usage: bash scripts/rev-share-backfill/run_arb_sepolia_backfill.sh [--pioneers-source arb-one|arb-sep] [--start-ts <unix>]"
                 echo ""
                 echo "Runs the full repeatable Arbitrum Sepolia rev-share backfill flow."
                 echo "Each run redeploys ModuleManager and RevShareModule, rewrites their Sepolia deployment JSON files,"
@@ -60,6 +61,7 @@ parse_args() {
                 echo "Flags:"
                 echo "  --pioneers-source <arb-one|arb-sep>  Select whether the pioneer snapshot comes from mainnet or Sepolia."
                 echo "                                      Execution still happens on Arbitrum Sepolia."
+                echo "  --start-ts <unix>                  Override the allocation backfill start timestamp passed to script 02."
                 exit 0
                 ;;
             --pioneers-source)
@@ -88,6 +90,20 @@ parse_args() {
                         exit 1
                         ;;
                 esac
+                shift 2
+                ;;
+            --start-ts)
+                if [[ $# -lt 2 ]]; then
+                    echo "ERROR: Missing value for --start-ts. Expected a Unix timestamp." >&2
+                    exit 1
+                fi
+
+                if [[ ! "$2" =~ ^[0-9]+$ ]]; then
+                    echo "ERROR: Invalid value for --start-ts: $2. Expected a Unix timestamp." >&2
+                    exit 1
+                fi
+
+                START_TS="$2"
                 shift 2
                 ;;
             *)
@@ -572,10 +588,18 @@ main() {
     info "Updated $REVSHARE_MODULE_JSON"
 
     step 4 "Build the pioneers-only RevShare backfill allocations"
-    node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js \
-        --chain "$CHAIN_FLAG" \
-        --pioneers-chain "$PIONEERS_SOURCE_CHAIN_FLAG" \
+    local allocation_args=(
+        --chain "$CHAIN_FLAG"
+        --pioneers-chain "$PIONEERS_SOURCE_CHAIN_FLAG"
         --test
+    )
+    if [[ -n "$START_TS" ]]; then
+        allocation_args+=(--start-ts "$START_TS")
+        info "Using explicit backfill start timestamp override: $START_TS"
+    fi
+
+    node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js \
+        "${allocation_args[@]}"
 
     step 5 "Review the calculated backfill total"
     total_backfill_raw="$(read_total_backfill_raw "$allocations_json")"

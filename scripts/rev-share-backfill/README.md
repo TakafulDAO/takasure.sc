@@ -171,10 +171,12 @@ node scripts/rev-share-backfill/01-exportRevSharePioneers.js --chain arb-one
 
 Purpose:
 
-- Reads the export from script `01`.
-- Rebuilds the pioneers-only historical allocation using the same accumulator
-  model as `RevShareModule`'s pioneer side.
-- Creates the final per-address pioneer backfill amounts.
+  - Reads the export from script `01`.
+  - Rebuilds the pioneers-only historical allocation using the same accumulator
+    model as `RevShareModule`'s pioneer side.
+  - Creates the final per-address pioneer backfill amounts.
+  - Supports an optional `--start-ts` override so you can compare the default
+    derived start against a fixed contract-deployment start.
 
 Reads:
 
@@ -204,6 +206,7 @@ Examples:
 
 ```bash
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one
+node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one --start-ts 1754522413
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --test
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --pioneers-chain arb-one --test
 ```
@@ -264,6 +267,9 @@ node scripts/rev-share-backfill/01-exportRevSharePioneers.js --chain arb-sep
 ```bash
 # Arbitrum One
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one
+
+# Arbitrum One with RevShareNFT deployment timestamp as the backfill start
+node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one --start-ts 1754522413
 
 # Arbitrum Sepolia rehearsal before ADMIN__REVENUE_RECEIVER is wired
 node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --test
@@ -448,6 +454,9 @@ make testnet-backfill
 
 # Same Sepolia rehearsal, but using the mainnet pioneer snapshot
 make testnet-backfill ARGS="--pioneers-source arb-one"
+
+# Same Sepolia rehearsal, but forcing the backfill start to the RevShareNFT deployment timestamp
+make testnet-backfill ARGS="--pioneers-source arb-one --start-ts 1754522413"
 ```
 
 The wrapper loads `.env`, redeploys `ModuleManager` and `RevShareModule`,

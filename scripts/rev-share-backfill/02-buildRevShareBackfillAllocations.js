@@ -54,16 +54,19 @@ Excluded pioneer behavior:
 
 Backfill window:
 - Start: earliest token mintedAt found in the pioneer export JSON
+  or an explicit --start-ts override
 - End: current time when the script runs
 
 Flags:
 - --chain <arb-one|arb-sep>  Select the input/output directory set
 - --pioneers-chain <arb-one|arb-sep>  Override the pioneer snapshot source while keeping outputs on --chain
+- --start-ts <unix>  Override the backfill start timestamp with an explicit Unix timestamp
 - --test [true|false]  Use TESTNET_DEPLOYER_ADDRESS as the excluded pioneer address. If the value is omitted, true is assumed.
 - --help               Show this help message
 
 Examples:
 - node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one
+- node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one --start-ts 1754522413
 - node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --test
 - node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-sep --pioneers-chain arb-one --test
 - node scripts/rev-share-backfill/02-buildRevShareBackfillAllocations.js --chain arb-one --test false
@@ -81,6 +84,7 @@ function parseArgs(argv) {
     const parsed = {
         chainId: null,
         pioneersChainId: null,
+        startTs: null,
         showHelp: false,
         testMode: false,
     }
@@ -123,6 +127,29 @@ function parseArgs(argv) {
             }
 
             parsed.pioneersChainId = pioneersChainId
+            i += 1
+            continue
+        }
+
+        if (arg === "--start-ts") {
+            const value = argv[i + 1]
+            if (!value) {
+                throw new Error("Missing value for --start-ts. Expected a Unix timestamp.")
+            }
+
+            if (!/^\d+$/.test(value)) {
+                throw new Error(
+                    `Invalid --start-ts value: ${value}. Expected a Unix timestamp in seconds.`,
+                )
+            }
+
+            parsed.startTs = Number(value)
+            if (!Number.isSafeInteger(parsed.startTs) || parsed.startTs <= 0) {
+                throw new Error(
+                    `Invalid --start-ts value: ${value}. Expected a positive Unix timestamp in seconds.`,
+                )
+            }
+
             i += 1
             continue
         }
@@ -278,7 +305,7 @@ function loadAddressManagerDeployment(chainId) {
     return JSON.parse(fs.readFileSync(deploymentPath, "utf8"))
 }
 
-function deriveBackfillWindow(pioneers) {
+function deriveBackfillWindow(pioneers, startTsOverride = null) {
     let oldestMintedAt = null
 
     for (const pioneer of pioneers) {
@@ -305,17 +332,24 @@ function deriveBackfillWindow(pioneers) {
         )
     }
 
-    // Backfill starts when the oldest currently-held token first entered supply and ends at execution time.
+    // Backfill starts at the earliest currently-held token mint by default, unless explicitly overridden.
     const backfillEndTs = Math.floor(Date.now() / 1000)
-    if (!(oldestMintedAt < backfillEndTs)) {
+    const backfillStartTs = startTsOverride === null ? oldestMintedAt : startTsOverride
+
+    if (!(backfillStartTs < backfillEndTs)) {
         throw new Error(
-            `Derived time window is invalid: backfillStartTs=${oldestMintedAt} backfillEndTs=${backfillEndTs}`,
+            `Derived time window is invalid: backfillStartTs=${backfillStartTs} backfillEndTs=${backfillEndTs}`,
         )
     }
 
     return {
-        backfillStartTs: oldestMintedAt,
+        backfillStartTs,
         backfillEndTs,
+        backfillStartSource:
+            startTsOverride === null
+                ? "minimum token.mintedAt from pioneer export"
+                : `cli --start-ts override (${startTsOverride})`,
+        derivedOldestMintedAt: oldestMintedAt,
     }
 }
 
@@ -733,10 +767,19 @@ async function main() {
     console.log("")
 
     logSection("Backfill Window")
-    const { backfillStartTs, backfillEndTs } = deriveBackfillWindow(pioneers)
-    console.log(
-        `Derived backfillStartTs: ${backfillStartTs} (${formatUnixTimestamp(backfillStartTs)})`,
-    )
+    const {
+        backfillStartTs,
+        backfillEndTs,
+        backfillStartSource,
+        derivedOldestMintedAt,
+    } = deriveBackfillWindow(pioneers, cli.startTs)
+    console.log(`backfillStartTs: ${backfillStartTs} (${formatUnixTimestamp(backfillStartTs)})`)
+    console.log(`backfillStartSource: ${backfillStartSource}`)
+    if (cli.startTs !== null) {
+        console.log(
+            `Derived earliest token.mintedAt: ${derivedOldestMintedAt} (${formatUnixTimestamp(derivedOldestMintedAt)})`,
+        )
+    }
     console.log(`Derived backfillEndTs:   ${backfillEndTs} (${formatUnixTimestamp(backfillEndTs)})`)
     console.log("")
 
@@ -832,7 +875,7 @@ async function main() {
         totalBackfillRaw: pioneersBackfillRaw.toString(),
         backfillStartTs,
         backfillEndTs,
-        backfillStartSource: "minimum token.mintedAt from pioneer export",
+        backfillStartSource,
         backfillEndSource: "current system time at script execution",
         rewardsDurationSec: pioneerSimulation.rewardsDuration.toString(),
         totalNfts: pioneerSimulation.totalNfts.toString(),
