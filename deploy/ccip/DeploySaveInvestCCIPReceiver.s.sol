@@ -4,7 +4,7 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
+import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {SaveInvestCCIPReceiver} from "contracts/helpers/chainlink/ccip/SaveInvestCCIPReceiver.sol";
 import {CcipHelperConfig} from "deploy/utils/configs/CcipHelperConfig.s.sol";

@@ -73,6 +73,7 @@ contract RevShareModule is
     event OnEmergencyWithdraw(uint256 amount);
     event OnEmergencyModeSet(bool enabled);
     event OnNoStreamDeposit(uint256 amount);
+    event OnBackfill(address indexed account, uint256 amount);
 
     error RevShareModule__RevenuesNotAvailableYet();
     error RevShareModule__NotZeroValue();
@@ -81,6 +82,7 @@ contract RevShareModule is
     error RevShareModule__ActiveStreamOngoing();
     error RevShareModule__InsufficientApprovedDeposits();
     error RevShareModule__EmergencyMode();
+    error RevShareModule__LengthMismatch();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -393,6 +395,44 @@ contract RevShareModule is
     /// @notice View the revenue per NFT for Takadao
     function getTakadaoRevenueScaled() external view returns (uint256) {
         return _takadaoRevenueScaled();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           BACKFILL MIGRATION
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Admin backfill of accrued revenue for a specific account.
+     * @dev Used for one-off migration of historical revenue.
+     * @dev Increases both revenuePerAccount and approvedDeposits by `amount`.
+     * @dev Requires the contract to be out of emergency mode.
+     */
+    function adminBackfillRevenue(address[] calldata account, uint256[] calldata amount)
+        external
+        onlyRole(Roles.OPERATOR, address(addressManager))
+        nonReentrant
+    {
+        require(!emergencyMode, RevShareModule__EmergencyMode());
+
+        uint256 len = account.length;
+        require(len == amount.length, RevShareModule__LengthMismatch());
+
+        for (uint256 i = 0; i < len; i++) {
+            _adminBackfillRevenue(account[i], amount[i]);
+        }
+    }
+
+    function _adminBackfillRevenue(address _account, uint256 _amount) internal {
+        AddressAndStates._notZeroAddress(_account);
+        if (_amount == 0) revert RevShareModule__NotZeroValue();
+
+        // Bring streaming accruals up to date for the account so we add on top.
+        _updateRevenue(_account);
+        // Backfill and sync approved deposits
+        revenuePerAccount[_account] += _amount;
+        approvedDeposits += _amount;
+
+        emit OnBackfill(_account, _amount);
     }
 
     /*//////////////////////////////////////////////////////////////

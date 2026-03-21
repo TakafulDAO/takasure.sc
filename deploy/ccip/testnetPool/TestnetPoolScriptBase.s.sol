@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.24;
 
-import {Script, stdJson, console2} from "forge-std/Script.sol";
+import {Script, stdJson} from "forge-std/Script.sol";
 import {GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 
 abstract contract TestnetPoolScriptBase is Script, GetContractAddress {

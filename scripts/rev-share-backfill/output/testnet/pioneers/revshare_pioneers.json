@@ -1,0 +1,634 @@
+{
+  "chainId": 421614,
+  "network": "arbitrum-sepolia",
+  "snapshotBlock": null,
+  "mintedAtSemantics": "timestamp when the token first entered totalSupply",
+  "holdingSinceSemantics": "minimum latest-acquisition timestamp across the NFTs currently held by each address",
+  "totalNftsFromMap": "93",
+  "totalPioneers": 22,
+  "globalStats": {
+    "currentSupply": "93",
+    "totalUniquePioneers": "22"
+  },
+  "pioneers": [
+    {
+      "address": "0x028f4dba9716fb36c2f4dd8caa8de221a5d5815a",
+      "nftBalance": "3",
+      "holdingSince": "1754477242",
+      "tokens": [
+        {
+          "tokenId": "16",
+          "mintedAt": "1754477242",
+          "holdingSince": "1754477242"
+        },
+        {
+          "tokenId": "21",
+          "mintedAt": "1754479888",
+          "holdingSince": "1754479888"
+        },
+        {
+          "tokenId": "22",
+          "mintedAt": "1754479888",
+          "holdingSince": "1754479888"
+        }
+      ]
+    },
+    {
+      "address": "0x11d9deaa603081f0481fff5a25ebc8b2ef6318a8",
+      "nftBalance": "1",
+      "holdingSince": "1769904418",
+      "tokens": [
+        {
+          "tokenId": "91",
+          "mintedAt": "1769904418",
+          "holdingSince": "1769904418"
+        }
+      ]
+    },
+    {
+      "address": "0x2691fa3c636c667870c740bdaf09866034018a0e",
+      "nftBalance": "6",
+      "holdingSince": "1754477226",
+      "tokens": [
+        {
+          "tokenId": "15",
+          "mintedAt": "1754477226",
+          "holdingSince": "1754477226"
+        },
+        {
+          "tokenId": "19",
+          "mintedAt": "1754479875",
+          "holdingSince": "1754479875"
+        },
+        {
+          "tokenId": "20",
+          "mintedAt": "1754479875",
+          "holdingSince": "1754479875"
+        },
+        {
+          "tokenId": "31",
+          "mintedAt": "1754550608",
+          "holdingSince": "1754550608"
+        },
+        {
+          "tokenId": "32",
+          "mintedAt": "1754550662",
+          "holdingSince": "1754550662"
+        },
+        {
+          "tokenId": "33",
+          "mintedAt": "1754550703",
+          "holdingSince": "1754550703"
+        }
+      ]
+    },
+    {
+      "address": "0x2a65f737b3ab50b9239d60084d48a377f58447b6",
+      "nftBalance": "2",
+      "holdingSince": "1755261094",
+      "tokens": [
+        {
+          "tokenId": "36",
+          "mintedAt": "1755261094",
+          "holdingSince": "1755261094"
+        },
+        {
+          "tokenId": "37",
+          "mintedAt": "1755261094",
+          "holdingSince": "1755261094"
+        }
+      ]
+    },
+    {
+      "address": "0x4eb54bfc0d280a164fcada8ade3477c8b93b1dee",
+      "nftBalance": "1",
+      "holdingSince": "1753872788",
+      "tokens": [
+        {
+          "tokenId": "14",
+          "mintedAt": "1753872788",
+          "holdingSince": "1753872788"
+        }
+      ]
+    },
+    {
+      "address": "0x55296ae1c0114a4c20e333571b1dbd40939c80a3",
+      "nftBalance": "1",
+      "holdingSince": "1769904526",
+      "tokens": [
+        {
+          "tokenId": "92",
+          "mintedAt": "1769904418",
+          "holdingSince": "1769904526"
+        }
+      ]
+    },
+    {
+      "address": "0x5953c8d34379c5d979bb2652408f978f0e914a6a",
+      "nftBalance": "6",
+      "holdingSince": "1761716353",
+      "tokens": [
+        {
+          "tokenId": "71",
+          "mintedAt": "1761716353",
+          "holdingSince": "1761716353"
+        },
+        {
+          "tokenId": "72",
+          "mintedAt": "1761716353",
+          "holdingSince": "1761716353"
+        },
+        {
+          "tokenId": "73",
+          "mintedAt": "1761716353",
+          "holdingSince": "1761716353"
+        },
+        {
+          "tokenId": "74",
+          "mintedAt": "1761716353",
+          "holdingSince": "1761716353"
+        },
+        {
+          "tokenId": "75",
+          "mintedAt": "1761716353",
+          "holdingSince": "1761716353"
+        },
+        {
+          "tokenId": "76",
+          "mintedAt": "1761716353",
+          "holdingSince": "1761716353"
+        }
+      ]
+    },
+    {
+      "address": "0x59be6a62c05377183c0ccbbaeade523a76b1a793",
+      "nftBalance": "2",
+      "holdingSince": "1754894148",
+      "tokens": [
+        {
+          "tokenId": "34",
+          "mintedAt": "1754894148",
+          "holdingSince": "1754894148"
+        },
+        {
+          "tokenId": "35",
+          "mintedAt": "1754894175",
+          "holdingSince": "1754894175"
+        }
+      ]
+    },
+    {
+      "address": "0x5ab2d59849a91484ab35312121e8a47a494d1622",
+      "nftBalance": "4",
+      "holdingSince": "1753739866",
+      "tokens": [
+        {
+          "tokenId": "6",
+          "mintedAt": "1753739866",
+          "holdingSince": "1753739866"
+        },
+        {
+          "tokenId": "7",
+          "mintedAt": "1753739899",
+          "holdingSince": "1753739899"
+        },
+        {
+          "tokenId": "8",
+          "mintedAt": "1753739899",
+          "holdingSince": "1753739899"
+        },
+        {
+          "tokenId": "9",
+          "mintedAt": "1753739899",
+          "holdingSince": "1753739899"
+        }
+      ]
+    },
+    {
+      "address": "0x5c778b8047d0282c3ea140a741f1fd9e5e7afcac",
+      "nftBalance": "1",
+      "holdingSince": "1756911010",
+      "tokens": [
+        {
+          "tokenId": "38",
+          "mintedAt": "1756911010",
+          "holdingSince": "1756911010"
+        }
+      ]
+    },
+    {
+      "address": "0x81379aadfa9de591fa5469b954a6edc6787df494",
+      "nftBalance": "2",
+      "holdingSince": "1753699693",
+      "tokens": [
+        {
+          "tokenId": "4",
+          "mintedAt": "1753699693",
+          "holdingSince": "1753699693"
+        },
+        {
+          "tokenId": "5",
+          "mintedAt": "1753699700",
+          "holdingSince": "1753699700"
+        }
+      ]
+    },
+    {
+      "address": "0x8325d4a009a72fdf92a6e741b235fc701bf4136f",
+      "nftBalance": "2",
+      "holdingSince": "1753674035",
+      "tokens": [
+        {
+          "tokenId": "1",
+          "mintedAt": "1753674035",
+          "holdingSince": "1753674035"
+        },
+        {
+          "tokenId": "18",
+          "mintedAt": "1754479172",
+          "holdingSince": "1754479172"
+        }
+      ]
+    },
+    {
+      "address": "0x8e927b26d6698775b79557df00539d4b74911021",
+      "nftBalance": "11",
+      "holdingSince": "1761716332",
+      "tokens": [
+        {
+          "tokenId": "70",
+          "mintedAt": "1761716332",
+          "holdingSince": "1761716332"
+        },
+        {
+          "tokenId": "77",
+          "mintedAt": "1761721466",
+          "holdingSince": "1761721466"
+        },
+        {
+          "tokenId": "78",
+          "mintedAt": "1761721466",
+          "holdingSince": "1761721466"
+        },
+        {
+          "tokenId": "79",
+          "mintedAt": "1761721466",
+          "holdingSince": "1761721466"
+        },
+        {
+          "tokenId": "80",
+          "mintedAt": "1761721466",
+          "holdingSince": "1761721466"
+        },
+        {
+          "tokenId": "81",
+          "mintedAt": "1761721466",
+          "holdingSince": "1761721466"
+        },
+        {
+          "tokenId": "82",
+          "mintedAt": "1761721466",
+          "holdingSince": "1761721466"
+        },
+        {
+          "tokenId": "83",
+          "mintedAt": "1761721466",
+          "holdingSince": "1761721466"
+        },
+        {
+          "tokenId": "84",
+          "mintedAt": "1761721466",
+          "holdingSince": "1761721466"
+        },
+        {
+          "tokenId": "85",
+          "mintedAt": "1761721466",
+          "holdingSince": "1761721466"
+        },
+        {
+          "tokenId": "86",
+          "mintedAt": "1761721466",
+          "holdingSince": "1761721466"
+        }
+      ]
+    },
+    {
+      "address": "0xa8ea8d99319b14c8f5851f8f8dc96506aff18f35",
+      "nftBalance": "2",
+      "holdingSince": "1753674067",
+      "tokens": [
+        {
+          "tokenId": "2",
+          "mintedAt": "1753674067",
+          "holdingSince": "1753674067"
+        },
+        {
+          "tokenId": "3",
+          "mintedAt": "1753674067",
+          "holdingSince": "1753674067"
+        }
+      ]
+    },
+    {
+      "address": "0xbd39dc758bb75fdd27155606e9615ce35614765a",
+      "nftBalance": "3",
+      "holdingSince": "1754490122",
+      "tokens": [
+        {
+          "tokenId": "27",
+          "mintedAt": "1754490122",
+          "holdingSince": "1754490122"
+        },
+        {
+          "tokenId": "28",
+          "mintedAt": "1754490214",
+          "holdingSince": "1754490214"
+        },
+        {
+          "tokenId": "29",
+          "mintedAt": "1754490299",
+          "holdingSince": "1754490299"
+        }
+      ]
+    },
+    {
+      "address": "0xcc99044cc3ff41cdbfadee51d552185e71087c07",
+      "nftBalance": "1",
+      "holdingSince": "1754492219",
+      "tokens": [
+        {
+          "tokenId": "30",
+          "mintedAt": "1754492219",
+          "holdingSince": "1754492219"
+        }
+      ]
+    },
+    {
+      "address": "0xcdfab1d15f56f57bb6e990ec65b29af32ab55ff5",
+      "nftBalance": "3",
+      "holdingSince": "1753673696",
+      "tokens": [
+        {
+          "tokenId": "0",
+          "mintedAt": "1753673696",
+          "holdingSince": "1753673696"
+        },
+        {
+          "tokenId": "10",
+          "mintedAt": "1753798404",
+          "holdingSince": "1753798404"
+        },
+        {
+          "tokenId": "17",
+          "mintedAt": "1754479131",
+          "holdingSince": "1754479131"
+        }
+      ]
+    },
+    {
+      "address": "0xe1c3fa2b282fcee35b38a40ba8aaab938d32d9b1",
+      "nftBalance": "31",
+      "holdingSince": "1761202783",
+      "tokens": [
+        {
+          "tokenId": "39",
+          "mintedAt": "1761202783",
+          "holdingSince": "1761202783"
+        },
+        {
+          "tokenId": "40",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "41",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "42",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "43",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "44",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "45",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "46",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "47",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "48",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "49",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "50",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "51",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "52",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "53",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "54",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "55",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "56",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "57",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "58",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "59",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "60",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "61",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "62",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "63",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "64",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "65",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "66",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "67",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "68",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        },
+        {
+          "tokenId": "69",
+          "mintedAt": "1761203032",
+          "holdingSince": "1761203032"
+        }
+      ]
+    },
+    {
+      "address": "0xe453656fd35d4c957388022c181d736d33faddd7",
+      "nftBalance": "1",
+      "holdingSince": "1754487610",
+      "tokens": [
+        {
+          "tokenId": "26",
+          "mintedAt": "1754487610",
+          "holdingSince": "1754487610"
+        }
+      ]
+    },
+    {
+      "address": "0xee5e3173aba50a2eec7e46c72a8db711e804b522",
+      "nftBalance": "3",
+      "holdingSince": "1753798412",
+      "tokens": [
+        {
+          "tokenId": "11",
+          "mintedAt": "1753798412",
+          "holdingSince": "1753798412"
+        },
+        {
+          "tokenId": "12",
+          "mintedAt": "1753798522",
+          "holdingSince": "1753798522"
+        },
+        {
+          "tokenId": "13",
+          "mintedAt": "1753798620",
+          "holdingSince": "1753798620"
+        }
+      ]
+    },
+    {
+      "address": "0xfcd0b0444ee3cd937b7b56a50e80a27dc6f01a46",
+      "nftBalance": "4",
+      "holdingSince": "1765282422",
+      "tokens": [
+        {
+          "tokenId": "87",
+          "mintedAt": "1765282422",
+          "holdingSince": "1765282422"
+        },
+        {
+          "tokenId": "88",
+          "mintedAt": "1765282469",
+          "holdingSince": "1765282469"
+        },
+        {
+          "tokenId": "89",
+          "mintedAt": "1765282469",
+          "holdingSince": "1765282469"
+        },
+        {
+          "tokenId": "90",
+          "mintedAt": "1765282469",
+          "holdingSince": "1765282469"
+        }
+      ]
+    },
+    {
+      "address": "0xfd008c8704bb4c3361fcf95697e3107622e7485a",
+      "nftBalance": "3",
+      "holdingSince": "1754484552",
+      "tokens": [
+        {
+          "tokenId": "23",
+          "mintedAt": "1754484552",
+          "holdingSince": "1754484552"
+        },
+        {
+          "tokenId": "24",
+          "mintedAt": "1754485909",
+          "holdingSince": "1754485909"
+        },
+        {
+          "tokenId": "25",
+          "mintedAt": "1754485914",
+          "holdingSince": "1754485914"
+        }
+      ]
+    }
+  ]
+}

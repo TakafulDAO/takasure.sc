@@ -39,6 +39,7 @@ run.conf
 
 # local deployments
 deployments/localhost/
+scripts/rev-share-backfill/anvil-revshare.log
 
 # previous deployments
 contracts/version_previous_contracts

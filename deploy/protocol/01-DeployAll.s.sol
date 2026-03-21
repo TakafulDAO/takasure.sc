@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2, stdJson} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {TakasureReserve} from "contracts/core/TakasureReserve.sol";
 import {EntryModule} from "contracts/modules/EntryModule.sol";
 import {MemberModule} from "contracts/modules/MemberModule.sol";
@@ -58,7 +58,7 @@ contract DeployTakasureReserve is Script {
             abi.encodeCall(MemberModule.initialize, (takasureReserve))
         );
 
-        // Deploy RevemueModule
+        // Deploy RevenueModule
         revenueModule = Upgrades.deployUUPSProxy(
             "RevenueModule.sol",
             abi.encodeCall(RevenueModule.initialize, (takasureReserve))

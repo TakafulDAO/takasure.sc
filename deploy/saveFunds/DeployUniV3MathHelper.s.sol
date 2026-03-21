@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {UniswapV3MathHelper} from "contracts/helpers/uniswapHelpers/UniswapV3MathHelper.sol";
 
 contract DeployUniV3MathHelper is Script {
