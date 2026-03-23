@@ -238,11 +238,10 @@ contract UniV3StratTest is Test {
 
         assertGt(uniV3Strategy.positionTokenId(), 0);
 
-        // Current strategy design only sweeps underlying to vault.
+        // Current strategy design only sweeps underlying to vault. Any leftover other-token dust
+        // is incidental and may be zero if the mint consumed the full swapped balance.
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
-        assertGt(usdt.balanceOf(address(uniV3Strategy)), 0);
-
-        // assertGt(uniV3Strategy.totalAssets(), 0);
+        assertGt(uniV3Strategy.totalAssets(), 0);
     }
 
     function testUniV3Strat_deposit_IncreaseLiquidity_WhenPositionExists() public {
@@ -266,9 +265,9 @@ contract UniV3StratTest is Test {
         assertEq(uniV3Strategy.positionTokenId(), tokenIdBefore);
         assertGt(uniV3Strategy.totalAssets(), totalBefore);
 
-        // Current strategy design only sweeps underlying to vault.
+        // Current strategy design only guarantees the underlying side is swept. Residual other-token
+        // dust may or may not remain depending on how precisely the LP action consumed balances.
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
-        assertGt(usdt.balanceOf(address(uniV3Strategy)), 0);
     }
 
     function testUniV3Strat_withdraw_WhenTotalAssetsIsZero_Returns0() public {
