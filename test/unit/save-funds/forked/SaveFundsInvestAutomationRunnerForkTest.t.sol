@@ -521,10 +521,11 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         harness.setHarnessConfig(address(poolMock), address(0), address(31), address(31), false);
         assertEq(harness.exposedQuoteOtherAsUnderlyingAtSqrtPrice(9, sqrtPriceX96), 9);
 
+        // The helper now relies on initialization-time pool validation and only uses `otherIsToken0`
+        // to choose the conversion direction at runtime.
         poolMock.setTokens(address(41), address(42));
         harness.setHarnessConfig(address(poolMock), address(0), address(43), address(44), false);
-        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__BadPoolConfig.selector);
-        harness.exposedQuoteOtherAsUnderlyingAtSqrtPrice(1, sqrtPriceX96);
+        assertEq(harness.exposedQuoteOtherAsUnderlyingAtSqrtPrice(1, sqrtPriceX96), 1);
 
         pausedTarget.setPaused(true);
         assertTrue(harness.exposedIsPaused(address(pausedTarget)));
@@ -653,14 +654,14 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
 
         poolMock.setSlot0(1 << 96, 0);
         poolMock.setObserve(0, 0, false);
-        (bool guardPassed, uint16 pegDeviation, uint16 twapDeviation,,) = harness.exposedEvaluatePegGuard();
+        (bool guardPassed, uint16 pegDeviation, uint16 twapDeviation) = harness.exposedEvaluatePegGuard();
         assertTrue(guardPassed);
         assertEq(pegDeviation, 0);
         assertEq(twapDeviation, 0);
 
         poolMock.setSlot0(TickMathV3.getSqrtRatioAtTick(25), 25);
         poolMock.setObserve(0, 0, false);
-        (guardPassed, pegDeviation, twapDeviation,,) = harness.exposedEvaluatePegGuard();
+        (guardPassed, pegDeviation, twapDeviation) = harness.exposedEvaluatePegGuard();
         assertFalse(guardPassed);
         assertGt(pegDeviation, 10);
         assertGt(twapDeviation, 10);
@@ -1089,22 +1090,10 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
     function exposedEvaluatePegGuard()
         external
         view
-        returns (
-            bool passed,
-            uint16 spotPegDeviationBPS,
-            uint16 spotVsTwapDeviationBPS,
-            uint160 spotSqrtPriceX96,
-            uint160 twapSqrtPriceX96
-        )
+        returns (bool passed, uint16 spotPegDeviationBPS, uint16 spotVsTwapDeviationBPS)
     {
         PegGuardStatus memory status = _evaluatePegGuard();
-        return (
-            status.passed,
-            status.spotPegDeviationBPS,
-            status.spotVsTwapDeviationBPS,
-            status.spotSqrtPriceX96,
-            status.twapSqrtPriceX96
-        );
+        return (status.passed, status.spotPegDeviationBPS, status.spotVsTwapDeviationBPS);
     }
 
     function exposedCurrentMonitoringTick() external view returns (int24) {

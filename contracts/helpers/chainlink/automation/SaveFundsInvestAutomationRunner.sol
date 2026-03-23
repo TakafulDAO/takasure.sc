@@ -66,9 +66,8 @@ contract SaveFundsInvestAutomationRunner is
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
     uint256 internal constant DAILY_INTERVAL = 12 hours;
-    uint256 internal constant ARBITRUM_ONE_CHAIN_ID = 42_161;
-    address internal constant UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM =
-        0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+    INonfungiblePositionManager internal constant POSITION_MANAGER =
+        INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
 
     // Rebalance policy constants
     uint256 internal constant REBALANCE_CONSECUTIVE_TRIGGER = 24 hours;
@@ -132,8 +131,6 @@ contract SaveFundsInvestAutomationRunner is
     struct RebalanceObservation {
         uint8 rangeSide;
         int24 currentTick;
-        int24 tickLower;
-        int24 tickUpper;
         uint16 inventoryOtherRatioBPS;
     }
 
@@ -143,8 +140,6 @@ contract SaveFundsInvestAutomationRunner is
         bool passed;
         uint16 spotPegDeviationBPS;
         uint16 spotVsTwapDeviationBPS;
-        uint160 spotSqrtPriceX96;
-        uint160 twapSqrtPriceX96;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -157,26 +152,6 @@ contract SaveFundsInvestAutomationRunner is
     event OnUpkeepAttempt(uint256 ts, uint256 idleAssets, uint16 otherRatioBPS, bytes32 bundleHash);
     event OnInvestSucceeded(uint256 ts, uint256 requestedAssets, uint256 investedAssets, uint16 otherRatioBPS);
     event OnInvestFailed(uint256 ts, bytes reason);
-    event OnRebalanceObserved(
-        uint256 ts,
-        int24 currentTick,
-        int24 tickLower,
-        int24 tickUpper,
-        uint8 rangeSide,
-        uint16 inventoryOtherRatioBPS,
-        uint8 triggerPath,
-        bool pegGuardPassed,
-        bool rebalanceNeeded
-    );
-    event OnRebalanceBlockedByPegGuard(
-        uint256 ts,
-        int24 currentTick,
-        uint8 triggerPath,
-        uint16 spotPegDeviationBPS,
-        uint16 spotVsTwapDeviationBPS,
-        uint160 spotSqrtPriceX96,
-        uint160 twapSqrtPriceX96
-    );
     event OnRebalanceAttempt(
         uint256 ts, int24 currentTick, int24 newTickLower, int24 newTickUpper, uint16 otherRatioBPS, bytes32 bundleHash
     );
@@ -186,14 +161,12 @@ contract SaveFundsInvestAutomationRunner is
     event OnRebalanceFailed(
         uint256 ts, int24 currentTick, int24 newTickLower, int24 newTickUpper, uint16 otherRatioBPS, bytes reason
     );
-    event OnConfigUpdated();
 
     error SaveFundsInvestAutomationRunner__NotAddressZero();
     error SaveFundsInvestAutomationRunner__TooSmall();
     error SaveFundsInvestAutomationRunner__OutOfRange();
     error SaveFundsInvestAutomationRunner__BadPoolConfig();
     error SaveFundsInvestAutomationRunner__BadStrategyConfig();
-    error SaveFundsInvestAutomationRunner__UnsupportedChainId();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -274,7 +247,6 @@ contract SaveFundsInvestAutomationRunner is
     /// @custom:oz-upgrades-validate-as-initializer
     function initializeV2() external reinitializer(2) onlyOwner {
         _initializeRebalanceState();
-        emit OnConfigUpdated();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -301,7 +273,6 @@ contract SaveFundsInvestAutomationRunner is
             SaveFundsInvestAutomationRunner__TooSmall()
         );
         interval = newIntervalSeconds;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -315,7 +286,6 @@ contract SaveFundsInvestAutomationRunner is
             SaveFundsInvestAutomationRunner__TooSmall()
         );
         rebalanceCheckInterval = newIntervalSeconds;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -324,7 +294,6 @@ contract SaveFundsInvestAutomationRunner is
      */
     function toggleTestMode() external onlyOwner {
         testMode = !testMode;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -333,7 +302,6 @@ contract SaveFundsInvestAutomationRunner is
      */
     function setMinIdleAssets(uint256 newMinIdleAssets) external onlyOwner {
         minIdleAssets = newMinIdleAssets;
-        emit OnConfigUpdated();
     }
 
     function pause() external onlyOwner whenNotPaused {
@@ -350,7 +318,6 @@ contract SaveFundsInvestAutomationRunner is
      */
     function toggleSkipIfPaused() external onlyOwner whenNotPaused {
         skipIfPaused = !skipIfPaused;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -360,7 +327,6 @@ contract SaveFundsInvestAutomationRunner is
      */
     function toggleStrictUniOnlyAllocation() external onlyOwner whenNotPaused {
         strictUniOnlyAllocation = !strictUniOnlyAllocation;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -369,7 +335,6 @@ contract SaveFundsInvestAutomationRunner is
      */
     function toggleRebalanceEnabled() external onlyOwner whenNotPaused {
         rebalanceEnabled = !rebalanceEnabled;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -378,7 +343,6 @@ contract SaveFundsInvestAutomationRunner is
      */
     function setUseAutoOtherRatio() external onlyOwner whenNotPaused {
         useAutoOtherRatio = !useAutoOtherRatio;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -388,7 +352,6 @@ contract SaveFundsInvestAutomationRunner is
     function setManualOtherRatioBPS(uint16 bps) external onlyOwner whenNotPaused {
         require(bps <= MAX_BPS, SaveFundsInvestAutomationRunner__OutOfRange());
         manualOtherRatioBPS = bps;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -402,7 +365,6 @@ contract SaveFundsInvestAutomationRunner is
         );
         swapToOtherBPS = swapToOtherBPS_;
         swapToUnderlyingBPS = swapToUnderlyingBPS_;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -413,7 +375,6 @@ contract SaveFundsInvestAutomationRunner is
     function setPositionMins(uint256 minUnderlying_, uint256 minOther_) external onlyOwner whenNotPaused {
         minUnderlying = minUnderlying_;
         minOther = minOther_;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -422,7 +383,6 @@ contract SaveFundsInvestAutomationRunner is
      */
     function setDeadlineBuffer(uint256 deadlineBuffer_) external onlyOwner whenNotPaused {
         deadlineBuffer = deadlineBuffer_;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -432,7 +392,6 @@ contract SaveFundsInvestAutomationRunner is
      */
     function setLastRun(uint256 ts) external onlyOwner {
         lastRun = ts;
-        emit OnConfigUpdated();
     }
 
     /**
@@ -443,7 +402,6 @@ contract SaveFundsInvestAutomationRunner is
      */
     function setLastSuccessfulRebalance(uint256 ts) external onlyOwner {
         lastSuccessfulRebalance = ts;
-        emit OnConfigUpdated();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -748,33 +706,10 @@ contract SaveFundsInvestAutomationRunner is
         // Peg guard is only meaningful once a path already qualifies.
         PegGuardStatus memory _pegGuard;
         if (_triggerPath != REBALANCE_PATH_NONE) _pegGuard = _evaluatePegGuard();
-        bool _rebalanceNeeded = _triggerPath != REBALANCE_PATH_NONE && _pegGuard.passed;
-
-        emit OnRebalanceObserved(
-            block.timestamp,
-            _observation.currentTick,
-            _observation.tickLower,
-            _observation.tickUpper,
-            _observation.rangeSide,
-            _observation.inventoryOtherRatioBPS,
-            _triggerPath,
-            _triggerPath != REBALANCE_PATH_NONE && _pegGuard.passed,
-            _rebalanceNeeded
-        );
-
         if (_triggerPath == REBALANCE_PATH_NONE) return false;
 
         if (!_pegGuard.passed) {
             // This is an intentional skip. Still stop the investment because the rebalance was considered unsafe due to peg conditions.
-            emit OnRebalanceBlockedByPegGuard(
-                block.timestamp,
-                _observation.currentTick,
-                _triggerPath,
-                _pegGuard.spotPegDeviationBPS,
-                _pegGuard.spotVsTwapDeviationBPS,
-                _pegGuard.spotSqrtPriceX96,
-                _pegGuard.twapSqrtPriceX96
-            );
             return true;
         }
 
@@ -892,11 +827,10 @@ contract SaveFundsInvestAutomationRunner is
      * @notice Builds the current rebalance observation snapshot.
      * @dev This is the single source of truth for "what did we observe this check?" and is used
      *      both for storage and for any immediate rebalance decision derived from that.
-     * @return observation_ Current range side, monitoring tick, strategy band, and inventory ratio.
+     * @return observation_ Current range side, monitoring tick, and inventory ratio.
      */
     function _currentRebalanceObservation() internal view returns (RebalanceObservation memory observation_) {
-        (observation_.rangeSide, observation_.currentTick, observation_.tickLower, observation_.tickUpper) =
-            _currentRangeStatus();
+        (observation_.rangeSide, observation_.currentTick,,) = _currentRangeStatus();
         observation_.inventoryOtherRatioBPS = _currentInventoryOtherRatioBPS();
     }
 
@@ -1128,12 +1062,11 @@ contract SaveFundsInvestAutomationRunner is
         view
         returns (uint256 underlyingValue_, uint256 otherValueInUnderlying_)
     {
-        INonfungiblePositionManager _positionManager = _nonfungiblePositionManager();
-        address _token0 = PositionReader._getAddress(_positionManager, _positionTokenId, 2);
-        address _token1 = PositionReader._getAddress(_positionManager, _positionTokenId, 3);
-        int24 _tickLower = PositionReader._getInt24(_positionManager, _positionTokenId, 5);
-        int24 _tickUpper = PositionReader._getInt24(_positionManager, _positionTokenId, 6);
-        uint128 _liquidity = PositionReader._getUint128(_positionManager, _positionTokenId, 7);
+        address _token0 = PositionReader._getAddress(POSITION_MANAGER, _positionTokenId, 2);
+        address _token1 = PositionReader._getAddress(POSITION_MANAGER, _positionTokenId, 3);
+        int24 _tickLower = PositionReader._getInt24(POSITION_MANAGER, _positionTokenId, 5);
+        int24 _tickUpper = PositionReader._getInt24(POSITION_MANAGER, _positionTokenId, 6);
+        uint128 _liquidity = PositionReader._getUint128(POSITION_MANAGER, _positionTokenId, 7);
 
         if (_liquidity != 0) {
             (uint256 _amount0, uint256 _amount1) = LiquidityAmountsV3.getAmountsForLiquidity(
@@ -1149,8 +1082,8 @@ contract SaveFundsInvestAutomationRunner is
                 _accumulateInventoryLeg(underlyingValue_, otherValueInUnderlying_, _token1, _amount1, _sqrtPriceX96);
         }
 
-        uint128 _owed0 = PositionReader._getUint128(_positionManager, _positionTokenId, 10);
-        uint128 _owed1 = PositionReader._getUint128(_positionManager, _positionTokenId, 11);
+        uint128 _owed0 = PositionReader._getUint128(POSITION_MANAGER, _positionTokenId, 10);
+        uint128 _owed1 = PositionReader._getUint128(POSITION_MANAGER, _positionTokenId, 11);
 
         (underlyingValue_, otherValueInUnderlying_) =
             _accumulateInventoryLeg(underlyingValue_, otherValueInUnderlying_, _token0, uint256(_owed0), _sqrtPriceX96);
@@ -1190,24 +1123,6 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Returns the NonfungiblePositionManager used by the live strategy deployment.
-     * @dev This stays internal and chain-aware because the runner is deployed on known networks
-     *      and the strategy does not expose its position manager address publicly.
-     *      This runner is intended for Arbitrum One only, so any other chain id is treated as
-     *      a configuration error and fails closed.
-     * @return positionManager_ Position manager used to read the active LP NFT.
-     */
-    function _nonfungiblePositionManager()
-        internal
-        view
-        virtual
-        returns (INonfungiblePositionManager positionManager_)
-    {
-        if (block.chainid != ARBITRUM_ONE_CHAIN_ID) revert SaveFundsInvestAutomationRunner__UnsupportedChainId();
-        return INonfungiblePositionManager(UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM);
-    }
-
-    /**
      * @notice Returns the valuation price used for inventory-side sampling.
      * @return sqrtPriceX96_ Spot price when available, otherwise the strategy valuation fallback.
      */
@@ -1228,14 +1143,13 @@ contract SaveFundsInvestAutomationRunner is
      * @return status_ Current peg-guard result and diagnostics.
      */
     function _evaluatePegGuard() internal view returns (PegGuardStatus memory status_) {
-        (status_.spotSqrtPriceX96,,,,,,) = pool.slot0();
-        if (status_.spotSqrtPriceX96 == 0) return status_;
+        (uint160 _spotSqrtPriceX96,,,,,,) = pool.slot0();
+        if (_spotSqrtPriceX96 == 0) return status_;
 
         (bool _twapOk, uint160 _twapSqrtPriceX96) = _strictTwapSqrtPriceX96(REBALANCE_PEG_GUARD_TWAP_WINDOW);
-        status_.twapSqrtPriceX96 = _twapSqrtPriceX96;
         if (!_twapOk || _twapSqrtPriceX96 == 0) return status_;
 
-        uint256 _spotPriceE18 = _normalizedOtherPriceE18(status_.spotSqrtPriceX96);
+        uint256 _spotPriceE18 = _normalizedOtherPriceE18(_spotSqrtPriceX96);
         uint256 _twapPriceE18 = _normalizedOtherPriceE18(_twapSqrtPriceX96);
         status_.spotPegDeviationBPS = _deviationBPS(_spotPriceE18, 1e18);
         status_.spotVsTwapDeviationBPS = _deviationBPS(_spotPriceE18, _twapPriceE18);
@@ -1446,19 +1360,12 @@ contract SaveFundsInvestAutomationRunner is
         returns (uint256)
     {
         if (_amountOther == 0) return 0;
-        if (underlyingToken == otherToken) return _amountOther;
 
-        // Convert using the pool price and the known token ordering of the strategy pair.
+        // Pool ordering was already validated during initialization, so `otherIsToken0`
+        // is enough to choose the conversion direction.
         uint256 _priceX192 = uint256(_sqrtPriceX96) * uint256(_sqrtPriceX96);
         uint256 _q192 = 1 << 192;
-
-        address _token0 = pool.token0();
-        address _token1 = pool.token1();
-
-        if (otherToken == _token0 && underlyingToken == _token1) {
-            return Math.mulDiv(_amountOther, _priceX192, _q192);
-        }
-        require(otherToken == _token1 && underlyingToken == _token0, SaveFundsInvestAutomationRunner__BadPoolConfig());
+        if (otherIsToken0) return Math.mulDiv(_amountOther, _priceX192, _q192);
         return Math.mulDiv(_amountOther, _q192, _priceX192);
     }
 
