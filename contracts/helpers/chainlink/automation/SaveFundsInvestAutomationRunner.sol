@@ -8,9 +8,24 @@
  *      - auto `otherRatioBPS` from current price + [tickLower, tickUpper]
  *      - Universal Router swap payloads with amountIn BPS sentinel
  * @dev Rules for rebalance attempts:
- *     - Observe the strategy's monitoring tick against its current range on a configurable cadence.
- *     - Trigger a rebalance when the position has been continuously out of range for at least 24 hours, or when
- *       there is at least 24 hours of out-of-range history observed within a rolling 3-day window and the latest
+ *      - Observe the strategy on its own cadence, independent from invest cadence.
+ *      - Record one sampled snapshot per check:
+ *        - which side of the range the position is on (`in range`, `below`, `above`)
+ *        - the current inventory split between underlying and `otherToken`
+ *      - Rebalance through the `ordinary` path when the position is currently out of range and inventory
+ *        has been 95/5 one-sided or worse for 24 consecutive observed hours.
+ *      - Otherwise, rebalance through the `oscillation` path only when:
+ *        - the position is currently out of range,
+ *        - it has spent at least 18 observed hours of the last 72 hours on the same out-of-range side, and
+ *        - inventory has been 80/20 one-sided or worse for 24 consecutive observed hours.
+ *      - Both rebalance paths are additionally guarded by a peg check:
+ *        - spot must be within 10 bps of peg, and
+ *        - spot must be within 10 bps of a strict 30-minute TWAP.
+ *      - When peg guard blocks an otherwise valid rebalance candidate, the upkeep also skips invest for
+ *        that run so new capital is not deployed during an intentional depeg pause.
+ * @dev Sampling and duration calculations are intentionally conservative. Time only accrues between adjacent
+ *      samples that confirm the same condition, so an 18-hour oscillation threshold with a 12-hour cadence
+ *      effectively requires 24 observed hours on-chain.
  */
 
 pragma solidity 0.8.28;
@@ -26,10 +41,12 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-
+import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfungiblePositionManager.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISFStrategyMaintenance} from "contracts/interfaces/saveFunds/ISFStrategyMaintenance.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {LiquidityAmountsV3} from "contracts/helpers/uniswapHelpers/libraries/LiquidityAmountsV3.sol";
+import {PositionReader} from "contracts/helpers/uniswapHelpers/libraries/PositionReader.sol";
 import {TickMathV3} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
 import {ISFVaultAutomation} from "contracts/helpers/chainlink/automation/interfaces/ISFVaultAutomation.sol";
 import {
@@ -49,13 +66,27 @@ contract SaveFundsInvestAutomationRunner is
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
     uint256 internal constant DAILY_INTERVAL = 12 hours;
+    uint256 internal constant ARBITRUM_ONE_CHAIN_ID = 42_161;
+    address internal constant UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM =
+        0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+
+    // Rebalance policy constants
     uint256 internal constant REBALANCE_CONSECUTIVE_TRIGGER = 24 hours;
-    uint256 internal constant REBALANCE_ROLLING_TRIGGER = 24 hours;
+    uint256 internal constant REBALANCE_OSCILLATION_SIDE_TRIGGER = 18 hours;
     uint256 internal constant REBALANCE_WINDOW = 3 days;
-    uint256 internal constant REBALANCE_COOLDOWN = 7 days;
+    uint32 internal constant REBALANCE_PEG_GUARD_TWAP_WINDOW = 30 minutes;
+    uint16 internal constant REBALANCE_PEG_GUARD_BPS = 10;
+    uint16 internal constant REBALANCE_ORDINARY_ONE_SIDED_BPS = 500;
+    uint16 internal constant REBALANCE_OSCILLATION_ONE_SIDED_BPS = 2_000;
     uint8 internal constant REBALANCE_SAMPLE_CAP = 16;
     int24 internal constant REBALANCE_TICK_LOWER_OFFSET = -2;
     int24 internal constant REBALANCE_TICK_UPPER_OFFSET = 3;
+    uint8 internal constant RANGE_SIDE_IN_RANGE = 0;
+    uint8 internal constant RANGE_SIDE_BELOW = 1;
+    uint8 internal constant RANGE_SIDE_ABOVE = 2;
+    uint8 internal constant REBALANCE_PATH_NONE = 0;
+    uint8 internal constant REBALANCE_PATH_ORDINARY = 1;
+    uint8 internal constant REBALANCE_PATH_OSCILLATION = 2;
 
     IAddressManager public addressManager;
     ISFVaultAutomation public vault;
@@ -85,12 +116,36 @@ contract SaveFundsInvestAutomationRunner is
 
     uint256 public rebalanceCheckInterval;
     uint256 public lastRebalanceCheck;
-    uint256 public lastSuccessfulRebalance;
+    uint256 public lastSuccessfulRebalance; // Bookkeeping only
     bool public rebalanceEnabled;
     uint8 internal rebalanceSampleCount;
     uint8 internal rebalanceSampleHead;
+
+    // Fixed-size ring buffer used for conservative sampled history.
+    // Each index represents one observation timestamp and its associated state snapshot.
     uint40[REBALANCE_SAMPLE_CAP] internal rebalanceSampleTimestamps;
     bool[REBALANCE_SAMPLE_CAP] internal rebalanceSampleOutOfRange;
+    uint8[REBALANCE_SAMPLE_CAP] internal rebalanceSampleRangeSides;
+    uint16[REBALANCE_SAMPLE_CAP] internal rebalanceSampleInventoryOtherRatioBPS;
+
+    /// @dev One sampled rebalance snapshot. "What do we see right now?"
+    struct RebalanceObservation {
+        uint8 rangeSide;
+        int24 currentTick;
+        int24 tickLower;
+        int24 tickUpper;
+        uint16 inventoryOtherRatioBPS;
+    }
+
+    /// @dev Current peg-guard diagnostics. Written when rebalance is blocked, helps to know if it was an absolute depeg or spot-vs-TWAP divergence.
+    ///
+    struct PegGuardStatus {
+        bool passed;
+        uint16 spotPegDeviationBPS;
+        uint16 spotVsTwapDeviationBPS;
+        uint160 spotSqrtPriceX96;
+        uint160 twapSqrtPriceX96;
+    }
 
     /*//////////////////////////////////////////////////////////////
                            EVENTS AND ERRORS
@@ -107,10 +162,20 @@ contract SaveFundsInvestAutomationRunner is
         int24 currentTick,
         int24 tickLower,
         int24 tickUpper,
-        bool outOfRange,
-        uint256 consecutiveObserved,
-        uint256 rollingObserved,
+        uint8 rangeSide,
+        uint16 inventoryOtherRatioBPS,
+        uint8 triggerPath,
+        bool pegGuardPassed,
         bool rebalanceNeeded
+    );
+    event OnRebalanceBlockedByPegGuard(
+        uint256 ts,
+        int24 currentTick,
+        uint8 triggerPath,
+        uint16 spotPegDeviationBPS,
+        uint16 spotVsTwapDeviationBPS,
+        uint160 spotSqrtPriceX96,
+        uint160 twapSqrtPriceX96
     );
     event OnRebalanceAttempt(
         uint256 ts, int24 currentTick, int24 newTickLower, int24 newTickUpper, uint16 otherRatioBPS, bytes32 bundleHash
@@ -128,6 +193,7 @@ contract SaveFundsInvestAutomationRunner is
     error SaveFundsInvestAutomationRunner__OutOfRange();
     error SaveFundsInvestAutomationRunner__BadPoolConfig();
     error SaveFundsInvestAutomationRunner__BadStrategyConfig();
+    error SaveFundsInvestAutomationRunner__UnsupportedChainId();
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -370,8 +436,9 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Seeds the timestamp used by the 7-day rebalance cooldown rule.
-     * @dev Useful when migrating an already-operated strategy into the upgraded runner.
+     * @notice Manually seeds the latest successful rebalance timestamp.
+     * @dev This no longer participates in trigger gating, but it remains useful for operator
+     *      bookkeeping and continuity when migrating an already-operated strategy.
      * @param ts Timestamp to store as the latest successful rebalance time.
      */
     function setLastSuccessfulRebalance(uint256 ts) external onlyOwner {
@@ -387,6 +454,8 @@ contract SaveFundsInvestAutomationRunner is
      * @notice Chainlink Automation fallback function.
      * @dev This function is intentionally conservative: it only reports upkeep when either
      *      an invest attempt or a rebalance observation is currently actionable.
+     *      The rebalance half just answers "should we sample now?" so the write path can
+     *      recompute from live state.
      *      It does not revert if dependencies are paused or temporarily unavailable.
      * @return upkeepNeeded True when upkeep should be executed.
      * @return performData ABI-encoded `(idleAssets, investNeeded, rebalanceCheckNeeded)`.
@@ -433,6 +502,10 @@ contract SaveFundsInvestAutomationRunner is
      * @dev Rebalance work is attempted before invest work so any new capital is deployed into
      *      the fresh tick range instead of the stale one. The input payload is ignored because
      *      the contract recomputes all safety checks at execution time.
+     *      The execution order is:
+     *      1. optionally sample and evaluate rebalance
+     *      2. stop entirely if rebalance failed or peg guard intentionally blocked it
+     *      3. only then continue into the normal invest flow
      */
     function performUpkeep(bytes calldata) external {
         if (paused()) return;
@@ -443,8 +516,7 @@ contract SaveFundsInvestAutomationRunner is
 
         if (skipIfPaused) {
             if (_isPaused(address(vault)) || _isPaused(aggregator) || _isPaused(uniStrategy)) {
-                // Advance the relevant clocks to avoid spamming repeated attempts while the
-                // downstream protocol components are intentionally paused.
+                // Advance the relevant clocks.
                 if (rebalanceCheckNeeded) lastRebalanceCheck = block.timestamp;
                 if (investWindowOpen) lastRun = block.timestamp;
                 emit OnUpkeepSkippedPaused(block.timestamp);
@@ -452,8 +524,7 @@ contract SaveFundsInvestAutomationRunner is
             }
         }
 
-        // Rebalance failure short-circuits the upkeep so the runner does not add new capital
-        // into a position it just failed to move.
+        // Rebalance failure short-circuits the upkeep so the runner does not add new capital into a position it just failed to move.
         if (rebalanceCheckNeeded && _observeAndMaybeRebalance()) return;
 
         if (!investWindowOpen) return;
@@ -476,8 +547,6 @@ contract SaveFundsInvestAutomationRunner is
             return;
         }
 
-        // Preserve the existing invest scheduling semantics: `lastRun` advances exactly on
-        // the path where the runner commits to an invest attempt.
         lastRun = block.timestamp;
 
         uint16 otherRatioBPS_ = useAutoOtherRatio ? _resolveAutoOtherRatioBPS(idle) : manualOtherRatioBPS;
@@ -603,6 +672,9 @@ contract SaveFundsInvestAutomationRunner is
     /**
      * @notice Resolves the auto ratio for an arbitrary target range.
      * @dev Used by invest for the current range and by rebalance for the candidate next range.
+     *      This is intentionally separate from the rebalance inventory sampling ratio:
+     *      - inventory sampling asks "how one-sided is the strategy right now?"
+     *      - auto ratio asks "what mix should a fresh position target for this range?"
      * @param _assetsIncoming Incoming underlying amount considered in ratio adjustment.
      * @param _tickLower Lower tick of the target range.
      * @param _tickUpper Upper tick of the target range.
@@ -616,8 +688,7 @@ contract SaveFundsInvestAutomationRunner is
         (uint160 _spotSqrtPriceX96,,,,,,) = pool.slot0();
         uint160 _ratioSqrtPriceX96 = _spotSqrtPriceX96;
         if (_ratioSqrtPriceX96 == 0) {
-            // Spot should be the normal path. TWAP only exists as a defensive fallback when
-            // slot0 returns an unusable zero price.
+            // Spot should be the normal path. TWAP only exists as a defensive fallback when slot0 returns an unusable zero price.
             uint32 _window = ISFUniV3StrategyAutomationView(uniStrategy).twapWindow();
             _ratioSqrtPriceX96 = _valuationSqrtPriceX96(_window);
         }
@@ -643,54 +714,92 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Records the latest range observation and executes rebalance when rules are met.
-     * @dev Returns `true` only when a rebalance attempt was made and failed. The caller uses
-     *      that signal to skip the invest branch for the same upkeep.
-     * @return rebalanceFailed_ True when a rebalance attempt reverted.
+     * @notice Records the latest rebalance observation and executes rebalance when rules are met.
+     * @dev Returns `true` when the upkeep should stop before the invest branch. That includes
+     *      both a failed rebalance attempt and a rebalance candidate blocked by peg guard.
+     *      The evaluation flow is:
+     *      1. sample current range side + inventory ratio
+     *      2. update the ring buffer
+     *      3. measure ordinary-path and oscillation-path durations from sampled history
+     *      4. choose the trigger path, if any
+     *      5. apply peg guard only after a path is otherwise valid
+     *      6. execute rebalance if the path survives peg guard
+     * @return skipInvest_ True when the caller should skip the invest branch for this upkeep.
      */
-    function _observeAndMaybeRebalance() internal returns (bool rebalanceFailed_) {
+    function _observeAndMaybeRebalance() internal returns (bool skipInvest_) {
         lastRebalanceCheck = block.timestamp;
 
-        // Sample the current range state first so both the event and the trigger logic use
-        // exactly the same observation.
-        (bool _outOfRange, int24 _currentTick, int24 _tickLower, int24 _tickUpper) = _currentRangeStatus();
-        _recordRebalanceSample(_outOfRange);
+        // Sample the live range side and inventory composition first so all downstream decisions
+        // are made from the exact same observation.
+        RebalanceObservation memory _observation = _currentRebalanceObservation();
+        _recordRebalanceSample(_observation.rangeSide, _observation.inventoryOtherRatioBPS);
 
-        uint256 _consecutiveObserved = _consecutiveOutOfRangeObserved();
-        uint256 _rollingObserved = _rollingOutOfRangeObserved(block.timestamp - REBALANCE_WINDOW);
-        bool _rebalanceNeeded = _outOfRange && _shouldTriggerRebalance(_consecutiveObserved, _rollingObserved);
+        // Ordinary path: 24h consecutive 95/5-or-worse inventory while out of range.
+        uint256 _ordinaryInventoryObserved = _consecutiveInventoryOneSidedObserved(REBALANCE_ORDINARY_ONE_SIDED_BPS);
+        // Oscillation path: 24h consecutive 80/20-or-worse inventory plus same-side history inside 72h.
+        uint256 _oscillationInventoryObserved =
+            _consecutiveInventoryOneSidedObserved(REBALANCE_OSCILLATION_ONE_SIDED_BPS);
+        uint256 _sameSideObserved = _rollingSameSideObserved(_observation.rangeSide, block.timestamp - REBALANCE_WINDOW);
+
+        uint8 _triggerPath = _rebalanceTriggerPath(
+            _observation.rangeSide, _ordinaryInventoryObserved, _sameSideObserved, _oscillationInventoryObserved
+        );
+
+        // Peg guard is only meaningful once a path already qualifies.
+        PegGuardStatus memory _pegGuard;
+        if (_triggerPath != REBALANCE_PATH_NONE) _pegGuard = _evaluatePegGuard();
+        bool _rebalanceNeeded = _triggerPath != REBALANCE_PATH_NONE && _pegGuard.passed;
 
         emit OnRebalanceObserved(
             block.timestamp,
-            _currentTick,
-            _tickLower,
-            _tickUpper,
-            _outOfRange,
-            _consecutiveObserved,
-            _rollingObserved,
+            _observation.currentTick,
+            _observation.tickLower,
+            _observation.tickUpper,
+            _observation.rangeSide,
+            _observation.inventoryOtherRatioBPS,
+            _triggerPath,
+            _triggerPath != REBALANCE_PATH_NONE && _pegGuard.passed,
             _rebalanceNeeded
         );
 
-        if (!_rebalanceNeeded) return false;
+        if (_triggerPath == REBALANCE_PATH_NONE) return false;
+
+        if (!_pegGuard.passed) {
+            // This is an intentional skip. Still stop the investment because the rebalance was considered unsafe due to peg conditions.
+            emit OnRebalanceBlockedByPegGuard(
+                block.timestamp,
+                _observation.currentTick,
+                _triggerPath,
+                _pegGuard.spotPegDeviationBPS,
+                _pegGuard.spotVsTwapDeviationBPS,
+                _pegGuard.spotSqrtPriceX96,
+                _pegGuard.twapSqrtPriceX96
+            );
+            return true;
+        }
 
         // Compute the next band from the live monitoring tick, then reuse the invest ratio
         // math so the rebalance mints into the new band with the same capital-efficiency logic.
-        (int24 _newTickLower, int24 _newTickUpper) = _computeRebalanceTicks(_currentTick);
+        (int24 _newTickLower, int24 _newTickUpper) = _computeRebalanceTicks(_observation.currentTick);
         uint16 _otherRatioBPS = _resolveAutoOtherRatioBPSForRange(0, _newTickLower, _newTickUpper);
         bytes memory _rebalancePayload = abi.encode(_newTickLower, _newTickUpper, _buildUniV3Payload(_otherRatioBPS));
         (,, bytes memory _bundle) = _buildSingleStrategyBundle(_rebalancePayload);
 
         emit OnRebalanceAttempt(
-            block.timestamp, _currentTick, _newTickLower, _newTickUpper, _otherRatioBPS, keccak256(_bundle)
+            block.timestamp, _observation.currentTick, _newTickLower, _newTickUpper, _otherRatioBPS, keccak256(_bundle)
         );
 
         try ISFStrategyMaintenance(aggregator).rebalance(_bundle) {
             lastSuccessfulRebalance = block.timestamp;
             _clearRebalanceSamples();
-            emit OnRebalanceSucceeded(block.timestamp, _currentTick, _newTickLower, _newTickUpper, _otherRatioBPS);
+            emit OnRebalanceSucceeded(
+                block.timestamp, _observation.currentTick, _newTickLower, _newTickUpper, _otherRatioBPS
+            );
         } catch (bytes memory reason) {
-            rebalanceFailed_ = true;
-            emit OnRebalanceFailed(block.timestamp, _currentTick, _newTickLower, _newTickUpper, _otherRatioBPS, reason);
+            skipInvest_ = true;
+            emit OnRebalanceFailed(
+                block.timestamp, _observation.currentTick, _newTickLower, _newTickUpper, _otherRatioBPS, reason
+            );
         }
     }
 
@@ -698,42 +807,28 @@ contract SaveFundsInvestAutomationRunner is
      * @notice Determines whether a new rebalance observation should be sampled now.
      * @dev The runner keeps sampling while the position is currently out of range or when there
      *      is recent out-of-range history inside the rolling window.
+     *      That second branch is what lets the oscillation rule continue accumulating evidence
+     *      even after the price briefly returns inside the band.
      * @return True when the rebalance observer should run.
      */
     function _shouldCheckRebalance() internal view returns (bool) {
         if (!rebalanceEnabled) return false;
         if (block.timestamp < lastRebalanceCheck + rebalanceCheckInterval) return false;
 
-        // Continue sampling after the position comes back in range so the rolling-window rule
+        // Continue sampling after the position comes back in range so the oscillation rule
         // can still be evaluated from recent history.
-        (bool _outOfRange,,,) = _currentRangeStatus();
-        if (_outOfRange) return true;
+        (uint8 _rangeSide,,,) = _currentRangeStatus();
+        if (_rangeSide != RANGE_SIDE_IN_RANGE) return true;
 
         return _hasRecentOutOfRangeSample(block.timestamp - REBALANCE_WINDOW);
-    }
-
-    /**
-     * @notice Evaluates the rebalance trigger rules from sampled out-of-range history.
-     * @param _consecutiveObserved Most recent consecutive out-of-range observed duration.
-     * @param _rollingObserved Total out-of-range observed duration inside the rolling window.
-     * @return True when either the consecutive or rolling-window rule is satisfied.
-     */
-    function _shouldTriggerRebalance(uint256 _consecutiveObserved, uint256 _rollingObserved)
-        internal
-        view
-        returns (bool)
-    {
-        if (_consecutiveObserved >= REBALANCE_CONSECUTIVE_TRIGGER) return true;
-        if (_rollingObserved < REBALANCE_ROLLING_TRIGGER) return false;
-        if (lastSuccessfulRebalance == 0) return true;
-        return block.timestamp >= lastSuccessfulRebalance + REBALANCE_COOLDOWN;
     }
 
     /**
      * @notice Returns the current range state for the UniV3 strategy.
      * @dev Uses the monitoring tick source rather than the raw spot tick directly so the same
      *      fallback logic is shared everywhere the runner reasons about range status.
-     * @return outOfRange_ True when the current monitoring tick is outside the strategy band.
+     *      The upper bound is exclusive, matching Uniswap V3's active-liquidity interval `[lower, upper)`.
+     * @return rangeSide_ Encoded range side: 0=in range, 1=below lower, 2=above/equal upper.
      * @return currentTick_ Tick used for the range check.
      * @return tickLower_ Current strategy lower tick.
      * @return tickUpper_ Current strategy upper tick.
@@ -741,11 +836,11 @@ contract SaveFundsInvestAutomationRunner is
     function _currentRangeStatus()
         internal
         view
-        returns (bool outOfRange_, int24 currentTick_, int24 tickLower_, int24 tickUpper_)
+        returns (uint8 rangeSide_, int24 currentTick_, int24 tickLower_, int24 tickUpper_)
     {
         (tickLower_, tickUpper_) = _currentStrategyTicks();
         currentTick_ = _currentMonitoringTick();
-        outOfRange_ = currentTick_ < tickLower_ || currentTick_ >= tickUpper_;
+        rangeSide_ = _rangeSideForTick(currentTick_, tickLower_, tickUpper_);
     }
 
     /**
@@ -773,9 +868,7 @@ contract SaveFundsInvestAutomationRunner is
         // Fallback to valuation price only when spot is unusable.
         uint32 _window = ISFUniV3StrategyAutomationView(uniStrategy).twapWindow();
         uint160 _fallbackSqrtPriceX96 = _valuationSqrtPriceX96(_window);
-        if (_fallbackSqrtPriceX96 != 0) {
-            tick_ = TickMathV3.getTickAtSqrtRatio(_fallbackSqrtPriceX96);
-        }
+        if (_fallbackSqrtPriceX96 != 0) tick_ = TickMathV3.getTickAtSqrtRatio(_fallbackSqrtPriceX96);
     }
 
     /**
@@ -796,13 +889,31 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
+     * @notice Builds the current rebalance observation snapshot.
+     * @dev This is the single source of truth for "what did we observe this check?" and is used
+     *      both for storage and for any immediate rebalance decision derived from that.
+     * @return observation_ Current range side, monitoring tick, strategy band, and inventory ratio.
+     */
+    function _currentRebalanceObservation() internal view returns (RebalanceObservation memory observation_) {
+        (observation_.rangeSide, observation_.currentTick, observation_.tickLower, observation_.tickUpper) =
+            _currentRangeStatus();
+        observation_.inventoryOtherRatioBPS = _currentInventoryOtherRatioBPS();
+    }
+
+    /**
      * @notice Stores one rebalance observation in the fixed-size ring buffer.
      * @dev New samples overwrite the oldest entries once the buffer reaches capacity.
-     * @param _outOfRange Whether the observed strategy state was out of range.
+     *      The parallel arrays deliberately duplicate `outOfRange` and `rangeSide` because:
+     *      - `outOfRange` is a cheap coarse filter for "do we have any recent history?"
+     *      - `rangeSide` is needed for oscillation's same-side rule
+     * @param _rangeSide Encoded range side for the observation.
+     * @param _inventoryOtherRatioBPS Share of total strategy value held in `otherToken`.
      */
-    function _recordRebalanceSample(bool _outOfRange) internal {
+    function _recordRebalanceSample(uint8 _rangeSide, uint16 _inventoryOtherRatioBPS) internal {
         rebalanceSampleTimestamps[rebalanceSampleHead] = uint40(block.timestamp);
-        rebalanceSampleOutOfRange[rebalanceSampleHead] = _outOfRange;
+        rebalanceSampleOutOfRange[rebalanceSampleHead] = _rangeSide != RANGE_SIDE_IN_RANGE;
+        rebalanceSampleRangeSides[rebalanceSampleHead] = _rangeSide;
+        rebalanceSampleInventoryOtherRatioBPS[rebalanceSampleHead] = _inventoryOtherRatioBPS;
 
         rebalanceSampleHead = uint8((uint256(rebalanceSampleHead) + 1) % REBALANCE_SAMPLE_CAP);
         if (rebalanceSampleCount < REBALANCE_SAMPLE_CAP) ++rebalanceSampleCount;
@@ -811,7 +922,8 @@ contract SaveFundsInvestAutomationRunner is
     /**
      * @notice Clears the active rebalance sample window after a successful rebalance.
      * @dev The old array contents are intentionally left in storage; only the active ring-buffer
-     *      head and count are reset.
+     *      head and count are reset. This makes the next rebalance cycle start from fresh observations
+     *      without paying to zero every historical slot again.
      */
     function _clearRebalanceSamples() internal {
         rebalanceSampleCount = 0;
@@ -819,24 +931,31 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Computes the latest consecutive out-of-range observed duration.
+     * @notice Computes the latest consecutive duration of one-sided inventory.
      * @dev The duration is based on sampled observations, not continuous oracle history.
-     * @return duration_ Observed consecutive out-of-range time in seconds.
+     *      It only measures the most recent streak ending at the latest sample, which is exactly
+     *      what the ordinary path and the inventory half of the oscillation path need.
+     * @param _oneSidedThresholdBPS BPS threshold that defines one-sided inventory.
+     * @return duration_ Observed consecutive time with one-sided inventory.
      */
-    function _consecutiveOutOfRangeObserved() internal view returns (uint256 duration_) {
+    function _consecutiveInventoryOneSidedObserved(uint16 _oneSidedThresholdBPS)
+        internal
+        view
+        returns (uint256 duration_)
+    {
         if (rebalanceSampleCount == 0) return 0;
 
         uint256 _latestIndex = _sampleIndexFromNewest(0);
-        if (!rebalanceSampleOutOfRange[_latestIndex]) return 0;
+        uint16 _latestRatio = rebalanceSampleInventoryOtherRatioBPS[_latestIndex];
+        if (!_isInventoryOneSided(_latestRatio, _oneSidedThresholdBPS)) return 0;
 
         uint256 _latestTs = uint256(rebalanceSampleTimestamps[_latestIndex]);
         uint256 _earliestTs = _latestTs;
 
-        // Walk backward until the first in-range sample to measure the most recent contiguous
-        // out-of-range streak.
+        // Walk backward until the first sample that is not one-sided enough for the requested threshold.
         for (uint256 offset = 1; offset < rebalanceSampleCount; ++offset) {
             uint256 _idx = _sampleIndexFromNewest(offset);
-            if (!rebalanceSampleOutOfRange[_idx]) break;
+            if (!_isInventoryOneSided(rebalanceSampleInventoryOtherRatioBPS[_idx], _oneSidedThresholdBPS)) break;
             _earliestTs = uint256(rebalanceSampleTimestamps[_idx]);
         }
 
@@ -844,32 +963,37 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Computes sampled out-of-range time inside a rolling window.
-     * @dev Only intervals bounded by two consecutive out-of-range samples are counted, which
-     *      makes the result conservative relative to continuous observation.
+     * @notice Computes sampled time spent on the same out-of-range side inside a rolling window.
+     * @dev Only intervals bounded by two consecutive samples on the same non-zero side are counted.
+     *      With the default 12-hour cadence, this means the 18-hour policy threshold will only
+     *      be reached once 24 hours have been observed on-chain.
+     * @param _rangeSide Range side to count for.
      * @param _windowStart Start timestamp of the rolling window.
-     * @return duration_ Observed out-of-range duration inside the window.
+     * @return duration_ Observed same-side out-of-range duration inside the window.
      */
-    function _rollingOutOfRangeObserved(uint256 _windowStart) internal view returns (uint256 duration_) {
-        if (rebalanceSampleCount < 2) return 0;
+    function _rollingSameSideObserved(uint8 _rangeSide, uint256 _windowStart)
+        internal
+        view
+        returns (uint256 duration_)
+    {
+        if (_rangeSide == RANGE_SIDE_IN_RANGE || rebalanceSampleCount < 2) return 0;
 
         uint256 _previousTs;
-        bool _previousOut;
+        uint8 _previousSide;
 
-        // Traverse oldest-to-newest so each pair of adjacent samples contributes at most once.
+        // Check oldest-to-newest so each pair of samples contributes at most once.
         for (uint256 i; i < rebalanceSampleCount; ++i) {
             uint256 _idx = _sampleIndexFromOldest(i);
             uint256 _ts = uint256(rebalanceSampleTimestamps[_idx]);
-            bool _out = rebalanceSampleOutOfRange[_idx];
+            uint8 _side = rebalanceSampleRangeSides[_idx];
 
-            // Count only the overlap of an out-of-range interval with the requested window.
-            if (i != 0 && _previousOut && _out && _ts > _windowStart) {
+            if (i != 0 && _previousSide == _rangeSide && _side == _rangeSide && _ts > _windowStart) {
                 uint256 _intervalStart = _previousTs > _windowStart ? _previousTs : _windowStart;
                 if (_ts > _intervalStart) duration_ += _ts - _intervalStart;
             }
 
             _previousTs = _ts;
-            _previousOut = _out;
+            _previousSide = _side;
         }
     }
 
@@ -906,6 +1030,308 @@ contract SaveFundsInvestAutomationRunner is
     function _sampleIndexFromOldest(uint256 _offset) internal view returns (uint256 idx_) {
         uint256 _oldest = rebalanceSampleCount == REBALANCE_SAMPLE_CAP ? rebalanceSampleHead : 0;
         idx_ = (_oldest + _offset) % REBALANCE_SAMPLE_CAP;
+    }
+
+    /**
+     * @notice Chooses which rebalance path, if any, is currently active.
+     * @dev The path ordering is intentional:
+     *      - ordinary wins first and bypasses oscillation once 95/5 one-sided for 24h
+     *      - oscillation is only considered when ordinary is not already valid
+     * @param _rangeSide Current range side.
+     * @param _ordinaryInventoryObserved Consecutive observed time with 95/5-or-worse inventory.
+     * @param _sameSideObserved Observed same-side out-of-range duration inside the 72-hour window.
+     * @param _oscillationInventoryObserved Consecutive observed time with 80/20-or-worse inventory.
+     * @return triggerPath_ Encoded path: 0=none, 1=ordinary, 2=oscillation.
+     */
+    function _rebalanceTriggerPath(
+        uint8 _rangeSide,
+        uint256 _ordinaryInventoryObserved,
+        uint256 _sameSideObserved,
+        uint256 _oscillationInventoryObserved
+    ) internal pure returns (uint8 triggerPath_) {
+        if (_rangeSide == RANGE_SIDE_IN_RANGE) return REBALANCE_PATH_NONE;
+        if (_ordinaryInventoryObserved >= REBALANCE_CONSECUTIVE_TRIGGER) return REBALANCE_PATH_ORDINARY;
+        if (_sameSideObserved < REBALANCE_OSCILLATION_SIDE_TRIGGER) return REBALANCE_PATH_NONE;
+        if (_oscillationInventoryObserved < REBALANCE_CONSECUTIVE_TRIGGER) return REBALANCE_PATH_NONE;
+        return REBALANCE_PATH_OSCILLATION;
+    }
+
+    /**
+     * @notice Returns the latest inventory ratio measured for rebalance sampling.
+     * @dev Prefers the live spot price and falls back to strategy valuation window if spot is unavailable.
+     *      This ratio is about current strategy inventory, not the target ratio for a future rebalance.
+     *      Inventory is reconstructed entirely inside the runner from:
+     *      - the strategy's current idle ERC20 balances, and
+     *      - the live Uniswap V3 position NFT referenced by `positionTokenId()`.
+     * @return inventoryOtherRatioBPS_ Share of total inventory value held in `otherToken`.
+     */
+    function _currentInventoryOtherRatioBPS() internal view returns (uint16 inventoryOtherRatioBPS_) {
+        uint160 _inventorySqrtPriceX96 = _currentInventorySqrtPriceX96();
+        if (_inventorySqrtPriceX96 == 0) return 0;
+
+        (uint256 _underlyingValue, uint256 _otherValueInUnderlying) =
+            _strategyInventoryValuesAtSqrtPrice(_inventorySqrtPriceX96);
+        uint256 _totalValue = _underlyingValue + _otherValueInUnderlying;
+        if (_totalValue == 0) return 0;
+
+        return uint16(Math.mulDiv(_otherValueInUnderlying, MAX_BPS, _totalValue));
+    }
+
+    /**
+     * @notice Values the strategy's current inventory split at a supplied sqrt price.
+     * @dev The runner reconstructs inventory from the public strategy getters and the Uniswap
+     *      position manager directly so it does not depend on a strategy upgrade.
+     *      The returned pair intentionally keeps underlying-side value and other-side value
+     *      separate because rebalance heuristics care about how one-sided the inventory is.
+     * @param _sqrtPriceX96 Valuation sqrt price in Q96.
+     * @return underlyingValue_ Value already held in underlying units.
+     * @return otherValueInUnderlying_ Value attributable to `otherToken`, quoted in underlying units.
+     */
+    function _strategyInventoryValuesAtSqrtPrice(uint160 _sqrtPriceX96)
+        internal
+        view
+        returns (uint256 underlyingValue_, uint256 otherValueInUnderlying_)
+    {
+        uint256 _positionTokenId = ISFUniV3StrategyAutomationView(uniStrategy).positionTokenId();
+        if (_positionTokenId != 0) {
+            (underlyingValue_, otherValueInUnderlying_) =
+                _positionInventoryValuesAtSqrtPrice(_positionTokenId, _sqrtPriceX96);
+        }
+
+        (underlyingValue_, otherValueInUnderlying_) = _accumulateInventoryLeg(
+            underlyingValue_,
+            otherValueInUnderlying_,
+            underlyingToken,
+            IERC20(underlyingToken).balanceOf(uniStrategy),
+            _sqrtPriceX96
+        );
+        (underlyingValue_, otherValueInUnderlying_) = _accumulateInventoryLeg(
+            underlyingValue_,
+            otherValueInUnderlying_,
+            otherToken,
+            IERC20(otherToken).balanceOf(uniStrategy),
+            _sqrtPriceX96
+        );
+    }
+
+    /**
+     * @notice Values the strategy's active Uniswap V3 position, including owed fees.
+     * @dev The runner reads the position NFT directly from the NonfungiblePositionManager and
+     *      values both the liquidity inventory and `tokensOwed{0,1}` at the supplied price.
+     * @param _positionTokenId Active position NFT id.
+     * @param _sqrtPriceX96 Valuation sqrt price in Q96.
+     * @return underlyingValue_ Value attributable to underlying inventory.
+     * @return otherValueInUnderlying_ Value attributable to other-token inventory, quoted in underlying units.
+     */
+    function _positionInventoryValuesAtSqrtPrice(uint256 _positionTokenId, uint160 _sqrtPriceX96)
+        internal
+        view
+        returns (uint256 underlyingValue_, uint256 otherValueInUnderlying_)
+    {
+        INonfungiblePositionManager _positionManager = _nonfungiblePositionManager();
+        address _token0 = PositionReader._getAddress(_positionManager, _positionTokenId, 2);
+        address _token1 = PositionReader._getAddress(_positionManager, _positionTokenId, 3);
+        int24 _tickLower = PositionReader._getInt24(_positionManager, _positionTokenId, 5);
+        int24 _tickUpper = PositionReader._getInt24(_positionManager, _positionTokenId, 6);
+        uint128 _liquidity = PositionReader._getUint128(_positionManager, _positionTokenId, 7);
+
+        if (_liquidity != 0) {
+            (uint256 _amount0, uint256 _amount1) = LiquidityAmountsV3.getAmountsForLiquidity(
+                _sqrtPriceX96,
+                TickMathV3.getSqrtRatioAtTick(_tickLower),
+                TickMathV3.getSqrtRatioAtTick(_tickUpper),
+                _liquidity
+            );
+
+            (underlyingValue_, otherValueInUnderlying_) =
+                _accumulateInventoryLeg(underlyingValue_, otherValueInUnderlying_, _token0, _amount0, _sqrtPriceX96);
+            (underlyingValue_, otherValueInUnderlying_) =
+                _accumulateInventoryLeg(underlyingValue_, otherValueInUnderlying_, _token1, _amount1, _sqrtPriceX96);
+        }
+
+        uint128 _owed0 = PositionReader._getUint128(_positionManager, _positionTokenId, 10);
+        uint128 _owed1 = PositionReader._getUint128(_positionManager, _positionTokenId, 11);
+
+        (underlyingValue_, otherValueInUnderlying_) =
+            _accumulateInventoryLeg(underlyingValue_, otherValueInUnderlying_, _token0, uint256(_owed0), _sqrtPriceX96);
+        (underlyingValue_, otherValueInUnderlying_) =
+            _accumulateInventoryLeg(underlyingValue_, otherValueInUnderlying_, _token1, uint256(_owed1), _sqrtPriceX96);
+    }
+
+    /**
+     * @notice Adds one inventory leg into the running underlying-vs-other valuation split.
+     * @dev Unknown tokens are ignored because the strategy pair is expected to be exactly
+     *      `(underlyingToken, otherToken)`. Ignoring anything else is safer than accidentally
+     *      mis-valuing it as one side of the pair.
+     * @param _underlyingValue Current accumulated underlying-side value.
+     * @param _otherValueInUnderlying Current accumulated other-token-side value in underlying units.
+     * @param _token Token represented by `_amount`.
+     * @param _amount Token amount to account for.
+     * @param _sqrtPriceX96 Valuation sqrt price in Q96.
+     * @return newUnderlyingValue_ Updated underlying-side value.
+     * @return newOtherValueInUnderlying_ Updated other-token-side value.
+     */
+    function _accumulateInventoryLeg(
+        uint256 _underlyingValue,
+        uint256 _otherValueInUnderlying,
+        address _token,
+        uint256 _amount,
+        uint160 _sqrtPriceX96
+    ) internal view returns (uint256 newUnderlyingValue_, uint256 newOtherValueInUnderlying_) {
+        newUnderlyingValue_ = _underlyingValue;
+        newOtherValueInUnderlying_ = _otherValueInUnderlying;
+        if (_amount == 0) return (newUnderlyingValue_, newOtherValueInUnderlying_);
+
+        if (_token == underlyingToken) {
+            newUnderlyingValue_ += _amount;
+        } else if (_token == otherToken) {
+            newOtherValueInUnderlying_ += _quoteOtherAsUnderlyingAtSqrtPrice(_amount, _sqrtPriceX96);
+        }
+    }
+
+    /**
+     * @notice Returns the NonfungiblePositionManager used by the live strategy deployment.
+     * @dev This stays internal and chain-aware because the runner is deployed on known networks
+     *      and the strategy does not expose its position manager address publicly.
+     *      This runner is intended for Arbitrum One only, so any other chain id is treated as
+     *      a configuration error and fails closed.
+     * @return positionManager_ Position manager used to read the active LP NFT.
+     */
+    function _nonfungiblePositionManager()
+        internal
+        view
+        virtual
+        returns (INonfungiblePositionManager positionManager_)
+    {
+        if (block.chainid != ARBITRUM_ONE_CHAIN_ID) revert SaveFundsInvestAutomationRunner__UnsupportedChainId();
+        return INonfungiblePositionManager(UNI_V3_NON_FUNGIBLE_POSITION_MANAGER_ARBITRUM);
+    }
+
+    /**
+     * @notice Returns the valuation price used for inventory-side sampling.
+     * @return sqrtPriceX96_ Spot price when available, otherwise the strategy valuation fallback.
+     */
+    function _currentInventorySqrtPriceX96() internal view returns (uint160 sqrtPriceX96_) {
+        (sqrtPriceX96_,,,,,,) = pool.slot0();
+        if (sqrtPriceX96_ != 0) return sqrtPriceX96_;
+
+        uint32 _window = ISFUniV3StrategyAutomationView(uniStrategy).twapWindow();
+        return _valuationSqrtPriceX96(_window);
+    }
+
+    /**
+     * @notice Evaluates the current peg guard using spot and strict 30-minute TWAP prices.
+     * @dev This guard fails closed when either price is unavailable.
+     *      The two checks intentionally answer different questions:
+     *      - `spot vs peg` asks whether the pool itself is trading off the intended 1:1 anchor
+     *      - `spot vs TWAP` asks whether the current spot move is materially detached from recent consensus
+     * @return status_ Current peg-guard result and diagnostics.
+     */
+    function _evaluatePegGuard() internal view returns (PegGuardStatus memory status_) {
+        (status_.spotSqrtPriceX96,,,,,,) = pool.slot0();
+        if (status_.spotSqrtPriceX96 == 0) return status_;
+
+        (bool _twapOk, uint160 _twapSqrtPriceX96) = _strictTwapSqrtPriceX96(REBALANCE_PEG_GUARD_TWAP_WINDOW);
+        status_.twapSqrtPriceX96 = _twapSqrtPriceX96;
+        if (!_twapOk || _twapSqrtPriceX96 == 0) return status_;
+
+        uint256 _spotPriceE18 = _normalizedOtherPriceE18(status_.spotSqrtPriceX96);
+        uint256 _twapPriceE18 = _normalizedOtherPriceE18(_twapSqrtPriceX96);
+        status_.spotPegDeviationBPS = _deviationBPS(_spotPriceE18, 1e18);
+        status_.spotVsTwapDeviationBPS = _deviationBPS(_spotPriceE18, _twapPriceE18);
+        status_.passed = status_.spotPegDeviationBPS <= REBALANCE_PEG_GUARD_BPS
+            && status_.spotVsTwapDeviationBPS <= REBALANCE_PEG_GUARD_BPS;
+    }
+
+    /**
+     * @notice Computes a strict TWAP price without falling back to spot.
+     * @dev Used only by peg guard. This helper must not silently degrade to spot because peg guard
+     *      is intended to fail closed when a proper TWAP cannot be obtained.
+     * @param _window TWAP window in seconds.
+     * @return ok_ True when a TWAP price was produced successfully.
+     * @return sqrtPriceX96_ TWAP sqrt price in Q96.
+     */
+    function _strictTwapSqrtPriceX96(uint32 _window) internal view returns (bool ok_, uint160 sqrtPriceX96_) {
+        if (_window == 0) return (false, 0);
+
+        uint32[] memory _secondsAgos = new uint32[](2);
+        _secondsAgos[0] = _window;
+        _secondsAgos[1] = 0;
+
+        try pool.observe(_secondsAgos) returns (int56[] memory tickCumulatives, uint160[] memory) {
+            int56 _delta = tickCumulatives[1] - tickCumulatives[0];
+            int56 _secs = int56(uint56(_window));
+
+            int24 _avgTick = int24(_delta / _secs);
+            if (_delta < 0 && (_delta % _secs != 0)) _avgTick--;
+
+            return (true, TickMathV3.getSqrtRatioAtTick(_avgTick));
+        } catch {
+            return (false, 0);
+        }
+    }
+
+    /**
+     * @notice Converts a sqrt price into normalized underlying-per-other price scaled to 1e18.
+     * @dev Normalization makes both pool token orderings comparable against the same 1.0 peg.
+     * @param _sqrtPriceX96 Sqrt price Q64.96.
+     * @return priceE18_ Normalized price used by peg guard.
+     */
+    function _normalizedOtherPriceE18(uint160 _sqrtPriceX96) internal view returns (uint256 priceE18_) {
+        uint256 _priceX192 = uint256(_sqrtPriceX96) * uint256(_sqrtPriceX96);
+        uint256 _q192 = 1 << 192;
+
+        if (otherIsToken0) {
+            return Math.mulDiv(1e18, _priceX192, _q192);
+        }
+
+        return Math.mulDiv(1e18, _q192, _priceX192);
+    }
+
+    /**
+     * @notice Computes absolute deviation in BPS between two normalized prices.
+     * @dev Returns `type(uint16).max` if either side is zero so peg guard can fail closed
+     *      without introducing special cases at the call site.
+     * @param _lhs Left-hand price.
+     * @param _rhs Right-hand price.
+     * @return deviationBPS_ Absolute deviation expressed in BPS of `_rhs`.
+     */
+    function _deviationBPS(uint256 _lhs, uint256 _rhs) internal pure returns (uint16 deviationBPS_) {
+        if (_lhs == 0 || _rhs == 0) return type(uint16).max;
+        uint256 _diff = _lhs > _rhs ? _lhs - _rhs : _rhs - _lhs;
+        uint256 _bps = Math.mulDiv(_diff, MAX_BPS, _rhs);
+        if (_bps > type(uint16).max) return type(uint16).max;
+        return uint16(_bps);
+    }
+
+    /**
+     * @notice Returns whether an inventory ratio satisfies a one-sided threshold.
+     * @dev Example:
+     *      - threshold 500 -> valid for `<= 5%` or `>= 95%`
+     *      - threshold 2000 -> valid for `<= 20%` or `>= 80%`
+     * @param _ratioBPS Inventory other-token ratio in BPS.
+     * @param _thresholdBPS Maximum allowed minority share in BPS.
+     * @return True when inventory is one-sided enough on either side.
+     */
+    function _isInventoryOneSided(uint16 _ratioBPS, uint16 _thresholdBPS) internal pure returns (bool) {
+        return _ratioBPS <= _thresholdBPS || _ratioBPS >= uint16(MAX_BPS - _thresholdBPS);
+    }
+
+    /**
+     * @notice Encodes which side of the current strategy band the monitoring tick is on.
+     * @param _currentTick Monitoring tick used by the runner.
+     * @param _tickLower Current lower tick.
+     * @param _tickUpper Current upper tick.
+     * @return rangeSide_ Encoded range side.
+     */
+    function _rangeSideForTick(int24 _currentTick, int24 _tickLower, int24 _tickUpper)
+        internal
+        pure
+        returns (uint8 rangeSide_)
+    {
+        if (_currentTick < _tickLower) return RANGE_SIDE_BELOW;
+        if (_currentTick >= _tickUpper) return RANGE_SIDE_ABOVE;
+        return RANGE_SIDE_IN_RANGE;
     }
 
     /**
@@ -1075,19 +1501,22 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Seeds rebalance-specific runtime state for the upgraded runner.
+     * @notice Seeds rebalance-specific runtime state for the upgrade.
      * @dev The state is initialized so the first upkeep after an upgrade can immediately
-     *      rebalance if the live position is still out of range:
+     *      rebalance if the live position already qualifies under the new rules:
      *      - the rebalance check window is already open
-     *      - one synthetic out-of-range sample is seeded 24 hours in the past
-     *      - Arbitrum One keeps the historical last successful rebalance anchor
+     *      - one synthetic sample is seeded 24 hours in the past using the live side and inventory ratio
+     *      - the historical Arbitrum One last successful rebalance timestamp is preserved for bookkeeping
      *      The fixed-size sample arrays are explicitly zeroed first so reused proxies do not
      *      inherit stale buffered history.
+     * @dev The seeded sample mirrors the live snapshot at initialization time so first-upkeep depends on real conditions.
      */
     function _initializeRebalanceState() internal {
+        RebalanceObservation memory _observation = _currentRebalanceObservation();
+
         rebalanceCheckInterval = DAILY_INTERVAL;
         lastRebalanceCheck = block.timestamp - DAILY_INTERVAL;
-        lastSuccessfulRebalance = 1_772_707_785;
+        lastSuccessfulRebalance = 1_774_106_444; // March 21 rebalance.
         rebalanceEnabled = true;
         rebalanceSampleCount = 1;
         rebalanceSampleHead = 1;
@@ -1096,13 +1525,15 @@ contract SaveFundsInvestAutomationRunner is
         for (uint256 i; i < REBALANCE_SAMPLE_CAP; ++i) {
             rebalanceSampleTimestamps[i] = 0;
             rebalanceSampleOutOfRange[i] = false;
+            rebalanceSampleRangeSides[i] = RANGE_SIDE_IN_RANGE;
+            rebalanceSampleInventoryOtherRatioBPS[i] = 0;
         }
 
         rebalanceSampleTimestamps[0] = uint40(block.timestamp - REBALANCE_CONSECUTIVE_TRIGGER);
-        rebalanceSampleOutOfRange[0] = true;
+        rebalanceSampleOutOfRange[0] = _observation.rangeSide != RANGE_SIDE_IN_RANGE;
+        rebalanceSampleRangeSides[0] = _observation.rangeSide;
+        rebalanceSampleInventoryOtherRatioBPS[0] = _observation.inventoryOtherRatioBPS;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
-        newImplementation;
-    }
+    function _authorizeUpgrade(address) internal view override onlyOwner {}
 }
