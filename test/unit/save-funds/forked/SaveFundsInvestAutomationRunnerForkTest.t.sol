@@ -12,7 +12,10 @@ import {
     SaveFundsInvestAutomationRunner
 } from "contracts/helpers/chainlink/automation/SaveFundsInvestAutomationRunner.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
+import {LiquidityAmountsV3} from "contracts/helpers/uniswapHelpers/libraries/LiquidityAmountsV3.sol";
 import {TickMathV3} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
+import {PositionReader} from "contracts/helpers/uniswapHelpers/libraries/PositionReader.sol";
+import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfungiblePositionManager.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -22,7 +25,8 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
     uint256 internal constant FORK_BLOCK = 430826360;
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
-    uint256 internal constant ARBITRUM_ONE_LAST_SUCCESSFUL_REBALANCE = 1_772_707_785;
+    uint256 internal constant ARBITRUM_ONE_LAST_SUCCESSFUL_REBALANCE = 1_774_106_444;
+    address internal constant UNI_V3_POSITION_MANAGER_ARBITRUM = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
     bytes32 internal constant ON_INVEST_SIG = keccak256("OnInvestIntoStrategy(uint256,uint256,bytes32)");
     bytes32 internal constant ON_UPKEEP_ATTEMPT_SIG = keccak256("OnUpkeepAttempt(uint256,uint256,uint16,bytes32)");
     bytes32 internal constant ON_INVEST_SUCCEEDED_SIG = keccak256("OnInvestSucceeded(uint256,uint256,uint256,uint16)");
@@ -408,109 +412,68 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertEq(runner.lastSuccessfulRebalance(), seededTs);
     }
 
-    function testRunnerFork_performUpkeep_RebalancesAfter24HoursOutOfRange() public {
-        _enableRebalance();
-        _grantKeeperRoleToRunner();
+    function testRunnerFork_harness_ObserveAndMaybeRebalance_BlocksCandidateOnPegGuard() public {
+        SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+        MockPoolForRunnerHarness poolMock = new MockPoolForRunnerHarness();
+        MockStrategyAutomationView strategyMock = new MockStrategyAutomationView();
 
-        runner.setInterval(10 days);
-        runner.setLastRun(block.timestamp);
+        poolMock.setTokens(address(asset), address(uniV3.otherToken()));
+        poolMock.setFee(100);
+        poolMock.setTickSpacing(1);
+        poolMock.setSlot0(TickMathV3.getSqrtRatioAtTick(25), 25);
+        poolMock.setObserve(0, 0, false);
+        strategyMock.setTicks(0, 10);
+        strategyMock.setTwapWindow(30);
+        harness.setHarnessConfig(
+            address(poolMock), address(strategyMock), address(asset), address(uniV3.otherToken()), false
+        );
 
-        (int24 outLower, int24 outUpper) = _outOfRangeTicksAboveCurrent();
-        _setStrategyRange(outLower, outUpper, 5_000);
+        uint256 start = block.timestamp + 1;
+        vm.warp(start);
+        harness.exposedRecordRebalanceSample(2, 100);
+        vm.warp(start + 24 hours);
 
-        int24 preRebalanceTick = _currentPoolTick();
-        (int24 expectedLower, int24 expectedUpper) = _expectedRunnerTicks(preRebalanceTick);
-
-        runner.performUpkeep("");
-
-        assertEq(uniV3.tickLower(), expectedLower, "runner lower tick mismatch");
-        assertEq(uniV3.tickUpper(), expectedUpper, "runner upper tick mismatch");
-        assertEq(runner.lastSuccessfulRebalance(), block.timestamp, "lastSuccessfulRebalance not updated");
+        assertTrue(harness.exposedObserveAndMaybeRebalance(), "peg guard should block the rebalance candidate");
     }
 
-    function testRunnerFork_performUpkeep_RebalancesAfter24HoursWithin3DaysWhenCooldownElapsed() public {
-        _enableRebalance();
-        _grantKeeperRoleToRunner();
+    function testRunnerFork_runnerInventoryRatio_MatchesManualLiveValuation() public {
+        SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+        harness.setHarnessConfig(
+            address(uniV3.pool()),
+            address(uniV3),
+            address(asset),
+            address(uniV3.otherToken()),
+            uniV3.pool().token0() == address(uniV3.otherToken())
+        );
 
-        runner.setInterval(10 days);
-        runner.setLastRun(block.timestamp);
-        runner.setLastSuccessfulRebalance(block.timestamp - 8 days);
-
-        (int24 inLower0, int24 inUpper0) = _inRangeTicksAroundCurrent();
-        _setStrategyRange(inLower0, inUpper0, 5_000);
-        runner.performUpkeep("");
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        (int24 outLower1, int24 outUpper1) = _outOfRangeTicksAboveCurrent();
-        _setStrategyRange(outLower1, outUpper1, 5_000);
-        runner.performUpkeep("");
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        runner.performUpkeep("");
-
-        (int24 inLower, int24 inUpper) = _inRangeTicksAroundCurrent();
-        _setStrategyRange(inLower, inUpper, 5_000);
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        runner.performUpkeep("");
-
-        (int24 outLower2, int24 outUpper2) = _outOfRangeTicksBelowCurrent();
-        _setStrategyRange(outLower2, outUpper2, 5_000);
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        runner.performUpkeep("");
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        int24 preRebalanceTick = _currentPoolTick();
-        (int24 expectedLower, int24 expectedUpper) = _expectedRunnerTicks(preRebalanceTick);
-
-        runner.performUpkeep("");
-
-        assertEq(uniV3.tickLower(), expectedLower, "runner lower tick mismatch");
-        assertEq(uniV3.tickUpper(), expectedUpper, "runner upper tick mismatch");
-        assertEq(runner.lastSuccessfulRebalance(), block.timestamp, "cooldown-based rebalance not recorded");
+        (uint160 sqrtPriceX96,,,,,,) = uniV3.pool().slot0();
+        uint16 ratioBPS = harness.exposedCurrentInventoryOtherRatioBPS();
+        uint16 expectedRatioBPS = _manualInventoryOtherRatioBPS(uniV3, sqrtPriceX96);
+        assertEq(ratioBPS, expectedRatioBPS, "live ratio should match manual inventory valuation");
     }
 
-    function testRunnerFork_performUpkeep_DoesNotRebalanceWhenCooldownNotElapsed() public {
-        _enableRebalance();
-        _grantKeeperRoleToRunner();
+    function testRunnerFork_runnerInventoryRatio_ZeroWhenEmptyAndFullWhenOnlyOtherIdle() public {
+        SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+        MockPoolForRunnerHarness poolMock = new MockPoolForRunnerHarness();
+        MockStrategyAutomationView strategyMock = new MockStrategyAutomationView();
 
-        runner.setInterval(10 days);
-        runner.setLastRun(block.timestamp);
-        uint256 cooldownSeed = block.timestamp - 1 days;
-        runner.setLastSuccessfulRebalance(cooldownSeed);
+        poolMock.setTokens(address(asset), address(uniV3.otherToken()));
+        poolMock.setSlot0(1 << 96, 0);
+        strategyMock.setTwapWindow(30);
+        harness.setHarnessConfig(
+            address(poolMock),
+            address(strategyMock),
+            address(asset),
+            address(uniV3.otherToken()),
+            false
+        );
 
-        (int24 inLower0, int24 inUpper0) = _inRangeTicksAroundCurrent();
-        _setStrategyRange(inLower0, inUpper0, 5_000);
-        runner.performUpkeep("");
+        assertEq(harness.exposedCurrentInventoryOtherRatioBPS(), 0, "empty strategy should report zero ratio");
 
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        (int24 outLower1, int24 outUpper1) = _outOfRangeTicksAboveCurrent();
-        _setStrategyRange(outLower1, outUpper1, 5_000);
-
-        runner.performUpkeep("");
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        runner.performUpkeep("");
-
-        (int24 inLower, int24 inUpper) = _inRangeTicksAroundCurrent();
-        _setStrategyRange(inLower, inUpper, 5_000);
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        runner.performUpkeep("");
-
-        (int24 outLower2, int24 outUpper2) = _outOfRangeTicksBelowCurrent();
-        _setStrategyRange(outLower2, outUpper2, 5_000);
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        runner.performUpkeep("");
-
-        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
-        runner.performUpkeep("");
-
-        assertEq(uniV3.tickLower(), outLower2, "range should not change while cooldown is active");
-        assertEq(uniV3.tickUpper(), outUpper2, "range should not change while cooldown is active");
-        assertEq(runner.lastSuccessfulRebalance(), cooldownSeed, "cooldown timestamp should remain unchanged");
+        deal(address(uniV3.otherToken()), address(strategyMock), 100e6);
+        assertEq(
+            harness.exposedCurrentInventoryOtherRatioBPS(), 10_000, "pure other-token inventory should report 100%"
+        );
     }
 
     function testRunnerFork_harness_SpacingMathAndRatioBoundaries() public {
@@ -573,44 +536,54 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
 
     function testRunnerFork_harness_RebalanceSampleAndTriggerLogic() public {
         SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+        MockPoolForRunnerHarness poolMock = new MockPoolForRunnerHarness();
+        MockStrategyAutomationView strategyMock = new MockStrategyAutomationView();
+
+        poolMock.setTokens(address(61), address(62));
+        poolMock.setFee(100);
+        poolMock.setTickSpacing(1);
+        poolMock.setSlot0(1 << 96, 7);
+        strategyMock.setTicks(0, 10);
+        strategyMock.setTwapWindow(30);
+        deal(address(asset), address(strategyMock), 55e6);
+        deal(address(uniV3.otherToken()), address(strategyMock), 45e6);
+        poolMock.setTokens(address(asset), address(uniV3.otherToken()));
+        harness.setHarnessConfig(
+            address(poolMock), address(strategyMock), address(asset), address(uniV3.otherToken()), false
+        );
         harness.exposedInitializeRebalanceState();
 
         assertEq(harness.exposedRebalanceSampleCount(), 1);
         assertEq(harness.exposedRebalanceSampleHead(), 1);
         assertEq(harness.exposedRebalanceSampleTimestamp(0), block.timestamp - 24 hours);
-        assertTrue(harness.exposedRebalanceSampleOutOfRange(0));
-        assertEq(harness.exposedConsecutiveOutOfRangeObserved(), 0);
-        assertEq(harness.exposedRollingOutOfRangeObserved(block.timestamp - 1 days), 0);
-        assertTrue(harness.exposedHasRecentOutOfRangeSample(block.timestamp - 2 days));
+        assertFalse(harness.exposedRebalanceSampleOutOfRange(0));
+        assertEq(harness.exposedRebalanceSampleRangeSide(0), 0);
+        assertEq(harness.exposedRebalanceSampleInventoryOtherRatioBPS(0), 4_500);
+        assertEq(harness.exposedConsecutiveInventoryOneSidedObserved(2_000), 0);
+        assertEq(harness.exposedRollingSameSideObserved(1, block.timestamp - 1 days), 0);
+        assertFalse(harness.exposedHasRecentOutOfRangeSample(block.timestamp - 2 days));
 
         vm.warp(100);
-        harness.exposedRecordRebalanceSample(false);
-        assertEq(harness.exposedConsecutiveOutOfRangeObserved(), 0);
+        harness.exposedRecordRebalanceSample(1, 1_500);
+        assertEq(harness.exposedConsecutiveInventoryOneSidedObserved(2_000), 0);
 
         vm.warp(200);
-        harness.exposedRecordRebalanceSample(true);
+        harness.exposedRecordRebalanceSample(1, 1_500);
         vm.warp(300);
-        harness.exposedRecordRebalanceSample(true);
+        harness.exposedRecordRebalanceSample(1, 1_500);
 
-        assertEq(harness.exposedConsecutiveOutOfRangeObserved(), 100);
-        assertEq(harness.exposedRollingOutOfRangeObserved(250), 50);
+        assertEq(harness.exposedConsecutiveInventoryOneSidedObserved(2_000), 200);
+        assertEq(harness.exposedRollingSameSideObserved(1, 250), 50);
         assertTrue(harness.exposedHasRecentOutOfRangeSample(250));
 
-        vm.warp(10 days);
-        harness.setHarnessTiming(0, 0, 0, 0, 0, true);
-        assertTrue(harness.exposedShouldTriggerRebalance(24 hours, 0));
-        assertFalse(harness.exposedShouldTriggerRebalance(0, 23 hours));
-        assertTrue(harness.exposedShouldTriggerRebalance(0, 24 hours));
-
-        harness.setHarnessTiming(0, 0, 0, 0, block.timestamp - 1 days, true);
-        assertFalse(harness.exposedShouldTriggerRebalance(0, 24 hours));
-
-        harness.setHarnessTiming(0, 0, 0, 0, block.timestamp - 8 days, true);
-        assertTrue(harness.exposedShouldTriggerRebalance(0, 24 hours));
+        assertEq(harness.exposedRebalanceTriggerPath(0, 24 hours, 24 hours, 24 hours), 0);
+        assertEq(harness.exposedRebalanceTriggerPath(1, 24 hours, 0, 0), 1);
+        assertEq(harness.exposedRebalanceTriggerPath(1, 0, 17 hours, 24 hours), 0);
+        assertEq(harness.exposedRebalanceTriggerPath(1, 0, 18 hours, 24 hours), 2);
 
         for (uint256 i; i < 17; ++i) {
             vm.warp(block.timestamp + 1);
-            harness.exposedRecordRebalanceSample(true);
+            harness.exposedRecordRebalanceSample(1, 1_500);
         }
 
         assertEq(harness.exposedRebalanceSampleCount(), 16);
@@ -621,7 +594,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertEq(harness.exposedRebalanceSampleHead(), 0);
     }
 
-    function testRunnerFork_harness_ValuationMonitoringAndRebalanceChecks() public {
+    function testRunnerFork_harness_ValuationMonitoringPegGuardAndRebalanceChecks() public {
         SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
         MockPoolForRunnerHarness poolMock = new MockPoolForRunnerHarness();
         MockStrategyAutomationView strategyMock = new MockStrategyAutomationView();
@@ -630,14 +603,20 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         poolMock.setFee(100);
         poolMock.setTickSpacing(1);
         strategyMock.setTwapWindow(30);
-        harness.setHarnessConfig(address(poolMock), address(strategyMock), address(52), address(51), true);
+        deal(address(asset), address(strategyMock), 35e6);
+        deal(address(uniV3.otherToken()), address(strategyMock), 65e6);
+        poolMock.setTokens(address(asset), address(uniV3.otherToken()));
+        harness.setHarnessConfig(
+            address(poolMock), address(strategyMock), address(asset), address(uniV3.otherToken()), false
+        );
 
         poolMock.setSlot0(1 << 96, 7);
         strategyMock.setTicks(0, 10);
         assertEq(harness.exposedValuationSqrtPriceX96(0), uint160(1 << 96));
         assertEq(harness.exposedCurrentMonitoringTick(), 7);
-        (bool outOfRangeSpot, int24 currentTickSpot,,) = harness.exposedCurrentRangeStatus();
-        assertFalse(outOfRangeSpot);
+        assertEq(harness.exposedCurrentInventoryOtherRatioBPS(), 6_500);
+        (uint8 rangeSideSpot, int24 currentTickSpot,,) = harness.exposedCurrentRangeStatus();
+        assertEq(rangeSideSpot, 0);
         assertEq(currentTickSpot, 7);
 
         poolMock.setSlot0(0, 7);
@@ -669,8 +648,22 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertFalse(harness.exposedShouldCheckRebalance());
 
         vm.warp(block.timestamp + 1);
-        harness.exposedRecordRebalanceSample(true);
+        harness.exposedRecordRebalanceSample(1, 1_500);
         assertTrue(harness.exposedShouldCheckRebalance());
+
+        poolMock.setSlot0(1 << 96, 0);
+        poolMock.setObserve(0, 0, false);
+        (bool guardPassed, uint16 pegDeviation, uint16 twapDeviation,,) = harness.exposedEvaluatePegGuard();
+        assertTrue(guardPassed);
+        assertEq(pegDeviation, 0);
+        assertEq(twapDeviation, 0);
+
+        poolMock.setSlot0(TickMathV3.getSqrtRatioAtTick(25), 25);
+        poolMock.setObserve(0, 0, false);
+        (guardPassed, pegDeviation, twapDeviation,,) = harness.exposedEvaluatePegGuard();
+        assertFalse(guardPassed);
+        assertGt(pegDeviation, 10);
+        assertGt(twapDeviation, 10);
     }
 
     function _getAddr(string memory contractName) internal view returns (address) {
@@ -773,6 +766,96 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         if (other == token0 && underlying == token1) return Math.mulDiv(amountOther, priceX192, q192);
         if (other == token1 && underlying == token0) return Math.mulDiv(amountOther, q192, priceX192);
         revert("bad pool config");
+    }
+
+    function _manualInventoryOtherRatioBPS(SFUniswapV3Strategy strategy, uint160 sqrtPriceX96)
+        internal
+        view
+        returns (uint16)
+    {
+        (uint256 underlyingValue, uint256 otherValueInUnderlying) =
+            _manualPositionInventoryValues(strategy.positionTokenId(), sqrtPriceX96);
+        address strategyAddr = address(strategy);
+
+        (underlyingValue, otherValueInUnderlying) = _accumulateInventoryLeg(
+            underlyingValue,
+            otherValueInUnderlying,
+            address(asset),
+            IERC20(address(asset)).balanceOf(strategyAddr),
+            sqrtPriceX96
+        );
+        (underlyingValue, otherValueInUnderlying) = _accumulateInventoryLeg(
+            underlyingValue,
+            otherValueInUnderlying,
+            address(uniV3.otherToken()),
+            IERC20(address(uniV3.otherToken())).balanceOf(strategyAddr),
+            sqrtPriceX96
+        );
+
+        uint256 totalValue = underlyingValue + otherValueInUnderlying;
+        if (totalValue == 0) return 0;
+        return uint16(Math.mulDiv(otherValueInUnderlying, MAX_BPS, totalValue));
+    }
+
+    function _manualPositionInventoryValues(uint256 tokenId, uint160 sqrtPriceX96)
+        internal
+        view
+        returns (uint256 underlyingValue, uint256 otherValueInUnderlying)
+    {
+        if (tokenId == 0) return (0, 0);
+
+        INonfungiblePositionManager positionManager = INonfungiblePositionManager(UNI_V3_POSITION_MANAGER_ARBITRUM);
+        address t0 = PositionReader._getAddress(positionManager, tokenId, 2);
+        address t1 = PositionReader._getAddress(positionManager, tokenId, 3);
+        (underlyingValue, otherValueInUnderlying) =
+            _manualLiquidityInventoryValues(positionManager, tokenId, t0, t1, sqrtPriceX96);
+
+        uint128 owed0 = PositionReader._getUint128(positionManager, tokenId, 10);
+        uint128 owed1 = PositionReader._getUint128(positionManager, tokenId, 11);
+
+        (underlyingValue, otherValueInUnderlying) =
+            _accumulateInventoryLeg(underlyingValue, otherValueInUnderlying, t0, uint256(owed0), sqrtPriceX96);
+        (underlyingValue, otherValueInUnderlying) =
+            _accumulateInventoryLeg(underlyingValue, otherValueInUnderlying, t1, uint256(owed1), sqrtPriceX96);
+    }
+
+    function _manualLiquidityInventoryValues(
+        INonfungiblePositionManager positionManager,
+        uint256 tokenId,
+        address t0,
+        address t1,
+        uint160 sqrtPriceX96
+    ) internal view returns (uint256 underlyingValue, uint256 otherValueInUnderlying) {
+        int24 tl = PositionReader._getInt24(positionManager, tokenId, 5);
+        int24 tu = PositionReader._getInt24(positionManager, tokenId, 6);
+        uint128 liq = PositionReader._getUint128(positionManager, tokenId, 7);
+        if (liq == 0) return (0, 0);
+
+        (uint256 a0, uint256 a1) = LiquidityAmountsV3.getAmountsForLiquidity(
+            sqrtPriceX96, TickMathV3.getSqrtRatioAtTick(tl), TickMathV3.getSqrtRatioAtTick(tu), liq
+        );
+        (underlyingValue, otherValueInUnderlying) =
+            _accumulateInventoryLeg(underlyingValue, otherValueInUnderlying, t0, a0, sqrtPriceX96);
+        (underlyingValue, otherValueInUnderlying) =
+            _accumulateInventoryLeg(underlyingValue, otherValueInUnderlying, t1, a1, sqrtPriceX96);
+    }
+
+    function _accumulateInventoryLeg(
+        uint256 underlyingValue,
+        uint256 otherValueInUnderlying,
+        address token,
+        uint256 amount,
+        uint160 sqrtPriceX96
+    ) internal view returns (uint256 newUnderlyingValue, uint256 newOtherValueInUnderlying) {
+        newUnderlyingValue = underlyingValue;
+        newOtherValueInUnderlying = otherValueInUnderlying;
+        if (amount == 0) return (newUnderlyingValue, newOtherValueInUnderlying);
+
+        if (token == address(asset)) {
+            newUnderlyingValue += amount;
+        } else if (token == address(uniV3.otherToken())) {
+            newOtherValueInUnderlying += _quoteOtherAsUnderlyingAtSqrtPrice(amount, sqrtPriceX96);
+        }
     }
 
     function _errorSelector(bytes memory revertData) internal pure returns (bytes4 selector) {
@@ -934,32 +1017,37 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
         return _isPaused(target);
     }
 
-    function exposedRecordRebalanceSample(bool outOfRange) external {
-        _recordRebalanceSample(outOfRange);
+    function exposedRecordRebalanceSample(uint8 rangeSide, uint16 inventoryOtherRatioBPS) external {
+        _recordRebalanceSample(rangeSide, inventoryOtherRatioBPS);
     }
 
     function exposedClearRebalanceSamples() external {
         _clearRebalanceSamples();
     }
 
-    function exposedConsecutiveOutOfRangeObserved() external view returns (uint256) {
-        return _consecutiveOutOfRangeObserved();
+    function exposedConsecutiveInventoryOneSidedObserved(uint16 oneSidedThresholdBPS) external view returns (uint256) {
+        return _consecutiveInventoryOneSidedObserved(oneSidedThresholdBPS);
     }
 
-    function exposedRollingOutOfRangeObserved(uint256 windowStart) external view returns (uint256) {
-        return _rollingOutOfRangeObserved(windowStart);
+    function exposedRollingSameSideObserved(uint8 rangeSide, uint256 windowStart) external view returns (uint256) {
+        return _rollingSameSideObserved(rangeSide, windowStart);
     }
 
     function exposedHasRecentOutOfRangeSample(uint256 windowStart) external view returns (bool) {
         return _hasRecentOutOfRangeSample(windowStart);
     }
 
-    function exposedShouldTriggerRebalance(uint256 consecutiveObserved, uint256 rollingObserved)
+    function exposedRebalanceTriggerPath(
+        uint8 rangeSide,
+        uint256 ordinaryInventoryObserved,
+        uint256 sameSideObserved,
+        uint256 oscillationInventoryObserved
+    )
         external
-        view
-        returns (bool)
+        pure
+        returns (uint8)
     {
-        return _shouldTriggerRebalance(consecutiveObserved, rollingObserved);
+        return _rebalanceTriggerPath(rangeSide, ordinaryInventoryObserved, sameSideObserved, oscillationInventoryObserved);
     }
 
     function exposedSampleIndexFromNewest(uint256 offset) external view returns (uint256) {
@@ -982,8 +1070,41 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
         return rebalanceSampleOutOfRange[index];
     }
 
+    function exposedRebalanceSampleRangeSide(uint256 index) external view returns (uint8) {
+        return rebalanceSampleRangeSides[index];
+    }
+
+    function exposedRebalanceSampleInventoryOtherRatioBPS(uint256 index) external view returns (uint16) {
+        return rebalanceSampleInventoryOtherRatioBPS[index];
+    }
+
     function exposedValuationSqrtPriceX96(uint32 window) external view returns (uint160) {
         return _valuationSqrtPriceX96(window);
+    }
+
+    function exposedCurrentInventoryOtherRatioBPS() external view returns (uint16) {
+        return _currentInventoryOtherRatioBPS();
+    }
+
+    function exposedEvaluatePegGuard()
+        external
+        view
+        returns (
+            bool passed,
+            uint16 spotPegDeviationBPS,
+            uint16 spotVsTwapDeviationBPS,
+            uint160 spotSqrtPriceX96,
+            uint160 twapSqrtPriceX96
+        )
+    {
+        PegGuardStatus memory status = _evaluatePegGuard();
+        return (
+            status.passed,
+            status.spotPegDeviationBPS,
+            status.spotVsTwapDeviationBPS,
+            status.spotSqrtPriceX96,
+            status.twapSqrtPriceX96
+        );
     }
 
     function exposedCurrentMonitoringTick() external view returns (int24) {
@@ -993,13 +1114,17 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
     function exposedCurrentRangeStatus()
         external
         view
-        returns (bool outOfRange_, int24 currentTick_, int24 tickLower_, int24 tickUpper_)
+        returns (uint8 rangeSide_, int24 currentTick_, int24 tickLower_, int24 tickUpper_)
     {
         return _currentRangeStatus();
     }
 
     function exposedShouldCheckRebalance() external view returns (bool) {
         return _shouldCheckRebalance();
+    }
+
+    function exposedObserveAndMaybeRebalance() external returns (bool) {
+        return _observeAndMaybeRebalance();
     }
 }
 
@@ -1064,6 +1189,7 @@ contract MockStrategyAutomationView {
     address public pool;
     address public asset;
     address public otherToken;
+    uint256 public positionTokenId;
     int24 public tickLower;
     int24 public tickUpper;
     uint32 public twapWindow;
@@ -1071,6 +1197,10 @@ contract MockStrategyAutomationView {
     function setTicks(int24 _tickLower, int24 _tickUpper) external {
         tickLower = _tickLower;
         tickUpper = _tickUpper;
+    }
+
+    function setPositionTokenId(uint256 _positionTokenId) external {
+        positionTokenId = _positionTokenId;
     }
 
     function setTwapWindow(uint32 _twapWindow) external {
