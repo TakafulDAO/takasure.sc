@@ -104,7 +104,7 @@ protocol-prepare-upgrade-sf-strat-aggregator:
 
 protocol-upgrade-sf-uni-v3-strat:
 	@forge clean
-	@forge script deploy/saveFunds/upgrades/UpgradeSFUniswapV3Strategy.s.sol:UpgradeSFUniswapV3Strategy $(NETWORK_ARGS)
+	@forge script deploy/saveFunds/upgrades/UpgradeUniV3Strategy.s.sol:UpgradeUniV3Strategy $(NETWORK_ARGS)
 	@cp contracts/saveFunds/protocol/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
 
 prootocol-prepare-upgrade-sf-uni-v3-strat:
