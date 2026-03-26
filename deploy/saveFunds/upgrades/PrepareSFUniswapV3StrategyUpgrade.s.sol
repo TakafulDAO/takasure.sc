@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Script, console2} from "forge-std/Script.sol";
 import {Options} from "openzeppelin-foundry-upgrades/Defender.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
+import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
 
 contract PrepareSFUniswapV3StrategyUpgrade is Script {
     function run() external returns (address newImplementation) {

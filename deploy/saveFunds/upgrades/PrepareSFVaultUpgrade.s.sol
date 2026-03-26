@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Script, console2} from "forge-std/Script.sol";
 import {Options} from "openzeppelin-foundry-upgrades/Defender.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {SFVault} from "contracts/saveFunds/SFVault.sol";
+import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 
 contract PrepareSFVaultUpgrade is Script {
     function run() external returns (address newImplementation) {

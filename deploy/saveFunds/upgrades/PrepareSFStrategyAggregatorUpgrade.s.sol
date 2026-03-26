@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Script, console2} from "forge-std/Script.sol";
 import {Options} from "openzeppelin-foundry-upgrades/Defender.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {SFStrategyAggregator} from "contracts/saveFunds/SFStrategyAggregator.sol";
+import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 
 contract PrepareSFStrategyAggregatorUpgrade is Script {
     function run() external returns (address newImplementation) {
