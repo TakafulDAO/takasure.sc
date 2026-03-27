@@ -5,6 +5,7 @@ interface ISFUniV3StrategyAutomationView {
     function asset() external view returns (address);
     function otherToken() external view returns (address);
     function pool() external view returns (address);
+    function positionTokenId() external view returns (uint256);
     function tickLower() external view returns (int24);
     function tickUpper() external view returns (int24);
     function twapWindow() external view returns (uint32);
