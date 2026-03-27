@@ -1,0 +1,48 @@
+@startuml Reward Parents
+title SubscriptionModule or BenefitModule calls ReferralRewardsModule.rewardParents
+autonumber
+
+participant CallingModule
+participant ReferralRewardsModule
+participant AddressManager
+participant ModuleManager
+participant ContributionToken
+
+CallingModule -> ReferralRewardsModule: rewardParents(child)
+ReferralRewardsModule -> AddressManager: hasType(Module, CallingModule)
+
+alt Authorized module
+  ReferralRewardsModule -> AddressManager: getProtocolAddressByName("PROTOCOL__MODULE_MANAGER")
+  AddressManager --> ReferralRewardsModule: moduleManager
+  ReferralRewardsModule -> ModuleManager: getModuleState(ReferralRewardsModule)
+
+  alt Module enabled
+    ReferralRewardsModule -> ReferralRewardsModule: parent = childToParent[child]
+
+    loop for each layer up to 4 while parent != address(0)
+      ReferralRewardsModule -> ReferralRewardsModule: parentReward = pendingParentRewardsByChild[parent][child]
+      ReferralRewardsModule -> ReferralRewardsModule: pendingParentRewardsByChild[parent][child] = 0
+      ReferralRewardsModule -> AddressManager: getProtocolAddressByName("PROTOCOL__CONTRIBUTION_TOKEN")
+      AddressManager --> ReferralRewardsModule: contributionToken
+      ReferralRewardsModule -> ContributionToken: transfer(parent, parentReward)
+
+      alt Transfer succeeds
+        ReferralRewardsModule -> ReferralRewardsModule: emit OnParentRewardedStatus(parent, layer, child, parentReward, true)
+      else Transfer fails
+        ReferralRewardsModule -> ReferralRewardsModule: pendingParentRewardsByChild[parent][child] = parentReward
+        ReferralRewardsModule -> ReferralRewardsModule: emit OnParentRewardedStatus(parent, layer, child, parentReward, false)
+      end
+
+      ReferralRewardsModule -> ReferralRewardsModule: parent = childToParent[parent]
+    end
+
+    ReferralRewardsModule --> CallingModule: return
+  else Module disabled
+    ReferralRewardsModule --> CallingModule: Revert Module__WrongModuleState()
+  end
+
+else Not authorized
+  ReferralRewardsModule --> CallingModule: Revert Module__NotAuthorizedCaller()
+end
+
+@enduml

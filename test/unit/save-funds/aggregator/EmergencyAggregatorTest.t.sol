@@ -12,7 +12,7 @@ import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-import {TestSubStrategy, RecorderSubStrategy} from "test/mocks/MockSFStrategy.sol";
+import {PayloadAwarePreviewStrategy, RecorderSubStrategy, TestSubStrategy} from "test/mocks/MockSFStrategy.sol";
 import {MockValuator} from "test/mocks/MockValuator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -169,6 +169,22 @@ contract EmergencyAggregatorTest is Test {
 
         assertEq(asset.balanceOf(receiver), 777);
         assertEq(asset.balanceOf(address(aggregator)), 0);
+        assertTrue(aggregator.paused());
+    }
+
+    function testAggregator_emergencyExit_UsesPreviewWithdrawableDefaults() public {
+        PayloadAwarePreviewStrategy s1 = new PayloadAwarePreviewStrategy(asset);
+        _addStrategy(address(s1), 10_000, true);
+
+        _fundStrategy(address(s1), 500);
+
+        address receiver = makeAddr("receiver");
+
+        vm.prank(takadao);
+        aggregator.emergencyExit(receiver);
+
+        assertEq(asset.balanceOf(receiver), 0);
+        assertEq(asset.balanceOf(address(s1)), 500);
         assertTrue(aggregator.paused());
     }
 

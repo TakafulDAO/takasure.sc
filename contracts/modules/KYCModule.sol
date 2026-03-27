@@ -15,8 +15,7 @@ import {
     ReentrancyGuardTransientUpgradeable
 } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
 
-import {ProtocolAddress} from "contracts/types/Managers.sol";
-import {AssociationMemberState, ModuleState} from "contracts/types/States.sol";
+import {ModuleState} from "contracts/types/States.sol";
 import {AssociationMember} from "contracts/types/Members.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {TakasureEvents} from "contracts/helpers/libraries/events/TakasureEvents.sol";
@@ -74,18 +73,17 @@ contract KYCModule is ModuleImplementation, Initializable, UUPSUpgradeable, Reen
 
         IMainStorageModule mainStorageModule =
             IMainStorageModule(addressManager.getProtocolAddressByName("MODULE__MAIN_STORAGE").addr);
-        AssociationMember memory newMember = mainStorageModule.getAssociationMember(memberWallet);
+        AssociationMember memory member = mainStorageModule.getAssociationMember(memberWallet);
 
         // todo: uncomment when contributions are implemented from SubscriptionManagementModule PR
-        // require(newMember.planId != 0 && !newMember.isRefunded, KYCModule__ContributionRequired());
+        // require(member.planPrice != 0 && !member.isRefunded, KYCModule__ContributionRequired());
 
-        // We update the member values
-        newMember.memberState = AssociationMemberState.Active; // Active state as the user is already paid the contribution and KYCed
+        // We update the member KYC status and activate in storage
         isKYCed[memberWallet] = true;
+        mainStorageModule.activateAssociationMemberByKyc(memberWallet);
+        member = mainStorageModule.getAssociationMember(memberWallet);
 
-        mainStorageModule.updateAssociationMember(newMember);
-
-        emit TakasureEvents.OnMemberKycVerified(newMember.memberId, memberWallet);
+        emit TakasureEvents.OnMemberKycVerified(member.memberId, memberWallet);
     }
 
     /*//////////////////////////////////////////////////////////////

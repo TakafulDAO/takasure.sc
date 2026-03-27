@@ -28,6 +28,10 @@ contract MockSFStrategy is ISFStrategy {
         return _totalAssets;
     }
 
+    function previewWithdrawable(bytes calldata) external view override returns (uint256 withdrawableAssets) {
+        return _totalAssets;
+    }
+
     // --- core hooks, dummy impls for compilation ---
 
     function deposit(uint256 assets, bytes calldata) external override returns (uint256 investedAssets) {
@@ -73,6 +77,8 @@ contract MockSFStrategy is ISFStrategy {
         bool public returnZeroOnWithdraw;
         bool public forceMaxWithdraw;
         uint256 public forcedMaxWithdraw;
+        bool public forcePreviewWithdrawable;
+        uint256 public forcedPreviewWithdrawable;
 
         constructor(IERC20 _underlying) {
             underlying = _underlying;
@@ -85,6 +91,11 @@ contract MockSFStrategy is ISFStrategy {
         function setForcedMaxWithdraw(uint256 v) external {
             forceMaxWithdraw = true;
             forcedMaxWithdraw = v;
+        }
+
+        function setForcedPreviewWithdrawable(uint256 v) external {
+            forcePreviewWithdrawable = true;
+            forcedPreviewWithdrawable = v;
         }
 
         // ISFStrategy-like
@@ -118,6 +129,12 @@ contract MockSFStrategy is ISFStrategy {
             return underlying.balanceOf(address(this));
         }
 
+        function previewWithdrawable(bytes calldata) external view returns (uint256) {
+            if (forcePreviewWithdrawable) return forcedPreviewWithdrawable;
+            if (forceMaxWithdraw) return forcedMaxWithdraw;
+            return underlying.balanceOf(address(this));
+        }
+
         // maintenance-like
         function harvest(bytes calldata) external {
             harvestCount++;
@@ -141,6 +158,8 @@ contract MockSFStrategy is ISFStrategy {
         bool public returnZeroOnWithdraw;
         bool public forceMaxWithdraw;
         uint256 public forcedMaxWithdraw;
+        bool public forcePreviewWithdrawable;
+        uint256 public forcedPreviewWithdrawable;
 
         constructor(IERC20 _underlying) {
             underlying = _underlying;
@@ -153,6 +172,11 @@ contract MockSFStrategy is ISFStrategy {
         function setForcedMaxWithdraw(uint256 v) external {
             forceMaxWithdraw = true;
             forcedMaxWithdraw = v;
+        }
+
+        function setForcedPreviewWithdrawable(uint256 v) external {
+            forcePreviewWithdrawable = true;
+            forcedPreviewWithdrawable = v;
         }
 
         // --- surface used by the aggregator ---
@@ -183,6 +207,12 @@ contract MockSFStrategy is ISFStrategy {
         }
 
         function maxWithdraw() external view returns (uint256) {
+            if (forceMaxWithdraw) return forcedMaxWithdraw;
+            return underlying.balanceOf(address(this));
+        }
+
+        function previewWithdrawable(bytes calldata) external view returns (uint256) {
+            if (forcePreviewWithdrawable) return forcedPreviewWithdrawable;
             if (forceMaxWithdraw) return forcedMaxWithdraw;
             return underlying.balanceOf(address(this));
         }
@@ -267,6 +297,10 @@ contract MockSFStrategy is ISFStrategy {
             return underlying.balanceOf(address(this));
         }
 
+        function previewWithdrawable(bytes calldata) external view returns (uint256) {
+            return underlying.balanceOf(address(this));
+        }
+
         function harvest(bytes calldata data) external {
             harvestCount++;
             lastHarvestDataHash = keccak256(data);
@@ -317,6 +351,56 @@ contract MockSFStrategy is ISFStrategy {
         }
 
         function maxWithdraw() external view returns (uint256) {
+            return underlying.balanceOf(address(this));
+        }
+
+        function previewWithdrawable(bytes calldata) external view returns (uint256) {
+            return underlying.balanceOf(address(this));
+        }
+
+        function harvest(bytes calldata) external {}
+        function rebalance(bytes calldata) external {}
+        function test() public {}
+    }
+
+    contract PayloadAwarePreviewStrategy {
+        using SafeERC20 for IERC20;
+
+        IERC20 public immutable underlying;
+
+        constructor(IERC20 _underlying) {
+            underlying = _underlying;
+        }
+
+        function asset() external view returns (address) {
+            return address(underlying);
+        }
+
+        function deposit(uint256 assets, bytes calldata) external returns (uint256) {
+            if (assets == 0) return 0;
+            underlying.safeTransferFrom(msg.sender, address(this), assets);
+            return assets;
+        }
+
+        function withdraw(uint256 assets, address receiver, bytes calldata) external returns (uint256) {
+            uint256 bal = underlying.balanceOf(address(this));
+            uint256 amt = assets > bal ? bal : assets;
+            if (amt == 0) return 0;
+
+            underlying.safeTransfer(receiver, amt);
+            return amt;
+        }
+
+        function totalAssets() external view returns (uint256) {
+            return underlying.balanceOf(address(this));
+        }
+
+        function maxWithdraw() external view returns (uint256) {
+            return underlying.balanceOf(address(this));
+        }
+
+        function previewWithdrawable(bytes calldata data) external view returns (uint256) {
+            if (data.length == 0) return 0;
             return underlying.balanceOf(address(this));
         }
 

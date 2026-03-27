@@ -1,0 +1,110 @@
+@startuml Join Benefit On Behalf Of
+title Backend joins a member into a BenefitModule
+autonumber
+
+actor Backend
+participant BenefitModule
+participant ModuleManager
+participant KYCModule
+participant MainStorageModule
+participant TakasureReserve
+participant ReferralRewardsModule
+participant SubscriptionModule
+participant RevenueModule
+participant ContributionToken
+participant FeeClaimer
+participant CouponPool
+
+Backend -> BenefitModule: joinBenefitOnBehalfOf(memberWallet, contributionBeforeFee, membershipDuration, couponAmount)
+
+alt Backend is authorized
+  BenefitModule -> ModuleManager: getModuleState(BenefitModule)
+
+  alt Module enabled
+    alt couponAmount <= contributionBeforeFee
+      BenefitModule -> KYCModule: isKYCed(memberWallet)
+
+      alt Member is KYCed
+        BenefitModule -> MainStorageModule: getAssociationMember(memberWallet)
+        MainStorageModule --> BenefitModule: associationMember
+
+        alt Member has not already joined this benefit
+          BenefitModule -> TakasureReserve: getReserveValues()
+          TakasureReserve --> BenefitModule: reserve
+          BenefitModule -> BenefitModule: normalize contribution and calculate fee/contributionAfterFee
+          BenefitModule -> TakasureReserve: getMemberFromAddress(memberWallet)
+          TakasureReserve --> BenefitModule: currentBenefitMember
+
+          alt Current benefit member state is Inactive or Canceled
+            alt contributionBeforeFee is within reserve thresholds
+              BenefitModule -> BenefitModule: create BenefitMember
+              BenefitModule -> BenefitModule: emit OnMemberCreated(...)
+              BenefitModule -> ReferralRewardsModule: calculateReferralRewards(normalizedContribution, couponAmount, memberWallet, associationMember.parent, feeAmount)
+              ReferralRewardsModule --> BenefitModule: (feeAmount, discount, toReferralReserveAmount)
+              BenefitModule -> BenefitModule: CashFlowAlgorithms._updateNewReserveValues(...)
+              BenefitModule -> BenefitModule: set member discount and creditsBalance
+              BenefitModule -> BenefitModule: members[memberWallet] = newBenefitMember
+
+              group Move association subscription into reserve
+                BenefitModule -> SubscriptionModule: transferSubscriptionToReserve(memberWallet)
+                SubscriptionModule -> ReferralRewardsModule: rewardParents(memberWallet)
+                ReferralRewardsModule --> SubscriptionModule: pay pending association parent rewards
+                SubscriptionModule -> RevenueModule: depositRevenue(subscriptionNet, Contribution)
+                RevenueModule --> SubscriptionModule: ok
+                SubscriptionModule --> BenefitModule: subscriptionNet
+              end
+
+              group Move remaining benefit amounts
+                alt member still owes reserve contribution
+                  BenefitModule -> ContributionToken: safeTransferFrom(memberWallet, TakasureReserve, amountToTransferFromMember)
+                  BenefitModule -> ContributionToken: safeTransferFrom(memberWallet, FeeClaimer, feeAmount)
+                else subscription, discounts, and coupons cover the net contribution
+                  BenefitModule -> BenefitModule: no extra member transfer required
+                end
+
+                alt couponAmount > 0
+                  BenefitModule -> ContributionToken: safeTransferFrom(CouponPool, BenefitModule, couponAmount)
+                end
+
+                alt toReferralReserveAmount > 0
+                  BenefitModule -> ContributionToken: safeTransferFrom(memberWallet, ReferralRewardsModule, toReferralReserveAmount)
+                end
+              end
+
+              BenefitModule -> ReferralRewardsModule: rewardParents(memberWallet)
+              ReferralRewardsModule --> BenefitModule: pay pending benefit parent rewards
+              BenefitModule -> BenefitModule: emit OnMemberJoinedBenefit(moduleName, memberId, memberWallet)
+
+              BenefitModule -> TakasureReserve: setReserveValuesFromModule(updatedReserve)
+              BenefitModule -> TakasureReserve: setMemberValuesFromModule(newBenefitMember)
+              BenefitModule -> TakasureReserve: memberSurplus(newBenefitMember)
+
+              alt couponAmount > 0
+                BenefitModule -> BenefitModule: isMemberCouponALPRedeemer[memberWallet] = true
+              end
+
+              BenefitModule -> MainStorageModule: updateAssociationMember(benefits + this benefit)
+              BenefitModule --> Backend: success
+            else Contribution out of bounds
+              BenefitModule --> Backend: Revert BenefitModule__InvalidContribution()
+            end
+          else Wrong benefit member state
+            BenefitModule --> Backend: Revert Module__WrongMemberState()
+          end
+        else Member already joined this benefit
+          BenefitModule --> Backend: Revert Module__AlreadyJoined()
+        end
+      else Member is not KYCed
+        BenefitModule --> Backend: Revert Module__AddressNotKYCed()
+      end
+    else Invalid coupon
+      BenefitModule --> Backend: Revert Module__InvalidCoupon()
+    end
+  else Module disabled
+    BenefitModule --> Backend: Revert Module__WrongModuleState()
+  end
+else Not authorized
+  BenefitModule --> Backend: Revert Module__NotAuthorizedCaller()
+end
+
+@enduml

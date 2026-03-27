@@ -13,7 +13,7 @@ import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggre
 import {SFStrategyAggregatorLens} from "contracts/saveFunds/lens/SFStrategyAggregatorLens.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-import {TestSubStrategy} from "test/mocks/MockSFStrategy.sol";
+import {PayloadAwarePreviewStrategy, TestSubStrategy} from "test/mocks/MockSFStrategy.sol";
 import {MockValuator} from "test/mocks/MockValuator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -133,6 +133,21 @@ contract GettersAggregatorTest is Test {
         deal(address(asset), address(s1), 777);
 
         assertEq(aggregator.maxWithdraw(), 777);
+    }
+
+    function testAggregator_previewWithdrawable_UsesResolvedPayloads() public {
+        PayloadAwarePreviewStrategy s1 = new PayloadAwarePreviewStrategy(asset);
+        vm.prank(takadao);
+        aggregator.addSubStrategy(address(s1), 10_000);
+
+        deal(address(asset), address(s1), 777);
+
+        assertEq(aggregator.previewWithdrawable(bytes("")), 0);
+
+        vm.prank(takadao);
+        aggregator.setDefaultWithdrawPayload(address(s1), abi.encode(uint256(1)));
+
+        assertEq(aggregator.previewWithdrawable(bytes("")), 777);
     }
 
     function testAggregator_getPositionDetails_EncodesArrays() public {

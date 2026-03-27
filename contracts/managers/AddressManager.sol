@@ -17,6 +17,8 @@ import {
     OwnableUpgradeable
 } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {ProtocolAddressType, ProtocolAddress, ProposedRoleHolder} from "contracts/types/Managers.sol";
@@ -35,6 +37,8 @@ contract AddressManager is
 {
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
+
+    address public beacon;
 
     uint256 public roleAcceptanceDelay; // Maximum time allowed to accept a proposed role
 
@@ -57,6 +61,7 @@ contract AddressManager is
     event OnNewProtocolAddress(string indexed name, address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressDeleted(address indexed addr, ProtocolAddressType addressType);
     event OnProtocolAddressUpdated(string indexed name, address indexed newAddr);
+    event OnNewBenefitModuleDeployed(string indexed name, address indexed moduleAddress);
     event OnRoleCreated(bytes32 indexed role);
     event OnRoleRemoved(bytes32 indexed role);
     event OnProposedRoleHolder(bytes32 indexed role, address indexed proposedHolder);
@@ -85,13 +90,14 @@ contract AddressManager is
         _disableInitializers();
     }
 
-    function initialize(address _owner) external initializer {
+    function initialize(address _owner, address _beacon) external initializer {
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __Ownable_init(_owner);
         __AccessControl_init();
         __ReentrancyGuardTransient_init();
 
+        beacon = _beacon;
         roleAcceptanceDelay = 1 days;
     }
 
@@ -189,6 +195,19 @@ contract AddressManager is
         }
 
         emit OnProtocolAddressUpdated(name, newAddr);
+    }
+
+    function deployBenefitModule(string memory benefitName) external onlyOwner returns (address) {
+        _nameChecks(benefitName);
+
+        BeaconProxy newBenefitModule =
+            new BeaconProxy(beacon, abi.encodeCall(BenefitModule.initialize, (address(this), benefitName)));
+
+        _addProtocolAddress(benefitName, address(newBenefitModule), ProtocolAddressType.Module);
+
+        emit OnNewBenefitModuleDeployed(benefitName, address(newBenefitModule));
+
+        return address(newBenefitModule);
     }
 
     /*//////////////////////////////////////////////////////////////

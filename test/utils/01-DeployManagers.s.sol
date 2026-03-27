@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Script, console2, stdJson} from "forge-std/Script.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
-// import {BenefitModule} from "contracts/modules/BenefitModule.sol";
+import {BenefitModule} from "contracts/modules/BenefitModule.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
@@ -21,11 +21,11 @@ contract DeployManagers is Script {
 
         vm.startBroadcast(msg.sender);
 
-        // address beacon = UnsafeUpgrades.deployBeacon(address(new BenefitModule()), msg.sender);
+        address beacon = UnsafeUpgrades.deployBeacon(address(new BenefitModule()), msg.sender);
 
         address addressManagerImplementation = address(new AddressManager());
         address addressManagerProxy = UnsafeUpgrades.deployUUPSProxy(
-            addressManagerImplementation, abi.encodeCall(AddressManager.initialize, (msg.sender))
+            addressManagerImplementation, abi.encodeCall(AddressManager.initialize, (msg.sender, beacon))
         );
         addressManager = AddressManager(addressManagerProxy);
 

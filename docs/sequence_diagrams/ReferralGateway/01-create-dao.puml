@@ -1,0 +1,15 @@
+@startuml Create DAO
+autonumber
+
+actor DAOAdmin
+
+DaoAdmin -> ReferralGateway: createDao(DAOName, isPrejoinEnebled, isReferralDiscountEnabled, launchDate, objectiveAmount)
+
+alt Name is valid, launch date is valid, DAO does not exist
+    ReferralGateway -> DAOAdmin: Create DAO
+    
+else
+    ReferralGateway --> DAOAdmin: Revert
+end
+
+@enduml    

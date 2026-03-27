@@ -1,0 +1,49 @@
+@startuml Benefit Transfers And Parent Rewards
+title BenefitModule transfer flow inside joinBenefitOnBehalfOf
+autonumber
+
+participant BenefitModule
+participant SubscriptionModule
+participant ReferralRewardsModule
+participant RevenueModule
+participant ContributionToken
+participant TakasureReserve
+participant FeeClaimer
+participant CouponPool
+
+BenefitModule -> SubscriptionModule: transferSubscriptionToReserve(memberWallet)
+
+group SubscriptionModule moves the association portion
+  SubscriptionModule -> ReferralRewardsModule: rewardParents(memberWallet)
+  ReferralRewardsModule --> SubscriptionModule: pay pending association parent rewards
+  SubscriptionModule -> RevenueModule: depositRevenue(subscriptionNet, Contribution)
+  RevenueModule --> SubscriptionModule: ok
+  SubscriptionModule --> BenefitModule: subscriptionNet
+end
+
+alt couponAmount > 0
+  BenefitModule -> BenefitModule: amountToTransferFromMember = contributionAfterFee - subscriptionNet - discount - couponAmount
+else couponAmount == 0
+  BenefitModule -> BenefitModule: amountToTransferFromMember = contributionAfterFee - subscriptionNet - discount
+end
+
+alt amountToTransferFromMember > 0
+  BenefitModule -> ContributionToken: safeTransferFrom(memberWallet, TakasureReserve, amountToTransferFromMember)
+  BenefitModule -> ContributionToken: safeTransferFrom(memberWallet, FeeClaimer, feeAmount)
+else No extra member transfer required
+  BenefitModule -> BenefitModule: skip reserve and fee transfer from member
+end
+
+alt couponAmount > 0
+  BenefitModule -> ContributionToken: safeTransferFrom(CouponPool, BenefitModule, couponAmount)
+end
+
+alt toReferralReserveAmount > 0
+  BenefitModule -> ContributionToken: safeTransferFrom(memberWallet, ReferralRewardsModule, toReferralReserveAmount)
+end
+
+BenefitModule -> ReferralRewardsModule: rewardParents(memberWallet)
+ReferralRewardsModule --> BenefitModule: pay pending benefit parent rewards
+BenefitModule --> BenefitModule: return
+
+@enduml
