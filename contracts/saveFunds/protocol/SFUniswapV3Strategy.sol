@@ -419,18 +419,21 @@ contract SFUniswapV3Strategy is
         // Decode action data, same schema as in deposit
         V3ActionData memory p = _decodeV3ActionData(data);
 
-        // 1. Compute fraction of LP to remove
-        uint128 liquidityToBurn = _liquidityForValue(assets);
+        // Realize any idle otherToken first so we do not burn more LP than necessary.
+        _swapAllOtherToUnderlying(p.swapToUnderlyingData);
 
-        // Reuse decoded PM params to avoid redundant decoding
-        if (liquidityToBurn > 0 && positionTokenId != 0) {
+        // Up to two burn/swap passes close small rounding and slippage gaps.
+        bool canSwapOther = p.swapToUnderlyingData.length > 0;
+
+        for (uint256 i; i < 2; ++i) {
+            uint256 currentUnderlying = underlying.balanceOf(address(this));
+            if (currentUnderlying >= assets || positionTokenId == 0) break;
+
+            uint128 liquidityToBurn = _liquidityForValue(assets - currentUnderlying, canSwapOther);
+            if (liquidityToBurn == 0) break;
+
             _decreaseLiquidityAndCollect(liquidityToBurn, p.pmDeadline, p.minUnderlying, p.minOther);
-        }
-
-        // 2. swap all otherToken to underlying (if swap payload provided)
-        uint256 balOther = otherToken.balanceOf(address(this));
-        if (balOther > 0 && p.swapToUnderlyingData.length > 0) {
-            _V3Swap(balOther, p.swapToUnderlyingData, false);
+            _swapAllOtherToUnderlying(p.swapToUnderlyingData);
         }
 
         uint256 finalUnderlying = underlying.balanceOf(address(this));
@@ -587,6 +590,18 @@ contract SFUniswapV3Strategy is
     }
 
     /**
+     * @notice Returns immediately deliverable underlying under the supplied withdraw payload.
+     * @dev This is a conservative liquidity view, not NAV. Non-underlying value is counted only when it can be
+     *      swapped to underlying via a valid `swapToUnderlyingData` payload, discounted by `swapSlippageBPS`.
+     * @param data ABI-encoded V3 action data.
+     * @return withdrawableAssets Immediately deliverable underlying.
+     */
+    function previewWithdrawable(bytes calldata data) external view returns (uint256 withdrawableAssets) {
+        V3ActionData memory p = _decodeV3ActionData(data);
+        withdrawableAssets = _previewWithdrawable(p);
+    }
+
+    /**
      * @notice Returns the maximum withdrawable amount in underlying units at current state and price.
      * @dev Mirrors `totalAssets()` so max-withdraw aligns with overall valuation (idle balances + LP + fees),
      *      including `otherToken` converted to underlying at the current spot/TWAP price.
@@ -609,38 +624,13 @@ contract SFUniswapV3Strategy is
      */
     function totalAssets() public view returns (uint256) {
         uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
+        (uint256 positionUnderlying, uint256 positionOther) = _positionAmountsAtSqrtPrice(sqrtPriceX96);
+        (uint256 owedUnderlying, uint256 owedOther) = _owedAmounts();
 
-        uint256 value = _positionValueAtSqrtPrice(sqrtPriceX96);
+        uint256 value = underlying.balanceOf(address(this)) + positionUnderlying + owedUnderlying;
 
-        // Include uncollected fees (tokensOwed) in total assets.
-        if (positionTokenId != 0) {
-            address t0 = PositionReader._getAddress(positionManager, positionTokenId, 2);
-            address t1 = PositionReader._getAddress(positionManager, positionTokenId, 3);
-            uint128 owed0 = PositionReader._getUint128(positionManager, positionTokenId, 10);
-            uint128 owed1 = PositionReader._getUint128(positionManager, positionTokenId, 11);
-
-            if (owed0 > 0) {
-                if (t0 == address(underlying)) {
-                    value += uint256(owed0);
-                } else if (t0 == address(otherToken)) {
-                    value += _quoteOtherAsUnderlyingAtSqrtPrice(uint256(owed0), sqrtPriceX96);
-                }
-            }
-
-            if (owed1 > 0) {
-                if (t1 == address(underlying)) {
-                    value += uint256(owed1);
-                } else if (t1 == address(otherToken)) {
-                    value += _quoteOtherAsUnderlyingAtSqrtPrice(uint256(owed1), sqrtPriceX96);
-                }
-            }
-        }
-
-        uint256 idleU = underlying.balanceOf(address(this));
-        if (idleU > 0) value += idleU;
-
-        uint256 idleO = otherToken.balanceOf(address(this));
-        if (idleO > 0) value += _quoteOtherAsUnderlyingAtSqrtPrice(idleO, sqrtPriceX96);
+        uint256 otherValue = otherToken.balanceOf(address(this)) + positionOther + owedOther;
+        if (otherValue > 0) value += _quoteOtherAsUnderlyingAtSqrtPrice(otherValue, sqrtPriceX96);
 
         return value;
     }
@@ -712,6 +702,13 @@ contract SFUniswapV3Strategy is
 
         (uint256 c0, uint256 c1) = positionManager.collect(cparams);
         emit OnPositionCollected(positionTokenId, c0, c1);
+    }
+
+    function _swapAllOtherToUnderlying(bytes memory _swapData) internal {
+        uint256 balOther = otherToken.balanceOf(address(this));
+        if (balOther == 0 || _swapData.length == 0) return;
+
+        _V3Swap(balOther, _swapData, false);
     }
 
     /**
@@ -831,6 +828,34 @@ contract SFUniswapV3Strategy is
 
         // Clear allowance
         _tokenIn.forceApprove(address(universalRouter), 0);
+    }
+
+    function _previewWithdrawable(V3ActionData memory p_) internal view returns (uint256 withdrawableAssets_) {
+        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
+        (uint256 positionUnderlying, uint256 positionOther) = _positionAmountsAtSqrtPrice(sqrtPriceX96);
+        (uint256 owedUnderlying, uint256 owedOther) = _owedAmounts();
+
+        withdrawableAssets_ = underlying.balanceOf(address(this)) + positionUnderlying + owedUnderlying;
+
+        uint256 totalOther = otherToken.balanceOf(address(this)) + positionOther + owedOther;
+        if (totalOther == 0 || p_.swapToUnderlyingData.length == 0) return withdrawableAssets_;
+
+        withdrawableAssets_ += _previewSwapToUnderlying(totalOther, p_.swapToUnderlyingData, sqrtPriceX96);
+    }
+
+    function _previewSwapToUnderlying(uint256 _amountOther, bytes memory _swapData, uint160 _sqrtPriceX96)
+        internal
+        view
+        returns (uint256 quotedUnderlying_)
+    {
+        if (_amountOther == 0 || _swapData.length == 0) return 0;
+
+        (bytes[] memory inputs,) = abi.decode(_swapData, (bytes[], uint256));
+        (,, uint256 totalIn) = _buildSwapInputs(inputs, _amountOther, false);
+        require(totalIn <= _amountOther, SFUniswapV3Strategy__InvalidStrategyData());
+
+        quotedUnderlying_ = _quoteOtherAsUnderlyingAtSqrtPrice(totalIn, _sqrtPriceX96);
+        quotedUnderlying_ = math.mulDiv(quotedUnderlying_, MAX_BPS - uint256(swapSlippageBPS), MAX_BPS);
     }
 
     function _patchSwapInput(
@@ -1051,15 +1076,22 @@ contract SFUniswapV3Strategy is
      * @return liquidityToBurn Amount of liquidity to burn (0 if no position/value).
      * @custom:invariant Returned liquidity must be `<= currentLiquidity` and is `currentLiquidity` when `_value >= position value`.
      */
-    function _liquidityForValue(uint256 _value) internal view returns (uint128) {
+    function _liquidityForValue(uint256 _value, bool _canSwapOther) internal view returns (uint128) {
         if (_value == 0) return 0;
         if (positionTokenId == 0) return 0;
 
         uint128 currentLiquidity = PositionReader._getUint128(positionManager, positionTokenId, 7);
         if (currentLiquidity == 0) return 0;
 
-        // USDC value of the LP position (liquidity-only valuation)
-        uint256 posValue = _positionValueAtSqrtPrice(_valuationSqrtPriceX96());
+        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
+        (uint256 positionUnderlying, uint256 positionOther) = _positionAmountsAtSqrtPrice(sqrtPriceX96);
+
+        uint256 posValue = positionUnderlying;
+        if (_canSwapOther && positionOther > 0) {
+            uint256 quotedOther = _quoteOtherAsUnderlyingAtSqrtPrice(positionOther, sqrtPriceX96);
+            posValue += math.mulDiv(quotedOther, MAX_BPS - uint256(swapSlippageBPS), MAX_BPS);
+        }
+
         if (posValue == 0) return 0;
 
         // If asking for >= position value, burn all liquidity
@@ -1157,27 +1189,52 @@ contract SFUniswapV3Strategy is
      * @custom:invariant Returns 0 when `positionTokenId == 0` or liquidity is 0; view helper must not mutate state.
      */
     function _positionValueAtSqrtPrice(uint160 sqrtPriceX96) internal view returns (uint256) {
-        if (positionTokenId == 0) return 0;
+        (uint256 underlyingAmount, uint256 otherAmount) = _positionAmountsAtSqrtPrice(sqrtPriceX96);
+        if (otherAmount == 0) return underlyingAmount;
+        return underlyingAmount + _quoteOtherAsUnderlyingAtSqrtPrice(otherAmount, sqrtPriceX96);
+    }
+
+    function _positionAmountsAtSqrtPrice(uint160 sqrtPriceX96)
+        internal
+        view
+        returns (uint256 underlyingAmount_, uint256 otherAmount_)
+    {
+        if (positionTokenId == 0) return (0, 0);
 
         address t0 = PositionReader._getAddress(positionManager, positionTokenId, 2);
         address t1 = PositionReader._getAddress(positionManager, positionTokenId, 3);
         int24 tl = PositionReader._getInt24(positionManager, positionTokenId, 5);
         int24 tu = PositionReader._getInt24(positionManager, positionTokenId, 6);
         uint128 liq = PositionReader._getUint128(positionManager, positionTokenId, 7);
-        if (liq == 0) return 0;
+        if (liq == 0) return (0, 0);
 
         (uint256 a0, uint256 a1) =
             math.getAmountsForLiquidity(sqrtPriceX96, math.getSqrtRatioAtTick(tl), math.getSqrtRatioAtTick(tu), liq);
 
-        uint256 v;
+        if (t0 == address(underlying)) underlyingAmount_ += a0;
+        else if (t0 == address(otherToken)) otherAmount_ += a0;
 
-        if (t0 == address(underlying)) v += a0;
-        else if (t0 == address(otherToken)) v += _quoteOtherAsUnderlyingAtSqrtPrice(a0, sqrtPriceX96);
+        if (t1 == address(underlying)) underlyingAmount_ += a1;
+        else if (t1 == address(otherToken)) otherAmount_ += a1;
+    }
 
-        if (t1 == address(underlying)) v += a1;
-        else if (t1 == address(otherToken)) v += _quoteOtherAsUnderlyingAtSqrtPrice(a1, sqrtPriceX96);
+    function _owedAmounts() internal view returns (uint256 underlyingOwed_, uint256 otherOwed_) {
+        if (positionTokenId == 0) return (0, 0);
 
-        return v;
+        address t0 = PositionReader._getAddress(positionManager, positionTokenId, 2);
+        address t1 = PositionReader._getAddress(positionManager, positionTokenId, 3);
+        uint128 owed0 = PositionReader._getUint128(positionManager, positionTokenId, 10);
+        uint128 owed1 = PositionReader._getUint128(positionManager, positionTokenId, 11);
+
+        if (owed0 > 0) {
+            if (t0 == address(underlying)) underlyingOwed_ += uint256(owed0);
+            else if (t0 == address(otherToken)) otherOwed_ += uint256(owed0);
+        }
+
+        if (owed1 > 0) {
+            if (t1 == address(underlying)) underlyingOwed_ += uint256(owed1);
+            else if (t1 == address(otherToken)) otherOwed_ += uint256(owed1);
+        }
     }
 
     /**

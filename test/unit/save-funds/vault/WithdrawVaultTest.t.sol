@@ -12,7 +12,7 @@ import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-import {TestSubStrategy} from "test/mocks/MockSFStrategy.sol";
+import {PayloadAwarePreviewStrategy, TestSubStrategy} from "test/mocks/MockSFStrategy.sol";
 import {MockValuator} from "test/mocks/MockValuator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ProtocolAddressType} from "contracts/types/Managers.sol";
@@ -110,6 +110,36 @@ contract WithdrawVaultTest is Test {
 
         assertEq(asset.balanceOf(user), userBalBefore + withdrawAmt);
         assertEq(asset.balanceOf(address(s1)), investAmt - (withdrawAmt - idleBefore));
+    }
+
+    function testSFVault_maxWithdraw_UsesAggregatorPreviewWithdrawable() public {
+        PayloadAwarePreviewStrategy s1 = new PayloadAwarePreviewStrategy(asset);
+        vm.prank(takadao);
+        aggregator.addSubStrategy(address(s1), 10_000);
+
+        uint256 depositAmt = 1_000 * ONE_USDC;
+        _prepareUser(user, depositAmt);
+        vm.prank(user);
+        vault.deposit(depositAmt, user);
+
+        address[] memory strategies = new address[](1);
+        bytes[] memory payloads = new bytes[](1);
+        strategies[0] = address(s1);
+        payloads[0] = bytes("");
+
+        uint256 investAmt = 800 * ONE_USDC;
+        vm.prank(takadao);
+        vault.investIntoStrategy(investAmt, strategies, payloads);
+
+        assertEq(vault.idleAssets(), 200 * ONE_USDC);
+        assertEq(vault.maxWithdraw(user), 200 * ONE_USDC);
+        assertEq(vault.maxRedeem(user), vault.convertToShares(200 * ONE_USDC));
+
+        vm.prank(takadao);
+        aggregator.setDefaultWithdrawPayload(address(s1), abi.encode(uint256(1)));
+
+        assertEq(vault.maxWithdraw(user), depositAmt);
+        assertEq(vault.maxRedeem(user), vault.balanceOf(user));
     }
 
     function _prepareUser(address _user, uint256 amount) internal {

@@ -261,7 +261,7 @@ contract SFStrategyAggregator is
 
     /**
      * @notice Attempts to withdraw all available funds from all child strategies and transfers them to `receiver`, then pauses the contract.
-     * @dev Only callable by an OPERATOR. Uses each strategy’s `maxWithdraw()` to determine the maximum withdrawable amount.
+     * @dev Only callable by an OPERATOR. Uses each strategy's preview withdraw path to determine immediately deliverable underlying.
      * @param receiver Address that will receive withdrawn assets and any idle balance held by the aggregator.
      * @custom:invariant paused() == true after the call completes.
      */
@@ -270,9 +270,11 @@ contract SFStrategyAggregator is
 
         for (uint256 i; i < len; ++i) {
             address s = subStrategySet.at(i);
-            uint256 m = ISFStrategy(s).maxWithdraw();
+            bytes memory payload = defaultWithdrawPayload[s];
+            uint256 m = _safePreviewWithdrawable(s, payload);
             if (m == 0) continue;
-            ISFStrategy(s).withdraw(m, receiver, bytes(""));
+            if (payload.length > 0 && _isUniV3Strategy(s)) _validateUniV3WithdrawPayload(payload);
+            ISFStrategy(s).withdraw(m, receiver, payload);
         }
 
         uint256 bal = underlying.balanceOf(address(this));
@@ -557,6 +559,26 @@ contract SFStrategyAggregator is
     }
 
     /**
+     * @notice Returns immediately deliverable underlying under the supplied/default withdraw payloads.
+     * @dev Uses the same payload as `withdraw`: explicit bundle payloads override defaults.
+     *      Child preview reverts are treated conservatively as zero.
+     * @param data ABI-encoded per-strategy payloads: abi.encode(address[] strategies, bytes[] payloads).
+     * @return withdrawableAssets Immediately deliverable underlying across idle funds and child strategies.
+     */
+    function previewWithdrawable(bytes calldata data) external view returns (uint256 withdrawableAssets) {
+        (address[] memory dataStrategies, bytes[] memory perChildData) = _decodePerStrategyData(data);
+
+        withdrawableAssets = underlying.balanceOf(address(this));
+
+        uint256 len = subStrategySet.length();
+        for (uint256 i; i < len; ++i) {
+            address strat = subStrategySet.at(i);
+            bytes memory payload = _payloadForWithdraw(strat, dataStrategies, perChildData);
+            withdrawableAssets += _safePreviewWithdrawable(strat, payload);
+        }
+    }
+
+    /**
      * @notice Returns the maximum amount of underlying that could be withdrawn right now.
      * @dev Computed as idle balance plus the sum of each child strategy’s `maxWithdraw()`.
      * @return maxAssets Maximum withdrawable amount in underlying units.
@@ -784,15 +806,15 @@ contract SFStrategyAggregator is
         for (uint256 i; i < _len && sent_ < _remaining; ++i) {
             address _stratAddr = subStrategySet.at(i);
 
-            uint256 _maxW = ISFStrategy(_stratAddr).maxWithdraw();
-            if (_maxW == 0) continue;
-
-            uint256 _toAsk = _maxW > (_remaining - sent_) ? (_remaining - sent_) : _maxW;
-            if (_toAsk == 0) continue;
-
             bytes memory _payload = _payloadForWithdraw(_stratAddr, _dataStrategies, _perChildData);
             require(_payload.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
             if (_isUniV3Strategy(_stratAddr)) _validateUniV3WithdrawPayload(_payload);
+
+            uint256 _preview = _safePreviewWithdrawable(_stratAddr, _payload);
+            if (_preview == 0) continue;
+
+            uint256 _toAsk = _preview > (_remaining - sent_) ? (_remaining - sent_) : _preview;
+            if (_toAsk == 0) continue;
 
             uint256 _got = ISFStrategy(_stratAddr).withdraw(_toAsk, address(this), _payload);
 
@@ -836,6 +858,19 @@ contract SFStrategyAggregator is
             if (_strategies[i] == _strategy) return _payloads[i];
         }
         return defaultWithdrawPayload[_strategy];
+    }
+
+    function _safePreviewWithdrawable(address _strategy, bytes memory _payload)
+        internal
+        view
+        returns (uint256 preview_)
+    {
+        (bool ok, bytes memory ret) = _strategy.staticcall(
+            abi.encodeWithSelector(ISFStrategy.previewWithdrawable.selector, _payload)
+        );
+        if (!ok || ret.length < 32) return 0;
+
+        preview_ = abi.decode(ret, (uint256));
     }
 
     function _isUniV3Strategy(address _strategy) internal view returns (bool) {

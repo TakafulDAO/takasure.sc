@@ -810,7 +810,7 @@ contract SFVault is
     function _aggregatorMaxWithdraw() internal view returns (uint256) {
         ISFStrategy aggregator = ISFStrategy(addressManager.getProtocolAddressByName("PROTOCOL__SF_AGGREGATOR").addr);
         if (address(aggregator) == address(0)) return 0;
-        return aggregator.maxWithdraw();
+        return aggregator.previewWithdrawable(bytes(""));
     }
 
     /// @dev Ensures the vault holds at least `_assets` underlying by pulling from the aggregator if needed.

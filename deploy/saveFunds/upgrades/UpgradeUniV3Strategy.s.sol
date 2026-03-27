@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
-import {SFUniswapV3Strategy} from "contracts/saveFunds/SFUniswapV3Strategy.sol";
+import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract UpgradeUniV3Strategy is Script, GetContractAddress {

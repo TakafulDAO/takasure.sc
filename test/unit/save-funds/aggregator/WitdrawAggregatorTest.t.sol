@@ -12,7 +12,7 @@ import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
-import {TestSubStrategy, RecorderSubStrategy} from "test/mocks/MockSFStrategy.sol";
+import {PayloadAwarePreviewStrategy, RecorderSubStrategy, TestSubStrategy} from "test/mocks/MockSFStrategy.sol";
 import {MockValuator} from "test/mocks/MockValuator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -228,6 +228,42 @@ contract WithdrawAggregatorTest is Test {
 
         assertEq(got, 200);
         assertEq(s1.lastWithdrawDataHash(), keccak256(payload));
+    }
+
+    function testAggregator_withdraw_UsesPreviewWithdrawableWhenAskingChild() public {
+        TestSubStrategy s1 = new TestSubStrategy(asset);
+        _addStrategyWithDefault(address(s1), 10_000, true);
+
+        deal(address(asset), address(s1), 1_000);
+        s1.setForcedMaxWithdraw(1_000);
+        s1.setForcedPreviewWithdrawable(200);
+
+        address receiver = makeAddr("receiver");
+        uint256 got = _withdrawAsVault(500, receiver);
+
+        assertEq(got, 200);
+        assertEq(asset.balanceOf(receiver), 200);
+    }
+
+    function testAggregator_previewWithdrawable_IsConservativeWithoutDefaultPayload() public {
+        PayloadAwarePreviewStrategy s1 = new PayloadAwarePreviewStrategy(asset);
+        _addStrategy(address(s1), 10_000, true);
+
+        deal(address(asset), address(s1), 500);
+
+        assertEq(aggregator.previewWithdrawable(_emptyPerStrategyData()), 0);
+    }
+
+    function testAggregator_previewWithdrawable_UsesDefaultPayloadWhenConfigured() public {
+        PayloadAwarePreviewStrategy s1 = new PayloadAwarePreviewStrategy(asset);
+        _addStrategy(address(s1), 10_000, true);
+
+        deal(address(asset), address(s1), 500);
+
+        vm.prank(takadao);
+        aggregator.setDefaultWithdrawPayload(address(s1), abi.encode(uint256(1)));
+
+        assertEq(aggregator.previewWithdrawable(_emptyPerStrategyData()), 500);
     }
 
     /*//////////////////////////////////////////////////////////////

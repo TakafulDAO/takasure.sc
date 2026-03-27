@@ -238,11 +238,9 @@ contract UniV3StratTest is Test {
 
         assertGt(uniV3Strategy.positionTokenId(), 0);
 
-        // Current strategy design only sweeps underlying to vault.
+        // Current strategy design only sweeps underlying to vault; otherToken dust is not guaranteed.
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
-        assertGt(usdt.balanceOf(address(uniV3Strategy)), 0);
-
-        // assertGt(uniV3Strategy.totalAssets(), 0);
+        assertGt(uniV3Strategy.totalAssets(), 0);
     }
 
     function testUniV3Strat_deposit_IncreaseLiquidity_WhenPositionExists() public {
@@ -266,9 +264,9 @@ contract UniV3StratTest is Test {
         assertEq(uniV3Strategy.positionTokenId(), tokenIdBefore);
         assertGt(uniV3Strategy.totalAssets(), totalBefore);
 
-        // Current strategy design only sweeps underlying to vault.
+        // Current strategy design only sweeps underlying to vault; otherToken dust is not guaranteed.
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
-        assertGt(usdt.balanceOf(address(uniV3Strategy)), 0);
+        assertGt(uniV3Strategy.totalAssets(), totalBefore);
     }
 
     function testUniV3Strat_withdraw_WhenTotalAssetsIsZero_Returns0() public {
@@ -283,11 +281,10 @@ contract UniV3StratTest is Test {
         uint256 idleOther = 2_000e6;
         _fundStrategyOther(idleOther);
 
-        uint256 request = uniV3Strategy.totalAssets();
-        assertGt(request, 0);
-
-        bytes memory swapToUnderlying = _encodeSwapDataExactIn(ARB_USDT, ARB_USDC, idleOther);
+        bytes memory swapToUnderlying = _encodeSwapDataExactInBps(ARB_USDT, ARB_USDC, uint16(MAX_BPS));
         bytes memory v3 = _encodeV3ActionData(0, bytes(""), swapToUnderlying, block.timestamp + 1, 0, 0);
+        uint256 request = uniV3Strategy.previewWithdrawable(v3);
+        assertGt(request, 0);
 
         address receiver = makeAddr("receiver");
         uint256 balBefore = asset.balanceOf(receiver);
@@ -295,11 +292,30 @@ contract UniV3StratTest is Test {
         vm.prank(address(aggregator));
         uint256 withdrawn = uniV3Strategy.withdraw(request, receiver, v3);
 
-        assertGt(withdrawn, 0);
+        assertEq(withdrawn, request);
         assertEq(asset.balanceOf(receiver), balBefore + withdrawn);
 
         assertEq(asset.balanceOf(address(uniV3Strategy)), 0);
         assertEq(usdt.balanceOf(address(uniV3Strategy)), 0);
+    }
+
+    function testUniV3Strat_previewWithdrawable_ExcludesIdleOtherWithoutSwapPayload() public {
+        _fundStrategyOther(2_000e6);
+
+        assertEq(uniV3Strategy.previewWithdrawable(bytes("")), 0);
+        assertGt(uniV3Strategy.totalAssets(), 0);
+    }
+
+    function testUniV3Strat_previewWithdrawable_IncludesDiscountedIdleOtherWithSwapPayload() public {
+        _fundStrategyOther(2_000e6);
+
+        bytes memory swapToUnderlying = _encodeSwapDataExactInBps(ARB_USDT, ARB_USDC, uint16(MAX_BPS));
+        bytes memory v3 = _encodeV3ActionData(0, bytes(""), swapToUnderlying, block.timestamp + 1, 0, 0);
+
+        uint256 preview = uniV3Strategy.previewWithdrawable(v3);
+
+        assertGt(preview, 0);
+        assertLt(preview, uniV3Strategy.totalAssets());
     }
 
     function testUniV3Strat_withdraw_FromPosition_DecreasesLiquidity_AndSweeps() public {
@@ -443,14 +459,17 @@ contract UniV3StratTest is Test {
 
         uniV3Strategy.totalAssets();
         uniV3Strategy.maxWithdraw();
+        uniV3Strategy.previewWithdrawable(bytes(""));
 
         vm.prank(takadao);
         uniV3Strategy.setTwapWindow(1800);
         uniV3Strategy.totalAssets();
+        uniV3Strategy.previewWithdrawable(bytes(""));
 
         vm.prank(takadao);
         uniV3Strategy.setTwapWindow(type(uint32).max);
         uniV3Strategy.totalAssets();
+        uniV3Strategy.previewWithdrawable(bytes(""));
     }
 
     function testUniV3Strat_totalAssets_IncludesUncollectedFees() public {

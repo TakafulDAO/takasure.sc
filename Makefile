@@ -78,7 +78,7 @@ protocol-deploy-sf:
 
 protocol-migrate-sf-ccip-usdc-arb-sepolia:
 	@forge clean
-	@forge script deploy/saveFunds/03-MigrateSFToCcipUSDCArbSepolia.s.sol:MigrateSFToCcipUSDCArbSepolia $(NETWORK_ARGS)
+	@forge script deploy/saveFunds/MigrateSFToCcipUSDCArbSepolia.s.sol:MigrateSFToCcipUSDCArbSepolia $(NETWORK_ARGS)
 
 protocol-deploy-uniswap-pool-sepolia:
 	@forge script deploy/saveFunds/DeploySFUniV3PoolSepolia.s.sol:DeploySFUniV3PoolSepolia $(NETWORK_ARGS)
@@ -86,19 +86,31 @@ protocol-deploy-uniswap-pool-sepolia:
 # Protocol upgrades
 protocol-upgrade-sf-vault:
 	@forge clean
-	@forge script deploy/saveFunds/04-UpgradeSFVault.s.sol:UpgradeSFVault $(NETWORK_ARGS)
+	@forge script deploy/saveFunds/upgrades/UpgradeSFVault.s.sol:UpgradeSFVault $(NETWORK_ARGS)
 	@cp contracts/saveFunds/protocol/SFVault.sol contracts/version_previous_contracts/SFVaultV1.sol
 
+protocol-prepare-upgrade-sf-vault:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/PrepareSFVaultUpgrade.s.sol:PrepareSFVaultUpgrade $(NETWORK_ARGS)
+	
 protocol-upgrade-sf-strat-aggregator:
 	@forge clean
-	@forge script deploy/saveFunds/05-UpgradeSFStrategyAggregator.s.sol:UpgradeSFStrategyAggregator $(NETWORK_ARGS)
+	@forge script deploy/saveFunds/upgrades/UpgradeSFStrategyAggregator.s.sol:UpgradeSFStrategyAggregator $(NETWORK_ARGS)
 	@cp contracts/saveFunds/protocol/SFStrategyAggregator.sol contracts/version_previous_contracts/SFStrategyAggregatorV1.sol
+
+protocol-prepare-upgrade-sf-strat-aggregator:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/PrepareSFStrategyAggregatorUpgrade.s.sol:PrepareSFStrategyAggregatorUpgrade $(NETWORK_ARGS)
 
 protocol-upgrade-sf-uni-v3-strat:
 	@forge clean
-	@forge script deploy/saveFunds/06-UpgradeSFUniswapV3Strategy.s.sol:UpgradeSFUniswapV3Strategy $(NETWORK_ARGS)
+	@forge script deploy/saveFunds/upgrades/UpgradeUniV3Strategy.s.sol:UpgradeUniV3Strategy $(NETWORK_ARGS)
 	@cp contracts/saveFunds/protocol/SFUniswapV3Strategy.sol contracts/version_previous_contracts/SFUniswapV3StrategyV1.sol
 
+protocol-prepare-upgrade-sf-uni-v3-strat:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/PrepareSFUniswapV3StrategyUpgrade.s.sol:PrepareSFUniswapV3StrategyUpgrade $(NETWORK_ARGS)
+	
 protocol-upgrade-referral:
 	@forge clean
 	@forge script deploy/protocol/upgrades/00-UpgradeReferralGateway.s.sol:UpgradeReferralGateway $(NETWORK_ARGS)

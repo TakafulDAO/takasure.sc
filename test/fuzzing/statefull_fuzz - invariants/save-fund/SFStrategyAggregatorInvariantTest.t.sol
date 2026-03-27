@@ -148,8 +148,8 @@ contract SFStrategyAggregatorInvariantTest is StdInvariant, Test {
         assertEq(aggregator.totalAssets(), idle + strategiesSum);
     }
 
-    function invariant_Aggregator_MaxWithdrawEqualsTotalAssets() public view {
-        assertEq(aggregator.maxWithdraw(), aggregator.totalAssets());
+    function invariant_Aggregator_PreviewWithdrawableDoesNotExceedTotalAssets() public view {
+        assertLe(aggregator.previewWithdrawable(bytes("")), aggregator.totalAssets());
     }
 
     function invariant_Aggregator_ConfigAssetAndVaultStable() public view {
