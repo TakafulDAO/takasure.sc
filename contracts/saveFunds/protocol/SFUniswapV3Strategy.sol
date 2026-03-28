@@ -271,6 +271,16 @@ contract SFUniswapV3Strategy is
         emit OnSwapSlippageBPSUpdated(old, newBps);
     }
 
+    /**
+     * @notice Updates the Uniswap V4 pool configuration used only for background swaps.
+     * @dev This does not affect the active Uniswap V3 LP position, tick range, or NFT management.
+     *      Swaps remain disabled until both `fee` and `tickSpacing` are non-zero; storing zero values is allowed
+     *      so the V4 swap rout can be intentionally cleared during maintenance.
+     * @param fee V4 pool fee in hundredths of a bip.
+     * @param tickSpacing V4 pool tick spacing.
+     * @param hooks Hook contract configured for the V4 pool, or `address(0)`.
+     * @custom:invariant Must only update swap-only config appended to storage and must not mutate LP position state.
+     */
     function setSwapV4PoolConfig(uint24 fee, int24 tickSpacing, address hooks) external {
         _onlyRole(Roles.OPERATOR);
 
@@ -719,6 +729,12 @@ contract SFUniswapV3Strategy is
         emit OnPositionCollected(positionTokenId, c0, c1);
     }
 
+    /**
+     * @dev Swaps the entire idle `otherToken` balance into `underlying` using the configured V4 swap route.
+     * @param _swapData Compact swap directive encoded as
+     *        `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
+     * @custom:invariant Must not revert when there is no idle `otherToken` balance or no swap payload is provided.
+     */
     function _swapAllOtherToUnderlying(bytes memory _swapData) internal {
         uint256 balOther = otherToken.balanceOf(address(this));
         if (balOther == 0 || _swapData.length == 0) return;
@@ -753,6 +769,15 @@ contract SFUniswapV3Strategy is
         require(p_.pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidStrategyData());
     }
 
+    /**
+     * @dev Executes a single-hop swap through the configured Uniswap V4 pool using the Universal Router.
+     * @param _amount Base amount available for the swap direction. When the payload uses the BPS sentinel, this is
+     *        the amount against which the runtime `amountIn` is resolved.
+     * @param _data Compact swap directive encoded as
+     *        `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
+     * @param _swapToOther True for `underlying -> otherToken`, false for `otherToken -> underlying`.
+     * @custom:invariant Must revert when the V4 swap route is unset or when the resolved input exceeds available funds.
+     */
     function _V4Swap(uint256 _amount, bytes memory _data, bool _swapToOther) internal {
         if (_amount == 0 || _data.length == 0) return;
 
@@ -790,6 +815,13 @@ contract SFUniswapV3Strategy is
         _executeSwap(tokenIn, expectedOut, commands, inputs, amountIn, deadline);
     }
 
+    /**
+     * @dev Decodes the compact swap directive used by the strategy's V4 swap path.
+     * @param _swapData ABI-encoded `(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
+     * @return amountIn_ Requested input amount, either literal or BPS-sentinel encoded.
+     * @return amountOutMin_ Minimum output requested by the caller.
+     * @return deadline_ Swap deadline; `0` means "use the strategy default deadline".
+     */
     function _decodeCompactSwapData(bytes memory _swapData)
         internal
         pure
@@ -798,6 +830,13 @@ contract SFUniswapV3Strategy is
         (amountIn_, amountOutMin_, deadline_) = abi.decode(_swapData, (uint256, uint256, uint256));
     }
 
+    /**
+     * @dev Resolves the actual token input amount from either a literal amount or the high-bit BPS sentinel format.
+     * @param _requestedAmountIn Requested `amountIn` from the compact swap directive.
+     * @param _availableAmount Amount currently available for the swap direction.
+     * @return amountIn_ Concrete token amount that should be swapped.
+     * @custom:invariant Returned amount must be strictly greater than zero and use `MAX_BPS` as the sentinel scale.
+     */
     function _resolveSwapAmountIn(uint256 _requestedAmountIn, uint256 _availableAmount)
         internal
         view
@@ -813,6 +852,15 @@ contract SFUniswapV3Strategy is
         require(amountIn_ > 0, SFUniswapV3Strategy__InvalidStrategyData());
     }
 
+    /**
+     * @dev Applies the strategy's TWAP-derived minimum output floor when the swap uses the BPS sentinel amount format.
+     * @param _requestedAmountIn Requested `amountIn` from the compact swap directive.
+     * @param _amountIn Concrete swap input amount resolved for execution.
+     * @param _amountOutMin Caller-supplied minimum output.
+     * @param _swapToOther True for `underlying -> otherToken`, false for `otherToken -> underlying`.
+     * @return amountOutMin_ Effective minimum output used for router execution.
+     * @custom:invariant When the BPS sentinel is used, the returned value must be at least the strategy TWAP floor.
+     */
     function _applyTwapMinOut(uint256 _requestedAmountIn, uint256 _amountIn, uint256 _amountOutMin, bool _swapToOther)
         internal
         view
@@ -833,6 +881,16 @@ contract SFUniswapV3Strategy is
         if (amountOutMin_ < twapMinOut) amountOutMin_ = twapMinOut;
     }
 
+    /**
+     * @dev Executes a prepared Universal Router swap and emits the realized output delta.
+     * @param _tokenIn ERC20 token approved and spent as swap input.
+     * @param _expectedOut Output token whose post-swap balance delta is measured.
+     * @param _commands Universal Router commands bytes.
+     * @param _patchedInputs Universal Router command inputs.
+     * @param _totalIn Total `_tokenIn` amount expected to be consumed by the router.
+     * @param _deadline Universal Router deadline passed to `execute`.
+     * @custom:invariant Must not execute unless the strategy already holds `_totalIn` and Permit2 approvals are in place.
+     */
     function _executeSwap(
         IERC20 _tokenIn,
         address _expectedOut,
@@ -875,6 +933,15 @@ contract SFUniswapV3Strategy is
         withdrawableAssets_ += _previewSwapToUnderlying(totalOther, p_.swapToUnderlyingData, sqrtPriceX96);
     }
 
+    /**
+     * @dev Quotes the underlying proceeds from swapping idle/owed `otherToken` through the V4 swap path.
+     * @param _amountOther Total `otherToken` amount available to swap.
+     * @param _swapData Compact swap directive encoded as
+     *        `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
+     * @param _sqrtPriceX96 Valuation sqrt price used to quote `otherToken` in underlying units.
+     * @return quotedUnderlying_ Discounted underlying quote after applying `swapSlippageBPS`.
+     * @custom:invariant Preview must enforce the same amount-resolution and deadline rules as runtime swap execution.
+     */
     function _previewSwapToUnderlying(uint256 _amountOther, bytes memory _swapData, uint160 _sqrtPriceX96)
         internal
         view
