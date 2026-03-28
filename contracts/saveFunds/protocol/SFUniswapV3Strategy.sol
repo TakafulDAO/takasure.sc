@@ -28,6 +28,7 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol";
 import {PositionReader} from "contracts/helpers/uniswapHelpers/libraries/PositionReader.sol";
+import {UniswapV4Swap} from "contracts/helpers/uniswapHelpers/libraries/UniswapV4Swap.sol";
 
 pragma solidity 0.8.28;
 
@@ -80,11 +81,14 @@ contract SFUniswapV3Strategy is
     int24 public tickUpper;
     uint32 public twapWindow; // seconds; 0 => spot
     uint16 public swapSlippageBPS;
+    uint24 internal swapV4PoolFee;
+    int24 internal swapV4PoolTickSpacing;
+    address internal swapV4PoolHooks;
 
     struct V3ActionData {
         uint16 otherRatioBPS; // 0..10000 (default 5000)
-        bytes swapToOtherData; // abi.encode(bytes[] inputs, uint256 deadline) for underlying->otherToken
-        bytes swapToUnderlyingData; // abi.encode(bytes[] inputs, uint256 deadline) for otherToken->underlying
+        bytes swapToOtherData; // abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)
+        bytes swapToUnderlyingData; // abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)
         uint256 pmDeadline; // deadline for positionManager mint/increase/decrease
         uint256 minUnderlying; // slippage floor for underlying side in mint/increase/decrease
         uint256 minOther; // slippage floor for otherToken side in mint/increase/decrease
@@ -111,6 +115,7 @@ contract SFUniswapV3Strategy is
     event OnLiquidityDecreased(uint256 indexed tokenId, uint128 liquidityRemoved, uint256 amount0, uint256 amount1);
     event OnSwapExecuted(address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut);
     event OnSwapSlippageBPSUpdated(uint16 oldBps, uint16 newBps);
+    event OnSwapV4PoolConfigUpdated(uint24 fee, int24 tickSpacing, address hooks);
     event OnPositionMinted(
         uint256 indexed tokenId, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 amount0, uint256 amount1
     );
@@ -266,6 +271,16 @@ contract SFUniswapV3Strategy is
         emit OnSwapSlippageBPSUpdated(old, newBps);
     }
 
+    function setSwapV4PoolConfig(uint24 fee, int24 tickSpacing, address hooks) external {
+        _onlyRole(Roles.OPERATOR);
+
+        swapV4PoolFee = fee;
+        swapV4PoolTickSpacing = tickSpacing;
+        swapV4PoolHooks = hooks;
+
+        emit OnSwapV4PoolConfigUpdated(fee, tickSpacing, hooks);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                EMERGENCY
     //////////////////////////////////////////////////////////////*/
@@ -330,7 +345,7 @@ contract SFUniswapV3Strategy is
      *      `data` is interpreted as V3 action data and MUST be encoded as:
      *      `abi.encode(uint16 otherRatioBPS, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`
      *      where `swapToOtherData` / `swapToUnderlyingData` are each encoded as:
-     *      `abi.encode(bytes[] inputs, uint256 deadline)` (passed to Universal Router `execute`).
+     *      `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
      *
      *      If `data.length == 0`, defaults are used: 0% to `otherToken` (no swaps), `pmDeadline = block.timestamp`, mins = 0.
      * @param assets Amount of `underlying` to deposit.
@@ -708,7 +723,7 @@ contract SFUniswapV3Strategy is
         uint256 balOther = otherToken.balanceOf(address(this));
         if (balOther == 0 || _swapData.length == 0) return;
 
-        _V3Swap(balOther, _swapData, false);
+        _V4Swap(balOther, _swapData, false);
     }
 
     /**
@@ -738,67 +753,84 @@ contract SFUniswapV3Strategy is
         require(p_.pmDeadline >= block.timestamp, SFUniswapV3Strategy__InvalidStrategyData());
     }
 
-    /**
-     * @dev Performs a Uniswap V3 exact-in swap through Universal Router.
-     *      `_data` MUST be encoded as `abi.encode(bytes[] inputs, uint256 deadline)` where each `inputs[i]` is the
-     *      Universal Router input for a `Commands.V3_SWAP_EXACT_IN` action. Commands are constructed internally.
-     *      Passing empty `_data` is treated as a no-op (useful for tests/emergency paths).
-     *      Sentinel rules for safer defaults:
-     *      - If `amountIn` has the high-bit flag set, its low 16 bits are treated as BPS (0..10_000) of `_amount`.
-     *        The actual amountIn is computed at runtime and a TWAP-based minOut is enforced.
-     *      - If `deadline == 0`, it is replaced with `block.timestamp + DEFAULT_SWAP_DEADLINE`.
-     * @param _amount Amount of tokens intended to be swapped.
-     * @param _data ABI-encoded Universal Router inputs + deadline: `abi.encode(bytes[] inputs, uint256 deadline)`.
-     * @param _zeroForOne If true, swaps `underlying -> otherToken`; otherwise swaps `otherToken -> underlying`.
-     * @custom:invariant Swap execution must not leave residual allowances or balances unaccounted; leftovers are swept by callers.
-     */
-    function _V3Swap(uint256 _amount, bytes memory _data, bool _zeroForOne) internal {
-        // Nothing to do
-        if (_amount == 0) return;
-        if (_data.length == 0) return;
+    function _V4Swap(uint256 _amount, bytes memory _data, bool _swapToOther) internal {
+        if (_amount == 0 || _data.length == 0) return;
 
-        //  Expect data as `abi.encode(bytes[] inputs, uint256 deadline)`
-        (bytes[] memory inputs, uint256 deadline) = abi.decode(_data, (bytes[], uint256));
-        require(inputs.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
+        (uint256 requestedAmountIn, uint256 amountOutMin, uint256 deadline) = _decodeCompactSwapData(_data);
+
         if (deadline == 0) deadline = block.timestamp + DEFAULT_SWAP_DEADLINE;
-
         require(deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
 
-        (bytes memory commands, bytes[] memory patchedInputs, uint256 totalIn) =
-            _buildSwapInputs(inputs, _amount, _zeroForOne);
+        uint256 amountIn = _resolveSwapAmountIn(requestedAmountIn, _amount);
+        require(amountIn <= _amount, SFUniswapV3Strategy__InvalidStrategyData());
 
-        // Allow dust / unexpected extra balance in the contract
-        // We only require that swap inputs sum to `_amount`.
-        require(totalIn <= _amount, SFUniswapV3Strategy__InvalidStrategyData());
+        amountOutMin = _applyTwapMinOut(requestedAmountIn, amountIn, amountOutMin, _swapToOther);
 
-        IERC20 tokenIn = _zeroForOne ? underlying : otherToken;
-        address expectedOut = _zeroForOne ? address(otherToken) : address(underlying);
+        require(amountIn <= type(uint128).max, SFUniswapV3Strategy__Permit2AmountTooLarge());
+        require(amountOutMin <= type(uint128).max, SFUniswapV3Strategy__Permit2AmountTooLarge());
 
-        _executeSwap(tokenIn, expectedOut, commands, patchedInputs, totalIn, deadline);
+        require(swapV4PoolFee > 0 && swapV4PoolTickSpacing > 0, SFUniswapV3Strategy__InvalidStrategyData());
+        UniswapV4Swap.PoolKey memory poolKey = UniswapV4Swap.PoolKey({
+            currency0: token0,
+            currency1: token1,
+            fee: swapV4PoolFee,
+            tickSpacing: swapV4PoolTickSpacing,
+            hooks: swapV4PoolHooks
+        });
+        IERC20 tokenIn = _swapToOther ? underlying : otherToken;
+        address expectedOut = _swapToOther ? address(otherToken) : address(underlying);
+        bool zeroForOne = address(tokenIn) == token0;
+
+        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V4_SWAP)));
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = UniswapV4Swap.buildUniversalRouterExactInSingleInput(
+            poolKey, zeroForOne, uint128(amountIn), uint128(amountOutMin), amountIn, amountOutMin
+        );
+
+        _executeSwap(tokenIn, expectedOut, commands, inputs, amountIn, deadline);
     }
 
-    function _buildSwapInputs(bytes[] memory _inputs, uint256 _amount, bool _zeroForOne)
+    function _decodeCompactSwapData(bytes memory _swapData)
+        internal
+        pure
+        returns (uint256 amountIn_, uint256 amountOutMin_, uint256 deadline_)
+    {
+        (amountIn_, amountOutMin_, deadline_) = abi.decode(_swapData, (uint256, uint256, uint256));
+    }
+
+    function _resolveSwapAmountIn(uint256 _requestedAmountIn, uint256 _availableAmount)
         internal
         view
-        returns (bytes memory commands_, bytes[] memory patchedInputs_, uint256 totalIn_)
+        returns (uint256 amountIn_)
     {
-        commands_ = new bytes(_inputs.length);
-        patchedInputs_ = new bytes[](_inputs.length);
-
-        uint160 _sqrtPriceX96;
-        bool _hasPrice;
-
-        for (uint256 i; i < _inputs.length; ++i) {
-            commands_[i] = bytes1(uint8(Commands.V3_SWAP_EXACT_IN));
-
-            (bytes memory patched, uint256 actualAmountIn, uint160 newSqrtPriceX96, bool newHasPrice) =
-                _patchSwapInput(_inputs[i], _amount, _zeroForOne, _sqrtPriceX96, _hasPrice);
-
-            totalIn_ += actualAmountIn;
-            patchedInputs_[i] = patched;
-            _sqrtPriceX96 = newSqrtPriceX96;
-            _hasPrice = newHasPrice;
+        amountIn_ = _requestedAmountIn;
+        if ((_requestedAmountIn & AMOUNT_IN_BPS_FLAG) != 0) {
+            uint256 bps = _requestedAmountIn & AMOUNT_IN_BPS_MASK;
+            require(bps <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
+            amountIn_ = math.mulDiv(_availableAmount, bps, MAX_BPS);
         }
+
+        require(amountIn_ > 0, SFUniswapV3Strategy__InvalidStrategyData());
+    }
+
+    function _applyTwapMinOut(uint256 _requestedAmountIn, uint256 _amountIn, uint256 _amountOutMin, bool _swapToOther)
+        internal
+        view
+        returns (uint256 amountOutMin_)
+    {
+        amountOutMin_ = _amountOutMin;
+        if ((_requestedAmountIn & AMOUNT_IN_BPS_FLAG) == 0) return amountOutMin_;
+
+        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
+        uint256 twapMinOut = math.mulDiv(
+            _swapToOther
+                ? _quoteUnderlyingAsOtherAtSqrtPrice(_amountIn, sqrtPriceX96)
+                : _quoteOtherAsUnderlyingAtSqrtPrice(_amountIn, sqrtPriceX96),
+            MAX_BPS - swapSlippageBPS,
+            MAX_BPS
+        );
+
+        if (amountOutMin_ < twapMinOut) amountOutMin_ = twapMinOut;
     }
 
     function _executeSwap(
@@ -850,67 +882,14 @@ contract SFUniswapV3Strategy is
     {
         if (_amountOther == 0 || _swapData.length == 0) return 0;
 
-        (bytes[] memory inputs,) = abi.decode(_swapData, (bytes[], uint256));
-        (,, uint256 totalIn) = _buildSwapInputs(inputs, _amountOther, false);
-        require(totalIn <= _amountOther, SFUniswapV3Strategy__InvalidStrategyData());
+        (uint256 requestedAmountIn,, uint256 deadline) = _decodeCompactSwapData(_swapData);
+        if (deadline != 0) require(deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
 
-        quotedUnderlying_ = _quoteOtherAsUnderlyingAtSqrtPrice(totalIn, _sqrtPriceX96);
+        uint256 amountIn = _resolveSwapAmountIn(requestedAmountIn, _amountOther);
+        require(amountIn <= _amountOther, SFUniswapV3Strategy__InvalidStrategyData());
+
+        quotedUnderlying_ = _quoteOtherAsUnderlyingAtSqrtPrice(amountIn, _sqrtPriceX96);
         quotedUnderlying_ = math.mulDiv(quotedUnderlying_, MAX_BPS - uint256(swapSlippageBPS), MAX_BPS);
-    }
-
-    function _patchSwapInput(
-        bytes memory _input,
-        uint256 _amount,
-        bool _zeroForOne,
-        uint160 _sqrtPriceX96,
-        bool _hasPrice
-    )
-        internal
-        view
-        returns (bytes memory patched_, uint256 actualAmountIn_, uint160 newSqrtPriceX96_, bool newHasPrice_)
-    {
-        // (recipient, amountIn, amountOutMin, path, payerIsUser)
-        (address _recipient, uint256 _amountIn, uint256 _minOut, bytes memory _path, bool _payerIsUser) =
-            abi.decode(_input, (address, uint256, uint256, bytes, bool));
-
-        // Safety checks
-        require(_recipient == address(this), SFUniswapV3Strategy__InvalidStrategyData());
-        require(_payerIsUser, SFUniswapV3Strategy__InvalidStrategyData());
-
-        _validateSingleHopPath(
-            _path,
-            _zeroForOne ? address(underlying) : address(otherToken),
-            _zeroForOne ? address(otherToken) : address(underlying)
-        );
-
-        actualAmountIn_ = _amountIn;
-        if ((_amountIn & AMOUNT_IN_BPS_FLAG) != 0) {
-            uint256 bps = _amountIn & AMOUNT_IN_BPS_MASK;
-            require(bps <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
-            actualAmountIn_ = math.mulDiv(_amount, bps, MAX_BPS);
-        }
-        require(actualAmountIn_ > 0, SFUniswapV3Strategy__InvalidStrategyData());
-
-        newSqrtPriceX96_ = _sqrtPriceX96;
-        newHasPrice_ = _hasPrice;
-
-        if ((_amountIn & AMOUNT_IN_BPS_FLAG) != 0) {
-            if (!newHasPrice_) {
-                newSqrtPriceX96_ = _valuationSqrtPriceX96();
-                newHasPrice_ = true;
-            }
-
-            uint256 _twapMinOut = math.mulDiv(
-                _zeroForOne
-                    ? _quoteUnderlyingAsOtherAtSqrtPrice(actualAmountIn_, newSqrtPriceX96_)
-                    : _quoteOtherAsUnderlyingAtSqrtPrice(actualAmountIn_, newSqrtPriceX96_),
-                (MAX_BPS - swapSlippageBPS),
-                MAX_BPS
-            );
-            if (_minOut < _twapMinOut) _minOut = _twapMinOut;
-        }
-
-        patched_ = abi.encode(_recipient, actualAmountIn_, _minOut, _path, _payerIsUser);
     }
 
     /**
@@ -1138,7 +1117,7 @@ contract SFUniswapV3Strategy is
         // Optional: swap collected otherToken -> underlying if keeper supplied swap payload
         uint256 balOther = otherToken.balanceOf(address(this));
         if (balOther > 0 && p.swapToUnderlyingData.length > 0) {
-            _V3Swap(balOther, p.swapToUnderlyingData, false);
+            _V4Swap(balOther, p.swapToUnderlyingData, false);
         }
 
         // Never retain assets in the strategy
@@ -1327,7 +1306,7 @@ contract SFUniswapV3Strategy is
             uint256 _valueToSwap = _targetOtherValue - _otherValue;
             if (_valueToSwap > 0) {
                 require(_swapToOtherData.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
-                _V3Swap(_valueToSwap, _swapToOtherData, true);
+                _V4Swap(_valueToSwap, _swapToOtherData, true);
             }
             return;
         }
@@ -1337,7 +1316,7 @@ contract SFUniswapV3Strategy is
             if (_excessValue > 0) {
                 require(_swapToUnderlyingData.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
                 uint256 amountOtherToSwap = _quoteUnderlyingAsOtherAtSqrtPrice(_excessValue, _sqrtPriceX96);
-                _V3Swap(amountOtherToSwap, _swapToUnderlyingData, false);
+                _V4Swap(amountOtherToSwap, _swapToUnderlyingData, false);
             }
         }
     }
@@ -1354,41 +1333,6 @@ contract SFUniswapV3Strategy is
         if (allowed != type(uint160).max || expiration != type(uint48).max) {
             permit2.approve(address(_tokenIn), address(universalRouter), type(uint160).max, type(uint48).max);
         }
-    }
-
-    function _firstToken(bytes memory _path) internal pure returns (address token_) {
-        require(_path.length >= 20, SFUniswapV3Strategy__InvalidStrategyData());
-        assembly {
-            token_ := shr(96, mload(add(_path, 32)))
-        }
-    }
-
-    function _firstFee(bytes memory _path) internal pure returns (uint24 fee_) {
-        require(_path.length >= 23, SFUniswapV3Strategy__InvalidStrategyData());
-        assembly {
-            fee_ := shr(232, mload(add(_path, 52))) // 32 + 20 = 52
-        }
-    }
-
-    function _lastToken(bytes memory _path) internal pure returns (address token_) {
-        require(_path.length >= 20, SFUniswapV3Strategy__InvalidStrategyData());
-        uint256 start = 32 + _path.length - 20;
-        assembly {
-            token_ := shr(96, mload(add(_path, start)))
-        }
-    }
-
-    function _validateSingleHopPath(bytes memory _path, address _expectedIn, address _expectedOut) internal view {
-        // Uniswap V3 single-hop path: tokenIn(20) + fee(3) + tokenOut(20) = 43 bytes
-        require(_path.length == 43, SFUniswapV3Strategy__InvalidStrategyData());
-
-        require(
-            _firstToken(_path) == _expectedIn && _lastToken(_path) == _expectedOut,
-            SFUniswapV3Strategy__InvalidStrategyData()
-        );
-
-        uint24 fee = _firstFee(_path);
-        require(fee == pool.fee(), SFUniswapV3Strategy__InvalidStrategyData());
     }
 
     function _notAddressZero(address _addr) internal pure {
