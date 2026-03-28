@@ -899,20 +899,8 @@ contract SFStrategyAggregator is
     function _validateUniV3SwapData(bytes memory _swapData) internal pure {
         require(_swapData.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
 
-        (bytes[] memory _inputs,) = abi.decode(_swapData, (bytes[], uint256));
-        require(_inputs.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
-
-        for (uint256 i; i < _inputs.length; ++i) {
-            (address _recipient, uint256 _amountIn,, bytes memory _path, bool _payerIsUser) =
-                abi.decode(_inputs[i], (address, uint256, uint256, bytes, bool));
-
-            require(_recipient != address(0), SFStrategyAggregator__InvalidWithdrawPayload());
-            require(_payerIsUser, SFStrategyAggregator__InvalidWithdrawPayload());
-            require(_amountIn != 0, SFStrategyAggregator__InvalidWithdrawPayload());
-
-            // UniV3 single-hop path: tokenIn(20) + fee(3) + tokenOut(20) = 43 bytes
-            require(_path.length == 43, SFStrategyAggregator__InvalidWithdrawPayload());
-        }
+        (uint256 _amountIn,,) = abi.decode(_swapData, (uint256, uint256, uint256));
+        require(_amountIn != 0, SFStrategyAggregator__InvalidWithdrawPayload());
     }
 
     /// @dev required by the OZ UUPS module.
