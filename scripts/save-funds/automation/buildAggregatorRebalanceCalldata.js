@@ -22,8 +22,8 @@ Example (human-readable UniV3 rebalance, encoding with action data):
     --strategies 0xStrat1 \
     --tickLower -400 --tickUpper 400 \
     --otherRatioBps 5000 \
-    --swapToOtherTokenIn 0xUSDC --swapToOtherTokenOut 0xUSDT --swapToOtherFee 500 --swapToOtherBps 5000 \
-    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 5000 \
+    --swapToOtherBps 5000 \
+    --swapToUnderlyingBps 5000 \
     --pmDeadline 0
 
 Example (raw data / rebalance all active):
@@ -122,20 +122,21 @@ function buildSwapData(prefix, defaultRecipient, chainCfg) {
     const dataRaw = getArg(`${prefix}Data`)
     if (dataRaw) return dataRaw
 
-    const defaults = getTokenDefaults(prefix, chainCfg)
-    const tokenIn = getArg(`${prefix}TokenIn`, defaults.tokenIn)
-    const tokenOut = getArg(`${prefix}TokenOut`, defaults.tokenOut)
-    const fee = getArg(`${prefix}Fee`)
     const bps = getArg(`${prefix}Bps`)
     const amountInRaw = getArg(`${prefix}AmountIn`)
+    const amountOutMinRaw = getArg(`${prefix}AmountOutMin`)
+    const deadlineRaw = getArg(`${prefix}Deadline`)
+    const hasLegacyHints = Boolean(
+        getArg(`${prefix}TokenIn`) ||
+            getArg(`${prefix}TokenOut`) ||
+            getArg(`${prefix}Fee`) ||
+            getArg(`${prefix}Recipient`) ||
+            defaultRecipient ||
+            chainCfg,
+    )
 
     // No builder inputs
-    if (!tokenIn && !tokenOut && !fee && !bps && !amountInRaw) return "0x"
-
-    if (!tokenIn || !tokenOut || !fee) {
-        console.error(`${prefix}: tokenIn, tokenOut and fee are required to build swap data`)
-        process.exit(1)
-    }
+    if (!bps && !amountInRaw && !amountOutMinRaw && !deadlineRaw && !hasLegacyHints) return "0x"
 
     if (!bps && !amountInRaw) {
         console.error(`${prefix}: either bps or amountIn is required`)
@@ -147,14 +148,8 @@ function buildSwapData(prefix, defaultRecipient, chainCfg) {
         process.exit(1)
     }
 
-    const recipient = getArg(`${prefix}Recipient`, defaultRecipient || "")
-    if (!recipient) {
-        console.error(`${prefix}: recipient is required (use --${prefix}Recipient)`)
-        process.exit(1)
-    }
-
-    const amountOutMin = parseUint(getArg(`${prefix}AmountOutMin`, "0"), `${prefix}AmountOutMin`)
-    const deadline = parseUint(getArg(`${prefix}Deadline`, "0"), `${prefix}Deadline`)
+    const amountOutMin = parseUint(amountOutMinRaw || "0", `${prefix}AmountOutMin`)
+    const deadline = parseUint(deadlineRaw || "0", `${prefix}Deadline`)
 
     let amountIn
     if (amountInRaw) {
@@ -164,12 +159,10 @@ function buildSwapData(prefix, defaultRecipient, chainCfg) {
         amountIn = AMOUNT_IN_BPS_FLAG.or(parseBps(bps, `${prefix}Bps`))
     }
 
-    const path = encodePath(tokenIn, parseUint(fee, `${prefix}Fee`), tokenOut)
-    const input = utils.defaultAbiCoder.encode(
-        ["address", "uint256", "uint256", "bytes", "bool"],
-        [recipient, amountIn, amountOutMin, path, true],
+    return utils.defaultAbiCoder.encode(
+        ["uint256", "uint256", "uint256"],
+        [amountIn, amountOutMin, deadline],
     )
-    return utils.defaultAbiCoder.encode(["bytes[]", "uint256"], [[input], deadline])
 }
 
 async function main() {
@@ -180,8 +173,7 @@ async function main() {
                 "  node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.js --strategies <a,b> [--payloads <p1,p2>] [--chain <arb-one|arb-sepolia>]",
                 "  node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.js --strategies <a,b> --tickLower <int> --tickUpper <int> [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>] [--chain <arb-one|arb-sepolia>]",
                 "  node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.js --strategies <a,b> --tickLower <int> --tickUpper <int> --otherRatioBps <bps> \\",
-                "    --swapToOtherTokenIn <addr> --swapToOtherTokenOut <addr> --swapToOtherFee <fee> --swapToOtherBps <bps> \\",
-                "    --swapToUnderlyingTokenIn <addr> --swapToUnderlyingTokenOut <addr> --swapToUnderlyingFee <fee> --swapToUnderlyingBps <bps> \\",
+                "    --swapToOtherBps <bps> --swapToUnderlyingBps <bps> \\",
                 "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
                 "  (Or provide raw: --swapToOtherData <0x> --swapToUnderlyingData <0x>)",
                 "  node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.js --data <0x...>",
@@ -198,8 +190,8 @@ async function main() {
                 "    --strategies uniV3 --chain arb-one \\",
                 "    --tickLower -400 --tickUpper 400 \\",
                 "    --otherRatioBps 5000 \\",
-                "    --swapToOtherTokenIn 0xUSDC --swapToOtherTokenOut 0xUSDT --swapToOtherFee 500 --swapToOtherBps 5000 \\",
-                "    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 5000 \\",
+                "    --swapToOtherBps 5000 \\",
+                "    --swapToUnderlyingBps 5000 \\",
                 "    --pmDeadline 0",
                 "  node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.js --data 0x",
                 "",
@@ -222,21 +214,14 @@ async function main() {
                 "  --swapToOtherAmountIn <uint>       Swap input amount for otherToken path (absolute).",
                 "  --swapToOtherAmountOutMin <uint>   Swap min out for otherToken path.",
                 "  --swapToOtherBps <bps>             Swap input amount as BPS sentinel (0..10000).",
-                "  --swapToOtherData <0x>             Raw swapToOtherData bytes (overrides builder).",
+                "  --swapToOtherData <0x>             Raw compact swapToOtherData bytes (overrides builder).",
                 "  --swapToOtherDeadline <uint>       Swap deadline for otherToken path.",
-                "  --swapToOtherFee <fee>             Uniswap V3 pool fee for otherToken path.",
-                "  --swapToOtherRecipient <addr>      Swap recipient (should be strategy address).",
-                "  --swapToOtherTokenIn <addr>        Swap tokenIn for otherToken path.",
-                "  --swapToOtherTokenOut <addr>       Swap tokenOut for otherToken path.",
                 "  --swapToUnderlyingAmountIn <uint>  Swap input amount for underlying path (absolute).",
                 "  --swapToUnderlyingAmountOutMin <uint> Swap min out for underlying path.",
                 "  --swapToUnderlyingBps <bps>        Swap input amount as BPS sentinel (0..10000).",
-                "  --swapToUnderlyingData <0x>        Raw swapToUnderlyingData bytes (overrides builder).",
+                "  --swapToUnderlyingData <0x>        Raw compact swapToUnderlyingData bytes (overrides builder).",
                 "  --swapToUnderlyingDeadline <uint>  Swap deadline for underlying path.",
-                "  --swapToUnderlyingFee <fee>        Uniswap V3 pool fee for underlying path.",
-                "  --swapToUnderlyingRecipient <addr> Swap recipient (should be strategy address).",
-                "  --swapToUnderlyingTokenIn <addr>   Swap tokenIn for underlying path.",
-                "  --swapToUnderlyingTokenOut <addr>  Swap tokenOut for underlying path.",
+                "  Deprecated compatibility flags such as --swapTo*TokenIn/Out, --swapTo*Fee and --swapTo*Recipient are ignored by the builder.",
                 "  --tickLower <int>                  New lower tick (required for builder).",
                 "  --tickUpper <int>                  New upper tick (required for builder).",
             ].join("\n"),
@@ -449,13 +434,7 @@ node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.j
   --tickLower -594 \
   --tickUpper 606 \
   --otherRatioBps 7000 \
-  --swapToOtherTokenIn 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 \
-  --swapToOtherTokenOut 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9 \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingTokenIn 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9 \
-  --swapToUnderlyingTokenOut 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline 0
 
@@ -467,9 +446,7 @@ node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.j
   --tickLower -594 \
   --tickUpper 606 \
   --otherRatioBps 7000 \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline 0
 
@@ -481,9 +458,7 @@ node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.j
   --tickLower -594 \
   --tickUpper 606 \
   --otherRatioBps 7000 \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline 0 \
   --sendToSafe

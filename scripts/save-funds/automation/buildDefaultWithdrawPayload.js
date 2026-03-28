@@ -5,7 +5,6 @@ Builds calldata for:
 Example:
   node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \
     --recipient 0xStrategy \
-    --tokenIn 0xUSDT --tokenOut 0xUSDC --fee 500 \
     --bps 10000
 
 Example (raw payload):
@@ -61,45 +60,37 @@ function parseUint(value, label) {
     }
 }
 
-function encodePath(tokenIn, fee, tokenOut) {
-    return utils.solidityPack(["address", "uint24", "address"], [tokenIn, fee, tokenOut])
-}
-
 async function main() {
     if (process.argv.includes("--help")) {
         console.log(
             [
                 "Usage:",
-                "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js --recipient <strategy> --tokenIn <USDT> --tokenOut <USDC> --fee <poolFee> --bps <0..10000> [--chain <arb-one|arb-sepolia>]",
+                "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js --recipient <strategy> --bps <0..10000> [--amountIn <uint>] [--chain <arb-one|arb-sepolia>]",
                 "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js --strategy <strategy|uniV3> --payload <0x...> [--chain <arb-one|arb-sepolia>]",
                 "",
                 "",
                 "Examples:",
                 "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \\",
                 "    --recipient <STRATEGY_ADDRESS> \\",
-                "    --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> \\",
                 "    --bps 10000",
                 "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \\",
                 "    --recipient <STRATEGY_ADDRESS> \\",
-                "    --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> \\",
                 "    --bps 5000",
                 "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \\",
                 "    --recipient <STRATEGY_ADDRESS> \\",
-                "    --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> \\",
                 "    --bps 10000 --deadline 1700000000 --pmDeadline 1700000000 \\",
                 "    --minUnderlying 1000 --minOther 0",
                 "  node scripts/save-funds/automation/javascript/buildDefaultWithdrawPayload.js \\",
-                "    --recipient <STRATEGY_ADDRESS_USED_IN_SWAP_INPUT> \\",
+                "    --recipient <STRATEGY_ADDRESS> \\",
                 "    --strategy <AGGREGATOR_STRATEGY_ARG> \\",
-                "    --tokenIn <USDT> --tokenOut <USDC> --fee <POOL_FEE> \\",
                 "    --bps 10000",
                 "",
                 "Flags",
+                "  --amountIn <uint>       Absolute swap input amount. Mutually exclusive with --bps.",
                 "  --amountOutMin <uint>    Swap min out (default 0).",
                 "  --bps <0..10000>         Swap amount as BPS sentinel.",
                 "  --chain <arb-one|arb-sepolia> Optional chain shortcut for token/strategy defaults.",
                 "  --deadline <uint>        Swap deadline (0 = sentinel).",
-                "  --fee <uint>             Uniswap V3 pool fee.",
                 "  --minOther <uint>        Min other token out for PM actions.",
                 "  --minUnderlying <uint>   Min underlying out for PM actions.",
                 "  --otherRatioBps <bps>    Target otherToken ratio (0..10000).",
@@ -111,10 +102,9 @@ async function main() {
                 "  --tenderlyGas <uint>     Gas limit override for Tenderly simulation.",
                 "  --tenderlyBlock <uint|latest> Block number for Tenderly simulation.",
                 "  --tenderlySimulationType <str> Optional Tenderly simulation type.",
-                "  --recipient <addr>       Swap recipient (strategy address).",
+                "  --recipient <addr>       Strategy address for convenience when --strategy is omitted.",
                 "  --strategy <addr>        Strategy used for calldata (default: recipient). Use uniV3 when --chain is set.",
-                "  --tokenIn <addr>         Swap tokenIn.",
-                "  --tokenOut <addr>        Swap tokenOut.",
+                "  Deprecated compatibility flags such as --tokenIn, --tokenOut and --fee are ignored by the builder.",
             ].join("\n"),
         )
         process.exit(0)
@@ -172,16 +162,16 @@ async function main() {
             process.exit(1)
         }
 
-        const tokens = chainCfg ? getTokenAddresses(chainCfg) : null
-        const tokenIn = getArg("tokenIn", tokens ? tokens.other : "")
-        const tokenOut = getArg("tokenOut", tokens ? tokens.underlying : "")
-        const feeRaw = getArg("fee")
-        if (!tokenIn || !tokenOut || !feeRaw) {
-            console.error("tokenIn, tokenOut and fee are required to build swap data")
+        const bpsRaw = getArg("bps")
+        const amountInRaw = getArg("amountIn")
+        if (!bpsRaw && !amountInRaw) {
+            console.error("Either --bps or --amountIn is required")
             process.exit(1)
         }
-        const fee = parseUint(feeRaw, "fee")
-        const bps = parseBps(requireArg("bps"), "bps")
+        if (bpsRaw && amountInRaw) {
+            console.error("Use only one of --bps or --amountIn")
+            process.exit(1)
+        }
 
         const amountOutMin = parseUint(getArg("amountOutMin", "0"), "amountOutMin")
         const deadline = parseUint(getArg("deadline", "0"), "deadline")
@@ -190,19 +180,16 @@ async function main() {
         const minUnderlying = parseUint(getArg("minUnderlying", "0"), "minUnderlying")
         const minOther = parseUint(getArg("minOther", "0"), "minOther")
 
-        const AMOUNT_IN_BPS_FLAG = BigNumber.from(1).shl(255)
-        amountIn = AMOUNT_IN_BPS_FLAG.or(bps)
-
-        const path = encodePath(tokenIn, fee, tokenOut)
-
-        const input = utils.defaultAbiCoder.encode(
-            ["address", "uint256", "uint256", "bytes", "bool"],
-            [recipientReq, amountIn, amountOutMin, path, true],
-        )
+        if (amountInRaw) {
+            amountIn = parseUint(amountInRaw, "amountIn")
+        } else {
+            const AMOUNT_IN_BPS_FLAG = BigNumber.from(1).shl(255)
+            amountIn = AMOUNT_IN_BPS_FLAG.or(parseBps(bpsRaw, "bps"))
+        }
 
         swapToUnderlyingData = utils.defaultAbiCoder.encode(
-            ["bytes[]", "uint256"],
-            [[input], deadline],
+            ["uint256", "uint256", "uint256"],
+            [amountIn, amountOutMin, deadline],
         )
 
         defaultWithdrawPayload = utils.defaultAbiCoder.encode(

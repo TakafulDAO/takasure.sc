@@ -123,28 +123,24 @@ Used in action-data mode (supported by invest/rebalance/harvest builders):
   Minimum other-token out for PM actions.
 
 - `--swapToOtherData <0x>`  
-  Raw encoded underlying -> other swap data.
+  Raw encoded underlying -> other swap data.  
+  Compact schema: `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
 
-- `--swapToOtherTokenIn <addr>`
-- `--swapToOtherTokenOut <addr>`
-- `--swapToOtherFee <fee>`
 - `--swapToOtherBps <bps>`
 - `--swapToOtherAmountIn <uint>`
 - `--swapToOtherAmountOutMin <uint>`
 - `--swapToOtherDeadline <uint>`
-- `--swapToOtherRecipient <addr>`
 
 - `--swapToUnderlyingData <0x>`  
-  Raw encoded other -> underlying swap data.
+  Raw encoded other -> underlying swap data.  
+  Compact schema: `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
 
-- `--swapToUnderlyingTokenIn <addr>`
-- `--swapToUnderlyingTokenOut <addr>`
-- `--swapToUnderlyingFee <fee>`
 - `--swapToUnderlyingBps <bps>`
 - `--swapToUnderlyingAmountIn <uint>`
 - `--swapToUnderlyingAmountOutMin <uint>`
 - `--swapToUnderlyingDeadline <uint>`
-- `--swapToUnderlyingRecipient <addr>`
+
+Deprecated compatibility flags such as `--swapTo*TokenIn`, `--swapTo*TokenOut`, `--swapTo*Fee`, and `--swapTo*Recipient` are ignored by the JS builders.
 
 ## `SFVault::investIntoStrategy`
 
@@ -158,9 +154,6 @@ Builds calldata for:
   Amount of underlying to invest.  
   `full|max|all` reads `SFVault.idleAssets()`.
 
-- `--defaultSwapFee <fee>`  
-  Default fee used by swap builders when per-swap fee is omitted.
-
 - `--otherRatioBps <bps|auto>`  
   Invest supports `auto` (LP-target ratio estimation).
 
@@ -172,9 +165,7 @@ node scripts/save-funds/automation/buildVaultInvestCalldata.js \
   --assets full \
   --strategies uniV3 \
   --otherRatioBps auto \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
@@ -232,9 +223,7 @@ node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
   --tickLower 1 \
   --tickUpper 6 \
   --otherRatioBps 5000 \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
@@ -276,7 +265,6 @@ node scripts/save-funds/automation/buildAggregatorHarvestCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
   --swapToOtherData 0x \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
@@ -290,9 +278,7 @@ node scripts/save-funds/automation/buildVaultInvestCalldata.js \
   --assets full \
   --strategies uniV3 \
   --otherRatioBps auto \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
@@ -344,9 +330,7 @@ node scripts/save-funds/automation/buildAggregatorHarvestCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
   --otherRatioBps 5000 \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
@@ -359,7 +343,6 @@ node scripts/save-funds/automation/buildAggregatorHarvestCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
   --swapToOtherData 0x \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
