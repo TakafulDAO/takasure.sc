@@ -550,32 +550,20 @@ contract SaveFundHandler is Test {
         return _encodeUniV3ExactInSwap(address(other), address(underlying), amountIn, deadline);
     }
 
-    function _encodeUniV3SwapToUnderlyingBps(uint16 bps) internal view returns (bytes memory) {
+    function _encodeUniV3SwapToUnderlyingBps(uint16 bps) internal pure returns (bytes memory) {
         uint256 amountIn = AMOUNT_IN_BPS_FLAG | uint256(bps);
-        uint24 fee = pool.fee();
-        bytes memory path = abi.encodePacked(address(other), fee, address(underlying));
-
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(uniV3), amountIn, uint256(0), path, true);
-        return abi.encode(inputs, uint256(0));
+        return abi.encode(amountIn, uint256(0), uint256(0));
     }
 
     function _encodeUniV3ExactInSwap(address tokenIn, address tokenOut, uint256 amountIn, uint256 deadline)
         internal
-        view
+        pure
         returns (bytes memory)
     {
         if (amountIn == 0) return bytes("");
-
-        // Uniswap V3 single-hop path: tokenIn(20) + fee(3) + tokenOut(20)
-        uint24 fee = pool.fee();
-        bytes memory path = abi.encodePacked(tokenIn, fee, tokenOut);
-
-        bytes[] memory inputs = new bytes[](1);
-
-        inputs[0] = abi.encode(address(uniV3), amountIn, uint256(0), path, true);
-
-        return abi.encode(inputs, deadline);
+        tokenIn;
+        tokenOut;
+        return abi.encode(amountIn, uint256(0), deadline);
     }
 
     function _floorToSpacing(int24 tick, int24 spacing) internal pure returns (int24) {

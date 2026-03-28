@@ -20,6 +20,7 @@ import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/call
 import {TickMathV3} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract SFSaveFundsProcessForkedTest is Test {
     using SafeERC20 for IERC20;
@@ -30,6 +31,9 @@ contract SFSaveFundsProcessForkedTest is Test {
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
     address internal constant UNI_V3_NPM = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+    uint24 internal constant SWAP_V4_POOL_FEE = 8;
+    int24 internal constant SWAP_V4_POOL_TICK_SPACING = 1;
+    address internal constant SWAP_V4_POOL_HOOKS = address(0);
 
     AddressGetter internal addrGetter;
 
@@ -99,6 +103,7 @@ contract SFSaveFundsProcessForkedTest is Test {
         require(operator != address(0) && addrMgr.hasRole(Roles.OPERATOR, operator), "operator missing");
 
         _ensureBackendAdmin();
+        _upgradeSaveFundsImplementations();
 
         // Pull token/pool addresses from protocol contracts.
         asset = IERC20(vault.asset());
@@ -130,6 +135,14 @@ contract SFSaveFundsProcessForkedTest is Test {
         _ensureDefaultWithdrawPayload();
         // Register members and fund them for deposits.
         _registerAndFundUsers();
+    }
+
+    function _upgradeSaveFundsImplementations() internal {
+        vm.startPrank(operator);
+        Upgrades.upgradeProxy(address(aggregator), "SFStrategyAggregator.sol", "");
+        Upgrades.upgradeProxy(address(uniV3), "SFUniswapV3Strategy.sol", "");
+        uniV3.setSwapV4PoolConfig(SWAP_V4_POOL_FEE, SWAP_V4_POOL_TICK_SPACING, SWAP_V4_POOL_HOOKS);
+        vm.stopPrank();
     }
 
     function testForked_SaveFundsProcess_MultiUser() public {
@@ -211,9 +224,6 @@ contract SFSaveFundsProcessForkedTest is Test {
 
     function _ensureDefaultWithdrawPayload() internal {
         // Aggregator uses default withdraw payload when the bundle omits a strategy.
-        bytes memory existing = aggregator.getDefaultWithdrawPayload(address(uniV3));
-        if (existing.length > 0) return;
-
         bytes memory swapToUnderlying = _encodeSwapDataExactInBps(address(other), address(asset), uint16(MAX_BPS));
         bytes memory payload = _encodeV3ActionData(0, bytes(""), swapToUnderlying, 0, 0, 0);
 
@@ -399,28 +409,16 @@ contract SFSaveFundsProcessForkedTest is Test {
         return abi.encode(strategies, payloads);
     }
 
-    function _poolFee() internal view returns (uint24) {
-        // Current fee tier for the USDC/USDT pool.
-        return IUniswapV3Pool(pool).fee();
-    }
-
-    function _path(address tokenIn, address tokenOut) internal view returns (bytes memory) {
-        // Uniswap V3 path encoding: tokenIn + fee + tokenOut.
-        return abi.encodePacked(tokenIn, _poolFee(), tokenOut);
-    }
-
     function _encodeSwapDataExactInBps(address tokenIn, address tokenOut, uint16 bps)
         internal
-        view
+        pure
         returns (bytes memory)
     {
         // Encode a swap using the strategy's BPS sentinel (amountIn computed at runtime).
         uint256 amountIn = AMOUNT_IN_BPS_FLAG | uint256(bps);
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(uniV3), amountIn, uint256(0), _path(tokenIn, tokenOut), true);
-
-        // deadline = 0 => strategy applies its default deadline internally.
-        return abi.encode(inputs, uint256(0));
+        tokenIn;
+        tokenOut;
+        return abi.encode(amountIn, uint256(0), uint256(0));
     }
 
     function _encodeV3ActionData(

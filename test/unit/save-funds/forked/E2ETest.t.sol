@@ -27,11 +27,15 @@ import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggre
 import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract E2ETest is Test {
     uint256 internal constant FORK_BLOCK = 430826360;
     uint16 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
+    uint24 internal constant SWAP_V4_POOL_FEE = 8;
+    int24 internal constant SWAP_V4_POOL_TICK_SPACING = 1;
+    address internal constant SWAP_V4_POOL_HOOKS = address(0);
 
     // Universal Router on Arbitrum One (current deployment config)
     address internal constant UNI_UNIVERSAL_ROUTER = 0xA51afAFe0263b40EdaEf0Df8781eA9aa03E381a3;
@@ -122,6 +126,8 @@ contract E2ETest is Test {
         );
         require(keeper != address(0) && addrMgr.hasRole(Roles.KEEPER, keeper), "keeper missing");
 
+        _upgradeSaveFundsImplementations();
+
         if (pauseGuardian != address(0) && addrMgr.hasRole(Roles.PAUSE_GUARDIAN, pauseGuardian)) {
             if (vault.paused()) {
                 vm.prank(pauseGuardian);
@@ -158,6 +164,14 @@ contract E2ETest is Test {
         initialStrategyUsdt = usdt.balanceOf(address(uniV3));
 
         _assertNoStaleRouterApprovals();
+    }
+
+    function _upgradeSaveFundsImplementations() internal {
+        vm.startPrank(operator);
+        Upgrades.upgradeProxy(address(aggregator), "SFStrategyAggregator.sol", "");
+        Upgrades.upgradeProxy(address(uniV3), "SFUniswapV3Strategy.sol", "");
+        uniV3.setSwapV4PoolConfig(SWAP_V4_POOL_FEE, SWAP_V4_POOL_TICK_SPACING, SWAP_V4_POOL_HOOKS);
+        vm.stopPrank();
     }
 
     function test_SaveFundScenarioSimulation_168Ticks() public {
@@ -368,14 +382,7 @@ contract E2ETest is Test {
         // 50/50 into otherToken by default
         uint16 ratioBps = 5000;
         uint256 amountIn = (assets * ratioBps) / 10_000;
-
-        uint24 fee = IUniswapV3Pool(POOL_USDC_USDT).fee();
-        bytes memory path = abi.encodePacked(address(usdc), fee, address(usdt));
-
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(uniV3), amountIn, uint256(0), path, true);
-
-        bytes memory swapToOtherData = abi.encode(inputs, block.timestamp + 30 minutes);
+        bytes memory swapToOtherData = abi.encode(amountIn, uint256(0), block.timestamp + 30 minutes);
 
         // (otherRatioBPS, swapToOtherData, swapToUnderlyingData, pmDeadline, minUnderlying, minOther)
         return abi.encode(ratioBps, swapToOtherData, bytes(""), block.timestamp + 30 minutes, 0, 0);
@@ -388,16 +395,13 @@ contract E2ETest is Test {
 
     function _encodeSwapDataExactInBps(address tokenIn, address tokenOut, uint16 bps)
         internal
-        view
+        pure
         returns (bytes memory)
     {
         uint256 amountIn = AMOUNT_IN_BPS_FLAG | uint256(bps);
-        uint24 fee = IUniswapV3Pool(POOL_USDC_USDT).fee();
-        bytes memory path = abi.encodePacked(tokenIn, fee, tokenOut);
-
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(uniV3), amountIn, uint256(0), path, true);
-        return abi.encode(inputs, uint256(0));
+        tokenIn;
+        tokenOut;
+        return abi.encode(amountIn, uint256(0), uint256(0));
     }
 
     // Market swaps simulation

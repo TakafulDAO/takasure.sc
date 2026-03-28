@@ -54,6 +54,9 @@ contract UniV3StratFuzzTest is Test {
     address internal constant POOL_USDC_USDT = 0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6;
     address internal constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
     address internal constant UNIVERSAL_ROUTER = 0xA51afAFe0263b40EdaEf0Df8781eA9aa03E381a3;
+    uint24 internal constant SWAP_V4_POOL_FEE = 8;
+    int24 internal constant SWAP_V4_POOL_TICK_SPACING = 1;
+    address internal constant SWAP_V4_POOL_HOOKS = address(0);
 
     int24 internal constant TICK_LOWER = -200;
     int24 internal constant TICK_UPPER = 200;
@@ -136,6 +139,9 @@ contract UniV3StratFuzzTest is Test {
         );
         uniV3Strategy = SFUniswapV3Strategy(stratProxy);
 
+        vm.prank(takadao);
+        uniV3Strategy.setSwapV4PoolConfig(SWAP_V4_POOL_FEE, SWAP_V4_POOL_TICK_SPACING, SWAP_V4_POOL_HOOKS);
+
         // The only strategy in the aggregator
         vm.prank(takadao);
         aggregator.addSubStrategy(address(uniV3Strategy), 10_000);
@@ -207,14 +213,6 @@ contract UniV3StratFuzzTest is Test {
         strategies[0] = address(uniV3Strategy);
         payloads[0] = childData;
         return abi.encode(strategies, payloads);
-    }
-
-    function _poolFee() internal view returns (uint24) {
-        return IUniswapV3Pool(POOL_USDC_USDT).fee();
-    }
-
-    function _path(address tokenIn, address tokenOut) internal view returns (bytes memory) {
-        return abi.encodePacked(tokenIn, _poolFee(), tokenOut);
     }
 
     function _encodeV3ActionData(

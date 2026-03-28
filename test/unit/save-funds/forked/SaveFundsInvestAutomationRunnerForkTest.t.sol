@@ -17,6 +17,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract SaveFundsInvestAutomationRunnerForkTest is Test {
     uint256 internal constant FORK_BLOCK = 430826360;
@@ -25,6 +26,9 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
     bytes32 internal constant ON_UPKEEP_ATTEMPT_SIG = keccak256("OnUpkeepAttempt(uint256,uint256,uint16,bytes32)");
     bytes32 internal constant ON_INVEST_SUCCEEDED_SIG = keccak256("OnInvestSucceeded(uint256,uint256,uint256,uint16)");
     bytes32 internal constant ON_INVEST_FAILED_SIG = keccak256("OnInvestFailed(uint256,bytes)");
+    uint24 internal constant SWAP_V4_POOL_FEE = 8;
+    int24 internal constant SWAP_V4_POOL_TICK_SPACING = 1;
+    address internal constant SWAP_V4_POOL_HOOKS = address(0);
 
     AddressGetter internal addrGetter;
     AddressManager internal addrMgr;
@@ -58,6 +62,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         require(operator != address(0) && addrMgr.hasRole(Roles.OPERATOR, operator), "operator missing");
 
         _ensureBackendAdmin();
+        _upgradeSaveFundsImplementations();
         _ensureUnpaused();
 
         // Remove cap so tests can always deposit.
@@ -75,6 +80,14 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         runner = SaveFundsInvestAutomationRunner(runnerProxy);
 
         if (runner.strictUniOnlyAllocation()) runner.toggleStrictUniOnlyAllocation();
+    }
+
+    function _upgradeSaveFundsImplementations() internal {
+        vm.startPrank(operator);
+        Upgrades.upgradeProxy(address(aggregator), "SFStrategyAggregator.sol", "");
+        Upgrades.upgradeProxy(address(uniV3), "SFUniswapV3Strategy.sol", "");
+        uniV3.setSwapV4PoolConfig(SWAP_V4_POOL_FEE, SWAP_V4_POOL_TICK_SPACING, SWAP_V4_POOL_HOOKS);
+        vm.stopPrank();
     }
 
     function testRunnerFork_acceptKeeperRole() public {
