@@ -9,10 +9,12 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
+import {SFUniswapV3SwapRouterHelper} from "contracts/helpers/uniswapHelpers/SFUniswapV3SwapRouterHelper.sol";
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract UniV3RebalanceDragForkTest is Test {
     struct RebalanceDragMetrics {
@@ -35,6 +37,18 @@ contract UniV3RebalanceDragForkTest is Test {
         uint256 nonFeeCostApproxUsd;
     }
 
+    struct RouteSelectionMetrics {
+        uint256 amountIn;
+        uint256 v3QuotedOut;
+        uint256 v4QuotedOut;
+        uint8 selectedRouteId;
+    }
+
+    struct StrategyGuardrailScenario {
+        uint32 twapWindow;
+        uint16 swapSlippageBps;
+    }
+
     uint256 internal constant HISTORICAL_BLOCK = 446153833;
     int24 internal constant HISTORICAL_NEW_TICK_LOWER = 1;
     int24 internal constant HISTORICAL_NEW_TICK_UPPER = 6;
@@ -43,8 +57,13 @@ contract UniV3RebalanceDragForkTest is Test {
     uint256 internal constant HISTORICAL_SWAP_DEADLINE = 0;
     uint16 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = uint256(1) << 255;
+    string internal constant SWAP_ROUTER_HELPER_NAME = "HELPER__SF_SWAP_ROUTER";
+    uint8 internal constant ROUTE_V3_SINGLE_HOP = 1;
+    uint8 internal constant ROUTE_V4_SINGLE_HOP = 2;
     bytes32 internal constant ON_SWAP_EXECUTED_SIG =
         keccak256("OnSwapExecuted(address,address,uint256,uint256)");
+    bytes32 internal constant ON_SWAP_ROUTES_COMPARED_SIG =
+        keccak256("OnSwapRoutesCompared(uint256,uint256,uint256,uint8)");
     address internal constant NONFUNGIBLE_POSITION_MANAGER =
         0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
     uint24 internal constant SWAP_V4_POOL_FEE = 8;
@@ -59,6 +78,7 @@ contract UniV3RebalanceDragForkTest is Test {
     IERC20 internal underlying;
     IERC20 internal otherToken;
     IUniswapV3Pool internal pool;
+    RouteSelectionMetrics internal lastRouteSelectionMetrics;
 
     address internal operator;
     address internal pauseGuardian;
@@ -83,6 +103,7 @@ contract UniV3RebalanceDragForkTest is Test {
     function testForkHistorical_rebalanceV4Path_ReducesSwapDrag() public {
         RebalanceDragMetrics memory legacy = _runHistoricalRebalanceScenario(false);
         RebalanceDragMetrics memory upgraded = _runHistoricalRebalanceScenario(true);
+        RouteSelectionMetrics memory routeSelection = lastRouteSelectionMetrics;
 
         console2.log("legacy drag in USD approx (6 decimals):", legacy.dragApproxUsd);
         console2.log("v4 drag in USD approx (6 decimals):", upgraded.dragApproxUsd);
@@ -90,6 +111,9 @@ contract UniV3RebalanceDragForkTest is Test {
         console2.log("v4 amountIn:", upgraded.amountIn);
         console2.log("legacy amountOut:", legacy.amountOut);
         console2.log("v4 amountOut:", upgraded.amountOut);
+        console2.log("selected route id:", routeSelection.selectedRouteId);
+        console2.log("quoted v3 amountOut:", routeSelection.v3QuotedOut);
+        console2.log("quoted v4 amountOut:", routeSelection.v4QuotedOut);
 
         assertEq(upgraded.oldTickLower, legacy.oldTickLower, "old lower tick mismatch");
         assertEq(upgraded.oldTickUpper, legacy.oldTickUpper, "old upper tick mismatch");
@@ -101,6 +125,9 @@ contract UniV3RebalanceDragForkTest is Test {
         assertGt(upgraded.amountIn, 0, "upgraded swap amountIn is zero");
         assertGt(upgraded.amountOut, 0, "upgraded swap amountOut is zero");
         assertLt(upgraded.dragApproxUsd, legacy.dragApproxUsd, "V4 swap drag should be lower");
+        assertEq(routeSelection.amountIn, upgraded.amountIn, "quoted amountIn mismatch");
+        assertEq(routeSelection.selectedRouteId, ROUTE_V4_SINGLE_HOP, "historical best route should be V4");
+        assertGt(routeSelection.v4QuotedOut, routeSelection.v3QuotedOut, "V4 quote should be better onchain");
     }
 
     function testForkHistorical_rebalanceDiagnostic_BreaksOutFeeVsExecutionCost() public {
@@ -168,6 +195,32 @@ contract UniV3RebalanceDragForkTest is Test {
         assertGt(maxAmountIn, minAmountIn, "curve samples did not change swap size");
     }
 
+    function testForkHistorical_rebalanceDiagnostic_OptionGuardrails_PreAndPostUpgrade() public {
+        StrategyGuardrailScenario[4] memory scenarios = [
+            StrategyGuardrailScenario({twapWindow: 600, swapSlippageBps: 20}),
+            StrategyGuardrailScenario({twapWindow: 300, swapSlippageBps: 30}),
+            StrategyGuardrailScenario({twapWindow: 0, swapSlippageBps: 40}),
+            StrategyGuardrailScenario({twapWindow: 60, swapSlippageBps: 40})
+        ];
+
+        for (uint256 i; i < scenarios.length; ++i) {
+            RebalanceDragMetrics memory legacy = _runHistoricalRebalanceScenarioWithConfig(
+                false, HISTORICAL_OTHER_RATIO_BPS, scenarios[i].twapWindow, scenarios[i].swapSlippageBps
+            );
+            RebalanceDragMetrics memory upgraded = _runHistoricalRebalanceScenarioWithConfig(
+                true, HISTORICAL_OTHER_RATIO_BPS, scenarios[i].twapWindow, scenarios[i].swapSlippageBps
+            );
+
+            console2.log("guardrail twapWindow:", scenarios[i].twapWindow);
+            console2.log("guardrail swapSlippageBps:", scenarios[i].swapSlippageBps);
+            console2.log("guardrail legacy drag:", legacy.dragApproxUsd);
+            console2.log("guardrail v4 drag:", upgraded.dragApproxUsd);
+
+            assertEq(legacy.amountIn, upgraded.amountIn, "guardrail amountIn mismatch");
+            assertLt(upgraded.dragApproxUsd, legacy.dragApproxUsd, "guardrail V4 drag should be lower");
+        }
+    }
+
     function _runHistoricalRebalanceScenario(bool upgradeToV4)
         internal
         returns (RebalanceDragMetrics memory metrics_)
@@ -178,6 +231,16 @@ contract UniV3RebalanceDragForkTest is Test {
     function _runHistoricalRebalanceScenario(bool upgradeToV4, uint16 otherRatioBps)
         internal
         returns (RebalanceDragMetrics memory metrics_)
+    {
+        return _runHistoricalRebalanceScenarioWithConfig(upgradeToV4, otherRatioBps, 1800, 100);
+    }
+
+    function _runHistoricalRebalanceScenarioWithConfig(
+        bool upgradeToV4,
+        uint16 otherRatioBps,
+        uint32 twapWindow,
+        uint16 swapSlippageBps
+    ) internal returns (RebalanceDragMetrics memory metrics_)
     {
         _selectFork(HISTORICAL_BLOCK);
 
@@ -199,6 +262,8 @@ contract UniV3RebalanceDragForkTest is Test {
             _upgradeStrategyToLocalV4Implementation();
         }
 
+        _configureStrategyGuardrails(twapWindow, swapSlippageBps);
+
         bytes memory rebalancePayload = _buildRebalancePayload(
             upgradeToV4, metrics_.newTickLower, metrics_.newTickUpper, otherRatioBps
         );
@@ -207,8 +272,11 @@ contract UniV3RebalanceDragForkTest is Test {
         vm.prank(operator);
         aggregator.rebalance(_perStrategyData(rebalancePayload));
 
-        (metrics_.tokenIn, metrics_.tokenOut, metrics_.amountIn, metrics_.amountOut) = _extractSwapExecutedLog();
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        (metrics_.tokenIn, metrics_.tokenOut, metrics_.amountIn, metrics_.amountOut) = _extractSwapExecutedLog(logs);
         metrics_.dragApproxUsd = _computeStableUsdDragApprox(metrics_.amountIn, metrics_.amountOut);
+        if (upgradeToV4) lastRouteSelectionMetrics = _extractRouteSelectionLogs(logs);
+        else delete lastRouteSelectionMetrics;
 
         assertGt(uniV3.positionTokenId(), 0, "rebalance did not mint a new position");
     }
@@ -261,10 +329,36 @@ contract UniV3RebalanceDragForkTest is Test {
     }
 
     function _upgradeStrategyToLocalV4Implementation() internal {
+        address helper = address(new SFUniswapV3SwapRouterHelper(address(addrMgr)));
+
+        _upsertSwapRouterHelper(helper);
+
         vm.startPrank(operator);
         uniV3.upgradeToAndCall(address(new SFUniswapV3Strategy()), "");
         uniV3.setSwapV4PoolConfig(SWAP_V4_POOL_FEE, SWAP_V4_POOL_TICK_SPACING, SWAP_V4_POOL_HOOKS);
         vm.stopPrank();
+    }
+
+    function _upsertSwapRouterHelper(address helper) internal {
+        address owner = addrMgr.owner();
+
+        vm.prank(owner);
+        try addrMgr.updateProtocolAddress(SWAP_ROUTER_HELPER_NAME, helper) {
+            return;
+        } catch {}
+
+        vm.prank(owner);
+        addrMgr.addProtocolAddress(SWAP_ROUTER_HELPER_NAME, helper, ProtocolAddressType.Helper);
+    }
+
+    function _configureStrategyGuardrails(uint32 twapWindow, uint16 swapSlippageBps) internal {
+        vm.startPrank(operator);
+        uniV3.setTwapWindow(twapWindow);
+        uniV3.setSwapSlippageBPS(swapSlippageBps);
+        vm.stopPrank();
+
+        assertEq(uniV3.twapWindow(), twapWindow, "twapWindow not applied");
+        assertEq(uniV3.swapSlippageBPS(), swapSlippageBps, "swapSlippageBPS not applied");
     }
 
     function _buildRebalancePayload(bool useV4Swap, int24 newTickLower, int24 newTickUpper, uint16 otherRatioBps)
@@ -276,8 +370,12 @@ contract UniV3RebalanceDragForkTest is Test {
         bytes memory swapToUnderlyingData;
 
         if (useV4Swap) {
-            swapToOtherData = _encodeCompactSwapDataExactInBps(MAX_BPS, HISTORICAL_SWAP_DEADLINE);
-            swapToUnderlyingData = _encodeCompactSwapDataExactInBps(MAX_BPS, HISTORICAL_SWAP_DEADLINE);
+            swapToOtherData = _encodeRankedSwapDataExactInBps(
+                MAX_BPS, HISTORICAL_SWAP_DEADLINE, ROUTE_V4_SINGLE_HOP, ROUTE_V3_SINGLE_HOP
+            );
+            swapToUnderlyingData = _encodeRankedSwapDataExactInBps(
+                MAX_BPS, HISTORICAL_SWAP_DEADLINE, ROUTE_V4_SINGLE_HOP, ROUTE_V3_SINGLE_HOP
+            );
         } else {
             uint24 poolFee = pool.fee();
             swapToOtherData = _encodeLegacyV3SwapDataExactInBps(
@@ -295,13 +393,17 @@ contract UniV3RebalanceDragForkTest is Test {
         return abi.encode(newTickLower, newTickUpper, actionData);
     }
 
-    function _encodeCompactSwapDataExactInBps(uint16 amountInBps, uint256 deadline)
+    function _encodeRankedSwapDataExactInBps(uint16 amountInBps, uint256 deadline, uint8 route0, uint8 route1)
         internal
         pure
         returns (bytes memory)
     {
         require(amountInBps <= MAX_BPS, "amountInBps>MAX_BPS");
-        return abi.encode(AMOUNT_IN_BPS_FLAG | uint256(amountInBps), uint256(0), deadline);
+        uint8[2] memory routeIds;
+        uint256[2] memory amountOutMins;
+        routeIds[0] = route0;
+        routeIds[1] = route1;
+        return abi.encode(AMOUNT_IN_BPS_FLAG | uint256(amountInBps), deadline, uint8(2), routeIds, amountOutMins);
     }
 
     function _encodeLegacyV3SwapDataExactInBps(address tokenIn, address tokenOut, uint24 fee, uint256 deadline)
@@ -320,11 +422,11 @@ contract UniV3RebalanceDragForkTest is Test {
         return abi.encode(inputs, deadline);
     }
 
-    function _extractSwapExecutedLog()
+    function _extractSwapExecutedLog(Vm.Log[] memory logs)
         internal
+        view
         returns (address tokenIn_, address tokenOut_, uint256 amountIn_, uint256 amountOut_)
     {
-        Vm.Log[] memory logs = vm.getRecordedLogs();
         uint256 matches;
 
         for (uint256 i; i < logs.length; ++i) {
@@ -338,6 +440,26 @@ contract UniV3RebalanceDragForkTest is Test {
         }
 
         require(matches == 1, "expected exactly one swap");
+    }
+
+    function _extractRouteSelectionLogs(Vm.Log[] memory logs)
+        internal
+        view
+        returns (RouteSelectionMetrics memory metrics_)
+    {
+        uint256 comparedMatches;
+
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != address(uniV3) || logs[i].topics.length == 0) continue;
+
+            if (logs[i].topics[0] == ON_SWAP_ROUTES_COMPARED_SIG) {
+                (metrics_.amountIn, metrics_.v3QuotedOut, metrics_.v4QuotedOut, metrics_.selectedRouteId) =
+                    abi.decode(logs[i].data, (uint256, uint256, uint256, uint8));
+                ++comparedMatches;
+            }
+        }
+
+        require(comparedMatches == 1, "expected exactly one route comparison");
     }
 
     function _computeStableUsdDragApprox(uint256 amountIn, uint256 amountOut) internal pure returns (uint256) {
