@@ -17,6 +17,7 @@ import {INonfungiblePositionManager} from "contracts/interfaces/helpers/INonfung
 import {IUniversalRouter} from "contracts/interfaces/helpers/IUniversalRouter.sol";
 import {IUniswapV3MathHelper} from "contracts/interfaces/saveFunds/IUniswapV3MathHelper.sol";
 import {IPermit2AllowanceTransfer} from "contracts/interfaces/helpers/IPermit2AllowanceTransfer.sol";
+import {ISFUniswapV3SwapRouterHelper} from "contracts/interfaces/helpers/ISFUniswapV3SwapRouterHelper.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -27,7 +28,6 @@ import {
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {PositionReader} from "contracts/helpers/uniswapHelpers/libraries/PositionReader.sol";
-import {SFUniswapV3SwapRouterHelper} from "contracts/helpers/uniswapHelpers/SFUniswapV3SwapRouterHelper.sol";
 
 pragma solidity 0.8.28;
 
@@ -79,7 +79,6 @@ contract SFUniswapV3Strategy is
     int24 public tickUpper;
     uint32 public twapWindow; // seconds; 0 => spot
     uint16 public swapSlippageBPS;
-    address internal swapRouterHelper; // todo: Take this from AddressManager like HELPER__SWAP_ROUTER_HELPER?
 
     struct V3ActionData {
         uint16 otherRatioBPS; // 0..10000 (default 5000)
@@ -287,24 +286,11 @@ contract SFUniswapV3Strategy is
      */
     function setSwapV4PoolConfig(uint24 fee, int24 tickSpacing, address hooks) external {
         _onlyRole(Roles.OPERATOR);
-        address helper = swapRouterHelper;
-        require(helper != address(0), SFUniswapV3Strategy__InvalidStrategyData());
-        SFUniswapV3SwapRouterHelper(helper).setSwapV4PoolConfig(fee, tickSpacing, hooks);
-    }
+        address helper = _swapRouterHelperAddress();
 
-    // TODO: No need to this function as this can be stored/fetched on/from AddressManager
-    /**
-     * @notice Sets the stateless swap-route helper used to build Universal Router calldata.
-     * @dev Only callable by `Roles.OPERATOR`.
-     *      The helper resolves this strategy proxy through AddressManager, so operators only need to wire the helper
-     *      address here; they do not need to pass the strategy address into the helper constructor anymore.
-     * @param helper Address of the deployed `SFUniswapV3SwapRouterHelper`.
-     * @custom:invariant Updating the helper must not mutate pool, LP NFT, or valuation state.
-     */
-    function setSwapRouterHelper(address helper) external {
-        _onlyRole(Roles.OPERATOR);
-        _notAddressZero(helper);
-        swapRouterHelper = helper;
+        // The swap-only V4 metadata lives in the helper so route selection can stay upgrade-safe
+        // without expanding the strategy storage with helper-specific routing details.
+        ISFUniswapV3SwapRouterHelper(helper).setSwapV4PoolConfig(fee, tickSpacing, hooks);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -816,16 +802,20 @@ contract SFUniswapV3Strategy is
     function _swapWithBestRoute(uint256 _amount, bytes memory _data, bool _swapToOther) internal {
         if (_amount == 0 || _data.length == 0) return;
 
-        address helperAddress = swapRouterHelper;
-        require(helperAddress != address(0), SFUniswapV3Strategy__InvalidStrategyData());
-        SFUniswapV3SwapRouterHelper.SwapRouteData memory routeData =
-            SFUniswapV3SwapRouterHelper(helperAddress).decodeSwapRouteData(_data);
+        address helperAddress = _swapRouterHelperAddress();
+
+        // The helper owns the compact route-data schema so strategy and aggregator both validate against one source.
+        ISFUniswapV3SwapRouterHelper.SwapRouteData memory routeData =
+            ISFUniswapV3SwapRouterHelper(helperAddress).decodeSwapRouteData(_data);
 
         SwapSelectionContext memory context;
+        // Deadline `0` keeps the old "use default window" behavior while still allowing explicit deadlines.
         context.deadline = routeData.deadline == 0 ? block.timestamp + DEFAULT_SWAP_DEADLINE : routeData.deadline;
         require(context.deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
 
-        context.amountIn = SFUniswapV3SwapRouterHelper(helperAddress).resolveSwapAmountIn(routeData.amountIn, _amount);
+        // `amountIn` can be absolute or "N BPS of the runtime-available balance", so resolve it once up front and
+        // use the same exact input for every route quote.
+        context.amountIn = ISFUniswapV3SwapRouterHelper(helperAddress).resolveSwapAmountIn(routeData.amountIn, _amount);
         require(context.amountIn <= _amount, SFUniswapV3Strategy__InvalidStrategyData());
         require(context.amountIn <= type(uint128).max, SFUniswapV3Strategy__Permit2AmountTooLarge());
 
@@ -842,7 +832,8 @@ contract SFUniswapV3Strategy is
             );
         }
 
-        SFUniswapV3SwapRouterHelper.RouteSelection memory selection = SFUniswapV3SwapRouterHelper(helperAddress)
+        // The helper quotes both direct routes onchain and returns the best viable one without executing it yet.
+        ISFUniswapV3SwapRouterHelper.RouteSelection memory selection = ISFUniswapV3SwapRouterHelper(helperAddress)
             .selectBestRoute(
                 routeData.routeCount,
                 routeData.routeIds,
@@ -855,8 +846,10 @@ contract SFUniswapV3Strategy is
 
         emit OnSwapRoutesCompared(context.amountIn, selection.v3QuotedOut, selection.v4QuotedOut, selection.bestRouteId);
 
+        // Route id `0` means every candidate either failed to quote or missed its min-out floor.
         if (selection.bestRouteId == 0) revert SFUniswapV3Strategy__NoViableSwapRoute();
 
+        // Execute only the selected route. The strategy never performs "quote both and execute both".
         (bool ok,) = _tryRouteSwap(
             selection.bestRouteId, context.amountIn, selection.bestAmountOutMin, context.deadline, _swapToOther, true
         );
@@ -875,11 +868,15 @@ contract SFUniswapV3Strategy is
      * @param _swapToOther True for `underlying -> otherToken`, false for `otherToken -> underlying`.
      */
     function quoteRouteOutput(uint8 _routeId, uint256 _amountIn, uint256 _deadline, bool _swapToOther) external {
-        require(msg.sender == swapRouterHelper, SFUniswapV3Strategy__NotAuthorizedCaller());
+        require(msg.sender == _swapRouterHelperAddress(), SFUniswapV3Strategy__NotAuthorizedCaller());
 
+        // Min-out is deliberately zero during quoting. Route selection compares raw outputs first, then enforces the
+        // chosen route's effective min-out on the real execution path.
         (bool ok, uint256 amountOut) = _tryRouteSwap(_routeId, _amountIn, 0, _deadline, _swapToOther, false);
         require(ok && amountOut > 0, SFUniswapV3Strategy__NoViableSwapRoute());
 
+        // Reverting with the amount is intentional: the helper reads the revert payload and all simulated router
+        // side effects are rolled back automatically.
         revert SFUniswapV3Strategy__QuotedRouteOutput(amountOut);
     }
 
@@ -903,13 +900,15 @@ contract SFUniswapV3Strategy is
         bool _swapToOther,
         bool _emitEvents
     ) internal returns (bool ok_, uint256 amountOut_) {
-        address helper = swapRouterHelper;
-        if (helper == address(0)) return (false, 0);
+        address helper = _swapRouterHelperAddress();
 
         // The helper translates the route id into concrete Universal Router calldata while keeping the strategy
         // runtime small. Empty executions mean the route is currently unavailable.
-        SFUniswapV3SwapRouterHelper.SwapExecution memory execution = SFUniswapV3SwapRouterHelper(helper)
+        ISFUniswapV3SwapRouterHelper.SwapExecution memory execution = ISFUniswapV3SwapRouterHelper(helper)
             .buildRouteExecution(address(this), _routeId, _amountIn, _amountOutMin, _swapToOther);
+
+        // Disabled routes intentionally resolve to an empty execution so the selector can treat them as "not viable"
+        // instead of bubbling an implementation-specific revert.
         if (execution.totalIn == 0) return (false, 0);
         (ok_, amountOut_) = _executePreparedSwap(
             execution.tokenIn,
@@ -946,9 +945,12 @@ contract SFUniswapV3Strategy is
         uint256 _deadline,
         bool _emitEvents
     ) internal returns (bool ok_, uint256 amountOut_) {
-        (bool ok, bytes memory returndata) = swapRouterHelper.delegatecall(
+        // `delegatecall` keeps all token balances, approvals, and Permit2 state in the strategy proxy while borroowing
+        // the helper code for the router execution.
+        address helper = _swapRouterHelperAddress();
+        (bool ok, bytes memory returndata) = helper.delegatecall(
             abi.encodeCall(
-                SFUniswapV3SwapRouterHelper.executePreparedSwap,
+                ISFUniswapV3SwapRouterHelper.executePreparedSwap,
                 (
                     address(permit2),
                     address(universalRouter),
@@ -962,8 +964,19 @@ contract SFUniswapV3Strategy is
                 )
             )
         );
+
+        // Quote simulations and failed route executions are both represented as "route not usable" at this layer.
         if (!ok || returndata.length == 0) return (false, 0);
         (ok_, amountOut_) = abi.decode(returndata, (bool, uint256));
+    }
+
+    /**
+     * @dev Returns the swap-router helper registered in AddressManager.
+     * @return helper_ Deployed `SFUniswapV3SwapRouterHelper` address.
+     * @custom:invariant Helper addresses must be sourced from AddressManager instead of mutable strategy storage.
+     */
+    function _swapRouterHelperAddress() internal view returns (address helper_) {
+        helper_ = addressManager.getProtocolAddressByName("HELPER__SF_SWAP_ROUTER").addr;
     }
 
     /**
