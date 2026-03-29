@@ -18,6 +18,7 @@ import {IUniversalRouter} from "contracts/interfaces/helpers/IUniversalRouter.so
 import {IUniswapV3MathHelper} from "contracts/interfaces/saveFunds/IUniswapV3MathHelper.sol";
 import {IPermit2AllowanceTransfer} from "contracts/interfaces/helpers/IPermit2AllowanceTransfer.sol";
 import {ISFUniswapV3SwapRouterHelper} from "contracts/interfaces/helpers/ISFUniswapV3SwapRouterHelper.sol";
+import {RouteSelection, SwapExecution, SwapRouteData} from "contracts/types/SwapRoutes.sol";
 
 import {UUPSUpgradeable, Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -805,7 +806,7 @@ contract SFUniswapV3Strategy is
         address helperAddress = _swapRouterHelperAddress();
 
         // The helper owns the compact route-data schema so strategy and aggregator both validate against one source.
-        ISFUniswapV3SwapRouterHelper.SwapRouteData memory routeData =
+        SwapRouteData memory routeData =
             ISFUniswapV3SwapRouterHelper(helperAddress).decodeSwapRouteData(_data);
 
         SwapSelectionContext memory context;
@@ -833,16 +834,15 @@ contract SFUniswapV3Strategy is
         }
 
         // The helper quotes both direct routes onchain and returns the best viable one without executing it yet.
-        ISFUniswapV3SwapRouterHelper.RouteSelection memory selection = ISFUniswapV3SwapRouterHelper(helperAddress)
-            .selectBestRoute(
-                routeData.routeCount,
-                routeData.routeIds,
-                routeData.amountOutMins,
-                context.amountIn,
-                context.deadline,
-                context.twapMinOut,
-                _swapToOther
-            );
+        RouteSelection memory selection = ISFUniswapV3SwapRouterHelper(helperAddress).selectBestRoute(
+            routeData.routeCount,
+            routeData.routeIds,
+            routeData.amountOutMins,
+            context.amountIn,
+            context.deadline,
+            context.twapMinOut,
+            _swapToOther
+        );
 
         emit OnSwapRoutesCompared(context.amountIn, selection.v3QuotedOut, selection.v4QuotedOut, selection.bestRouteId);
 
@@ -904,8 +904,8 @@ contract SFUniswapV3Strategy is
 
         // The helper translates the route id into concrete Universal Router calldata while keeping the strategy
         // runtime small. Empty executions mean the route is currently unavailable.
-        ISFUniswapV3SwapRouterHelper.SwapExecution memory execution = ISFUniswapV3SwapRouterHelper(helper)
-            .buildRouteExecution(address(this), _routeId, _amountIn, _amountOutMin, _swapToOther);
+        SwapExecution memory execution =
+            ISFUniswapV3SwapRouterHelper(helper).buildRouteExecution(address(this), _routeId, _amountIn, _amountOutMin, _swapToOther);
 
         // Disabled routes intentionally resolve to an empty execution so the selector can treat them as "not viable"
         // instead of bubbling an implementation-specific revert.

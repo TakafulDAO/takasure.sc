@@ -19,6 +19,7 @@ import {UniswapV3Swap} from "contracts/helpers/uniswapHelpers/libraries/UniswapV
 import {UniswapV4Swap} from "contracts/helpers/uniswapHelpers/libraries/UniswapV4Swap.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
 import {ISFUniswapV3SwapRouterHelper} from "contracts/interfaces/helpers/ISFUniswapV3SwapRouterHelper.sol";
+import {RouteSelection, SwapExecution, SwapRouteData} from "contracts/types/SwapRoutes.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IPermit2AllowanceTransfer} from "contracts/interfaces/helpers/IPermit2AllowanceTransfer.sol";

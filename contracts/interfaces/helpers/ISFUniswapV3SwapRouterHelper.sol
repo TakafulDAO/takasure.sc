@@ -2,38 +2,14 @@
 
 pragma solidity 0.8.28;
 
+import {RouteSelection, SwapExecution, SwapRouteData} from "contracts/types/SwapRoutes.sol";
+
 /**
  * @title ISFUniswapV3SwapRouterHelper
  * @author Maikel Ordaz
  * @notice Interface for the Save Funds swap-route helper used by `SFUniswapV3Strategy`.
  */
 interface ISFUniswapV3SwapRouterHelper {
-    /// @dev Prepared Universal Router execution for a single candidate route.
-    struct SwapExecution {
-        address tokenIn;
-        address tokenOut;
-        bytes commands;
-        bytes[] inputs;
-        uint256 totalIn;
-    }
-
-    /// @dev Compact per-swap route bundle passed from the strategy.
-    struct SwapRouteData {
-        uint256 amountIn;
-        uint256 deadline;
-        uint8 routeCount;
-        uint8[2] routeIds;
-        uint256[2] amountOutMins;
-    }
-
-    /// @dev Result of quoting all candidate routes for a single background swap.
-    struct RouteSelection {
-        uint256 v3QuotedOut;
-        uint256 v4QuotedOut;
-        uint256 bestAmountOutMin;
-        uint8 bestRouteId;
-    }
-
     function setSwapV4PoolConfig(uint24 fee, int24 tickSpacing, address hooks) external;
 
     function decodeSwapRouteData(bytes calldata swapData) external pure returns (SwapRouteData memory routeData_);
