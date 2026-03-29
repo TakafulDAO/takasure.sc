@@ -41,6 +41,9 @@ contract SFStrategyAggregator is
     //////////////////////////////////////////////////////////////*/
 
     uint16 private constant MAX_BPS = 10_000;
+    uint8 private constant ROUTE_V3_SINGLE_HOP = 1;
+    uint8 private constant ROUTE_V4_SINGLE_HOP = 2;
+    uint8 private constant MAX_ROUTE_CANDIDATES = 2;
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -860,11 +863,19 @@ contract SFStrategyAggregator is
         return defaultWithdrawPayload[_strategy];
     }
 
+    /**
+     * @dev Safely previews child withdrawability without letting child reverts bubble up.
+     * @param _strategy Child strategy being previewed.
+     * @param _payload Withdraw payload forwarded to the child preview call.
+     * @return preview_ Immediately previewed withdrawable amount, or zero when the child call fails.
+     * @custom:invariant This helper must never revert because a child preview reverted.
+     */
     function _safePreviewWithdrawable(address _strategy, bytes memory _payload)
         internal
         view
         returns (uint256 preview_)
     {
+        // Preview failures are treated as zero so one unhealthy child cannot make the whole aggregator preview revert.
         (bool ok, bytes memory ret) = _strategy.staticcall(
             abi.encodeWithSelector(ISFStrategy.previewWithdrawable.selector, _payload)
         );
@@ -873,6 +884,12 @@ contract SFStrategyAggregator is
         preview_ = abi.decode(ret, (uint256));
     }
 
+    /**
+     * @dev Heuristically detects the UniV3 strategy shape so withdraw payload validation can stay strategy-specific.
+     * @param _strategy Candidate child strategy address.
+     * @return isUniV3_ True when the strategy exposes both `pool()` and `otherToken()` views.
+     * @custom:invariant This helper must stay read-only and must not revert for non-UniV3 strategies.
+     */
     function _isUniV3Strategy(address _strategy) internal view returns (bool) {
         (bool _okPool, bytes memory _retPool) = _strategy.staticcall(abi.encodeWithSignature("pool()"));
         if (!_okPool || _retPool.length < 32) return false;
@@ -883,6 +900,12 @@ contract SFStrategyAggregator is
         return true;
     }
 
+    /**
+     * @dev Validates the outer UniV3 withdraw payload used by default withdraw flows and explicit bundles.
+     * @param _payload ABI-encoded UniV3 action data bundle.
+     * @custom:invariant A non-zero `otherRatioBPS` must provide valid swap data in both directions so the aggregator
+     *                   does not overestimate immediate withdrawability.
+     */
     function _validateUniV3WithdrawPayload(bytes memory _payload) internal pure {
         (uint16 _otherRatioBPS, bytes memory _swapToOtherData, bytes memory _swapToUnderlyingData,,,) =
             abi.decode(_payload, (uint16, bytes, bytes, uint256, uint256, uint256));
@@ -896,11 +919,35 @@ contract SFStrategyAggregator is
         if (_otherRatioBPS > 0) _validateUniV3SwapData(_swapToOtherData);
     }
 
+    /**
+     * @dev Validates the compact route bundle embedded in a UniV3 swap payload.
+     * @param _swapData ABI-encoded route payload:
+     *        `abi.encode(uint256 amountIn, uint256 deadline, uint8 routeCount, uint8[2] routeIds, uint256[2] amountOutMins)`.
+     * @custom:invariant Only one V3 route and one V4 route can be present, and unused slots must stay zeroed.
+     */
     function _validateUniV3SwapData(bytes memory _swapData) internal pure {
         require(_swapData.length > 0, SFStrategyAggregator__InvalidWithdrawPayload());
+        (uint256 _amountIn,, uint8 _routeCount, uint8[2] memory _routeIds, uint256[2] memory _amountOutMins) =
+            abi.decode(_swapData, (uint256, uint256, uint8, uint8[2], uint256[2]));
 
-        (uint256 _amountIn,,) = abi.decode(_swapData, (uint256, uint256, uint256));
         require(_amountIn != 0, SFStrategyAggregator__InvalidWithdrawPayload());
+        require(_routeCount > 0 && _routeCount <= MAX_ROUTE_CANDIDATES, SFStrategyAggregator__InvalidWithdrawPayload());
+
+        // Route ids are 1-based (`1 = V3`, `2 = V4`), so index `0` remains intentionally unused.
+        bool[3] memory seenRoutes;
+        for (uint256 i; i < MAX_ROUTE_CANDIDATES; ++i) {
+            uint8 routeId = _routeIds[i];
+            if (i < _routeCount) {
+                require(
+                    routeId >= ROUTE_V3_SINGLE_HOP && routeId <= ROUTE_V4_SINGLE_HOP,
+                    SFStrategyAggregator__InvalidWithdrawPayload()
+                );
+                require(!seenRoutes[routeId], SFStrategyAggregator__InvalidWithdrawPayload());
+                seenRoutes[routeId] = true;
+            } else {
+                require(routeId == 0 && _amountOutMins[i] == 0, SFStrategyAggregator__InvalidWithdrawPayload());
+            }
+        }
     }
 
     /// @dev required by the OZ UUPS module.
