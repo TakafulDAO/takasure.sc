@@ -5,7 +5,7 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2, stdJson, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
+import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {SaveInvestCCIPSender} from "contracts/helpers/chainlink/ccip/SaveInvestCCIPSender.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 

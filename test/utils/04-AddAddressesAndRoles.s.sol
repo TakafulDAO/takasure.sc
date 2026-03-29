@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2, stdJson} from "forge-std/Script.sol";
+import {Script, console2} from "forge-std/Script.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
