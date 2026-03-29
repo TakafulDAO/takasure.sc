@@ -18,12 +18,13 @@ import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol"
 import {UniswapV3Swap} from "contracts/helpers/uniswapHelpers/libraries/UniswapV3Swap.sol";
 import {UniswapV4Swap} from "contracts/helpers/uniswapHelpers/libraries/UniswapV4Swap.sol";
 import {IAddressManager} from "contracts/interfaces/managers/IAddressManager.sol";
+import {ISFUniswapV3SwapRouterHelper} from "contracts/interfaces/helpers/ISFUniswapV3SwapRouterHelper.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IPermit2AllowanceTransfer} from "contracts/interfaces/helpers/IPermit2AllowanceTransfer.sol";
 import {IUniversalRouter} from "contracts/interfaces/helpers/IUniversalRouter.sol";
 
-contract SFUniswapV3SwapRouterHelper {
+contract SFUniswapV3SwapRouterHelper is ISFUniswapV3SwapRouterHelper {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -34,32 +35,6 @@ contract SFUniswapV3SwapRouterHelper {
     uint24 internal swapV4PoolFee;
     int24 internal swapV4PoolTickSpacing;
     address internal swapV4PoolHooks;
-
-    /// @dev Prepared Universal Router execution for a single candidate route.
-    struct SwapExecution {
-        address tokenIn;
-        address tokenOut;
-        bytes commands;
-        bytes[] inputs;
-        uint256 totalIn;
-    }
-
-    /// @dev Compact per-swap route bundle passed from the strategy.
-    struct SwapRouteData {
-        uint256 amountIn;
-        uint256 deadline;
-        uint8 routeCount;
-        uint8[2] routeIds;
-        uint256[2] amountOutMins;
-    }
-
-    /// @dev Result of quoting all candidate routes for a single background swap.
-    struct RouteSelection {
-        uint256 v3QuotedOut;
-        uint256 v4QuotedOut;
-        uint256 bestAmountOutMin;
-        uint8 bestRouteId;
-    }
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
