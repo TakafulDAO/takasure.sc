@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.28;
 
 /**
  * @title UniswapV4Swap
- * @notice Shared helpers for building Uniswap V4 pool metadata and Universal Router swap payloads.
+ * @author Maikel Ordaz
+ * @notice Shared helpers for building direct Uniswap V4 pool metadata and Universal Router swap payloads.
  */
+
+pragma solidity 0.8.28;
+
 library UniswapV4Swap {
     bytes1 internal constant ACTION_SWAP_EXACT_IN_SINGLE = 0x06;
     bytes1 internal constant ACTION_SETTLE_ALL = 0x0c;
