@@ -87,8 +87,10 @@ function hasSwapBuilderArgs(prefix) {
             getArg(`${prefix}Bps`) ||
             getArg(`${prefix}AmountIn`) ||
             getArg(`${prefix}AmountOutMin`) ||
+            getArg(`${prefix}AmountOutMins`) ||
             getArg(`${prefix}Deadline`) ||
-            getArg(`${prefix}Recipient`),
+            getArg(`${prefix}Recipient`) ||
+            getArg(`${prefix}RouteIds`),
     )
 }
 
@@ -115,7 +117,9 @@ function buildSwapData(prefix, defaultRecipient, chainCfg) {
     const bps = getArg(`${prefix}Bps`)
     const amountInRaw = getArg(`${prefix}AmountIn`)
     const amountOutMinRaw = getArg(`${prefix}AmountOutMin`)
+    const amountOutMinsRaw = parseList(getArg(`${prefix}AmountOutMins`), `${prefix}AmountOutMins`)
     const deadlineRaw = getArg(`${prefix}Deadline`)
+    const routeIdsRaw = parseList(getArg(`${prefix}RouteIds`), `${prefix}RouteIds`)
     const hasLegacyHints = Boolean(
         getArg(`${prefix}TokenIn`) ||
             getArg(`${prefix}TokenOut`) ||
@@ -149,9 +153,47 @@ function buildSwapData(prefix, defaultRecipient, chainCfg) {
         amountIn = AMOUNT_IN_BPS_FLAG.or(parseBps(bps, `${prefix}Bps`))
     }
 
+    const routeIds = routeIdsRaw
+        ? routeIdsRaw.map((value) => {
+              const routeId = Number(value)
+              if (!Number.isFinite(routeId) || routeId < 1 || routeId > 2) {
+                  console.error(`${prefix}RouteIds entries must be between 1 and 2`)
+                  process.exit(1)
+              }
+              return routeId
+          })
+        : [1, 2]
+
+    if (new Set(routeIds).size !== routeIds.length) {
+        console.error(`${prefix}RouteIds must not contain duplicates`)
+        process.exit(1)
+    }
+    if (routeIds.length === 0 || routeIds.length > 2) {
+        console.error(`${prefix}RouteIds must contain between 1 and 2 entries`)
+        process.exit(1)
+    }
+
+    const amountOutMinsFixed = [amountOutMin, BigNumber.from(0)]
+    if (amountOutMinsRaw) {
+        if (amountOutMinRaw) {
+            console.error(`${prefix}: provide either amountOutMin or amountOutMins (not both)`)
+            process.exit(1)
+        }
+        if (amountOutMinsRaw.length !== routeIds.length) {
+            console.error(`${prefix}AmountOutMins must match ${prefix}RouteIds length`)
+            process.exit(1)
+        }
+        for (let i = 0; i < amountOutMinsRaw.length; i++) {
+            amountOutMinsFixed[i] = parseUint(amountOutMinsRaw[i], `${prefix}AmountOutMins`)
+        }
+    }
+
+    const routeIdsFixed = [0, 0]
+    for (let i = 0; i < routeIds.length; i++) routeIdsFixed[i] = routeIds[i]
+
     return utils.defaultAbiCoder.encode(
-        ["uint256", "uint256", "uint256"],
-        [amountIn, amountOutMin, deadline],
+        ["uint256", "uint256", "uint8", "uint8[2]", "uint256[2]"],
+        [amountIn, deadline, routeIds.length, routeIdsFixed, amountOutMinsFixed],
     )
 }
 

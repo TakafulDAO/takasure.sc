@@ -174,6 +174,14 @@ async function main() {
         }
 
         const amountOutMin = parseUint(getArg("amountOutMin", "0"), "amountOutMin")
+        const routeIdsRaw = (getArg("routeIds", "") || "")
+            .split(",")
+            .map((v) => v.trim())
+            .filter((v) => v.length > 0)
+        const amountOutMinsRaw = (getArg("amountOutMins", "") || "")
+            .split(",")
+            .map((v) => v.trim())
+            .filter((v) => v.length > 0)
         const deadline = parseUint(getArg("deadline", "0"), "deadline")
         const otherRatioBps = parseBps(getArg("otherRatioBps", "0"), "otherRatioBps")
         const pmDeadline = parseUint(getArg("pmDeadline", "0"), "pmDeadline")
@@ -187,9 +195,36 @@ async function main() {
             amountIn = AMOUNT_IN_BPS_FLAG.or(parseBps(bpsRaw, "bps"))
         }
 
+        const routeIds = routeIdsRaw.length > 0 ? routeIdsRaw.map((value) => Number(value)) : [1, 2]
+        if (routeIds.some((value) => !Number.isFinite(value) || value < 1 || value > 2)) {
+            console.error("routeIds entries must be between 1 and 2")
+            process.exit(1)
+        }
+        if (new Set(routeIds).size !== routeIds.length || routeIds.length > 2) {
+            console.error("routeIds must be unique and contain between 1 and 2 entries")
+            process.exit(1)
+        }
+
+        const routeIdsFixed = [0, 0]
+        const amountOutMinsFixed = [amountOutMin, BigNumber.from(0)]
+        for (let i = 0; i < routeIds.length; i++) routeIdsFixed[i] = routeIds[i]
+        if (amountOutMinsRaw.length > 0) {
+            if (amountOutMinsRaw.length !== routeIds.length) {
+                console.error("amountOutMins must match routeIds length")
+                process.exit(1)
+            }
+            if (!amountOutMin.isZero()) {
+                console.error("Use only one of --amountOutMin or --amountOutMins")
+                process.exit(1)
+            }
+            for (let i = 0; i < amountOutMinsRaw.length; i++) {
+                amountOutMinsFixed[i] = parseUint(amountOutMinsRaw[i], "amountOutMins")
+            }
+        }
+
         swapToUnderlyingData = utils.defaultAbiCoder.encode(
-            ["uint256", "uint256", "uint256"],
-            [amountIn, amountOutMin, deadline],
+            ["uint256", "uint256", "uint8", "uint8[2]", "uint256[2]"],
+            [amountIn, deadline, routeIds.length, routeIdsFixed, amountOutMinsFixed],
         )
 
         defaultWithdrawPayload = utils.defaultAbiCoder.encode(
