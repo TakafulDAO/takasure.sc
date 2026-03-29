@@ -26,9 +26,8 @@ import {
 
 import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol";
 import {PositionReader} from "contracts/helpers/uniswapHelpers/libraries/PositionReader.sol";
-import {UniswapV4Swap} from "contracts/helpers/uniswapHelpers/libraries/UniswapV4Swap.sol";
+import {SFUniswapV3SwapRouterHelper} from "contracts/helpers/uniswapHelpers/SFUniswapV3SwapRouterHelper.sol";
 
 pragma solidity 0.8.28;
 
@@ -52,7 +51,6 @@ contract SFUniswapV3Strategy is
     // - If high bit is set (AMOUNT_IN_BPS_FLAG), low 16 bits are BPS (0..10000) of the swap base amount.
     // - Otherwise, amountIn is treated as a literal token amount.
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
-    uint256 internal constant AMOUNT_IN_BPS_MASK = 0xFFFF;
     uint256 internal constant DEFAULT_SWAP_DEADLINE = 300; // 5 minutes
     uint256 internal constant DEFAULT_PM_DEADLINE = 300; // 5 minutes
 
@@ -81,17 +79,21 @@ contract SFUniswapV3Strategy is
     int24 public tickUpper;
     uint32 public twapWindow; // seconds; 0 => spot
     uint16 public swapSlippageBPS;
-    uint24 internal swapV4PoolFee;
-    int24 internal swapV4PoolTickSpacing;
-    address internal swapV4PoolHooks;
+    address internal swapRouterHelper; // todo: Take this from AddressManager like HELPER__SWAP_ROUTER_HELPER?
 
     struct V3ActionData {
         uint16 otherRatioBPS; // 0..10000 (default 5000)
-        bytes swapToOtherData; // abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)
-        bytes swapToUnderlyingData; // abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)
+        bytes swapToOtherData; // abi.encode(uint256 amountIn, uint256 deadline, uint8 routeCount, uint8[2] routeIds, uint256[2] amountOutMins)
+        bytes swapToUnderlyingData; // abi.encode(uint256 amountIn, uint256 deadline, uint8 routeCount, uint8[2] routeIds, uint256[2] amountOutMins)
         uint256 pmDeadline; // deadline for positionManager mint/increase/decrease
         uint256 minUnderlying; // slippage floor for underlying side in mint/increase/decrease
         uint256 minOther; // slippage floor for otherToken side in mint/increase/decrease
+    }
+
+    struct SwapSelectionContext {
+        uint256 amountIn;
+        uint256 deadline;
+        uint256 twapMinOut;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -114,8 +116,8 @@ contract SFUniswapV3Strategy is
     );
     event OnLiquidityDecreased(uint256 indexed tokenId, uint128 liquidityRemoved, uint256 amount0, uint256 amount1);
     event OnSwapExecuted(address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut);
+    event OnSwapRoutesCompared(uint256 amountIn, uint256 v3QuotedOut, uint256 v4QuotedOut, uint8 selectedRouteId);
     event OnSwapSlippageBPSUpdated(uint16 oldBps, uint16 newBps);
-    event OnSwapV4PoolConfigUpdated(uint24 fee, int24 tickSpacing, address hooks);
     event OnPositionMinted(
         uint256 indexed tokenId, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 amount0, uint256 amount1
     );
@@ -135,6 +137,8 @@ contract SFUniswapV3Strategy is
     error SFUniswapV3Strategy__UnexpectedPositionTokenId();
     error SFUniswapV3Strategy__NotAuthorizedCaller();
     error SFUniswapV3Strategy__Permit2AmountTooLarge();
+    error SFUniswapV3Strategy__NoViableSwapRoute();
+    error SFUniswapV3Strategy__QuotedRouteOutput(uint256 amountOut);
 
     /*//////////////////////////////////////////////////////////////
                              INITIALIZATION
@@ -283,12 +287,24 @@ contract SFUniswapV3Strategy is
      */
     function setSwapV4PoolConfig(uint24 fee, int24 tickSpacing, address hooks) external {
         _onlyRole(Roles.OPERATOR);
+        address helper = swapRouterHelper;
+        require(helper != address(0), SFUniswapV3Strategy__InvalidStrategyData());
+        SFUniswapV3SwapRouterHelper(helper).setSwapV4PoolConfig(fee, tickSpacing, hooks);
+    }
 
-        swapV4PoolFee = fee;
-        swapV4PoolTickSpacing = tickSpacing;
-        swapV4PoolHooks = hooks;
-
-        emit OnSwapV4PoolConfigUpdated(fee, tickSpacing, hooks);
+    // TODO: No need to this function as this can be stored/fetched on/from AddressManager
+    /**
+     * @notice Sets the stateless swap-route helper used to build Universal Router calldata.
+     * @dev Only callable by `Roles.OPERATOR`.
+     *      The helper resolves this strategy proxy through AddressManager, so operators only need to wire the helper
+     *      address here; they do not need to pass the strategy address into the helper constructor anymore.
+     * @param helper Address of the deployed `SFUniswapV3SwapRouterHelper`.
+     * @custom:invariant Updating the helper must not mutate pool, LP NFT, or valuation state.
+     */
+    function setSwapRouterHelper(address helper) external {
+        _onlyRole(Roles.OPERATOR);
+        _notAddressZero(helper);
+        swapRouterHelper = helper;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -445,7 +461,10 @@ contract SFUniswapV3Strategy is
         V3ActionData memory p = _decodeV3ActionData(data);
 
         // Realize any idle otherToken first so we do not burn more LP than necessary.
-        _swapAllOtherToUnderlying(p.swapToUnderlyingData);
+        uint256 balOther = otherToken.balanceOf(address(this));
+        if (balOther > 0 && p.swapToUnderlyingData.length > 0) {
+            _swapWithBestRoute(balOther, p.swapToUnderlyingData, false);
+        }
 
         // Up to two burn/swap passes close small rounding and slippage gaps.
         bool canSwapOther = p.swapToUnderlyingData.length > 0;
@@ -458,7 +477,10 @@ contract SFUniswapV3Strategy is
             if (liquidityToBurn == 0) break;
 
             _decreaseLiquidityAndCollect(liquidityToBurn, p.pmDeadline, p.minUnderlying, p.minOther);
-            _swapAllOtherToUnderlying(p.swapToUnderlyingData);
+            balOther = otherToken.balanceOf(address(this));
+            if (balOther > 0 && p.swapToUnderlyingData.length > 0) {
+                _swapWithBestRoute(balOther, p.swapToUnderlyingData, false);
+            }
         }
 
         uint256 finalUnderlying = underlying.balanceOf(address(this));
@@ -623,7 +645,31 @@ contract SFUniswapV3Strategy is
      */
     function previewWithdrawable(bytes calldata data) external view returns (uint256 withdrawableAssets) {
         V3ActionData memory p = _decodeV3ActionData(data);
-        withdrawableAssets = _previewWithdrawable(p);
+        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
+        (uint256 positionUnderlying, uint256 positionOther) = _positionAmountsAtSqrtPrice(sqrtPriceX96);
+        (uint256 owedUnderlying, uint256 owedOther) = _owedAmounts();
+
+        withdrawableAssets = underlying.balanceOf(address(this)) + positionUnderlying + owedUnderlying;
+
+        uint256 totalOther = otherToken.balanceOf(address(this)) + positionOther + owedOther;
+        if (totalOther == 0 || p.swapToUnderlyingData.length == 0) return withdrawableAssets;
+
+        bytes memory swapData = p.swapToUnderlyingData;
+        uint256 requestedAmountIn;
+        assembly {
+            requestedAmountIn := mload(add(swapData, 0x20))
+        }
+
+        uint256 amountIn = requestedAmountIn;
+        if ((requestedAmountIn & AMOUNT_IN_BPS_FLAG) != 0) {
+            uint256 bps = requestedAmountIn & 0xFFFF;
+            require(bps <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
+            amountIn = math.mulDiv(totalOther, bps, MAX_BPS);
+        }
+
+        require(amountIn > 0 && amountIn <= totalOther, SFUniswapV3Strategy__InvalidStrategyData());
+        uint256 quotedUnderlying = _quoteOtherAsUnderlyingAtSqrtPrice(amountIn, sqrtPriceX96);
+        withdrawableAssets += math.mulDiv(quotedUnderlying, MAX_BPS - uint256(swapSlippageBPS), MAX_BPS);
     }
 
     /**
@@ -730,19 +776,6 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @dev Swaps the entire idle `otherToken` balance into `underlying` using the configured V4 swap route.
-     * @param _swapData Compact swap directive encoded as
-     *        `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
-     * @custom:invariant Must not revert when there is no idle `otherToken` balance or no swap payload is provided.
-     */
-    function _swapAllOtherToUnderlying(bytes memory _swapData) internal {
-        uint256 balOther = otherToken.balanceOf(address(this));
-        if (balOther == 0 || _swapData.length == 0) return;
-
-        _V4Swap(balOther, _swapData, false);
-    }
-
-    /**
      * @dev Decodes the strategy action bundle used for deposit/withdraw/harvest/fee collection.
      *      Expected encoding:
      *      `abi.encode(uint16 otherRatioBPS, bytes swapToOtherData, bytes swapToUnderlyingData, uint256 pmDeadline, uint256 minUnderlying, uint256 minOther)`.
@@ -770,193 +803,167 @@ contract SFUniswapV3Strategy is
     }
 
     /**
-     * @dev Executes a single-hop swap through the configured Uniswap V4 pool using the Universal Router.
+     * @dev Quotes every candidate route onchain, selects the highest quoted output that satisfies its floor,
+     *      and executes only that route.
      * @param _amount Base amount available for the swap direction. When the payload uses the BPS sentinel, this is
      *        the amount against which the runtime `amountIn` is resolved.
-     * @param _data Compact swap directive encoded as
-     *        `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
+     * @param _data Ranked route payload encoded as
+     *        `abi.encode(uint256 amountIn, uint256 deadline, uint8 routeCount, uint8[2] routeIds, uint256[2] amountOutMins)`.
      * @param _swapToOther True for `underlying -> otherToken`, false for `otherToken -> underlying`.
-     * @custom:invariant Must revert when the V4 swap route is unset or when the resolved input exceeds available funds.
+     * @custom:invariant Background swaps must execute at most one route, and only after all candidate routes have
+     *                   been quoted against the same exact-input amount.
      */
-    function _V4Swap(uint256 _amount, bytes memory _data, bool _swapToOther) internal {
+    function _swapWithBestRoute(uint256 _amount, bytes memory _data, bool _swapToOther) internal {
         if (_amount == 0 || _data.length == 0) return;
 
-        (uint256 requestedAmountIn, uint256 amountOutMin, uint256 deadline) = _decodeCompactSwapData(_data);
+        address helperAddress = swapRouterHelper;
+        require(helperAddress != address(0), SFUniswapV3Strategy__InvalidStrategyData());
+        SFUniswapV3SwapRouterHelper.SwapRouteData memory routeData =
+            SFUniswapV3SwapRouterHelper(helperAddress).decodeSwapRouteData(_data);
 
-        if (deadline == 0) deadline = block.timestamp + DEFAULT_SWAP_DEADLINE;
-        require(deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
+        SwapSelectionContext memory context;
+        context.deadline = routeData.deadline == 0 ? block.timestamp + DEFAULT_SWAP_DEADLINE : routeData.deadline;
+        require(context.deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
 
-        uint256 amountIn = _resolveSwapAmountIn(requestedAmountIn, _amount);
-        require(amountIn <= _amount, SFUniswapV3Strategy__InvalidStrategyData());
+        context.amountIn = SFUniswapV3SwapRouterHelper(helperAddress).resolveSwapAmountIn(routeData.amountIn, _amount);
+        require(context.amountIn <= _amount, SFUniswapV3Strategy__InvalidStrategyData());
+        require(context.amountIn <= type(uint128).max, SFUniswapV3Strategy__Permit2AmountTooLarge());
 
-        amountOutMin = _applyTwapMinOut(requestedAmountIn, amountIn, amountOutMin, _swapToOther);
-
-        require(amountIn <= type(uint128).max, SFUniswapV3Strategy__Permit2AmountTooLarge());
-        require(amountOutMin <= type(uint128).max, SFUniswapV3Strategy__Permit2AmountTooLarge());
-
-        require(swapV4PoolFee > 0 && swapV4PoolTickSpacing > 0, SFUniswapV3Strategy__InvalidStrategyData());
-        UniswapV4Swap.PoolKey memory poolKey = UniswapV4Swap.PoolKey({
-            currency0: token0,
-            currency1: token1,
-            fee: swapV4PoolFee,
-            tickSpacing: swapV4PoolTickSpacing,
-            hooks: swapV4PoolHooks
-        });
-        IERC20 tokenIn = _swapToOther ? underlying : otherToken;
-        address expectedOut = _swapToOther ? address(otherToken) : address(underlying);
-        bool zeroForOne = address(tokenIn) == token0;
-
-        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V4_SWAP)));
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = UniswapV4Swap.buildUniversalRouterExactInSingleInput(
-            poolKey, zeroForOne, uint128(amountIn), uint128(amountOutMin), amountIn, amountOutMin
-        );
-
-        _executeSwap(tokenIn, expectedOut, commands, inputs, amountIn, deadline);
-    }
-
-    /**
-     * @dev Decodes the compact swap directive used by the strategy's V4 swap path.
-     * @param _swapData ABI-encoded `(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
-     * @return amountIn_ Requested input amount, either literal or BPS-sentinel encoded.
-     * @return amountOutMin_ Minimum output requested by the caller.
-     * @return deadline_ Swap deadline; `0` means "use the strategy default deadline".
-     */
-    function _decodeCompactSwapData(bytes memory _swapData)
-        internal
-        pure
-        returns (uint256 amountIn_, uint256 amountOutMin_, uint256 deadline_)
-    {
-        (amountIn_, amountOutMin_, deadline_) = abi.decode(_swapData, (uint256, uint256, uint256));
-    }
-
-    /**
-     * @dev Resolves the actual token input amount from either a literal amount or the high-bit BPS sentinel format.
-     * @param _requestedAmountIn Requested `amountIn` from the compact swap directive.
-     * @param _availableAmount Amount currently available for the swap direction.
-     * @return amountIn_ Concrete token amount that should be swapped.
-     * @custom:invariant Returned amount must be strictly greater than zero and use `MAX_BPS` as the sentinel scale.
-     */
-    function _resolveSwapAmountIn(uint256 _requestedAmountIn, uint256 _availableAmount)
-        internal
-        view
-        returns (uint256 amountIn_)
-    {
-        amountIn_ = _requestedAmountIn;
-        if ((_requestedAmountIn & AMOUNT_IN_BPS_FLAG) != 0) {
-            uint256 bps = _requestedAmountIn & AMOUNT_IN_BPS_MASK;
-            require(bps <= MAX_BPS, SFUniswapV3Strategy__InvalidStrategyData());
-            amountIn_ = math.mulDiv(_availableAmount, bps, MAX_BPS);
+        if ((routeData.amountIn & AMOUNT_IN_BPS_FLAG) != 0) {
+            // For BPS-based swap intents we derive a shared TWAP floor so every route is compared against
+            // the same conservative expectation before the best quoted output is chosen.
+            uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
+            context.twapMinOut = math.mulDiv(
+                _swapToOther
+                    ? _quoteUnderlyingAsOtherAtSqrtPrice(context.amountIn, sqrtPriceX96)
+                    : _quoteOtherAsUnderlyingAtSqrtPrice(context.amountIn, sqrtPriceX96),
+                MAX_BPS - swapSlippageBPS,
+                MAX_BPS
+            );
         }
 
-        require(amountIn_ > 0, SFUniswapV3Strategy__InvalidStrategyData());
-    }
+        SFUniswapV3SwapRouterHelper.RouteSelection memory selection = SFUniswapV3SwapRouterHelper(helperAddress)
+            .selectBestRoute(
+                routeData.routeCount,
+                routeData.routeIds,
+                routeData.amountOutMins,
+                context.amountIn,
+                context.deadline,
+                context.twapMinOut,
+                _swapToOther
+            );
 
-    /**
-     * @dev Applies the strategy's TWAP-derived minimum output floor when the swap uses the BPS sentinel amount format.
-     * @param _requestedAmountIn Requested `amountIn` from the compact swap directive.
-     * @param _amountIn Concrete swap input amount resolved for execution.
-     * @param _amountOutMin Caller-supplied minimum output.
-     * @param _swapToOther True for `underlying -> otherToken`, false for `otherToken -> underlying`.
-     * @return amountOutMin_ Effective minimum output used for router execution.
-     * @custom:invariant When the BPS sentinel is used, the returned value must be at least the strategy TWAP floor.
-     */
-    function _applyTwapMinOut(uint256 _requestedAmountIn, uint256 _amountIn, uint256 _amountOutMin, bool _swapToOther)
-        internal
-        view
-        returns (uint256 amountOutMin_)
-    {
-        amountOutMin_ = _amountOutMin;
-        if ((_requestedAmountIn & AMOUNT_IN_BPS_FLAG) == 0) return amountOutMin_;
+        emit OnSwapRoutesCompared(context.amountIn, selection.v3QuotedOut, selection.v4QuotedOut, selection.bestRouteId);
 
-        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
-        uint256 twapMinOut = math.mulDiv(
-            _swapToOther
-                ? _quoteUnderlyingAsOtherAtSqrtPrice(_amountIn, sqrtPriceX96)
-                : _quoteOtherAsUnderlyingAtSqrtPrice(_amountIn, sqrtPriceX96),
-            MAX_BPS - swapSlippageBPS,
-            MAX_BPS
+        if (selection.bestRouteId == 0) revert SFUniswapV3Strategy__NoViableSwapRoute();
+
+        (bool ok,) = _tryRouteSwap(
+            selection.bestRouteId, context.amountIn, selection.bestAmountOutMin, context.deadline, _swapToOther, true
         );
+        if (ok) return;
 
-        if (amountOutMin_ < twapMinOut) amountOutMin_ = twapMinOut;
+        revert SFUniswapV3Strategy__NoViableSwapRoute();
     }
 
     /**
-     * @dev Executes a prepared Universal Router swap and emits the realized output delta.
-     * @param _tokenIn ERC20 token approved and spent as swap input.
-     * @param _expectedOut Output token whose post-swap balance delta is measured.
-     * @param _commands Universal Router commands bytes.
-     * @param _patchedInputs Universal Router command inputs.
-     * @param _totalIn Total `_tokenIn` amount expected to be consumed by the router.
-     * @param _deadline Universal Router deadline passed to `execute`.
-     * @custom:invariant Must not execute unless the strategy already holds `_totalIn` and Permit2 approvals are in place.
+     * @notice Simulates a swap route and returns the quoted output through revert data.
+     * @dev Callable only by the strategy itself through an external self-call so the simulated swap can revert
+     *      and roll back any router side effects after the output amount is observed.
+     * @param _routeId Candidate route id to simulate.
+     * @param _amountIn Exact input amount to quote.
+     * @param _deadline Universal Router deadline used for the simulation.
+     * @param _swapToOther True for `underlying -> otherToken`, false for `otherToken -> underlying`.
      */
-    function _executeSwap(
-        IERC20 _tokenIn,
+    function quoteRouteOutput(uint8 _routeId, uint256 _amountIn, uint256 _deadline, bool _swapToOther) external {
+        require(msg.sender == swapRouterHelper, SFUniswapV3Strategy__NotAuthorizedCaller());
+
+        (bool ok, uint256 amountOut) = _tryRouteSwap(_routeId, _amountIn, 0, _deadline, _swapToOther, false);
+        require(ok && amountOut > 0, SFUniswapV3Strategy__NoViableSwapRoute());
+
+        revert SFUniswapV3Strategy__QuotedRouteOutput(amountOut);
+    }
+
+    /**
+     * @dev Attempts a specific route and returns whether it executed successfully.
+     * @param _routeId Route id to attempt.
+     * @param _amountIn Exact input amount.
+     * @param _amountOutMin Candidate min-out floor selected for this route.
+     * @param _deadline Universal Router deadline for the attempt.
+     * @param _swapToOther True for `underlying -> otherToken`, false for `otherToken -> underlying`.
+     * @param _emitEvents Whether the eventual helper execution should emit swap telemetry.
+     * @return ok_ True when the prepared route executed successfully.
+     * @return amountOut_ Output amount observed for the route.
+     * @custom:invariant A disabled or malformed route must return `(false, 0)` instead of mutating state.
+     */
+    function _tryRouteSwap(
+        uint8 _routeId,
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        uint256 _deadline,
+        bool _swapToOther,
+        bool _emitEvents
+    ) internal returns (bool ok_, uint256 amountOut_) {
+        address helper = swapRouterHelper;
+        if (helper == address(0)) return (false, 0);
+
+        // The helper translates the route id into concrete Universal Router calldata while keeping the strategy
+        // runtime small. Empty executions mean the route is currently unavailable.
+        SFUniswapV3SwapRouterHelper.SwapExecution memory execution = SFUniswapV3SwapRouterHelper(helper)
+            .buildRouteExecution(address(this), _routeId, _amountIn, _amountOutMin, _swapToOther);
+        if (execution.totalIn == 0) return (false, 0);
+        (ok_, amountOut_) = _executePreparedSwap(
+            execution.tokenIn,
+            execution.tokenOut,
+            execution.commands,
+            execution.inputs,
+            execution.totalIn,
+            _deadline,
+            _emitEvents
+        );
+    }
+
+    /**
+     * @dev Delegatecalls the swap helper so the bulky Permit2 and router execution path does not live in strategy
+     *      runtime bytecode, while still executing in the strategy context and with the strategy balances.
+     * @param _tokenIn Input token pulled by the prepared route.
+     * @param _expectedOut Output token whose balance delta is measured.
+     * @param _commands Universal Router command bytes for the chosen route.
+     * @param _inputs Universal Router encoded inputs aligned to `_commands`.
+     * @param _totalIn Total input amount expected to be consumed.
+     * @param _deadline Universal Router deadline.
+     * @param _emitEvents Whether the helper should emit execution telemetry.
+     * @return ok_ True when the delegated helper execution succeeded.
+     * @return amountOut_ Output amount observed by the helper.
+     * @custom:invariant Execution must happen in strategy context so token balances and approvals remain owned by the
+     *                   strategy proxy.
+     */
+    function _executePreparedSwap(
+        address _tokenIn,
         address _expectedOut,
         bytes memory _commands,
-        bytes[] memory _patchedInputs,
+        bytes[] memory _inputs,
         uint256 _totalIn,
-        uint256 _deadline
-    ) internal {
-        // Enforce we actually have enough `tokenIn` to cover swap payload
-        require(_tokenIn.balanceOf(address(this)) >= _totalIn, SFUniswapV3Strategy__InvalidStrategyData());
-
-        // Make UniversalRouter swaps work, as it pays via Permit2
-        _ensurePermit2Max(_tokenIn);
-
-        // Not strictly needed for Permit2, but doesn't hurt
-        _tokenIn.forceApprove(address(universalRouter), _totalIn);
-
-        uint256 _outBefore = IERC20(_expectedOut).balanceOf(address(this));
-
-        universalRouter.execute(_commands, _patchedInputs, _deadline);
-
-        uint256 _outAfter = IERC20(_expectedOut).balanceOf(address(this));
-
-        emit OnSwapExecuted(address(_tokenIn), _expectedOut, _totalIn, _outAfter - _outBefore);
-
-        // Clear allowance
-        _tokenIn.forceApprove(address(universalRouter), 0);
-    }
-
-    function _previewWithdrawable(V3ActionData memory p_) internal view returns (uint256 withdrawableAssets_) {
-        uint160 sqrtPriceX96 = _valuationSqrtPriceX96();
-        (uint256 positionUnderlying, uint256 positionOther) = _positionAmountsAtSqrtPrice(sqrtPriceX96);
-        (uint256 owedUnderlying, uint256 owedOther) = _owedAmounts();
-
-        withdrawableAssets_ = underlying.balanceOf(address(this)) + positionUnderlying + owedUnderlying;
-
-        uint256 totalOther = otherToken.balanceOf(address(this)) + positionOther + owedOther;
-        if (totalOther == 0 || p_.swapToUnderlyingData.length == 0) return withdrawableAssets_;
-
-        withdrawableAssets_ += _previewSwapToUnderlying(totalOther, p_.swapToUnderlyingData, sqrtPriceX96);
-    }
-
-    /**
-     * @dev Quotes the underlying proceeds from swapping idle/owed `otherToken` through the V4 swap path.
-     * @param _amountOther Total `otherToken` amount available to swap.
-     * @param _swapData Compact swap directive encoded as
-     *        `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
-     * @param _sqrtPriceX96 Valuation sqrt price used to quote `otherToken` in underlying units.
-     * @return quotedUnderlying_ Discounted underlying quote after applying `swapSlippageBPS`.
-     * @custom:invariant Preview must enforce the same amount-resolution and deadline rules as runtime swap execution.
-     */
-    function _previewSwapToUnderlying(uint256 _amountOther, bytes memory _swapData, uint160 _sqrtPriceX96)
-        internal
-        view
-        returns (uint256 quotedUnderlying_)
-    {
-        if (_amountOther == 0 || _swapData.length == 0) return 0;
-
-        (uint256 requestedAmountIn,, uint256 deadline) = _decodeCompactSwapData(_swapData);
-        if (deadline != 0) require(deadline >= block.timestamp, SFUniswapV3Strategy__InvalidDeadline());
-
-        uint256 amountIn = _resolveSwapAmountIn(requestedAmountIn, _amountOther);
-        require(amountIn <= _amountOther, SFUniswapV3Strategy__InvalidStrategyData());
-
-        quotedUnderlying_ = _quoteOtherAsUnderlyingAtSqrtPrice(amountIn, _sqrtPriceX96);
-        quotedUnderlying_ = math.mulDiv(quotedUnderlying_, MAX_BPS - uint256(swapSlippageBPS), MAX_BPS);
+        uint256 _deadline,
+        bool _emitEvents
+    ) internal returns (bool ok_, uint256 amountOut_) {
+        (bool ok, bytes memory returndata) = swapRouterHelper.delegatecall(
+            abi.encodeCall(
+                SFUniswapV3SwapRouterHelper.executePreparedSwap,
+                (
+                    address(permit2),
+                    address(universalRouter),
+                    _tokenIn,
+                    _expectedOut,
+                    _commands,
+                    _inputs,
+                    _totalIn,
+                    _deadline,
+                    _emitEvents
+                )
+            )
+        );
+        if (!ok || returndata.length == 0) return (false, 0);
+        (ok_, amountOut_) = abi.decode(returndata, (bool, uint256));
     }
 
     /**
@@ -1184,7 +1191,7 @@ contract SFUniswapV3Strategy is
         // Optional: swap collected otherToken -> underlying if keeper supplied swap payload
         uint256 balOther = otherToken.balanceOf(address(this));
         if (balOther > 0 && p.swapToUnderlyingData.length > 0) {
-            _V4Swap(balOther, p.swapToUnderlyingData, false);
+            _swapWithBestRoute(balOther, p.swapToUnderlyingData, false);
         }
 
         // Never retain assets in the strategy
@@ -1373,7 +1380,7 @@ contract SFUniswapV3Strategy is
             uint256 _valueToSwap = _targetOtherValue - _otherValue;
             if (_valueToSwap > 0) {
                 require(_swapToOtherData.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
-                _V4Swap(_valueToSwap, _swapToOtherData, true);
+                _swapWithBestRoute(_valueToSwap, _swapToOtherData, true);
             }
             return;
         }
@@ -1383,22 +1390,8 @@ contract SFUniswapV3Strategy is
             if (_excessValue > 0) {
                 require(_swapToUnderlyingData.length > 0, SFUniswapV3Strategy__InvalidStrategyData());
                 uint256 amountOtherToSwap = _quoteUnderlyingAsOtherAtSqrtPrice(_excessValue, _sqrtPriceX96);
-                _V4Swap(amountOtherToSwap, _swapToUnderlyingData, false);
+                _swapWithBestRoute(amountOtherToSwap, _swapToUnderlyingData, false);
             }
-        }
-    }
-
-    function _ensurePermit2Max(IERC20 _tokenIn) internal {
-        // ERC20 allowance -> Permit2
-        uint256 a = _tokenIn.allowance(address(this), address(permit2));
-        if (a != type(uint256).max) _tokenIn.forceApprove(address(permit2), type(uint256).max);
-
-        // Permit2 allowance -> UniversalRouter
-        (uint160 allowed, uint48 expiration,) =
-            permit2.allowance(address(this), address(_tokenIn), address(universalRouter));
-
-        if (allowed != type(uint160).max || expiration != type(uint48).max) {
-            permit2.approve(address(_tokenIn), address(universalRouter), type(uint160).max, type(uint48).max);
         }
     }
 
