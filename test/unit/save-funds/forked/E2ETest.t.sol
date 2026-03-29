@@ -25,14 +25,17 @@ import {Roles} from "contracts/helpers/libraries/constants/Roles.sol";
 import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
+import {SFUniswapV3SwapRouterHelper} from "contracts/helpers/uniswapHelpers/SFUniswapV3SwapRouterHelper.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract E2ETest is Test {
     uint256 internal constant FORK_BLOCK = 430826360;
     uint16 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
+    string internal constant SWAP_ROUTER_HELPER_NAME = "HELPER__SF_SWAP_ROUTER";
     uint24 internal constant SWAP_V4_POOL_FEE = 8;
     int24 internal constant SWAP_V4_POOL_TICK_SPACING = 1;
     address internal constant SWAP_V4_POOL_HOOKS = address(0);
@@ -167,11 +170,27 @@ contract E2ETest is Test {
     }
 
     function _upgradeSaveFundsImplementations() internal {
+        address helper = address(new SFUniswapV3SwapRouterHelper(address(addrMgr)));
+
+        _upsertSwapRouterHelper(helper);
+
         vm.startPrank(operator);
-        Upgrades.upgradeProxy(address(aggregator), "SFStrategyAggregator.sol", "");
-        Upgrades.upgradeProxy(address(uniV3), "SFUniswapV3Strategy.sol", "");
+        UnsafeUpgrades.upgradeProxy(address(aggregator), address(new SFStrategyAggregator()), "");
+        UnsafeUpgrades.upgradeProxy(address(uniV3), address(new SFUniswapV3Strategy()), "");
         uniV3.setSwapV4PoolConfig(SWAP_V4_POOL_FEE, SWAP_V4_POOL_TICK_SPACING, SWAP_V4_POOL_HOOKS);
         vm.stopPrank();
+    }
+
+    function _upsertSwapRouterHelper(address helper) internal {
+        address owner = addrMgr.owner();
+
+        vm.prank(owner);
+        try addrMgr.updateProtocolAddress(SWAP_ROUTER_HELPER_NAME, helper) {
+            return;
+        } catch {}
+
+        vm.prank(owner);
+        addrMgr.addProtocolAddress(SWAP_ROUTER_HELPER_NAME, helper, ProtocolAddressType.Helper);
     }
 
     function test_SaveFundScenarioSimulation_168Ticks() public {
@@ -382,7 +401,7 @@ contract E2ETest is Test {
         // 50/50 into otherToken by default
         uint16 ratioBps = 5000;
         uint256 amountIn = (assets * ratioBps) / 10_000;
-        bytes memory swapToOtherData = abi.encode(amountIn, uint256(0), block.timestamp + 30 minutes);
+        bytes memory swapToOtherData = _encodeRankedSwapData(amountIn, block.timestamp + 30 minutes);
 
         // (otherRatioBPS, swapToOtherData, swapToUnderlyingData, pmDeadline, minUnderlying, minOther)
         return abi.encode(ratioBps, swapToOtherData, bytes(""), block.timestamp + 30 minutes, 0, 0);
@@ -401,7 +420,15 @@ contract E2ETest is Test {
         uint256 amountIn = AMOUNT_IN_BPS_FLAG | uint256(bps);
         tokenIn;
         tokenOut;
-        return abi.encode(amountIn, uint256(0), uint256(0));
+        return _encodeRankedSwapData(amountIn, uint256(0));
+    }
+
+    function _encodeRankedSwapData(uint256 amountIn, uint256 deadline) internal pure returns (bytes memory) {
+        uint8[2] memory routeIds;
+        uint256[2] memory amountOutMins;
+        routeIds[0] = 1;
+        routeIds[1] = 2;
+        return abi.encode(amountIn, deadline, uint8(2), routeIds, amountOutMins);
     }
 
     // Market swaps simulation

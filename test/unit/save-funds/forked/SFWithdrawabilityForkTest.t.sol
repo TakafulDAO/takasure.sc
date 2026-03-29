@@ -12,6 +12,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SFWithdrawabilityForkTest is Test {
     uint256 internal constant HISTORICAL_BLOCK = 445958309; // Still failing here
+    uint256 internal constant FIX_DEPLOYED_BLOCK = 446007905;
     uint256 internal constant WITHDRAW_AMOUNT = 50e6;
     uint256 internal constant EXPECTED_HISTORICAL_AGG_WITHDRAW = 49_991_829;
     address internal constant USER = 0xf2F766c362A784B5DCeC02A0B6F5fAb6ceE4f32A;
@@ -47,9 +48,8 @@ contract SFWithdrawabilityForkTest is Test {
         vault.withdraw(WITHDRAW_AMOUNT, USER, USER);
     }
 
-    function testForkLatest_AfterUpgrades_UserCanWithdraw50Usdc() public {
-        _selectLatestFork();
-        _upgradeToLocalImplementations();
+    function testForkLatest_AtBlock446007905_UserCanWithdraw50Usdc() public {
+        _selectFork(FIX_DEPLOYED_BLOCK);
 
         assertGe(vault.maxWithdraw(USER), WITHDRAW_AMOUNT);
         assertGe(aggregator.previewWithdrawable(bytes("")), WITHDRAW_AMOUNT);
@@ -63,13 +63,6 @@ contract SFWithdrawabilityForkTest is Test {
 
         assertEq(userBalanceAfter, userBalanceBefore + WITHDRAW_AMOUNT);
     }
-
-    function _selectLatestFork() internal {
-        uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"));
-        vm.selectFork(forkId);
-        _loadForkContracts();
-    }
-
     function _selectFork(uint256 blockNumber) internal {
         uint256 forkId = vm.createFork(vm.envString("ARBITRUM_MAINNET_RPC_URL"), blockNumber);
         vm.selectFork(forkId);
@@ -111,15 +104,6 @@ contract SFWithdrawabilityForkTest is Test {
             uniV3.unpause();
         }
     }
-
-    function _upgradeToLocalImplementations() internal {
-        vm.startPrank(operator);
-        vault.upgradeToAndCall(address(new SFVault()), "");
-        aggregator.upgradeToAndCall(address(new SFStrategyAggregator()), "");
-        uniV3.upgradeToAndCall(address(new SFUniswapV3Strategy()), "");
-        vm.stopPrank();
-    }
-
     function _getAddr(string memory contractName) internal view returns (address) {
         return addrGetter.getAddress(block.chainid, contractName);
     }

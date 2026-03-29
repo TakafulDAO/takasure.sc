@@ -552,7 +552,7 @@ contract SaveFundHandler is Test {
 
     function _encodeUniV3SwapToUnderlyingBps(uint16 bps) internal pure returns (bytes memory) {
         uint256 amountIn = AMOUNT_IN_BPS_FLAG | uint256(bps);
-        return abi.encode(amountIn, uint256(0), uint256(0));
+        return _encodeRankedSwapData(amountIn, uint256(0));
     }
 
     function _encodeUniV3ExactInSwap(address tokenIn, address tokenOut, uint256 amountIn, uint256 deadline)
@@ -563,7 +563,15 @@ contract SaveFundHandler is Test {
         if (amountIn == 0) return bytes("");
         tokenIn;
         tokenOut;
-        return abi.encode(amountIn, uint256(0), deadline);
+        return _encodeRankedSwapData(amountIn, deadline);
+    }
+
+    function _encodeRankedSwapData(uint256 amountIn, uint256 deadline) internal pure returns (bytes memory) {
+        uint8[2] memory routeIds;
+        uint256[2] memory amountOutMins;
+        routeIds[0] = 1;
+        routeIds[1] = 2;
+        return abi.encode(amountIn, deadline, uint8(2), routeIds, amountOutMins);
     }
 
     function _floorToSpacing(int24 tick, int24 spacing) internal pure returns (int24) {

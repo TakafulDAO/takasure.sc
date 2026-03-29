@@ -11,6 +11,7 @@ import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
+import {SFUniswapV3SwapRouterHelper} from "contracts/helpers/uniswapHelpers/SFUniswapV3SwapRouterHelper.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
@@ -139,6 +140,16 @@ contract UniV3StratFuzzTest is Test {
         );
         uniV3Strategy = SFUniswapV3Strategy(stratProxy);
 
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress(
+            "PROTOCOL__SF_UNISWAP_V3_STRATEGY", address(uniV3Strategy), ProtocolAddressType.Protocol
+        );
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress(
+            "HELPER__SF_SWAP_ROUTER",
+            address(new SFUniswapV3SwapRouterHelper(address(addrMgr))),
+            ProtocolAddressType.Helper
+        );
         vm.prank(takadao);
         uniV3Strategy.setSwapV4PoolConfig(SWAP_V4_POOL_FEE, SWAP_V4_POOL_TICK_SPACING, SWAP_V4_POOL_HOOKS);
 

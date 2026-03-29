@@ -6,6 +6,7 @@ import {GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
+import {SFUniswapV3SwapRouterHelper} from "contracts/helpers/uniswapHelpers/SFUniswapV3SwapRouterHelper.sol";
 import {SFVaultLens} from "contracts/saveFunds/lens/SFVaultLens.sol";
 import {SFStrategyAggregatorLens} from "contracts/saveFunds/lens/SFStrategyAggregatorLens.sol";
 import {SFUniswapV3StrategyLens} from "contracts/saveFunds/lens/SFUniswapV3StrategyLens.sol";
@@ -20,7 +21,8 @@ import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/call
 import {TickMathV3} from "contracts/helpers/uniswapHelpers/libraries/TickMathV3.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract SFSaveFundsProcessForkedTest is Test {
     using SafeERC20 for IERC20;
@@ -30,6 +32,7 @@ contract SFSaveFundsProcessForkedTest is Test {
     // Shared constants and sentinel flag used by the strategy's swap encoding.
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
+    string internal constant SWAP_ROUTER_HELPER_NAME = "HELPER__SF_SWAP_ROUTER";
     address internal constant UNI_V3_NPM = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
     uint24 internal constant SWAP_V4_POOL_FEE = 8;
     int24 internal constant SWAP_V4_POOL_TICK_SPACING = 1;
@@ -138,11 +141,27 @@ contract SFSaveFundsProcessForkedTest is Test {
     }
 
     function _upgradeSaveFundsImplementations() internal {
+        address helper = address(new SFUniswapV3SwapRouterHelper(address(addrMgr)));
+
+        _upsertSwapRouterHelper(helper);
+
         vm.startPrank(operator);
-        Upgrades.upgradeProxy(address(aggregator), "SFStrategyAggregator.sol", "");
-        Upgrades.upgradeProxy(address(uniV3), "SFUniswapV3Strategy.sol", "");
+        UnsafeUpgrades.upgradeProxy(address(aggregator), address(new SFStrategyAggregator()), "");
+        UnsafeUpgrades.upgradeProxy(address(uniV3), address(new SFUniswapV3Strategy()), "");
         uniV3.setSwapV4PoolConfig(SWAP_V4_POOL_FEE, SWAP_V4_POOL_TICK_SPACING, SWAP_V4_POOL_HOOKS);
         vm.stopPrank();
+    }
+
+    function _upsertSwapRouterHelper(address helper) internal {
+        address owner = addrMgr.owner();
+
+        vm.prank(owner);
+        try addrMgr.updateProtocolAddress(SWAP_ROUTER_HELPER_NAME, helper) {
+            return;
+        } catch {}
+
+        vm.prank(owner);
+        addrMgr.addProtocolAddress(SWAP_ROUTER_HELPER_NAME, helper, ProtocolAddressType.Helper);
     }
 
     function testForked_SaveFundsProcess_MultiUser() public {
@@ -418,7 +437,15 @@ contract SFSaveFundsProcessForkedTest is Test {
         uint256 amountIn = AMOUNT_IN_BPS_FLAG | uint256(bps);
         tokenIn;
         tokenOut;
-        return abi.encode(amountIn, uint256(0), uint256(0));
+        return _encodeRankedSwapData(amountIn, uint256(0));
+    }
+
+    function _encodeRankedSwapData(uint256 amountIn, uint256 deadline) internal pure returns (bytes memory) {
+        uint8[2] memory routeIds;
+        uint256[2] memory amountOutMins;
+        routeIds[0] = 1;
+        routeIds[1] = 2;
+        return abi.encode(amountIn, deadline, uint8(2), routeIds, amountOutMins);
     }
 
     function _encodeV3ActionData(
