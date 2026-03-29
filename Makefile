@@ -110,6 +110,10 @@ protocol-upgrade-sf-uni-v3-strat:
 protocol-prepare-upgrade-sf-uni-v3-strat:
 	@forge clean
 	@forge script deploy/saveFunds/upgrades/PrepareSFUniswapV3StrategyUpgrade.s.sol:PrepareSFUniswapV3StrategyUpgrade $(NETWORK_ARGS)
+
+protocol-upgrade-sf-v4-swap-routes:
+	@forge clean
+	@forge script deploy/saveFunds/upgrades/UniV4SwapRoutesUpgrade.s.sol:UniV4SwapRoutesUpgrade $(NETWORK_ARGS)
 	
 protocol-upgrade-referral:
 	@forge clean
