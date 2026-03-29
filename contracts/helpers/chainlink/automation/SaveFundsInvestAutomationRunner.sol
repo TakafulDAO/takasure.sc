@@ -47,6 +47,8 @@ contract SaveFundsInvestAutomationRunner is
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
     uint256 internal constant DAILY_INTERVAL = 12 hours;
+    uint8 internal constant ROUTE_V3_SINGLE_HOP = 1;
+    uint8 internal constant ROUTE_V4_SINGLE_HOP = 2;
 
     IAddressManager public addressManager;
     ISFVaultAutomation public vault;
@@ -419,8 +421,8 @@ contract SaveFundsInvestAutomationRunner is
      * @return ABI-encoded UniV3 action payload.
      */
     function _buildUniV3Payload(uint16 _otherRatioBPS) internal view returns (bytes memory) {
-        bytes memory _swapToOtherData = _buildSingleHopSwapData(swapToOtherBPS);
-        bytes memory _swapToUnderlyingData = _buildSingleHopSwapData(swapToUnderlyingBPS);
+        bytes memory _swapToOtherData = _buildRankedSwapData(swapToOtherBPS);
+        bytes memory _swapToUnderlyingData = _buildRankedSwapData(swapToUnderlyingBPS);
 
         uint256 _pmDeadline = deadlineBuffer == 0 ? 0 : block.timestamp + deadlineBuffer;
 
@@ -428,16 +430,21 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Builds compact swap data with BPS sentinel amount.
+     * @notice Builds ranked fixed-route swap data with a BPS sentinel amount.
      * @dev Returns empty bytes when `bps_ == 0`.
      * @param _bps BPS sentinel for runtime amount calculation.
-     * @return ABI-encoded `(uint256 amountIn, uint256 amountOutMin, uint256 deadline)` swap payload.
+     * @return ABI-encoded ranked route swap payload.
      */
-    function _buildSingleHopSwapData(uint16 _bps) internal pure returns (bytes memory) {
+    function _buildRankedSwapData(uint16 _bps) internal pure returns (bytes memory) {
         if (_bps == 0) return bytes("");
 
         uint256 _amountIn = AMOUNT_IN_BPS_FLAG | uint256(_bps);
-        return abi.encode(_amountIn, uint256(0), uint256(0));
+        uint8[2] memory routeIds;
+        uint256[2] memory amountOutMins;
+        routeIds[0] = ROUTE_V3_SINGLE_HOP;
+        routeIds[1] = ROUTE_V4_SINGLE_HOP;
+
+        return abi.encode(_amountIn, uint256(0), uint8(2), routeIds, amountOutMins);
     }
 
     /**
