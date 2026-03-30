@@ -65,6 +65,19 @@ contract UniV3RebalanceDragForkTest is Test {
         uint8 selectedRouteId;
     }
 
+    struct HistoricalRebalanceScenario {
+        uint256 rebalanceBlock;
+        int24 oldTickLower;
+        int24 oldTickUpper;
+        int24 newTickLower;
+        int24 newTickUpper;
+        uint16 otherRatioBps;
+        uint16 swapToOtherBps;
+        uint16 swapToUnderlyingBps;
+        uint256 pmDeadline;
+        uint256 expectedHistoricalDragApproxUsd;
+    }
+
     uint256 internal constant HISTORICAL_BLOCK = 446153833;
     int24 internal constant HISTORICAL_NEW_TICK_LOWER = 1;
     int24 internal constant HISTORICAL_NEW_TICK_UPPER = 6;
@@ -145,6 +158,72 @@ contract UniV3RebalanceDragForkTest is Test {
         assertEq(routeSelection.amountIn, upgraded.amountIn, "quoted amountIn mismatch");
         assertEq(routeSelection.selectedRouteId, ROUTE_V4_SINGLE_HOP, "historical best route should be V4");
         assertGt(routeSelection.v4QuotedOut, routeSelection.v3QuotedOut, "V4 quote should be better onchain");
+    }
+
+    function testForkHistorical_rebalance_OnchainBestRouteSelection_ReducesCumulativeSwapDragAcrossHistoricalRebalances(
+    ) public {
+        HistoricalRebalanceScenario[7] memory scenarios = _historicalRebalanceScenarios();
+        uint256 totalHistoricalDragApproxUsd;
+        uint256 totalLegacyReplayDragApproxUsd;
+        uint256 totalUpgradedDragApproxUsd;
+
+        for (uint256 i; i < scenarios.length; ++i) {
+            RebalanceDragMetrics memory legacy = _runHistoricalRebalanceCase(scenarios[i], false);
+            RebalanceDragMetrics memory upgraded = _runHistoricalRebalanceCase(scenarios[i], true);
+            RouteSelectionMetrics memory routeSelection = lastRouteSelectionMetrics;
+
+            totalHistoricalDragApproxUsd += scenarios[i].expectedHistoricalDragApproxUsd;
+            totalLegacyReplayDragApproxUsd += legacy.dragApproxUsd;
+            totalUpgradedDragApproxUsd += upgraded.dragApproxUsd;
+
+            console2.log("historical rebalance block:", scenarios[i].rebalanceBlock);
+            console2.log("historical drag in USD approx (6 decimals):", scenarios[i].expectedHistoricalDragApproxUsd);
+            console2.log("legacy replay drag in USD approx (6 decimals):", legacy.dragApproxUsd);
+            console2.log("upgraded drag in USD approx (6 decimals):", upgraded.dragApproxUsd);
+            console2.log("legacy replay amountIn:", legacy.amountIn);
+            console2.log("upgraded amountIn:", upgraded.amountIn);
+            console2.log("legacy replay amountOut:", legacy.amountOut);
+            console2.log("upgraded amountOut:", upgraded.amountOut);
+            console2.log("selected route id:", routeSelection.selectedRouteId);
+            console2.log("quoted v3 amountOut:", routeSelection.v3QuotedOut);
+            console2.log("quoted v4 amountOut:", routeSelection.v4QuotedOut);
+
+            assertEq(legacy.oldTickLower, scenarios[i].oldTickLower, "legacy old lower tick mismatch");
+            assertEq(legacy.oldTickUpper, scenarios[i].oldTickUpper, "legacy old upper tick mismatch");
+            assertEq(legacy.newTickLower, scenarios[i].newTickLower, "legacy new lower tick mismatch");
+            assertEq(legacy.newTickUpper, scenarios[i].newTickUpper, "legacy new upper tick mismatch");
+            assertEq(upgraded.oldTickLower, scenarios[i].oldTickLower, "upgraded old lower tick mismatch");
+            assertEq(upgraded.oldTickUpper, scenarios[i].oldTickUpper, "upgraded old upper tick mismatch");
+            assertEq(upgraded.newTickLower, scenarios[i].newTickLower, "upgraded new lower tick mismatch");
+            assertEq(upgraded.newTickUpper, scenarios[i].newTickUpper, "upgraded new upper tick mismatch");
+            assertEq(routeSelection.amountIn, upgraded.amountIn, "quoted amountIn mismatch");
+            assertApproxEqAbs(
+                legacy.dragApproxUsd,
+                scenarios[i].expectedHistoricalDragApproxUsd,
+                10_000,
+                "legacy replay drifted away from historical drag"
+            );
+        }
+
+        console2.log("total historical drag in USD approx (6 decimals):", totalHistoricalDragApproxUsd);
+        console2.log("total legacy replay drag in USD approx (6 decimals):", totalLegacyReplayDragApproxUsd);
+        console2.log("total upgraded drag in USD approx (6 decimals):", totalUpgradedDragApproxUsd);
+        console2.log(
+            "total upgraded savings in USD approx (6 decimals):",
+            totalLegacyReplayDragApproxUsd - totalUpgradedDragApproxUsd
+        );
+
+        assertApproxEqAbs(
+            totalLegacyReplayDragApproxUsd,
+            totalHistoricalDragApproxUsd,
+            10_000,
+            "legacy cumulative replay drifted away from historical drag"
+        );
+        assertLt(
+            totalUpgradedDragApproxUsd,
+            totalLegacyReplayDragApproxUsd,
+            "upgraded cumulative drag should be lower"
+        );
     }
 
     // Where is the drag?
@@ -389,6 +468,46 @@ contract UniV3RebalanceDragForkTest is Test {
             twapWindow,
             swapSlippageBps
         );
+    }
+
+    function _runHistoricalRebalanceCase(HistoricalRebalanceScenario memory scenario, bool upgradeToV4)
+        internal
+        returns (RebalanceDragMetrics memory metrics_)
+    {
+        _selectFork(scenario.rebalanceBlock - 1);
+
+        _approveNFTForStrategy();
+
+        metrics_.oldTickLower = uniV3.tickLower();
+        metrics_.oldTickUpper = uniV3.tickUpper();
+        metrics_.spotTickBefore = _spotTick();
+        metrics_.newTickLower = scenario.newTickLower;
+        metrics_.newTickUpper = scenario.newTickUpper;
+
+        require(
+            metrics_.spotTickBefore < metrics_.oldTickLower || metrics_.spotTickBefore >= metrics_.oldTickUpper,
+            "position not out of range"
+        );
+
+        if (upgradeToV4) {
+            _upgradeStrategyToLocalV4Implementation();
+        }
+
+        _configureStrategyGuardrails(1800, 100);
+
+        bytes memory rebalancePayload = _buildHistoricalRebalancePayload(scenario, upgradeToV4);
+
+        vm.recordLogs();
+        vm.prank(operator);
+        aggregator.rebalance(_perStrategyData(rebalancePayload));
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        (metrics_.tokenIn, metrics_.tokenOut, metrics_.amountIn, metrics_.amountOut) = _extractSwapExecutedLog(logs);
+        metrics_.dragApproxUsd = _computeStableUsdDragApprox(metrics_.amountIn, metrics_.amountOut);
+        if (upgradeToV4) lastRouteSelectionMetrics = _extractRouteSelectionLogs(logs);
+        else delete lastRouteSelectionMetrics;
+
+        assertGt(uniV3.positionTokenId(), 0, "rebalance did not mint a new position");
     }
 
     function _runHistoricalRebalanceScenarioWithRangeConfig(
@@ -646,16 +765,55 @@ contract UniV3RebalanceDragForkTest is Test {
         } else {
             uint24 poolFee = pool.fee();
             swapToOtherData = _encodeLegacyV3SwapDataExactInBps(
-                address(underlying), address(otherToken), poolFee, HISTORICAL_SWAP_DEADLINE
+                address(underlying), address(otherToken), poolFee, HISTORICAL_SWAP_DEADLINE, MAX_BPS
             );
             swapToUnderlyingData = _encodeLegacyV3SwapDataExactInBps(
-                address(otherToken), address(underlying), poolFee, HISTORICAL_SWAP_DEADLINE
+                address(otherToken), address(underlying), poolFee, HISTORICAL_SWAP_DEADLINE, MAX_BPS
             );
         }
 
         bytes memory actionData =
             abi.encode(otherRatioBps, swapToOtherData, swapToUnderlyingData, HISTORICAL_PM_DEADLINE, 0, 0);
         return abi.encode(newTickLower, newTickUpper, actionData);
+    }
+
+    function _buildHistoricalRebalancePayload(HistoricalRebalanceScenario memory scenario, bool useV4Swap)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes memory swapToOtherData;
+        bytes memory swapToUnderlyingData;
+
+        if (useV4Swap) {
+            swapToOtherData = _encodeRankedSwapDataExactInBps(
+                scenario.swapToOtherBps, HISTORICAL_SWAP_DEADLINE, ROUTE_V4_SINGLE_HOP, ROUTE_V3_SINGLE_HOP
+            );
+            swapToUnderlyingData = _encodeRankedSwapDataExactInBps(
+                scenario.swapToUnderlyingBps, HISTORICAL_SWAP_DEADLINE, ROUTE_V4_SINGLE_HOP, ROUTE_V3_SINGLE_HOP
+            );
+        } else {
+            uint24 poolFee = pool.fee();
+            swapToOtherData = _encodeLegacyV3SwapDataExactInBps(
+                address(underlying),
+                address(otherToken),
+                poolFee,
+                HISTORICAL_SWAP_DEADLINE,
+                scenario.swapToOtherBps
+            );
+            swapToUnderlyingData = _encodeLegacyV3SwapDataExactInBps(
+                address(otherToken),
+                address(underlying),
+                poolFee,
+                HISTORICAL_SWAP_DEADLINE,
+                scenario.swapToUnderlyingBps
+            );
+        }
+
+        bytes memory actionData = abi.encode(
+            scenario.otherRatioBps, swapToOtherData, swapToUnderlyingData, scenario.pmDeadline, uint256(0), uint256(0)
+        );
+        return abi.encode(scenario.newTickLower, scenario.newTickUpper, actionData);
     }
 
     function _encodeRankedSwapDataExactInBps(uint16 amountInBps, uint256 deadline, uint8 route0, uint8 route1)
@@ -671,20 +829,120 @@ contract UniV3RebalanceDragForkTest is Test {
         return abi.encode(AMOUNT_IN_BPS_FLAG | uint256(amountInBps), deadline, uint8(2), routeIds, amountOutMins);
     }
 
-    function _encodeLegacyV3SwapDataExactInBps(address tokenIn, address tokenOut, uint24 fee, uint256 deadline)
+    function _encodeLegacyV3SwapDataExactInBps(
+        address tokenIn,
+        address tokenOut,
+        uint24 fee,
+        uint256 deadline,
+        uint16 amountInBps
+    )
         internal
         view
         returns (bytes memory)
     {
+        require(amountInBps <= MAX_BPS, "amountInBps>MAX_BPS");
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(
             address(uniV3),
-            AMOUNT_IN_BPS_FLAG | uint256(MAX_BPS),
+            AMOUNT_IN_BPS_FLAG | uint256(amountInBps),
             uint256(0),
             abi.encodePacked(tokenIn, fee, tokenOut),
             true
         );
         return abi.encode(inputs, deadline);
+    }
+
+    function _historicalRebalanceScenarios() internal pure returns (HistoricalRebalanceScenario[7] memory scenarios_) {
+        scenarios_[0] = HistoricalRebalanceScenario({
+            rebalanceBlock: 432300739,
+            oldTickLower: 5,
+            oldTickUpper: 10,
+            newTickLower: 1,
+            newTickUpper: 5,
+            otherRatioBps: 5000,
+            swapToOtherBps: 10000,
+            swapToUnderlyingBps: 10000,
+            pmDeadline: 1771146516,
+            expectedHistoricalDragApproxUsd: 66_627
+        });
+
+        scenarios_[1] = HistoricalRebalanceScenario({
+            rebalanceBlock: 435765894,
+            oldTickLower: 1,
+            oldTickUpper: 5,
+            newTickLower: -2,
+            newTickUpper: 3,
+            otherRatioBps: 5000,
+            swapToOtherBps: 10000,
+            swapToUnderlyingBps: 10000,
+            pmDeadline: 1772010794,
+            expectedHistoricalDragApproxUsd: 148_874
+        });
+
+        scenarios_[2] = HistoricalRebalanceScenario({
+            rebalanceBlock: 438567069,
+            oldTickLower: -2,
+            oldTickUpper: 3,
+            newTickLower: -5,
+            newTickUpper: 0,
+            otherRatioBps: 5000,
+            swapToOtherBps: 10000,
+            swapToUnderlyingBps: 10000,
+            pmDeadline: 1772708910,
+            expectedHistoricalDragApproxUsd: 1_089_895
+        });
+
+        scenarios_[3] = HistoricalRebalanceScenario({
+            rebalanceBlock: 439991964,
+            oldTickLower: -5,
+            oldTickUpper: 0,
+            newTickLower: -2,
+            newTickUpper: 3,
+            otherRatioBps: 5000,
+            swapToOtherBps: 10000,
+            swapToUnderlyingBps: 10000,
+            pmDeadline: 1773064381,
+            expectedHistoricalDragApproxUsd: 782_967
+        });
+
+        scenarios_[4] = HistoricalRebalanceScenario({
+            rebalanceBlock: 441749173,
+            oldTickLower: -2,
+            oldTickUpper: 3,
+            newTickLower: -5,
+            newTickUpper: 0,
+            otherRatioBps: 5041,
+            swapToOtherBps: 10000,
+            swapToUnderlyingBps: 10000,
+            pmDeadline: 1773504500,
+            expectedHistoricalDragApproxUsd: 1_604_099
+        });
+
+        scenarios_[5] = HistoricalRebalanceScenario({
+            rebalanceBlock: 444159112,
+            oldTickLower: -5,
+            oldTickUpper: 0,
+            newTickLower: -2,
+            newTickUpper: 3,
+            otherRatioBps: 5428,
+            swapToOtherBps: 10000,
+            swapToUnderlyingBps: 9950,
+            pmDeadline: 1774107664,
+            expectedHistoricalDragApproxUsd: 1_067_285
+        });
+
+        scenarios_[6] = HistoricalRebalanceScenario({
+            rebalanceBlock: 446153834,
+            oldTickLower: -2,
+            oldTickUpper: 3,
+            newTickLower: 1,
+            newTickUpper: 6,
+            otherRatioBps: 5245,
+            swapToOtherBps: 10000,
+            swapToUnderlyingBps: 10000,
+            pmDeadline: 1774606087,
+            expectedHistoricalDragApproxUsd: 4_407_356
+        });
     }
 
     function _extractSwapExecutedLog(Vm.Log[] memory logs)
