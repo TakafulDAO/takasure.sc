@@ -311,9 +311,6 @@ contract UniV3RebalanceDragForkTest is Test {
         range upgraded total drag: 4_284_690
         range upgraded fee-only: 76_204
         range upgraded non-fee: 4_208_486
-        range selected route id: 2
-        range quoted v3 amountOut: 9_521_156_263
-        range quoted v4 amountOut: 9_521_278_929
         ====================================
         range lowerOffset: -3
         range upperOffset: 4
@@ -326,9 +323,6 @@ contract UniV3RebalanceDragForkTest is Test {
         range upgraded total drag: 4_284_690
         range upgraded fee-only: 76_204
         range upgraded non-fee: 4_208_486
-        range selected route id: 2
-        range quoted v3 amountOut: 9_521_156_263
-        range quoted v4 amountOut: 9_521_278_929
         ====================================
         range lowerOffset: -4
         range upperOffset: 4
@@ -341,9 +335,6 @@ contract UniV3RebalanceDragForkTest is Test {
         range upgraded total drag: 4_284_690
         range upgraded fee-only: 76_204
         range upgraded non-fee: 4_208_486
-        range selected route id: 2
-        range quoted v3 amountOut: 9_521_156_263
-        range quoted v4 amountOut: 9_521_278_929
         ====================================
         range lowerOffset: -4
         range upperOffset: 5
@@ -356,9 +347,6 @@ contract UniV3RebalanceDragForkTest is Test {
         range upgraded total drag: 4_284_690
         range upgraded fee-only: 76_204
         range upgraded non-fee: 4_208_486
-        range selected route id: 2
-        range quoted v3 amountOut: 9_521_156_263
-        range quoted v4 amountOut: 9_521_278_929
         ====================================
         range lowerOffset: -5
         range upperOffset: 5
@@ -371,9 +359,6 @@ contract UniV3RebalanceDragForkTest is Test {
         range upgraded total drag: 4_284_690
         range upgraded fee-only: 76_204
         range upgraded non-fee: 4_208_486
-        range selected route id: 2
-        range quoted v3 amountOut: 9_521_156_263
-        range quoted v4 amountOut: 9_521_278_929
               */
 
         assertGt(baseline.amountIn, 0, "baseline amountIn is zero");
