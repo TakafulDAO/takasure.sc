@@ -153,6 +153,16 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         runner.setSwapBPS(uint16(MAX_BPS + 1), 0);
     }
 
+    function testRunnerFork_setPegGuardBPS_RevertsOutsideOperationalRange() public {
+        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__OutOfRange.selector);
+        runner.setPegGuardBPS(4);
+
+        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__OutOfRange.selector);
+        runner.setPegGuardBPS(11);
+
+        runner.setPegGuardBPS(5);
+    }
+
     function testRunnerFork_checkUpkeep_TrueAfterDepositAndInterval() public {
         _registerAndDeposit(makeAddr("member1"), 1_000e6);
         vm.warp(block.timestamp + runner.interval() + 1);
@@ -733,6 +743,34 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertGt(twapDeviation, 10);
     }
 
+    function testRunnerFork_harness_EvaluatePegGuard_UsesConfiguredThreshold() public {
+        SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+        MockPoolForRunnerHarness poolMock = new MockPoolForRunnerHarness();
+        MockStrategyAutomationView strategyMock = new MockStrategyAutomationView();
+
+        poolMock.setTokens(address(asset), address(uniV3.otherToken()));
+        poolMock.setFee(100);
+        poolMock.setTickSpacing(1);
+        poolMock.setSlot0(TickMathV3.getSqrtRatioAtTick(8), 8);
+        poolMock.setObserve(0, 14_400, false);
+        strategyMock.setTicks(0, 20);
+        strategyMock.setTwapWindow(30);
+        harness.setHarnessConfig(
+            address(poolMock), address(strategyMock), address(asset), address(uniV3.otherToken()), false
+        );
+
+        (bool guardPassed, uint16 pegDeviation, uint16 twapDeviation) = harness.exposedEvaluatePegGuard();
+        assertTrue(guardPassed);
+        assertGt(pegDeviation, 5);
+        assertLt(pegDeviation, 10);
+        assertEq(twapDeviation, 0);
+
+        harness.setHarnessPegGuardBPS(5);
+        (guardPassed,, twapDeviation) = harness.exposedEvaluatePegGuard();
+        assertFalse(guardPassed);
+        assertEq(twapDeviation, 0);
+    }
+
     function _getAddr(string memory contractName) internal view returns (address) {
         return addrGetter.getAddress(block.chainid, contractName);
     }
@@ -1094,6 +1132,10 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
 
     function exposedRecordRebalanceSample(uint8 rangeSide, uint16 inventoryOtherRatioBPS) external {
         _recordRebalanceSample(rangeSide, inventoryOtherRatioBPS);
+    }
+
+    function setHarnessPegGuardBPS(uint16 bps) external {
+        rebalancePegGuardBPS = bps;
     }
 
     function exposedSeedRebalanceScenario(uint256 ts, uint64[] calldata packedSamples) external {

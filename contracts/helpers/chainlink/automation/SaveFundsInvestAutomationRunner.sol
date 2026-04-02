@@ -19,8 +19,8 @@
  *        - it has spent at least 18 observed hours of the last 72 hours on the same out-of-range side, and
  *        - inventory has been 80/20 one-sided or worse for 24 consecutive observed hours.
  *      - Both rebalance paths are additionally guarded by a peg check:
- *        - spot must be within 10 bps of peg, and
- *        - spot must be within 10 bps of a strict 30-minute TWAP.
+ *        - spot must be within the configured 5-10 bps peg guard, and
+ *        - spot must be within the configured 5-10 bps distance from a strict 30-minute TWAP.
  *      - When peg guard blocks an otherwise valid rebalance candidate, the upkeep also skips invest for
  *        that run so new capital is not deployed during an intentional depeg pause.
  * @dev Sampling and duration calculations are intentionally conservative. Time only accrues between adjacent
@@ -75,7 +75,7 @@ contract SaveFundsInvestAutomationRunner is
     uint256 internal constant REBALANCE_OSCILLATION_SIDE_TRIGGER = 18 hours;
     uint256 internal constant REBALANCE_WINDOW = 3 days;
     uint32 internal constant REBALANCE_PEG_GUARD_TWAP_WINDOW = 30 minutes;
-    uint16 internal constant REBALANCE_PEG_GUARD_BPS = 10;
+    uint16 internal constant DEFAULT_REBALANCE_PEG_GUARD_BPS = 10;
     uint16 internal constant REBALANCE_ORDINARY_ONE_SIDED_BPS = 500;
     uint16 internal constant REBALANCE_OSCILLATION_ONE_SIDED_BPS = 2_000;
     uint8 internal constant REBALANCE_SAMPLE_CAP = 16;
@@ -127,6 +127,7 @@ contract SaveFundsInvestAutomationRunner is
     bool[REBALANCE_SAMPLE_CAP] internal rebalanceSampleOutOfRange;
     uint8[REBALANCE_SAMPLE_CAP] internal rebalanceSampleRangeSides;
     uint16[REBALANCE_SAMPLE_CAP] internal rebalanceSampleInventoryOtherRatioBPS;
+    uint16 internal rebalancePegGuardBPS;
 
     /// @dev One sampled rebalance snapshot. "What do we see right now?"
     struct RebalanceObservation {
@@ -152,9 +153,6 @@ contract SaveFundsInvestAutomationRunner is
     event OnUpkeepAttempt(uint256 ts, uint256 idleAssets, uint16 otherRatioBPS, bytes32 bundleHash);
     event OnInvestSucceeded(uint256 ts, uint256 requestedAssets, uint256 investedAssets, uint16 otherRatioBPS);
     event OnInvestFailed(uint256 ts, bytes reason);
-    event OnRebalanceAttempt(
-        uint256 ts, int24 currentTick, int24 newTickLower, int24 newTickUpper, uint16 otherRatioBPS, bytes32 bundleHash
-    );
     event OnRebalanceSucceeded(
         uint256 ts, int24 currentTick, int24 newTickLower, int24 newTickUpper, uint16 otherRatioBPS
     );
@@ -366,6 +364,17 @@ contract SaveFundsInvestAutomationRunner is
         );
         swapToOtherBPS = swapToOtherBPS_;
         swapToUnderlyingBPS = swapToUnderlyingBPS_;
+    }
+
+    /**
+     * @notice Sets the peg-guard threshold used by rebalance safety checks.
+     * @dev The threshold is intentionally restricted to the operational 5-10 bps range.
+     *      When left unset, the runner uses the default 10 bps guard.
+     * @param bps Allowed peg-guard threshold in BPS.
+     */
+    function setPegGuardBPS(uint16 bps) external onlyOwner whenNotPaused {
+        require(bps >= 5 && bps <= DEFAULT_REBALANCE_PEG_GUARD_BPS, SaveFundsInvestAutomationRunner__OutOfRange());
+        rebalancePegGuardBPS = bps;
     }
 
     /**
@@ -760,10 +769,6 @@ contract SaveFundsInvestAutomationRunner is
         uint16 _otherRatioBPS = _resolveAutoOtherRatioBPSForRange(0, _newTickLower, _newTickUpper);
         bytes memory _rebalancePayload = abi.encode(_newTickLower, _newTickUpper, _buildUniV3Payload(_otherRatioBPS));
         (,, bytes memory _bundle) = _buildSingleStrategyBundle(_rebalancePayload);
-
-        emit OnRebalanceAttempt(
-            block.timestamp, _observation.currentTick, _newTickLower, _newTickUpper, _otherRatioBPS, keccak256(_bundle)
-        );
 
         try ISFStrategyMaintenance(aggregator).rebalance(_bundle) {
             lastSuccessfulRebalance = block.timestamp;
@@ -1194,8 +1199,9 @@ contract SaveFundsInvestAutomationRunner is
         uint256 _twapPriceE18 = _normalizedOtherPriceE18(_twapSqrtPriceX96);
         status_.spotPegDeviationBPS = _deviationBPS(_spotPriceE18, 1e18);
         status_.spotVsTwapDeviationBPS = _deviationBPS(_spotPriceE18, _twapPriceE18);
-        status_.passed = status_.spotPegDeviationBPS <= REBALANCE_PEG_GUARD_BPS
-            && status_.spotVsTwapDeviationBPS <= REBALANCE_PEG_GUARD_BPS;
+        uint16 _pegGuardBPS = rebalancePegGuardBPS == 0 ? DEFAULT_REBALANCE_PEG_GUARD_BPS : rebalancePegGuardBPS;
+        status_.passed =
+            status_.spotPegDeviationBPS <= _pegGuardBPS && status_.spotVsTwapDeviationBPS <= _pegGuardBPS;
     }
 
     /**
