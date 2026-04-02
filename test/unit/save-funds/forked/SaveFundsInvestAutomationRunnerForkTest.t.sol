@@ -110,8 +110,8 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
 
         upgradeRunner.initializeV2();
 
-        assertEq(upgradeRunner.rebalanceCheckInterval(), 12 hours);
-        assertEq(upgradeRunner.lastRebalanceCheck(), block.timestamp - 12 hours);
+        assertEq(upgradeRunner.rebalanceCheckInterval(), 6 hours);
+        assertEq(upgradeRunner.lastRebalanceCheck(), block.timestamp - 6 hours);
         assertEq(upgradeRunner.lastSuccessfulRebalance(), ARBITRUM_ONE_LAST_SUCCESSFUL_REBALANCE);
         assertTrue(upgradeRunner.rebalanceEnabled());
     }
@@ -127,12 +127,17 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertEq(runner.interval(), 1 hours);
     }
 
-    function testRunnerFork_setRebalanceCheckInterval_BelowDaily_RevertsWhenTestModeDisabled() public {
+    function testRunnerFork_setRebalanceCheckInterval_BelowSixHours_RevertsWhenTestModeDisabled() public {
         vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__TooSmall.selector);
         runner.setRebalanceCheckInterval(1 hours);
     }
 
-    function testRunnerFork_setRebalanceCheckInterval_BelowDaily_AllowsWhenTestModeEnabled() public {
+    function testRunnerFork_setRebalanceCheckInterval_SixHours_AllowsWhenTestModeDisabled() public {
+        runner.setRebalanceCheckInterval(6 hours);
+        assertEq(runner.rebalanceCheckInterval(), 6 hours);
+    }
+
+    function testRunnerFork_setRebalanceCheckInterval_BelowSixHours_AllowsWhenTestModeEnabled() public {
         if (!runner.testMode()) runner.toggleTestMode();
         runner.setRebalanceCheckInterval(1 hours);
         assertEq(runner.rebalanceCheckInterval(), 1 hours);

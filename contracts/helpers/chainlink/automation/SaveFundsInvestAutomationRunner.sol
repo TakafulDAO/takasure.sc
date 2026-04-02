@@ -24,8 +24,8 @@
  *      - When peg guard blocks an otherwise valid rebalance candidate, the upkeep also skips invest for
  *        that run so new capital is not deployed during an intentional depeg pause.
  * @dev Sampling and duration calculations are intentionally conservative. Time only accrues between adjacent
- *      samples that confirm the same condition, so an 18-hour oscillation threshold with a 12-hour cadence
- *      effectively requires 24 observed hours on-chain.
+ *      samples that confirm the same condition. With a 6-hour rebalance cadence, the 18-hour oscillation
+ *      threshold can be measured directly.
  */
 
 pragma solidity 0.8.28;
@@ -66,6 +66,7 @@ contract SaveFundsInvestAutomationRunner is
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
     uint256 internal constant DAILY_INTERVAL = 12 hours;
+    uint256 internal constant REBALANCE_MIN_INTERVAL = 6 hours;
     INonfungiblePositionManager internal constant POSITION_MANAGER =
         INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
 
@@ -134,8 +135,8 @@ contract SaveFundsInvestAutomationRunner is
         uint16 inventoryOtherRatioBPS;
     }
 
-    /// @dev Current peg-guard diagnostics. Written when rebalance is blocked, helps to know if it was an absolute depeg or spot-vs-TWAP divergence.
-    ///
+    /// @dev Current peg-guard diagnostics used to decide whether a qualified rebalance remains safe.
+    ///      The two deviation fields distinguish absolute depeg from spot-vs-TWAP divergence.
     struct PegGuardStatus {
         bool passed;
         uint16 spotPegDeviationBPS;
@@ -277,12 +278,13 @@ contract SaveFundsInvestAutomationRunner is
 
     /**
      * @notice Sets the cadence used to observe out-of-range conditions for rebalance.
-     * @dev Uses the same minimum interval guard as invest cadence unless `testMode` is enabled.
+     * @dev Rebalance checks can run more frequently than invest cadence. Minimum allowed value is
+     *      6 hours unless `testMode` is enabled.
      * @param newIntervalSeconds New rebalance observation interval in seconds.
      */
     function setRebalanceCheckInterval(uint256 newIntervalSeconds) external onlyOwner {
         require(
-            newIntervalSeconds >= DAILY_INTERVAL || (testMode && newIntervalSeconds > 0),
+            newIntervalSeconds >= REBALANCE_MIN_INTERVAL || (testMode && newIntervalSeconds > 0),
             SaveFundsInvestAutomationRunner__TooSmall()
         );
         rebalanceCheckInterval = newIntervalSeconds;
@@ -1411,7 +1413,7 @@ contract SaveFundsInvestAutomationRunner is
      * @notice Seeds rebalance-specific runtime state for the upgrade.
      * @dev The state is initialized so the first upkeep after an upgrade can immediately
      *      rebalance if the live position already qualifies under the new rules:
-     *      - the rebalance check window is already open
+     *      - the rebalance check window is already open using the 6-hour default rebalance cadence
      *      - one synthetic sample is seeded 24 hours in the past using the live side and inventory ratio
      *      - the historical Arbitrum One last successful rebalance timestamp is preserved for bookkeeping
      *      The fixed-size sample arrays are explicitly zeroed first so reused proxies do not
@@ -1421,8 +1423,8 @@ contract SaveFundsInvestAutomationRunner is
     function _initializeRebalanceState() internal {
         RebalanceObservation memory _observation = _currentRebalanceObservation();
 
-        rebalanceCheckInterval = DAILY_INTERVAL;
-        lastRebalanceCheck = block.timestamp - DAILY_INTERVAL;
+        rebalanceCheckInterval = REBALANCE_MIN_INTERVAL;
+        lastRebalanceCheck = block.timestamp - REBALANCE_MIN_INTERVAL;
         lastSuccessfulRebalance = 1_774_106_444; // March 21 rebalance.
         rebalanceEnabled = true;
         rebalanceSampleCount = 1;
