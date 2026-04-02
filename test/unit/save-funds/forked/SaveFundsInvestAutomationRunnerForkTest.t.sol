@@ -417,6 +417,67 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertEq(runner.lastSuccessfulRebalance(), seededTs);
     }
 
+    function testRunnerFork_seedRebalanceScenario_SetsLastRebalanceCheck() public {
+        uint256 seededTs = block.timestamp - 3 hours;
+        uint64[] memory samples = new uint64[](0);
+        runner.seedRebalanceScenario(seededTs, samples);
+        assertEq(runner.lastRebalanceCheck(), seededTs);
+    }
+
+    function testRunnerFork_seedRebalanceScenario_RevertsOnInvalidInput() public {
+        uint64[] memory samples = new uint64[](17);
+        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__OutOfRange.selector);
+        runner.seedRebalanceScenario(block.timestamp, samples);
+
+        samples = new uint64[](2);
+        samples[0] = _packRebalanceSample(uint40(block.timestamp - 24 hours), 1, 9_500);
+        samples[1] = _packRebalanceSample(uint40(block.timestamp - 12 hours), 3, 9_700);
+        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__OutOfRange.selector);
+        runner.seedRebalanceScenario(block.timestamp, samples);
+
+        samples[1] = _packRebalanceSample(uint40(block.timestamp - 24 hours), 1, 9_700);
+        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__OutOfRange.selector);
+        runner.seedRebalanceScenario(block.timestamp, samples);
+    }
+
+    function testRunnerFork_harness_SeedRebalanceScenario_SetsAndClearsHistory() public {
+        SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+
+        uint64[] memory samples = new uint64[](3);
+        uint40 ts0 = uint40(block.timestamp - 72 hours);
+        uint40 ts1 = uint40(block.timestamp - 36 hours);
+        uint40 ts2 = uint40(block.timestamp - 6 hours);
+
+        samples[0] = _packRebalanceSample(ts0, 1, 9_600);
+        samples[1] = _packRebalanceSample(ts1, 1, 9_700);
+        samples[2] = _packRebalanceSample(ts2, 2, 8_400);
+
+        harness.exposedSeedRebalanceScenario(block.timestamp - 3 hours, samples);
+
+        assertEq(harness.exposedRebalanceSampleCount(), 3);
+        assertEq(harness.exposedRebalanceSampleHead(), 3);
+        assertEq(harness.exposedLastRebalanceCheck(), block.timestamp - 3 hours);
+        assertEq(harness.exposedRebalanceSampleTimestamp(0), ts0);
+        assertEq(harness.exposedRebalanceSampleTimestamp(1), ts1);
+        assertEq(harness.exposedRebalanceSampleTimestamp(2), ts2);
+        assertTrue(harness.exposedRebalanceSampleOutOfRange(0));
+        assertTrue(harness.exposedRebalanceSampleOutOfRange(1));
+        assertTrue(harness.exposedRebalanceSampleOutOfRange(2));
+        assertEq(harness.exposedRebalanceSampleRangeSide(0), 1);
+        assertEq(harness.exposedRebalanceSampleRangeSide(1), 1);
+        assertEq(harness.exposedRebalanceSampleRangeSide(2), 2);
+        assertEq(harness.exposedRebalanceSampleInventoryOtherRatioBPS(0), 9_600);
+        assertEq(harness.exposedRebalanceSampleInventoryOtherRatioBPS(1), 9_700);
+        assertEq(harness.exposedRebalanceSampleInventoryOtherRatioBPS(2), 8_400);
+
+        uint64[] memory emptySamples = new uint64[](0);
+        harness.exposedSeedRebalanceScenario(block.timestamp - 1 hours, emptySamples);
+
+        assertEq(harness.exposedRebalanceSampleCount(), 0);
+        assertEq(harness.exposedRebalanceSampleHead(), 0);
+        assertEq(harness.exposedLastRebalanceCheck(), block.timestamp - 1 hours);
+    }
+
     function testRunnerFork_harness_ObserveAndMaybeRebalance_BlocksCandidateOnPegGuard() public {
         SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
         MockPoolForRunnerHarness poolMock = new MockPoolForRunnerHarness();
@@ -956,6 +1017,14 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         if (tick > 0 && r != 0) q += 1;
         return q * spacing;
     }
+
+    function _packRebalanceSample(uint40 timestamp, uint8 rangeSide, uint16 inventoryOtherRatioBPS)
+        internal
+        pure
+        returns (uint64)
+    {
+        return (uint64(timestamp) << 24) | (uint64(rangeSide) << 16) | uint64(inventoryOtherRatioBPS);
+    }
 }
 
 contract AddressGetter is GetContractAddress {
@@ -1027,6 +1096,32 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
         _recordRebalanceSample(rangeSide, inventoryOtherRatioBPS);
     }
 
+    function exposedSeedRebalanceScenario(uint256 ts, uint64[] calldata packedSamples) external {
+        lastRebalanceCheck = ts;
+
+        uint256 _len = packedSamples.length;
+        if (_len > REBALANCE_SAMPLE_CAP) revert SaveFundsInvestAutomationRunner__OutOfRange();
+
+        uint40 _previousTs;
+        for (uint256 i; i < _len; ++i) {
+            uint64 _packed = packedSamples[i];
+            uint40 _sampleTs = uint40(_packed >> 24);
+            uint8 _rangeSide = uint8(_packed >> 16);
+
+            if (_rangeSide > RANGE_SIDE_ABOVE) revert SaveFundsInvestAutomationRunner__OutOfRange();
+            if (i != 0 && _sampleTs <= _previousTs) revert SaveFundsInvestAutomationRunner__OutOfRange();
+
+            rebalanceSampleTimestamps[i] = _sampleTs;
+            rebalanceSampleOutOfRange[i] = _rangeSide != RANGE_SIDE_IN_RANGE;
+            rebalanceSampleRangeSides[i] = _rangeSide;
+            rebalanceSampleInventoryOtherRatioBPS[i] = uint16(_packed);
+            _previousTs = _sampleTs;
+        }
+
+        rebalanceSampleCount = uint8(_len);
+        rebalanceSampleHead = uint8(_len % REBALANCE_SAMPLE_CAP);
+    }
+
     function exposedClearRebalanceSamples() external {
         _clearRebalanceSamples();
     }
@@ -1066,6 +1161,10 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
 
     function exposedRebalanceSampleHead() external view returns (uint8) {
         return rebalanceSampleHead;
+    }
+
+    function exposedLastRebalanceCheck() external view returns (uint256) {
+        return lastRebalanceCheck;
     }
 
     function exposedRebalanceSampleTimestamp(uint256 index) external view returns (uint256) {

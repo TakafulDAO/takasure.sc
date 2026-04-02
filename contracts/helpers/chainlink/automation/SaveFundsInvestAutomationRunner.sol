@@ -149,7 +149,6 @@ contract SaveFundsInvestAutomationRunner is
 
     event OnUpkeepSkippedPaused(uint256 ts);
     event OnUpkeepSkippedLowIdle(uint256 ts, uint256 idleAssets, uint256 minIdleAssets);
-    event OnUpkeepSkippedAllocation(uint256 ts);
     event OnUpkeepAttempt(uint256 ts, uint256 idleAssets, uint16 otherRatioBPS, bytes32 bundleHash);
     event OnInvestSucceeded(uint256 ts, uint256 requestedAssets, uint256 investedAssets, uint16 otherRatioBPS);
     event OnInvestFailed(uint256 ts, bytes reason);
@@ -406,6 +405,47 @@ contract SaveFundsInvestAutomationRunner is
         lastSuccessfulRebalance = ts;
     }
 
+    /**
+     * @notice Seeds the rebalance scenario used by the next upkeep evaluation.
+     * @dev This is the operator-facing shortcut for "make the live runner reflect the situation
+     *      we already know exists off-chain". `lastSuccessfulRebalance` is kept as a separate
+     *      setter because it is bookkeeping-only, while this function focuses on the trigger state:
+     *      - `lastRebalanceCheck` opens or delays the next rebalance sampling window
+     *      - `packedSamples` replaces the active rebalance sample history oldest-to-newest
+     *
+     *      Each sample packs `{timestamp:uint40, rangeSide:uint8, inventoryOtherRatioBPS:uint16}`
+     *      into one `uint64` as `(timestamp << 24) | (rangeSide << 16) | inventoryOtherRatioBPS`.
+     *      Passing an empty array clears the active sample window without paying to zero every
+     *      inactive slot, which keeps this operator hook smaller and cheaper.
+     * @param ts Timestamp to store as `lastRebalanceCheck`.
+     * @param packedSamples Packed rebalance samples supplied oldest-to-newest.
+     */
+    function seedRebalanceScenario(uint256 ts, uint64[] calldata packedSamples) external onlyOwner {
+        lastRebalanceCheck = ts;
+
+        uint256 _len = packedSamples.length;
+        if (_len > REBALANCE_SAMPLE_CAP) revert SaveFundsInvestAutomationRunner__OutOfRange();
+
+        uint40 _previousTs;
+        for (uint256 i; i < _len; ++i) {
+            uint64 _packed = packedSamples[i];
+            uint40 _sampleTs = uint40(_packed >> 24);
+            uint8 _rangeSide = uint8(_packed >> 16);
+
+            if (_rangeSide > RANGE_SIDE_ABOVE) revert SaveFundsInvestAutomationRunner__OutOfRange();
+            if (i != 0 && _sampleTs <= _previousTs) revert SaveFundsInvestAutomationRunner__OutOfRange();
+
+            rebalanceSampleTimestamps[i] = _sampleTs;
+            rebalanceSampleOutOfRange[i] = _rangeSide != RANGE_SIDE_IN_RANGE;
+            rebalanceSampleRangeSides[i] = _rangeSide;
+            rebalanceSampleInventoryOtherRatioBPS[i] = uint16(_packed);
+            _previousTs = _sampleTs;
+        }
+
+        rebalanceSampleCount = uint8(_len);
+        rebalanceSampleHead = uint8(_len % REBALANCE_SAMPLE_CAP);
+    }
+
     /*//////////////////////////////////////////////////////////////
                             KEEPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -491,7 +531,6 @@ contract SaveFundsInvestAutomationRunner is
 
         if (strictUniOnlyAllocation && !_isUniOnlyAllocation()) {
             lastRun = block.timestamp;
-            emit OnUpkeepSkippedAllocation(block.timestamp);
             return;
         }
 
@@ -1416,9 +1455,9 @@ contract SaveFundsInvestAutomationRunner is
      *      - the rebalance check window is already open using the 6-hour default rebalance cadence
      *      - one synthetic sample is seeded 24 hours in the past using the live side and inventory ratio
      *      - the historical Arbitrum One last successful rebalance timestamp is preserved for bookkeeping
-     *      The fixed-size sample arrays are explicitly zeroed first so reused proxies do not
-     *      inherit stale buffered history.
-     * @dev The seeded sample mirrors the live snapshot at initialization time so first-upkeep depends on real conditions.
+     *      The seeded sample mirrors the live snapshot at initialization time so first-upkeep
+     *      depends on real conditions. The appended rebalance storage starts zeroed on the live
+     *      proxy, so there is no need to pay to clear the ring buffer here before writing slot `0`.
      */
     function _initializeRebalanceState() internal {
         RebalanceObservation memory _observation = _currentRebalanceObservation();
@@ -1429,14 +1468,6 @@ contract SaveFundsInvestAutomationRunner is
         rebalanceEnabled = true;
         rebalanceSampleCount = 1;
         rebalanceSampleHead = 1;
-
-        // Reset the entire ring buffer so a newly upgraded proxy starts sampling from scratch.
-        for (uint256 i; i < REBALANCE_SAMPLE_CAP; ++i) {
-            rebalanceSampleTimestamps[i] = 0;
-            rebalanceSampleOutOfRange[i] = false;
-            rebalanceSampleRangeSides[i] = RANGE_SIDE_IN_RANGE;
-            rebalanceSampleInventoryOtherRatioBPS[i] = 0;
-        }
 
         rebalanceSampleTimestamps[0] = uint40(block.timestamp - REBALANCE_CONSECUTIVE_TRIGGER);
         rebalanceSampleOutOfRange[0] = _observation.rangeSide != RANGE_SIDE_IN_RANGE;
