@@ -1200,8 +1200,7 @@ contract SaveFundsInvestAutomationRunner is
         status_.spotPegDeviationBPS = _deviationBPS(_spotPriceE18, 1e18);
         status_.spotVsTwapDeviationBPS = _deviationBPS(_spotPriceE18, _twapPriceE18);
         uint16 _pegGuardBPS = rebalancePegGuardBPS == 0 ? DEFAULT_REBALANCE_PEG_GUARD_BPS : rebalancePegGuardBPS;
-        status_.passed =
-            status_.spotPegDeviationBPS <= _pegGuardBPS && status_.spotVsTwapDeviationBPS <= _pegGuardBPS;
+        status_.passed = status_.spotPegDeviationBPS <= _pegGuardBPS && status_.spotVsTwapDeviationBPS <= _pegGuardBPS;
     }
 
     /**
