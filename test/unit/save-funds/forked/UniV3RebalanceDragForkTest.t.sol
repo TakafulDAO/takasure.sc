@@ -78,11 +78,11 @@ contract UniV3RebalanceDragForkTest is Test {
         uint256 expectedHistoricalDragApproxUsd;
     }
 
-    uint256 internal constant HISTORICAL_BLOCK = 446153833;
-    int24 internal constant HISTORICAL_NEW_TICK_LOWER = 1;
-    int24 internal constant HISTORICAL_NEW_TICK_UPPER = 6;
-    uint16 internal constant HISTORICAL_OTHER_RATIO_BPS = 5_245;
-    uint256 internal constant HISTORICAL_PM_DEADLINE = 1_774_606_087;
+    uint256 internal constant HISTORICAL_BLOCK = 448607606;
+    int24 internal constant HISTORICAL_NEW_TICK_LOWER = -2;
+    int24 internal constant HISTORICAL_NEW_TICK_UPPER = 3;
+    uint16 internal constant HISTORICAL_OTHER_RATIO_BPS = 4_348;
+    uint256 internal constant HISTORICAL_PM_DEADLINE = 1_775_221_238;
     uint256 internal constant HISTORICAL_SWAP_DEADLINE = 0;
     uint16 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = uint256(1) << 255;
@@ -112,21 +112,21 @@ contract UniV3RebalanceDragForkTest is Test {
 
     function setUp() public {}
 
-    // It test pre upgrade at the moment the last rebalance happened, at block 446153833.
-    // The drag here is `legacy.dradApproxUsd
+    // Characterizes the legacy swap path at the latest historical rebalance checkpoint.
+    // The fork is created one block before the rebalance so we can replay it against the live pre-rebalance state.
     function testForkHistorical_rebalanceLegacyPath_CharacterizesSwapDrag() public {
         RebalanceDragMetrics memory legacy = _runHistoricalRebalanceScenario(false);
 
-        console2.log("legacy drag in USD approx (6 decimals):", legacy.dragApproxUsd); // 4_407_356
-        console2.log("legacy amountIn:", legacy.amountIn); // 9_525_563_619
-        console2.log("legacy amountOut:", legacy.amountOut); // 9_521_156_263
+        console2.log("legacy drag in USD approx (6 decimals):", legacy.dragApproxUsd); // 710_983
+        console2.log("legacy amountIn:", legacy.amountIn); // 8_466_832_751
+        console2.log("legacy amountOut:", legacy.amountOut); // 8_466_121_768
         console2.logInt(legacy.spotTickBefore);
 
         assertGt(legacy.amountIn, 0, "legacy swap amountIn is zero");
         assertGt(legacy.amountOut, 0, "legacy swap amountOut is zero");
         assertGt(legacy.dragApproxUsd, 0, "legacy drag should be positive");
-        assertGt(legacy.dragApproxUsd, 4_000_000, "legacy drag should be meaningful");
-        assertLt(legacy.dragApproxUsd, 5_000_000, "legacy drag moved away from the historical range");
+        assertGt(legacy.dragApproxUsd, 700_000, "legacy drag should be meaningful");
+        assertLt(legacy.dragApproxUsd, 800_000, "legacy drag moved away from the historical range");
     }
 
     // This is post upgrade with the onchain route selection, at the same block
@@ -135,15 +135,15 @@ contract UniV3RebalanceDragForkTest is Test {
         RebalanceDragMetrics memory upgraded = _runHistoricalRebalanceScenario(true);
         RouteSelectionMetrics memory routeSelection = lastRouteSelectionMetrics;
 
-        console2.log("legacy drag in USD approx (6 decimals):", legacy.dragApproxUsd); // 4_407_356
-        console2.log("upgraded drag in USD approx (6 decimals):", upgraded.dragApproxUsd); // 4_284_690
-        console2.log("legacy amountIn:", legacy.amountIn); // 9_525_563_619
-        console2.log("upgraded amountIn:", upgraded.amountIn); // 9_525_563_619
-        console2.log("legacy amountOut:", legacy.amountOut); // 9_521_156_263
-        console2.log("upgraded amountOut:", upgraded.amountOut); // 9_521_278_929
-        console2.log("selected route id:", routeSelection.selectedRouteId); // 2 (V4 single hop)
-        console2.log("quoted v3 amountOut:", routeSelection.v3QuotedOut); // 9_521_156_263
-        console2.log("quoted v4 amountOut:", routeSelection.v4QuotedOut); // 9_521_278_929
+        console2.log("legacy drag in USD approx (6 decimals):", legacy.dragApproxUsd); // 710_983
+        console2.log("upgraded drag in USD approx (6 decimals):", upgraded.dragApproxUsd); // 308_902
+        console2.log("legacy amountIn:", legacy.amountIn); // 8_466_832_751
+        console2.log("upgraded amountIn:", upgraded.amountIn); // 8_466_832_751
+        console2.log("legacy amountOut:", legacy.amountOut); // 8_466_121_768
+        console2.log("upgraded amountOut:", upgraded.amountOut); // 8_466_523_849
+        console2.log("selected route id:", routeSelection.selectedRouteId); // 2
+        console2.log("quoted v3 amountOut:", routeSelection.v3QuotedOut);
+        console2.log("quoted v4 amountOut:", routeSelection.v4QuotedOut);
 
         assertEq(upgraded.oldTickLower, legacy.oldTickLower, "old lower tick mismatch");
         assertEq(upgraded.oldTickUpper, legacy.oldTickUpper, "old upper tick mismatch");
@@ -160,8 +160,9 @@ contract UniV3RebalanceDragForkTest is Test {
         assertGt(routeSelection.v4QuotedOut, routeSelection.v3QuotedOut, "V4 quote should be better onchain");
     }
 
-    function testForkHistorical_rebalance_OnchainBestRouteSelection_ReducesCumulativeSwapDragAcrossHistoricalRebalances(
-    ) public {
+    function testForkHistorical_rebalance_OnchainBestRouteSelection_ReducesCumulativeSwapDragAcrossHistoricalRebalances()
+        public
+    {
         HistoricalRebalanceScenario[7] memory scenarios = _historicalRebalanceScenarios();
         uint256 totalHistoricalDragApproxUsd;
         uint256 totalLegacyReplayDragApproxUsd;
@@ -219,11 +220,7 @@ contract UniV3RebalanceDragForkTest is Test {
             10_000,
             "legacy cumulative replay drifted away from historical drag"
         );
-        assertLt(
-            totalUpgradedDragApproxUsd,
-            totalLegacyReplayDragApproxUsd,
-            "upgraded cumulative drag should be lower"
-        );
+        assertLt(totalUpgradedDragApproxUsd, totalLegacyReplayDragApproxUsd, "upgraded cumulative drag should be lower");
     }
 
     // Where is the drag?
@@ -234,22 +231,20 @@ contract UniV3RebalanceDragForkTest is Test {
         SwapDragBreakdown memory legacyBreakdown = _buildDragBreakdown(legacy, pool.fee());
         SwapDragBreakdown memory upgradedBreakdown = _buildDragBreakdown(upgraded, SWAP_V4_POOL_FEE);
 
-        console2.log("legacy total drag in USD approx (6 decimals):", legacyBreakdown.totalDragApproxUsd); // 4_407_356
-        console2.log("legacy fee-only drag in USD approx (6 decimals):", legacyBreakdown.feeCostApproxUsd); // 952_556
-        console2.log("legacy non-fee drag in USD approx (6 decimals):", legacyBreakdown.nonFeeCostApproxUsd); // 3_454_800
-        console2.log("upgraded total drag in USD approx (6 decimals):", upgradedBreakdown.totalDragApproxUsd); // 4_284_690 The total drag is less
-        console2.log("upgraded fee-only drag in USD approx (6 decimals):", upgradedBreakdown.feeCostApproxUsd); // 76_204 The fee cost is less
-        console2.log("upgraded non-fee drag in USD approx (6 decimals):", upgradedBreakdown.nonFeeCostApproxUsd); // 4_208_486 The non-fee cost is more
+        console2.log("legacy total drag in USD approx (6 decimals):", legacyBreakdown.totalDragApproxUsd);
+        console2.log("legacy fee-only drag in USD approx (6 decimals):", legacyBreakdown.feeCostApproxUsd);
+        console2.log("legacy non-fee drag in USD approx (6 decimals):", legacyBreakdown.nonFeeCostApproxUsd);
+        console2.log("upgraded total drag in USD approx (6 decimals):", upgradedBreakdown.totalDragApproxUsd);
+        console2.log("upgraded fee-only drag in USD approx (6 decimals):", upgradedBreakdown.feeCostApproxUsd);
+        console2.log("upgraded non-fee drag in USD approx (6 decimals):", upgradedBreakdown.nonFeeCostApproxUsd);
 
         assertGt(legacyBreakdown.totalDragApproxUsd, 0, "legacy total drag is zero");
         assertGt(upgradedBreakdown.totalDragApproxUsd, 0, "upgraded total drag is zero");
         assertLt(
             upgradedBreakdown.feeCostApproxUsd, legacyBreakdown.feeCostApproxUsd, "upgraded fee cost should be lower"
         );
-        assertGt(legacyBreakdown.nonFeeCostApproxUsd, legacyBreakdown.feeCostApproxUsd, "legacy drag is mostly non-fee");
-        assertGt(
-            upgradedBreakdown.nonFeeCostApproxUsd, upgradedBreakdown.feeCostApproxUsd, "upgraded drag is mostly non-fee"
-        );
+        assertEq(legacyBreakdown.nonFeeCostApproxUsd, 0, "legacy drag should be fully explained by fee floor");
+        assertGt(upgradedBreakdown.nonFeeCostApproxUsd, 0, "upgraded drag should retain some non-fee residual");
     }
 
     function testForkHistorical_rebalanceDiagnostic_MapsDragCurveAcrossTargetRatios() public {
@@ -283,32 +278,6 @@ contract UniV3RebalanceDragForkTest is Test {
             console2.log("curve upgraded total drag:", upgradedBreakdown.totalDragApproxUsd);
             console2.log("curve upgraded fee-only:", upgradedBreakdown.feeCostApproxUsd);
             console2.log("curve upgraded non-fee:", upgradedBreakdown.nonFeeCostApproxUsd);
-            /*
-            curve targetOtherRatioBps: 1000
-            curve amountIn: 18_029_457_954
-            curve legacy total drag: 8_354_270
-            curve upgraded total drag: 8_128_065
-            ====================================
-            curve targetOtherRatioBps: 3000
-            curve amountIn: 14_022_911_743
-            curve legacy total drag: 6_493_270
-            curve upgraded total drag: 6_315_144
-            ====================================
-            curve targetOtherRatioBps: 5245
-            curve amountIn: 9_525_563_619
-            curve legacy total drag: 4_407_356
-            curve upgraded total drag: 4_284_690
-            ====================================
-            curve targetOtherRatioBps: 7000
-            curve amountIn: 6_009_819_318
-            curve legacy total drag: 2_778_975
-            curve upgraded total drag: 2_700_761
-            ====================================
-            curve targetOtherRatioBps: 8500
-            curve amountIn: 3_004_909_659
-            curve legacy total drag: 1_388_765
-            curve upgraded total drag: 1_349_307
-                      */
         }
 
         assertGt(maxAmountIn, minAmountIn, "curve samples did not change swap size");
@@ -335,28 +304,6 @@ contract UniV3RebalanceDragForkTest is Test {
             console2.log("guardrail legacy drag:", legacy.dragApproxUsd);
             console2.log("guardrail upgraded drag:", upgraded.dragApproxUsd);
 
-            /*
-            twapWindow: 600
-            swapSlippageBps: 20
-            legacy drag: 4_407_356
-            upgraded drag: 4_284_690
-            ====================================
-            twapWindow: 300
-            swapSlippageBps: 30
-            legacy drag: 4_407_356
-            upgraded drag: 4_284_690
-            ====================================
-            twapWindow: 0
-            swapSlippageBps: 40
-            legacy drag: 4_407_356
-            upgraded drag: 4_284_690
-            ====================================
-            twapWindow: 60
-            swapSlippageBps: 40
-            legacy drag: 4_407_356
-            upgraded drag: 4_284_690
-                      */
-
             assertEq(legacy.amountIn, upgraded.amountIn, "guardrail amountIn mismatch");
             assertLt(upgraded.dragApproxUsd, legacy.dragApproxUsd, "guardrail V4 drag should be lower");
         }
@@ -378,68 +325,6 @@ contract UniV3RebalanceDragForkTest is Test {
         for (uint256 i; i < scenarios.length; ++i) {
             baseline = _runAndAssertTickRangeScenario(spotTick, scenarios[i], baseline, i == 0);
         }
-        /*
-        range lowerOffset: -3
-        range upperOffset: 3
-        new lower tick: 0
-        new upper tick: 6
-        range amountIn: 9_525_563_619 -> same accross all ranges
-        range legacy total drag: 4_407_356
-        range legacy fee-only: 952_556
-        range legacy non-fee: 3_454_800
-        range upgraded total drag: 4_284_690
-        range upgraded fee-only: 76_204
-        range upgraded non-fee: 4_208_486
-        ====================================
-        range lowerOffset: -3
-        range upperOffset: 4
-        new lower tick: 0
-        new upper tick: 7
-        range amountIn: 9_525_563_619
-        range legacy total drag: 4_407_356
-        range legacy fee-only: 952_556
-        range legacy non-fee: 3_454_800
-        range upgraded total drag: 4_284_690
-        range upgraded fee-only: 76_204
-        range upgraded non-fee: 4_208_486
-        ====================================
-        range lowerOffset: -4
-        range upperOffset: 4
-        new lower tick: -1
-        new upper tick: 7
-        range amountIn: 9_525_563_619
-        range legacy total drag: 4_407_356
-        range legacy fee-only: 952_556
-        range legacy non-fee: 3_454_800
-        range upgraded total drag: 4_284_690
-        range upgraded fee-only: 76_204
-        range upgraded non-fee: 4_208_486
-        ====================================
-        range lowerOffset: -4
-        range upperOffset: 5
-        new lower tick: -1
-        new upper tick: 8
-        range amountIn: 9_525_563_619
-        range legacy total drag: 4_407_356
-        range legacy fee-only: 952_556
-        range legacy non-fee: 3_454_800
-        range upgraded total drag: 4_284_690
-        range upgraded fee-only: 76_204
-        range upgraded non-fee: 4_208_486
-        ====================================
-        range lowerOffset: -5
-        range upperOffset: 5
-        new lower tick: -2
-        new upper tick: 8
-        range amountIn: 9_525_563_619
-        range legacy total drag: 4_407_356
-        range legacy fee-only: 952_556
-        range legacy non-fee: 3_454_800
-        range upgraded total drag: 4_284_690
-        range upgraded fee-only: 76_204
-        range upgraded non-fee: 4_208_486
-              */
-
         assertGt(baseline.amountIn, 0, "baseline amountIn is zero");
     }
 
@@ -795,11 +680,7 @@ contract UniV3RebalanceDragForkTest is Test {
         } else {
             uint24 poolFee = pool.fee();
             swapToOtherData = _encodeLegacyV3SwapDataExactInBps(
-                address(underlying),
-                address(otherToken),
-                poolFee,
-                HISTORICAL_SWAP_DEADLINE,
-                scenario.swapToOtherBps
+                address(underlying), address(otherToken), poolFee, HISTORICAL_SWAP_DEADLINE, scenario.swapToOtherBps
             );
             swapToUnderlyingData = _encodeLegacyV3SwapDataExactInBps(
                 address(otherToken),
@@ -835,11 +716,7 @@ contract UniV3RebalanceDragForkTest is Test {
         uint24 fee,
         uint256 deadline,
         uint16 amountInBps
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    ) internal view returns (bytes memory) {
         require(amountInBps <= MAX_BPS, "amountInBps>MAX_BPS");
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(
