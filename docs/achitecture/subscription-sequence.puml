@@ -1,0 +1,210 @@
+@startuml Subscription Module - Sequence Diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequenceArrowColor #555555
+skinparam sequenceLifeLineBorderColor #444444
+skinparam sequenceParticipantBorderColor #444444
+skinparam sequenceBoxBorderColor #666666
+skinparam defaultFontSize 11
+skinparam noteBorderColor #CC0000
+skinparam noteBackgroundColor #FF4444
+skinparam noteFontColor #FFFFFF
+
+title Subscription Module - Sequence Diagram
+
+' ============================================================
+' PARTICIPANTS
+' ============================================================
+
+actor "User" as user
+actor "Backend\n(BACKEND_ADMIN)" as backend
+actor "Operator\n(OPERATOR)" as operator
+participant "ReferralGateway" as rg #E1BEE7
+box "Modules" #E8F5E9
+  participant "SubscriptionModule" as sub #C8E6C9
+  participant "MainStorageModule" as ms #C8E6C9
+  participant "KYCModule" as kyc #C8E6C9
+  participant "ReferralRewardsModule" as rr #C8E6C9
+  participant "RevenueModule" as rev #C8E6C9
+end box
+participant "ModuleManager" as mm #BBDEFB
+participant "AddressManager" as am #BBDEFB
+participant "USDC" as usdc #EEEEEE
+
+note over sub #FF4444
+  <color:#FFFFFF><b>START HERE</b></color>
+end note
+
+' ============================================================
+' FLOW 1: USER PAYS SUBSCRIPTION (direct)
+' ============================================================
+
+== Flow 1: User Pays Subscription ==
+
+user -> sub ++ : pay subscription\n(plan price, optional parent)
+  sub -> mm : check module is enabled
+  sub -> ms : check user-initiated calls allowed
+  sub -> ms : fetch member data
+  sub -> rr ++ : calculate referral rewards\n(contribution, coupon, parent, fee)
+
+    rr -> rr : compute referral reserve\n(2% of contribution)
+
+    alt parent provided
+      rr -> kyc : check parent is KYC verified
+      kyc --> rr : KYC status
+
+      alt parent is KYC verified
+        rr -> rr : compute child discount\n(5% of non-coupon contribution)
+        rr -> rr : store parent-child link
+
+        group Queue rewards for each parent layer
+          rr -> rr : Layer 1 (direct parent): 4%
+          rr -> rr : Layer 2 (grandparent): 1%
+          rr -> rr : Layer 3: 0.35%
+          rr -> rr : Layer 4: 0.175%
+        end
+        note right of rr : rewards are stored as\npending, paid out later\nin "reward parents" call
+        rr --> sub : fee (unchanged), discount, reserve amount
+      else parent not KYC verified
+        rr --> sub : fee (reduced by reserve), no discount, reserve amount
+      end
+
+    else no parent
+      rr -> rr : deduct reserve from fee
+      rr --> sub : fee (reduced by reserve), no discount, reserve amount
+    end
+  deactivate rr
+
+  group Token transfers
+    sub -> usdc : pull contribution from user
+    sub -> usdc : send fee to fee claimer
+    alt has referral reserve
+      sub -> usdc : send referral reserve\nto ReferralRewards
+    end
+  end
+
+  alt new member
+    sub -> ms : create association member\n(state: Inactive, awaiting KYC)
+  else rejoin (was refunded)
+    sub -> ms : update association member\n(keep same ID, reset state)
+  end
+
+  alt has parent
+    sub -> ms : fetch parent data
+    sub -> ms : add child to parent's referral tree
+  end
+sub --> user : subscription paid
+deactivate sub
+
+' ============================================================
+' FLOW 2: BACKEND PAYS ON BEHALF
+' ============================================================
+
+== Flow 2: Backend Pays on Behalf ==
+
+backend -> sub ++ : pay subscription on behalf\n(user, parent, price, coupon, start time)
+  sub -> mm : check module is enabled
+  sub -> am : verify caller is BACKEND_ADMIN\nor PROTOCOL__ROUTER
+
+  note right of sub : same internal flow\nas user direct payment\n(see Flow 1)
+
+  sub -> ms : create or update member
+sub --> backend : subscription paid
+deactivate sub
+
+' ============================================================
+' FLOW 3: JOIN FROM REFERRAL GATEWAY
+' ============================================================
+
+== Flow 3: Join from Referral Gateway ==
+
+user -> rg ++ : join via referral
+  rg -> sub ++ : join from referral gateway\n(user, parent, contribution, duration)
+    note right of sub : processes subscription\nwith gateway parameters
+  sub --> rg : done
+  deactivate sub
+rg --> user : joined
+deactivate rg
+
+' ============================================================
+' FLOW 4: TRANSFER SUBSCRIPTION TO RESERVE
+' ============================================================
+
+== Flow 4: Transfer Subscription to Reserve ==
+
+actor "BenefitModule\nor Backend" as caller
+caller -> sub ++ : transfer subscription to reserve\n(member wallet)
+  sub -> mm : check module is enabled
+  sub -> ms : fetch member data
+
+  alt caller is BenefitModule
+    sub -> sub : revenue type = Contribution
+  else caller is BACKEND_ADMIN
+    sub -> sub : revenue type = ContributionDonation
+  end
+
+  sub -> rr ++ : reward parents (child wallet)
+
+    loop for each parent layer (up to 4 tiers)
+      rr -> rr : fetch pending reward\nfor this parent-child pair
+      rr -> rr : clear pending reward\n(prevent double payment)
+      rr -> usdc : transfer reward to parent
+      alt transfer succeeded
+        rr -> rr : emit reward success
+      else transfer failed
+        rr -> rr : restore pending reward\n(allows retry later)
+      end
+      rr -> rr : move to next parent\nin referral chain
+    end
+
+  deactivate rr
+
+  group Revenue deposit
+    alt member had discount
+      sub -> usdc : pull discount amount\nfrom fee claimer
+    end
+    sub -> usdc : approve revenue module
+    sub -> rev : deposit revenue\n(amount after fee, revenue type)
+  end
+
+sub --> caller : amount transferred
+deactivate sub
+
+' ============================================================
+' FLOW 5: REFUND
+' ============================================================
+
+== Flow 5: Refund ==
+
+backend -> sub ++ : refund member
+  sub -> mm : check module is enabled
+  sub -> ms : fetch member data
+
+  group Validations
+    sub -> sub : member exists & not already refunded
+    sub -> sub : within 30-day refund window
+    sub -> sub : no benefit memberships
+    sub -> sub : no referral children
+  end
+
+  alt used coupon
+    sub -> usdc : return funds to coupon pool
+  else no coupon
+    sub -> usdc : return funds to user wallet
+  end
+
+  sub -> ms : mark member as refunded\n(reset all fields)
+sub --> backend : refund complete
+deactivate sub
+
+' ============================================================
+' FLOW 6: PLAN MANAGEMENT (Operator)
+' ============================================================
+
+== Flow 6: Plan Management ==
+
+operator -> sub : add association plan (price)
+operator -> sub : remove association plan (price)
+operator -> sub : disable association plan (price)
+
+@enduml
